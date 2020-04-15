@@ -6,7 +6,7 @@ config = {
             'postgres_name': 'jesse_db',
             'postgres_port': 5432,
             'postgres_username': 'jesse_user',
-            'postgres_password': '',
+            'postgres_password': 'password',
 
             'redis_host': 'localhost',
             'redis_port': 6379,
