@@ -7,7 +7,8 @@ In short, Jesse is more accurate than other solutions, and way more simple.
 In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months.
 
 ## Getting Started
-Head over to the installation section of the [documentation](https://docs.jesse-ai.com/docs/installation.html).
+Head over to the "getting started" section of the [documentation](https://docs.jesse-ai.com/docs/getting-started). The 
+documentation is short yet very informative. 
 
 ## Example Backtest Results
 Here's an example output for a backtest simulation:
