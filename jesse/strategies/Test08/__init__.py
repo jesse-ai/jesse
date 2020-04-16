@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_stats_for_a_strategy_without_losing_trades
 class Test08(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test08', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return False
 

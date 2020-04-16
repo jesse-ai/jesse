@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_on_route_canceled part 2 - ETHUSD
 class Test28(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test28', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return self.price == 10
 

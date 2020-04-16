@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_stop_loss_at_multiple_points
 class Test11(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test11', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return False
 

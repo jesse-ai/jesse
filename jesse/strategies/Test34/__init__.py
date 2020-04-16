@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_can_handle_multiple_entry_orders_too_close_to_each_other
 class Test34(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test34', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return self.index == 0
 

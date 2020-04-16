@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_filters
 class Test37(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test37', '0.0.1', exchange, symbol, timeframe)
-
     def prepare(self):
         """used it to do assertions"""
         if self.index in [3, 11]:

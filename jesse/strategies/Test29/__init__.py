@@ -3,8 +3,8 @@ from jesse.strategies import Strategy
 
 # test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 1 - BTCUSD
 class Test29(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test29', '0.0.1', exchange, symbol, timeframe)
+    def __init__(self):
+        super().__init__()
 
         self.vars['should_short'] = False
         self.vars['should_long'] = False

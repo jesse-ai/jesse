@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_is_smart_enough_to_open_positions_via_stop_orders
 class Test06(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test06', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         """A failing trade that gets closed with the stopLoss order."""
         return self.time == 1547200740000 + 60_000

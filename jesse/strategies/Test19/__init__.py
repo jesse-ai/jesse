@@ -3,9 +3,6 @@ import jesse.indicators as ta
 
 
 class Test19(Strategy):
-    def __init__(self, exchange, symbol, timeframe, hyper_parameters=None):
-        super().__init__('Test19', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return False
 

@@ -3,8 +3,8 @@ from jesse.strategies import Strategy
 
 # test_shared_vars [part 1]
 class Test32(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test32', '0.0.1', exchange, symbol, timeframe)
+    def __init__(self):
+        super().__init__()
 
         self.shared_vars['buy-eth'] = False
 

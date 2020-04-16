@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop_loss
 class Test14(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test14', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return self.price < 7
 

@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_average_take_profit_and_average_stop_loss
 class Test36(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test36', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         # filter_1 will pass 0, but not 8
         return self.index in [0, 8]

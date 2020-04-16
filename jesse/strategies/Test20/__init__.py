@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_conflicting_orders_2
 class Test20(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test20', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return self.index == 1
 

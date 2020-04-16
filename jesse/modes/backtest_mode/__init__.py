@@ -149,14 +149,22 @@ def simulator(candles, hyper_parameters=None):
     for r in router.routes:
         StrategyClass = jh.get_strategy_class(r.strategy_name)
 
+        # convert DNS string into hyper_parameters
         if r.dna and hyper_parameters is None:
             hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(), r.dna)
 
+        r.strategy = StrategyClass()
+        r.strategy.name = r.strategy_name
+        r.strategy.exchange = r.exchange
+        r.strategy.symbol = r.symbol
+        r.strategy.timeframe = r.timeframe
+
+        # init few objects that couldn't be initiated in Strategy __init__
+        r.strategy._init_objects()
+
         # inject hyper parameters (used for optimize_mode)
         if hyper_parameters is not None:
-            r.strategy = StrategyClass(r.exchange, r.symbol, r.timeframe, hyper_parameters)
-        else:
-            r.strategy = StrategyClass(r.exchange, r.symbol, r.timeframe)
+            r.strategy.hp = hyper_parameters
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 

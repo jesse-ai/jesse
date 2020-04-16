@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_average_take_profit_exception
 class Test38(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test38', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return self.index == 0
 

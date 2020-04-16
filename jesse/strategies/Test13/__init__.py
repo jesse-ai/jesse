@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_modifying_take_profit_after_part_of_position_is_already_reduced_with_profit
 class Test13(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test13', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return self.price < 7
 

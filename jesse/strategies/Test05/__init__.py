@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_is_smart_enough_to_open_positions_via_market_orders
 class Test05(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test05', '0.0.1', exchange, symbol, timeframe)
-
     def update(self):
         pass
 

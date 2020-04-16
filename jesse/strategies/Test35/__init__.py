@@ -3,9 +3,6 @@
 #
 # # test_can_handle_not_correctly_sorted_multiple_orders
 # class Test35(Strategy):
-#     def __init__(self, exchange, symbol, timeframe):
-#         super().__init__('Test35', '0.0.1', exchange, symbol, timeframe)
-#
 #     def should_long(self):
 #         return self.index == 0
 #

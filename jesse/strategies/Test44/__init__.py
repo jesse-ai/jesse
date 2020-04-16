@@ -4,9 +4,6 @@ from jesse.services import logger
 
 # test_inputs_get_rounded_behind_the_scene
 class Test44(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test44', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return self.index == 2
 

@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_on_route_stop_loss part 1 - BTCUSD
 class Test25(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test25', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         # buy on market at first candle, close when on_route_stop_loss event is fired
         return self.index == 0

@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_multiple_routes_can_communicate_with_each_other
 class Test03(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test03', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self):
         return False
 

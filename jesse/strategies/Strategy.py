@@ -1,4 +1,3 @@
-import math
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -19,13 +18,13 @@ from jesse.store import store
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
 
-    def __init__(self, name, version, exchange, symbol, timeframe):
+    def __init__(self):
         self.id = jh.generate_unique_id()
-        self.name = name
-        self.version = version
-        self.symbol = symbol
-        self.exchange = exchange
-        self.timeframe = timeframe
+        self.name = None
+        self.symbol = None
+        self.exchange = None
+        self.timeframe = None
+        self.hp = None
 
         self.index = 0
         self.vars = {}
@@ -47,12 +46,22 @@ class Strategy(ABC):
 
         self.trade = None
         self.trades_count = 0
-        self.position = selectors.get_position(exchange, symbol)
-        self.broker = Broker(self.position, exchange, symbol, timeframe)
 
         self._initial_qty = None
         self._is_executing = False
         self._is_initiated = False
+
+        self.position = None
+        self.broker = None
+
+    def _init_objects(self):
+        """
+        This method gets called after right creating the Strategy object. It
+        is just a workaround as a part of not being able to set them inside
+        self.__init__() for the purpose of removing __init__() methods from strategies.
+        """
+        self.position = selectors.get_position(self.exchange, self.symbol)
+        self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
     @property
     def is_reduced(self):
@@ -985,7 +994,6 @@ class Strategy(ABC):
             self.trade.id = order.id
             self.trade.strategy_name = self.name
             self.trade.exchange = order.exchange
-            self.trade.strategy_version = self.version
             self.trade.symbol = order.symbol
             self.trade.type = trade_types.LONG if order.side == sides.BUY else trade_types.SHORT
             self.trade.qty = order.qty

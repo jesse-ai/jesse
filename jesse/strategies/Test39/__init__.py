@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_average_stop_loss_exception
 class Test39(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test39', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return self.index == 0
 

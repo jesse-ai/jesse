@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_should_buy_and_execute_buy
 class Test01(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test01', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return self.index == 0
 

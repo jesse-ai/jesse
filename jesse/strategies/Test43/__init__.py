@@ -4,9 +4,6 @@ from jesse.services import logger
 
 # test_is_reduced
 class Test43(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test43', '0.0.1', exchange, symbol, timeframe)
-
     def should_long(self) -> bool:
         return self.index == 0
 

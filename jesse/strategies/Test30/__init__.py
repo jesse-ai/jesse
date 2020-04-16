@@ -3,9 +3,6 @@ from jesse.strategies import Strategy
 
 # test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 2 - ETHUSD
 class Test30(Strategy):
-    def __init__(self, exchange, symbol, timeframe):
-        super().__init__('Test30', '0.0.1', exchange, symbol, timeframe)
-
     def update_position(self):
         # increase position size
         if self.price == 20:
