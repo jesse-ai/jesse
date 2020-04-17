@@ -6,7 +6,7 @@ import jesse.helpers as jh
 
 class Coinbase(CandleExchange):
     def __init__(self):
-        super().__init__('Coinbase', 300, 0.4)
+        super().__init__('Coinbase', 300, 0.6)
         self.endpoint = 'https://api.pro.coinbase.com/products'
 
     def init_backup_exchange(self):
