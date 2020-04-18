@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import arrow
+import os
 
 import numpy as np
 import pandas as pd
@@ -105,6 +106,9 @@ def portfolio_vs_asset_returns():
         mode = 'LT'
     if mode == 'papertrade':
         mode = 'PT'
+
+    # make sure directories exist
+    os.makedirs('./storage/charts')
     file_path = 'storage/charts/{}-{}.png'.format(
         mode, str(arrow.utcnow())[0:19]
     ).replace(":", "-")
