@@ -107,7 +107,7 @@ def portfolio_vs_asset_returns():
         mode = 'PT'
     file_path = 'storage/charts/{}-{}.png'.format(
         mode, str(arrow.utcnow())[0:19]
-    )
+    ).replace(":", "-")
     plt.savefig(file_path)
     print(
         'Chart output saved at:\n{}'.format(file_path)
