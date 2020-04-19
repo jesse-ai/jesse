@@ -108,7 +108,7 @@ def portfolio_vs_asset_returns():
         mode = 'PT'
 
     # make sure directories exist
-    os.makedirs('./storage/charts')
+    os.makedirs('./storage/charts', exist_ok=True)
     file_path = 'storage/charts/{}-{}.png'.format(
         mode, str(arrow.utcnow())[0:19]
     ).replace(":", "-")
