@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.19'
+VERSION = '0.0.20'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 REQUIRED_PACKAGES = [
     'psycopg2-binary',
@@ -17,7 +17,6 @@ REQUIRED_PACKAGES = [
     'websocket-client',
     'TA-Lib',
     'matplotlib',
-    'redis',
     'empyrical',
     'blinker',
 ]

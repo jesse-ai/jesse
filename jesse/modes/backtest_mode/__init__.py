@@ -100,7 +100,7 @@ def _load_candles(start_date_str: str, finish_date_str: str):
             key = jh.key(exchange, symbol)
 
             cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
-            cached_value = cache.get_cache(cache_key)
+            cached_value = cache.get_value(cache_key)
             # if redis cache exists
             if cached_value:
                 candles_tuple = cached_value
@@ -126,7 +126,7 @@ def _load_candles(start_date_str: str, finish_date_str: str):
                 ))
 
             # cache it for near future calls
-            cache.set_cache(cache_key, tuple(candles_tuple))
+            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60*60*24*7)
 
             candles[key] = {
                 'exchange': exchange,

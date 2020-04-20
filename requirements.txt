@@ -13,6 +13,5 @@ timeloop==1.0.2
 websocket-client==0.57.0
 TA-Lib==0.4.17
 matplotlib==3.1.2
-redis==3.3.6
 empyrical==0.5.3
 blinker==1.4.0

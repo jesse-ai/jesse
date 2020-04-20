@@ -7,7 +7,7 @@ from jesse.models import Candle
 from jesse.services.cache import cache
 from jesse.store import store
 from jesse.services.candle import generate_candle_from_one_minutes
-from jesse.exceptions import Breaker, CandleNotFoundInDatabase
+from jesse.exceptions import CandleNotFoundInDatabase
 
 
 def load_required_candles(exchange: str, symbol: str, start_date_str: str, finish_date_str: str):
@@ -36,8 +36,8 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
     short_candles_count = int((pre_finish_date - pre_start_date) / 60_000)
 
     key = jh.key(exchange, symbol)
-    cache_key = '{}-{}-{}'.format(str(pre_start_date), str(pre_finish_date), key)
-    cached_value = cache.get_cache(cache_key)
+    cache_key = '{}-{}-{}'.format(jh.timestamp_to_date(pre_start_date), jh.timestamp_to_date(pre_finish_date), key)
+    cached_value = cache.get_value(cache_key)
 
     # if redis cache exists
     if cached_value:
@@ -57,7 +57,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         )
 
         # cache it for near future calls
-        cache.set_cache(cache_key, candles_tuple)
+        cache.set_value(cache_key, candles_tuple, expire_seconds=60*60*24*7)
 
     candles = np.array(candles_tuple)
 
