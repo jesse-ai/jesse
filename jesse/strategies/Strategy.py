@@ -607,7 +607,7 @@ class Strategy(ABC):
             # validation
             if self.should_short() and self.should_long():
                 raise exceptions.ConflictingRules(
-                    'should_sell and should_buy should not be true at the same time.'
+                    'should_short and should_long should not be true at the same time.'
                 )
 
             if self.should_long():
