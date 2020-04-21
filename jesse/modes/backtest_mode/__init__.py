@@ -101,7 +101,7 @@ def _load_candles(start_date_str: str, finish_date_str: str):
 
             cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
             cached_value = cache.get_value(cache_key)
-            # if redis cache exists
+            # if cache exists
             if cached_value:
                 candles_tuple = cached_value
             # not cached, get and cache for later calls in the next 5 minutes

@@ -7,11 +7,6 @@ config = {
             'postgres_port': 5432,
             'postgres_username': 'jesse_user',
             'postgres_password': 'password',
-
-            'redis_host': 'localhost',
-            'redis_port': 6379,
-            'redis_password': None,
-            'redis_expiration_seconds': 60 * 15,
         },
 
         'logging': {

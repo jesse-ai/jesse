@@ -39,7 +39,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
     cache_key = '{}-{}-{}'.format(jh.timestamp_to_date(pre_start_date), jh.timestamp_to_date(pre_finish_date), key)
     cached_value = cache.get_value(cache_key)
 
-    # if redis cache exists
+    # if cache exists
     if cached_value:
         candles_tuple = cached_value
     # not cached, get and cache for later calls in the next 5 minutes
