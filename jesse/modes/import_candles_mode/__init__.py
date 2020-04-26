@@ -46,7 +46,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
         click.confirm(
             'Importing {} days candles from "{}" for "{}". Maximum time it\'ll take '
             'to finish:"{} minutes" (duplicates will be skipped). All good?'
-                .format(days_count, exchange, symbol, time_to_finish), abort=True, default=True)
+                .format(days_count, exchange, symbol, round(time_to_finish, 2)), abort=True, default=True)
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
         for _ in range(candles_count):
@@ -248,7 +248,12 @@ def _get_candles_from_backup_exchange(
 
 def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
     if len(temp_candles) == 0:
-        raise ValueError('No candles were sent')
+        raise CandleNotFoundInExchange(
+            'No candles exists in the market for this day: {} \n'
+            'Try another start_date'.format(
+                jh.timestamp_to_time(start_timestamp)[:10],
+            )
+        )
 
     symbol = temp_candles[0]['symbol']
     exchange = temp_candles[0]['exchange']

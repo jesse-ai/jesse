@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.23'
+VERSION = '0.0.24'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 REQUIRED_PACKAGES = [
     'psycopg2-binary',
