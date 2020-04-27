@@ -1081,6 +1081,14 @@ class Strategy(ABC):
         return self.position.type == 'short'
 
     @property
+    def is_open(self):
+        return self.position.is_open
+
+    @property
+    def is_close(self):
+        return self.position.is_close
+
+    @property
     def average_stop_loss(self) -> float:
         if self._stop_loss is None:
             raise exceptions.InvalidStrategy('You cannot access self.average_stop_loss before setting self.stop_loss')
