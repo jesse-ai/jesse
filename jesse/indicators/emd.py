@@ -24,8 +24,8 @@ def emd(candles: np.ndarray, period=20, delta=0.5, fraction=0.1, sequential=Fals
 
     price = (candles[:, 3] + candles[:, 4]) / 2
     # bandpass filter
-    beta = math.cos(2 * np.pi / period)
-    gamma = 1 / math.cos(4 * np.pi * delta / period)
+    beta = math.cos(2 * math.pi / period)
+    gamma = 1 / math.cos(4 * math.pi * delta / period)
     alpha = gamma - math.sqrt(gamma * gamma - 1)
     bp = np.zeros_like(price)
 
