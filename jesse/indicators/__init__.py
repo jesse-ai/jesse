@@ -46,3 +46,4 @@ from .donchian import donchian
 from .frama import frama
 from .supertrend import supertrend
 from .emd import emd
+from .lrsi import lrsi

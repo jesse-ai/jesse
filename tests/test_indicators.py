@@ -661,3 +661,15 @@ def test_emd():
     assert len(seq.mean) == len(candles)
     assert len(seq.up) == len(candles)
     assert len(seq.low) == len(candles)
+
+def test_lrsi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.lrsi(candles)
+    seq = ta.lrsi(candles, sequential=True)
+
+    assert round(single, 2) == 0.1
+    assert round(seq[-2], 2) == 0.04
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
