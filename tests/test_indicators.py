@@ -642,3 +642,34 @@ def test_supertrend():
     assert seq.trend[-1] == single.trend
     assert len(seq.trend) == len(candles)
     assert len(seq.changed) == len(candles)
+
+
+def test_emd():
+    candles = np.array(mama_candles)
+
+    single = ta.emd(candles)
+    seq = ta.emd(candles, sequential=True)
+
+    assert type(single).__name__ == 'EMD'
+    assert round(single.mean, 2) == 3.12
+    assert round(single.up, 2) == 1.21
+    assert round(single.low, 2) == -0.28
+
+    assert seq.mean[-1] == single.mean
+    assert seq.up[-1] == single.up
+    assert seq.low[-1] == single.low
+    assert len(seq.mean) == len(candles)
+    assert len(seq.up) == len(candles)
+    assert len(seq.low) == len(candles)
+
+def test_lrsi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.lrsi(candles)
+    seq = ta.lrsi(candles, sequential=True)
+
+    assert round(single, 2) == 0.1
+    assert round(seq[-2], 2) == 0.04
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
