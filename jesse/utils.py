@@ -38,20 +38,20 @@ def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price) -> floa
     return size_to_qty(size, entry_price)
 
 
-def size_to_qty(position_size, price, precision=3) -> float:
+def size_to_qty(position_size, entry_price, precision=3) -> float:
     """
     converts position-size to quantity
-    example: requesting $100 at the price of %50 would return 2
+    example: requesting $100 at the entry_price of %50 would return 2
 
     :param position_size: float
-    :param price: float
+    :param entry_price: float
     :param precision: int
     :return: float
     """
-    if math.isnan(position_size) or math.isnan(price):
+    if math.isnan(position_size) or math.isnan(entry_price):
         raise TypeError()
 
-    return round(position_size / price, precision)
+    return round(position_size / entry_price, precision)
 
 
 def qty_to_size(qty, price) -> float:
