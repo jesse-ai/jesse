@@ -673,3 +673,14 @@ def test_lrsi():
     assert round(seq[-2], 2) == 0.04
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_tsi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.tsi(candles)
+    seq = ta.tsi(candles, sequential=True)
+
+    assert round(single, 1) == -20.5
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
