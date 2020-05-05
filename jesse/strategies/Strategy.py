@@ -725,6 +725,8 @@ class Strategy(ABC):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Position size increased.")
 
+        self._open_position_orders = []
+
         self._broadcast('route-increased-position')
 
         self.on_increased_position()
@@ -745,6 +747,8 @@ class Strategy(ABC):
         """
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Position size reduced.")
+
+        self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
 
