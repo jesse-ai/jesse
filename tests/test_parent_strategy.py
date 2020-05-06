@@ -886,6 +886,15 @@ def test_is_reduced():
     single_route_backtest('Test43')
 
 
+def test_can_close_a_long_position_and_go_short_at_the_same_candle():
+    single_route_backtest('Test45')
+    trades = store.completed_trades.trades
+
+    assert len(trades) == 1
+    assert store.app.total_open_trades == 1
+    # more assertions in the Test45 file
+
+
 # def test_inputs_get_rounded_behind_the_scene():
 #     set_up([(exchanges.SANDBOX, 'EOSUSD', timeframes.MINUTE_1, 'Test44')])
 #     candles = {}

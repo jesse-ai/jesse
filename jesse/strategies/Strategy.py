@@ -603,6 +603,9 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
+        if jh.is_backtesting():
+            store.orders.execute_pending_market_orders()
+
         if self.position.is_close and self._open_position_orders == []:
             # validation
             if self.should_short() and self.should_long():
