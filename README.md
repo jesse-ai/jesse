@@ -51,3 +51,6 @@ And here are generated charts:
 
 ## What's next?
 This is the very initial release. There's way more. Subscribe to our mailing list at [jesse-ai.com](https://jesse-ai.com) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
+
+## Community
+I've created a [forum](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out. 
