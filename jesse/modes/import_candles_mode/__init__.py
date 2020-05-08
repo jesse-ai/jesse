@@ -44,7 +44,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
     # ask for confirmation
     if not skip_confirmation:
         click.confirm(
-            'Importing {} days candles from "{}" for "{}". Maximum time it\'ll take '
+            'Importing {} days candles from "{}" for "{}". Minimum time it\'ll take '
             'to finish:"{} minutes" (duplicates will be skipped). All good?'
                 .format(days_count, exchange, symbol, round(time_to_finish, 2)), abort=True, default=True)
 
