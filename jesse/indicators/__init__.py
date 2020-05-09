@@ -48,3 +48,6 @@ from .supertrend import supertrend
 from .emd import emd
 from .lrsi import lrsi
 from .tsi import tsi
+from .fisher import fisher
+from .srsi import srsi
+from .vwma import vwma

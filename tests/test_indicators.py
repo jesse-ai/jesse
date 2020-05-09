@@ -662,6 +662,7 @@ def test_emd():
     assert len(seq.up) == len(candles)
     assert len(seq.low) == len(candles)
 
+
 def test_lrsi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -674,6 +675,7 @@ def test_lrsi():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_tsi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -684,3 +686,44 @@ def test_tsi():
     assert round(single, 1) == -20.5
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_srsi():
+    candles = np.array(srsi_candles)
+    period = 14
+
+    srsi = ta.srsi(candles)
+    k, d = srsi
+    assert type(srsi).__name__ == 'StochasticRSI'
+    assert round(k, 2) == 21.36
+    assert round(d, 2) == 12.4
+
+    srsi = ta.srsi(candles, period=period, sequential=True)
+    assert srsi.d[-1] == d
+    assert srsi.k[-1] == k
+    assert len(srsi.d) == len(candles)
+    assert len(srsi.k) == len(candles)
+
+
+def test_vwma():
+    candles = np.array(vwma_candles)
+    single = ta.vwma(candles)
+    seq = ta.vwma(candles, sequential=True)
+
+    assert round(single, 2) == 195.86
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_fisher():
+    candles = np.array(mama_candles)
+    single = ta.fisher(candles, period=9)
+    seq = ta.fisher(candles, period=9, sequential=True)
+
+    assert type(single).__name__ == 'FisherTransform'
+    assert round(single.fisher, 2) == -1.77
+    assert round(single.signal, 2) == -1.31
+
+    assert seq.fisher[-1] == single.fisher
+    # assert len(seq.fisher) == len(candles)
+    # assert len(seq.signal) == len(candles)

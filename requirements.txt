@@ -15,3 +15,4 @@ TA-Lib==0.4.17
 matplotlib==3.1.2
 empyrical==0.5.3
 blinker==1.4.0
+tulipy==0.4.0
