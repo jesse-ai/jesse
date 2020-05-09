@@ -1,5 +1,8 @@
 # Jesse
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/jesse) ![PyPI](https://img.shields.io/pypi/v/jesse) ![GitHub](https://img.shields.io/github/license/jesse-ai/jesse) ![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jesse-ai/jesse)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/jesse)](https://pypi.python.org/pypi/optuna)
+[![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.python.org/pypi/optuna)
+[![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/optuna/optuna)
+[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jesse-ai/jesse)](https://libraries.io/pypi/jesse)
 
 Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
 
