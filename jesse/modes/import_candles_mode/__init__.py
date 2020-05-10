@@ -40,13 +40,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
         raise ValueError('entered exchange is not supported')
 
     loop_length = int(candles_count / driver.count) + 1
-    time_to_finish = loop_length * driver.sleep_time / 60
     # ask for confirmation
     if not skip_confirmation:
         click.confirm(
-            'Importing {} days candles from "{}" for "{}". Maximum time it\'ll take '
-            'to finish:"{} minutes" (duplicates will be skipped). All good?'
-                .format(days_count, exchange, symbol, round(time_to_finish, 2)), abort=True, default=True)
+            'Importing {} days candles from "{}" for "{}". Duplicates will be skipped. All good?'
+                .format(days_count, exchange, symbol), abort=True, default=True)
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
         for _ in range(candles_count):
