@@ -90,6 +90,7 @@ def anchor_timeframe(timeframe) -> str:
         timeframes.HOUR_3: timeframes.DAY_1,
         timeframes.HOUR_4: timeframes.DAY_1,
         timeframes.HOUR_6: timeframes.DAY_1,
+        timeframes.HOUR_8: timeframes.DAY_1,
     }
 
     return dic[timeframe]

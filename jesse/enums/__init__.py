@@ -26,6 +26,7 @@ class timeframes:
     HOUR_3 = '3h'
     HOUR_4 = '4h'
     HOUR_6 = '6h'
+    HOUR_8 = '8h'
     DAY_1 = '1D'
 
 

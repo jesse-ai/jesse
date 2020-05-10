@@ -190,6 +190,7 @@ def timeframe_to_one_minutes(timeframe):
         timeframes.HOUR_3: 60 * 3,
         timeframes.HOUR_4: 60 * 4,
         timeframes.HOUR_6: 60 * 6,
+        timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
     }
 
@@ -201,6 +202,8 @@ def max_timeframe(timeframes_list):
 
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
+    if timeframes.HOUR_8 in timeframes_list:
+        return timeframes.HOUR_8
     if timeframes.HOUR_6 in timeframes_list:
         return timeframes.HOUR_6
     if timeframes.HOUR_4 in timeframes_list:
