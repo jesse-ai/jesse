@@ -1,6 +1,7 @@
 # Jesse
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/jesse)](https://pypi.org/project/jesse)
 [![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
+[![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 [![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jesse-ai/jesse)](https://libraries.io/pypi/jesse)
 
