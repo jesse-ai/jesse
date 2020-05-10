@@ -1,10 +1,15 @@
 # Jesse
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/jesse)](https://pypi.org/project/jesse)
+[![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue)](https://www.python.org/)
 [![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 [![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jesse-ai/jesse)](https://libraries.io/pypi/jesse)
-
+---
+[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse-ai.com)
+[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse-ai.com)
+[![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse-ai.com)
+[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse-ai.com/blog)
+---
 Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
 
 ## Why Jesse?
