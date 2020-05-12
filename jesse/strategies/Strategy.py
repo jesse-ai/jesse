@@ -574,6 +574,9 @@ class Strategy(ABC):
         if not self._is_initiated:
             self._is_initiated = True
 
+        if jh.is_live() and jh.is_debugging():
+            logger.info('Executing  {}-{}-{}-{}'.format(self.name, self.exchange, self.symbol, self.timeframe))
+
         # for caution to make sure testing on livetrade won't bleed your account
         if jh.is_test_driving() and store.completed_trades.count >= 2:
             logger.info('Maximum allowed trades in test-drive mode is reached')
