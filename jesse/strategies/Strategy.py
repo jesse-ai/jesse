@@ -1072,9 +1072,6 @@ class Strategy(ABC):
                 lambda o: abs(o.qty)
             )
 
-            if not jh.is_unit_testing():
-                store.orders.storage['{}-{}'.format(self.exchange, self.symbol)].clear()
-
             store.completed_trades.add_trade(self.trade)
             self.trade = None
             self.trades_count += 1

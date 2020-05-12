@@ -70,6 +70,9 @@ class Sandbox(Exchange):
         for o in orders:
             o.cancel()
 
+        if not jh.is_unit_testing():
+            store.orders.storage['{}-{}'.format(self.name, symbol)].clear()
+
     def cancel_order(self, symbol, order_id):
         store.orders.get_order_by_id(self.name, symbol, order_id).cancel()
 
