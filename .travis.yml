@@ -28,7 +28,9 @@ jobs:
         - pip3 install Cython numpy
         - pip3 install https://download.lfd.uci.edu/pythonlibs/s2jqpv5t/TA_Lib-0.4.18-cp38-cp38-win_amd64.whl
       env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
-install: pip3 install --upgrade pip  # all three OSes agree about 'pip3'
-# 'python' points to Python 2.7 on macOS but points to Python 3.8 on Linux and Windows
-# 'python3' is a 'command not found' error on Windows but 'py' works on Windows only
+install: 
+  - pip3 install --upgrade pip  # all three OSes agree about 'pip3'
+  - pip3 install -r https://raw.githubusercontent.com/jesse-ai/jesse/master/requirements.txt
+  - pip3 install jesse
+
 script: pytest
