@@ -15,7 +15,7 @@ before_install:
 install:
   - pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/master/requirements.txt
   - pip install -e git+https://github.com/jesse-ai/jesse.git#egg=jesse
-  - cd /src/jesse
+  - cd src/jesse
 # command to run tests
 script:
   - pytest
