@@ -13,9 +13,10 @@ before_install:
         - sudo make install
 # command to install dependencies
 install:
-  - pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/master/requirements.txt
-  - pip install -e git+https://github.com/jesse-ai/jesse.git#egg=jesse
+  - git clone https://github.com/jesse-ai/jesse jesse
+  - cd jesse
+  - pip install -r requirements.txt
+  
 # command to run tests
 script:
-  - cd src/jesse
   - pytest
