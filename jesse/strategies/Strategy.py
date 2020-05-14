@@ -173,7 +173,7 @@ class Strategy(ABC):
         # filters
         for f in self.filters():
             passed = f()
-            if passed is False:
+            if passed == False:
                 logger.info(f.__name__)
                 self._reset()
                 return
