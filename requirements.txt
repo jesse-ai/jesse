@@ -1,4 +1,4 @@
-allpsycopg2-binary==2.8.4
+psycopg2-binary==2.8.5
 pytest-watch==4.2.0
 pytest==5.4.2
 Click==7.1.2
