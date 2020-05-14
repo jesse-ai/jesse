@@ -65,3 +65,6 @@ This is the very initial release. There's way more. Subscribe to our mailing lis
 
 ## Community
 I've created a [forum](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out. 
+
+## Disclaimer
+This software is for educational purposes only. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS. Do not risk money which you are afraid to lose. There might be bugs in the code - this software DOES NOT come with ANY warranty.
