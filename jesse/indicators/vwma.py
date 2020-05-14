@@ -18,4 +18,4 @@ def vwma(candles: np.ndarray, period=20, sequential=False) -> Union[float, np.nd
 
     res = ti.vwma(np.ascontiguousarray(candles[:, 2]), np.ascontiguousarray(candles[:, 5]), period=period)
 
-    return np.concatenate((np.full((period - 1), np.nan), res), axis=0) if sequential else res[-1]
+    return np.concatenate((np.full((candles.shape[0]-res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
