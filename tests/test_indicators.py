@@ -746,3 +746,12 @@ def test_zlema():
     assert round(single, 0) == 189
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_hma():
+    candles = np.array(mama_candles)
+    single = ta.hma(candles)
+    seq = ta.hma(candles, sequential=True)
+
+    assert round(single, 0) == 134
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
