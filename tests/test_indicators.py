@@ -737,3 +737,12 @@ def test_ao():
     assert len(seq) == len(candles)
     assert seq[-1] == single
     assert round(seq[-2], 1) == -28.5
+
+def test_zlema():
+    candles = np.array(mama_candles)
+    single = ta.zlema(candles)
+    seq = ta.zlema(candles, sequential=True)
+
+    assert round(single, 0) == 189
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
