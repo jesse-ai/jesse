@@ -727,3 +727,13 @@ def test_fisher():
     assert seq.fisher[-1] == single.fisher
     # assert len(seq.fisher) == len(candles)
     # assert len(seq.signal) == len(candles)
+
+def test_ao():
+    candles = np.array(mama_candles)
+    single = ta.ao(candles)
+    seq = ta.ao(candles, sequential=True)
+
+    assert round(single, 0) == -46
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+    assert round(seq[-2], 1) == -28.5
