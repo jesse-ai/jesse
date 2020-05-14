@@ -725,8 +725,8 @@ def test_fisher():
     assert round(single.signal, 2) == -1.31
 
     assert seq.fisher[-1] == single.fisher
-    # assert len(seq.fisher) == len(candles)
-    # assert len(seq.signal) == len(candles)
+    assert len(seq.fisher) == len(candles)
+    assert len(seq.signal) == len(candles)
 
 def test_ao():
     candles = np.array(mama_candles)
