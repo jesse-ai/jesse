@@ -787,7 +787,7 @@ def test_gator():
     assert round(single.upper, 2) == 2.39
     assert round(single.upper_change, 2) == 0.98
     assert round(single.lower, 2) == -13.44
-    assert round(single.lower_change, 2) == -5.06
+    assert round(single.lower_change, 2) == 5.06
 
     assert seq.upper[-1] == single.upper
     assert len(seq.upper) == len(candles)
