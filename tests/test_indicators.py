@@ -782,12 +782,23 @@ def test_gator():
     single = ta.gatorosc(candles)
     seq = ta.gatorosc(candles, sequential=True)
 
-    print(seq)
     assert type(single).__name__ == 'GATOR'
     assert round(single.upper, 2) == 2.39
-    assert round(single.upper_change, 2) == 0.98
+    assert round(single.upper_change, 2) > 0
     assert round(single.lower, 2) == -13.44
-    assert round(single.lower_change, 2) == -5.06
+    assert round(single.lower_change, 2) < 0
 
     assert seq.upper[-1] == single.upper
     assert len(seq.upper) == len(candles)
+
+def test_ac():
+    candles = np.array(mama_candles)
+    single = ta.acosc(candles)
+    seq = ta.acosc(candles, sequential=True)
+
+    assert type(single).__name__ == 'AC'
+    assert round(single.osc, 0) == -22
+    assert round(single.change, 0) < 0
+
+    assert seq.osc[-1] == single.osc
+    assert len(seq.osc) == len(candles)
