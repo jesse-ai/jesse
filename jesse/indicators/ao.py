@@ -1,9 +1,11 @@
 import numpy as np
 import talib
-from typing import Union
 
+from collections import namedtuple
 
-def ao(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+AO = namedtuple('AO', ['osc', 'change'])
+
+def ao(candles: np.ndarray, sequential=False) -> AO:
     """
     Awesome Oscillator
 
@@ -18,4 +20,10 @@ def ao(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
     med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
     res = talib.SMA(med,5) - talib.SMA(med,34)
 
-    return res if sequential else res[-1]
+    mom = talib.MOM(res, timeperiod=1)
+
+    if sequential:
+        return AO(res, mom)
+    else:
+        return AO(res[-1], mom[-1])
+
