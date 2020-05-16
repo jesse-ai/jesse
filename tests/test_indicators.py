@@ -760,8 +760,19 @@ def test_smma():
     single = ta.smma(candles)
     seq = ta.smma(candles, sequential=True)
 
-    print(seq)
-
     assert round(single, 0) == 192
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_ag():
+    candles = np.array(mama_candles)
+    single = ta.alligator(candles)
+    seq = ta.alligator(candles, sequential=True)
+
+    assert type(single).__name__ == 'AG'
+    assert round(single.teeth, 0) == 236
+    assert round(single.jaw, 0) == 233
+    assert round(single.lips, 0) == 222
+
+    assert seq.teeth[-1] == single.teeth
+    assert len(seq.teeth) == len(candles)
