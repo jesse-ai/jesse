@@ -754,3 +754,14 @@ def test_hma():
     assert round(single, 0) == 134
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_smma():
+    candles = np.array(mama_candles)
+    single = ta.smma(candles)
+    seq = ta.smma(candles, sequential=True)
+
+    print(seq)
+
+    assert round(single, 0) == 192
+    assert len(seq) == len(candles)
+    assert seq[-1] == single

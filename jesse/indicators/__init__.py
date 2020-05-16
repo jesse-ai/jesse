@@ -54,3 +54,4 @@ from .vwma import vwma
 from .ao import ao
 from .zlema import zlema
 from .hma import hma
+from .smma import smma
