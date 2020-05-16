@@ -776,3 +776,18 @@ def test_ag():
 
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
+
+def test_gator():
+    candles = np.array(mama_candles)
+    single = ta.gatorosc(candles)
+    seq = ta.gatorosc(candles, sequential=True)
+
+    print(seq)
+    assert type(single).__name__ == 'GATOR'
+    assert round(single.upper, 2) == 2.39
+    assert round(single.upper_change, 2) == 0.98
+    assert round(single.lower, 2) == -13.44
+    assert round(single.lower_change, 2) == -5.06
+
+    assert seq.upper[-1] == single.upper
+    assert len(seq.upper) == len(candles)
