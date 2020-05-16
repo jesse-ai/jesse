@@ -8,7 +8,6 @@ def ao(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
     Awesome Oscillator
 
     :param candles: np.ndarray
-    :param period: int - default: 20
     :param sequential: bool - default=False
 
     :return: float | np.ndarray
