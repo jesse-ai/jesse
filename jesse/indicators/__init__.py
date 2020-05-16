@@ -57,3 +57,4 @@ from .hma import hma
 from .smma import smma
 from .alligator import alligator
 from .gatorosc import gatorosc
+from .acosc import acosc
