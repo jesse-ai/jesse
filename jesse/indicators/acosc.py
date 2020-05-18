@@ -3,11 +3,12 @@ import talib
 
 from collections import namedtuple
 
-AO = namedtuple('AO', ['osc', 'change'])
+AC = namedtuple('AC', ['osc', 'change'])
 
-def ao(candles: np.ndarray, sequential=False) -> AO:
+
+def acosc(candles: np.ndarray, sequential=False) -> AC:
     """
-    Awesome Oscillator
+    Acceleration / Deceleration Oscillator (AC)
 
     :param candles: np.ndarray
     :param sequential: bool - default=False
@@ -18,12 +19,12 @@ def ao(candles: np.ndarray, sequential=False) -> AO:
         candles = candles[-240:]
 
     med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
-    res = talib.SMA(med,5) - talib.SMA(med,34)
+    ao = talib.SMA(med, 5) - talib.SMA(med, 34)
 
+    res = ao - talib.SMA(ao, 5)
     mom = talib.MOM(res, timeperiod=1)
 
     if sequential:
-        return AO(res, mom)
+        return AC(res, mom)
     else:
-        return AO(res[-1], mom[-1])
-
+        return AC(res[-1], mom[-1])

@@ -725,15 +725,69 @@ def test_fisher():
     assert round(single.signal, 2) == -1.31
 
     assert seq.fisher[-1] == single.fisher
-    # assert len(seq.fisher) == len(candles)
-    # assert len(seq.signal) == len(candles)
+    assert len(seq.fisher) == len(candles)
+    assert len(seq.signal) == len(candles)
 
 def test_ao():
     candles = np.array(mama_candles)
     single = ta.ao(candles)
     seq = ta.ao(candles, sequential=True)
 
-    assert round(single, 0) == -46
+    assert round(single.osc, 0) == -46
+    assert len(seq[-1]) == len(candles)
+    assert seq.osc[-1] == single.osc
+
+def test_zlema():
+    candles = np.array(mama_candles)
+    single = ta.zlema(candles)
+    seq = ta.zlema(candles, sequential=True)
+
+    assert round(single, 0) == 189
     assert len(seq) == len(candles)
     assert seq[-1] == single
-    assert round(seq[-2], 1) == -28.5
+
+def test_hma():
+    candles = np.array(mama_candles)
+    single = ta.hma(candles)
+    seq = ta.hma(candles, sequential=True)
+
+    assert round(single, 0) == 134
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_smma():
+    candles = np.array(mama_candles)
+    single = ta.smma(candles)
+    seq = ta.smma(candles, sequential=True)
+
+    assert round(single, 0) == 192
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_ag():
+    candles = np.array(mama_candles)
+    single = ta.alligator(candles)
+    seq = ta.alligator(candles, sequential=True)
+
+    assert type(single).__name__ == 'AG'
+    assert round(single.teeth, 0) == 236
+    assert round(single.jaw, 0) == 233
+    assert round(single.lips, 0) == 222
+
+    assert seq.teeth[-1] == single.teeth
+    assert len(seq.teeth) == len(candles)
+
+def test_gator():
+    candles = np.array(mama_candles)
+    single = ta.gatorosc(candles)
+    seq = ta.gatorosc(candles, sequential=True)
+
+    print(seq)
+    assert type(single).__name__ == 'GATOR'
+    assert round(single.upper, 2) == 2.39
+    assert round(single.upper_change, 2) == 0.98
+    assert round(single.lower, 2) == -13.44
+    assert round(single.lower_change, 2) == 5.06
+
+    assert seq.upper[-1] == single.upper
+    assert len(seq.upper) == len(candles)

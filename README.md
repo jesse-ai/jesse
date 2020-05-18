@@ -3,7 +3,6 @@
 [![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
-[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jesse-ai/jesse)](https://libraries.io/pypi/jesse)
 [![Build Status](https://travis-ci.com/jesse-ai/jesse.svg?branch=master)](https://travis-ci.com/jesse-ai/jesse)
 ---
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse-ai.com)
@@ -65,3 +64,6 @@ This is the very initial release. There's way more. Subscribe to our mailing lis
 
 ## Community
 I've created a [forum](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out. 
+
+## Disclaimer
+This software is for educational purposes only. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS. Do not risk money which you are afraid to lose. There might be bugs in the code - this software DOES NOT come with ANY warranty.

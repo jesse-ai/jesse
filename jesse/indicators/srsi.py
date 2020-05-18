@@ -25,8 +25,8 @@ def srsi(candles: np.ndarray, period=14, sequential=False) -> StochasticRSI:
     fast_k, fast_d = ti.stoch(rsi_np, rsi_np, rsi_np, 14, 3, 3)
 
     if sequential:
-        fast_k = np.concatenate((np.full((17 + period), np.nan), fast_k), axis=0)
-        fast_d = np.concatenate((np.full((17 + period), np.nan), fast_d), axis=0)
+        fast_k = np.concatenate((np.full((candles.shape[0]-fast_k.shape[0]), np.nan), fast_k), axis=0)
+        fast_d = np.concatenate((np.full((candles.shape[0]-fast_d.shape[0]), np.nan), fast_d), axis=0)
         return StochasticRSI(fast_k, fast_d)
     else:
         return StochasticRSI(fast_k[-1], fast_d[-1])

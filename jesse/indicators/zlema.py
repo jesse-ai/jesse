@@ -3,9 +3,9 @@ import tulipy as ti
 from typing import Union
 
 
-def vwma(candles: np.ndarray, period=20, sequential=False) -> Union[float, np.ndarray]:
+def zlema(candles: np.ndarray, period=20, sequential=False) -> Union[float, np.ndarray]:
     """
-    VWMA - Volume Weighted Moving Average
+    Zero-Lag Exponential Moving Average
 
     :param candles: np.ndarray
     :param period: int - default: 20
@@ -16,6 +16,6 @@ def vwma(candles: np.ndarray, period=20, sequential=False) -> Union[float, np.nd
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    res = ti.vwma(np.ascontiguousarray(candles[:, 2]), np.ascontiguousarray(candles[:, 5]), period=period)
+    res = ti.zlema(np.ascontiguousarray(candles[:, 2]), period=period)
 
     return np.concatenate((np.full((candles.shape[0]-res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
