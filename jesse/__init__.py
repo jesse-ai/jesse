@@ -14,7 +14,7 @@ if jh.python_version() < 3.6:
     )
 
 # fix directory issue
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 ls = os.listdir('.')
 is_jesse_project = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
