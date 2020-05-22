@@ -895,6 +895,12 @@ def test_can_close_a_long_position_and_go_short_at_the_same_candle():
     # more assertions in the Test45 file
 
 
+def test_validation_for_equal_stop_loss_and_take_profit():
+    with pytest.raises(Exception) as err:
+        single_route_backtest('Test46')
+
+    assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
+
 # def test_inputs_get_rounded_behind_the_scene():
 #     set_up([(exchanges.SANDBOX, 'EOSUSD', timeframes.MINUTE_1, 'Test44')])
 #     candles = {}
