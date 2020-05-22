@@ -782,7 +782,6 @@ def test_gator():
     single = ta.gatorosc(candles)
     seq = ta.gatorosc(candles, sequential=True)
 
-    print(seq)
     assert type(single).__name__ == 'GATOR'
     assert round(single.upper, 2) == 2.39
     assert round(single.upper_change, 2) == 0.98
@@ -791,3 +790,21 @@ def test_gator():
 
     assert seq.upper[-1] == single.upper
     assert len(seq.upper) == len(candles)
+
+def test_pivot():
+    candles = np.array(mama_candles)
+    single = ta.pivot(candles)
+    seq = ta.pivot(candles, sequential=True)
+
+    assert type(single).__name__ == 'PIVOT'
+
+    assert seq.r1[-1] == single.r1
+    assert len(seq.r1) == len(candles)
+    assert len(seq.r2) == len(candles)
+    assert len(seq.r3) == len(candles)
+    assert len(seq.r4) == len(candles)
+    assert len(seq.pp) == len(candles)
+    assert len(seq.s1) == len(candles)
+    assert len(seq.s2) == len(candles)
+    assert len(seq.s3) == len(candles)
+    assert len(seq.s4) == len(candles)

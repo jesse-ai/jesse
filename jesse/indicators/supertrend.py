@@ -8,7 +8,7 @@ SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 
 def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> SuperTrend:
 
-    if len(candles) > 240:
+    if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
     # calculation of ATR using TALIB function
