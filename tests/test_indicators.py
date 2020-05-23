@@ -174,6 +174,7 @@ def test_bollinger_bands():
     assert round(l, 1) == 136.7
 
     seq_bb = ta.bollinger_bands(candles, sequential=True)
+    print(seq_bb)
     assert seq_bb.upperband[-1] == u
     assert len(seq_bb.upperband) == len(candles)
     assert len(seq_bb.middleband) == len(candles)
@@ -808,3 +809,11 @@ def test_pivot():
     assert len(seq.s2) == len(candles)
     assert len(seq.s3) == len(candles)
     assert len(seq.s4) == len(candles)
+
+
+def test_vpci():
+    candles = np.array(mama_candles)
+    single = ta.vpci(candles)
+    seq = ta.vpci(candles, sequential=True)
+
+    assert type(single).__name__ == 'VPCI'
