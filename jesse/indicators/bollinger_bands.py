@@ -22,7 +22,7 @@ def bollinger_bands(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, 
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    upperbands, middlebands, lowerbands = talib.BBANDS(candles[:, 2], timeperiod=period, nbdevup=devup, nbdevdn=2, matype=matype)
+    upperbands, middlebands, lowerbands = talib.BBANDS(candles[:, 2], timeperiod=period, nbdevup=devup, nbdevdn=devdn, matype=matype)
 
     if sequential:
         return BollingerBands(upperbands, middlebands, lowerbands)
