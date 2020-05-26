@@ -811,9 +811,11 @@ def test_pivot():
     assert len(seq.s4) == len(candles)
 
 
-def test_vpci():
+def test_zscore():
     candles = np.array(mama_candles)
-    single = ta.vpci(candles)
-    seq = ta.vpci(candles, sequential=True)
+    single = ta.zscore(candles)
+    seq = ta.zscore(candles, sequential=True)
 
-    assert type(single).__name__ == 'VPCI'
+    assert round(single, 1) == -3.2
+    assert len(seq) == len(candles)
+    assert seq[-1] == single

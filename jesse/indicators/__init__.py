@@ -59,4 +59,4 @@ from .alligator import alligator
 from .gatorosc import gatorosc
 from .acosc import acosc
 from .pivot import pivot
-from .vpci import vpci
+from .zscore import zscore
