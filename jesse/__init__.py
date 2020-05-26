@@ -3,6 +3,7 @@ import click
 import os
 import sys
 import jesse.helpers as jh
+import pkg_resources
 
 # Python version validation.
 if jh.python_version() < 3.6:
@@ -225,6 +226,7 @@ def register_custom_exception_handler():
 
 # create a Click group
 @click.group()
+@click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli():
     pass
 
