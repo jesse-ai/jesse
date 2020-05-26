@@ -62,6 +62,7 @@ class order_types:
 
 
 class exchanges:
+    KRAKEN = "Kraken"
     COINBASE = 'Coinbase'
     BITFINEX = 'Bitfinex'
     BINANCE = 'Binance'

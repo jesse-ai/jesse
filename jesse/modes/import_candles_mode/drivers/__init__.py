@@ -1,3 +1,4 @@
+from .kraken import Kraken
 from .coinbase import Coinbase
 from .bitfinex import Bitfinex
 from .binance import Binance
@@ -9,5 +10,6 @@ drivers = {
     'Binance Futures': BinanceFutures,
     'Testnet Binance Futures': TestnetBinanceFutures,
     'Bitfinex': Bitfinex,
-    'Coinbase': Coinbase
+    'Coinbase': Coinbase,
+    'Kraken': Kraken
 }
