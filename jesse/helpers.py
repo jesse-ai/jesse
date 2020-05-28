@@ -6,7 +6,6 @@ import arrow
 import click
 import hashlib
 import numpy as np
-import math
 
 
 def prepare_qty(qty, side):
@@ -194,7 +193,7 @@ def timeframe_to_one_minutes(timeframe):
         timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
     }
-
+    
     try:
         return dic[timeframe]
     except KeyError:
