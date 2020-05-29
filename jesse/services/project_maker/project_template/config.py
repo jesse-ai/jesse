@@ -6,11 +6,14 @@ config = {
     # PostgreSQL is used as the database to store data such as candles.
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     'databases': {
+        'database': 'postgres',
         'postgres_host': '127.0.0.1',
         'postgres_name': 'jesse_db',
         'postgres_port': 5432,
         'postgres_username': 'jesse_user',
         'postgres_password': 'password',
+
+        'sqlite_dbfilename': 'example.db',
     },
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
