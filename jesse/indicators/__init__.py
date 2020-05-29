@@ -60,3 +60,4 @@ from .gatorosc import gatorosc
 from .acosc import acosc
 from .pivot import pivot
 from .zscore import zscore
+from .minmax import minmax
