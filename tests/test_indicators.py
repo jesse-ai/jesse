@@ -819,3 +819,18 @@ def test_zscore():
     assert round(single, 1) == -3.2
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_minmax():
+    candles = np.array(mama_candles)
+    single = ta.minmax(candles)
+    seq = ta.minmax(candles, sequential=True)
+
+    assert type(single).__name__ == 'EXTREMA'
+    assert round(seq.max[-6], 2) == 251.93
+    assert round(seq.min[-15], 2) == 210
+    assert round(single.last_max, 2) == 251.93
+    assert round(single.last_min, 2) == 210
+
+    assert seq.last_max[-1] == single.last_max
+    assert seq.last_min[-1] == single.last_min
+    assert len(seq.min) == len(candles)
