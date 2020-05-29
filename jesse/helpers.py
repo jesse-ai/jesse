@@ -6,7 +6,6 @@ import arrow
 import click
 import hashlib
 import numpy as np
-import math
 
 
 def prepare_qty(qty, side):
@@ -178,6 +177,7 @@ def is_debuggable(debug_item):
 
 def timeframe_to_one_minutes(timeframe):
     from jesse.enums import timeframes
+    from jesse.exceptions import InvalidTimeframe
 
     dic = {
         timeframes.MINUTE_1: 1,
@@ -193,9 +193,11 @@ def timeframe_to_one_minutes(timeframe):
         timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
     }
-
-    return dic[timeframe]
-
+    
+    try:
+        return dic[timeframe]
+    except KeyError:
+        raise InvalidTimeframe('Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(timeframe))
 
 def max_timeframe(timeframes_list):
     from jesse.enums import timeframes

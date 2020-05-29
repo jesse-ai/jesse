@@ -21,7 +21,10 @@ Head over to the "getting started" section of the [documentation](https://docs.j
 documentation is short yet very informative. 
 
 ## Example Backtest Results
-Here's an example output for a backtest simulation:
+
+Check out Jesse's [blog](https://jesse-ai.com/blog) for tutorials that go through example strategies step by step. 
+
+Here's an example output for a backtest simulation just to get you excited:
 ```
 CANDLES               |
 ----------------------+--------------------------
@@ -63,7 +66,29 @@ And here are generated charts:
 This is the very initial release. There's way more. Subscribe to our mailing list at [jesse-ai.com](https://jesse-ai.com) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
 
 ## Community
-I've created a [forum](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out. 
+We've created a [community](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
+
+## How to contribute
+Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 
+
+First, you need to install Jesse from the repository instead of PyPi:
+
+```sh
+# first, make sure that the PyPi version is not installed
+pip uninstall jesse
+
+# now install Jesse from the repository
+git clone https://github.com/jesse-ai/jesse.git
+cd jesse
+pip install -e .
+```
+
+Now every change you make to the code will be affected immediately.
+
+After every change, make sure your changes did not break any functionality by running tests:
+```
+pytest
+```
 
 ## Disclaimer
 This software is for educational purposes only. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS. Do not risk money which you are afraid to lose. There might be bugs in the code - this software DOES NOT come with ANY warranty.

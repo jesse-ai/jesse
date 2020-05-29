@@ -60,3 +60,7 @@ class InvalidShape(Exception):
 
 class ConfigException(Exception):
     pass
+
+
+class InvalidTimeframe(Exception):
+    pass
