@@ -1,11 +1,12 @@
 import numpy as np
 import talib
 from collections import namedtuple
+from jesse.helpers import get_candle_source
 
 MACDEXT = namedtuple('MACDEXT', ['macd', 'signal', 'hist'])
 
 
-def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slowmatype=0, signalperiod=9, signalmatype=0, sequential=False) -> MACDEXT:
+def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slowmatype=0, signalperiod=9, signalmatype=0, source_type="close", sequential=False) -> MACDEXT:
     """
     MACDEXT - MACD with controllable MA type
     https://www.investopedia.com/terms/m/macd.asp
@@ -17,6 +18,7 @@ def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slo
     :param slowmatype: int - default: 0
     :param signal_period: int - default: 9
     :param signalmatype: int - default: 0
+    :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
     :return: MACDEXT
@@ -24,7 +26,8 @@ def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slo
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    macd, macdsignal, macdhist = talib.MACDEXT(candles[:, 2], fastperiod=fastperiod, fastmatype=fastmatype, slowperiod=slowperiod, slowmatype=slowmatype,
+    source = get_candle_source(candles, source_type=source_type)
+    macd, macdsignal, macdhist = talib.MACDEXT(source, fastperiod=fastperiod, fastmatype=fastmatype, slowperiod=slowperiod, slowmatype=slowmatype,
                                          signalperiod=signalperiod, signalmatype=signalmatype)
 
     if sequential:
