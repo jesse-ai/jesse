@@ -1,20 +1,11 @@
 import numpy as np
 
 from jesse.config import config, reset_config
-from jesse.enums import exchanges, timeframes
 from jesse.factories import fake_range_candle_from_range_prices
 import jesse.indicators as ta
 from jesse.store import store
 from .data.test_candles_indicators import *
 
-
-def set_up(count=2):
-    reset_config()
-    config['app']['considering_timeframes'] = ['1m', '5m']
-    config['app']['considering_symbols'] = ['BTCUSD']
-    config['app']['considering_exchanges'] = ['Sandbox']
-    store.reset()
-    store.candles.init_storage(count)
 
 
 def test_sma():
@@ -68,77 +59,32 @@ def test_stoch():
 
 
 def test_doji():
-    set_up(240)
     candles = np.array(doji_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.doji(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.doji(candles)
     assert res == 1
-
-    new_candle = np.array([1565416800000, 211.96, 211.64, 212.8, 211.64, 925.33769619])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.doji(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 0
 
 
 def test_inverted_hammer():
-    set_up(500)
-
     candles = np.array(inverted_hammer_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.inverted_hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.inverted_hammer(candles)
     assert res == 0
-
-    new_candle = np.array([1563606000000, 226.88, 226.09, 228.25, 226, 1407.91947504])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.inverted_hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
 
 
 def test_hammer():
-    set_up(500)
-
     candles = np.array(hammer_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.hammer(candles)
     assert res == 0
-
-    new_candle = np.array([1563487200000, 224.01, 223.61, 224.28, 222.53, 1531.27654409])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
 
 
 def test_bearish_engulfing():
-    set_up(500)
-
     candles = np.array(bearish_engulfing_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.engulfing(candles)
     assert res == 0
-
-    new_candle = np.array([1563472800000, 223.99, 222.84, 225.26, 222.5, 5777.43564279])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == -1
-
 
 def test_bullish_engulfing():
-    set_up(500)
-
     candles = np.array(bullish_engulfing_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.engulfing(candles)
     assert res == 0
-
-    new_candle = np.array([1563411600000, 208.53, 212.77, 214.31, 208.53, 5739.5236321])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
 
 
 def test_adx():
