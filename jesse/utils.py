@@ -177,21 +177,3 @@ def numpy_candles_to_dataframe(candles: np.ndarray, name_date="date", name_open=
     columns = [name_date, name_open, name_close, name_high, name_low, name_volume]
     df = pd.DataFrame(data=candles, index=candles[:, 0], columns=columns)
     return df
-
-def get_candle_source(candles: np.ndarray, type="close") -> np.ndarray:
-    if type == "close":
-        return candles[:, 2]
-    elif type == "high":
-        return candles[:, 3]
-    elif type == "low":
-        return candles[:, 4]
-    elif type == "open":
-        return candles[:, 1]
-    elif type == "volume":
-        return candles[:, 5]
-    elif type == "hl2":
-        return (candles[:, 3] + candles[:, 4]) / 2
-    elif type == "hlc3":
-        return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
-    elif type == "ohlc4":
-        return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
