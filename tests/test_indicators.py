@@ -1,11 +1,8 @@
 import numpy as np
 
-from jesse.config import config, reset_config
 from jesse.factories import fake_range_candle_from_range_prices
 import jesse.indicators as ta
-from jesse.store import store
 from .data.test_candles_indicators import *
-
 
 
 def test_sma():
