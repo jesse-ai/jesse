@@ -1,5 +1,4 @@
 import numpy as np
-from jesse import utils
 import talib
 
 from collections import namedtuple
