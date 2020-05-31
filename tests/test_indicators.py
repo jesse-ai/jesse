@@ -55,33 +55,26 @@ def test_stoch():
     assert len(stoch.k) == len(candles)
 
 
-def test_doji():
-    candles = np.array(doji_candles)
-    res = ta.doji(candles)
-    assert res == 1
-
-
-def test_inverted_hammer():
+def test_pattern_recognizion():
     candles = np.array(inverted_hammer_candles)
-    res = ta.inverted_hammer(candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER")
     assert res == 0
 
-
-def test_hammer():
-    candles = np.array(hammer_candles)
-    res = ta.hammer(candles)
-    assert res == 0
-
-
-def test_bearish_engulfing():
-    candles = np.array(bearish_engulfing_candles)
-    res = ta.engulfing(candles)
-    assert res == 0
-
-def test_bullish_engulfing():
     candles = np.array(bullish_engulfing_candles)
-    res = ta.engulfing(candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
     assert res == 0
+
+    candles = np.array(bearish_engulfing_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
+    assert res == 0
+
+    candles = np.array(hammer_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLHAMMER")
+    assert res == 0
+
+    candles = np.array(doji_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLDOJI")
+    assert res == 1
 
 
 def test_adx():
