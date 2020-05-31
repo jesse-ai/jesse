@@ -1,5 +1,4 @@
 import numpy as np
-from .smma import smma
 from jesse.helpers import get_candle_source
 import talib
 
@@ -24,9 +23,9 @@ def gatorosc(candles: np.ndarray, source_type="close", sequential=False) -> GATO
 
     source = get_candle_source(candles, source_type=source_type)
 
-    jaw = shift(smma(source, period=13, sequential=True), 8)
-    teeth = shift(smma(source, period=8, sequential=True), 5)
-    lips = shift(smma(source, period=5, sequential=True), 3)
+    jaw = shift(numpy_ewma(source, 13), 8)
+    teeth = shift(numpy_ewma(source, 8), 5)
+    lips = shift(numpy_ewma(source, 5), 3)
 
     upper = np.abs(jaw - teeth)
     lower = -np.abs(teeth - lips)
@@ -52,3 +51,16 @@ def shift(arr, num, fill_value=np.nan):
     else:
         result[:] = arr
     return result
+
+def numpy_ewma(data, window):
+    alpha = 1 / window
+    scale = 1/(1-alpha)
+    n = data.shape[0]
+    scale_arr = (1-alpha)**(-1*np.arange(n))
+    weights = (1-alpha)**np.arange(n)
+    pw0 = (1-alpha)**(n-1)
+    mult = data*pw0*scale_arr
+    cumsums = mult.cumsum()
+    out = cumsums*scale_arr[::-1] / weights.cumsum()
+
+    return out
