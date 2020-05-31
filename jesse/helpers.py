@@ -602,30 +602,30 @@ def round_qty_for_live_mode(price, roundable_qty):
 
     return np.round(roundable_qty, qty_round_precision)
 
-def get_candle_source(candles: np.ndarray, type="close") -> np.ndarray:
+def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
     """
      Returns the candles corresponding the selected type.
 
      :param candles: np.ndarray
-     :param type: string
+     :param source_type: string
      :return: np.ndarray
      """
 
-    if type == "close":
+    if source_type == "close":
         return candles[:, 2]
-    elif type == "high":
+    elif source_type == "high":
         return candles[:, 3]
-    elif type == "low":
+    elif source_type == "low":
         return candles[:, 4]
-    elif type == "open":
+    elif source_type == "open":
         return candles[:, 1]
-    elif type == "volume":
+    elif source_type == "volume":
         return candles[:, 5]
-    elif type == "hl2":
+    elif source_type == "hl2":
         return (candles[:, 3] + candles[:, 4]) / 2
-    elif type == "hlc3":
+    elif source_type == "hlc3":
         return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
-    elif type == "ohlc4":
+    elif source_type == "ohlc4":
         return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
     else:
         raise ValueError('type string not recognised')
