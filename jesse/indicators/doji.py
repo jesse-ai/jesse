@@ -1,16 +1,13 @@
 import talib
+import numpy as np
 
-from jesse.store import store
 
-
-def doji(exchange, symbol, timeframe, past=0) -> int:
+def doji(candles: np.ndarray, past=0) -> int:
     """
     is the current candle a doji pattern. returns 1 when is a doji, and 0 when isn't
     """
     if past != 0:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)[:-abs(past)]
-    else:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)
+        candles = candles[:-abs(past)]
 
     if len(candles) > 240:
         candles = candles[-240:]

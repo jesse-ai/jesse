@@ -1,17 +1,14 @@
 import talib
+import numpy as np
 
-from jesse.store import store
 
-
-def engulfing(exchange, symbol, timeframe, past=0) -> int:
+def engulfing(candles: np.ndarray, past=0) -> int:
     """
     is the current candle a engulfing pattern. returns 1 when is a bullish engulfing,
     and 0 when isn't, and -1 when is a bearish engulfing pattern.
     """
     if past != 0:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)[:-abs(past)]
-    else:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)
+        candles = candles[:-abs(past)]
 
     if len(candles) > 240:
         candles = candles[-240:]

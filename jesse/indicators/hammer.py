@@ -1,16 +1,14 @@
 import talib
+import numpy as np
 
-from jesse.store import store
 
 
-def hammer(exchange, symbol, timeframe, past=0) -> int:
+def hammer(candles: np.ndarray, past=0) -> int:
     """
     is the current candle a hammer pattern. returns 1 when is a hammer, and 0 when isn't
     """
     if past != 0:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)[:-abs(past)]
-    else:
-        candles = store.candles.get_candles(exchange, symbol, timeframe)
+        candles = candles[:-abs(past)]
 
     if len(candles) > 240:
         candles = candles[-240:]
@@ -20,11 +18,12 @@ def hammer(exchange, symbol, timeframe, past=0) -> int:
     return int(res / 100)
 
 
-def inverted_hammer(exchange, symbol, timeframe) -> int:
+def inverted_hammer(candles: np.ndarray, past=0) -> int:
     """
     is the current candle a inverted_hammer pattern. returns 1 when is a inverted_hammer, and 0 when isn't
     """
-    candles = store.candles.get_candles(exchange, symbol, timeframe)
+    if past != 0:
+        candles = candles[:-abs(past)]
 
     if len(candles) > 240:
         candles = candles[-240:]
