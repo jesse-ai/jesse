@@ -58,6 +58,8 @@ def test_stoch():
 def test_pattern_recognizion():
     candles = np.array(inverted_hammer_candles)
     res = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER")
+    seq = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER", sequential=True)
+    assert len(seq) == len(candles)
     assert res == 0
 
     candles = np.array(bullish_engulfing_candles)
