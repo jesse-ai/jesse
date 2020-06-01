@@ -23,10 +23,5 @@ def keltner(candles: np.ndarray, period=20, multiplier=2, sequential=False) -> K
     e = ema(candles, period=period, sequential=sequential)
     a = atr(candles, period=period, sequential=sequential)
 
-    if sequential:
-        multiplier = a * 2
-        return KeltnerChannel(e + multiplier, e, e - multiplier)
-    else:
-        multiplier = a * 2
-        return KeltnerChannel(e + multiplier, e, e - multiplier)
+    return KeltnerChannel(e + a * multiplier, e, e - a * multiplier)
 
