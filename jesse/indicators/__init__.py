@@ -16,6 +16,7 @@ from .ema import ema
 from .ht_trendline import ht_trendline
 from .ichimoku_cloud import ichimoku_cloud
 from .kama import kama
+from .keltner import keltner
 from .macd import macd
 from .macdext import macdext
 from .mama import mama
