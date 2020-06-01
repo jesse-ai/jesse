@@ -1,20 +1,8 @@
 import numpy as np
 
-from jesse.config import config, reset_config
-from jesse.enums import exchanges, timeframes
 from jesse.factories import fake_range_candle_from_range_prices
 import jesse.indicators as ta
-from jesse.store import store
 from .data.test_candles_indicators import *
-
-
-def set_up(count=2):
-    reset_config()
-    config['app']['considering_timeframes'] = ['1m', '5m']
-    config['app']['considering_symbols'] = ['BTCUSD']
-    config['app']['considering_exchanges'] = ['Sandbox']
-    store.reset()
-    store.candles.init_storage(count)
 
 
 def test_sma():
@@ -67,77 +55,27 @@ def test_stoch():
     assert len(stoch.k) == len(candles)
 
 
-def test_doji():
-    set_up(240)
-    candles = np.array(doji_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.doji(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
-
-    new_candle = np.array([1565416800000, 211.96, 211.64, 212.8, 211.64, 925.33769619])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.doji(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 0
-
-
-def test_inverted_hammer():
-    set_up(500)
-
+def test_pattern_recognizion():
     candles = np.array(inverted_hammer_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.inverted_hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER")
+    seq = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER", sequential=True)
+    assert len(seq) == len(candles)
     assert res == 0
-
-    new_candle = np.array([1563606000000, 226.88, 226.09, 228.25, 226, 1407.91947504])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.inverted_hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
-
-
-def test_hammer():
-    set_up(500)
-
-    candles = np.array(hammer_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 0
-
-    new_candle = np.array([1563487200000, 224.01, 223.61, 224.28, 222.53, 1531.27654409])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.hammer(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 1
-
-
-def test_bearish_engulfing():
-    set_up(500)
-
-    candles = np.array(bearish_engulfing_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == 0
-
-    new_candle = np.array([1563472800000, 223.99, 222.84, 225.26, 222.5, 5777.43564279])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    assert res == -1
-
-
-def test_bullish_engulfing():
-    set_up(500)
 
     candles = np.array(bullish_engulfing_candles)
-
-    store.candles.batch_add_candle(candles, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
     assert res == 0
 
-    new_candle = np.array([1563411600000, 208.53, 212.77, 214.31, 208.53, 5739.5236321])
-    store.candles.add_candle(new_candle, exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
-    res = ta.engulfing(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1)
+    candles = np.array(bearish_engulfing_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
+    assert res == 0
+
+    candles = np.array(hammer_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLHAMMER")
+    assert res == 0
+
+    candles = np.array(doji_candles)
+    res = ta.pattern_recognition(candles, pattern_type="CDLDOJI")
     assert res == 1
 
 
@@ -817,5 +755,52 @@ def test_zscore():
     seq = ta.zscore(candles, sequential=True)
 
     assert round(single, 1) == -3.2
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_minmax():
+    candles = np.array(mama_candles)
+    single = ta.minmax(candles)
+    seq = ta.minmax(candles, sequential=True)
+
+    assert type(single).__name__ == 'EXTREMA'
+    assert round(seq.max[-6], 2) == 251.93
+    assert round(seq.min[-15], 2) == 210
+    assert round(single.last_max, 2) == 251.93
+    assert round(single.last_min, 2) == 210
+
+    assert seq.last_max[-1] == single.last_max
+    assert seq.last_min[-1] == single.last_min
+    assert len(seq.min) == len(candles)
+
+def test_gauss():
+    candles = np.array(mama_candles)
+    single = ta.gauss(candles)
+    seq = ta.gauss(candles, sequential=True)
+    assert round(single, 0) == 190
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_supersmoother():
+    candles = np.array(mama_candles)
+    single = ta.supersmoother(candles)
+    seq = ta.supersmoother(candles, sequential=True)
+    assert round(single, 0) == 201
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_dec_osc():
+    candles = np.array(mama_candles)
+    single = ta.dec_osc(candles)
+    seq = ta.dec_osc(candles, sequential=True)
+    assert round(single, 0) == -20
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_decycler():
+    candles = np.array(mama_candles)
+    single = ta.decycler(candles)
+    seq = ta.decycler(candles, sequential=True)
+    assert round(single, 0) == 233
     assert len(seq) == len(candles)
     assert seq[-1] == single

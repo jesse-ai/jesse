@@ -7,7 +7,7 @@ requests==2.23.0
 peewee==3.13.3
 pydash==4.7.6
 numpy==1.18.4
-pandas==1.0.3
+pandas==1.0.4
 tabulate==0.8.7
 timeloop==1.0.2
 websocket-client==0.57.0
@@ -16,3 +16,4 @@ matplotlib==3.2.1
 empyrical==0.5.3
 blinker==1.4.0
 tulipy==0.4.0
+scipy==1.4.1

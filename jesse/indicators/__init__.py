@@ -12,10 +12,7 @@ from .cci import cci
 from .cmo import cmo
 from .dema import dema
 from .dmi import dmi
-from .doji import doji
 from .ema import ema
-from .engulfing import engulfing
-from .hammer import inverted_hammer, hammer
 from .ht_trendline import ht_trendline
 from .ichimoku_cloud import ichimoku_cloud
 from .kama import kama
@@ -60,3 +57,9 @@ from .gatorosc import gatorosc
 from .acosc import acosc
 from .pivot import pivot
 from .zscore import zscore
+from .minmax import minmax
+from .pattern_recognition import pattern_recognition
+from .gauss import gauss
+from .supersmoother import supersmoother
+from .dec_osc import dec_osc
+from .decycler import decycler

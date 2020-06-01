@@ -1,18 +1,20 @@
 import numpy as np
 import talib
 import tulipy as ti
+from jesse.helpers import get_candle_source
 
 from collections import namedtuple
 
 StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
 
 
-def srsi(candles: np.ndarray, period=14, sequential=False) -> StochasticRSI:
+def srsi(candles: np.ndarray, period=14, source_type="close", sequential=False) -> StochasticRSI:
     """
     Stochastic RSI
 
     :param candles: np.ndarray
     :param period: int - default: 14
+    :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
     :return: StochasticRSI
@@ -20,7 +22,8 @@ def srsi(candles: np.ndarray, period=14, sequential=False) -> StochasticRSI:
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    rsi_np = talib.RSI(candles[:, 2], timeperiod=period)
+    source = get_candle_source(candles, source_type=source_type)
+    rsi_np = talib.RSI(source, timeperiod=period)
     rsi_np = rsi_np[np.logical_not(np.isnan(rsi_np))]
     fast_k, fast_d = ti.stoch(rsi_np, rsi_np, rsi_np, 14, 3, 3)
 
