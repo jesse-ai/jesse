@@ -793,8 +793,7 @@ def test_dec_osc():
     candles = np.array(mama_candles)
     single = ta.dec_osc(candles)
     seq = ta.dec_osc(candles, sequential=True)
-    print(seq)
-    assert round(single, 0) == 201
+    assert round(single, 0) == -20
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -802,7 +801,6 @@ def test_decycler():
     candles = np.array(mama_candles)
     single = ta.decycler(candles)
     seq = ta.decycler(candles, sequential=True)
-    print(seq)
     assert round(single, 0) == 233
     assert len(seq) == len(candles)
     assert seq[-1] == single
