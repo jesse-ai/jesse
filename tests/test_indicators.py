@@ -141,7 +141,6 @@ def test_kelner_channels():
     assert round(l, 1) == 134.4
 
     seq_kc = ta.keltner(candles, sequential=True)
-    print(seq_kc)
     assert seq_kc.upperband[-1] == u
     assert len(seq_kc.upperband) == len(candles)
     assert len(seq_kc.middleband) == len(candles)
