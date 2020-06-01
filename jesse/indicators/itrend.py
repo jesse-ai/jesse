@@ -5,11 +5,12 @@ from collections import namedtuple
 ITREND = namedtuple('ITREND', ['signal', 'it', 'trigger'])
 
 
-def itrend(candles: np.ndarray, source_type="hl2", sequential=False) -> ITREND:
+def itrend(candles: np.ndarray, alpha=0.07, source_type="hl2", sequential=False) -> ITREND:
     """
     Instantaneous Trendline
 
     :param candles: np.ndarray
+    :param alpha: float - default: 0.07
     :param source_type: str - default: "hl2"
     :param sequential: bool - default=False
 
@@ -19,7 +20,6 @@ def itrend(candles: np.ndarray, source_type="hl2", sequential=False) -> ITREND:
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    alpha = 0.07
 
     coeff = np.array([(alpha - alpha ** 2 / 4), alpha ** 2 / 2, - (alpha - alpha ** 2 * 3 / 4), 2 * (1 - alpha), - (1 - alpha) ** 2])
 
