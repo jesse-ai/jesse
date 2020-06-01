@@ -63,3 +63,4 @@ from .gauss import gauss
 from .supersmoother import supersmoother
 from .dec_osc import dec_osc
 from .decycler import decycler
+from .itrend import itrend

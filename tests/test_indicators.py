@@ -804,3 +804,18 @@ def test_decycler():
     assert round(single, 0) == 233
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+def test_itrend():
+    candles = np.array(mama_candles)
+    single = ta.itrend(candles)
+    seq = ta.itrend(candles, sequential=True)
+
+    assert type(single).__name__ == 'ITREND'
+    assert round(single.it, 0) == 223
+    assert round(single.trigger, 0) == 182
+    assert single.signal == -1
+
+    assert seq.it[-1] == single.it
+    assert seq.signal[-1] == single.signal
+    assert seq.trigger[-1] == single.trigger
+    assert len(seq.it) == len(candles)
