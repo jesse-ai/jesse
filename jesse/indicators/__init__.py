@@ -61,3 +61,5 @@ from .minmax import minmax
 from .pattern_recognition import pattern_recognition
 from .gauss import gauss
 from .supersmoother import supersmoother
+from .dec_osc import dec_osc
+from .decycler import decycler
