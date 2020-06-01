@@ -777,7 +777,14 @@ def test_gauss():
     candles = np.array(mama_candles)
     single = ta.gauss(candles)
     seq = ta.gauss(candles, sequential=True)
-
     assert round(single, 0) == 190
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_supersmoother():
+    candles = np.array(mama_candles)
+    single = ta.supersmoother(candles)
+    seq = ta.supersmoother(candles, sequential=True)
+    assert round(single, 0) == 201
     assert len(seq) == len(candles)
     assert seq[-1] == single
