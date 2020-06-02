@@ -272,12 +272,15 @@ def test_dmi():
     assert type(dmi).__name__ == 'DMI'
     assert round(dmi.plus, 2) == 10.80
     assert round(dmi.minus, 1) == 45.3
+    assert round(dmi.dx, 1) == 61.5
 
     seq_dmi = ta.dmi(candles, period=14, sequential=True)
     assert seq_dmi.plus[-1] == dmi.plus
     assert seq_dmi.minus[-1] == dmi.minus
+    assert seq_dmi.dx[-1] == dmi.dx
     assert len(seq_dmi.plus) == len(candles)
     assert len(seq_dmi.minus) == len(candles)
+    assert len(seq_dmi.dx) == len(candles)
 
 
 def test_donchian():

@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-DMI = namedtuple('DMI', ['plus', 'minus'])
+DMI = namedtuple('DMI', ['plus', 'minus', 'dx'])
 
 
 def dmi(candles: np.ndarray, period=14, sequential=False) -> DMI:
@@ -20,9 +20,10 @@ def dmi(candles: np.ndarray, period=14, sequential=False) -> DMI:
         candles = candles[-240:]
 
     MINUS_DI = talib.MINUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
+    DX = talib.DX(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
     PLUS_DI = talib.PLUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     if sequential:
-        return DMI(PLUS_DI, MINUS_DI)
+        return DMI(PLUS_DI, MINUS_DI, DX)
     else:
-        return DMI(PLUS_DI[-1], MINUS_DI[-1])
+        return DMI(PLUS_DI[-1], MINUS_DI[-1], DX[-1])
