@@ -130,6 +130,23 @@ def test_bollinger_bands_width():
     assert seq[-1] == single
 
 
+def test_kelner_channels():
+    candles = np.array(keltner_channel_candles)
+
+    kc = ta.keltner(candles)
+    u, m, l = kc
+    assert type(kc).__name__ == 'KeltnerChannel'
+    assert round(u, 1) == 145.0
+    assert round(m, 1) == 139.7
+    assert round(l, 1) == 134.4
+
+    seq_kc = ta.keltner(candles, sequential=True)
+    assert seq_kc.upperband[-1] == u
+    assert len(seq_kc.upperband) == len(candles)
+    assert len(seq_kc.middleband) == len(candles)
+    assert len(seq_kc.lowerband) == len(candles)
+
+
 def test_rsi():
     candles = np.array(rsi_candles)
 
