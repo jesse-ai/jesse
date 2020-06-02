@@ -52,6 +52,7 @@ from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext
 from .mama import mama
+from .marketfi import marketfi
 from .medprice import medprice
 from .mfi import mfi
 from .midpoint import midpoint

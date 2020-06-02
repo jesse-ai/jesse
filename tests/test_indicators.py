@@ -689,6 +689,18 @@ def test_mama():
     assert len(seq_mama.fama) == len(candles)
 
 
+def test_marketfi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.marketfi(candles)
+    seq = ta.marketfi(candles, sequential=True)
+
+    assert round(single * 100000, 2) == 2.47
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_medprice():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
