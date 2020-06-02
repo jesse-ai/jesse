@@ -637,6 +637,18 @@ def test_mama():
     assert len(seq_mama.fama) == len(candles)
 
 
+def test_medprice():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.medprice(candles)
+    seq = ta.medprice(candles, sequential=True)
+
+    assert round(single, 1) == 148.4
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_mfi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

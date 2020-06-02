@@ -47,6 +47,7 @@ from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext
 from .mama import mama
+from .medprice import medprice
 from .mfi import mfi
 from .minmax import minmax
 from .mom import mom
