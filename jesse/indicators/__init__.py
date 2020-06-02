@@ -10,6 +10,7 @@ from .aroon import aroon
 from .aroonosc import aroonosc
 from .atr import atr
 from .avgprice import avgprice
+from .beta import beta
 from .bollinger_bands import bollinger_bands
 from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop

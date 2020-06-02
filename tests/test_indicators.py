@@ -189,6 +189,18 @@ def test_bop():
     assert seq[-1] == single
 
 
+def test_beta():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.beta(candles)
+    seq = ta.beta(candles, sequential=True)
+    
+    assert round(single, 2) == -0.31
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_cci():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
