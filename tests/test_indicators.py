@@ -384,6 +384,15 @@ def test_fisher():
     assert len(seq.signal) == len(candles)
 
 
+def test_fosc():
+    candles = np.array(mama_candles)
+    single = ta.fosc(candles)
+    seq = ta.fosc(candles, sequential=True)
+    assert round(single, 0) == -69
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_frama():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

@@ -28,6 +28,7 @@ from .ema import ema
 from .emd import emd
 from .emv import emv
 from .fisher import fisher
+from .fosc import fosc
 from .frama import frama
 from .gatorosc import gatorosc
 from .gauss import gauss
