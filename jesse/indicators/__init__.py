@@ -22,6 +22,7 @@ from .decycler import decycler
 from .dema import dema
 from .dmi import dmi
 from .donchian import donchian
+from .dpo import dpo
 from .ema import ema
 from .emd import emd
 from .fisher import fisher

@@ -300,6 +300,17 @@ def test_donchian():
     assert len(seq.lowerband) == len(candles)
 
 
+def test_dpo():
+    candles = np.array(dema_candles)
+
+    single = ta.dpo(candles)
+    seq = ta.dpo(candles, sequential=True)
+
+    assert round(single, 0) == 22
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_ema():
     close_prices = [
         204.23, 205.01, 196.9, 197.33, 198.7, 199.86, 202.23, 200.3, 212.3, 210.82603059, 220.84, 218.99,
