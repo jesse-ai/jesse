@@ -649,6 +649,18 @@ def test_medprice():
     assert seq[-1] == single
 
 
+def test_mfi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.mfi(candles, period=9)
+    seq = ta.mfi(candles, period=9, sequential=True)
+
+    assert round(single, 1) == 31.2
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_midpoint():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -661,14 +673,14 @@ def test_midpoint():
     assert seq[-1] == single
 
 
-def test_mfi():
+def test_midprice():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.mfi(candles, period=9)
-    seq = ta.mfi(candles, period=9, sequential=True)
+    single = ta.midprice(candles)
+    seq = ta.midprice(candles, sequential=True)
 
-    assert round(single, 1) == 31.2
+    assert round(single, 1) == 176.6
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
