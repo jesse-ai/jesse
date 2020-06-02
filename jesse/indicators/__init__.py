@@ -59,6 +59,9 @@ from .pattern_recognition import pattern_recognition
 from .pivot import pivot
 from .ppo import ppo
 from .roc import roc
+from .rocp import rocp
+from .rocr import rocr
+from .rocr100 import rocr100
 from .rsi import rsi
 from .sar import sar
 from .sarext import sarext

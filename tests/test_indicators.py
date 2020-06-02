@@ -804,6 +804,42 @@ def test_roc():
     assert seq[-1] == single
 
 
+def test_rocp():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.rocp(candles, period=14)
+    seq = ta.rocp(candles, period=14, sequential=True)
+
+    assert round(single, 2) == -0.53
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_rocr():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.rocr(candles, period=14)
+    seq = ta.rocr(candles, period=14, sequential=True)
+
+    assert round(single, 2) == 0.47
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_rocr100():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.rocr100(candles, period=14)
+    seq = ta.rocr100(candles, period=14, sequential=True)
+
+    assert round(single, 2) == 47.33
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_rsi():
     candles = np.array(rsi_candles)
 
