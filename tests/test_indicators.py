@@ -938,6 +938,23 @@ def test_vwma():
     assert seq[-1] == single
 
 
+def test_vwmacd():
+    candles = np.array(mama_candles)
+
+    single = ta.vwmacd(candles, fastperiod=12, slowperiod=26, signalperiod=9)
+    seq = ta.vwmacd(candles, fastperiod=12, slowperiod=26, signalperiod=9, sequential=True)
+
+    assert type(single).__name__ == 'VWMACD'
+    assert round(single.macd, 2) == -31.37
+    assert round(single.signal, 2) == -19.64
+    assert round(single.hist, 2) == -11.73
+
+    assert seq.macd[-1] == single.macd
+    assert len(seq.macd) == len(candles)
+    assert len(seq.signal) == len(candles)
+    assert len(seq.hist) == len(candles)
+
+
 def test_willr():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

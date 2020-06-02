@@ -70,6 +70,7 @@ from .trix import trix
 from .tsi import tsi
 from .ultosc import ultosc
 from .vwma import vwma
+from .vwmacd import vwmacd
 from .willr import willr
 from .wma import wma
 from .zlema import zlema
