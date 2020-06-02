@@ -566,6 +566,18 @@ def test_kelner_channels():
     assert len(seq_kc.lowerband) == len(candles)
 
 
+def test_kvo():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.kvo(candles)
+    seq = ta.kvo(candles, sequential=True)
+
+    assert round(single / 10000000, 2) == -5.52
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_linearreg():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
