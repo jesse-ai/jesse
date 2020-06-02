@@ -20,7 +20,6 @@ def tradingview_logs(study_name=None, mode=None, now=None):
             if j == len(t.orders) - 1:
                 tv_text += 'strategy.close("{}", when = {})\n'.format(i, when)
             else:
-                # , o.side + o.type[0]
                 tv_text += 'strategy.order("{}", {}, {}, {}, when = {})\n'.format(
                     i, 1 if t.type == 'long' else 0, abs(o.qty), o.price, when
                 )
