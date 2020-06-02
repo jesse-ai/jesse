@@ -1,9 +1,10 @@
+from collections import namedtuple
+
 import numpy as np
 import talib
 
-from collections import namedtuple
-
 DonchianChannel = namedtuple('DonchianChannel', ['upperband', 'middleband', 'lowerband'])
+
 
 def donchian(candles: np.ndarray, period=20, sequential=False) -> DonchianChannel:
     """
@@ -25,5 +26,4 @@ def donchian(candles: np.ndarray, period=20, sequential=False) -> DonchianChanne
     if sequential:
         return DonchianChannel(UC, MC, LC)
     else:
-        return DonchianChannel(UC[-1], MC[-1] , LC[-1])
-
+        return DonchianChannel(UC[-1], MC[-1], LC[-1])

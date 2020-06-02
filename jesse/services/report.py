@@ -1,14 +1,16 @@
-import pandas as pd
+# silent (pandas) warnings
+import warnings
+
 import numpy as np
+import pandas as pd
 
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
 from jesse.services import statistics as stats
-from jesse.store import store
 from jesse.services.candle import is_bullish
-# silent (pandas) warnings
-import warnings
+from jesse.store import store
+
 warnings.filterwarnings("ignore")
 
 
@@ -34,7 +36,7 @@ def positions():
             type_color = 'red'
         else:
             type_color = 'black'
-            
+
         array.append(
             [
                 jh.color(pos.type, type_color),
@@ -159,7 +161,8 @@ def portfolio_metrics():
         ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
         ['Sharpe Ratio', data['sharpe_ratio']],
         ['Annual Return', '{}%'.format(data['annual_return'])],
-        ['Expectancy', '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
+        ['Expectancy',
+         '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
         ['Avg Win | Avg Loss', '{} | {}'.format(round(data['average_win'], 2), round(data['average_loss'], 2))],
         ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
         ['Percent Profitable', str(round(data['win_rate'] * 100)) + '%'],

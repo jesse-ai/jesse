@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
+from time import sleep
 from typing import List
 
 import numpy as np
 import pydash
-from time import sleep
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
-from jesse.enums import sides, trade_types, order_roles
 from jesse import exceptions
+from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -173,7 +173,7 @@ class Strategy(ABC):
         # filters
         for f in self.filters():
             passed = f()
-            if passed is False:
+            if passed == False:
                 logger.info(f.__name__)
                 self._reset()
                 return
@@ -302,7 +302,7 @@ class Strategy(ABC):
 
         for f in self.filters():
             passed = f()
-            if passed is False:
+            if passed == False:
                 logger.info(f.__name__)
                 self._reset()
                 return
@@ -566,6 +566,13 @@ class Strategy(ABC):
                             )
                         )
 
+        # validations: stop-loss and take-profit should not be the same
+        if self.position.is_open:
+            if (self.stop_loss is not None and self.take_profit is not None) and np.array_equal(self.stop_loss,
+                                                                                                self.take_profit):
+                raise exceptions.InvalidStrategy(
+                    'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
+
     def update_position(self):
         pass
 
@@ -573,6 +580,9 @@ class Strategy(ABC):
         """Based on the newly updated info, check if we should take action or not"""
         if not self._is_initiated:
             self._is_initiated = True
+
+        if jh.is_live() and jh.is_debugging():
+            logger.info('Executing  {}-{}-{}-{}'.format(self.name, self.exchange, self.symbol, self.timeframe))
 
         # for caution to make sure testing on livetrade won't bleed your account
         if jh.is_test_driving() and store.completed_trades.count >= 2:
@@ -603,11 +613,14 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
+        if jh.is_backtesting() or jh.is_unit_testing():
+            store.orders.execute_pending_market_orders()
+
         if self.position.is_close and self._open_position_orders == []:
             # validation
             if self.should_short() and self.should_long():
                 raise exceptions.ConflictingRules(
-                    'should_sell and should_buy should not be true at the same time.'
+                    'should_short and should_long should not be true at the same time.'
                 )
 
             if self.should_long():
@@ -725,6 +738,8 @@ class Strategy(ABC):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Position size increased.")
 
+        self._open_position_orders = []
+
         self._broadcast('route-increased-position')
 
         self.on_increased_position()
@@ -745,6 +760,8 @@ class Strategy(ABC):
         """
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Position size reduced.")
+
+        self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
 
@@ -1065,9 +1082,6 @@ class Strategy(ABC):
                 lambda o: abs(o.qty)
             )
 
-            if not jh.is_unit_testing():
-                store.orders.storage['{}-{}'.format(self.exchange, self.symbol)].clear()
-
             store.completed_trades.add_trade(self.trade)
             self.trade = None
             self.trades_count += 1
@@ -1081,6 +1095,14 @@ class Strategy(ABC):
         return self.position.type == 'short'
 
     @property
+    def is_open(self):
+        return self.position.is_open
+
+    @property
+    def is_close(self):
+        return self.position.is_close
+
+    @property
     def average_stop_loss(self) -> float:
         if self._stop_loss is None:
             raise exceptions.InvalidStrategy('You cannot access self.average_stop_loss before setting self.stop_loss')
@@ -1091,7 +1113,8 @@ class Strategy(ABC):
     @property
     def average_take_profit(self) -> float:
         if self._take_profit is None:
-            raise exceptions.InvalidStrategy('You cannot access self.average_take_profit before setting self.take_profit')
+            raise exceptions.InvalidStrategy(
+                'You cannot access self.average_take_profit before setting self.take_profit')
 
         arr = self._take_profit
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()

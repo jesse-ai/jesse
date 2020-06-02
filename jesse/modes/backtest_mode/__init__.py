@@ -5,12 +5,13 @@ import click
 import numpy as np
 
 import jesse.helpers as jh
+import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
 import jesse.services.statistics as stats
 import jesse.services.table as table
+from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes
-from jesse import exceptions
 from jesse.models import Candle
 from jesse.routes import router
 from jesse.services import charts
@@ -18,9 +19,8 @@ from jesse.services import report
 from jesse.services.cache import cache
 from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle
 from jesse.services.file import store_logs
-from jesse.store import store
-import jesse.services.required_candles as required_candles
 from jesse.services.validators import validate_routes
+from jesse.store import store
 
 
 def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False):
@@ -101,7 +101,7 @@ def _load_candles(start_date_str: str, finish_date_str: str):
 
             cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
             cached_value = cache.get_value(cache_key)
-            # if redis cache exists
+            # if cache exists
             if cached_value:
                 candles_tuple = cached_value
             # not cached, get and cache for later calls in the next 5 minutes
@@ -119,14 +119,15 @@ def _load_candles(start_date_str: str, finish_date_str: str):
             # validate that there are enough candles for selected period
             required_candles_count = (finish_date - start_date) / 60_000
             if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-                raise exceptions.CandleNotFoundInDatabase('Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
+                raise exceptions.CandleNotFoundInDatabase(
+                    'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
             elif len(candles_tuple) != required_candles_count + 1:
                 raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
                     start_date_str, finish_date_str
                 ))
 
             # cache it for near future calls
-            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60*60*24*7)
+            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
 
             candles[key] = {
                 'exchange': exchange,

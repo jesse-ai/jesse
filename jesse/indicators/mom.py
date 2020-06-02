@@ -1,15 +1,18 @@
+from typing import Union
+
 import numpy as np
 import talib
 
-from typing import Union
+from jesse.helpers import get_candle_source
 
 
-def mom(candles: np.ndarray, period=10, sequential=False) -> Union[float, np.ndarray]:
+def mom(candles: np.ndarray, period=10, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """
     MOM - Momentum
 
     :param candles: np.ndarray
     :param period: int - default=10
+    :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
     :return: float | np.ndarray
@@ -17,7 +20,8 @@ def mom(candles: np.ndarray, period=10, sequential=False) -> Union[float, np.nda
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    res = talib.MOM(candles[:, 2], timeperiod=period)
+    source = get_candle_source(candles, source_type=source_type)
+    res = talib.MOM(source, timeperiod=period)
 
     if sequential:
         return res

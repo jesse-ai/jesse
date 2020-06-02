@@ -1,15 +1,16 @@
-import time
-import threading
 import math
+import threading
+import time
+
 import arrow
 import click
 import pydash
 
-from jesse.models import Candle
-from jesse.exceptions import CandleNotFoundInExchange
-from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-from jesse.modes.import_candles_mode.drivers import drivers
 import jesse.helpers as jh
+from jesse.exceptions import CandleNotFoundInExchange
+from jesse.models import Candle
+from jesse.modes.import_candles_mode.drivers import drivers
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False):
@@ -40,13 +41,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
         raise ValueError('entered exchange is not supported')
 
     loop_length = int(candles_count / driver.count) + 1
-    time_to_finish = loop_length * driver.sleep_time / 60
     # ask for confirmation
     if not skip_confirmation:
         click.confirm(
-            'Importing {} days candles from "{}" for "{}". Maximum time it\'ll take '
-            'to finish:"{} minutes" (duplicates will be skipped). All good?'
-                .format(days_count, exchange, symbol, time_to_finish), abort=True, default=True)
+            'Importing {} days candles from "{}" for "{}". Duplicates will be skipped. All good?'
+                .format(days_count, exchange, symbol), abort=True, default=True)
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
         for _ in range(candles_count):
@@ -248,7 +247,12 @@ def _get_candles_from_backup_exchange(
 
 def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
     if len(temp_candles) == 0:
-        raise ValueError('No candles were sent')
+        raise CandleNotFoundInExchange(
+            'No candles exists in the market for this day: {} \n'
+            'Try another start_date'.format(
+                jh.timestamp_to_time(start_timestamp)[:10],
+            )
+        )
 
     symbol = temp_candles[0]['symbol']
     exchange = temp_candles[0]['exchange']

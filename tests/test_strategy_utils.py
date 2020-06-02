@@ -1,7 +1,9 @@
-import pytest
-from jesse import utils
 import numpy as np
 import pandas as pd
+import pytest
+
+from jesse import utils
+
 
 def test_risk_to_size():
     assert round(utils.risk_to_size(10000, 1, 0.7, 8.6)) == 1229
@@ -79,7 +81,9 @@ def test_limit_stop_loss():
 def test_estimate_risk():
     assert utils.estimate_risk(100, 80) == 20
 
+
 from .data.test_candles_indicators import mama_candles
+
 
 def test_crossed():
     candles = np.array(mama_candles)
@@ -98,12 +102,13 @@ def test_crossed():
     seq_cross_120 = utils.crossed(candles[:, 2], 120, sequential=True)
     assert seq_cross_120[-1] == True
 
+
 def test_numpy_to_pandas():
     candles = np.array(mama_candles)
     columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
     df = pd.DataFrame(data=candles, index=candles[:, 0], columns=columns)
 
     ohlcv = utils.numpy_candles_to_dataframe(candles, name_date="Date", name_open="Open", name_high="High",
-                               name_low="Low", name_close="Close", name_volume="Volume")
+                                             name_low="Low", name_close="Close", name_volume="Volume")
 
-    pd.testing.assert_frame_equal(df,ohlcv)
+    pd.testing.assert_frame_equal(df, ohlcv)

@@ -1,5 +1,4 @@
 from jesse.strategies import Strategy
-from jesse.services import logger
 
 
 # test_is_increased

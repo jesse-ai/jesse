@@ -1,11 +1,11 @@
 import jesse.helpers as jh
-import jesse.utils as ju
 import jesse.services.selectors as selectors
+import jesse.utils as ju
+from jesse.config import config
 from jesse.enums import trade_types, order_types, order_flags
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order
 from jesse.services import logger, notifier
-from jesse.config import config
 
 
 class Position:

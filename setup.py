@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.20'
+VERSION = '0.5.2'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 REQUIRED_PACKAGES = [
     'psycopg2-binary',
@@ -19,6 +19,7 @@ REQUIRED_PACKAGES = [
     'matplotlib',
     'empyrical',
     'blinker',
+    'tulipy'
 ]
 
 with open("README.md", "r") as fh:
@@ -36,7 +37,7 @@ setup(
     url="https://jesse-ai.com",
     project_urls={
         'Documentation': 'https://docs.jesse-ai.com',
-        'Say Thanks!': 'http://twitter.com/jesse_ai_com',
+        'Say Thanks!': 'http://forum.jesse-ai.com/',
         'Source': 'http://github.com/jesse-ai/jesse',
         'Tracker': 'https://github.com/jesse-ai/jesse/issues',
     },

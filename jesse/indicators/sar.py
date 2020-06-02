@@ -1,7 +1,7 @@
+from typing import Union
+
 import numpy as np
 import talib
-
-from typing import Union
 
 
 def sar(candles: np.ndarray, acceleration=0.02, maximum=0.2, sequential=False) -> Union[float, np.ndarray]:

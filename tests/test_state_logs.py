@@ -1,6 +1,6 @@
-from jesse.store import store
 import jesse.helpers as jh
 import jesse.services.logger as logger
+from jesse.store import store
 
 
 def set_up():

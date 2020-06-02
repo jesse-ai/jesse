@@ -1,6 +1,7 @@
 from random import randint
-from jesse.enums import exchanges, sides, order_types, order_statuses
+
 import jesse.helpers as jh
+from jesse.enums import exchanges, sides, order_types, order_statuses
 from jesse.models import Order
 
 first_timestamp = 1552309186171

@@ -15,7 +15,7 @@ class Test03(Strategy):
     def go_short(self):
         qty = 1
         sell_price = self.price + 5
-        
+
         self.sell = qty, sell_price
         self.stop_loss = qty, sell_price + 10
         self.take_profit = qty, sell_price - 10

@@ -1,12 +1,12 @@
-import numpy as np
-from typing import Union
 import math
+from typing import Union
+
+import numpy as np
 
 
-def frama(candles: np.ndarray, window=10, FC=1,  SC=300, sequential=False) -> Union[float, np.ndarray]:
+def frama(candles: np.ndarray, window=10, FC=1, SC=300, sequential=False) -> Union[float, np.ndarray]:
     if len(candles) > 240:
         candles = candles[-240:]
-
 
     n = window
 

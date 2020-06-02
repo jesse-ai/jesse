@@ -1,12 +1,12 @@
+import hashlib
 import math
 import os
 import sys
 import uuid
+
 import arrow
 import click
-import hashlib
 import numpy as np
-import math
 
 
 def prepare_qty(qty, side):
@@ -178,6 +178,7 @@ def is_debuggable(debug_item):
 
 def timeframe_to_one_minutes(timeframe):
     from jesse.enums import timeframes
+    from jesse.exceptions import InvalidTimeframe
 
     dic = {
         timeframes.MINUTE_1: 1,
@@ -190,10 +191,16 @@ def timeframe_to_one_minutes(timeframe):
         timeframes.HOUR_3: 60 * 3,
         timeframes.HOUR_4: 60 * 4,
         timeframes.HOUR_6: 60 * 6,
+        timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
     }
 
-    return dic[timeframe]
+    try:
+        return dic[timeframe]
+    except KeyError:
+        raise InvalidTimeframe(
+            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
+                timeframe))
 
 
 def max_timeframe(timeframes_list):
@@ -201,6 +208,8 @@ def max_timeframe(timeframes_list):
 
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
+    if timeframes.HOUR_8 in timeframes_list:
+        return timeframes.HOUR_8
     if timeframes.HOUR_6 in timeframes_list:
         return timeframes.HOUR_6
     if timeframes.HOUR_4 in timeframes_list:
@@ -521,6 +530,8 @@ def unique_list(arr) -> list:
 
 
 CACHED_CONFIG = dict()
+
+
 def get_config(keys: str, default=None):
     """
     Gets keys as a single string separated with "." and returns value.
@@ -538,7 +549,8 @@ def get_config(keys: str, default=None):
     if not keys in CACHED_CONFIG:
         from functools import reduce
         from jesse.config import config
-        CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default, keys.split("."), config)
+        CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
+                                     keys.split("."), config)
 
     return CACHED_CONFIG[keys]
 
@@ -596,3 +608,32 @@ def round_qty_for_live_mode(price, roundable_qty):
             qty_round_precision = 3
 
     return np.round(roundable_qty, qty_round_precision)
+
+
+def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
+    """
+     Returns the candles corresponding the selected type.
+
+     :param candles: np.ndarray
+     :param source_type: string
+     :return: np.ndarray
+     """
+
+    if source_type == "close":
+        return candles[:, 2]
+    elif source_type == "high":
+        return candles[:, 3]
+    elif source_type == "low":
+        return candles[:, 4]
+    elif source_type == "open":
+        return candles[:, 1]
+    elif source_type == "volume":
+        return candles[:, 5]
+    elif source_type == "hl2":
+        return (candles[:, 3] + candles[:, 4]) / 2
+    elif source_type == "hlc3":
+        return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
+    elif source_type == "ohlc4":
+        return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
+    else:
+        raise ValueError('type string not recognised')

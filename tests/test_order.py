@@ -1,6 +1,6 @@
-from jesse.models import Order
 import jesse.helpers as jh
 from jesse.enums import order_types, sides, order_statuses
+from jesse.models import Order
 
 
 def test_cancel_order():

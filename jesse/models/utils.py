@@ -1,10 +1,12 @@
+import threading
+
+import numpy as np
+
+import jesse.helpers as jh
 from jesse.models.Candle import Candle
+from jesse.models.Orderbook import Orderbook
 from jesse.models.Ticker import Ticker
 from jesse.models.Trade import Trade
-from jesse.models.Orderbook import Orderbook
-import jesse.helpers as jh
-import threading
-import numpy as np
 
 
 def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):

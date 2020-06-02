@@ -1,7 +1,7 @@
 import peewee
 
-from jesse.config import config
 import jesse.helpers as jh
+from jesse.config import config
 
 if not jh.is_unit_testing():
     # connect to the database

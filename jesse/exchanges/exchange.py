@@ -5,6 +5,7 @@ class Exchange(ABC):
     """
     The interface that every Exchange driver has to implement
     """
+
     @abstractmethod
     def market_order(self, symbol, qty, current_price, side, role, flags):
         pass

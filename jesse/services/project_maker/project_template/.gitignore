@@ -8,6 +8,7 @@
 /storage/*.gz
 .DS_Store
 /.vagrant
+/storage/temp/*.pickle
 /storage/trades/*.json
 /storage/trading-view-pine-editor/*.txt
 /storage/temp/optimize/*.pickle

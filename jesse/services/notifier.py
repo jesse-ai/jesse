@@ -1,7 +1,7 @@
 import requests
 
-from jesse.config import config
 import jesse.helpers as jh
+from jesse.config import config
 
 
 def notify(msg):

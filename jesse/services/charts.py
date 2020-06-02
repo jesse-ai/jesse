@@ -1,16 +1,16 @@
-from datetime import datetime, timedelta
-import arrow
 import os
+from datetime import datetime, timedelta
 
+import arrow
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from pandas.plotting import register_matplotlib_converters
 
-from jesse.store import store
-from jesse.routes import router
-from jesse.config import config
 import jesse.helpers as jh
+from jesse.config import config
+from jesse.routes import router
+from jesse.store import store
 
 
 def portfolio_vs_asset_returns():
@@ -50,7 +50,7 @@ def portfolio_vs_asset_returns():
             dates.append(datetime.fromtimestamp(c[0] / 1000))
             prices.append(c[2])
             # save index of the price instead of the actual price
-            price_dict[key]['indexes'][str(int(c[0]))] = len(prices)-1
+            price_dict[key]['indexes'][str(int(c[0]))] = len(prices) - 1
 
         # price => %returns
         price_returns = pd.Series(prices).pct_change(1) * 100

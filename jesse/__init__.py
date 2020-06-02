@@ -1,7 +1,10 @@
-from pydoc import locate
-import click
 import os
 import sys
+from pydoc import locate
+
+import click
+import pkg_resources
+
 import jesse.helpers as jh
 
 # Python version validation.
@@ -14,7 +17,7 @@ if jh.python_version() < 3.6:
     )
 
 # fix directory issue
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 ls = os.listdir('.')
 is_jesse_project = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
@@ -225,6 +228,7 @@ def register_custom_exception_handler():
 
 # create a Click group
 @click.group()
+@click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli():
     pass
 
@@ -255,10 +259,13 @@ def import_candles(exchange, symbol, start_date):
 @cli.command()
 @click.argument('start_date', required=True, type=str)
 @click.argument('finish_date', required=True, type=str)
-@click.option('--debug/--no-debug', default=False, help='Displays logging messages instead of the progressbar. Used for debugging your strategy.')
+@click.option('--debug/--no-debug', default=False,
+              help='Displays logging messages instead of the progressbar. Used for debugging your strategy.')
 @click.option('--fee/--no-fee', default=True, help='You can use "--no-fee" as a quick way to set trading fee to zero.')
-@click.option('--chart/--no-chart', default=False, help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
-@click.option('--tradingview/--no-tradingview', default=False, help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
+@click.option('--chart/--no-chart', default=False,
+              help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
+@click.option('--tradingview/--no-tradingview', default=False,
+              help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
 def backtest(start_date, finish_date, debug, fee, chart, tradingview):
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"

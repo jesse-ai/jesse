@@ -1,6 +1,6 @@
+import empyrical
 import numpy as np
 import pandas as pd
-import empyrical
 
 import jesse.helpers as jh
 from jesse.store import store
@@ -86,8 +86,8 @@ def trades(trades_list: list, daily_balance: list):
     gross_loss = round(df.loc[df['PNL'] < 0]['PNL'].sum(), 2)
 
     daily_returns = pd.Series(daily_balance).pct_change(1).values
-    max_drawdown = round(empyrical.max_drawdown(daily_returns)*100, 2)
-    annual_return = round(empyrical.annual_return(daily_returns)*100, 2)
+    max_drawdown = round(empyrical.max_drawdown(daily_returns) * 100, 2)
+    annual_return = round(empyrical.annual_return(daily_returns) * 100, 2)
     sharpe_ratio = round(empyrical.sharpe_ratio(daily_returns), 2)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl

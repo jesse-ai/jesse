@@ -5,18 +5,18 @@ import pytest
 
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
+from jesse import exceptions
 from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_roles, order_types
 from jesse.factories import fake_range_candle, fake_range_candle_from_range_prices
-from jesse.models import Order
 from jesse.models import CompletedTrade
-from jesse.routes import router
+from jesse.models import Order
 from jesse.modes import backtest_mode
+from jesse.routes import router
 from jesse.store import store
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
-from jesse import exceptions
 
 
 def set_up(routes):
@@ -885,6 +885,21 @@ def test_is_increased():
 def test_is_reduced():
     single_route_backtest('Test43')
 
+
+def test_can_close_a_long_position_and_go_short_at_the_same_candle():
+    single_route_backtest('Test45')
+    trades = store.completed_trades.trades
+
+    assert len(trades) == 1
+    assert store.app.total_open_trades == 1
+    # more assertions in the Test45 file
+
+
+def test_validation_for_equal_stop_loss_and_take_profit():
+    with pytest.raises(Exception) as err:
+        single_route_backtest('Test46')
+
+    assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
 
 # def test_inputs_get_rounded_behind_the_scene():
 #     set_up([(exchanges.SANDBOX, 'EOSUSD', timeframes.MINUTE_1, 'Test44')])

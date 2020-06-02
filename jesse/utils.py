@@ -1,7 +1,8 @@
 import math
-import pandas as pd
-import numpy as np
 from typing import Union
+
+import numpy as np
+import pandas as pd
 
 
 def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> float:
@@ -38,20 +39,20 @@ def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price) -> floa
     return size_to_qty(size, entry_price)
 
 
-def size_to_qty(position_size, price, precision=3) -> float:
+def size_to_qty(position_size, entry_price, precision=3) -> float:
     """
     converts position-size to quantity
-    example: requesting $100 at the price of %50 would return 2
+    example: requesting $100 at the entry_price of %50 would return 2
 
     :param position_size: float
-    :param price: float
+    :param entry_price: float
     :param precision: int
     :return: float
     """
-    if math.isnan(position_size) or math.isnan(price):
+    if math.isnan(position_size) or math.isnan(entry_price):
         raise TypeError()
 
-    return round(position_size / price, precision)
+    return round(position_size / entry_price, precision)
 
 
 def qty_to_size(qty, price) -> float:
@@ -90,6 +91,7 @@ def anchor_timeframe(timeframe) -> str:
         timeframes.HOUR_3: timeframes.DAY_1,
         timeframes.HOUR_4: timeframes.DAY_1,
         timeframes.HOUR_6: timeframes.DAY_1,
+        timeframes.HOUR_8: timeframes.DAY_1,
     }
 
     return dic[timeframe]
@@ -172,7 +174,7 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
 
 
 def numpy_candles_to_dataframe(candles: np.ndarray, name_date="date", name_open="open", name_high="high",
-                               name_low="low", name_close="close", name_volume="volume"):
+                               name_low="low", name_close="close", name_volume="volume") -> pd.DataFrame:
     columns = [name_date, name_open, name_close, name_high, name_low, name_volume]
     df = pd.DataFrame(data=candles, index=candles[:, 0], columns=columns)
     return df

@@ -1,9 +1,9 @@
+import multiprocessing
+import os
 import pickle
+import sys
 from abc import ABC, abstractmethod
 from random import randint, choices, choice
-import multiprocessing
-import sys
-import os
 
 # for macOS only
 if sys.platform == 'darwin':

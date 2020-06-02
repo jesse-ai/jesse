@@ -5,16 +5,16 @@ import click
 import numpy as np
 
 import jesse.helpers as jh
+import jesse.services.required_candles as required_candles
 from jesse.config import config
+from jesse.exceptions import Breaker
+from jesse.exceptions import InvalidStrategy
 from jesse.models import Candle
+from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
 from jesse.services import statistics as stats
-from jesse.modes.backtest_mode import simulator
 from jesse.store import store
 from .Genetics import Genetics
-from jesse.exceptions import InvalidStrategy
-import jesse.services.required_candles as required_candles
-from jesse.exceptions import Breaker
 
 
 class Optimizer(Genetics):

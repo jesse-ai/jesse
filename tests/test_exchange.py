@@ -1,7 +1,7 @@
-from jesse.config import config, reset_config
-from jesse.store import store
-from jesse.enums import exchanges
 import jesse.services.selectors as selectors
+from jesse.config import config, reset_config
+from jesse.enums import exchanges
+from jesse.store import store
 
 
 def set_up():

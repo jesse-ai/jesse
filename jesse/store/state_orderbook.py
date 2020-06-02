@@ -1,5 +1,4 @@
 import numpy as np
-import math
 
 import jesse.helpers as jh
 from jesse.config import config

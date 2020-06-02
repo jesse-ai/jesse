@@ -1,7 +1,7 @@
 import peewee
 
-from jesse.services.db import db
 import jesse.helpers as jh
+from jesse.services.db import db
 
 
 class Ticker(peewee.Model):

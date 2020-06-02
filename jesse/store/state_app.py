@@ -9,4 +9,3 @@ class AppState:
     # used as placeholders for detecting open trades metrics
     total_open_trades = 0
     total_open_pl = 0
-

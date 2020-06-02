@@ -1,7 +1,8 @@
-from .interface import CandleExchange
 import requests
-from jesse import exceptions
+
 import jesse.helpers as jh
+from jesse import exceptions
+from .interface import CandleExchange
 
 
 class Binance(CandleExchange):

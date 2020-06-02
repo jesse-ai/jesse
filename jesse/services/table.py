@@ -6,7 +6,7 @@ def key_value(data, title, alignments=None, uppercase_title=True):
 
     for d in data:
         table.append(d)
-    
+
     if alignments is None:
         print(tabulate(table, headers=[title.upper() if uppercase_title else title, ''], tablefmt="presto"))
     else:

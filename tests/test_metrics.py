@@ -1,14 +1,10 @@
-import numpy as np
-
 import jesse.helpers as jh
-import jesse.services.statistics as stats
 from jesse.config import config, reset_config
-from jesse.enums import exchanges, timeframes
+from jesse.enums import exchanges
+from jesse.factories import fake_range_candle_from_range_prices
 from jesse.modes import backtest_mode
-from jesse.store import store
-from tests.data.test_candles_1 import test_candles_1
 from jesse.routes import router
-from jesse.factories import fake_range_candle, fake_range_candle_from_range_prices
+from jesse.store import store
 
 
 def set_up(routes, fee=0):
@@ -52,8 +48,7 @@ def test_open_pl_and_total_open_trades():
 
     assert len(store.completed_trades.trades) == 0
     assert store.app.total_open_trades == 1
-    assert store.app.total_open_pl == 97 # 99 - 2
-
+    assert store.app.total_open_pl == 97  # 99 - 2
 
 # def test_statistics_for_trades_without_fee():
 #     set_up([

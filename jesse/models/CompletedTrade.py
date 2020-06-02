@@ -1,6 +1,7 @@
+import numpy as np
+
 import jesse.helpers as jh
 from jesse.config import config
-import numpy as np
 
 
 class CompletedTrade:

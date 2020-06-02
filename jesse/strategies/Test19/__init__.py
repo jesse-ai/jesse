@@ -1,5 +1,4 @@
 from jesse.strategies import Strategy
-import jesse.indicators as ta
 
 
 class Test19(Strategy):

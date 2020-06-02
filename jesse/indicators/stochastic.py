@@ -1,12 +1,13 @@
+from collections import namedtuple
+
 import numpy as np
 import talib
-
-from collections import namedtuple
 
 Stochastic = namedtuple('Stochastic', ['k', 'd'])
 
 
-def stoch(candles: np.ndarray, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0, sequential=False) -> Stochastic:
+def stoch(candles: np.ndarray, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0,
+          sequential=False) -> Stochastic:
     """
     The Stochastic Oscillator
     https://www.investopedia.com/terms/s/stochasticoscillator.asp

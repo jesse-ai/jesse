@@ -9,7 +9,30 @@ class RouterClass:
 
     def set_routes(self, routes):
         self.routes = []
+
         for r in routes:
+            # validate strategy
+            import jesse.helpers as jh
+            from jesse import exceptions
+
+            strategy_name = r[3]
+            if jh.is_unit_testing():
+                exists = jh.file_exists('jesse/strategies/{}/__init__.py'.format(strategy_name))
+            else:
+                exists = jh.file_exists('strategies/{}/__init__.py'.format(strategy_name))
+
+            if not exists:
+                raise exceptions.InvalidRoutes(
+                    'A strategy with the name of "{}" could not be found.'.format(r[3]))
+
+            # validate timeframe
+            timeframe = r[2]
+            if timeframe not in ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '3h', '4h', '6h', '8h', '1D']:
+                raise exceptions.InvalidRoutes(
+                    'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
+                        timeframe)
+                )
+
             self.routes.append(Route(*r))
 
     def set_market_data(self, routes):
@@ -21,4 +44,4 @@ class RouterClass:
         self.extra_candles = extra_candles
 
 
-router = RouterClass()
+router: RouterClass = RouterClass()

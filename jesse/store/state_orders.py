@@ -1,5 +1,7 @@
 from typing import List
+
 import pydash
+
 from jesse.config import config
 from jesse.models import Order
 
@@ -59,6 +61,9 @@ class OrdersState:
         return pydash.find(self.storage[key], lambda o: o.id == id)
 
     def execute_pending_market_orders(self):
+        if not self.to_execute:
+            return
+
         for o in self.to_execute:
             o.execute()
 

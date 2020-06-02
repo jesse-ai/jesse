@@ -1,5 +1,5 @@
-from jesse.strategies import Strategy
 from jesse.services import logger
+from jesse.strategies import Strategy
 
 
 # test_end
@@ -30,4 +30,3 @@ class Test41(Strategy):
 
         # close it manually
         self.liquidate()
-

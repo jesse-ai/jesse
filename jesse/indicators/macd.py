@@ -1,19 +1,23 @@
+from collections import namedtuple
+
 import numpy as np
 import talib
-from collections import namedtuple
+
+from jesse.helpers import get_candle_source
 
 MACD = namedtuple('MACD', ['macd', 'signal', 'hist'])
 
 
-def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, sequential=False) -> MACD:
+def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, source_type="close",
+         sequential=False) -> MACD:
     """
     MACD - Moving Average Convergence/Divergence
-    https://www.investopedia.com/terms/m/macd.asp
 
     :param candles: np.ndarray
     :param fastperiod: int - default: 12
     :param slow_period: int - default: 26
     :param signal_period: int - default: 9
+    :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
     :return: MACD
@@ -21,7 +25,9 @@ def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, sequ
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    macd, macdsignal, macdhist = talib.MACD(candles[:, 2], fastperiod=fastperiod, slowperiod=slowperiod, signalperiod=signalperiod)
+    source = get_candle_source(candles, source_type=source_type)
+    macd, macdsignal, macdhist = talib.MACD(source, fastperiod=fastperiod, slowperiod=slowperiod,
+                                            signalperiod=signalperiod)
 
     if sequential:
         return MACD(macd, macdsignal, macdhist)
