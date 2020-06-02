@@ -1092,6 +1092,16 @@ def test_var():
     assert seq[-1] == single
 
 
+def test_vidya():
+    candles = np.array(vwma_candles)
+    single = ta.vidya(candles)
+    seq = ta.vidya(candles, sequential=True)
+
+    assert round(single, 2) == 202.47
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_vwma():
     candles = np.array(vwma_candles)
     single = ta.vwma(candles)
