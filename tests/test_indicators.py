@@ -17,6 +17,7 @@ def test_acosc():
     assert seq.osc[-1] == single.osc
     assert len(seq.osc) == len(candles)
 
+
 def test_ad():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -26,6 +27,7 @@ def test_ad():
     assert round(single, 0) == 6346031
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_adosc():
     # use the same candles as mama_candles
@@ -62,7 +64,7 @@ def test_adxr():
     assert seq[-1] == single
 
 
-def test_ag():
+def test_alligator():
     candles = np.array(mama_candles)
     single = ta.alligator(candles)
     seq = ta.alligator(candles, sequential=True)
@@ -131,6 +133,17 @@ def test_atr():
     seq = ta.atr(candles, sequential=True)
 
     assert round(single, 1) == 2.8
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_avgprice():
+    candles = np.array(mama_candles)
+
+    single = ta.avgprice(candles)
+    seq = ta.avgprice(candles, sequential=True)
+
+    assert round(single, 1) == 149.8
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
