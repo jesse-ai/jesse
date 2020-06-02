@@ -16,6 +16,7 @@ from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop
 from .cci import cci
 from .cmo import cmo
+from .correl import correl
 from .dec_osc import dec_osc
 from .decycler import decycler
 from .dema import dema

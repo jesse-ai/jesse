@@ -195,7 +195,7 @@ def test_beta():
 
     single = ta.beta(candles)
     seq = ta.beta(candles, sequential=True)
-    
+
     assert round(single, 2) == -0.31
     assert len(seq) == len(candles)
     assert seq[-1] == single
@@ -221,6 +221,17 @@ def test_cmo():
     seq = ta.cmo(candles, period=9, sequential=True)
 
     assert round(single, 0) == -70
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_correl():
+    candles = np.array(mama_candles)
+
+    single = ta.correl(candles)
+    seq = ta.correl(candles, sequential=True)
+    
+    assert round(single, 2) == 0.58
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

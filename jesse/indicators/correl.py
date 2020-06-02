@@ -4,9 +4,9 @@ import numpy as np
 import talib
 
 
-def beta(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.ndarray]:
+def correl(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.ndarray]:
     """
-    BETA - Beta
+    CORREL - Pearson's Correlation Coefficient (r)
 
     :param candles: np.ndarray
     :param period: int - default: 5
@@ -17,7 +17,7 @@ def beta(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.nda
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    res = talib.BETA(candles[:, 3], candles[:, 4], timeperiod=period)
+    res = talib.CORREL(candles[:, 3], candles[:, 4], timeperiod=period)
 
     if sequential:
         return res
