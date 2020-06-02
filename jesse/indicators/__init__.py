@@ -78,6 +78,7 @@ from .tema import tema
 from .trange import trange
 from .trima import trima
 from .trix import trix
+from .tsf import tsf
 from .tsi import tsi
 from .ultosc import ultosc
 from .vwma import vwma

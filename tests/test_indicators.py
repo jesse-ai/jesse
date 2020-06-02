@@ -1034,6 +1034,18 @@ def test_trix():
     assert seq[-1] == single
 
 
+def test_tsf():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.tsf(candles)
+    seq = ta.tsf(candles, sequential=True)
+
+    assert round(single, 1) == 174.7
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_tsi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
