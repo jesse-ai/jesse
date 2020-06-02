@@ -395,6 +395,23 @@ def test_hma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_ht_dcperiod():
+    candles = np.array(mama_candles)
+    single = ta.ht_dcperiod(candles)
+    seq = ta.ht_dcperiod(candles, sequential=True)
+
+    assert round(single, 0) == 24
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_ht_dcphase():
+    candles = np.array(mama_candles)
+    single = ta.ht_dcphase(candles)
+    seq = ta.ht_dcphase(candles, sequential=True)
+
+    assert round(single, 0) == 10
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ht_trendline():
     candles = np.array(mama_candles)

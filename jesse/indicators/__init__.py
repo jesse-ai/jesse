@@ -29,6 +29,8 @@ from .frama import frama
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .hma import hma
+from .ht_dcperiod import ht_dcperiod
+from .ht_dcphase import ht_dcphase
 from .ht_trendline import ht_trendline
 from .ichimoku_cloud import ichimoku_cloud
 from .itrend import itrend
