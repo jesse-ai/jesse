@@ -26,6 +26,7 @@ from .donchian import donchian
 from .dpo import dpo
 from .ema import ema
 from .emd import emd
+from .emv import emv
 from .fisher import fisher
 from .frama import frama
 from .gatorosc import gatorosc

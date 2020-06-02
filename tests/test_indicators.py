@@ -247,7 +247,6 @@ def test_cvi():
     assert seq[-1] == single
 
 
-
 def test_dec_osc():
     candles = np.array(mama_candles)
     single = ta.dec_osc(candles)
@@ -360,6 +359,15 @@ def test_emd():
     assert len(seq.mean) == len(candles)
     assert len(seq.up) == len(candles)
     assert len(seq.low) == len(candles)
+
+
+def test_emv():
+    candles = np.array(mama_candles)
+    single = ta.emv(candles)
+    seq = ta.emv(candles, sequential=True)
+    assert round(single, 0) == -11
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 
 def test_fisher():
