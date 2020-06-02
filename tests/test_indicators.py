@@ -230,7 +230,7 @@ def test_correl():
 
     single = ta.correl(candles)
     seq = ta.correl(candles, sequential=True)
-    
+
     assert round(single, 2) == 0.58
     assert len(seq) == len(candles)
     assert seq[-1] == single
@@ -392,6 +392,16 @@ def test_hma():
     seq = ta.hma(candles, sequential=True)
 
     assert round(single, 0) == 134
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_ht_trendline():
+    candles = np.array(mama_candles)
+    single = ta.ht_trendline(candles)
+    seq = ta.ht_trendline(candles, sequential=True)
+
+    assert round(single, 0) == 236
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
