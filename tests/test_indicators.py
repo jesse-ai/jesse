@@ -413,6 +413,34 @@ def test_ht_dcphase():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_ht_phasor():
+    candles = np.array(mama_candles)
+    single = ta.ht_phasor(candles)
+    seq = ta.ht_phasor(candles, sequential=True)
+
+    assert type(single).__name__ == 'IQ'
+    assert round(single.inphase, 0) == 11
+    assert round(single.quadrature, 0) == -52
+
+    assert seq.inphase[-1] == single.inphase
+    assert seq.quadrature[-1] == single.quadrature
+    assert len(seq.inphase) == len(candles)
+    assert len(seq.quadrature) == len(candles)
+
+def test_ht_phasor():
+    candles = np.array(mama_candles)
+    single = ta.ht_phasor(candles)
+    seq = ta.ht_phasor(candles, sequential=True)
+
+    assert type(single).__name__ == 'IQ'
+    assert round(single.inphase, 0) == 11
+    assert round(single.quadrature, 0) == -52
+
+    assert seq.inphase[-1] == single.inphase
+    assert seq.quadrature[-1] == single.quadrature
+    assert len(seq.inphase) == len(candles)
+    assert len(seq.quadrature) == len(candles)
+
 def test_ht_trendline():
     candles = np.array(mama_candles)
     single = ta.ht_trendline(candles)
