@@ -49,6 +49,8 @@ from .macdext import macdext
 from .mama import mama
 from .medprice import medprice
 from .mfi import mfi
+from .midpoint import midpoint
+from .midprice import midprice
 from .minmax import minmax
 from .mom import mom
 from .natr import natr
