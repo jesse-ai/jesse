@@ -68,6 +68,7 @@ from .sarext import sarext
 from .sma import sma
 from .smma import smma
 from .srsi import srsi
+from .stddev import stddev
 from .stochastic import stoch
 from .stochf import stochf
 from .supersmoother import supersmoother

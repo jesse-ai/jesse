@@ -920,6 +920,16 @@ def test_srsi():
     assert len(srsi.k) == len(candles)
 
 
+def test_stddev():
+    candles = np.array(mama_candles)
+    single = ta.stddev(candles)
+    seq = ta.stddev(candles, sequential=True)
+
+    assert round(single, 0) == 37
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_stoch():
     candles = np.array(stoch_candles)
 
