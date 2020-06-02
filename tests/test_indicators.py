@@ -236,6 +236,18 @@ def test_correl():
     assert seq[-1] == single
 
 
+def test_cvi():
+    candles = np.array(mama_candles)
+
+    single = ta.cvi(candles)
+    seq = ta.cvi(candles, sequential=True)
+
+    assert round(single, 2) == 196.8
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+
 def test_dec_osc():
     candles = np.array(mama_candles)
     single = ta.dec_osc(candles)
