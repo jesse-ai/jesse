@@ -18,7 +18,8 @@ def adosc(candles: np.ndarray, fastperiod=3, slowperiod=10, sequential=False) ->
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    res = talib.ADOSC(candles[:, 3], candles[:, 4], candles[:, 2], candles[:, 5], fastperiod=fastperiod, slowperiod=slowperiod)
+    res = talib.ADOSC(candles[:, 3], candles[:, 4], candles[:, 2], candles[:, 5], fastperiod=fastperiod,
+                      slowperiod=slowperiod)
 
     if sequential:
         return res

@@ -22,23 +22,23 @@ def dec_osc(candles: np.ndarray, hp_period=125, k=1, source_type="close", sequen
 
     source = get_candle_source(candles, source_type=source_type)
     alphaArg1 = 2 * np.pi * 0.707 / hp_period
-    alpha1 =  (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
-    coeff1 = np.array([(1 - alpha1 / 2)**2, 2*(1 - alpha1), -(1 - alpha1)**2])
+    alpha1 = (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
+    coeff1 = np.array([(1 - alpha1 / 2) ** 2, 2 * (1 - alpha1), -(1 - alpha1) ** 2])
     hp1 = np.copy(source)
 
     alphaArg2 = 2 * np.pi * 0.707 / (0.5 * hp_period)
     alpha2 = (np.cos(alphaArg2) + np.sin(alphaArg2) - 1) / np.cos(alphaArg2)
-    coeff2 = np.array([(1 - alpha2 / 2)**2, 2*(1 - alpha2), -(1 - alpha2)**2])
+    coeff2 = np.array([(1 - alpha2 / 2) ** 2, 2 * (1 - alpha2), -(1 - alpha2) ** 2])
     hp2 = np.copy(source)
 
     for i in range(source.shape[0]):
-
-        val1 = np.array([source[i]-2*source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
+        val1 = np.array([source[i] - 2 * source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
         hp1[i] = np.matmul(coeff1, val1)
 
-        val2 = np.array([(source[i]-hp1[i])-2*(source[i - 1]-hp1[i - 1])+ (source[i - 2]-hp1[i - 2]), hp2[i - 1], hp2[i - 2]])
+        val2 = np.array(
+            [(source[i] - hp1[i]) - 2 * (source[i - 1] - hp1[i - 1]) + (source[i - 2] - hp1[i - 2]), hp2[i - 1],
+             hp2[i - 2]])
         hp2[i] = np.matmul(coeff2, val2)
-
 
     res = 100 * k * hp2 / source
 

@@ -5,13 +5,13 @@ import talib
 
 SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 
-def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> SuperTrend:
 
+def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> SuperTrend:
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
     # calculation of ATR using TALIB function
-    atr= talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
+    atr = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     # Calculation of SuperTrend
     upper_basic = (candles[:, 3] + candles[:, 4]) / 2 + (factor * atr)
@@ -49,7 +49,7 @@ def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> Su
 
     for i in range(period, len(candles)):
         prevClose = candles[:, 2][i - 1]
-        prevUpperBand =upper_band[i - 1]
+        prevUpperBand = upper_band[i - 1]
         currUpperBand = upper_band[i]
         prevLowerBand = lower_band[i - 1]
         currLowerBand = lower_band[i]

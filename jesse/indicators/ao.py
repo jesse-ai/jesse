@@ -5,6 +5,7 @@ import talib
 
 AO = namedtuple('AO', ['osc', 'change'])
 
+
 def ao(candles: np.ndarray, sequential=False) -> AO:
     """
     Awesome Oscillator
@@ -18,7 +19,7 @@ def ao(candles: np.ndarray, sequential=False) -> AO:
         candles = candles[-240:]
 
     med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
-    res = talib.SMA(med,5) - talib.SMA(med,34)
+    res = talib.SMA(med, 5) - talib.SMA(med, 34)
 
     mom = talib.MOM(res, timeperiod=1)
 
@@ -26,4 +27,3 @@ def ao(candles: np.ndarray, sequential=False) -> AO:
         return AO(res, mom)
     else:
         return AO(res[-1], mom[-1])
-

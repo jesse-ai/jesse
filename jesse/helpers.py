@@ -194,11 +194,14 @@ def timeframe_to_one_minutes(timeframe):
         timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
     }
-    
+
     try:
         return dic[timeframe]
     except KeyError:
-        raise InvalidTimeframe('Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(timeframe))
+        raise InvalidTimeframe(
+            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
+                timeframe))
+
 
 def max_timeframe(timeframes_list):
     from jesse.enums import timeframes
@@ -527,6 +530,8 @@ def unique_list(arr) -> list:
 
 
 CACHED_CONFIG = dict()
+
+
 def get_config(keys: str, default=None):
     """
     Gets keys as a single string separated with "." and returns value.
@@ -544,7 +549,8 @@ def get_config(keys: str, default=None):
     if not keys in CACHED_CONFIG:
         from functools import reduce
         from jesse.config import config
-        CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default, keys.split("."), config)
+        CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
+                                     keys.split("."), config)
 
     return CACHED_CONFIG[keys]
 
@@ -602,6 +608,7 @@ def round_qty_for_live_mode(price, roundable_qty):
             qty_round_precision = 3
 
     return np.round(roundable_qty, qty_round_precision)
+
 
 def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
     """

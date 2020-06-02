@@ -48,8 +48,7 @@ def test_open_pl_and_total_open_trades():
 
     assert len(store.completed_trades.trades) == 0
     assert store.app.total_open_trades == 1
-    assert store.app.total_open_pl == 97 # 99 - 2
-
+    assert store.app.total_open_pl == 97  # 99 - 2
 
 # def test_statistics_for_trades_without_fee():
 #     set_up([

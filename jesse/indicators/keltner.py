@@ -7,6 +7,7 @@ from jesse.helpers import get_candle_source
 
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 
+
 def keltner(candles: np.ndarray, period=20, multiplier=2, source_type="close", sequential=False) -> KeltnerChannel:
     """
     Keltner Channels
@@ -35,5 +36,3 @@ def keltner(candles: np.ndarray, period=20, multiplier=2, source_type="close", s
         return KeltnerChannel(up, mid, low)
     else:
         return KeltnerChannel(up[-1], mid[-1], low[-1])
-
-

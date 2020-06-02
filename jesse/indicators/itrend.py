@@ -23,7 +23,8 @@ def itrend(candles: np.ndarray, alpha=0.07, source_type="hl2", sequential=False)
 
     source = get_candle_source(candles, source_type=source_type)
 
-    coeff = np.array([(alpha - alpha ** 2 / 4), alpha ** 2 / 2, - (alpha - alpha ** 2 * 3 / 4), 2 * (1 - alpha), - (1 - alpha) ** 2])
+    coeff = np.array(
+        [(alpha - alpha ** 2 / 4), alpha ** 2 / 2, - (alpha - alpha ** 2 * 3 / 4), 2 * (1 - alpha), - (1 - alpha) ** 2])
 
     it = np.copy(source)
     for i in range(2, 7):

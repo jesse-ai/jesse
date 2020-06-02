@@ -7,6 +7,7 @@ from jesse.helpers import get_candle_source
 
 MAMA = namedtuple('MAMA', ['mama', 'fama'])
 
+
 def mama(candles: np.ndarray, fastlimit=0.5, slowlimit=0.05, source_type="close", sequential=False) -> MAMA:
     """
     MAMA - MESA Adaptive Moving Average

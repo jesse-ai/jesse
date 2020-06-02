@@ -21,15 +21,13 @@ def decycler(candles: np.ndarray, hp_period=125, source_type="close", sequential
 
     source = get_candle_source(candles, source_type=source_type)
     alphaArg1 = 2 * np.pi * 0.707 / hp_period
-    alpha1 =  (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
-    coeff1 = np.array([(1 - alpha1 / 2)**2, 2*(1 - alpha1), -(1 - alpha1)**2])
+    alpha1 = (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
+    coeff1 = np.array([(1 - alpha1 / 2) ** 2, 2 * (1 - alpha1), -(1 - alpha1) ** 2])
     hp1 = np.copy(source)
 
     for i in range(source.shape[0]):
-
-        val1 = np.array([source[i]-2*source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
+        val1 = np.array([source[i] - 2 * source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
         hp1[i] = np.matmul(coeff1, val1)
-
 
     res = source - hp1
 

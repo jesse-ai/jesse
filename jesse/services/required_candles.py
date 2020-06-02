@@ -57,7 +57,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         )
 
         # cache it for near future calls
-        cache.set_value(cache_key, candles_tuple, expire_seconds=60*60*24*7)
+        cache.set_value(cache_key, candles_tuple, expire_seconds=60 * 60 * 24 * 7)
 
     candles = np.array(candles_tuple)
 

@@ -19,8 +19,8 @@ def dmi(candles: np.ndarray, period=14, sequential=False) -> DMI:
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    MINUS_DI  = talib.MINUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
-    PLUS_DI  = talib.PLUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
+    MINUS_DI = talib.MINUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
+    PLUS_DI = talib.PLUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     if sequential:
         return DMI(PLUS_DI, MINUS_DI)

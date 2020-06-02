@@ -45,9 +45,9 @@ def supersmoother(candles: np.ndarray, cutoff=14, source_type="close", sequentia
         out = np.insert(fil[2:], 0, np.repeat(np.nan, to_fill))
     else:
         out = fil[2:]
-    
+
     res = out
-    
+
     if sequential:
         return res
     else:

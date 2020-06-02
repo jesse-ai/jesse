@@ -26,4 +26,5 @@ def generate(name):
     shutil.copytree('{}/project_template'.format(dirname), path)
 
     # output the location of generated strategy directory
-    print(jh.color('Your project is created successfully. \nRun "cd {}" to begin algo-trading!'.format(path, name), 'green'))
+    print(jh.color('Your project is created successfully. \nRun "cd {}" to begin algo-trading!'.format(path, name),
+                   'green'))

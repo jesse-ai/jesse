@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def zscore(candles: np.ndarray, period=14, matype=0, nbdev=1, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def zscore(candles: np.ndarray, period=14, matype=0, nbdev=1, source_type="close", sequential=False) -> Union[
+    float, np.ndarray]:
     """
     zScore
 

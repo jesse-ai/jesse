@@ -8,7 +8,8 @@ from jesse.helpers import get_candle_source
 MACD = namedtuple('MACD', ['macd', 'signal', 'hist'])
 
 
-def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, source_type="close", sequential=False) -> MACD:
+def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, source_type="close",
+         sequential=False) -> MACD:
     """
     MACD - Moving Average Convergence/Divergence
 
@@ -25,7 +26,8 @@ def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, sour
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    macd, macdsignal, macdhist = talib.MACD(source, fastperiod=fastperiod, slowperiod=slowperiod, signalperiod=signalperiod)
+    macd, macdsignal, macdhist = talib.MACD(source, fastperiod=fastperiod, slowperiod=slowperiod,
+                                            signalperiod=signalperiod)
 
     if sequential:
         return MACD(macd, macdsignal, macdhist)

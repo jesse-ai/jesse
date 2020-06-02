@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def apo(candles: np.ndarray, fastperiod=12, slowperiod=26, matype=0, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def apo(candles: np.ndarray, fastperiod=12, slowperiod=26, matype=0, source_type="close", sequential=False) -> Union[
+    float, np.ndarray]:
     """
     APO - Absolute Price Oscillator
 

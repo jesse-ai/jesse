@@ -4,21 +4,21 @@ python:
   - "3.7"
   - "3.8"
 before_install:
-        - cd
-        - pip3 install Cython numpy
-        - wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q
-        - tar -xzf ta-lib-0.4.0-src.tar.gz
-        - cd ta-lib/ 
-        - ./configure --prefix=/usr
-        - make
-        - sudo make install
-        - cd
+  - cd
+  - pip3 install Cython numpy
+  - wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q
+  - tar -xzf ta-lib-0.4.0-src.tar.gz
+  - cd ta-lib/
+  - ./configure --prefix=/usr
+  - make
+  - sudo make install
+  - cd
 # command to install dependencies
 install:
   - cd $TRAVIS_BUILD_DIR
   - pip install -r requirements.txt
   - pip install -e .
-  
+
 # command to run tests
 script:
   - pytest

@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def tsi(candles: np.ndarray, long_period=25, short_period=13, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def tsi(candles: np.ndarray, long_period=25, short_period=13, source_type="close", sequential=False) -> Union[
+    float, np.ndarray]:
     """
      True strength index (TSI)
 
@@ -22,9 +23,7 @@ def tsi(candles: np.ndarray, long_period=25, short_period=13, source_type="close
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    r = 100 * (talib.EMA((talib.EMA(talib.MOM(source, 1), long_period)), short_period)) / (talib.EMA((talib.EMA(np.absolute(talib.MOM(source, 1)), long_period)), short_period))
-
+    r = 100 * (talib.EMA((talib.EMA(talib.MOM(source, 1), long_period)), short_period)) / (
+        talib.EMA((talib.EMA(np.absolute(talib.MOM(source, 1)), long_period)), short_period))
 
     return r if sequential else r[-1]
-
-

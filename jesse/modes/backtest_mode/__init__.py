@@ -119,14 +119,15 @@ def _load_candles(start_date_str: str, finish_date_str: str):
             # validate that there are enough candles for selected period
             required_candles_count = (finish_date - start_date) / 60_000
             if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-                raise exceptions.CandleNotFoundInDatabase('Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
+                raise exceptions.CandleNotFoundInDatabase(
+                    'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
             elif len(candles_tuple) != required_candles_count + 1:
                 raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
                     start_date_str, finish_date_str
                 ))
 
             # cache it for near future calls
-            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60*60*24*7)
+            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
 
             candles[key] = {
                 'exchange': exchange,

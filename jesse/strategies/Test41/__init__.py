@@ -30,4 +30,3 @@ class Test41(Strategy):
 
         # close it manually
         self.liquidate()
-

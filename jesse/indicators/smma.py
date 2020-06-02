@@ -27,13 +27,13 @@ def smma(candles: np.ndarray, period=5, source_type="close", sequential=False) -
 
 def numpy_ewma(data, window):
     alpha = 1 / window
-    scale = 1/(1-alpha)
+    scale = 1 / (1 - alpha)
     n = data.shape[0]
-    scale_arr = (1-alpha)**(-1*np.arange(n))
-    weights = (1-alpha)**np.arange(n)
-    pw0 = (1-alpha)**(n-1)
-    mult = data*pw0*scale_arr
+    scale_arr = (1 - alpha) ** (-1 * np.arange(n))
+    weights = (1 - alpha) ** np.arange(n)
+    pw0 = (1 - alpha) ** (n - 1)
+    mult = data * pw0 * scale_arr
     cumsums = mult.cumsum()
-    out = cumsums*scale_arr[::-1] / weights.cumsum()
+    out = cumsums * scale_arr[::-1] / weights.cumsum()
 
     return out

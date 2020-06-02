@@ -23,6 +23,8 @@ def fisher(candles: np.ndarray, period=9, sequential=False) -> FisherTransform:
                                       period=period)
 
     if sequential:
-        return FisherTransform(np.concatenate((np.full((candles.shape[0]-fisher.shape[0]), np.nan), fisher), axis=0),np.concatenate((np.full((candles.shape[0]-fisher_signal.shape[0]), np.nan), fisher_signal)))
+        return FisherTransform(np.concatenate((np.full((candles.shape[0] - fisher.shape[0]), np.nan), fisher), axis=0),
+                               np.concatenate(
+                                   (np.full((candles.shape[0] - fisher_signal.shape[0]), np.nan), fisher_signal)))
     else:
         return FisherTransform(fisher[-1], fisher_signal[-1])

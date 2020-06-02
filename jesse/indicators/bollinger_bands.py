@@ -8,7 +8,8 @@ from jesse.helpers import get_candle_source
 BollingerBands = namedtuple('BollingerBands', ['upperband', 'middleband', 'lowerband'])
 
 
-def bollinger_bands(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, source_type="close", sequential=False) -> BollingerBands:
+def bollinger_bands(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, source_type="close",
+                    sequential=False) -> BollingerBands:
     """
     BBANDS - Bollinger Bands
 
@@ -26,7 +27,8 @@ def bollinger_bands(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, 
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    upperbands, middlebands, lowerbands = talib.BBANDS(source, timeperiod=period, nbdevup=devup, nbdevdn=devdn, matype=matype)
+    upperbands, middlebands, lowerbands = talib.BBANDS(source, timeperiod=period, nbdevup=devup, nbdevdn=devdn,
+                                                       matype=matype)
 
     if sequential:
         return BollingerBands(upperbands, middlebands, lowerbands)

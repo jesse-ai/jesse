@@ -24,7 +24,6 @@ def lrsi(candles: np.ndarray, alpha=0.2, sequential=False) -> Union[float, np.nd
     l3 = np.copy(price)
 
     for i in range(l0.shape[0]):
-
         gamma = 1 - alpha
         l0[i] = alpha * price[i] + gamma * l0[i - 1]
         l1[i] = -gamma * l0[i] + l0[i - 1] + gamma * l1[i - 1]

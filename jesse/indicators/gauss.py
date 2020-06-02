@@ -39,14 +39,13 @@ def gauss(candles: np.ndarray, period=14, poles=4, source_type="close", sequenti
     elif poles == 4:
         coeff = np.array([alpha ** 4, 4 * (1 - alpha), -6 * (1 - alpha) ** 2, 4 * (1 - alpha) ** 3, -(1 - alpha) ** 4])
 
-
     for i in range(len(source)):
         if poles == 1:
             val = np.array([source[i].item(), fil[i]])
         elif poles == 2:
             val = np.array([source[i].item(), fil[1 + i], fil[i]])
         elif poles == 3:
-            val = np.array([source[i].item(), fil[2 + i], fil[1 + i],  fil[i]])
+            val = np.array([source[i].item(), fil[2 + i], fil[1 + i], fil[i]])
         elif poles == 4:
             val = np.array([source[i].item(), fil[3 + i], fil[2 + i], fil[1 + i], fil[i]])
 

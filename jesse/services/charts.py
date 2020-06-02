@@ -50,7 +50,7 @@ def portfolio_vs_asset_returns():
             dates.append(datetime.fromtimestamp(c[0] / 1000))
             prices.append(c[2])
             # save index of the price instead of the actual price
-            price_dict[key]['indexes'][str(int(c[0]))] = len(prices)-1
+            price_dict[key]['indexes'][str(int(c[0]))] = len(prices) - 1
 
         # price => %returns
         price_returns = pd.Series(prices).pct_change(1) * 100

@@ -568,8 +568,10 @@ class Strategy(ABC):
 
         # validations: stop-loss and take-profit should not be the same
         if self.position.is_open:
-            if (self.stop_loss is not None and self.take_profit is not None) and np.array_equal(self.stop_loss, self.take_profit):
-                raise exceptions.InvalidStrategy('stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
+            if (self.stop_loss is not None and self.take_profit is not None) and np.array_equal(self.stop_loss,
+                                                                                                self.take_profit):
+                raise exceptions.InvalidStrategy(
+                    'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
 
     def update_position(self):
         pass
@@ -1111,7 +1113,8 @@ class Strategy(ABC):
     @property
     def average_take_profit(self) -> float:
         if self._take_profit is None:
-            raise exceptions.InvalidStrategy('You cannot access self.average_take_profit before setting self.take_profit')
+            raise exceptions.InvalidStrategy(
+                'You cannot access self.average_take_profit before setting self.take_profit')
 
         arr = self._take_profit
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()

@@ -31,7 +31,8 @@ def store_logs(tradingview=False):
 
     # store output for TradingView.com's pine-editor
     if tradingview:
-        tv_text = '//@version=4\nstrategy("{}", overlay=true, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.2)\n'.format(study_name)
+        tv_text = '//@version=4\nstrategy("{}", overlay=true, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.2)\n'.format(
+            study_name)
 
         for i, t in enumerate(store.completed_trades.trades[::-1][:]):
             tv_text += '\n'

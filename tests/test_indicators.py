@@ -684,6 +684,7 @@ def test_fisher():
     assert len(seq.fisher) == len(candles)
     assert len(seq.signal) == len(candles)
 
+
 def test_ao():
     candles = np.array(mama_candles)
     single = ta.ao(candles)
@@ -692,6 +693,7 @@ def test_ao():
     assert round(single.osc, 0) == -46
     assert len(seq[-1]) == len(candles)
     assert seq.osc[-1] == single.osc
+
 
 def test_zlema():
     candles = np.array(mama_candles)
@@ -702,6 +704,7 @@ def test_zlema():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_hma():
     candles = np.array(mama_candles)
     single = ta.hma(candles)
@@ -711,6 +714,7 @@ def test_hma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_smma():
     candles = np.array(mama_candles)
     single = ta.smma(candles)
@@ -719,6 +723,7 @@ def test_smma():
     assert round(single, 0) == 192
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ag():
     candles = np.array(mama_candles)
@@ -733,6 +738,7 @@ def test_ag():
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
 
+
 def test_gator():
     candles = np.array(mama_candles)
     single = ta.gatorosc(candles)
@@ -746,6 +752,7 @@ def test_gator():
 
     assert seq.upper[-1] == single.upper
     assert len(seq.upper) == len(candles)
+
 
 def test_pivot():
     candles = np.array(mama_candles)
@@ -775,6 +782,7 @@ def test_zscore():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_minmax():
     candles = np.array(mama_candles)
     single = ta.minmax(candles)
@@ -790,6 +798,7 @@ def test_minmax():
     assert seq.last_min[-1] == single.last_min
     assert len(seq.min) == len(candles)
 
+
 def test_gauss():
     candles = np.array(mama_candles)
     single = ta.gauss(candles)
@@ -797,6 +806,7 @@ def test_gauss():
     assert round(single, 0) == 190
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_supersmoother():
     candles = np.array(mama_candles)
@@ -806,6 +816,7 @@ def test_supersmoother():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_dec_osc():
     candles = np.array(mama_candles)
     single = ta.dec_osc(candles)
@@ -814,6 +825,7 @@ def test_dec_osc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_decycler():
     candles = np.array(mama_candles)
     single = ta.decycler(candles)
@@ -821,6 +833,7 @@ def test_decycler():
     assert round(single, 0) == 233
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_itrend():
     candles = np.array(mama_candles)

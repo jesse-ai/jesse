@@ -36,7 +36,7 @@ def positions():
             type_color = 'red'
         else:
             type_color = 'black'
-            
+
         array.append(
             [
                 jh.color(pos.type, type_color),
@@ -161,7 +161,8 @@ def portfolio_metrics():
         ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
         ['Sharpe Ratio', data['sharpe_ratio']],
         ['Annual Return', '{}%'.format(data['annual_return'])],
-        ['Expectancy', '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
+        ['Expectancy',
+         '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
         ['Avg Win | Avg Loss', '{} | {}'.format(round(data['average_win'], 2), round(data['average_loss'], 2))],
         ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
         ['Percent Profitable', str(round(data['win_rate'] * 100)) + '%'],

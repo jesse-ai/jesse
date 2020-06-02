@@ -23,4 +23,4 @@ def zlema(candles: np.ndarray, period=20, source_type="close", sequential=False)
     source = get_candle_source(candles, source_type=source_type)
     res = ti.zlema(np.ascontiguousarray(source), period=period)
 
-    return np.concatenate((np.full((candles.shape[0]-res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
+    return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
