@@ -1,8 +1,8 @@
-from .kraken import Kraken
-from .coinbase import Coinbase
-from .bitfinex import Bitfinex
 from .binance import Binance
 from .binance_futures import BinanceFutures
+from .bitfinex import Bitfinex
+from .coinbase import Coinbase
+from .kraken import Kraken
 from .testnet_binance_futures import TestnetBinanceFutures
 
 drivers = {

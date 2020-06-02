@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
+from time import sleep
 from typing import List
 
 import numpy as np
 import pydash
-from time import sleep
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
-from jesse.enums import sides, trade_types, order_roles
 from jesse import exceptions
+from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order
 from jesse.services.broker import Broker
 from jesse.store import store

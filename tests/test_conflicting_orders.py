@@ -1,10 +1,10 @@
 import jesse.helpers as jh
-from jesse.config import config, reset_config
+from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_roles
 from jesse.factories import fake_range_candle_from_range_prices
 from jesse.models import CompletedTrade
-from jesse.routes import router
 from jesse.modes import backtest_mode
+from jesse.routes import router
 from jesse.store import store
 
 

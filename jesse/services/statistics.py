@@ -1,6 +1,6 @@
+import empyrical
 import numpy as np
 import pandas as pd
-import empyrical
 
 import jesse.helpers as jh
 from jesse.store import store

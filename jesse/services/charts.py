@@ -1,16 +1,16 @@
-from datetime import datetime, timedelta
-import arrow
 import os
+from datetime import datetime, timedelta
 
+import arrow
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from pandas.plotting import register_matplotlib_converters
 
-from jesse.store import store
-from jesse.routes import router
-from jesse.config import config
 import jesse.helpers as jh
+from jesse.config import config
+from jesse.routes import router
+from jesse.store import store
 
 
 def portfolio_vs_asset_returns():

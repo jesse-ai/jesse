@@ -3,11 +3,11 @@ import numpy as np
 
 import jesse.helpers as jh
 from jesse.config import config
+from jesse.exceptions import CandleNotFoundInDatabase
 from jesse.models import Candle
 from jesse.services.cache import cache
-from jesse.store import store
 from jesse.services.candle import generate_candle_from_one_minutes
-from jesse.exceptions import CandleNotFoundInDatabase
+from jesse.store import store
 
 
 def load_required_candles(exchange: str, symbol: str, start_date_str: str, finish_date_str: str):

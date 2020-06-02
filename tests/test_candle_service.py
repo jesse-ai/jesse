@@ -1,5 +1,3 @@
-import numpy as np
-
 from jesse.factories import fake_range_candle
 from jesse.services.candle import *
 

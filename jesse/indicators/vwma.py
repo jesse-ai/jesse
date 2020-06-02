@@ -1,7 +1,10 @@
+from typing import Union
+
 import numpy as np
 import tulipy as ti
-from typing import Union
+
 from jesse.helpers import get_candle_source
+
 
 def vwma(candles: np.ndarray, period=20, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """

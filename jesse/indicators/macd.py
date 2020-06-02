@@ -1,6 +1,8 @@
+from collections import namedtuple
+
 import numpy as np
 import talib
-from collections import namedtuple
+
 from jesse.helpers import get_candle_source
 
 MACD = namedtuple('MACD', ['macd', 'signal', 'hist'])

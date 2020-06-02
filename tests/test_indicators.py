@@ -1,7 +1,7 @@
 import numpy as np
 
-from jesse.factories import fake_range_candle_from_range_prices
 import jesse.indicators as ta
+from jesse.factories import fake_range_candle_from_range_prices
 from .data.test_candles_indicators import *
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import jesse.helpers as jh
+
 from jesse.config import config, reset_config
 from jesse.store import store
 

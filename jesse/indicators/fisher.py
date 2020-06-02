@@ -1,7 +1,7 @@
+from collections import namedtuple
+
 import numpy as np
 import tulipy as ti
-
-from collections import namedtuple
 
 FisherTransform = namedtuple('FisherTransform', ['fisher', 'signal'])
 

@@ -1,7 +1,7 @@
+from typing import Union
+
 import numpy as np
 import talib
-
-from typing import Union
 
 
 def adxr(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:

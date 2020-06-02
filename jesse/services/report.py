@@ -1,14 +1,16 @@
-import pandas as pd
+# silent (pandas) warnings
+import warnings
+
 import numpy as np
+import pandas as pd
 
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
 from jesse.services import statistics as stats
-from jesse.store import store
 from jesse.services.candle import is_bullish
-# silent (pandas) warnings
-import warnings
+from jesse.store import store
+
 warnings.filterwarnings("ignore")
 
 

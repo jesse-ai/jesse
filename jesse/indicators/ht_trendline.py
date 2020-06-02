@@ -1,7 +1,9 @@
+from typing import Union
+
 import numpy as np
 import talib
+
 from jesse.helpers import get_candle_source
-from typing import Union
 
 
 def ht_trendline(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:

@@ -1,7 +1,9 @@
-import numpy as np
-from jesse.helpers import get_candle_source
-from typing import Union
 import math
+from typing import Union
+
+import numpy as np
+
+from jesse.helpers import get_candle_source
 
 
 def gauss(candles: np.ndarray, period=14, poles=4, source_type="close", sequential=False) -> Union[float, np.ndarray]:

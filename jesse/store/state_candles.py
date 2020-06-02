@@ -4,10 +4,10 @@ import jesse.helpers as jh
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import timeframes
-from jesse.services.candle import generate_candle_from_one_minutes
+from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
 from jesse.models import store_candle_into_db
-from jesse.exceptions import RouteNotFound
+from jesse.services.candle import generate_candle_from_one_minutes
 
 
 class CandlesState:

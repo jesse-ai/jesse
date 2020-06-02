@@ -1,15 +1,16 @@
-import time
-import threading
 import math
+import threading
+import time
+
 import arrow
 import click
 import pydash
 
-from jesse.models import Candle
-from jesse.exceptions import CandleNotFoundInExchange
-from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-from jesse.modes.import_candles_mode.drivers import drivers
 import jesse.helpers as jh
+from jesse.exceptions import CandleNotFoundInExchange
+from jesse.models import Candle
+from jesse.modes.import_candles_mode.drivers import drivers
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False):

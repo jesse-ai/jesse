@@ -1,7 +1,7 @@
 from jesse.config import config, reset_config
-from jesse.store import store
 from jesse.enums import exchanges
 from jesse.factories import fake_order
+from jesse.store import store
 
 
 def set_up():

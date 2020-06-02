@@ -1,5 +1,7 @@
 from typing import List
+
 import pydash
+
 from jesse.config import config
 from jesse.models import Order
 

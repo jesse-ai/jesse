@@ -1,9 +1,10 @@
+from collections import namedtuple
+
 import numpy as np
 import talib
 import tulipy as ti
-from jesse.helpers import get_candle_source
 
-from collections import namedtuple
+from jesse.helpers import get_candle_source
 
 StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
 

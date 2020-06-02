@@ -1,5 +1,4 @@
 from jesse.strategies import Strategy
-from jesse.services import logger
 
 
 # test_validation_for_equal_stop_loss_and_take_profit

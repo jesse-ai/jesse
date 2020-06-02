@@ -1,8 +1,8 @@
+import math
+from collections import namedtuple
+
 import numpy as np
 import talib
-import math
-
-from collections import namedtuple
 
 EMD = namedtuple('EMD', ['mean', 'up', 'low'])
 

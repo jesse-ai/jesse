@@ -1,10 +1,11 @@
 import json
-import arrow
 import os
 
+import arrow
+
+import jesse.helpers as jh
 from jesse.config import config
 from jesse.store import store
-import jesse.helpers as jh
 
 
 def store_logs(tradingview=False):

@@ -1,7 +1,7 @@
+from typing import Union
+
 import numpy as np
 import talib
-
-from typing import Union
 
 
 def sarext(candles: np.ndarray, startvalue=0, offsetonreverse=0, accelerationinitlong=0, accelerationlong=0, accelerationmaxlong=0, accelerationinitshort=0, accelerationshort=0, accelerationmaxshort=0, sequential=False) -> Union[float, np.ndarray]:

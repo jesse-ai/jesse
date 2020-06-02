@@ -1,7 +1,7 @@
+from collections import namedtuple
+
 import numpy as np
 from scipy.signal import argrelextrema
-
-from collections import namedtuple
 
 EXTREMA = namedtuple('EXTREMA', ['min', 'max', 'last_min', 'last_max'])
 

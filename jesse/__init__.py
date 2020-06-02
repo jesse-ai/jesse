@@ -1,9 +1,11 @@
-from pydoc import locate
-import click
 import os
 import sys
-import jesse.helpers as jh
+from pydoc import locate
+
+import click
 import pkg_resources
+
+import jesse.helpers as jh
 
 # Python version validation.
 if jh.python_version() < 3.6:

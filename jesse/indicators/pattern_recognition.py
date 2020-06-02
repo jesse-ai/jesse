@@ -1,6 +1,7 @@
+from typing import Union
+
 import numpy as np
 import talib
-from typing import Union
 
 
 def pattern_recognition(candles: np.ndarray, pattern_type, penetration=0, sequential=False) -> Union[int, np.ndarray]:

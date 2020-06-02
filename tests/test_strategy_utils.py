@@ -1,7 +1,9 @@
-import pytest
-from jesse import utils
 import numpy as np
 import pandas as pd
+import pytest
+
+from jesse import utils
+
 
 def test_risk_to_size():
     assert round(utils.risk_to_size(10000, 1, 0.7, 8.6)) == 1229

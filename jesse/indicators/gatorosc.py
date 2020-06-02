@@ -1,8 +1,9 @@
+from collections import namedtuple
+
 import numpy as np
-from jesse.helpers import get_candle_source
 import talib
 
-from collections import namedtuple
+from jesse.helpers import get_candle_source
 
 GATOR = namedtuple('GATOR', ['upper', 'lower', 'upper_change', 'lower_change'])
 

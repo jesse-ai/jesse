@@ -1,6 +1,6 @@
 import arrow
-import pytest
 import numpy as np
+import pytest
 
 import jesse.helpers as jh
 

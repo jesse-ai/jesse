@@ -1,9 +1,9 @@
 import jesse.helpers as jh
+import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import order_statuses, order_flags
 from jesse.services.notifier import notify
-import jesse.services.logger as logger
 
 
 class Order():

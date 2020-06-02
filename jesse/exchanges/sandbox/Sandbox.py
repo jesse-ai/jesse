@@ -1,7 +1,7 @@
-from jesse.exchanges.exchange import Exchange
-from jesse.models import Order
 import jesse.helpers as jh
 from jesse.enums import order_types
+from jesse.exchanges.exchange import Exchange
+from jesse.models import Order
 from jesse.store import store
 
 

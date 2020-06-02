@@ -1,6 +1,8 @@
-import numpy as np
-from jesse.helpers import get_candle_source
 from collections import namedtuple
+
+import numpy as np
+
+from jesse.helpers import get_candle_source
 
 ITREND = namedtuple('ITREND', ['signal', 'it', 'trigger'])
 

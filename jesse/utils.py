@@ -1,7 +1,8 @@
 import math
-import pandas as pd
-import numpy as np
 from typing import Union
+
+import numpy as np
+import pandas as pd
 
 
 def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> float:

@@ -1,6 +1,6 @@
-import numpy as np
-
 from typing import Union
+
+import numpy as np
 
 
 def lrsi(candles: np.ndarray, alpha=0.2, sequential=False) -> Union[float, np.ndarray]:

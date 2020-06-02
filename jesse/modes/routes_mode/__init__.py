@@ -1,6 +1,6 @@
 import jesse.helpers as jh
-from jesse.services import table
 from jesse.routes import router
+from jesse.services import table
 
 
 def run(dna=False):

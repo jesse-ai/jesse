@@ -5,12 +5,13 @@ import click
 import numpy as np
 
 import jesse.helpers as jh
+import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
 import jesse.services.statistics as stats
 import jesse.services.table as table
+from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes
-from jesse import exceptions
 from jesse.models import Candle
 from jesse.routes import router
 from jesse.services import charts
@@ -18,9 +19,8 @@ from jesse.services import report
 from jesse.services.cache import cache
 from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle
 from jesse.services.file import store_logs
-from jesse.store import store
-import jesse.services.required_candles as required_candles
 from jesse.services.validators import validate_routes
+from jesse.store import store
 
 
 def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False):

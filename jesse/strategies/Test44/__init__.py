@@ -1,5 +1,4 @@
 from jesse.strategies import Strategy
-from jesse.services import logger
 
 
 # test_inputs_get_rounded_behind_the_scene

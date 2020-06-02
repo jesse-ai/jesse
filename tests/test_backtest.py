@@ -3,8 +3,8 @@ import jesse.services.selectors as selectors
 from jesse.config import reset_config
 from jesse.enums import timeframes, exchanges
 from jesse.factories import fake_range_candle
-from jesse.routes import router
 from jesse.modes import backtest_mode
+from jesse.routes import router
 from jesse.store import store
 
 

@@ -1,6 +1,9 @@
-import numpy as np
-from jesse.helpers import get_candle_source
 from typing import Union
+
+import numpy as np
+
+from jesse.helpers import get_candle_source
+
 
 def dec_osc(candles: np.ndarray, hp_period=125, k=1, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """

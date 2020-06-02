@@ -1,7 +1,9 @@
+from typing import Union
+
 import numpy as np
 import talib
+
 from jesse.helpers import get_candle_source
-from typing import Union
 
 
 def ppo(candles: np.ndarray, fastperiod=12, slowperiod=26, matype=0, source_type="close", sequential=False) -> Union[float, np.ndarray]:

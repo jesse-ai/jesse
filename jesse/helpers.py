@@ -1,10 +1,11 @@
+import hashlib
 import math
 import os
 import sys
 import uuid
+
 import arrow
 import click
-import hashlib
 import numpy as np
 
 

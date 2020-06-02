@@ -1,7 +1,7 @@
+from typing import Union
+
 import numpy as np
 import talib
-
-from typing import Union
 
 
 def ultosc(candles: np.ndarray, timeperiod1=7, timeperiod2=14, timeperiod3=28, sequential=False) -> Union[float, np.ndarray]:

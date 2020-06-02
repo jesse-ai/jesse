@@ -1,14 +1,10 @@
-import numpy as np
-
 import jesse.helpers as jh
-import jesse.services.statistics as stats
 from jesse.config import config, reset_config
-from jesse.enums import exchanges, timeframes
+from jesse.enums import exchanges
+from jesse.factories import fake_range_candle_from_range_prices
 from jesse.modes import backtest_mode
-from jesse.store import store
-from tests.data.test_candles_1 import test_candles_1
 from jesse.routes import router
-from jesse.factories import fake_range_candle, fake_range_candle_from_range_prices
+from jesse.store import store
 
 
 def set_up(routes, fee=0):

@@ -5,18 +5,18 @@ import pytest
 
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
+from jesse import exceptions
 from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_roles, order_types
 from jesse.factories import fake_range_candle, fake_range_candle_from_range_prices
-from jesse.models import Order
 from jesse.models import CompletedTrade
-from jesse.routes import router
+from jesse.models import Order
 from jesse.modes import backtest_mode
+from jesse.routes import router
 from jesse.store import store
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
-from jesse import exceptions
 
 
 def set_up(routes):
