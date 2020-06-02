@@ -395,6 +395,7 @@ def test_hma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_ht_dcperiod():
     candles = np.array(mama_candles)
     single = ta.ht_dcperiod(candles)
@@ -403,6 +404,7 @@ def test_ht_dcperiod():
     assert round(single, 0) == 24
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ht_dcphase():
     candles = np.array(mama_candles)
@@ -413,19 +415,6 @@ def test_ht_dcphase():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-def test_ht_phasor():
-    candles = np.array(mama_candles)
-    single = ta.ht_phasor(candles)
-    seq = ta.ht_phasor(candles, sequential=True)
-
-    assert type(single).__name__ == 'IQ'
-    assert round(single.inphase, 0) == 11
-    assert round(single.quadrature, 0) == -52
-
-    assert seq.inphase[-1] == single.inphase
-    assert seq.quadrature[-1] == single.quadrature
-    assert len(seq.inphase) == len(candles)
-    assert len(seq.quadrature) == len(candles)
 
 def test_ht_phasor():
     candles = np.array(mama_candles)
@@ -440,6 +429,22 @@ def test_ht_phasor():
     assert seq.quadrature[-1] == single.quadrature
     assert len(seq.inphase) == len(candles)
     assert len(seq.quadrature) == len(candles)
+
+
+def test_ht_sine():
+    candles = np.array(mama_candles)
+    single = ta.ht_sine(candles)
+    seq = ta.ht_sine(candles, sequential=True)
+
+    assert type(single).__name__ == 'SINEWAVE'
+    assert round(single.sine, 2) == 0.18
+    assert round(single.leadsine, 2) == 0.82
+
+    assert seq.sine[-1] == single.sine
+    assert seq.leadsine[-1] == single.leadsine
+    assert len(seq.sine) == len(candles)
+    assert len(seq.leadsine) == len(candles)
+
 
 def test_ht_trendline():
     candles = np.array(mama_candles)
@@ -447,6 +452,16 @@ def test_ht_trendline():
     seq = ta.ht_trendline(candles, sequential=True)
 
     assert round(single, 0) == 236
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_ht_trendmode():
+    candles = np.array(mama_candles)
+    single = ta.ht_trendmode(candles)
+    seq = ta.ht_trendmode(candles, sequential=True)
+
+    assert single == 1
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
