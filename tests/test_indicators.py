@@ -1141,6 +1141,18 @@ def test_wclprice():
     assert seq[-1] == single
 
 
+def test_wilders():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.wilders(candles)
+    seq = ta.wilders(candles, sequential=True)
+
+    assert round(single, 2) == 192.11
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_willr():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

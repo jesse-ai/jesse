@@ -87,6 +87,7 @@ from .vidya import vidya
 from .vwma import vwma
 from .vwmacd import vwmacd
 from .wclprice import wclprice
+from .wilders import wilders
 from .willr import willr
 from .wma import wma
 from .zlema import zlema
