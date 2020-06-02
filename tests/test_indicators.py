@@ -550,6 +550,30 @@ def test_linearreg_angle():
     assert seq[-1] == single
 
 
+def test_linearreg_intercept():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.linearreg_intercept(candles)
+    seq = ta.linearreg_intercept(candles, sequential=True)
+
+    assert round(single, 2) == 242.98
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_linearreg_slope():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.linearreg_slope(candles)
+    seq = ta.linearreg_slope(candles, sequential=True)
+
+    assert round(single, 2) == -4.88
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_lrsi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

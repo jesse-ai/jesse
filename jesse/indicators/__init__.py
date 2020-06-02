@@ -41,6 +41,8 @@ from .kama import kama
 from .keltner import keltner
 from .linearreg import linearreg
 from .linearreg_angle import linearreg_angle
+from .linearreg_intercept import linearreg_intercept
+from .linearreg_slope import linearreg_slope
 from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext
