@@ -80,9 +80,12 @@ from .trima import trima
 from .trix import trix
 from .tsf import tsf
 from .tsi import tsi
+from .typprice import typprice
 from .ultosc import ultosc
+from .var import var
 from .vwma import vwma
 from .vwmacd import vwmacd
+from .wclprice import wclprice
 from .willr import willr
 from .wma import wma
 from .zlema import zlema

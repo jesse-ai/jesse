@@ -1058,6 +1058,18 @@ def test_tsi():
     assert seq[-1] == single
 
 
+def test_typprice():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.typprice(candles)
+    seq = ta.typprice(candles, sequential=True)
+
+    assert round(single, 1) == 134.9
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_ultosc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1066,6 +1078,16 @@ def test_ultosc():
     seq = ta.ultosc(candles, timeperiod1=7, timeperiod2=14, timeperiod3=28, sequential=True)
 
     assert round(single, 2) == 31.37
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_var():
+    candles = np.array(vwma_candles)
+    single = ta.var(candles)
+    seq = ta.var(candles, sequential=True)
+
+    assert round(single, 2) == 69.96
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1095,6 +1117,18 @@ def test_vwmacd():
     assert len(seq.macd) == len(candles)
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
+
+
+def test_wclprice():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.wclprice(candles)
+    seq = ta.wclprice(candles, sequential=True)
+
+    assert round(single, 2) == 128.1
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 
 def test_willr():
