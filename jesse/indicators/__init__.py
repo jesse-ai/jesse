@@ -40,6 +40,7 @@ from .itrend import itrend
 from .kama import kama
 from .keltner import keltner
 from .linearreg import linearreg
+from .linearreg_angle import linearreg_angle
 from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext

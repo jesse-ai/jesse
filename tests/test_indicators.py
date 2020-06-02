@@ -538,6 +538,18 @@ def test_linearreg():
     assert seq[-1] == single
 
 
+def test_linearreg_angle():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.linearreg_angle(candles)
+    seq = ta.linearreg_angle(candles, sequential=True)
+
+    assert round(single, 2) == -78.42
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_lrsi():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
