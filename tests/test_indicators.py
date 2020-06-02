@@ -275,23 +275,45 @@ def test_dema():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-
-def test_dmi():
+def test_dm():
     candles = np.array(mama_candles)
 
-    dmi = ta.dmi(candles, period=14)
-    assert type(dmi).__name__ == 'DMI'
-    assert round(dmi.plus, 2) == 10.80
-    assert round(dmi.minus, 1) == 45.3
-    assert round(dmi.dx, 1) == 61.5
+    single = ta.dm(candles, period=14)
+    assert type(single).__name__ == 'DM'
+    assert round(single.plus, 2) == 36.78
+    assert round(single.minus, 1) == 154.1
 
-    seq_dmi = ta.dmi(candles, period=14, sequential=True)
-    assert seq_dmi.plus[-1] == dmi.plus
-    assert seq_dmi.minus[-1] == dmi.minus
-    assert seq_dmi.dx[-1] == dmi.dx
-    assert len(seq_dmi.plus) == len(candles)
-    assert len(seq_dmi.minus) == len(candles)
-    assert len(seq_dmi.dx) == len(candles)
+    seq = ta.dm(candles, period=14, sequential=True)
+    assert seq.plus[-1] == single.plus
+    assert seq.minus[-1] == single.minus
+    assert len(seq.plus) == len(candles)
+    assert len(seq.minus) == len(candles)
+
+
+def test_di():
+    candles = np.array(mama_candles)
+
+    single = ta.di(candles, period=14)
+    assert type(single).__name__ == 'DI'
+    assert round(single.plus, 2) == 10.80
+    assert round(single.minus, 1) == 45.3
+
+    seq = ta.di(candles, period=14, sequential=True)
+    assert seq.plus[-1] == single.plus
+    assert seq.minus[-1] == single.minus
+    assert len(seq.plus) == len(candles)
+    assert len(seq.minus) == len(candles)
+
+
+def test_dx():
+    candles = np.array(dema_candles)
+
+    single = ta.dx(candles)
+    seq = ta.dx(candles, sequential=True)
+
+    assert round(single, 0) == 67
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 
 def test_donchian():

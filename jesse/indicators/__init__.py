@@ -21,7 +21,9 @@ from .cvi import cvi
 from .dec_osc import dec_osc
 from .decycler import decycler
 from .dema import dema
-from .dmi import dmi
+from .di import di
+from .dm import dm
+from .dx import dx
 from .donchian import donchian
 from .dpo import dpo
 from .ema import ema

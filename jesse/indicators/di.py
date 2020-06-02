@@ -3,12 +3,12 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-DMI = namedtuple('DMI', ['plus', 'minus', 'dx'])
+DI = namedtuple('DI', ['plus', 'minus'])
 
 
-def dmi(candles: np.ndarray, period=14, sequential=False) -> DMI:
+def di(candles: np.ndarray, period=14, sequential=False) -> DI:
     """
-    DMI - Directional Movement Index
+    DI - Directional Indicator
 
     :param candles: np.ndarray
     :param period: int - default=14
@@ -20,10 +20,9 @@ def dmi(candles: np.ndarray, period=14, sequential=False) -> DMI:
         candles = candles[-240:]
 
     MINUS_DI = talib.MINUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
-    DX = talib.DX(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
     PLUS_DI = talib.PLUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     if sequential:
-        return DMI(PLUS_DI, MINUS_DI, DX)
+        return DI(PLUS_DI, MINUS_DI)
     else:
-        return DMI(PLUS_DI[-1], MINUS_DI[-1], DX[-1])
+        return DI(PLUS_DI[-1], MINUS_DI[-1])
