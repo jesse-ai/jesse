@@ -5,6 +5,28 @@ from jesse.factories import fake_range_candle_from_range_prices
 from .data.test_candles_indicators import *
 
 
+def test_acosc():
+    candles = np.array(mama_candles)
+    single = ta.acosc(candles)
+    seq = ta.acosc(candles, sequential=True)
+
+    assert type(single).__name__ == 'AC'
+    assert round(single.osc, 2) == -21.97
+    assert round(single.change, 2) == -9.22
+
+    assert seq.osc[-1] == single.osc
+    assert len(seq.osc) == len(candles)
+
+def test_ad():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.ad(candles)
+    seq = ta.ad(candles, sequential=True)
+    assert round(single, 0) == 6346031
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 def test_adosc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
