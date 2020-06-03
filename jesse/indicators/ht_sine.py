@@ -5,7 +5,7 @@ import talib
 
 from jesse.helpers import get_candle_source
 
-SINEWAVE = namedtuple('SINEWAVE', ['sine', 'leadsine'])
+SINEWAVE = namedtuple('SINEWAVE', ['sine', 'lead'])
 
 def ht_sine(candles: np.ndarray, source_type="close", sequential=False) -> SINEWAVE:
     """
