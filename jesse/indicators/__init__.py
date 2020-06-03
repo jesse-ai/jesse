@@ -70,6 +70,7 @@ from .pattern_recognition import pattern_recognition
 from .pivot import pivot
 from .ppo import ppo
 from .pvi import pvi
+from .qstick import qstick
 from .roc import roc
 from .rocp import rocp
 from .rocr import rocr

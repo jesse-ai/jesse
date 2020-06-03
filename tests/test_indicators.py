@@ -928,6 +928,16 @@ def test_pvi():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_qstick():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.qstick(candles)
+    seq = ta.qstick(candles, sequential=True)
+
+    assert round(single, 0) == -26.0
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_roc():
     # use the same candles as mama_candles
