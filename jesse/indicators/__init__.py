@@ -54,6 +54,7 @@ from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext
 from .mama import mama
+from .mass import mass
 from .marketfi import marketfi
 from .medprice import medprice
 from .mfi import mfi
@@ -61,6 +62,7 @@ from .midpoint import midpoint
 from .midprice import midprice
 from .minmax import minmax
 from .mom import mom
+from .msw import msw
 from .natr import natr
 from .obv import obv
 from .pattern_recognition import pattern_recognition

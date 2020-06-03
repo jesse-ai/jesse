@@ -275,6 +275,7 @@ def test_dema():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_dm():
     candles = np.array(mama_candles)
 
@@ -723,6 +724,18 @@ def test_marketfi():
     assert seq[-1] == single
 
 
+def test_mass():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.mass(candles)
+    seq = ta.mass(candles, sequential=True)
+
+    assert round(single, 2) == 5.76
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_medprice():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -797,6 +810,20 @@ def test_mom():
     assert round(single, 2) == -116.09
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_msw():
+    candles = np.array(mama_candles)
+    single = ta.msw(candles)
+    seq = ta.msw(candles, sequential=True)
+
+    assert type(single).__name__ == 'MSW'
+    assert round(single.lead, 2) == -0.66
+    assert round(single.sine, 2) == -1.0
+
+    assert seq.lead[-1] == single.lead
+    assert seq.sine[-1] == single.sine
+    assert len(seq.sine) == len(candles)
 
 
 def test_natr():
