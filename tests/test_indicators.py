@@ -928,6 +928,7 @@ def test_pvi():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_qstick():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -938,6 +939,7 @@ def test_qstick():
     assert round(single, 0) == -26.0
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_roc():
     # use the same candles as mama_candles
@@ -1274,6 +1276,30 @@ def test_vwmacd():
     assert len(seq.macd) == len(candles)
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
+
+
+def test_vosc():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.vosc(candles)
+    seq = ta.vosc(candles, sequential=True)
+
+    assert round(single, 2) == 38.18
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_wad():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.wad(candles)
+    seq = ta.wad(candles, sequential=True)
+
+    assert round(single, 2) == -122.14
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 
 def test_wclprice():

@@ -99,6 +99,8 @@ from .var import var
 from .vidya import vidya
 from .vwma import vwma
 from .vwmacd import vwmacd
+from .vosc import vosc
+from .wad import wad
 from .wclprice import wclprice
 from .wilders import wilders
 from .willr import willr
