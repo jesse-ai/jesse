@@ -5,7 +5,7 @@ import numpy as np
 
 def lrsi(candles: np.ndarray, alpha=0.2, sequential=False) -> Union[float, np.ndarray]:
     """
-    RSI Laguerre Filter was originally developed and described by John Ehlers in his paper `Time Warp – Without Space Travel`.
+    RSI Laguerre Filter
 
     :param candles: np.ndarray
     :param alpha: float - default=0.2

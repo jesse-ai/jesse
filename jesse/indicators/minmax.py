@@ -8,13 +8,13 @@ EXTREMA = namedtuple('EXTREMA', ['min', 'max', 'last_min', 'last_max'])
 
 def minmax(candles: np.ndarray, order=3, sequential=False) -> EXTREMA:
     """
-    minmax - get extrema
+    minmax - Get extrema
 
     :param candles: np.ndarray
     :param order: int - default = 3
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: EXTREMA(min, max, last_min, last_max)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

@@ -15,7 +15,7 @@ def ht_phasor(candles: np.ndarray, source_type="close", sequential=False) -> IQ:
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: IQ
+    :return: IQ(inphase, quadrature)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

@@ -14,7 +14,7 @@ def donchian(candles: np.ndarray, period=20, sequential=False) -> DonchianChanne
     :param period: int - default: 20
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: DonchianChannel(upperband, middleband, lowerband)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

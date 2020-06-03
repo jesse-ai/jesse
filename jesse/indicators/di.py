@@ -14,7 +14,7 @@ def di(candles: np.ndarray, period=14, sequential=False) -> DI:
     :param period: int - default=14
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: DI(plus, minus)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

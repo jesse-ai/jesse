@@ -6,7 +6,7 @@ import tulipy as ti
 from jesse.helpers import get_candle_source
 
 
-def vidya(candles: np.ndarray, short_period=2,  long_period=2,  alpha=0.2, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def vidya(candles: np.ndarray, short_period=2,  long_period=5,  alpha=0.2, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """
     VIDYA - Variable Index Dynamic Average
 

@@ -18,7 +18,7 @@ def srsi(candles: np.ndarray, period=14, source_type="close", sequential=False) 
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: StochasticRSI
+    :return: StochasticRSI(k, d)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

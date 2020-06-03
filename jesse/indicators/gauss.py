@@ -9,9 +9,10 @@ from jesse.helpers import get_candle_source
 def gauss(candles: np.ndarray, period=14, poles=4, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """
     Gaussian Filter
-    This indicator was described by John F. Ehlers in his book "Rocket Science for Traders" (2001, Chapter 15: Infinite Impulse Response Filters).
+
     :param candles: np.ndarray
     :param period: int - default=14
+    :param poles: int - default=4
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 

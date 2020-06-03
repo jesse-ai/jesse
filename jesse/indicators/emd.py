@@ -4,7 +4,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-EMD = namedtuple('EMD', ['mean', 'up', 'low'])
+EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
 
 
 def emd(candles: np.ndarray, period=20, delta=0.5, fraction=0.1, sequential=False) -> EMD:
@@ -17,7 +17,7 @@ def emd(candles: np.ndarray, period=20, delta=0.5, fraction=0.1, sequential=Fals
     :param fraction: float - default=0.1
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: EMD(upperband, middleband, lowerband)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
@@ -53,6 +53,6 @@ def emd(candles: np.ndarray, period=20, delta=0.5, fraction=0.1, sequential=Fals
     avg_valley = fraction * talib.SMA(valley, timeperiod=50)
 
     if sequential:
-        return EMD(mean, avg_peak, avg_valley)
+        return EMD(avg_peak, mean, avg_valley)
     else:
-        return EMD(mean[-1], avg_peak[-1], avg_valley[-1])
+        return EMD(avg_peak[-1], mean[-1], avg_valley[-1])

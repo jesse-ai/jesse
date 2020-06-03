@@ -21,7 +21,7 @@ def bollinger_bands(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, 
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: BollingerBands
+    :return: BollingerBands(upperband, middleband, lowerband)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

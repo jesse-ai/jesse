@@ -16,7 +16,7 @@ def msw(candles: np.ndarray, period=5, source_type="close", sequential=False) ->
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: MSW(sine, lead)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
