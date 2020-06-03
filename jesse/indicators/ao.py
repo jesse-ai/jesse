@@ -13,7 +13,7 @@ def ao(candles: np.ndarray, sequential=False) -> AO:
     :param candles: np.ndarray
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: AO(osc, change)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

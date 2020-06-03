@@ -15,7 +15,7 @@ def alligator(candles: np.ndarray, source_type="close", sequential=False) -> AG:
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: AG(jaw, teeth, lips)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

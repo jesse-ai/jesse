@@ -14,7 +14,7 @@ def ht_trendmode(candles: np.ndarray, source_type="close", sequential=False) -> 
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: int | np.ndarray
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

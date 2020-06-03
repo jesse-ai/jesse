@@ -16,7 +16,7 @@ def stochf(candles: np.ndarray, fastk_period=5, fastd_period=3, fastd_matype=0, 
     :param fastd_matype: int - default=0
     :param sequential: bool - default=False
 
-    :return: Stochastic
+    :return: StochasticFast(k, d)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

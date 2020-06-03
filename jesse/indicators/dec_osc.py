@@ -8,7 +8,6 @@ from jesse.helpers import get_candle_source
 def dec_osc(candles: np.ndarray, hp_period=125, k=1, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """
     Ehlers Decycler Oscillator
-    This indicator was originally developed by John F. Ehlers (Stocks & Commodities , V.33:10 (September, 2015): "Decyclers").
 
     :param candles: np.ndarray
     :param hp_period: int - default=125

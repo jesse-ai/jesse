@@ -20,7 +20,7 @@ def macd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, sour
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
-    :return: MACD
+    :return: MACD(macd, signal, hist)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

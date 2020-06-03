@@ -3,16 +3,14 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source
 
 
-def tsf(candles: np.ndarray, period=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def dx(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:
     """
-    TSF - Time Series Forecast
+    DX - Directional Movement Index
 
     :param candles: np.ndarray
     :param period: int - default: 14
-    :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
     :return: float | np.ndarray
@@ -20,7 +18,6 @@ def tsf(candles: np.ndarray, period=14, source_type="close", sequential=False) -
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    source = get_candle_source(candles, source_type=source_type)
-    res = talib.TSF(source, timeperiod=period)
+    res = talib.DX(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     return res if sequential else res[-1]

@@ -10,7 +10,8 @@ def var(candles: np.ndarray, period=14, nbdev=1, source_type="close", sequential
     VAR - Variance
 
     :param candles: np.ndarray
-    :param period: int - default=5
+    :param period: int - default=14
+    :param nbdev: int - default=1
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
