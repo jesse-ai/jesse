@@ -504,12 +504,12 @@ def test_ht_sine():
 
     assert type(single).__name__ == 'SINEWAVE'
     assert round(single.sine, 2) == 0.18
-    assert round(single.leadsine, 2) == 0.82
+    assert round(single.lead, 2) == 0.82
 
     assert seq.sine[-1] == single.sine
-    assert seq.leadsine[-1] == single.leadsine
+    assert seq.lead[-1] == single.lead
     assert len(seq.sine) == len(candles)
-    assert len(seq.leadsine) == len(candles)
+    assert len(seq.lead) == len(candles)
 
 
 def test_ht_trendline():
