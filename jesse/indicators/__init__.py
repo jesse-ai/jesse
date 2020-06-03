@@ -64,10 +64,12 @@ from .minmax import minmax
 from .mom import mom
 from .msw import msw
 from .natr import natr
+from .nvi import nvi
 from .obv import obv
 from .pattern_recognition import pattern_recognition
 from .pivot import pivot
 from .ppo import ppo
+from .pvi import pvi
 from .roc import roc
 from .rocp import rocp
 from .rocr import rocr

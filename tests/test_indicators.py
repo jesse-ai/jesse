@@ -838,6 +838,18 @@ def test_natr():
     assert seq[-1] == single
 
 
+def test_nvi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.nvi(candles)
+    seq = ta.nvi(candles, sequential=True)
+
+    assert round(single, 2) == 722.58
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_obv():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -901,6 +913,18 @@ def test_ppo():
     seq = ta.ppo(candles, fastperiod=12, slowperiod=26, matype=1, sequential=True)
 
     assert round(single, 0) == -7
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_pvi():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.pvi(candles)
+    seq = ta.pvi(candles, sequential=True)
+
+    assert round(single, 0) == 661
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
