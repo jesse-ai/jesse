@@ -835,6 +835,13 @@ def test_filters():
     # rest of the assertions have been done inside Test37
 
 
+def test_filter_readable_exception():
+    with pytest.raises(Exception) as err:
+        single_route_backtest('Test47')
+
+    assert str(err.value).startswith("Invalid filter format")
+
+
 def test_average_take_profit_exception():
     set_up([(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test38')])
 

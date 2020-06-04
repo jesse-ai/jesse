@@ -171,12 +171,9 @@ class Strategy(ABC):
             self._prepare_stop_loss()
 
         # filters
-        for f in self.filters():
-            passed = f()
-            if passed == False:
-                logger.info(f.__name__)
-                self._reset()
-                return
+        passed = self._execute_filters()
+        if not passed:
+            return
 
         for o in self._buy:
             # STOP order
@@ -300,12 +297,10 @@ class Strategy(ABC):
             self._validate_stop_loss()
             self._prepare_stop_loss()
 
-        for f in self.filters():
-            passed = f()
-            if passed == False:
-                logger.info(f.__name__)
-                self._reset()
-                return
+        # filters
+        passed = self._execute_filters()
+        if not passed:
+            return
 
         for o in self._sell:
             # STOP order
@@ -323,6 +318,32 @@ class Strategy(ABC):
                 self._open_position_orders.append(
                     self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
                 )
+
+    def _execute_filters(self):
+        for f in self.filters():
+            try:
+                passed = f()
+            except TypeError:
+                raise exceptions.InvalidStrategy(
+                    "Invalid filter format. You need to pass filter methods WITHOUT calling them "
+                    "(no parentheses must be present at the end)"
+                    "\n\n"
+                    u"\u274C " + "Incorrect Example:\n"
+                    "return [\n"
+                    "    self.filter_1()\n"
+                    "]\n\n"
+                    u"\u2705 " + "Correct Example:\n"
+                    "return [\n"
+                    "    self.filter_1\n"
+                    "]\n"
+                )
+
+            if passed == False:
+                logger.info(f.__name__)
+                self._reset()
+                return False
+        
+        return True
 
     @abstractmethod
     def go_long(self):
