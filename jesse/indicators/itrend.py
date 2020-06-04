@@ -16,7 +16,7 @@ def itrend(candles: np.ndarray, alpha=0.07, source_type="hl2", sequential=False)
     :param source_type: str - default: "hl2"
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: ITREND(signal, it, trigger)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

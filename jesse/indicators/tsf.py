@@ -11,7 +11,7 @@ def tsf(candles: np.ndarray, period=14, source_type="close", sequential=False) -
     TSF - Time Series Forecast
 
     :param candles: np.ndarray
-    :param period: int - default: 5
+    :param period: int - default: 14
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 

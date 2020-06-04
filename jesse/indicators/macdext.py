@@ -12,7 +12,6 @@ def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slo
             signalmatype=0, source_type="close", sequential=False) -> MACDEXT:
     """
     MACDEXT - MACD with controllable MA type
-    https://www.investopedia.com/terms/m/macd.asp
 
     :param candles: np.ndarray
     :param fastperiod: int - default: 12
@@ -24,7 +23,7 @@ def macdext(candles: np.ndarray, fastperiod=12, fastmatype=0, slowperiod=26, slo
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
-    :return: MACDEXT
+    :return: MACDEXT(macd, signal, hist)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

@@ -5,6 +5,18 @@ import numpy as np
 
 
 def frama(candles: np.ndarray, window=10, FC=1, SC=300, sequential=False) -> Union[float, np.ndarray]:
+    """
+    Fractal Adaptive Moving Average (FRAMA)
+
+    :param candles: np.ndarray
+    :param window: int - default: 10
+    :param FC: int - default: 1
+    :param SC: int - default: 300
+    :param sequential: bool - default=False
+
+    :return:  float | np.ndarray
+    """
+
     if len(candles) > 240:
         candles = candles[-240:]
 

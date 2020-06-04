@@ -13,7 +13,7 @@ def pivot(candles: np.ndarray, mode=0, sequential=False) -> PIVOT:
     :param mode: int - default = 0
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: PIVOT(r4, r3, r2, r1, pp, s1, s2, s3, s4)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

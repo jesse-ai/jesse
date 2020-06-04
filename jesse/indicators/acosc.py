@@ -13,7 +13,7 @@ def acosc(candles: np.ndarray, sequential=False) -> AC:
     :param candles: np.ndarray
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: AC(osc, change)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

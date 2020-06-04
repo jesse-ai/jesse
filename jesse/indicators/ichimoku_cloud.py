@@ -16,7 +16,7 @@ def ichimoku_cloud(candles: np.ndarray, conversion_line_period=9, base_line_peri
     :param lagging_line_period: int - default=52
     :param displacement: - default=26
 
-    :return: tuple(float, float, float, float)
+    :return: IchimokuCloud(conversion_line, base_line, span_a, span_b)
     """
     if len(candles) < 80:
         return IchimokuCloud(np.nan, np.nan, np.nan, np.nan)

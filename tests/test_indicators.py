@@ -105,13 +105,13 @@ def test_aroon():
 
     aroon = ta.aroon(candles, period=14)
     assert type(aroon).__name__ == 'AROON'
-    assert round(aroon.aroondown, 2) == 100
-    assert round(aroon.aroonup, 2) == 64.29
+    assert round(aroon.down, 2) == 100
+    assert round(aroon.up, 2) == 64.29
 
     seq_aroon = ta.aroon(candles, period=14, sequential=True)
-    assert seq_aroon.aroondown[-1] == aroon.aroondown
-    assert len(seq_aroon.aroondown) == len(candles)
-    assert len(seq_aroon.aroonup) == len(candles)
+    assert seq_aroon.down[-1] == aroon.down
+    assert len(seq_aroon.down) == len(candles)
+    assert len(seq_aroon.up) == len(candles)
 
 
 def test_aroon_osc():
@@ -372,16 +372,16 @@ def test_emd():
     seq = ta.emd(candles, sequential=True)
 
     assert type(single).__name__ == 'EMD'
-    assert round(single.mean, 2) == 3.12
-    assert round(single.up, 2) == 1.21
-    assert round(single.low, 2) == -0.28
+    assert round(single.middleband, 2) == 3.12
+    assert round(single.upperband, 2) == 1.21
+    assert round(single.lowerband, 2) == -0.28
 
-    assert seq.mean[-1] == single.mean
-    assert seq.up[-1] == single.up
-    assert seq.low[-1] == single.low
-    assert len(seq.mean) == len(candles)
-    assert len(seq.up) == len(candles)
-    assert len(seq.low) == len(candles)
+    assert seq.middleband[-1] == single.middleband
+    assert seq.upperband[-1] == single.upperband
+    assert seq.lowerband[-1] == single.lowerband
+    assert len(seq.middleband) == len(candles)
+    assert len(seq.upperband) == len(candles)
+    assert len(seq.lowerband) == len(candles)
 
 
 def test_emv():
@@ -1246,7 +1246,7 @@ def test_vidya():
     single = ta.vidya(candles)
     seq = ta.vidya(candles, sequential=True)
 
-    assert round(single, 2) == 202.47
+    assert round(single, 2) == 194.75
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

@@ -12,8 +12,8 @@ def tsi(candles: np.ndarray, long_period=25, short_period=13, source_type="close
      True strength index (TSI)
 
     :param candles: np.ndarray
-    :param long_period: int - default: 14
-    :param short_period: int - default: 14
+    :param long_period: int - default: 25
+    :param short_period: int - default: 13
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 

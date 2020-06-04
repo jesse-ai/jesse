@@ -19,7 +19,7 @@ def keltner(candles: np.ndarray, period=20, multiplier=2, matype=1, source_type=
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: KeltnerChannel
+    :return: KeltnerChannel(upperband, middleband, lowerband)
     """
 
     if not sequential and len(candles) > 240:

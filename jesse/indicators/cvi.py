@@ -9,7 +9,7 @@ def cvi(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.ndar
     CVI - Chaikins Volatility
 
     :param candles: np.ndarray
-    :param period: int - default: 20
+    :param period: int - default: 5
     :param sequential: bool - default=False
 
     :return: float | np.ndarray

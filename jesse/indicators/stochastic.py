@@ -10,13 +10,12 @@ def stoch(candles: np.ndarray, fastk_period=14, slowk_period=3, slowk_matype=0, 
           sequential=False) -> Stochastic:
     """
     The Stochastic Oscillator
-    https://www.investopedia.com/terms/s/stochasticoscillator.asp
-    
+
     :param candles: np.ndarray
     :param period: int - default=14
     :param sequential: bool - default=False
 
-    :return: Stochastic
+    :return: Stochastic(k, d)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

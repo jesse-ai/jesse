@@ -18,7 +18,7 @@ def mama(candles: np.ndarray, fastlimit=0.5, slowlimit=0.05, source_type="close"
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
-    :return: float | np.ndarray
+    :return: MAMA(mama, fama)
     """
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
