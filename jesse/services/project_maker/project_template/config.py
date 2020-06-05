@@ -76,4 +76,18 @@ config = {
         'trading_candles': True,
         'balance_update': True,
     },
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Metrics
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #
+    # Below configurations are used to set the metrics
+    # that are displayed after a backtest.
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    'metrics': {
+        'sharpe_ratio': True,
+        'calmar_ratio': False,
+        'sortino_ratio': False,
+        'omega_ratio': False,
+    }
 }

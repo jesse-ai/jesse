@@ -180,13 +180,13 @@ def portfolio_metrics():
              data['average_losing_holding_period'], 3)]
     ]
 
-    if not config['app']['sharpe_ratio']:
+    if not config['metrics']['sharpe_ratio']:
         metrics.pop(7)
-    if not config['app']['calmar_ratio']:
+    if not config['metrics']['calmar_ratio']:
         metrics.pop(8)
-    if not config['app']['sortino_ratio']:
+    if not config['metrics']['sortino_ratio']:
         metrics.pop(9)
-    if not config['app']['omega_ratio']:
+    if not config['metrics']['omega_ratio']:
         metrics.pop(10)
 
 
