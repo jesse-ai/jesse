@@ -89,6 +89,9 @@ def trades(trades_list: list, daily_balance: list):
     max_drawdown = round(empyrical.max_drawdown(daily_returns) * 100, 2)
     annual_return = round(empyrical.annual_return(daily_returns) * 100, 2)
     sharpe_ratio = round(empyrical.sharpe_ratio(daily_returns), 2)
+    calmar_ratio = round(empyrical.calmar_ratio(daily_returns), 2)
+    sortino_ratio = round(empyrical.sortino_ratio(daily_returns), 2)
+    omega_ratio = round(empyrical.omega_ratio(daily_returns), 2)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
@@ -122,6 +125,9 @@ def trades(trades_list: list, daily_balance: list):
         'max_drawdown': max_drawdown,
         'annual_return': annual_return,
         'sharpe_ratio': sharpe_ratio,
+        'calmar_ratio': calmar_ratio,
+        'sortino_ratio': sortino_ratio,
+        'omega_ratio': omega_ratio,
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
     }
