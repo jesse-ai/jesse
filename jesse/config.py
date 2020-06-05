@@ -101,6 +101,14 @@ config = {
         # are required for live trading on real markets, however, it is useful
         # for doing backtests simulations while faster strategy development.
         'strategy-validation': True
+    },
+
+    # changes the metrics output of the backtest
+    'metrics' : {
+        'sharpe_ratio': True,
+        'calmar_ratio': False,
+        'sortino_ratio': False,
+        'omega_ratio': False,
     }
 }
 

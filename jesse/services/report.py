@@ -149,7 +149,8 @@ def livetrade():
 
 def portfolio_metrics():
     data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
-    return [
+
+    metrics = [
         ['Total Closed Trades', data['total']],
         ['Total Net Profit',
          '{} ({})'.format(round(data['net_profit'], 4), str(data['net_profit_percentage']) + '%')],
@@ -178,6 +179,18 @@ def portfolio_metrics():
          np.nan if np.isnan(data['average_losing_holding_period']) else jh.readable_duration(
              data['average_losing_holding_period'], 3)]
     ]
+
+    if not config['app']['sharpe_ratio']:
+        metrics.pop(7)
+    if not config['app']['calmar_ratio']:
+        metrics.pop(8)
+    if not config['app']['sortino_ratio']:
+        metrics.pop(9)
+    if not config['app']['omega_ratio']:
+        metrics.pop(10)
+
+
+    return metrics
 
 
 def info():
