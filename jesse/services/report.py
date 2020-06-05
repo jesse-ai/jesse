@@ -160,10 +160,6 @@ def portfolio_metrics():
         ['Open PL', round(data['open_pl'], 2)],
         ['Total Paid Fees', round(data['fee'], 2)],
         ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
-        ['Sharpe Ratio', data['sharpe_ratio']],
-        ['Calmar Ratio', data['calmar_ratio']],
-        ['Sortino Ratio', data['sortino_ratio']],
-        ['Omega Ratio', data['omega_ratio']],
         ['Annual Return', '{}%'.format(data['annual_return'])],
         ['Expectancy',
          '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
@@ -180,15 +176,14 @@ def portfolio_metrics():
              data['average_losing_holding_period'], 3)]
     ]
 
-    if not config['metrics']['sharpe_ratio']:
-        metrics.pop(7)
-    if not config['metrics']['calmar_ratio']:
-        metrics.pop(8)
-    if not config['metrics']['sortino_ratio']:
-        metrics.pop(9)
-    if not config['metrics']['omega_ratio']:
-        metrics.pop(10)
-
+    if config['metrics']['sharpe_ratio']:
+        metrics.insert(7, ['Sharpe Ratio', data['sharpe_ratio']])
+    if config['metrics']['calmar_ratio']:
+        metrics.insert(7, ['Calmar Ratio', data['calmar_ratio']])
+    if config['metrics']['sortino_ratio']:
+        metrics.insert(7, ['Sortino Ratio', data['sortino_ratio']])
+    if config['metrics']['omega_ratio']:
+        metrics.insert(7, ['Omega Ratio', data['omega_ratio']])
 
     return metrics
 
