@@ -73,6 +73,8 @@ config = {
             'omega_ratio': False,
             'winning_streak': False,
             'losing_streak': False,
+            'largest_losing_trade': False,
+            'largest_winning_trade': False,
         }
     },
 

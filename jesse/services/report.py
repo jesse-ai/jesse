@@ -188,6 +188,10 @@ def portfolio_metrics():
         metrics.append(['Winning Streak', data['winning_streak']])
     if jh.get_config('env.metrics.losing_streak', False):
         metrics.append(['Losing Streak', data['losing_streak']])
+    if jh.get_config('env.metrics.largest_winning_trade', False):
+        metrics.append(['Largest Winning Trade', data['largest_winning_trade']])
+    if jh.get_config('env.metrics.largest_losing_trade', False):
+        metrics.append(['Largest Losing Trade', data['largest_losing_trade']])
 
     return metrics
 

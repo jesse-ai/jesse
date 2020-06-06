@@ -68,6 +68,9 @@ def trades(trades_list: list, daily_balance: list):
     winning_i = df['PNL'] > 0
     winning_streaks = winning_i.ne(winning_i.shift()).cumsum()
     winning_streak = winning_streaks[winning_i].value_counts().max()
+    largest_losing_trade = df['PNL'].min()
+    largest_winning_trade = df['PNL'].max()
+
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     max_R = round(df['R'].max(), 2)
@@ -141,4 +144,6 @@ def trades(trades_list: list, daily_balance: list):
         'open_pl': open_pl,
         'winning_streak': winning_streak,
         'losing_streak': losing_streak,
+        'largest_losing_trade': largest_losing_trade,
+        'largest_winning_trade': largest_winning_trade,
     }
