@@ -89,5 +89,7 @@ config = {
         'calmar_ratio': False,
         'sortino_ratio': False,
         'omega_ratio': False,
+        'winning_streak': False,
+        'losing_streak': False,
     }
 }

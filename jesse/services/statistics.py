@@ -60,6 +60,13 @@ def trades(trades_list: list, daily_balance: list):
     total_completed = len(df)
     winning_trades = df.loc[df['PNL'] > 0]
     losing_trades = df.loc[df['PNL'] < 0]
+
+    losing_streaks = losing_trades.ne(losing_trades.shift()).cumsum()
+    losing_streak = losing_streaks[losing_trades].value_counts().max()
+
+    winning_streaks = winning_trades.ne(winning_trades.shift()).cumsum()
+    winning_streak = winning_streaks[winning_trades].value_counts().max()
+
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     max_R = round(df['R'].max(), 2)
     min_R = round(df['R'].min(), 2)
@@ -130,4 +137,6 @@ def trades(trades_list: list, daily_balance: list):
         'omega_ratio': omega_ratio,
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
+        'winning_streak': winning_streak,
+        'losing_streak': losing_streak,
     }

@@ -184,6 +184,10 @@ def portfolio_metrics():
         metrics.append(['Sortino Ratio', data['sortino_ratio']])
     if jh.get_config('env.metrics.omega_ratio', False):
         metrics.append(['Omega Ratio', data['omega_ratio']])
+    if jh.get_config('env.metrics.winning_streak', False):
+        metrics.append(['Winning Streak', data['winning_streak']])
+    if jh.get_config('env.metrics.losing_streak', False):
+        metrics.append(['Losing Streak', data['losing_streak']])
 
     return metrics
 
