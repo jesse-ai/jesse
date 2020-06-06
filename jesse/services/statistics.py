@@ -61,11 +61,13 @@ def trades(trades_list: list, daily_balance: list):
     winning_trades = df.loc[df['PNL'] > 0]
     losing_trades = df.loc[df['PNL'] < 0]
 
-    losing_streaks = losing_trades.ne(losing_trades.shift()).cumsum()
-    losing_streak = losing_streaks[losing_trades].value_counts().max()
+    losing_i = df['PNL'] < 0
+    losing_streaks = losing_i.ne(losing_i.shift()).cumsum()
+    losing_streak = losing_streaks[losing_i].value_counts().max()
 
-    winning_streaks = winning_trades.ne(winning_trades.shift()).cumsum()
-    winning_streak = winning_streaks[winning_trades].value_counts().max()
+    winning_i = df['PNL'] > 0
+    winning_streaks = winning_i.ne(winning_i.shift()).cumsum()
+    winning_streak = winning_streaks[winning_i].value_counts().max()
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     max_R = round(df['R'].max(), 2)
