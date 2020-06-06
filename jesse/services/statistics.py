@@ -59,7 +59,9 @@ def trades(trades_list: list, daily_balance: list):
 
     total_completed = len(df)
     winning_trades = df.loc[df['PNL'] > 0]
+    total_winning_trades = len(winning_trades)
     losing_trades = df.loc[df['PNL'] < 0]
+    total_losing_trades = len(losing_trades)
 
     losing_i = df['PNL'] < 0
     losing_streaks = losing_i.ne(losing_i.shift()).cumsum()
@@ -108,6 +110,8 @@ def trades(trades_list: list, daily_balance: list):
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
+        'total_winning_trade': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
+        'total_losing_trade': np.nan if np.isnan(total_losing_trades) else total_losing_trades,
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
         'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
@@ -143,6 +147,6 @@ def trades(trades_list: list, daily_balance: list):
         'open_pl': open_pl,
         'winning_streak': winning_streak,
         'losing_streak': losing_streak,
-        'largest_losing_trade': largest_losing_trade,
-        'largest_winning_trade': largest_winning_trade,
+        'largest_losing_trades': largest_losing_trade,
+        'largest_winning_trades': largest_winning_trade,
     }

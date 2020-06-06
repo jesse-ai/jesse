@@ -192,6 +192,10 @@ def portfolio_metrics():
         metrics.append(['Largest Winning Trade', data['largest_winning_trade']])
     if jh.get_config('env.metrics.largest_losing_trade', False):
         metrics.append(['Largest Losing Trade', data['largest_losing_trade']])
+    if jh.get_config('env.metrics.total_winning_trades', False):
+        metrics.append(['Total Winning Trades', data['total_winning_trades']])
+    if jh.get_config('env.metrics.total_losing_trades', False):
+        metrics.append(['Total Losing Trades', data['total_losing_trades']])
 
     return metrics
 
