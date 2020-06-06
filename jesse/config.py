@@ -63,6 +63,14 @@ config = {
                 'fee': 0.0021,
                 'starting_balance': 10000,
             },
+        },
+
+        # changes the metrics output of the backtest
+        'metrics': {
+            'sharpe_ratio': True,
+            'calmar_ratio': False,
+            'sortino_ratio': False,
+            'omega_ratio': False,
         }
     },
 
@@ -102,14 +110,6 @@ config = {
         # for doing backtests simulations while faster strategy development.
         'strategy-validation': True
     },
-
-    # changes the metrics output of the backtest
-    'metrics' : {
-        'sharpe_ratio': True,
-        'calmar_ratio': False,
-        'sortino_ratio': False,
-        'omega_ratio': False,
-    }
 }
 
 backup_config = config.copy()

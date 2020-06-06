@@ -176,14 +176,14 @@ def portfolio_metrics():
              data['average_losing_holding_period'], 3)]
     ]
 
-    if config['metrics']['sharpe_ratio']:
-        metrics.insert(7, ['Sharpe Ratio', data['sharpe_ratio']])
-    if config['metrics']['calmar_ratio']:
-        metrics.insert(7, ['Calmar Ratio', data['calmar_ratio']])
-    if config['metrics']['sortino_ratio']:
-        metrics.insert(7, ['Sortino Ratio', data['sortino_ratio']])
-    if config['metrics']['omega_ratio']:
-        metrics.insert(7, ['Omega Ratio', data['omega_ratio']])
+    if jh.get_config('env.metrics.sharpe_ratio', True):
+        metrics.append(['Sharpe Ratio', data['sharpe_ratio']])
+    if jh.get_config('env.metrics.calmar_ratio', False):
+        metrics.append(['Calmar Ratio', data['calmar_ratio']])
+    if jh.get_config('env.metrics.sortino_ratio', False):
+        metrics.append(['Sortino Ratio', data['sortino_ratio']])
+    if jh.get_config('env.metrics.omega_ratio', False):
+        metrics.append(['Omega Ratio', data['omega_ratio']])
 
     return metrics
 
