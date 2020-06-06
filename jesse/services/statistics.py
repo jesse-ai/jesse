@@ -147,6 +147,6 @@ def trades(trades_list: list, daily_balance: list):
         'open_pl': open_pl,
         'winning_streak': winning_streak,
         'losing_streak': losing_streak,
-        'largest_losing_trades': largest_losing_trade,
-        'largest_winning_trades': largest_winning_trade,
+        'largest_losing_trade': largest_losing_trade,
+        'largest_winning_trade': largest_winning_trade,
     }
