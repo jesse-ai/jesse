@@ -110,8 +110,8 @@ def trades(trades_list: list, daily_balance: list):
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
-        'total_winning_trade': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
-        'total_losing_trade': np.nan if np.isnan(total_losing_trades) else total_losing_trades,
+        'total_winning_trades': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
+        'total_losing_trades': np.nan if np.isnan(total_losing_trades) else total_losing_trades,
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
         'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
