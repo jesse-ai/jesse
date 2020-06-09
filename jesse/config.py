@@ -71,6 +71,12 @@ config = {
             'calmar_ratio': False,
             'sortino_ratio': False,
             'omega_ratio': False,
+            'winning_streak': False,
+            'losing_streak': False,
+            'largest_losing_trade': False,
+            'largest_winning_trade': False,
+            'total_winning_trades': False,
+            'total_losing_trades': False,
         }
     },
 
