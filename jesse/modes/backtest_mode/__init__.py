@@ -311,5 +311,6 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                 with_generation=False
             )
             p = selectors.get_position(exchange, symbol)
-            p.current_price = real_candle[2]
+            if p:
+                p.current_price = real_candle[2]
             break
