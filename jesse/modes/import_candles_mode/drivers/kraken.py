@@ -3,6 +3,7 @@ import requests
 import jesse.helpers as jh
 from jesse import exceptions
 from .interface import CandleExchange
+import pandas as pd
 
 
 class Kraken(CandleExchange):
@@ -12,15 +13,16 @@ class Kraken(CandleExchange):
     """
 
     def __init__(self):
-        super().__init__('Kraken', 720, 5)
-        self.endpoint = 'https://api.kraken.com/0/public/OHLC'
+        # kraken sends as many trades as we wish, although, 
+        # to be on the safe side we will process only 1000 at a time
+        super().__init__('Kraken', 1000, 5)
+        self.endpoint = 'https://api.kraken.com/0/public/Trades'
 
     def init_backup_exchange(self):
         self.backup_exchange = None
 
     def get_starting_time(self, symbol):
         payload = {
-            'interval': '1',
             'pair': symbol,
             'since': 000,
         }
@@ -29,37 +31,45 @@ class Kraken(CandleExchange):
         self._handle_errors(response)
 
         data = response.json()
-        first_timestamp = int(data["result"][self._topair(symbol)][0][0])
+        first_timestamp = int(data["result"][self._topair(symbol)][0][3])
         return first_timestamp * 1000
 
     def fetch(self, symbol, start_timestamp):
         payload = {
-            'interval': '1',
             'pair': symbol,
-            'since': start_timestamp / 1000,
+            'since': start_timestamp * 10**6,
         }
 
         response = requests.get(self.endpoint, params=payload)
         self._handle_errors(response)
         data = response.json()["result"][self._topair(symbol)]
-        candles = []
-        for d in data:
-            candles.append({
-                'id': jh.generate_unique_id(),
-                'symbol': symbol,
-                'exchange': self.name,
-                'timestamp': int(d[0]) * 1000,
-                'open': float(d[1]),
-                'close': float(d[4]),
-                'high': float(d[2]),
-                'low': float(d[3]),
-                'volume': float(d[6])
-            })
-
-        return candles
+        candlesDF = self._tradeconversion(data)
+        candlesDF["id"] = [jh.generate_unique_id() for idx in range(len(candlesDF.index))]
+        candlesDF["symbol"] = symbol
+        candlesDF["exchange"] = self.name
+        candlesDF["timestamp"] = [tstamp.value/10**6 for tstamp in candlesDF.index]
+        return candlesDF[1:-1].to_dict(orient="records")
 
     def _topair(self, symbol):
         return "X{}Z{}".format(symbol[:3], symbol[3:]).upper()
+
+    def _tradeconversion(self, data):
+        trades = []
+        volumes = []
+        tstamps = []
+        for trade in data:
+            trades.append(float(trade[0]))
+            volumes.append(float(trade[1]))
+            tstamps.append(pd.to_datetime(trade[2], unit="s"))
+        tradeSeries = pd.Series(data=trades, index=tstamps)
+        volumeSeries = pd.Series(data=volumes, index=tstamps)
+        grouper = pd.Grouper(freq="1Min", base=0)
+        vols = volumeSeries.groupby(grouper).sum()
+        trds = tradeSeries.groupby(grouper).ohlc()
+        candls = trds
+        candls["volume"] = vols
+        candls.fillna(method="ffill", inplace=True)
+        return candls
 
     @staticmethod
     def _handle_errors(response):
