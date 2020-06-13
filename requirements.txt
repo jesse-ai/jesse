@@ -17,3 +17,4 @@ empyrical==0.5.3
 blinker==1.4.0
 tulipy==0.4.0
 scipy==1.4.1
+adjustText==0.7.3
