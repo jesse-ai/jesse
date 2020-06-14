@@ -1,3 +1,4 @@
+import pytest
 import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges, timeframes, order_types, order_flags, order_roles
@@ -5,6 +6,7 @@ from jesse.models import Position, Exchange
 from jesse.routes import router
 from jesse.services.broker import Broker
 from jesse.store import store
+from jesse.exceptions import InvalidStrategy
 
 position: Position = None
 exchange: Exchange = None
@@ -125,6 +127,14 @@ def test_fee_calculation_when_submitting_and_canceling_orders():
 def test_market_orders_and_its_effects_on_position_and_exchange():
     set_up()
 
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.sell_at_market(0)
+
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.buy_at_market(0)
+
     assert position.qty == 0
     assert exchange.balance == 1000
 
@@ -191,6 +201,11 @@ def test_limit_orders():
     broker.cancel_order(order.id)
     assert exchange.balance == 1000
 
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.sell_at(0, 100)
+        broker.buy_at(0, 100)
+
 
 def test_reduce_position_order():
     set_up()
@@ -221,6 +236,10 @@ def test_reduce_position_order():
     assert exchange.balance == 1010
     assert position.is_close is True
 
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.reduce_position_at(0, 100)
+
 
 def test_start_profit():
     set_up()
@@ -243,6 +262,10 @@ def test_start_profit():
     assert exchange.balance == 940
     assert position.qty == 1
     assert position.entry_price == 60
+
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.start_profit_at('buy', 0, 100)
 
 
 def test_stop_loss():
@@ -289,6 +312,10 @@ def test_stop_loss():
     order.execute()
     assert position.qty == 0
     assert exchange.balance == 940
+
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.stop_loss_at(0, 100)
 
 
 def test_opening_and_closing_position_with_stop():
