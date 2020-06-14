@@ -1,4 +1,7 @@
 from jesse.models import Route
+import jesse.helpers as jh
+from jesse import exceptions
+import sys
 
 
 class RouterClass:
@@ -12,12 +15,9 @@ class RouterClass:
 
         for r in routes:
             # validate strategy
-            import jesse.helpers as jh
-            from jesse import exceptions
-
             strategy_name = r[3]
             if jh.is_unit_testing():
-                exists = jh.file_exists('jesse/strategies/{}/__init__.py'.format(strategy_name))
+                exists = jh.file_exists(sys.path[0] + '/jesse/strategies/{}/__init__.py'.format(strategy_name))
             else:
                 exists = jh.file_exists('strategies/{}/__init__.py'.format(strategy_name))
 
