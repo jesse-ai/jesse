@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.enums import sides, order_flags
-from jesse.exceptions import OrderNotAllowed
+from jesse.exceptions import OrderNotAllowed, InvalidStrategy
 from jesse.models import Order
 from jesse.models import Position
 
@@ -14,7 +14,14 @@ class Broker:
         from jesse.services.api import api
         self.api = api
 
+    @staticmethod
+    def _validate_qty(qty):
+        if qty == 0:
+            raise InvalidStrategy('qty cannot be 0')
+
     def sell_at_market(self, qty, role=None) -> Order:
+        self._validate_qty(qty)
+
         return self.api.market_order(
             self.exchange,
             self.symbol,
@@ -25,6 +32,8 @@ class Broker:
         )
 
     def sell_at(self, qty, price, role=None) -> Order:
+        self._validate_qty(qty)
+
         if price < 0:
             raise ValueError('price cannot be negative.')
 
@@ -47,6 +56,8 @@ class Broker:
         )
 
     def buy_at_market(self, qty, role=None) -> Order:
+        self._validate_qty(qty)
+
         return self.api.market_order(
             self.exchange,
             self.symbol,
@@ -58,6 +69,8 @@ class Broker:
         )
 
     def buy_at(self, qty, price, role=None) -> Order:
+        self._validate_qty(qty)
+
         if price < 0:
             raise ValueError('price cannot be negative.')
 
@@ -80,6 +93,8 @@ class Broker:
         )
 
     def reduce_position_at(self, qty, price, role=None) -> Order:
+        self._validate_qty(qty)
+
         qty = abs(qty)
 
         # validation
@@ -122,6 +137,8 @@ class Broker:
         )
 
     def start_profit_at(self, side, qty, price, role=None) -> Order:
+        self._validate_qty(qty)
+
         if price < 0:
             raise ValueError('price cannot be negative.')
 
@@ -151,6 +168,8 @@ class Broker:
         )
 
     def stop_loss_at(self, qty, price, role=None) -> Order:
+        self._validate_qty(qty)
+
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
         if price < 0:

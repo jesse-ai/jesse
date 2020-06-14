@@ -23,7 +23,7 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 
 
-def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False):
+def run(start_date: str, finish_date: str, candles=None, chart=False, chart_enriched=False, tradingview=False):
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -67,8 +67,8 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
             # save logs
             store_logs(tradingview)
 
-            if chart:
-                charts.portfolio_vs_asset_returns()
+            if chart or chart_enriched:
+                charts.portfolio_vs_asset_returns(chart_enriched)
         else:
             print(jh.color('No trades were made.', 'yellow'))
 
@@ -311,5 +311,6 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                 with_generation=False
             )
             p = selectors.get_position(exchange, symbol)
-            p.current_price = real_candle[2]
+            if p:
+                p.current_price = real_candle[2]
             break

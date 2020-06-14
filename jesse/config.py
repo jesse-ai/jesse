@@ -63,6 +63,20 @@ config = {
                 'fee': 0.0021,
                 'starting_balance': 10000,
             },
+        },
+
+        # changes the metrics output of the backtest
+        'metrics': {
+            'sharpe_ratio': True,
+            'calmar_ratio': False,
+            'sortino_ratio': False,
+            'omega_ratio': False,
+            'winning_streak': False,
+            'losing_streak': False,
+            'largest_losing_trade': False,
+            'largest_winning_trade': False,
+            'total_winning_trades': False,
+            'total_losing_trades': False,
         }
     },
 
@@ -101,7 +115,7 @@ config = {
         # are required for live trading on real markets, however, it is useful
         # for doing backtests simulations while faster strategy development.
         'strategy-validation': True
-    }
+    },
 }
 
 backup_config = config.copy()

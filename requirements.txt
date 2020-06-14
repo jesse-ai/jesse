@@ -5,8 +5,8 @@ Click==7.1.2
 arrow==0.15.6
 requests==2.23.0
 peewee==3.13.3
-pydash==4.7.6
-numpy==1.18.4
+pydash==4.8.0
+numpy==1.18.5
 pandas==1.0.4
 tabulate==0.8.7
 timeloop==1.0.2
@@ -17,3 +17,4 @@ empyrical==0.5.3
 blinker==1.4.0
 tulipy==0.4.0
 scipy==1.4.1
+adjustText==0.7.3

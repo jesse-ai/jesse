@@ -149,7 +149,8 @@ def livetrade():
 
 def portfolio_metrics():
     data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
-    return [
+
+    metrics = [
         ['Total Closed Trades', data['total']],
         ['Total Net Profit',
          '{} ({})'.format(round(data['net_profit'], 4), str(data['net_profit_percentage']) + '%')],
@@ -159,7 +160,6 @@ def portfolio_metrics():
         ['Open PL', round(data['open_pl'], 2)],
         ['Total Paid Fees', round(data['fee'], 2)],
         ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
-        ['Sharpe Ratio', data['sharpe_ratio']],
         ['Annual Return', '{}%'.format(data['annual_return'])],
         ['Expectancy',
          '{} ({})'.format(round(data['expectancy'], 2), str(round(data['expectancy_percentage'], 2)) + '%')],
@@ -175,6 +175,29 @@ def portfolio_metrics():
          np.nan if np.isnan(data['average_losing_holding_period']) else jh.readable_duration(
              data['average_losing_holding_period'], 3)]
     ]
+
+    if jh.get_config('env.metrics.sharpe_ratio', True):
+        metrics.append(['Sharpe Ratio', data['sharpe_ratio']])
+    if jh.get_config('env.metrics.calmar_ratio', False):
+        metrics.append(['Calmar Ratio', data['calmar_ratio']])
+    if jh.get_config('env.metrics.sortino_ratio', False):
+        metrics.append(['Sortino Ratio', data['sortino_ratio']])
+    if jh.get_config('env.metrics.omega_ratio', False):
+        metrics.append(['Omega Ratio', data['omega_ratio']])
+    if jh.get_config('env.metrics.winning_streak', False):
+        metrics.append(['Winning Streak', data['winning_streak']])
+    if jh.get_config('env.metrics.losing_streak', False):
+        metrics.append(['Losing Streak', data['losing_streak']])
+    if jh.get_config('env.metrics.largest_winning_trade', False):
+        metrics.append(['Largest Winning Trade', data['largest_winning_trade']])
+    if jh.get_config('env.metrics.largest_losing_trade', False):
+        metrics.append(['Largest Losing Trade', data['largest_losing_trade']])
+    if jh.get_config('env.metrics.total_winning_trades', False):
+        metrics.append(['Total Winning Trades', data['total_winning_trades']])
+    if jh.get_config('env.metrics.total_losing_trades', False):
+        metrics.append(['Total Losing Trades', data['total_losing_trades']])
+
+    return metrics
 
 
 def info():
