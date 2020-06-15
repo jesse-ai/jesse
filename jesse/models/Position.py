@@ -26,6 +26,8 @@ class Position:
         self.symbol = symbol
         self.strategy = None
 
+        self.leverage = 1
+
         for a in attributes:
             setattr(self, a, attributes[a])
 
@@ -115,7 +117,7 @@ class Position:
 
         if self.exchange:
             self.exchange.increase_balance(
-                self, close_qty * self.entry_price + estimated_profit
+                self, (close_qty * self.entry_price) / self.leverage + estimated_profit
             )
         self.qty = 0
         self.entry_price = None
@@ -143,7 +145,7 @@ class Position:
 
         if self.exchange:
             self.exchange.increase_balance(
-                self, qty * self.entry_price + estimated_profit)
+                self, (qty * self.entry_price) / self.leverage + estimated_profit)
 
         if self.type == trade_types.LONG:
             self.qty -= qty
@@ -166,7 +168,7 @@ class Position:
                 'position must be already open in order to incrase its size')
 
         qty = abs(qty)
-        size = qty * price
+        size = (qty * price) / self.leverage
 
         if self.exchange:
             self.exchange.decrease_balance(self, size)
@@ -194,7 +196,7 @@ class Position:
             raise OpenPositionError('an already open position cannot be opened')
 
         if change_balance:
-            size = abs(qty) * price
+            size = (abs(qty) * price) / self.leverage
             if self.exchange:
                 self.exchange.decrease_balance(self, size)
 
@@ -221,7 +223,7 @@ class Position:
 
         qty = order.qty
         price = order.price
-        size = ju.qty_to_size(qty, price)
+        size = ju.qty_to_size(qty, price) / self.leverage
 
         # open-position order
         if self.qty == 0:
@@ -242,7 +244,7 @@ class Position:
     def _on_canceled_order(self, order):
         qty = order.qty
         price = order.price
-        size = ju.qty_to_size(qty, price)
+        size = ju.qty_to_size(qty, price) / self.leverage
 
         if order.is_reduce_only:
             return

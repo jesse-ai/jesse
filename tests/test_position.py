@@ -150,6 +150,22 @@ def test_close_position():
     assert p.entry_price is None
     assert p.exit_price == 50
 
+def test_leveraged_close_position():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTCUSD')
+    p.leverage = 100
+    p._open(2, 50)
+    e = selectors.get_exchange('Sandbox')
+    assert p.exit_price is None
+    assert e.balance == 999
+    p._close(75)
+
+    assert p.qty == 0
+    assert e.balance == 1050
+    assert p.entry_price is None
+    assert p.exit_price == 75
+
 
 def test_reduce_a_long_position():
     set_up()
@@ -167,6 +183,21 @@ def test_reduce_a_long_position():
     assert e.balance == 1050
 
 
+def test_reduce_a_leveraged_long_position():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTCUSD')
+    p.leverage = 100
+    p._open(2, 50)
+    e = selectors.get_exchange('Sandbox')
+
+    assert e.balance == 999
+    p._reduce(1, 50)
+
+    assert p.qty == 1
+    assert e.balance == 999.5
+
+
 def test_reduce_a_short_position():
     set_up()
 
@@ -181,6 +212,22 @@ def test_reduce_a_short_position():
 
     assert p.qty == -1
     assert e.balance == 1050
+
+def test_reduce_a_leveraged_short_position():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTCUSD')
+    p.leverage = 100
+    p._open(-2, 50)
+    e = selectors.get_exchange('Sandbox')
+
+    assert e.balance == 999
+    e = selectors.get_exchange('Sandbox')
+
+    p._reduce(1, 50)
+
+    assert p.qty == -1
+    assert e.balance == 999.5
 
 
 def test_is_able_to_close_via_reduce_postion_too():
@@ -197,6 +244,21 @@ def test_is_able_to_close_via_reduce_postion_too():
 
     assert p.qty == 0
     assert e.balance == 1100
+
+def test_leveraged_is_able_to_close_via_reduce_postion_too():
+    set_up()
+    
+    p = Position(exchanges.SANDBOX, 'BTCUSD')
+    p.leverage = 100
+    p._open(2, 50)
+    e = selectors.get_exchange('Sandbox')
+
+    assert e.balance == 999
+
+    p._reduce(2, 50)
+
+    assert p.qty == 0
+    assert e.balance == 1000
 
 
 def test_increase_a_long_position():
@@ -215,6 +277,23 @@ def test_increase_a_long_position():
     assert p.entry_price == 75
     assert e.balance == 800
 
+def test_increase_a_leveraged_long_position():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTCUSD', {
+        'entry_price': 50,
+        'current_price': 50,
+        'qty': 2,
+    })
+    p.leverage = 10
+    e = selectors.get_exchange('Sandbox')
+
+    p._increase(2, 100)
+
+    assert p.qty == 4
+    assert p.entry_price == 75
+    assert e.balance == 980
+
 
 def test_increase_a_short_position():
     set_up()
@@ -231,6 +310,22 @@ def test_increase_a_short_position():
     assert p.qty == -4
     assert p.entry_price == 45
     assert e.balance == 920
+
+def test_increase_a_leveraged_short_position():
+    set_up()
+    p = Position(exchanges.SANDBOX, 'BTCUSD', {
+        'entry_price': 50,
+        'current_price': 50,
+        'qty': -2,
+    })
+    p.leverage = 10
+    e = selectors.get_exchange('Sandbox')
+
+    p._increase(2, 40)
+
+    assert p.qty == -4
+    assert p.entry_price == 45
+    assert e.balance == 992
 
 
 def test_open_position():
@@ -251,3 +346,22 @@ def test_open_position():
     assert p.entry_price == 50
     assert p.exit_price is None
     assert e.balance == 950
+
+def test_open_leveraged_position():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTCUSD')
+    p.leverage = 100
+    e = selectors.get_exchange('Sandbox')
+    assert p.qty == 0
+    assert p.entry_price is None
+    assert p.exit_price is None
+    assert p.current_price is None
+    assert e.balance == 1000
+
+    p._open(1, 50)
+
+    assert p.qty == 1
+    assert p.entry_price == 50
+    assert p.exit_price is None
+    assert e.balance == 999.5
