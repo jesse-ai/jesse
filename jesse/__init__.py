@@ -264,11 +264,9 @@ def import_candles(exchange, symbol, start_date):
 @click.option('--fee/--no-fee', default=True, help='You can use "--no-fee" as a quick way to set trading fee to zero.')
 @click.option('--chart/--no-chart', default=False,
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
-@click.option('--chart_enriched/--no-chart_enriched', default=False,
-              help='Same as --chart but enriched with labels with price open/closing position and PNL%.')
 @click.option('--tradingview/--no-tradingview', default=False,
               help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
-def backtest(start_date, finish_date, debug, fee, chart, chart_enriched, tradingview):
+def backtest(start_date, finish_date, debug, fee, chart, tradingview):
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
     """
@@ -292,7 +290,7 @@ def backtest(start_date, finish_date, debug, fee, chart, chart_enriched, trading
             config['env']['exchanges'][e]['fee'] = 0
             get_exchange(e).fee = 0
 
-    backtest_mode.run(start_date, finish_date, chart=chart, chart_enriched=chart_enriched, tradingview=tradingview)
+    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview)
 
     db.close_connection()
 
