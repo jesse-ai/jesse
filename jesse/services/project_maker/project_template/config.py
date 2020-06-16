@@ -49,12 +49,6 @@ config = {
             'fee': 0.005,
             'starting_balance': 10000,
         },
-
-        # https://www.kraken.com
-        'Kraken': {
-            'fee': 0.0021,
-            'starting_balance': 10000,
-        },
     },
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
