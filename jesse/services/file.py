@@ -1,5 +1,6 @@
 import json
 import os
+import csv
 
 import arrow
 
@@ -32,3 +33,12 @@ def store_logs(tradingview=False):
     # store output for TradingView.com's pine-editor
     if tradingview:
         tradingview_logs(study_name, mode, now)
+
+def store_csv():
+    now = str(arrow.utcnow())[0:19]
+    path = './storage/csv/{}.csv'.format(now).replace(":", "-")
+
+    os.makedirs('./storage/csv', exist_ok=True)
+    with open(path, 'w', newline='') as outfile:
+     wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
+     wr.writerows(store.csv.data)

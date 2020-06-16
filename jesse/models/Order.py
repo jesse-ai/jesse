@@ -139,6 +139,11 @@ class Order():
                 )
             )
 
+        # csv
+        if config['app']['csv_mode']:
+            from jesse.store import store
+            store.csv.data.append([self.executed_at, self.symbol, self.type, self.side, self.qty, round(self.price, 2)])
+
         # notify
         if jh.is_live() and config['env']['notifications']['events']['executed_orders']:
             notify(

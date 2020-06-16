@@ -7,6 +7,7 @@ from .state_candles import CandlesState
 from .state_completed_trades import CompletedTrades
 from .state_exchanges import ExchangesState
 from .state_logs import LogsState
+from .state_csv import CsvState
 from .state_orderbook import OrderbookState
 from .state_orders import OrdersState
 from .state_positions import PositionsState
@@ -77,6 +78,7 @@ class StoreClass:
     orders = OrdersState()
     completed_trades = CompletedTrades()
     logs = LogsState()
+    csv = CsvState()
     exchanges = ExchangesState()
     candles = CandlesState()
     positions = PositionsState()
@@ -100,6 +102,7 @@ class StoreClass:
         self.orders = OrdersState()
         self.completed_trades = CompletedTrades()
         self.logs = LogsState()
+        self.csv = CsvState()
         self.exchanges = ExchangesState()
         self.candles = CandlesState()
         self.positions = PositionsState()
