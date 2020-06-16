@@ -38,7 +38,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
-        raise ValueError('entered exchange is not supported')
+        raise ValueError('{} is not a supported exchange'.format(exchange))
 
     loop_length = int(candles_count / driver.count) + 1
     # ask for confirmation
