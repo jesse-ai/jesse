@@ -908,6 +908,10 @@ def test_validation_for_equal_stop_loss_and_take_profit():
 
     assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
 
+
+def test_fee_rate_property():
+    single_route_backtest('Test48')
+
 # def test_inputs_get_rounded_behind_the_scene():
 #     set_up([(exchanges.SANDBOX, 'EOSUSD', timeframes.MINUTE_1, 'Test44')])
 #     candles = {}

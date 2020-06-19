@@ -1018,6 +1018,10 @@ class Strategy(ABC):
         """the current capital in the trading exchange"""
         return selectors.get_exchange(self.exchange).balance
 
+    @property
+    def fee_rate(self):
+        return selectors.get_exchange(self.exchange).fee_rate
+
     def _log_position_update(self, order: Order, role: str):
         """
         A log can be either about opening, adding, reducing, or closing the position.
