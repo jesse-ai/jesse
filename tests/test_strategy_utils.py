@@ -27,6 +27,9 @@ def test_risk_to_qty():
     # should not return more than maximum capital. Expect 100 instead of 125
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
+    # when fee is included
+    assert utils.risk_to_qty(10000, 1, 100, 80, fee_rate=0.001) == 4.98
+
 
 def test_size_to_qty():
     assert utils.size_to_qty(100, 50) == 2
@@ -38,6 +41,9 @@ def test_size_to_qty():
     with pytest.raises(TypeError):
         utils.size_to_qty(100, None)
         utils.size_to_qty(None, 100)
+
+    # when fee is included
+    assert utils.size_to_qty(100, 50, fee_rate=0.001) == 1.996
 
 
 def test_qty_to_size():

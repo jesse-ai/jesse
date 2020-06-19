@@ -24,7 +24,7 @@ def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> fl
     return min(temp_size, capital_size)
 
 
-def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price) -> float:
+def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price, fee_rate=0) -> float:
     """
     a risk management tool to quickly get the qty based on risk percentage
 
@@ -32,14 +32,19 @@ def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price) -> floa
     :param risk_per_capital:
     :param entry_price:
     :param stop_loss_price:
+    :param fee_rate:
     :return: float
     """
     risk_per_qty = abs(entry_price - stop_loss_price)
     size = risk_to_size(capital, risk_per_capital, risk_per_qty, entry_price)
-    return size_to_qty(size, entry_price)
+
+    if fee_rate != 0:
+        size = size * (1 - fee_rate*2)
+
+    return size_to_qty(size, entry_price, fee_rate=fee_rate)
 
 
-def size_to_qty(position_size, entry_price, precision=3) -> float:
+def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of %50 would return 2
@@ -47,10 +52,14 @@ def size_to_qty(position_size, entry_price, precision=3) -> float:
     :param position_size: float
     :param entry_price: float
     :param precision: int
+    :param fee_rate:
     :return: float
     """
     if math.isnan(position_size) or math.isnan(entry_price):
         raise TypeError()
+
+    if fee_rate != 0:
+        position_size = position_size * (1 - fee_rate*2)
 
     return round(position_size / entry_price, precision)
 
