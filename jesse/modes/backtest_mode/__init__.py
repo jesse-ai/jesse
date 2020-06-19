@@ -154,7 +154,16 @@ def simulator(candles, hyper_parameters=None):
         if r.dna and hyper_parameters is None:
             hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(), r.dna)
 
-        r.strategy = StrategyClass()
+        try:
+            r.strategy = StrategyClass()
+        except TypeError:
+            raise exceptions.InvalidStrategy(
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file."
+                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+            )
+        except:
+            raise
+
         r.strategy.name = r.strategy_name
         r.strategy.exchange = r.exchange
         r.strategy.symbol = r.symbol
