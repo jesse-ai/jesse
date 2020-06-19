@@ -7,21 +7,21 @@ class Exchange:
     name = ''
     starting_balance = 0
     balance = 0
-    fee = None
+    fee_rate = None
 
-    def __init__(self, name, starting_balance, fee):
+    def __init__(self, name, starting_balance, fee_rate):
         self.name = name
         self.starting_balance = starting_balance
         self.balance = starting_balance
-        self.fee = fee
+        self.fee_rate = fee_rate
 
     def increase_balance(self, position, delta_balance, is_refund=False):
         old_balance = self.balance
 
         if is_refund:
-            self.balance += abs(delta_balance) * (1 + self.fee)
+            self.balance += abs(delta_balance) * (1 + self.fee_rate)
         else:
-            self.balance += abs(delta_balance) * (1 - self.fee)
+            self.balance += abs(delta_balance) * (1 - self.fee_rate)
 
         new_balance = self.balance
 
@@ -31,7 +31,7 @@ class Exchange:
     def decrease_balance(self, position, delta_balance):
         old_balance = self.balance
         
-        self.balance -= abs(delta_balance) * (1 + self.fee)
+        self.balance -= abs(delta_balance) * (1 + self.fee_rate)
 
         new_balance = self.balance
 
