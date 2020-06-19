@@ -3,6 +3,7 @@ import pytest
 from jesse.config import config, reset_config
 from jesse.enums import exchanges
 from jesse.store import store
+from jesse.exceptions import NegativeBalance
 
 
 def set_up():
@@ -30,20 +31,11 @@ def test_decrease_balance():
     e.decrease_balance(None, 100)
     assert e.balance == 1900
 
-def test_decrease_to_negative_balance():
-    with pytest.raises(Exception):
+
+def test_negative_balance_validation():
+    with pytest.raises(NegativeBalance):
         set_up()
 
         e = selectors.get_exchange(exchanges.SANDBOX)
         assert e.balance == 2000
         e.decrease_balance(None, 3000)
-
-def test_increase_to_negative_balance():
-    with pytest.raises(Exception):
-        set_up()
-
-        e = selectors.get_exchange(exchanges.SANDBOX)
-
-        e.fee = 2
-        assert e.balance == 2000
-        e.increase_balance(None, 3000)
