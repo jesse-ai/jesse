@@ -112,7 +112,8 @@ def test_crossed():
 def test_numpy_to_pandas():
     candles = np.array(mama_candles)
     columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
-    df = pd.DataFrame(data=candles, index=candles[:, 0], columns=columns)
+    df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
+    df["Date"] = pd.to_datetime(df["Date"], unit="ms")
 
     ohlcv = utils.numpy_candles_to_dataframe(candles, name_date="Date", name_open="Open", name_high="High",
                                              name_low="Low", name_close="Close", name_volume="Volume")
