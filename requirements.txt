@@ -6,7 +6,7 @@ arrow==0.15.7
 requests==2.24.0
 peewee==3.13.3
 pydash==4.8.0
-numpy==1.18.5
+numpy==1.19.0
 pandas==1.0.5
 tabulate==0.8.7
 timeloop==1.0.2
