@@ -36,7 +36,6 @@ class Exchange:
         new_balance = self.balance
 
         if new_balance < 0:
-            self.balance = old_balance
             raise NegativeBalance(
                 "Balance cannot go below zero. Available capital at {} is {} but you're trying to spend {}".format(
                     self.name, old_balance, delta_balance
