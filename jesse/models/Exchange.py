@@ -30,15 +30,17 @@ class Exchange:
 
     def decrease_balance(self, position, delta_balance):
         old_balance = self.balance
+
+        to_spend = abs(delta_balance) * (1 + self.fee_rate)
         
-        self.balance -= abs(delta_balance) * (1 + self.fee_rate)
+        self.balance -= to_spend
 
         new_balance = self.balance
 
         if new_balance < 0:
             raise NegativeBalance(
                 "Balance cannot go below zero. Available capital at {} is {} but you're trying to spend {}".format(
-                    self.name, old_balance, delta_balance
+                    self.name, old_balance, to_spend
                 )
             )
 
