@@ -105,6 +105,9 @@ config = {
         # this would enable many console.log()s in the code, which are helpful for debugging.
         'debug_mode': False,
 
+        # this enables the export of a CSV file of all executed trades.
+        'csv_mode': False,
+
         # setting this value to False would disable few validation checks which
         # are required for live trading on real markets, however, it is useful
         # for doing backtests simulations while faster strategy development.
