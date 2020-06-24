@@ -286,16 +286,13 @@ def backtest(start_date, finish_date, debug, csv, fee, chart, tradingview):
     # debug flag
     config['app']['debug_mode'] = debug
 
-    # csv flag
-    config['app']['csv_mode'] = csv
-
     # fee flag
     if not fee:
         for e in config['app']['trading_exchanges']:
             config['env']['exchanges'][e]['fee'] = 0
             get_exchange(e).fee = 0
 
-    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview)
+    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv)
 
     db.close_connection()
 

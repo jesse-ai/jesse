@@ -9,7 +9,7 @@ from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
 
 
-def store_logs(tradingview=False):
+def store_logs(tradingview=False, export_csv=False):
     # store trades
     mode = config['app']['trading_mode']
     if mode == 'backtest':
@@ -35,7 +35,7 @@ def store_logs(tradingview=False):
         tradingview_logs(study_name, mode, now)
 
     # also write a CSV file
-    if config['app']['csv_mode']:
+    if export_csv:
         path = './storage/csv/{}-{}.csv'.format(mode, now).replace(":", "-")
         os.makedirs('./storage/csv', exist_ok=True)
 
