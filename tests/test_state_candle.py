@@ -126,34 +126,3 @@ def test_get_candles_including_forming():
     assert len(store.candles.get_candles('Sandbox', 'BTCUSD', '5m')) == 3
     assert candles[-1][2] == candles_to_add[13][2]
     assert candles[-1][0] == candles_to_add[10][0]
-
-
-def test_get_past_candle():
-    set_up()
-
-    candles_to_add = fake_range_candle(14)
-    store.candles.batch_add_candle(candles_to_add, 'Sandbox', 'BTCUSD', '1m')
-    store.candles.add_candle(generate_candle_from_one_minutes('5m', candles_to_add[0:5]), 'Sandbox', 'BTCUSD', '5m')
-    store.candles.add_candle(generate_candle_from_one_minutes('5m', candles_to_add[5:10]), 'Sandbox', 'BTCUSD', '5m')
-    assert len(store.candles.get_candles('Sandbox', 'BTCUSD', '1m')) == 14
-
-    # get_past_candle() should act as if there are 3 candles (last one being the forming)
-    np.testing.assert_equal(store.candles.get_past_candle('Sandbox', 'BTCUSD', '5m', 1),
-                            store.candles.storage[jh.key('Sandbox', 'BTCUSD', '5m')][1])
-
-    np.testing.assert_equal(store.candles.get_past_candle('Sandbox', 'BTCUSD', '5m', 0),
-                            generate_candle_from_one_minutes('5m', candles_to_add[10:], True))
-
-
-def test_get_past_candle_2():
-    set_up()
-
-    candle1 = fake_candle()
-    candle2 = fake_candle()
-    store.candles.add_candle(candle1, 'Sandbox', 'BTCUSD', '1m')
-    store.candles.add_candle(candle2, 'Sandbox', 'BTCUSD', '1m')
-
-    np.testing.assert_equal(
-        store.candles.get_past_candle('Sandbox', 'BTCUSD', '1m', 1),
-        candle1
-    )

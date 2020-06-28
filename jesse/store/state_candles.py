@@ -229,25 +229,3 @@ class CandlesState:
                 timeframe, self.storage[short_key][short_count - dif:short_count],
                 True
             )
-
-    def get_past_candle(self, exchange, symbol, timeframe, number_of_candles_ago) -> np.ndarray:
-        number_of_candles_ago = abs(number_of_candles_ago)
-
-        # no need to worry for forming candles when timeframe == 1m
-        if timeframe == '1m':
-            arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
-            return arr[-1 - number_of_candles_ago]
-
-        # other timeframes
-        dif, long_key, short_key = self.forming_estimation(exchange, symbol, timeframe)
-        long_count = len(self.get_storage(exchange, symbol, timeframe))
-
-        # complete candle
-        if dif == 0:
-            return self.storage[long_key][long_count - 1 - number_of_candles_ago]
-        # generate forming
-        else:
-            if number_of_candles_ago == 0:
-                return self.get_current_candle(exchange, symbol, timeframe)
-            else:
-                return self.storage[long_key][long_count - number_of_candles_ago]
