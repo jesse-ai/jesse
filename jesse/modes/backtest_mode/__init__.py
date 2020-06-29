@@ -23,7 +23,7 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 
 
-def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False):
+def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False, json=False):
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -65,7 +65,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
             print('\n')
 
             # save logs
-            store_logs(tradingview, csv)
+            store_logs(json, tradingview, csv)
 
             if chart:
                 charts.portfolio_vs_asset_returns()

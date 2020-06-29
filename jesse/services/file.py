@@ -9,34 +9,31 @@ from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
 
 
-def store_logs(tradingview=False, export_csv=False):
+def store_logs(export_json=False, export_tradingview=False, export_csv=False):
     # store trades
     mode = config['app']['trading_mode']
-    if mode == 'backtest':
-        mode = 'BT'
-    if mode == 'livetrade':
-        mode = 'LT'
-    if mode == 'papertrade':
-        mode = 'PT'
 
     now = str(arrow.utcnow())[0:19]
-    study_name = '{}-{}'.format(mode, now)
-    path = './storage/logs/trades/{}-{}.json'.format(mode, now).replace(":", "-")
+    study_name = '{}-{}'.format(mode, now).replace(":", "-")
+    path = 'storage/json/{}.json'.format(study_name)
     trades_json = {'trades': []}
     for t in store.completed_trades.trades:
         trades_json['trades'].append(t.toJSON())
 
-    os.makedirs('./storage/logs/trades', exist_ok=True)
-    with open(path, 'w+') as outfile:
-        json.dump(trades_json, outfile)
+    if export_json:
+        os.makedirs('./storage/json', exist_ok=True)
+        with open(path, 'w+') as outfile:
+            json.dump(trades_json, outfile)
+
+        print('\nJSON output saved at: \n{}'.format(path))
 
     # store output for TradingView.com's pine-editor
-    if tradingview:
+    if export_tradingview:
         tradingview_logs(study_name, mode, now)
 
     # also write a CSV file
     if export_csv:
-        path = './storage/csv/{}-{}.csv'.format(mode, now).replace(":", "-")
+        path = 'storage/csv/{}.csv'.format(study_name)
         os.makedirs('./storage/csv', exist_ok=True)
 
         with open(path, 'w', newline='') as outfile:
@@ -48,3 +45,5 @@ def store_logs(tradingview=False, export_csv=False):
                     wr.writerow(t.keys())
 
                 wr.writerow(t.values())
+
+        print('\nCSV output saved at: \n{}'.format(path))

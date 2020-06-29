@@ -262,13 +262,15 @@ def import_candles(exchange, symbol, start_date):
 @click.option('--debug/--no-debug', default=False,
               help='Displays logging messages instead of the progressbar. Used for debugging your strategy.')
 @click.option('--csv/--no-csv', default=False,
-              help='Will output a CSV file of all executed trades on completion.')
+              help='Outputs a CSV file of all executed trades on completion.')
+@click.option('--json/--no-json', default=False,
+              help='Outputs a JSON file of all executed trades on completion.')
 @click.option('--fee/--no-fee', default=True, help='You can use "--no-fee" as a quick way to set trading fee to zero.')
 @click.option('--chart/--no-chart', default=False,
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
 @click.option('--tradingview/--no-tradingview', default=False,
               help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
-def backtest(start_date, finish_date, debug, csv, fee, chart, tradingview):
+def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview):
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
     """
@@ -292,7 +294,7 @@ def backtest(start_date, finish_date, debug, csv, fee, chart, tradingview):
             config['env']['exchanges'][e]['fee'] = 0
             get_exchange(e).fee = 0
 
-    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv)
+    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv, json=json)
 
     db.close_connection()
 

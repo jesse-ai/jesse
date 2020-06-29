@@ -28,4 +28,5 @@ def tradingview_logs(study_name=None, mode=None, now=None):
     os.makedirs('./storage/trading-view-pine-editor', exist_ok=True)
     with open(path, 'w+') as outfile:
         outfile.write(tv_text)
-    print('Pine-editor output saved at: \n{}'.format(path))
+
+    print('\nPine-editor output saved at: \n{}'.format(path))
