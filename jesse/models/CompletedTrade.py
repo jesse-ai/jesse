@@ -10,7 +10,6 @@ class CompletedTrade:
     def __init__(self, attributes=None):
         self.id = ''
         self.strategy_name = ''
-        self.strategy_version = ''
         self.symbol = ''
         self.exchange = ''
         self.type = ''
@@ -42,7 +41,6 @@ class CompletedTrade:
         return {
             "id": self.id,
             "strategy_name": self.strategy_name,
-            "strategy_version": self.strategy_version,
             "symbol": self.symbol,
             "exchange": self.exchange,
             "type": self.type,
@@ -71,7 +69,6 @@ class CompletedTrade:
         return {
             'id': self.id,
             'strategy_name': self.strategy_name,
-            'strategy_version': self.strategy_version,
             'symbol': self.symbol,
             'exchange': self.exchange,
             'type': self.type,
