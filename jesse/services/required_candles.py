@@ -90,7 +90,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         # if first backtestable timestamp is in the future, that means we have some but not enough candles
         if first_backtestable_timestamp > jh.today():
             raise CandleNotFoundInDatabase(
-                'Not enough candle for {} {} is present in the database. Try importing candles.'.format(
+                'Not enough candle for {} {} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. Try importing more candles from an earlier date.'.format(
                     exchange, symbol
                 )
             )
