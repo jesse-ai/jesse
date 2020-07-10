@@ -39,7 +39,7 @@ def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price, fee_rat
     size = risk_to_size(capital, risk_per_capital, risk_per_qty, entry_price)
 
     if fee_rate != 0:
-        size = size * (1 - fee_rate*2)
+        size = size * (1 - fee_rate*3)
 
     return size_to_qty(size, entry_price, fee_rate=fee_rate)
 
@@ -59,7 +59,7 @@ def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
         raise TypeError()
 
     if fee_rate != 0:
-        position_size = position_size * (1 - fee_rate*2)
+        position_size = position_size * (1 - fee_rate*3)
 
     return round(position_size / entry_price, precision)
 
