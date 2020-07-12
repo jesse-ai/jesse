@@ -28,7 +28,7 @@ def test_risk_to_qty():
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
     # when fee is included
-    assert utils.risk_to_qty(10000, 1, 100, 80, fee_rate=0.001) == 4.98
+    assert utils.risk_to_qty(10000, 1, 100, 80, fee_rate=0.001) == 4.97
 
 
 def test_size_to_qty():
@@ -43,7 +43,7 @@ def test_size_to_qty():
         utils.size_to_qty(None, 100)
 
     # when fee is included
-    assert utils.size_to_qty(100, 50, fee_rate=0.001) == 1.996
+    assert utils.size_to_qty(100, 50, fee_rate=0.001) == 1.994
 
 
 def test_qty_to_size():
