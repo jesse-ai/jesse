@@ -1159,6 +1159,15 @@ def test_tema():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_trange():
+    candles = np.array(mama_candles)
+
+    single = ta.trange(candles)
+    seq = ta.trange(candles, sequential=True)
+
+    assert round(single, 2) == 94.35
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_trima():
     # use the same candles as mama_candles
