@@ -15,10 +15,15 @@ before_install:
   - cd
 # command to install dependencies
 install:
+  - pip install codecov
+  - pip install pytest-cov
   - cd $TRAVIS_BUILD_DIR
   - pip install -r requirements.txt
   - pip install -e .
 
 # command to run tests
 script:
-  - pytest
+  - pytest --cov=./
+
+after_success:
+  - codecov
