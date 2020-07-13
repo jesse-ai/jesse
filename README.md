@@ -4,6 +4,8 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 [![Build Status](https://travis-ci.com/jesse-ai/jesse.svg?branch=master)](https://travis-ci.com/jesse-ai/jesse)
+[![codecov](https://codecov.io/gh/jesse-ai/jesse/branch/master/graph/badge.svg)](https://codecov.io/gh/jesse-ai/jesse)
+
 ---
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse-ai.com)
 [![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse-ai.com)
