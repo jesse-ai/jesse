@@ -888,8 +888,84 @@ def test_pattern_recognizion():
 
 def test_pivot():
     candles = np.array(mama_candles)
-    single = ta.pivot(candles)
-    seq = ta.pivot(candles, sequential=True)
+    single = ta.pivot(candles, mode=0)
+    seq = ta.pivot(candles, mode=0, sequential=True)
+
+    assert type(single).__name__ == 'PIVOT'
+
+    assert seq.r1[-1] == single.r1
+    assert len(seq.r1) == len(candles)
+    assert len(seq.r2) == len(candles)
+    assert len(seq.r3) == len(candles)
+    assert len(seq.r4) == len(candles)
+    assert len(seq.pp) == len(candles)
+    assert len(seq.s1) == len(candles)
+    assert len(seq.s2) == len(candles)
+    assert len(seq.s3) == len(candles)
+    assert len(seq.s4) == len(candles)
+
+
+def test_pivot1():
+    candles = np.array(mama_candles)
+    single = ta.pivot(candles, mode=1)
+    seq = ta.pivot(candles, mode=1, sequential=True)
+
+    assert type(single).__name__ == 'PIVOT'
+
+    assert seq.r1[-1] == single.r1
+    assert len(seq.r1) == len(candles)
+    assert len(seq.r2) == len(candles)
+    assert len(seq.r3) == len(candles)
+    assert len(seq.r4) == len(candles)
+    assert len(seq.pp) == len(candles)
+    assert len(seq.s1) == len(candles)
+    assert len(seq.s2) == len(candles)
+    assert len(seq.s3) == len(candles)
+    assert len(seq.s4) == len(candles)
+
+
+def test_pivot2():
+    candles = np.array(mama_candles)
+    single = ta.pivot(candles, mode=2)
+    seq = ta.pivot(candles, mode=2, sequential=True)
+
+    assert type(single).__name__ == 'PIVOT'
+
+    assert seq.r1[-1] == single.r1
+    assert len(seq.r1) == len(candles)
+    assert len(seq.r2) == len(candles)
+    assert len(seq.r3) == len(candles)
+    assert len(seq.r4) == len(candles)
+    assert len(seq.pp) == len(candles)
+    assert len(seq.s1) == len(candles)
+    assert len(seq.s2) == len(candles)
+    assert len(seq.s3) == len(candles)
+    assert len(seq.s4) == len(candles)
+
+
+def test_pivot3():
+    candles = np.array(mama_candles)
+    single = ta.pivot(candles, mode=3)
+    seq = ta.pivot(candles, mode=3, sequential=True)
+
+    assert type(single).__name__ == 'PIVOT'
+
+    assert seq.r1[-1] == single.r1
+    assert len(seq.r1) == len(candles)
+    assert len(seq.r2) == len(candles)
+    assert len(seq.r3) == len(candles)
+    assert len(seq.r4) == len(candles)
+    assert len(seq.pp) == len(candles)
+    assert len(seq.s1) == len(candles)
+    assert len(seq.s2) == len(candles)
+    assert len(seq.s3) == len(candles)
+    assert len(seq.s4) == len(candles)
+
+
+def test_pivot4():
+    candles = np.array(mama_candles)
+    single = ta.pivot(candles, mode=4)
+    seq = ta.pivot(candles, mode=4, sequential=True)
 
     assert type(single).__name__ == 'PIVOT'
 
@@ -1159,6 +1235,7 @@ def test_tema():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_trange():
     candles = np.array(mama_candles)
 
@@ -1168,6 +1245,7 @@ def test_trange():
     assert round(single, 2) == 94.35
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_trima():
     # use the same candles as mama_candles
