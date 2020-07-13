@@ -329,3 +329,22 @@ def test_round_qty_for_live_mode():
         jh.round_qty_for_live_mode(6700.123456, np.array([0.123456, 0.124456])),
         np.array([0.123, 0.124])
     )
+
+def test_get_candle_source():
+    candle = np.array(([1575547200000, 146.51, 147.03, 149.02, 146.51, 64788.46651], [1553817660000, 4092.56783507, 4092.5, 4092.56783507, 4092.5, 9.0847059]))
+    close = jh.get_candle_source(candle, source_type="close")
+    assert close[-1]  == 4092.5
+    high = jh.get_candle_source(candle, source_type="high")
+    assert high[-1]  == 4092.56783507
+    low = jh.get_candle_source(candle, source_type="low")
+    assert low[-1]  == 4092.5
+    open = jh.get_candle_source(candle, source_type="open")
+    assert open[-1]  == 4092.56783507
+    volume = jh.get_candle_source(candle, source_type="volume")
+    assert volume[-1]  == 9.0847059
+    hl2 = jh.get_candle_source(candle, source_type="hl2")
+    assert hl2[-1]  == 4092.533917535
+    hlc3 = jh.get_candle_source(candle, source_type="hlc3")
+    assert hlc3[-1]  == 4092.52261169
+    ohlc4 = jh.get_candle_source(candle, source_type="ohlc4")
+    assert ohlc4[-1]  == 4092.533917535
