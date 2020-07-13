@@ -81,6 +81,8 @@ def test_timeframe_to_one_minutes():
     assert jh.timeframe_to_one_minutes('2h') == 60 * 2
     assert jh.timeframe_to_one_minutes('3h') == 60 * 3
     assert jh.timeframe_to_one_minutes('4h') == 60 * 4
+    assert jh.timeframe_to_one_minutes('6h') == 60 * 6
+    assert jh.timeframe_to_one_minutes('8h') == 60 * 8
     assert jh.timeframe_to_one_minutes('1D') == 60 * 24
 
 
@@ -94,6 +96,7 @@ def test_max_timeframe():
     assert jh.max_timeframe(['2h', '3h']) == '3h'
     assert jh.max_timeframe(['4h', '3h']) == '4h'
     assert jh.max_timeframe(['6h', '4h']) == '6h'
+    assert jh.max_timeframe(['8h', '4h']) == '8h'
     assert jh.max_timeframe(['6h', '1D']) == '1D'
 
 
