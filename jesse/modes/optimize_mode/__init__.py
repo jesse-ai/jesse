@@ -18,9 +18,6 @@ from .Genetics import Genetics
 
 
 class Optimizer(Genetics):
-    """
-
-    """
     def __init__(self, training_candles, testing_candles):
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
@@ -57,23 +54,18 @@ class Optimizer(Genetics):
         self.required_initial_training_candles = required_candles.load_required_candles(
             self.exchange,
             self.symbol,
-            jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]),
-            jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0])
+            jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0],
+            jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
         )
         # testing
         self.required_initial_testing_candles = required_candles.load_required_candles(
             self.exchange,
             self.symbol,
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]),
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0])
+            jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0],
+            jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
         )
 
     def fitness(self, dna) -> tuple:
-        """
-
-        :param dna:
-        :return:
-        """
         hp = jh.dna_to_hp(self.strategy_hp, dna)
 
         # init candle store
@@ -92,7 +84,7 @@ class Optimizer(Genetics):
         # TODO: some of these have to be dynamic based on how many days it's trading for like for example "total"
         # I'm guessing we should accept "optimal" total from command line
         if store.completed_trades.count > 5:
-            training_data = stats.trades(store.completed_trades.trades)
+            training_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
             optimal_expected_total = 100
             total = jh.normalize(training_data['total'], 0, 200)
             total_effect_rate = log10(training_data['total']) / log10(optimal_expected_total)
@@ -102,12 +94,12 @@ class Optimizer(Genetics):
             log = 'win_rate:[{}-{}], total:[{}-{}], PNL%:[{}], TER:[{}]'.format(
                 round(win_rate, 2), round(training_data['win_rate'], 2),
                 round(total, 2), training_data['total'],
-                round(training_data['pnl_percentage'], 2),
+                round(training_data['net_profit_percentage'], 2),
                 round(total_effect_rate, 3)
             )
 
             # the fitness score
-            score = win_rate * total_effect_rate
+            score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +  training_data['calmar_ratio']) / 3)
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
@@ -122,16 +114,16 @@ class Optimizer(Genetics):
             )
             # run backtest simulation
             simulator(self.testing_candles, hp)
-            testing_data = stats.trades(store.completed_trades.trades)
+            testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
             # log for debugging/monitoring
             log += ' | '
             log += 'win_rate:[{}], total:[{}], PNL%:[{}]'.format(
                 round(testing_data['win_rate'], 2),
                 testing_data['total'],
-                round(testing_data['pnl_percentage'], 2),
+                round(testing_data['net_profit_percentage'], 2),
             )
-            if testing_data['pnl_percentage'] > 0 and training_data['pnl_percentage'] > 0:
+            if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
                 log = jh.style(log, 'bold')
         else:
             score = 0.0001
@@ -143,11 +135,6 @@ class Optimizer(Genetics):
 
 
 def optimize_mode(start_date: str, finish_date: str):
-    """
-
-    :param start_date:
-    :param finish_date:
-    """
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -165,12 +152,6 @@ def optimize_mode(start_date: str, finish_date: str):
 
 
 def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
-    """
-
-    :param start_date_str:
-    :param finish_date_str:
-    :return:
-    """
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 
