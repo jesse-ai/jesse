@@ -43,6 +43,12 @@ def minmax(candles: np.ndarray, order=3, sequential=False) -> EXTREMA:
 
 
 def np_ffill(arr, axis=0):
+    """
+
+    :param arr:
+    :param axis:
+    :return:
+    """
     idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
     idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
     np.maximum.accumulate(idx, axis=axis, out=idx)

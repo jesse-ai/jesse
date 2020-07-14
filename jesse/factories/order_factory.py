@@ -8,6 +8,11 @@ first_timestamp = 1552309186171
 
 
 def fake_order(attributes=None):
+    """
+
+    :param attributes:
+    :return:
+    """
     if attributes is None:
         attributes = {}
 

@@ -8,6 +8,9 @@ from jesse.store import store
 
 
 def set_up():
+    """
+
+    """
     reset_config()
     config['app']['considering_timeframes'] = ['1m', '5m']
     config['app']['considering_symbols'] = ['BTCUSD']

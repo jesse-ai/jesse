@@ -2,6 +2,13 @@ from tabulate import tabulate
 
 
 def key_value(data, title, alignments=None, uppercase_title=True):
+    """
+
+    :param data:
+    :param title:
+    :param alignments:
+    :param uppercase_title:
+    """
     table = []
 
     for d in data:
@@ -15,6 +22,13 @@ def key_value(data, title, alignments=None, uppercase_title=True):
 
 
 def multi_value(data, with_headers=True, alignments=None):
+    """
+
+    :param data:
+    :param with_headers:
+    :param alignments:
+    :return:
+    """
     if data is None:
         return
 

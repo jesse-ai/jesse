@@ -3,6 +3,10 @@ from jesse.services.notifier import notify
 
 
 def info(msg):
+    """
+
+    :param msg:
+    """
     from jesse.store import store
 
     store.logs.info.append({'time': jh.now(), 'message': msg})
@@ -17,6 +21,10 @@ def info(msg):
 
 
 def error(msg):
+    """
+
+    :param msg:
+    """
     from jesse.store import store
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True):

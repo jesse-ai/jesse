@@ -116,6 +116,10 @@ backup_config = config.copy()
 
 
 def set_config(c):
+    """
+
+    :param c:
+    """
     global config
     config['env'] = c
     # add sandbox because it isn't in the local config file
@@ -126,5 +130,8 @@ def set_config(c):
 
 
 def reset_config():
+    """
+
+    """
     global config
     config = backup_config.copy()

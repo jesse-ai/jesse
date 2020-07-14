@@ -42,6 +42,13 @@ def gatorosc(candles: np.ndarray, source_type="close", sequential=False) -> GATO
 
 # preallocate empty array and assign slice by chrisaycock
 def shift(arr, num, fill_value=np.nan):
+    """
+
+    :param arr:
+    :param num:
+    :param fill_value:
+    :return:
+    """
     result = np.empty_like(arr)
     if num > 0:
         result[:num] = fill_value
@@ -55,6 +62,12 @@ def shift(arr, num, fill_value=np.nan):
 
 
 def numpy_ewma(data, window):
+    """
+
+    :param data:
+    :param window:
+    :return:
+    """
     alpha = 1 / window
     scale = 1 / (1 - alpha)
     n = data.shape[0]

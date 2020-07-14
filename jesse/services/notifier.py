@@ -5,6 +5,10 @@ from jesse.config import config
 
 
 def notify(msg):
+    """
+
+    :param msg:
+    """
     _telegram(msg)
 
 

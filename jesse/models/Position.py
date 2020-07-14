@@ -9,6 +9,9 @@ from jesse.services import logger, notifier
 
 
 class Position:
+    """
+
+    """
     def __init__(self, exchange_name, symbol, attributes=None):
         self.id = jh.generate_unique_id()
         self.entry_price = None

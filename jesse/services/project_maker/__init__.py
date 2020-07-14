@@ -5,6 +5,11 @@ import jesse.helpers as jh
 
 
 def generate(name):
+    """
+
+    :param name:
+    :return:
+    """
     path = '{}'.format(name)
 
     # validate that doesn't create if current directory is inside a Jesse project

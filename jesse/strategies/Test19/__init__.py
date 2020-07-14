@@ -3,12 +3,23 @@ from jesse.strategies import Strategy
 
 class Test19(Strategy):
     def should_long(self) -> bool:
+        """
+
+        :return:
+        """
         return False
 
     def should_short(self) -> bool:
+        """
+
+        :return:
+        """
         return False
 
     def go_long(self):
+        """
+
+        """
         # qty = 1
         # self.buy = qty, self.price
         # self.take_profit = qty, self.price + .1
@@ -16,6 +27,9 @@ class Test19(Strategy):
         pass
 
     def go_short(self):
+        """
+
+        """
         # qty = 1
         # self.buy = qty, self.price
         # self.take_profit = qty, self.price + .1
@@ -23,4 +37,8 @@ class Test19(Strategy):
         pass
 
     def should_cancel(self) -> bool:
+        """
+
+        :return:
+        """
         return False

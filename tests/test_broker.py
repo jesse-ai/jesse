@@ -14,6 +14,9 @@ broker: Broker = None
 
 
 def set_up():
+    """
+
+    """
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
     config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 1000
@@ -33,6 +36,9 @@ def set_up():
 
 
 def set_up_with_fee():
+    """
+
+    """
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0.002
     config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 1000

@@ -24,6 +24,16 @@ from jesse.store import store
 
 
 def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False, json=False):
+    """
+
+    :param start_date:
+    :param finish_date:
+    :param candles:
+    :param chart:
+    :param tradingview:
+    :param csv:
+    :param json:
+    """
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -139,6 +149,11 @@ def _load_candles(start_date_str: str, finish_date_str: str):
 
 
 def simulator(candles, hyper_parameters=None):
+    """
+
+    :param candles:
+    :param hyper_parameters:
+    """
     begin_time_track = time.time()
     key = '{}-{}'.format(config['app']['trading_exchanges'][0], config['app']['trading_symbols'][0])
     first_candles_set = candles[key]['candles']

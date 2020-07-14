@@ -6,6 +6,9 @@ from jesse.models import Position
 
 
 class Broker:
+    """
+
+    """
     def __init__(self, position, exchange, symbol, timeframe):
         self.position: Position = position
         self.symbol = symbol
@@ -20,6 +23,12 @@ class Broker:
             raise InvalidStrategy('qty cannot be 0')
 
     def sell_at_market(self, qty, role=None) -> Order:
+        """
+
+        :param qty:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -32,6 +41,13 @@ class Broker:
         )
 
     def sell_at(self, qty, price, role=None) -> Order:
+        """
+
+        :param qty:
+        :param price:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         if price < 0:
@@ -56,6 +72,12 @@ class Broker:
         )
 
     def buy_at_market(self, qty, role=None) -> Order:
+        """
+
+        :param qty:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -69,6 +91,13 @@ class Broker:
         )
 
     def buy_at(self, qty, price, role=None) -> Order:
+        """
+
+        :param qty:
+        :param price:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         if price < 0:
@@ -93,6 +122,13 @@ class Broker:
         )
 
     def reduce_position_at(self, qty, price, role=None) -> Order:
+        """
+
+        :param qty:
+        :param price:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -137,6 +173,14 @@ class Broker:
         )
 
     def start_profit_at(self, side, qty, price, role=None) -> Order:
+        """
+
+        :param side:
+        :param qty:
+        :param price:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         if price < 0:
@@ -168,6 +212,13 @@ class Broker:
         )
 
     def stop_loss_at(self, qty, price, role=None) -> Order:
+        """
+
+        :param qty:
+        :param price:
+        :param role:
+        :return:
+        """
         self._validate_qty(qty)
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
@@ -201,7 +252,16 @@ class Broker:
         )
 
     def cancel_all_orders(self):
+        """
+
+        :return:
+        """
         return self.api.cancel_all_orders(self.exchange, self.symbol)
 
     def cancel_order(self, order_id: str):
+        """
+
+        :param order_id:
+        :return:
+        """
         return self.api.cancel_order(self.exchange, self.symbol, order_id)

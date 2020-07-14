@@ -4,12 +4,23 @@ from jesse.strategies import Strategy
 # test_can_handle_multiple_entry_orders_too_close_to_each_other
 class Test34(Strategy):
     def should_long(self):
+        """
+
+        :return:
+        """
         return self.index == 0
 
     def should_short(self):
+        """
+
+        :return:
+        """
         return False
 
     def go_long(self):
+        """
+
+        """
         entry = 1
         self.buy = [
             (1, entry + 0.1),
@@ -21,10 +32,21 @@ class Test34(Strategy):
         self.take_profit = 4, 3
 
     def go_short(self):
+        """
+
+        """
         pass
 
     def should_cancel(self):
+        """
+
+        :return:
+        """
         return False
 
     def filters(self):
+        """
+
+        :return:
+        """
         return []

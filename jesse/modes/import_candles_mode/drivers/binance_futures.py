@@ -6,15 +6,26 @@ from .interface import CandleExchange
 
 
 class BinanceFutures(CandleExchange):
+    """
+
+    """
     def __init__(self):
         super().__init__('Binance Futures', 1000, 0.5)
         self.endpoint = 'https://fapi.binance.com/fapi/v1/klines'
 
     def init_backup_exchange(self):
+        """
+
+        """
         from .binance import Binance
         self.backup_exchange = Binance()
 
     def get_starting_time(self, symbol):
+        """
+
+        :param symbol:
+        :return:
+        """
         payload = {
             'interval': '1d',
             'symbol': symbol,

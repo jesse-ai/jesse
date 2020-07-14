@@ -15,6 +15,10 @@ from .state_trades import TradesState
 
 
 def install_routes():
+    """
+
+    :return:
+    """
     considering_candles = set()
 
     # when importing market data, considering_candles is all we need
@@ -73,6 +77,9 @@ def install_routes():
 
 
 class StoreClass:
+    """
+
+    """
     app = AppState()
     orders = OrdersState()
     completed_trades = CompletedTrades()

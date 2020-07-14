@@ -18,6 +18,9 @@ from .Genetics import Genetics
 
 
 class Optimizer(Genetics):
+    """
+
+    """
     def __init__(self, training_candles, testing_candles):
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
@@ -66,6 +69,11 @@ class Optimizer(Genetics):
         )
 
     def fitness(self, dna) -> tuple:
+        """
+
+        :param dna:
+        :return:
+        """
         hp = jh.dna_to_hp(self.strategy_hp, dna)
 
         # init candle store
@@ -135,6 +143,11 @@ class Optimizer(Genetics):
 
 
 def optimize_mode(start_date: str, finish_date: str):
+    """
+
+    :param start_date:
+    :param finish_date:
+    """
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -152,6 +165,12 @@ def optimize_mode(start_date: str, finish_date: str):
 
 
 def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
+    """
+
+    :param start_date_str:
+    :param finish_date_str:
+    :return:
+    """
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 

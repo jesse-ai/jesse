@@ -9,12 +9,20 @@ from jesse.store import store
 
 
 def set_up(routes):
+    """
+
+    :param routes:
+    """
     reset_config()
     router.set_routes(routes)
     store.reset(True)
 
 
 def get_btc_candles():
+    """
+
+    :return:
+    """
     candles = {}
     candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
         'exchange': exchanges.SANDBOX,

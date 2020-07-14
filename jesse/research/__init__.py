@@ -2,6 +2,9 @@ from .get_candles import get_candles
 
 
 def init():
+    """
+
+    """
     from pydoc import locate
     import os
     import sys

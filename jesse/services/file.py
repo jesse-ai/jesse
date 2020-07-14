@@ -10,6 +10,12 @@ from jesse.store import store
 
 
 def store_logs(export_json=False, export_tradingview=False, export_csv=False):
+    """
+
+    :param export_json:
+    :param export_tradingview:
+    :param export_csv:
+    """
     # store trades
     mode = config['app']['trading_mode']
 

@@ -35,6 +35,10 @@ class CompletedTrade:
             setattr(self, a, attributes[a])
 
     def toJSON(self):
+        """
+
+        :return:
+        """
         orders = []
         for o in self.orders:
             orders.append(o.__dict__)
@@ -66,6 +70,10 @@ class CompletedTrade:
         }
 
     def to_dict(self):
+        """
+
+        :return:
+        """
         return {
             'id': self.id,
             'strategy_name': self.strategy_name,
@@ -94,27 +102,51 @@ class CompletedTrade:
 
     @property
     def fee(self):
+        """
+
+        :return:
+        """
         trading_fee = config['env']['exchanges'][self.exchange]['fee']
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
     def reward(self):
+        """
+
+        :return:
+        """
         return abs(self.take_profit_at - self.entry_price) * self.qty
 
     @property
     def size(self):
+        """
+
+        :return:
+        """
         return self.qty * self.entry_price
 
     @property
     def risk(self):
+        """
+
+        :return:
+        """
         return abs(self.stop_loss_at - self.entry_price) * self.qty
 
     @property
     def risk_percentage(self):
+        """
+
+        :return:
+        """
         return round((self.risk / self.size) * 100, 2)
 
     @property
     def risk_reward_ratio(self):
+        """
+
+        :return:
+        """
         return self.reward / self.risk
 
     @property

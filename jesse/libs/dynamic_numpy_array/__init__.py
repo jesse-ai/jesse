@@ -56,6 +56,10 @@ class DynamicNumpyArray:
         self.array[i] = item
 
     def append(self, item: np.ndarray):
+        """
+
+        :param item:
+        """
         self.index += 1
 
         # expand if the arr is almost full
@@ -73,6 +77,10 @@ class DynamicNumpyArray:
         self.array[self.index] = item
 
     def get_last_item(self):
+        """
+
+        :return:
+        """
         # validation
         if self.index == -1:
             raise IndexError('list assignment index out of range')
@@ -80,6 +88,11 @@ class DynamicNumpyArray:
         return self.array[self.index]
 
     def get_past_item(self, past_index):
+        """
+
+        :param past_index:
+        :return:
+        """
         # validation
         if self.index == -1:
             raise IndexError('list assignment index out of range')
@@ -90,6 +103,9 @@ class DynamicNumpyArray:
         return self.array[self.index - past_index]
 
     def flush(self):
+        """
+
+        """
         self.index = -1
         self.array = np.zeros(self.shape)
         self.bucket_size = self.shape[0]

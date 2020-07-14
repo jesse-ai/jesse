@@ -5,6 +5,9 @@ from jesse.store import store
 
 
 def set_up():
+    """
+
+    """
     reset_config()
     config['app']['trading_exchanges'] = [exchanges.SANDBOX, exchanges.BITFINEX]
     config['app']['trading_symbols'] = ['BTCUSD', 'ETHUSD']

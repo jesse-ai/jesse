@@ -5,6 +5,9 @@ from jesse.services.db import db
 
 
 class Trade(peewee.Model):
+    """
+
+    """
     id = peewee.UUIDField(primary_key=True)
     # timestamp in milliseconds
     timestamp = peewee.BigIntegerField()

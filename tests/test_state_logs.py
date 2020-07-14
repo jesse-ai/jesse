@@ -4,6 +4,9 @@ from jesse.store import store
 
 
 def set_up():
+    """
+
+    """
     store.reset()
 
 

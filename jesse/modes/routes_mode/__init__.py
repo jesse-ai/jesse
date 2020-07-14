@@ -4,6 +4,10 @@ from jesse.services import table
 
 
 def run(dna=False):
+    """
+
+    :param dna:
+    """
     # # # # # # # # # # # # # # # # # # # # # # # #
     # trading routes
     # # # # # # # # # # # # # # # # # # # # # # # #

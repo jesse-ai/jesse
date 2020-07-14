@@ -64,6 +64,10 @@ if is_jesse_project:
 
 
 def register_custom_exception_handler():
+    """
+
+    :return:
+    """
     import sys
     import threading
     import traceback
@@ -87,6 +91,13 @@ def register_custom_exception_handler():
 
     # main thread
     def handle_exception(exc_type, exc_value, exc_traceback):
+        """
+
+        :param exc_type:
+        :param exc_value:
+        :param exc_traceback:
+        :return:
+        """
         if issubclass(exc_type, KeyboardInterrupt):
             sys.excepthook(exc_type, exc_value, exc_traceback)
             return
@@ -158,6 +169,11 @@ def register_custom_exception_handler():
     # other threads
     if jh.python_version() >= 3.8:
         def handle_thread_exception(args):
+            """
+
+            :param args:
+            :return:
+            """
             if args.exc_type == SystemExit:
                 return
 
@@ -230,6 +246,9 @@ def register_custom_exception_handler():
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli():
+    """
+
+    """
     pass
 
 

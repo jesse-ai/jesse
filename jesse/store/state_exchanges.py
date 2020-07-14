@@ -3,6 +3,9 @@ from jesse.models import Exchange
 
 
 class ExchangesState:
+    """
+
+    """
     def __init__(self):
         self.storage = {}
 

@@ -5,6 +5,11 @@ import jesse.helpers as jh
 
 
 def generate(name):
+    """
+
+    :param name:
+    :return:
+    """
     path = 'strategies/{}'.format(name)
 
     # validation for name duplication

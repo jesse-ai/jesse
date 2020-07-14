@@ -8,6 +8,11 @@ from jesse.store import store
 
 
 def set_up(routes, fee=0):
+    """
+
+    :param routes:
+    :param fee:
+    """
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 10000
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
@@ -17,6 +22,10 @@ def set_up(routes, fee=0):
 
 
 def get_btc_candles():
+    """
+
+    :return:
+    """
     candles = {}
     candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
         'exchange': exchanges.SANDBOX,
@@ -27,6 +36,10 @@ def get_btc_candles():
 
 
 def get_btc_and_eth_candles():
+    """
+
+    :return:
+    """
     candles = {}
     candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
         'exchange': exchanges.SANDBOX,

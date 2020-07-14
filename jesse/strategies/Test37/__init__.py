@@ -10,30 +10,56 @@ class Test37(Strategy):
             assert self.stop_loss is None
 
     def should_long(self) -> bool:
+        """
+
+        :return:
+        """
         return self.index == 0
 
     def should_short(self) -> bool:
+        """
+
+        :return:
+        """
         return self.index == 10
 
     def go_long(self):
+        """
+
+        """
         qty = 1
         self.buy = qty, self.price
         self.stop_loss = qty, self.price - .10
 
     def go_short(self):
+        """
+
+        """
         qty = 1
         self.sell = qty, self.price
         self.take_profit = qty, self.price + .10
 
     def should_cancel(self):
+        """
+
+        :return:
+        """
         return False
 
     def filters(self):
+        """
+
+        :return:
+        """
         return [
             self.filter_1
         ]
 
     def filter_1(self):
+        """
+
+        :return:
+        """
         if self.index == 0:
             return False
 

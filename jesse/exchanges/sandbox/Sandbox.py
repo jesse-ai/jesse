@@ -6,11 +6,24 @@ from jesse.store import store
 
 
 class Sandbox(Exchange):
+    """
+
+    """
     def __init__(self, name='Sandbox'):
         super().__init__()
         self.name = name
 
     def market_order(self, symbol, qty, current_price, side, role, flags):
+        """
+
+        :param symbol:
+        :param qty:
+        :param current_price:
+        :param side:
+        :param role:
+        :param flags:
+        :return:
+        """
         order = Order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
@@ -30,6 +43,16 @@ class Sandbox(Exchange):
         return order
 
     def limit_order(self, symbol, qty, price, side, role, flags):
+        """
+
+        :param symbol:
+        :param qty:
+        :param price:
+        :param side:
+        :param role:
+        :param flags:
+        :return:
+        """
         order = Order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
@@ -47,6 +70,16 @@ class Sandbox(Exchange):
         return order
 
     def stop_order(self, symbol, qty, price, side, role, flags):
+        """
+
+        :param symbol:
+        :param qty:
+        :param price:
+        :param side:
+        :param role:
+        :param flags:
+        :return:
+        """
         order = Order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
@@ -64,6 +97,10 @@ class Sandbox(Exchange):
         return order
 
     def cancel_all_orders(self, symbol):
+        """
+
+        :param symbol:
+        """
         orders = filter(lambda o: o.is_new,
                         store.orders.get_orders(self.name, symbol))
 
@@ -74,9 +111,19 @@ class Sandbox(Exchange):
             store.orders.storage['{}-{}'.format(self.name, symbol)].clear()
 
     def cancel_order(self, symbol, order_id):
+        """
+
+        :param symbol:
+        :param order_id:
+        """
         store.orders.get_order_by_id(self.name, symbol, order_id).cancel()
 
     def get_exec_inst(self, flags):
+        """
+
+        :param flags:
+        :return:
+        """
         if flags:
             return flags[0]
         return None

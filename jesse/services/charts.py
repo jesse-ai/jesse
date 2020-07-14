@@ -14,6 +14,9 @@ from jesse.store import store
 
 
 def portfolio_vs_asset_returns():
+    """
+
+    """
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure

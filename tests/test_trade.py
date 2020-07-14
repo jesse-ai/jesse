@@ -5,11 +5,17 @@ from jesse.store import store
 
 
 def set_up():
+    """
+
+    """
     reset_config()
     store.reset(True)
 
 
 def no_fee():
+    """
+
+    """
     print(config)
     config['env']['exchanges']['Sandbox']['fee'] = 0
 

@@ -4,6 +4,9 @@ from jesse.exceptions import NegativeBalance
 
 
 class Exchange:
+    """
+
+    """
     name = ''
     starting_balance = 0
     balance = 0
@@ -16,6 +19,12 @@ class Exchange:
         self.fee_rate = fee_rate
 
     def increase_balance(self, position, delta_balance, is_refund=False):
+        """
+
+        :param position:
+        :param delta_balance:
+        :param is_refund:
+        """
         old_balance = self.balance
 
         if is_refund:
@@ -29,6 +38,11 @@ class Exchange:
             logger.info('balance changed from {} to {}'.format(old_balance, new_balance))
 
     def decrease_balance(self, position, delta_balance):
+        """
+
+        :param position:
+        :param delta_balance:
+        """
         old_balance = self.balance
 
         to_spend = abs(delta_balance) * (1 + self.fee_rate)

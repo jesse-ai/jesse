@@ -4,9 +4,16 @@ from jesse.strategies import Strategy
 # test_reducing_position_size_after_opening
 class Test17(Strategy):
     def should_long(self):
+        """
+
+        :return:
+        """
         return self.price < 7
 
     def go_long(self):
+        """
+
+        """
         qty = 2
 
         self.buy = qty, 7
@@ -14,6 +21,9 @@ class Test17(Strategy):
         self.take_profit = qty, 15
 
     def update_position(self):
+        """
+
+        """
         # reduce the size of position for 1 at current price
         if self.price == 10:
             # should work even without resetting take_profit and stop_loss
@@ -23,13 +33,28 @@ class Test17(Strategy):
             ]
 
     def go_short(self):
+        """
+
+        """
         pass
 
     def should_cancel(self):
+        """
+
+        :return:
+        """
         return False
 
     def filters(self):
+        """
+
+        :return:
+        """
         return []
 
     def should_short(self):
+        """
+
+        :return:
+        """
         return False

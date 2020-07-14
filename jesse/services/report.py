@@ -15,6 +15,10 @@ warnings.filterwarnings("ignore")
 
 
 def positions():
+    """
+
+    :return:
+    """
     array = []
 
     # headers
@@ -57,6 +61,10 @@ def positions():
 
 
 def candles():
+    """
+
+    :return:
+    """
     array = []
     candle_keys = []
 
@@ -108,6 +116,10 @@ def candles():
 
 
 def livetrade():
+    """
+
+    :return:
+    """
     # sum up balance of all trading exchanges
     starting_balance = 0
     current_balance = 0
@@ -148,6 +160,10 @@ def livetrade():
 
 
 def portfolio_metrics():
+    """
+
+    :return:
+    """
     data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
     metrics = [
@@ -201,6 +217,10 @@ def portfolio_metrics():
 
 
 def info():
+    """
+
+    :return:
+    """
     array = []
 
     for w in store.logs.info[::-1][0:5]:
@@ -212,6 +232,10 @@ def info():
 
 
 def watch_list():
+    """
+
+    :return:
+    """
     # only support one route
     if len(router.routes) > 1:
         return None
@@ -228,6 +252,10 @@ def watch_list():
 
 
 def errors():
+    """
+
+    :return:
+    """
     array = []
 
     for w in store.logs.errors[::-1][0:5]:
@@ -238,6 +266,10 @@ def errors():
 
 
 def orders():
+    """
+
+    :return:
+    """
     array = []
 
     # headers

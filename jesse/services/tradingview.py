@@ -5,6 +5,12 @@ from jesse.store import store
 
 
 def tradingview_logs(study_name=None, mode=None, now=None):
+    """
+
+    :param study_name:
+    :param mode:
+    :param now:
+    """
     tv_text = '//@version=4\nstrategy("{}", overlay=true, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.2)\n'.format(
         study_name)
 

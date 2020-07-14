@@ -26,6 +26,12 @@ def smma(candles: np.ndarray, period=5, source_type="close", sequential=False) -
 
 
 def numpy_ewma(data, window):
+    """
+
+    :param data:
+    :param window:
+    :return:
+    """
     alpha = 1 / window
     scale = 1 / (1 - alpha)
     n = data.shape[0]

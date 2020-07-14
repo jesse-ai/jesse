@@ -184,6 +184,17 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
 
 def numpy_candles_to_dataframe(candles: np.ndarray, name_date="date", name_open="open", name_high="high",
                                name_low="low", name_close="close", name_volume="volume") -> pd.DataFrame:
+    """
+
+    :param candles:
+    :param name_date:
+    :param name_open:
+    :param name_high:
+    :param name_low:
+    :param name_close:
+    :param name_volume:
+    :return:
+    """
     columns = [name_date, name_open, name_close, name_high, name_low, name_volume]
     df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
     df[name_date] = pd.to_datetime(df.index, unit="ms")

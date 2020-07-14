@@ -8,6 +8,13 @@ import jesse.helpers as jh
 def generate_candle_from_one_minutes(timeframe,
                                      candles: np.ndarray,
                                      accept_forming_candles=False):
+    """
+
+    :param timeframe:
+    :param candles:
+    :param accept_forming_candles:
+    :return:
+    """
     if len(candles) == 0:
         raise ValueError('No candles were passed')
 
@@ -30,6 +37,13 @@ def generate_candle_from_one_minutes(timeframe,
 
 
 def print_candle(candle, is_partial, symbol):
+    """
+
+    :param candle:
+    :param is_partial:
+    :param symbol:
+    :return:
+    """
     if jh.should_execute_silently():
         return
 
@@ -57,14 +71,30 @@ def print_candle(candle, is_partial, symbol):
 
 
 def is_bullish(candle: np.ndarray) -> bool:
+    """
+
+    :param candle:
+    :return:
+    """
     return candle[2] >= candle[1]
 
 
 def is_bearish(candle: np.ndarray) -> bool:
+    """
+
+    :param candle:
+    :return:
+    """
     return candle[2] < candle[1]
 
 
 def candle_includes_price(candle, price) -> bool:
+    """
+
+    :param candle:
+    :param price:
+    :return:
+    """
     return (price >= candle[4]) and (price <= candle[3])
 
 

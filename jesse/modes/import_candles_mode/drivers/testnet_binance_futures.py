@@ -6,15 +6,26 @@ from .interface import CandleExchange
 
 
 class TestnetBinanceFutures(CandleExchange):
+    """
+
+    """
     def __init__(self):
         super().__init__('Testnet Binance Futures', 1000, 0.5)
         self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 
     def init_backup_exchange(self):
+        """
+
+        """
         from .binance import Binance
         self.backup_exchange = Binance()
 
     def get_starting_time(self, symbol):
+        """
+
+        :param symbol:
+        :return:
+        """
         payload = {
             'interval': '1d',
             'symbol': symbol,
@@ -41,6 +52,12 @@ class TestnetBinanceFutures(CandleExchange):
         return second_timestamp
 
     def fetch(self, symbol, start_timestamp):
+        """
+
+        :param symbol:
+        :param start_timestamp:
+        :return:
+        """
         end_timestamp = start_timestamp + (self.count - 1) * 60000
 
         payload = {
