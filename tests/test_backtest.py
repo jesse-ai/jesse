@@ -110,7 +110,6 @@ def test_backtesting_three_routes():
         r_last_1 = r_one_min[-1]
         r_first_5 = r_five_min[0]
         r_last_5 = r_five_min[-1]
-        r_first_15 = r_fifteen_min[0]
         r_last_15 = r_fifteen_min[-1]
 
         # assert timestamps
