@@ -1,9 +1,10 @@
-import jesse.services.selectors as selectors
 import pytest
+
+import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges
-from jesse.store import store
 from jesse.exceptions import NegativeBalance
+from jesse.store import store
 
 
 def set_up():
@@ -17,15 +18,6 @@ def set_up():
     store.reset()
 
 
-def test_increase_balance():
-    set_up()
-
-    e = selectors.get_exchange(exchanges.SANDBOX)
-    assert e.balance == 2000
-    e.increase_balance(None, 100)
-    assert e.balance == 2100
-
-
 def test_decrease_balance():
     set_up()
 
@@ -33,6 +25,15 @@ def test_decrease_balance():
     assert e.balance == 2000
     e.decrease_balance(None, 100)
     assert e.balance == 1900
+
+
+def test_increase_balance():
+    set_up()
+
+    e = selectors.get_exchange(exchanges.SANDBOX)
+    assert e.balance == 2000
+    e.increase_balance(None, 100)
+    assert e.balance == 2100
 
 
 def test_negative_balance_validation():

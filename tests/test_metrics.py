@@ -7,34 +7,6 @@ from jesse.routes import router
 from jesse.store import store
 
 
-def set_up(routes, fee=0):
-    """
-
-    :param routes:
-    :param fee:
-    """
-    reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 10000
-    config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
-    router.set_routes(routes)
-    router.set_extra_candles([])
-    store.reset(True)
-
-
-def get_btc_candles():
-    """
-
-    :return:
-    """
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
-    }
-    return candles
-
-
 def get_btc_and_eth_candles():
     """
 
@@ -52,6 +24,34 @@ def get_btc_and_eth_candles():
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
+
+
+def get_btc_candles():
+    """
+
+    :return:
+    """
+    candles = {}
+    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'BTCUSD',
+        'candles': fake_range_candle_from_range_prices(range(1, 100))
+    }
+    return candles
+
+
+def set_up(routes, fee=0):
+    """
+
+    :param routes:
+    :param fee:
+    """
+    reset_config()
+    config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 10000
+    config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
+    router.set_routes(routes)
+    router.set_extra_candles([])
+    store.reset(True)
 
 
 def test_open_pl_and_total_open_trades():

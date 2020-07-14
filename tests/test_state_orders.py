@@ -14,12 +14,6 @@ def set_up():
     store.reset()
 
 
-def test_order_state_init():
-    set_up()
-
-    assert len(store.orders.storage.keys()) == 4
-
-
 def test_add_new_order():
     set_up()
 
@@ -30,6 +24,12 @@ def test_add_new_order():
     assert store.orders.storage['Sandbox-ETHUSD'] == [o1, o2]
 
 
+def test_order_state_init():
+    set_up()
+
+    assert len(store.orders.storage.keys()) == 4
+
+
 def test_state_order_count():
     set_up()
 
@@ -38,17 +38,6 @@ def test_state_order_count():
     assert store.orders.count(exchanges.SANDBOX, 'BTCUSD') == 1
     store.orders.add_order(fake_order())
     assert store.orders.count(exchanges.SANDBOX, 'BTCUSD') == 2
-
-
-def test_state_order_get_orders():
-    set_up()
-
-    o1 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETHUSD'})
-    o2 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETHUSD'})
-    store.orders.add_order(o1)
-    store.orders.add_order(o2)
-    assert store.orders.get_orders(exchanges.SANDBOX,
-                                   'ETHUSD') == [o1, o2]
 
 
 def test_state_order_get_order_by_id():
@@ -68,3 +57,14 @@ def test_state_order_get_order_by_id():
     store.orders.add_order(o2)
     assert store.orders.get_order_by_id(exchanges.SANDBOX, 'ETHUSD',
                                         o2.id) == o2
+def test_state_order_get_orders():
+    set_up()
+
+    o1 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETHUSD'})
+    o2 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETHUSD'})
+    store.orders.add_order(o1)
+    store.orders.add_order(o2)
+    assert store.orders.get_orders(exchanges.SANDBOX,
+                                   'ETHUSD') == [o1, o2]
+
+

@@ -8,16 +8,6 @@ from jesse.routes import router
 from jesse.store import store
 
 
-def set_up(routes):
-    """
-
-    :param routes:
-    """
-    reset_config()
-    router.set_routes(routes)
-    store.reset(True)
-
-
 def get_btc_candles():
     """
 
@@ -32,6 +22,41 @@ def get_btc_candles():
     return candles
 
 
+def set_up(routes):
+    """
+
+    :param routes:
+    """
+    reset_config()
+    router.set_routes(routes)
+    store.reset(True)
+
+
+def test_can_handle_multiple_entry_orders_too_close_to_each_other():
+    set_up([
+        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test34'),
+    ])
+
+    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+
+    assert len(store.completed_trades.trades) == 1
+
+    t: CompletedTrade = store.completed_trades.trades[0]
+
+    assert t.type == 'long'
+    assert t.stop_loss_at == 0.4
+    assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4
+    assert t.exit_price == 3
+    assert t.take_profit_at == 3
+    # 4 entry + 1 exit
+    assert len(t.orders) == 5
+    # last order is closing order
+    assert t.orders[-1].role == order_roles.CLOSE_POSITION
+    # first order must be opening order
+    assert t.orders[0].role == order_roles.OPEN_POSITION
+    # second order must be increasing order
+    assert t.orders[1].role == order_roles.INCREASE_POSITION
+    assert t.orders[2].role == order_roles.INCREASE_POSITION
 def test_conflicting_orders():
     set_up([
         (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test04'),
@@ -67,31 +92,6 @@ def test_conflicting_orders_2():
     assert t.exit_price == 2.6
 
 
-def test_can_handle_multiple_entry_orders_too_close_to_each_other():
-    set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test34'),
-    ])
-
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
-
-    assert len(store.completed_trades.trades) == 1
-
-    t: CompletedTrade = store.completed_trades.trades[0]
-
-    assert t.type == 'long'
-    assert t.stop_loss_at == 0.4
-    assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4
-    assert t.exit_price == 3
-    assert t.take_profit_at == 3
-    # 4 entry + 1 exit
-    assert len(t.orders) == 5
-    # last order is closing order
-    assert t.orders[-1].role == order_roles.CLOSE_POSITION
-    # first order must be opening order
-    assert t.orders[0].role == order_roles.OPEN_POSITION
-    # second order must be increasing order
-    assert t.orders[1].role == order_roles.INCREASE_POSITION
-    assert t.orders[2].role == order_roles.INCREASE_POSITION
 
 #
 # def test_can_handle_not_correctly_sorted_multiple_orders():

@@ -2,14 +2,15 @@ from jesse.factories import fake_range_candle
 from jesse.services.candle import *
 
 
-def test_is_bullish():
-    c = np.array([1543387200000, 190, 200, 220, 180, 195])
-    assert is_bullish(c)
+def test_candle_includes_price():
+    c = np.array([1543387200000, 10, 20, 25, 5, 195])
 
+    assert candle_includes_price(c, 5)
+    assert candle_includes_price(c, 15)
+    assert candle_includes_price(c, 25)
 
-def test_is_bearish():
-    c = np.array([1543387200000, 200, 190, 220, 180, 195])
-    assert is_bearish(c)
+    assert not candle_includes_price(c, 4)
+    assert not candle_includes_price(c, 26)
 
 
 def test_generate_candle_from_one_minutes():
@@ -25,15 +26,14 @@ def test_generate_candle_from_one_minutes():
     assert five_minutes_candle[5] == candles[:, 5].sum()
 
 
-def test_candle_includes_price():
-    c = np.array([1543387200000, 10, 20, 25, 5, 195])
+def test_is_bearish():
+    c = np.array([1543387200000, 200, 190, 220, 180, 195])
+    assert is_bearish(c)
 
-    assert candle_includes_price(c, 5)
-    assert candle_includes_price(c, 15)
-    assert candle_includes_price(c, 25)
 
-    assert not candle_includes_price(c, 4)
-    assert not candle_includes_price(c, 26)
+def test_is_bullish():
+    c = np.array([1543387200000, 190, 200, 220, 180, 195])
+    assert is_bullish(c)
 
 
 def test_split_candle():

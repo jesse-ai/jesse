@@ -148,6 +148,18 @@ def test_avgprice():
     assert seq[-1] == single
 
 
+def test_beta():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.beta(candles)
+    seq = ta.beta(candles, sequential=True)
+
+    assert round(single, 2) == -0.31
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_bollinger_bands():
     candles = np.array(bollinger_bands_candles)
 
@@ -185,18 +197,6 @@ def test_bop():
     seq = ta.bop(candles, sequential=True)
 
     assert round(single, 2) == -0.92
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_beta():
-    # use the same candles as mama_candles
-    candles = np.array(mama_candles)
-
-    single = ta.beta(candles)
-    seq = ta.beta(candles, sequential=True)
-
-    assert round(single, 2) == -0.31
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -276,21 +276,6 @@ def test_dema():
     assert seq[-1] == single
 
 
-def test_dm():
-    candles = np.array(mama_candles)
-
-    single = ta.dm(candles, period=14)
-    assert type(single).__name__ == 'DM'
-    assert round(single.plus, 2) == 36.78
-    assert round(single.minus, 1) == 154.1
-
-    seq = ta.dm(candles, period=14, sequential=True)
-    assert seq.plus[-1] == single.plus
-    assert seq.minus[-1] == single.minus
-    assert len(seq.plus) == len(candles)
-    assert len(seq.minus) == len(candles)
-
-
 def test_di():
     candles = np.array(mama_candles)
 
@@ -306,15 +291,19 @@ def test_di():
     assert len(seq.minus) == len(candles)
 
 
-def test_dx():
-    candles = np.array(dema_candles)
+def test_dm():
+    candles = np.array(mama_candles)
 
-    single = ta.dx(candles)
-    seq = ta.dx(candles, sequential=True)
+    single = ta.dm(candles, period=14)
+    assert type(single).__name__ == 'DM'
+    assert round(single.plus, 2) == 36.78
+    assert round(single.minus, 1) == 154.1
 
-    assert round(single, 0) == 67
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
+    seq = ta.dm(candles, period=14, sequential=True)
+    assert seq.plus[-1] == single.plus
+    assert seq.minus[-1] == single.minus
+    assert len(seq.plus) == len(candles)
+    assert len(seq.minus) == len(candles)
 
 
 def test_donchian():
@@ -341,6 +330,17 @@ def test_dpo():
     seq = ta.dpo(candles, sequential=True)
 
     assert round(single, 0) == 22
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_dx():
+    candles = np.array(dema_candles)
+
+    single = ta.dx(candles)
+    seq = ta.dx(candles, sequential=True)
+
+    assert round(single, 0) == 67
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1338,6 +1338,18 @@ def test_vidya():
     assert seq[-1] == single
 
 
+def test_vosc():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.vosc(candles)
+    seq = ta.vosc(candles, sequential=True)
+
+    assert round(single, 2) == 38.18
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_vwma():
     candles = np.array(vwma_candles)
     single = ta.vwma(candles)
@@ -1363,18 +1375,6 @@ def test_vwmacd():
     assert len(seq.macd) == len(candles)
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
-
-
-def test_vosc():
-    # use the same candles as mama_candles
-    candles = np.array(mama_candles)
-
-    single = ta.vosc(candles)
-    seq = ta.vosc(candles, sequential=True)
-
-    assert round(single, 2) == 38.18
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
 
 
 def test_wad():

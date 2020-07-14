@@ -1,12 +1,13 @@
 import pytest
+
 import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges, timeframes, order_types, order_flags, order_roles
+from jesse.exceptions import InvalidStrategy
 from jesse.models import Position, Exchange
 from jesse.routes import router
 from jesse.services.broker import Broker
 from jesse.store import store
-from jesse.exceptions import InvalidStrategy
 
 position: Position = None
 exchange: Exchange = None
@@ -57,6 +58,41 @@ def set_up_with_fee():
                     timeframes.MINUTE_5)
 
 
+def test_cancel_all_orders():
+    set_up()
+
+    # create 3 ACTIVE orders
+    o1 = broker.buy_at(1, 40)
+    o2 = broker.buy_at(1, 41)
+    o3 = broker.buy_at(1, 42)
+    assert o1.is_active
+    assert o2.is_active
+    assert o3.is_active
+
+    # create 2 EXECUTED orders
+    o4 = broker.buy_at_market(1)
+    # fake it
+    store.orders.execute_pending_market_orders()
+    o5 = broker.buy_at_market(2)
+    # fake it
+    store.orders.execute_pending_market_orders()
+    assert o4.is_executed
+    assert o5.is_executed
+
+    broker.cancel_all_orders()
+
+    # ACTIVE orders should have been canceled
+    assert o1.is_active is False
+    assert o2.is_active is False
+    assert o3.is_active is False
+    assert o1.is_canceled is True
+    assert o2.is_canceled is True
+    assert o3.is_canceled is True
+    # already-executed orders should have remain the same
+    assert o4.is_executed
+    assert o5.is_executed
+    assert o4.is_canceled is False
+    assert o5.is_canceled is False
 def test_fee_calculation_when_opening_and_closing_positions():
     set_up_with_fee()
 
@@ -130,6 +166,32 @@ def test_fee_calculation_when_submitting_and_canceling_orders():
     assert exchange.balance == 1019.56
 
 
+def test_limit_orders():
+    set_up()
+
+    assert exchange.balance == 1000
+    order = broker.buy_at(1, 40)
+    assert order.price == 40
+    assert order.qty == 1
+    assert order.type == 'LIMIT'
+    assert exchange.balance == 960
+    broker.cancel_order(order.id)
+    assert exchange.balance == 1000
+
+    order = broker.sell_at(1, 60)
+    assert order.price == 60
+    assert order.qty == -1
+    assert order.type == 'LIMIT'
+    assert exchange.balance == 940
+    broker.cancel_order(order.id)
+    assert exchange.balance == 1000
+
+    # validation: qty cannot be 0
+    with pytest.raises(InvalidStrategy):
+        broker.sell_at(0, 100)
+        broker.buy_at(0, 100)
+
+
 def test_market_orders_and_its_effects_on_position_and_exchange():
     set_up()
 
@@ -187,30 +249,37 @@ def test_market_orders_and_its_effects_on_position_and_exchange():
     assert exchange.balance == 900
 
 
-def test_limit_orders():
+def test_opening_and_closing_position_with_stop():
     set_up()
 
+    assert position.current_price == 50
+    assert position.is_close is True
     assert exchange.balance == 1000
-    order = broker.buy_at(1, 40)
-    assert order.price == 40
-    assert order.qty == 1
-    assert order.type == 'LIMIT'
-    assert exchange.balance == 960
-    broker.cancel_order(order.id)
-    assert exchange.balance == 1000
-
-    order = broker.sell_at(1, 60)
-    assert order.price == 60
-    assert order.qty == -1
-    assert order.type == 'LIMIT'
+    # open position
+    open_position_order = broker.start_profit_at('buy', 1, 60, order_roles.OPEN_POSITION)
+    open_position_order.execute()
+    assert position.is_open is True
+    assert position.entry_price == 60
+    assert position.qty == 1
     assert exchange.balance == 940
-    broker.cancel_order(order.id)
-    assert exchange.balance == 1000
 
-    # validation: qty cannot be 0
-    with pytest.raises(InvalidStrategy):
-        broker.sell_at(0, 100)
-        broker.buy_at(0, 100)
+    # submit stop-loss order
+    stop_loss_order = broker.stop_loss_at(1, 40, order_roles.CLOSE_POSITION)
+    assert stop_loss_order.flag == order_flags.REDUCE_ONLY
+    # balance should NOT have changed
+    assert exchange.balance == 940
+    # submit take-profit order also
+    take_profit_order = broker.reduce_position_at(1, 80, order_roles.CLOSE_POSITION)
+    assert take_profit_order.flag == order_flags.REDUCE_ONLY
+    assert exchange.balance == 940
+
+    # execute stop order
+    stop_loss_order.execute()
+    take_profit_order.cancel()
+    assert position.is_close is True
+    assert position.entry_price is None
+    assert position.exit_price == 40
+    assert exchange.balance == 980
 
 
 def test_reduce_position_order():
@@ -324,71 +393,3 @@ def test_stop_loss():
         broker.stop_loss_at(0, 100)
 
 
-def test_opening_and_closing_position_with_stop():
-    set_up()
-
-    assert position.current_price == 50
-    assert position.is_close is True
-    assert exchange.balance == 1000
-    # open position
-    open_position_order = broker.start_profit_at('buy', 1, 60, order_roles.OPEN_POSITION)
-    open_position_order.execute()
-    assert position.is_open is True
-    assert position.entry_price == 60
-    assert position.qty == 1
-    assert exchange.balance == 940
-
-    # submit stop-loss order
-    stop_loss_order = broker.stop_loss_at(1, 40, order_roles.CLOSE_POSITION)
-    assert stop_loss_order.flag == order_flags.REDUCE_ONLY
-    # balance should NOT have changed
-    assert exchange.balance == 940
-    # submit take-profit order also
-    take_profit_order = broker.reduce_position_at(1, 80, order_roles.CLOSE_POSITION)
-    assert take_profit_order.flag == order_flags.REDUCE_ONLY
-    assert exchange.balance == 940
-
-    # execute stop order
-    stop_loss_order.execute()
-    take_profit_order.cancel()
-    assert position.is_close is True
-    assert position.entry_price is None
-    assert position.exit_price == 40
-    assert exchange.balance == 980
-
-
-def test_cancel_all_orders():
-    set_up()
-
-    # create 3 ACTIVE orders
-    o1 = broker.buy_at(1, 40)
-    o2 = broker.buy_at(1, 41)
-    o3 = broker.buy_at(1, 42)
-    assert o1.is_active
-    assert o2.is_active
-    assert o3.is_active
-
-    # create 2 EXECUTED orders
-    o4 = broker.buy_at_market(1)
-    # fake it
-    store.orders.execute_pending_market_orders()
-    o5 = broker.buy_at_market(2)
-    # fake it
-    store.orders.execute_pending_market_orders()
-    assert o4.is_executed
-    assert o5.is_executed
-
-    broker.cancel_all_orders()
-
-    # ACTIVE orders should have been canceled
-    assert o1.is_active is False
-    assert o2.is_active is False
-    assert o3.is_active is False
-    assert o1.is_canceled is True
-    assert o2.is_canceled is True
-    assert o3.is_canceled is True
-    # already-executed orders should have remain the same
-    assert o4.is_executed
-    assert o5.is_executed
-    assert o4.is_canceled is False
-    assert o5.is_canceled is False
