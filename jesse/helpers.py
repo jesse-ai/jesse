@@ -8,7 +8,6 @@ import arrow
 import click
 import numpy as np
 
-
 CACHED_CONFIG = dict()
 
 
@@ -272,6 +271,8 @@ def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
         return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
     else:
         raise ValueError('type string not recognised')
+
+
 def get_config(keys: str, default=None):
     """
     Gets keys as a single string separated with "." and returns value.
@@ -875,5 +876,3 @@ def unique_list(arr) -> list:
     seen = set()
     seen_add = seen.add
     return [x for x in arr if not (x in seen or seen_add(x))]
-
-
