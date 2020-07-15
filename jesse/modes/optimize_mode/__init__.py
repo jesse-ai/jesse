@@ -6,13 +6,13 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
-from jesse.config import config
 from jesse import exceptions
-from jesse.services.cache import cache
+from jesse.config import config
 from jesse.models import Candle
 from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
 from jesse.services import statistics as stats
+from jesse.services.cache import cache
 from jesse.store import store
 from .Genetics import Genetics
 
@@ -54,6 +54,7 @@ class Optimizer(Genetics):
         self.required_initial_training_candles = required_candles.load_required_candles(
             self.exchange,
             self.symbol,
+            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
             jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0],
             jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
         )
@@ -61,6 +62,7 @@ class Optimizer(Genetics):
         self.required_initial_testing_candles = required_candles.load_required_candles(
             self.exchange,
             self.symbol,
+            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
             jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0],
             jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
         )
@@ -98,7 +100,7 @@ class Optimizer(Genetics):
                 round(total_effect_rate, 3)
             )
 
-            # the fitness score
+            # the fitness score - I tried to include the sharpe, sortino and calmar ratio to the fitness score.
             score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +  training_data['calmar_ratio']) / 3)
 
             # perform backtest with testing data. this is using data
