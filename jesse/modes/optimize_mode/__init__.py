@@ -165,47 +165,9 @@ def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
     if finish_date > arrow.utcnow().timestamp * 1000:
         raise ValueError('Can\'t optimize the future!')
 
-    # download candles for the duration of the backtest
-    candles = {}
-    for exchange in config['app']['considering_exchanges']:
-        for symbol in config['app']['considering_symbols']:
-            key = jh.key(exchange, symbol)
-
-            cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
-            cached_value = cache.get_value(cache_key)
-            # if cache exists
-            if cached_value:
-                candles_tuple = cached_value
-            # not cached, get and cache for later calls in the next 5 minutes
-            else:
-                # fetch from database
-                candles_tuple = Candle.select(
-                    Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                    Candle.volume
-                ).where(
-                    Candle.timestamp.between(start_date, finish_date),
-                    Candle.exchange == exchange,
-                    Candle.symbol == symbol
-                ).order_by(Candle.timestamp.asc()).tuples()
-
-            # validate that there are enough candles for selected period
-            required_candles_count = (finish_date - start_date) / 60_000
-            if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-                raise exceptions.CandleNotFoundInDatabase(
-                    'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
-            elif len(candles_tuple) != required_candles_count + 1:
-                raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
-                    start_date_str, finish_date_str
-                ))
-
-            # cache it for near future calls
-            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
-
-            candles[key] = {
-                'exchange': exchange,
-                'symbol': symbol,
-                'candles': np.array(candles_tuple)
-            }
+    # Load candles (first try cache, then database)
+    from jesse.modes.backtest_mode import load_candles
+    candles = load_candles(start_date_str, finish_date_str)
 
     # divide into training(85%) and testing(15%) sets
     training_candles = {}
