@@ -95,13 +95,14 @@ def load_candles(start_date_str: str, finish_date_str: str):
     if finish_date > arrow.utcnow().timestamp * 1000:
         raise ValueError("Can't load data of the future!")
 
-    # load and add required initial candles for backtest
-    for c in config['app']['considering_candles']:
-        required_candles.inject_required_candles_to_store(
-            required_candles.load_required_candles(c[0], c[1], start_date_str, finish_date_str),
-            c[0],
-            c[1]
-        )
+    # load and add required warm-up candles for backtest
+    if jh.is_backtesting():
+        for c in config['app']['considering_candles']:
+            required_candles.inject_required_candles_to_store(
+                required_candles.load_required_candles(c[0], c[1], start_date_str, finish_date_str),
+                c[0],
+                c[1]
+            )
 
     # download candles for the duration of the backtest
     candles = {}
