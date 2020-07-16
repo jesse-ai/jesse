@@ -2,20 +2,17 @@ from math import log10
 
 import arrow
 import click
-import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 from jesse import exceptions
-from jesse.config import config
-from jesse.models import Candle
 from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
 from jesse.services import statistics as stats
-from jesse.services.cache import cache
+from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
-
+from jesse.config import config
 
 class Optimizer(Genetics):
     def __init__(self, training_candles, testing_candles):
@@ -49,23 +46,10 @@ class Optimizer(Genetics):
         self.testing_candles = testing_candles
 
         key = jh.key(self.exchange, self.symbol)
-
-        # training
-        self.required_initial_training_candles = required_candles.load_required_candles(
-            self.exchange,
-            self.symbol,
-            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
-            jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0],
-            jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
-        )
-        # testing
-        self.required_initial_testing_candles = required_candles.load_required_candles(
-            self.exchange,
-            self.symbol,
-            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0],
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
-        )
+        self.training_candles_start_date = jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0]
+        self.training_candles_finish_date = jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
+        self.testing_candles_start_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0]
+        self.testing_candles_finish_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
 
     def fitness(self, dna) -> tuple:
         hp = jh.dna_to_hp(self.strategy_hp, dna)
@@ -73,11 +57,14 @@ class Optimizer(Genetics):
         # init candle store
         store.candles.init_storage(5000)
         # inject required TRAINING candles to the candle store
-        required_candles.inject_required_candles_to_store(
-            self.required_initial_training_candles,
-            self.exchange,
-            self.symbol
-        )
+
+        for c in config['app']['considering_candles']:
+            required_candles.inject_required_candles_to_store(
+                required_candles.load_required_candles(c[0], c[1], self.training_candles_start_date, self.training_candles_finish_date),
+                c[0],
+                c[1]
+            )
+
         # run backtest simulation
         simulator(self.training_candles, hp)
 
@@ -109,11 +96,15 @@ class Optimizer(Genetics):
             store.reset()
             store.candles.init_storage(5000)
             # inject required TESTING candles to the candle store
-            required_candles.inject_required_candles_to_store(
-                self.required_initial_testing_candles,
-                self.exchange,
-                self.symbol
-            )
+
+            for c in config['app']['considering_candles']:
+                required_candles.inject_required_candles_to_store(
+                    required_candles.load_required_candles(c[0], c[1], self.testing_candles_start_date,
+                                                           self.testing_candles_finish_date),
+                    c[0],
+                    c[1]
+                )
+
             # run backtest simulation
             simulator(self.testing_candles, hp)
             testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
@@ -141,6 +132,9 @@ def optimize_mode(start_date: str, finish_date: str):
     click.clear()
     print('loading candles...')
 
+    # validate routes
+    validate_routes(router)
+
     # load historical candles and divide them into training
     # and testing candles (15% for test, 85% for training)
     training_candles, testing_candles = get_training_and_testing_candles(start_date, finish_date)
@@ -158,14 +152,6 @@ def optimize_mode(start_date: str, finish_date: str):
 def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
-
-    # validate
-    if start_date == finish_date:
-        raise ValueError('start_date and finish_date cannot be the same.')
-    if start_date > finish_date:
-        raise ValueError('start_date cannot be bigger than finish_date.')
-    if finish_date > arrow.utcnow().timestamp * 1000:
-        raise ValueError('Can\'t optimize the future!')
 
     # Load candles (first try cache, then database)
     from jesse.modes.backtest_mode import load_candles
