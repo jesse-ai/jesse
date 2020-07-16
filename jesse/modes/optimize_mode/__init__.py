@@ -140,11 +140,13 @@ def optimize_mode(start_date: str, finish_date: str):
     # clear the screen
     click.clear()
     print('loading candles...')
-    click.clear()
 
     # load historical candles and divide them into training
     # and testing candles (15% for test, 85% for training)
     training_candles, testing_candles = get_training_and_testing_candles(start_date, finish_date)
+
+    # clear the screen
+    click.clear()
 
     optimizer = Optimizer(training_candles, testing_candles)
 

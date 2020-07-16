@@ -20,9 +20,6 @@ from jesse.routes import router
 
 
 class Genetics(ABC):
-    """
-
-    """
     def __init__(self, iterations, population_size, solution_len,
                  charset='()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
                  fitness_goal=1,
@@ -120,21 +117,22 @@ class Genetics(ABC):
                 progressbar.update(1)
                 print('\n')
                 table.key_value([
-                    ['started at', jh.get_arrow(self.start_time).humanize()],
-                    ['index/total', '{}/{}'.format(len(self.population), self.population_size)],
-                    ['-', '-'],
-                    ['population_size', self.population_size],
-                    ['iterations', self.iterations],
-                    ['solution_len', self.solution_len],
-                    ['route', '{}, {}, {}, {}'.format(
+                    ['Started at', jh.get_arrow(self.start_time).humanize()],
+                    ['Index', '{}/{}'.format(len(self.population), self.population_size)],
+                    ['-'*10, '-'*10],
+                    # TODO: add commented ones only if in the debug mode
+                    # ['population_size', self.population_size],
+                    # ['iterations', self.iterations],
+                    ['DNA Length', self.solution_len],
+                    ['Trading Route', '{}, {}, {}, {}'.format(
                         router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                         router.routes[0].strategy_name
                     )],
-                    ['-', '-'],
-                    ['DNA', people[0]['dna']],
-                    ['fitness', round(people[0]['fitness'], 6)],
-                    ['training|testing logs', people[0]['log']],
-                ], 'baby', alignments=('left', 'right'))
+                    # ['-'*10, '-'*10],
+                    # ['DNA', people[0]['dna']],
+                    # ['fitness', round(people[0]['fitness'], 6)],
+                    # ['training|testing logs', people[0]['log']],
+                ], 'Optimize Mode', alignments=('left', 'right'))
 
                 for p in people:
                     self.population.append(p)
@@ -143,11 +141,6 @@ class Genetics(ABC):
         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
 
     def mutate(self, baby):
-        """
-
-        :param baby:
-        :return:
-        """
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
         dna = '{}{}{}'.format(baby['dna'][:replace_at], replace_with, baby['dna'][replace_at + 1:])
@@ -160,10 +153,6 @@ class Genetics(ABC):
         }
 
     def make_love(self):
-        """
-
-        :return:
-        """
         mommy = self.select_person()
         daddy = self.select_person()
 
@@ -184,10 +173,6 @@ class Genetics(ABC):
         }
 
     def select_person(self):
-        """
-
-        :return:
-        """
         random_index = np.random.choice(self.population_size, int(self.population_size / 100), replace=False)
         chosen_ones = []
 
@@ -304,10 +289,6 @@ class Genetics(ABC):
         return self.population
 
     def run(self):
-        """
-
-        :return:
-        """
         return self.evolve()
 
     def save_progress(self, iterations_index):
