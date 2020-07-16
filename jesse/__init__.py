@@ -319,6 +319,24 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
 
 
 @cli.command()
+@click.argument('start_date', required=True, type=str)
+@click.argument('finish_date', required=True, type=str)
+def optimize(start_date, finish_date):
+    """
+    tunes the hyper-parameters of your strategy
+    """
+    validate_cwd()
+    from jesse.config import config
+    config['app']['trading_mode'] = 'optimize'
+
+    register_custom_exception_handler()
+
+    from jesse.modes.optimize_mode import optimize_mode
+
+    optimize_mode(start_date, finish_date)
+
+
+@cli.command()
 @click.argument('name', required=True, type=str)
 def make_strategy(name):
     """
@@ -463,21 +481,3 @@ if 'plugins' in ls:
         # execute live session
         from plugins.live.live_mode import run
         run(dev)
-
-
-    @cli.command()
-    @click.argument('start_date', required=True, type=str)
-    @click.argument('finish_date', required=True, type=str)
-    def optimize(start_date, finish_date):
-        """
-        tunes the hyper-parameters of your strategy
-        """
-        validate_cwd()
-        from jesse.config import config
-        config['app']['trading_mode'] = 'optimize'
-
-        register_custom_exception_handler()
-
-        from jesse.modes.optimize_mode import optimize_mode
-
-        optimize_mode(start_date, finish_date)
