@@ -6,13 +6,14 @@ import click
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 from jesse import exceptions
+from jesse.config import config
 from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
 from jesse.services import statistics as stats
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
-from jesse.config import config
+
 
 class Optimizer(Genetics):
     def __init__(self, training_candles, testing_candles):
@@ -46,10 +47,21 @@ class Optimizer(Genetics):
         self.testing_candles = testing_candles
 
         key = jh.key(self.exchange, self.symbol)
-        self.training_candles_start_date = jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0]
-        self.training_candles_finish_date = jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
-        self.testing_candles_start_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0]
-        self.testing_candles_finish_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
+        training_candles_start_date = jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0]
+        training_candles_finish_date = jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
+        testing_candles_start_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0]
+        testing_candles_finish_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
+
+        self.training_initial_candles = []
+        self.testing_initial_candles = []
+
+        for c in config['app']['considering_candles']:
+            self.training_initial_candles.append(
+                required_candles.load_required_candles(c[0], c[1], training_candles_start_date,
+                                                       training_candles_finish_date))
+            self.testing_initial_candles.append(
+                required_candles.load_required_candles(c[0], c[1], testing_candles_start_date,
+                                                       testing_candles_finish_date))
 
     def fitness(self, dna) -> tuple:
         hp = jh.dna_to_hp(self.strategy_hp, dna)
@@ -58,9 +70,9 @@ class Optimizer(Genetics):
         store.candles.init_storage(5000)
         # inject required TRAINING candles to the candle store
 
-        for c in config['app']['considering_candles']:
+        for num, c in enumerate(config['app']['considering_candles']):
             required_candles.inject_required_candles_to_store(
-                required_candles.load_required_candles(c[0], c[1], self.training_candles_start_date, self.training_candles_finish_date),
+                self.training_initial_candles[num],
                 c[0],
                 c[1]
             )
@@ -88,7 +100,8 @@ class Optimizer(Genetics):
             )
 
             # the fitness score - I tried to include the sharpe, sortino and calmar ratio to the fitness score.
-            score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +  training_data['calmar_ratio']) / 3)
+            score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +
+                                                     training_data['calmar_ratio']) / 3)
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
@@ -97,10 +110,9 @@ class Optimizer(Genetics):
             store.candles.init_storage(5000)
             # inject required TESTING candles to the candle store
 
-            for c in config['app']['considering_candles']:
+            for num, c in enumerate(config['app']['considering_candles']):
                 required_candles.inject_required_candles_to_store(
-                    required_candles.load_required_candles(c[0], c[1], self.testing_candles_start_date,
-                                                           self.testing_candles_finish_date),
+                    self.testing_initial_candles[num],
                     c[0],
                     c[1]
                 )
