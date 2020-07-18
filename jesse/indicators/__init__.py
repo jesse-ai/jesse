@@ -16,6 +16,7 @@ from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop
 from .cc import cc
 from .cci import cci
+from .chande import chande
 from .cmo import cmo
 from .correl import correl
 from .cvi import cvi

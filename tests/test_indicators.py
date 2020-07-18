@@ -200,6 +200,7 @@ def test_bop():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_cc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -211,6 +212,7 @@ def test_cc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_cci():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -221,6 +223,25 @@ def test_cci():
     assert round(single, 0) == -285.29
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_chande():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single_long = ta.chande(candles)
+    seq_long = ta.chande(candles, sequential=True)
+
+    single_short = ta.chande(candles, direction="short")
+    seq_short = ta.chande(candles, direction="short", sequential=True)
+
+    assert round(single_long, 0) == 213
+    assert round(single_short, 0) == 165
+
+    assert len(seq_short) == len(candles)
+    assert len(seq_long) == len(candles)
+    assert seq_long[-1] == single_long
+    assert seq_short[-1] == single_short
 
 
 def test_cmo():
@@ -354,6 +375,7 @@ def test_dx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_efi():
     candles = np.array(mama_candles)
     single = ta.efi(candles)
@@ -361,6 +383,7 @@ def test_efi():
     assert round(single, 0) == -51628073
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ema():
     close_prices = [
@@ -605,6 +628,7 @@ def test_kelner_channels():
     assert len(seq_kc.middleband) == len(candles)
     assert len(seq_kc.lowerband) == len(candles)
 
+
 def test_kst():
     candles = np.array(mama_candles)
 
@@ -619,6 +643,7 @@ def test_kst():
     assert seq.signal[-1] == single.signal
     assert len(seq.line) == len(candles)
     assert len(seq.signal) == len(candles)
+
 
 def test_kvo():
     # use the same candles as mama_candles
@@ -1357,6 +1382,7 @@ def test_var():
     assert round(single, 2) == 69.96
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_vi():
     candles = np.array(mama_candles)
