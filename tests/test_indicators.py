@@ -1351,6 +1351,20 @@ def test_var():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_vi():
+    candles = np.array(mama_candles)
+
+    single = ta.vi(candles)
+    seq = ta.vi(candles, sequential=True)
+
+    assert type(single).__name__ == 'VI'
+    assert round(single.plus, 2) == 0.66
+    assert round(single.minus, 2) == 1.13
+
+    assert seq.plus[-1] == single.plus
+    assert len(seq.plus) == len(candles)
+    assert len(seq.minus) == len(candles)
+
 
 def test_vidya():
     candles = np.array(vwma_candles)
