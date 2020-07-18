@@ -588,6 +588,20 @@ def test_kelner_channels():
     assert len(seq_kc.middleband) == len(candles)
     assert len(seq_kc.lowerband) == len(candles)
 
+def test_kst():
+    candles = np.array(mama_candles)
+
+    single = ta.kst(candles)
+    seq = ta.kst(candles, sequential=True)
+
+    assert type(single).__name__ == 'KST'
+    assert round(single.line, 2) == -93.38
+    assert round(single.signal, 2) == 31.1
+
+    assert seq.line[-1] == single.line
+    assert seq.signal[-1] == single.signal
+    assert len(seq.line) == len(candles)
+    assert len(seq.signal) == len(candles)
 
 def test_kvo():
     # use the same candles as mama_candles

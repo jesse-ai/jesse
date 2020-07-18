@@ -45,6 +45,7 @@ from .ichimoku_cloud import ichimoku_cloud
 from .itrend import itrend
 from .kama import kama
 from .keltner import keltner
+from .kst import kst
 from .kvo import kvo
 from .linearreg import linearreg
 from .linearreg_angle import linearreg_angle
