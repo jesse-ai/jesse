@@ -27,6 +27,7 @@ from .dm import dm
 from .dx import dx
 from .donchian import donchian
 from .dpo import dpo
+from .efi import efi
 from .ema import ema
 from .emd import emd
 from .emv import emv

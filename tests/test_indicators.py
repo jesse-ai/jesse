@@ -354,6 +354,13 @@ def test_dx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_efi():
+    candles = np.array(mama_candles)
+    single = ta.efi(candles)
+    seq = ta.efi(candles, sequential=True)
+    assert round(single, 0) == -51628073
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ema():
     close_prices = [
