@@ -65,5 +65,10 @@ class ConfigException(Exception):
 class InvalidTimeframe(Exception):
     pass
 
+
 class NegativeBalance(Exception):
+    pass
+
+
+class InvalidCandleImportDriver(Exception):
     pass

@@ -355,6 +355,24 @@ def optimize(start_date, finish_date, optimal_total, cpu, debug):
 
 @cli.command()
 @click.argument('name', required=True, type=str)
+def make_candleImportDriver(name):
+    """
+    generates a new driver for importing candles in jesse/plugins/import-candles-drivers
+    """
+    validate_cwd()
+    from jesse.config import config
+
+    config['app']['trading_mode'] = 'make-candleimportdriver'
+
+    register_custom_exception_handler()
+
+    from jesse.services import candleimportdriver_maker
+
+    candleimportdriver_maker.generate(name)
+
+
+@cli.command()
+@click.argument('name', required=True, type=str)
 def make_strategy(name):
     """
     generates a new strategy folder from jesse/strategies/ExampleStrategy

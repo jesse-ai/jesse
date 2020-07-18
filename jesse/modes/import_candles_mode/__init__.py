@@ -9,7 +9,7 @@ import pydash
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
 from jesse.models import Candle
-from jesse.modes.import_candles_mode.drivers import drivers
+from jesse.modes.import_candles_mode.drivers import get_driver
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
@@ -36,7 +36,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
     exchange = exchange.title()
 
     try:
-        driver: CandleExchange = drivers[exchange]()
+        driver: CandleExchange = get_driver(exchange)()
     except KeyError:
         raise ValueError('{} is not a supported exchange'.format(exchange))
 
