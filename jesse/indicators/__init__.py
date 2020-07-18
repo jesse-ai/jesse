@@ -14,6 +14,7 @@ from .beta import beta
 from .bollinger_bands import bollinger_bands
 from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop
+from .cc import cc
 from .cci import cci
 from .cmo import cmo
 from .correl import correl

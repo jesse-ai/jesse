@@ -200,6 +200,16 @@ def test_bop():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_cc():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.cc(candles)
+    seq = ta.cc(candles, sequential=True)
+
+    assert round(single, 0) == -41
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_cci():
     # use the same candles as mama_candles
@@ -208,7 +218,7 @@ def test_cci():
     single = ta.cci(candles, period=14)
     seq = ta.cci(candles, period=14, sequential=True)
 
-    assert round(single, 2) == -285.29
+    assert round(single, 0) == -285.29
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
