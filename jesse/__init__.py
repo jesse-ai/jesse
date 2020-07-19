@@ -7,6 +7,10 @@ import pkg_resources
 
 import jesse.helpers as jh
 
+# Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 # Python version validation.
 if jh.python_version() < 3.6:
     print(
