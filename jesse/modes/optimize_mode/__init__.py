@@ -120,13 +120,16 @@ class Optimizer(Genetics):
 
             # log for debugging/monitoring
             log += ' | '
-            log += 'win_rate:[{}], total:[{}], PNL%:[{}]'.format(
-                round(testing_data['win_rate'], 2),
-                testing_data['total'],
-                round(testing_data['net_profit_percentage'], 2),
-            )
-            if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
-                log = jh.style(log, 'bold')
+            if store.completed_trades.count > 0:
+                log += 'win_rate:[{}], total:[{}], PNL%:[{}]'.format(
+                    round(testing_data['win_rate'], 2),
+                    testing_data['total'],
+                    round(testing_data['net_profit_percentage'], 2),
+                )
+                if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
+                    log = jh.style(log, 'bold')
+            else:
+                log += 'win_rate:[-], total:[-], PNL%:[-]'
         else:
             score = 0.0001
 
