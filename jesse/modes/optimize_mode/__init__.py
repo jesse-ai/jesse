@@ -2,17 +2,15 @@ from math import log10
 
 import arrow
 import click
-import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 from jesse import exceptions
 from jesse.config import config
-from jesse.models import Candle
 from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
 from jesse.services import statistics as stats
-from jesse.services.cache import cache
+from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
 
@@ -49,23 +47,21 @@ class Optimizer(Genetics):
         self.testing_candles = testing_candles
 
         key = jh.key(self.exchange, self.symbol)
+        training_candles_start_date = jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0]
+        training_candles_finish_date = jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
+        testing_candles_start_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0]
+        testing_candles_finish_date = jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
 
-        # training
-        self.required_initial_training_candles = required_candles.load_required_candles(
-            self.exchange,
-            self.symbol,
-            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
-            jh.timestamp_to_time(self.training_candles[key]['candles'][0][0]).split('T')[0],
-            jh.timestamp_to_time(self.training_candles[key]['candles'][-1][0]).split('T')[0]
-        )
-        # testing
-        self.required_initial_testing_candles = required_candles.load_required_candles(
-            self.exchange,
-            self.symbol,
-            # SOMEHOW there is T00:00:00.000Z appended to the time. Therefore the split
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][0][0]).split('T')[0],
-            jh.timestamp_to_time(self.testing_candles[key]['candles'][-1][0]).split('T')[0]
-        )
+        self.training_initial_candles = []
+        self.testing_initial_candles = []
+
+        for c in config['app']['considering_candles']:
+            self.training_initial_candles.append(
+                required_candles.load_required_candles(c[0], c[1], training_candles_start_date,
+                                                       training_candles_finish_date))
+            self.testing_initial_candles.append(
+                required_candles.load_required_candles(c[0], c[1], testing_candles_start_date,
+                                                       testing_candles_finish_date))
 
     def fitness(self, dna) -> tuple:
         hp = jh.dna_to_hp(self.strategy_hp, dna)
@@ -73,11 +69,14 @@ class Optimizer(Genetics):
         # init candle store
         store.candles.init_storage(5000)
         # inject required TRAINING candles to the candle store
-        required_candles.inject_required_candles_to_store(
-            self.required_initial_training_candles,
-            self.exchange,
-            self.symbol
-        )
+
+        for num, c in enumerate(config['app']['considering_candles']):
+            required_candles.inject_required_candles_to_store(
+                self.training_initial_candles[num],
+                c[0],
+                c[1]
+            )
+
         # run backtest simulation
         simulator(self.training_candles, hp)
 
@@ -101,7 +100,8 @@ class Optimizer(Genetics):
             )
 
             # the fitness score - I tried to include the sharpe, sortino and calmar ratio to the fitness score.
-            score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +  training_data['calmar_ratio']) / 3)
+            score = win_rate * total_effect_rate * ((training_data['sharpe_ratio'] + training_data['sortino_ratio'] +
+                                                     training_data['calmar_ratio']) / 3)
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
@@ -109,11 +109,14 @@ class Optimizer(Genetics):
             store.reset()
             store.candles.init_storage(5000)
             # inject required TESTING candles to the candle store
-            required_candles.inject_required_candles_to_store(
-                self.required_initial_testing_candles,
-                self.exchange,
-                self.symbol
-            )
+
+            for num, c in enumerate(config['app']['considering_candles']):
+                required_candles.inject_required_candles_to_store(
+                    self.testing_initial_candles[num],
+                    c[0],
+                    c[1]
+                )
+
             # run backtest simulation
             simulator(self.testing_candles, hp)
             testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
@@ -143,11 +146,16 @@ def optimize_mode(start_date: str, finish_date: str):
     # clear the screen
     click.clear()
     print('loading candles...')
-    click.clear()
+
+    # validate routes
+    validate_routes(router)
 
     # load historical candles and divide them into training
     # and testing candles (15% for test, 85% for training)
     training_candles, testing_candles = get_training_and_testing_candles(start_date, finish_date)
+
+    # clear the screen
+    click.clear()
 
     optimizer = Optimizer(training_candles, testing_candles)
 
@@ -160,55 +168,9 @@ def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 
-    # validate
-    if start_date == finish_date:
-        raise ValueError('start_date and finish_date cannot be the same.')
-    if start_date > finish_date:
-        raise ValueError('start_date cannot be bigger than finish_date.')
-    if finish_date > arrow.utcnow().timestamp * 1000:
-        raise ValueError('Can\'t optimize the future!')
-
-    # download candles for the duration of the backtest
-    candles = {}
-    for exchange in config['app']['considering_exchanges']:
-        for symbol in config['app']['considering_symbols']:
-            key = jh.key(exchange, symbol)
-
-            cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
-            cached_value = cache.get_value(cache_key)
-            # if cache exists
-            if cached_value:
-                candles_tuple = cached_value
-            # not cached, get and cache for later calls in the next 5 minutes
-            else:
-                # fetch from database
-                candles_tuple = Candle.select(
-                    Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                    Candle.volume
-                ).where(
-                    Candle.timestamp.between(start_date, finish_date),
-                    Candle.exchange == exchange,
-                    Candle.symbol == symbol
-                ).order_by(Candle.timestamp.asc()).tuples()
-
-            # validate that there are enough candles for selected period
-            required_candles_count = (finish_date - start_date) / 60_000
-            if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-                raise exceptions.CandleNotFoundInDatabase(
-                    'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
-            elif len(candles_tuple) != required_candles_count + 1:
-                raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
-                    start_date_str, finish_date_str
-                ))
-
-            # cache it for near future calls
-            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
-
-            candles[key] = {
-                'exchange': exchange,
-                'symbol': symbol,
-                'candles': np.array(candles_tuple)
-            }
+    # Load candles (first try cache, then database)
+    from jesse.modes.backtest_mode import load_candles
+    candles = load_candles(start_date_str, finish_date_str)
 
     # divide into training(85%) and testing(15%) sets
     training_candles = {}
