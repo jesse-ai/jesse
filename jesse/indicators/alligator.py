@@ -22,9 +22,9 @@ def alligator(candles: np.ndarray, source_type="close", sequential=False) -> AG:
 
     source = get_candle_source(candles, source_type=source_type)
 
-    jaw = np_shift(numpy_ewma(source, 13), 8)
-    teeth = np_shift(numpy_ewma(source, 8), 5)
-    lips = np_shift(numpy_ewma(source, 5), 3)
+    jaw = np_shift(numpy_ewma(source, 13), 8, fill_value=np.nan)
+    teeth = np_shift(numpy_ewma(source, 8), 5, fill_value=np.nan)
+    lips = np_shift(numpy_ewma(source, 5), 3, fill_value=np.nan)
 
     if sequential:
         return AG(jaw, teeth, lips)
