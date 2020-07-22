@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from jesse.helpers import get_candle_source
+from jesse.helpers import get_candle_source, np_shift
 
 AG = namedtuple('AG', ['jaw', 'teeth', 'lips'])
 
@@ -22,35 +22,14 @@ def alligator(candles: np.ndarray, source_type="close", sequential=False) -> AG:
 
     source = get_candle_source(candles, source_type=source_type)
 
-    jaw = shift(numpy_ewma(source, 13), 8)
-    teeth = shift(numpy_ewma(source, 8), 5)
-    lips = shift(numpy_ewma(source, 5), 3)
+    jaw = np_shift(numpy_ewma(source, 13), 8)
+    teeth = np_shift(numpy_ewma(source, 8), 5)
+    lips = np_shift(numpy_ewma(source, 5), 3)
 
     if sequential:
         return AG(jaw, teeth, lips)
     else:
         return AG(jaw[-1], teeth[-1], lips[-1])
-
-
-# preallocate empty array and assign slice by chrisaycock
-def shift(arr, num, fill_value=np.nan):
-    """
-
-    :param arr:
-    :param num:
-    :param fill_value:
-    :return:
-    """
-    result = np.empty_like(arr)
-    if num > 0:
-        result[:num] = fill_value
-        result[num:] = arr[:-num]
-    elif num < 0:
-        result[num:] = fill_value
-        result[:num] = arr[-num:]
-    else:
-        result[:] = arr
-    return result
 
 
 def numpy_ewma(data, window):
