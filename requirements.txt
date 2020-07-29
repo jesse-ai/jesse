@@ -7,7 +7,7 @@ requests==2.24.0
 peewee==3.13.3
 pydash==4.8.0
 numpy==1.19.1
-pandas==1.0.5
+pandas==1.1.0
 tabulate==0.8.7
 timeloop==1.0.2
 websocket-client==0.57.0
