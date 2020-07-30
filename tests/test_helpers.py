@@ -348,3 +348,9 @@ def test_unique_list():
     assert jh.unique_list(a) == expected
 
 
+def test_floor_with_precision():
+    assert jh.floor_with_precision(1.123) == 1
+    assert jh.floor_with_precision(1.123, 1) == 1.1
+    assert jh.floor_with_precision(1.123, 2) == 1.12
+    assert jh.floor_with_precision(1.123, 3) == 1.123
+    assert jh.floor_with_precision(1.123, 4) == 1.123

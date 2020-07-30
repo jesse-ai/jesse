@@ -876,3 +876,8 @@ def unique_list(arr) -> list:
     seen = set()
     seen_add = seen.add
     return [x for x in arr if not (x in seen or seen_add(x))]
+
+
+def floor_with_precision(num, precision=0):
+    temp = 10 ** precision
+    return math.floor(num * temp) / temp
