@@ -128,23 +128,27 @@ class Genetics(ABC):
                 click.clear()
                 progressbar.update(1)
                 print('\n')
-                table.key_value([
+
+                table_items = [
                     ['Started at', jh.get_arrow(self.start_time).humanize()],
                     ['Index', '{}/{}'.format(len(self.population), self.population_size)],
-                    ['-'*10, '-'*10],
-                    # TODO: add commented ones only if in the debug mode
-                    # ['population_size', self.population_size],
-                    # ['iterations', self.iterations],
-                    ['DNA Length', self.solution_len],
                     ['Trading Route', '{}, {}, {}, {}'.format(
                         router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                         router.routes[0].strategy_name
                     )],
+                    # TODO: add generated DNAs?
                     # ['-'*10, '-'*10],
                     # ['DNA', people[0]['dna']],
                     # ['fitness', round(people[0]['fitness'], 6)],
                     # ['training|testing logs', people[0]['log']],
-                ], 'Optimize Mode', alignments=('left', 'right'))
+                ]
+                if jh.is_debugging():
+                    table_items.insert(3, ['Population Size', self.population_size])
+                    table_items.insert(3, ['Iterations', self.iterations])
+                    table_items.insert(3, ['Solution Length', self.solution_len])
+                    table_items.insert(3, ['-'*10, '-'*10])
+
+                table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
 
                 for p in people:
                     self.population.append(p)
@@ -247,19 +251,24 @@ class Genetics(ABC):
                     click.clear()
                     progressbar.update(1)
                     print('\n')
-                    print('Best DNA candidates:')
-                    print('\n')
 
-                    table.key_value([
+                    table_items = [
                         ['started at', jh.get_arrow(self.start_time).humanize()],
                         ['index/total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
-                        ['population_size, solution_len', '{}, {}'.format(self.population_size, self.solution_len)],
                         ['route', '{}, {}, {}, {}'.format(
                             router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                             router.routes[0].strategy_name
                         )]
-                    ], 'info', alignments=('left', 'right'))
+                    ]
+                    if jh.is_debugging():
+                        table_items.insert(
+                            2,
+                            ['Population Size, Solution Length', '{}, {}'.format(self.population_size, self.solution_len)]
+                        )
+                    table.key_value(table_items, 'info', alignments=('left', 'right'))
 
+                    print('\n')
+                    print('Best DNA candidates:')
                     print('\n')
 
                     # print fittest individuals
