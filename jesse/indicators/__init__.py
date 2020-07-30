@@ -97,6 +97,7 @@ from .typprice import typprice
 from .ultosc import ultosc
 from .var import var
 from .vidya import vidya
+from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
 from .vosc import vosc

@@ -1349,6 +1349,14 @@ def test_vosc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_vpt():
+    candles = np.array(mama_candles)
+    single = ta.vpt(candles)
+    seq = ta.vpt(candles, sequential=True)
+
+    assert round(single, 2) == -1733928.99
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_vwma():
     candles = np.array(vwma_candles)
