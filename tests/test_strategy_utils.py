@@ -103,7 +103,7 @@ def test_risk_to_size():
 
 def test_size_to_qty():
     assert utils.size_to_qty(100, 50) == 2
-    assert utils.size_to_qty(100, 49) == 2.041
+    assert utils.size_to_qty(100, 49) == 2.04
 
     with pytest.raises(TypeError):
         utils.size_to_qty(100, 'invalid_input')

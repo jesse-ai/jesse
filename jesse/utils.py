@@ -4,6 +4,8 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
+import jesse.helpers as jh
+
 
 def anchor_timeframe(timeframe) -> str:
     """
@@ -198,4 +200,4 @@ def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
     if fee_rate != 0:
         position_size = position_size * (1 - fee_rate * 3)
 
-    return round(position_size / entry_price, precision)
+    return jh.floor_with_precision(position_size / entry_price, precision)
