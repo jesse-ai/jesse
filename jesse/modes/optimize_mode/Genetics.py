@@ -87,23 +87,35 @@ class Genetics(ABC):
                     workers = []
 
                     def get_fitness(dna, dna_bucket):
-                        """
-
-                        :param dna:
-                        :param dna_bucket:
-                        """
                         fitness_score, fitness_log = self.fitness(dna)
                         dna_bucket.append((dna, fitness_score, fitness_log))
 
-                    for _ in range(cores_num):
-                        dna = ''.join(choices(self.charset, k=self.solution_len))
-                        w = Process(target=get_fitness, args=(dna, dna_bucket))
-                        w.start()
-                        workers.append(w)
+                    try:
+                        for _ in range(cores_num):
+                            dna = ''.join(choices(self.charset, k=self.solution_len))
+                            w = Process(target=get_fitness, args=(dna, dna_bucket))
+                            w.start()
+                            workers.append(w)
 
-                    # join workers
-                    for w in workers:
-                        w.join()
+                        # join workers
+                        for w in workers:
+                            w.join()
+                    except KeyboardInterrupt:
+                        print(
+                            jh.color('Terminating session...', 'red')
+                        )
+
+                        # terminate all workers
+                        for w in workers:
+                            w.terminate()
+
+                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+                        manager.shutdown()
+
+                        # now we can terminate the main session safely
+                        jh.terminate_app()
+                    except:
+                        raise
 
                     for d in dna_bucket:
                         people.append({
