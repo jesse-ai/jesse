@@ -200,27 +200,42 @@ class Genetics(ABC):
                     workers = []
 
                     def get_baby(people):
-                        """
-
-                        :param people:
-                        """
                         # let's make a baby together LOL
                         baby = self.make_love()
                         # let's mutate baby's genes, who knows, maybe we create a x-man or something
                         baby = self.mutate(baby)
                         people.append(baby)
 
-                    for _ in range(cores_num):
-                        w = Process(target=get_baby, args=[people])
-                        w.start()
-                        workers.append(w)
+                    try:
+                        for _ in range(cores_num):
+                            w = Process(target=get_baby, args=[people])
+                            w.start()
+                            workers.append(w)
 
-                    for w in workers:
-                        w.join()
+                        for w in workers:
+                            w.join()
+                    except KeyboardInterrupt:
+                        print(
+                            jh.color('Terminating session...', 'red')
+                        )
+
+                        # terminate all workers
+                        for w in workers:
+                            w.terminate()
+
+                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+                        manager.shutdown()
+
+                        # now we can terminate the main session safely
+                        jh.terminate_app()
+                    except:
+                        raise
 
                     # update dashboard
                     click.clear()
                     progressbar.update(1)
+                    print('\n')
+                    print('Best DNA candidates:')
                     print('\n')
 
                     table.key_value([
@@ -238,9 +253,9 @@ class Genetics(ABC):
                     # print fittest individuals
                     fittest_list = [['rank', 'DNA', 'fitness', 'training|testing logs'], ]
                     if self.population_size > 50:
-                        number_of_ind_to_show = 25
+                        number_of_ind_to_show = 15
                     elif self.population_size > 20:
-                        number_of_ind_to_show = 20
+                        number_of_ind_to_show = 10
                     elif self.population_size > 9:
                         number_of_ind_to_show = 9
                     else:
