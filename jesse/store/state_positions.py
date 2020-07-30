@@ -15,10 +15,6 @@ class PositionsState:
                 self.storage[key] = Position(exchange, symbol)
 
     def count_open_positions(self):
-        """
-
-        :return:
-        """
         c = 0
         for key in self.storage:
             p = self.storage[key]

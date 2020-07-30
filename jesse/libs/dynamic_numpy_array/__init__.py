@@ -77,10 +77,6 @@ class DynamicNumpyArray:
         self.array[self.index] = item
 
     def get_last_item(self):
-        """
-
-        :return:
-        """
         # validation
         if self.index == -1:
             raise IndexError('list assignment index out of range')
@@ -103,9 +99,6 @@ class DynamicNumpyArray:
         return self.array[self.index - past_index]
 
     def flush(self):
-        """
-
-        """
         self.index = -1
         self.array = np.zeros(self.shape)
         self.bucket_size = self.shape[0]

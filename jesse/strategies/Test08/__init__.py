@@ -4,10 +4,6 @@ from jesse.strategies import Strategy
 # test_stats_for_a_strategy_without_losing_trades
 class Test08(Strategy):
     def should_long(self):
-        """
-
-        :return:
-        """
         return False
 
     def should_short(self):
@@ -21,9 +17,6 @@ class Test08(Strategy):
         return self.time == 1547203500000 + 60_000
 
     def go_long(self):
-        """
-
-        """
         qty = 10.2041
 
         self.buy = qty, 129.33
@@ -31,9 +24,6 @@ class Test08(Strategy):
         self.take_profit = 131.29
 
     def go_short(self):
-        """
-
-        """
         qty = 10
 
         self.sell = qty, 128.05
@@ -41,15 +31,7 @@ class Test08(Strategy):
         self.take_profit = qty, 126.58
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []

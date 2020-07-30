@@ -13,30 +13,16 @@ class Test29(Strategy):
         self.vars['should_long'] = False
 
     def should_long(self):
-        """
-
-        :return:
-        """
         return self.vars['should_long']
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return self.vars['should_short']
 
     def go_long(self):
-        """
-
-        """
         self.buy = 1, self.price
         self.take_profit = 1, self.price + 10
 
     def go_short(self):
-        """
-
-        """
         self.sell = 1, self.price
         self.stop_loss = 1, self.price + 10
 
@@ -57,22 +43,12 @@ class Test29(Strategy):
         self.vars['should_short'] = True
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def on_take_profit(self):
-        """
-
-        """
         self.vars['should_long'] = False
         self.vars['should_short'] = False
 
     def on_stop_loss(self):
-        """
-
-        """
         self.vars['should_long'] = False
         self.vars['should_short'] = False

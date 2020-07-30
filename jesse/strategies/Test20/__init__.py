@@ -4,23 +4,12 @@ from jesse.strategies import Strategy
 # test_conflicting_orders_2
 class Test20(Strategy):
     def should_long(self):
-        """
-
-        :return:
-        """
         return self.index == 1
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return False
 
     def go_long(self):
-        """
-
-        """
         # self.price = 2
         qty = 1
 
@@ -29,21 +18,10 @@ class Test20(Strategy):
         self.take_profit = qty, self.price + .6
 
     def go_short(self):
-        """
-
-        """
         pass
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []

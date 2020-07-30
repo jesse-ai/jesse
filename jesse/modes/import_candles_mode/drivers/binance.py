@@ -14,9 +14,6 @@ class Binance(CandleExchange):
         self.endpoint = 'https://www.binance.com/api/v1/klines'
 
     def init_backup_exchange(self):
-        """
-
-        """
         self.backup_exchange = None
 
     def get_starting_time(self, symbol):

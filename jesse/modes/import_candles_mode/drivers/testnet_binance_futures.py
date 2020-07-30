@@ -14,9 +14,6 @@ class TestnetBinanceFutures(CandleExchange):
         self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 
     def init_backup_exchange(self):
-        """
-
-        """
         from .binance import Binance
         self.backup_exchange = Binance()
 

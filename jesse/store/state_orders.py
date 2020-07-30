@@ -22,9 +22,6 @@ class OrdersState:
                 self.storage[key] = []
 
     def reset(self):
-        """
-
-        """
         for key in self.storage:
             self.storage[key].clear()
 
@@ -48,10 +45,6 @@ class OrdersState:
         return self.storage.get(key, [])
 
     def count_all_active_orders(self) -> int:
-        """
-
-        :return:
-        """
         c = 0
         for key in self.storage:
             if len(self.storage[key]):
@@ -101,10 +94,6 @@ class OrdersState:
         return pydash.find(self.storage[key], lambda o: o.id == id)
 
     def execute_pending_market_orders(self):
-        """
-
-        :return:
-        """
         if not self.to_execute:
             return
 

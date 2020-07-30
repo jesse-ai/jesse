@@ -4,16 +4,9 @@ from jesse.strategies import Strategy
 # test_increasing_position_size_after_opening
 class Test16(Strategy):
     def should_long(self):
-        """
-
-        :return:
-        """
         return self.price < 7
 
     def go_long(self):
-        """
-
-        """
         qty = 1
 
         self.buy = qty, 7
@@ -21,9 +14,6 @@ class Test16(Strategy):
         self.take_profit = qty, 15
 
     def update_position(self):
-        """
-
-        """
         # buy 1 more at current price
         if self.price == 10:
             self.buy = 1, 10
@@ -31,28 +21,13 @@ class Test16(Strategy):
             self.stop_loss = 2, 5
 
     def go_short(self):
-        """
-
-        """
         pass
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return False

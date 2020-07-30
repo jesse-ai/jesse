@@ -14,8 +14,4 @@ class CompletedTrades:
 
     @property
     def count(self):
-        """
-
-        :return:
-        """
         return len(self.trades)

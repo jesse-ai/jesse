@@ -14,9 +14,6 @@ class API:
             self.initiate_drivers()
 
     def initiate_drivers(self):
-        """
-
-        """
         for e in jh.get_config('app.considering_exchanges'):
             if jh.is_live():
                 def initiate_ws(exchange_name: str):

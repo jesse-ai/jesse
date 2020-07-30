@@ -252,10 +252,6 @@ class Broker:
         )
 
     def cancel_all_orders(self):
-        """
-
-        :return:
-        """
         return self.api.cancel_all_orders(self.exchange, self.symbol)
 
     def cancel_order(self, order_id: str):

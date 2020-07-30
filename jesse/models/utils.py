@@ -26,9 +26,6 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
     }
 
     def async_save():
-        """
-
-        """
         Candle.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
@@ -60,9 +57,6 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
     }
 
     def async_save():
-        """
-
-        """
         Ticker.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color('ticker: {}-{}-{}: {}'.format(
@@ -94,9 +88,6 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
     }
 
     def async_save():
-        """
-
-        """
         Trade.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
@@ -127,9 +118,6 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
     }
 
     def async_save():
-        """
-
-        """
         Orderbook.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(

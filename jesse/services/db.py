@@ -13,9 +13,6 @@ if not jh.is_unit_testing():
 
 
     def close_connection():
-        """
-
-        """
         db.close()
 
 

@@ -4,9 +4,6 @@ from jesse.strategies import Strategy
 # test_liquidate
 class Test31(Strategy):
     def update_position(self):
-        """
-
-        """
         # for long trade (first)
         if self.index == 10:
             self.liquidate()
@@ -16,34 +13,16 @@ class Test31(Strategy):
             self.liquidate()
 
     def should_long(self):
-        """
-
-        :return:
-        """
         return self.index == 0
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return self.index == 20
 
     def go_long(self):
-        """
-
-        """
         self.buy = 1, self.price
 
     def go_short(self):
-        """
-
-        """
         self.sell = 1, self.price
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False

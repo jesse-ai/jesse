@@ -160,10 +160,6 @@ class Genetics(ABC):
         }
 
     def make_love(self):
-        """
-
-        :return:
-        """
         mommy = self.select_person()
         daddy = self.select_person()
 
@@ -184,10 +180,6 @@ class Genetics(ABC):
         }
 
     def select_person(self):
-        """
-
-        :return:
-        """
         random_index = np.random.choice(self.population_size, int(self.population_size / 100), replace=False)
         chosen_ones = []
 
@@ -304,10 +296,6 @@ class Genetics(ABC):
         return self.population
 
     def run(self):
-        """
-
-        :return:
-        """
         return self.evolve()
 
     def save_progress(self, iterations_index):

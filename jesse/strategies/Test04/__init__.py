@@ -4,23 +4,12 @@ from jesse.strategies import Strategy
 # test_conflicting_orders
 class Test04(Strategy):
     def should_long(self):
-        """
-
-        :return:
-        """
         return self.index == 0
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return False
 
     def go_long(self):
-        """
-
-        """
         # print(self.open, self.close, self.high, self.low)
         # 0.5, 1.0, 1.0, 0.5
 
@@ -53,21 +42,10 @@ class Test04(Strategy):
         # when this is all over, we then add(update) the candle we had in the first place which is 1, 2, 2, 1
 
     def go_short(self):
-        """
-
-        """
         pass
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []

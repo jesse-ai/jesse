@@ -13,9 +13,6 @@ class CandleExchange(ABC):
 
     @abstractmethod
     def init_backup_exchange(self):
-        """
-
-        """
         pass
 
     @abstractmethod

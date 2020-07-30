@@ -15,9 +15,6 @@ class OrderbookState:
         self.temp_storage = {}
 
     def init_storage(self):
-        """
-
-        """
         for c in config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             self.temp_storage[key] = {

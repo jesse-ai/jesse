@@ -14,9 +14,6 @@ class Bitfinex(CandleExchange):
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
 
     def init_backup_exchange(self):
-        """
-
-        """
         from .coinbase import Coinbase
         self.backup_exchange = Coinbase()
 

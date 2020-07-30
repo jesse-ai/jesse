@@ -4,24 +4,13 @@ from jesse.strategies import Strategy
 # test_average_take_profit_and_average_stop_loss
 class Test36(Strategy):
     def should_long(self):
-        """
-
-        :return:
-        """
         # filter_1 will pass 0, but not 8
         return self.index in [0, 8]
 
     def should_short(self):
-        """
-
-        :return:
-        """
         return self.index == 10
 
     def go_long(self):
-        """
-
-        """
         entry = self.price
         self.buy = 2, entry
         self.take_profit = [
@@ -30,9 +19,6 @@ class Test36(Strategy):
         ]
 
     def go_short(self):
-        """
-
-        """
         entry = self.price
         self.sell = 2, entry
         self.stop_loss = [
@@ -41,26 +27,14 @@ class Test36(Strategy):
         ]
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return True
 
     def filters(self):
-        """
-
-        :return:
-        """
         return [
             self.filter_1
         ]
 
     def filter_1(self):
-        """
-
-        :return:
-        """
         if self.index == 0 and self.average_take_profit == 3.5:
             return True
 

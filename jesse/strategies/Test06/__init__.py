@@ -18,33 +18,19 @@ class Test06(Strategy):
         return self.time == 1547203500000 + 60_000
 
     def go_long(self):
-        """
-
-        """
         qty = 10.204
         self.buy = qty, 129.33
         self.stop_loss = qty, 128.35
         self.take_profit = qty, 131.29
 
     def go_short(self):
-        """
-
-        """
         qty = 10
         self.sell = qty, 128.05
         self.stop_loss = qty, 129.52
         self.take_profit = qty, 126.58
 
     def should_cancel(self):
-        """
-
-        :return:
-        """
         return False
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []

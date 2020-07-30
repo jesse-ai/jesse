@@ -74,9 +74,6 @@ class Cache:
             pickle.dump(self.db, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def flush(self):
-        """
-
-        """
         for key, item in self.db.items():
             os.remove(item['path'])
         self.db = {}

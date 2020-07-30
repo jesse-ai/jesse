@@ -54,9 +54,6 @@ class Order():
             )
 
     def notify_submission(self):
-        """
-
-        """
         notify(
             '{} order: {}, {}, {}, {}, ${}'.format(
                 'QUEUED' if self.is_queued else 'SUBMITTED',
@@ -67,18 +64,10 @@ class Order():
 
     @property
     def is_canceled(self) -> bool:
-        """
-
-        :return:
-        """
         return self.status == order_statuses.CANCELED
 
     @property
     def is_active(self) -> bool:
-        """
-
-        :return:
-        """
         return self.status == order_statuses.ACTIVE
 
     @property
@@ -94,49 +83,25 @@ class Order():
 
     @property
     def is_new(self) -> bool:
-        """
-
-        :return:
-        """
         return self.is_active
 
     @property
     def is_executed(self) -> bool:
-        """
-
-        :return:
-        """
         return self.status == order_statuses.EXECUTED
 
     @property
     def is_filled(self) -> bool:
-        """
-
-        :return:
-        """
         return self.is_executed
 
     @property
     def is_reduce_only(self) -> bool:
-        """
-
-        :return:
-        """
         return self.flag == order_flags.REDUCE_ONLY
 
     @property
     def is_close(self) -> bool:
-        """
-
-        :return:
-        """
         return self.flag == order_flags.CLOSE
 
     def cancel(self):
-        """
-
-        :return:
-        """
         if self.is_canceled or self.is_executed:
             return
 
@@ -163,10 +128,6 @@ class Order():
             p._on_canceled_order(self)
 
     def execute(self):
-        """
-
-        :return:
-        """
         if self.is_canceled or self.is_executed:
             return
 
