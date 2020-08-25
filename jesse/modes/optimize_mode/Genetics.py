@@ -87,23 +87,35 @@ class Genetics(ABC):
                     workers = []
 
                     def get_fitness(dna, dna_bucket):
-                        """
-
-                        :param dna:
-                        :param dna_bucket:
-                        """
                         fitness_score, fitness_log = self.fitness(dna)
                         dna_bucket.append((dna, fitness_score, fitness_log))
 
-                    for _ in range(cores_num):
-                        dna = ''.join(choices(self.charset, k=self.solution_len))
-                        w = Process(target=get_fitness, args=(dna, dna_bucket))
-                        w.start()
-                        workers.append(w)
+                    try:
+                        for _ in range(cores_num):
+                            dna = ''.join(choices(self.charset, k=self.solution_len))
+                            w = Process(target=get_fitness, args=(dna, dna_bucket))
+                            w.start()
+                            workers.append(w)
 
-                    # join workers
-                    for w in workers:
-                        w.join()
+                        # join workers
+                        for w in workers:
+                            w.join()
+                    except KeyboardInterrupt:
+                        print(
+                            jh.color('Terminating session...', 'red')
+                        )
+
+                        # terminate all workers
+                        for w in workers:
+                            w.terminate()
+
+                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+                        manager.shutdown()
+
+                        # now we can terminate the main session safely
+                        jh.terminate_app()
+                    except:
+                        raise
 
                     for d in dna_bucket:
                         people.append({
@@ -116,23 +128,27 @@ class Genetics(ABC):
                 click.clear()
                 progressbar.update(1)
                 print('\n')
-                table.key_value([
+
+                table_items = [
                     ['Started at', jh.get_arrow(self.start_time).humanize()],
                     ['Index', '{}/{}'.format(len(self.population), self.population_size)],
-                    ['-'*10, '-'*10],
-                    # TODO: add commented ones only if in the debug mode
-                    # ['population_size', self.population_size],
-                    # ['iterations', self.iterations],
-                    ['DNA Length', self.solution_len],
                     ['Trading Route', '{}, {}, {}, {}'.format(
                         router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                         router.routes[0].strategy_name
                     )],
+                    # TODO: add generated DNAs?
                     # ['-'*10, '-'*10],
                     # ['DNA', people[0]['dna']],
                     # ['fitness', round(people[0]['fitness'], 6)],
                     # ['training|testing logs', people[0]['log']],
-                ], 'Optimize Mode', alignments=('left', 'right'))
+                ]
+                if jh.is_debugging():
+                    table_items.insert(3, ['Population Size', self.population_size])
+                    table_items.insert(3, ['Iterations', self.iterations])
+                    table_items.insert(3, ['Solution Length', self.solution_len])
+                    table_items.insert(3, ['-'*10, '-'*10])
+
+                table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
 
                 for p in people:
                     self.population.append(p)
@@ -200,47 +216,67 @@ class Genetics(ABC):
                     workers = []
 
                     def get_baby(people):
-                        """
-
-                        :param people:
-                        """
                         # let's make a baby together LOL
                         baby = self.make_love()
                         # let's mutate baby's genes, who knows, maybe we create a x-man or something
                         baby = self.mutate(baby)
                         people.append(baby)
 
-                    for _ in range(cores_num):
-                        w = Process(target=get_baby, args=[people])
-                        w.start()
-                        workers.append(w)
+                    try:
+                        for _ in range(cores_num):
+                            w = Process(target=get_baby, args=[people])
+                            w.start()
+                            workers.append(w)
 
-                    for w in workers:
-                        w.join()
+                        for w in workers:
+                            w.join()
+                    except KeyboardInterrupt:
+                        print(
+                            jh.color('Terminating session...', 'red')
+                        )
+
+                        # terminate all workers
+                        for w in workers:
+                            w.terminate()
+
+                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+                        manager.shutdown()
+
+                        # now we can terminate the main session safely
+                        jh.terminate_app()
+                    except:
+                        raise
 
                     # update dashboard
                     click.clear()
                     progressbar.update(1)
                     print('\n')
 
-                    table.key_value([
+                    table_items = [
                         ['started at', jh.get_arrow(self.start_time).humanize()],
                         ['index/total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
-                        ['population_size, solution_len', '{}, {}'.format(self.population_size, self.solution_len)],
                         ['route', '{}, {}, {}, {}'.format(
                             router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                             router.routes[0].strategy_name
                         )]
-                    ], 'info', alignments=('left', 'right'))
+                    ]
+                    if jh.is_debugging():
+                        table_items.insert(
+                            2,
+                            ['Population Size, Solution Length', '{}, {}'.format(self.population_size, self.solution_len)]
+                        )
+                    table.key_value(table_items, 'info', alignments=('left', 'right'))
 
+                    print('\n')
+                    print('Best DNA candidates:')
                     print('\n')
 
                     # print fittest individuals
                     fittest_list = [['rank', 'DNA', 'fitness', 'training|testing logs'], ]
                     if self.population_size > 50:
-                        number_of_ind_to_show = 25
+                        number_of_ind_to_show = 15
                     elif self.population_size > 20:
-                        number_of_ind_to_show = 20
+                        number_of_ind_to_show = 10
                     elif self.population_size > 9:
                         number_of_ind_to_show = 9
                     else:
