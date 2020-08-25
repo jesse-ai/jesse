@@ -100,7 +100,7 @@ class Optimizer(Genetics):
             )
 
             # the fitness score - Add setting for switch between the sharpe, sortino and calmar ratio in the fitness score.
-            score = win_rate * total_effect_rate * log10(training_data['calmar_ratio'])
+            score = win_rate * total_effect_rate * (training_data['calmar_ratio'] / 100)
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
