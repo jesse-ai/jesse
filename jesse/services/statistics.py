@@ -7,11 +7,6 @@ from jesse.store import store
 
 
 def candles(candles_array):
-    """
-
-    :param candles_array:
-    :return:
-    """
     period = jh.date_diff_in_days(jh.get_arrow(candles_array[0][0]), jh.get_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
@@ -29,11 +24,6 @@ def candles(candles_array):
 
 
 def routes(routes):
-    """
-
-    :param routes:
-    :return:
-    """
     array = []
 
     # header
@@ -52,12 +42,6 @@ def routes(routes):
 
 
 def trades(trades_list: list, daily_balance: list):
-    """
-
-    :param trades_list:
-    :param daily_balance:
-    :return:
-    """
     starting_balance = 0
     current_balance = 0
 
