@@ -63,6 +63,12 @@ class Strategy(ABC):
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
+        if self.hp is None:
+            if len(self.hyper_parameters()) > 0:
+                self.hp = {}
+                for dna in self.hyper_parameters():
+                    self.hp[dna['name']] = dna['default']
+
     @property
     def is_reduced(self):
         """
@@ -76,10 +82,6 @@ class Strategy(ABC):
 
     @property
     def is_increased(self):
-        """
-
-        :return:
-        """
         if self.position.is_close:
             return None
 
@@ -145,18 +147,9 @@ class Strategy(ABC):
             self._on_reduced_position()
 
     def filters(self):
-        """
-
-        :return:
-        """
         return []
 
-    @staticmethod
-    def hyper_parameters():
-        """
-
-        :return:
-        """
+    def hyper_parameters(self):
         return []
 
     def _execute_long(self):
@@ -1047,10 +1040,6 @@ class Strategy(ABC):
 
     @property
     def fee_rate(self):
-        """
-
-        :return:
-        """
         return selectors.get_exchange(self.exchange).fee_rate
 
     def _log_position_update(self, order: Order, role: str):
@@ -1144,42 +1133,22 @@ class Strategy(ABC):
 
     @property
     def is_long(self):
-        """
-
-        :return:
-        """
         return self.position.type == 'long'
 
     @property
     def is_short(self):
-        """
-
-        :return:
-        """
         return self.position.type == 'short'
 
     @property
     def is_open(self):
-        """
-
-        :return:
-        """
         return self.position.is_open
 
     @property
     def is_close(self):
-        """
-
-        :return:
-        """
         return self.position.is_close
 
     @property
     def average_stop_loss(self) -> float:
-        """
-
-        :return:
-        """
         if self._stop_loss is None:
             raise exceptions.InvalidStrategy('You cannot access self.average_stop_loss before setting self.stop_loss')
 
@@ -1188,10 +1157,6 @@ class Strategy(ABC):
 
     @property
     def average_take_profit(self) -> float:
-        """
-
-        :return:
-        """
         if self._take_profit is None:
             raise exceptions.InvalidStrategy(
                 'You cannot access self.average_take_profit before setting self.take_profit')
@@ -1201,10 +1166,6 @@ class Strategy(ABC):
 
     @property
     def average_entry_price(self):
-        """
-
-        :return:
-        """
         if self.is_long:
             arr = self._buy
         elif self.is_short:
@@ -1232,8 +1193,4 @@ class Strategy(ABC):
 
     @property
     def shared_vars(self):
-        """
-
-        :return:
-        """
         return store.vars

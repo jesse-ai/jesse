@@ -253,9 +253,9 @@ class Genetics(ABC):
                     print('\n')
 
                     table_items = [
-                        ['started at', jh.get_arrow(self.start_time).humanize()],
-                        ['index/total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
-                        ['route', '{}, {}, {}, {}'.format(
+                        ['Started At', jh.get_arrow(self.start_time).humanize()],
+                        ['Index/Total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
+                        ['Route', '{}, {}, {}, {}'.format(
                             router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                             router.routes[0].strategy_name
                         )]
@@ -272,7 +272,7 @@ class Genetics(ABC):
                     print('\n')
 
                     # print fittest individuals
-                    fittest_list = [['rank', 'DNA', 'fitness', 'training|testing logs'], ]
+                    fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
                     if self.population_size > 50:
                         number_of_ind_to_show = 15
                     elif self.population_size > 20:

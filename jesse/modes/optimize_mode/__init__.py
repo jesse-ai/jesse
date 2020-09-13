@@ -25,7 +25,7 @@ class Optimizer(Genetics):
         self.symbol = router.routes[0].symbol
         self.timeframe = router.routes[0].timeframe
         StrategyClass = jh.get_strategy_class(self.strategy_name)
-        self.strategy_hp = StrategyClass.hyper_parameters()
+        self.strategy_hp = StrategyClass.hyper_parameters(None)
         solution_len = len(self.strategy_hp)
 
         if solution_len == 0:
@@ -91,16 +91,21 @@ class Optimizer(Genetics):
             total_effect_rate = log10(training_data['total']) / log10(optimal_expected_total)
             win_rate = training_data['win_rate']
 
+            # a negative Sharpe Ratio is not useful, hence just set it to 0
+            if training_data['sharpe_ratio'] <= 0:
+                sharpe_ratio = 0
+            else:
+                sharpe_ratio = jh.normalize(training_data['sharpe_ratio'], 0, 5)
+
             # log for debugging/monitoring
-            log = 'win_rate:[{}-{}], total:[{}-{}], PNL%:[{}], TER:[{}]'.format(
-                round(win_rate, 2), round(training_data['win_rate'], 2),
-                round(total, 2), training_data['total'],
+            log = 'win-rate: {}%, total: {}, PNL: {}%'.format(
+                int(win_rate*100),
+                training_data['total'],
                 round(training_data['net_profit_percentage'], 2),
-                round(total_effect_rate, 3)
             )
 
-            # the fitness score - Add setting for switch between the sharpe, sortino and calmar ratio in the fitness score.
-            score = win_rate * total_effect_rate * (training_data['calmar_ratio'] / 100)
+            # TODO: the fitness score - Add setting for switch between the sharpe, sortino and calmar ratio in the fitness score.
+            score = total_effect_rate * sharpe_ratio
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
@@ -121,17 +126,17 @@ class Optimizer(Genetics):
             testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
             # log for debugging/monitoring
-            log += ' | '
+            log += ' || '
             if store.completed_trades.count > 0:
-                log += 'win_rate:[{}], total:[{}], PNL%:[{}]'.format(
-                    round(testing_data['win_rate'], 2),
+                log += 'win-rate: {}%, total: {}, PNL: {}%'.format(
+                    int(testing_data['win_rate']*100),
                     testing_data['total'],
                     round(testing_data['net_profit_percentage'], 2),
                 )
                 if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
                     log = jh.style(log, 'bold')
             else:
-                log += 'win_rate:[-], total:[-], PNL%:[-]'
+                log += 'win-rate: -, total: -, PNL%: -'
         else:
             score = 0.0001
 
