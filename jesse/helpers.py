@@ -12,20 +12,11 @@ CACHED_CONFIG = dict()
 
 
 def app_mode():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode']
 
 
 def arrow_to_timestamp(arrow_time):
-    """
-
-    :param arrow_time:
-    :return:
-    """
     return arrow_time.timestamp * 1000
 
 
@@ -48,21 +39,10 @@ def binary_search(arr: list, item) -> int:
 
 
 def clean_orderbook_list(arr):
-    """
-
-    :param arr:
-    :return:
-    """
     return [[float(i[0]), float(i[1])] for i in arr]
 
 
 def color(msg_text: str, msg_color: str):
-    """
-
-    :param msg_text:
-    :param msg_color:
-    :return:
-    """
     if not msg_text:
         return ''
 
@@ -103,12 +83,6 @@ def convert_number(old_max, old_min, new_max, new_min, old_value):
 
 
 def date_diff_in_days(date1, date2):
-    """
-
-    :param date1:
-    :param date2:
-    :return:
-    """
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
         raise TypeError('dates must be Arrow instances')
@@ -128,12 +102,6 @@ def date_to_timestamp(date: str) -> int:
 
 
 def dna_to_hp(strategy_hp, dna: str):
-    """
-
-    :param strategy_hp:
-    :param dna:
-    :return:
-    """
     hp = {}
 
     for gene, h in zip(dna, strategy_hp):
@@ -180,15 +148,6 @@ def estimate_average_price(order_qty, order_price, current_qty, current_entry_pr
 
 
 def estimate_PNL(qty, entry_price, exit_price, trade_type, trading_fee=0):
-    """
-
-    :param qty:
-    :param entry_price:
-    :param exit_price:
-    :param trade_type:
-    :param trading_fee:
-    :return:
-    """
     qty = abs(qty)
     profit = qty * (exit_price - entry_price)
 
@@ -201,14 +160,6 @@ def estimate_PNL(qty, entry_price, exit_price, trade_type, trading_fee=0):
 
 
 def estimate_PNL_percentage(qty, entry_price, exit_price, trade_type):
-    """
-
-    :param qty:
-    :param entry_price:
-    :param exit_price:
-    :param trade_type:
-    :return:
-    """
     qty = abs(qty)
     profit = qty * (exit_price - entry_price)
 
@@ -219,28 +170,14 @@ def estimate_PNL_percentage(qty, entry_price, exit_price, trade_type):
 
 
 def file_exists(path: str) -> bool:
-    """
-
-    :param path:
-    :return:
-    """
     return os.path.isfile(path)
 
 
 def generate_unique_id():
-    """
-
-    :return:
-    """
     return str(uuid.uuid4())
 
 
 def get_arrow(timestamp):
-    """
-
-    :param timestamp:
-    :return:
-    """
     return arrow.get(timestamp / 1000)
 
 
@@ -297,11 +234,6 @@ def get_config(keys: str, default=None):
 
 
 def get_strategy_class(strategy_name):
-    """
-
-    :param strategy_name:
-    :return:
-    """
     from pydoc import locate
 
     if is_unit_testing():
@@ -311,11 +243,6 @@ def get_strategy_class(strategy_name):
 
 
 def insecure_hash(msg: str) -> str:
-    """
-
-    :param msg:
-    :return:
-    """
     return hashlib.md5(msg.encode()).hexdigest()
 
 
@@ -330,111 +257,59 @@ def insert_list(index: int, item, arr: list):
 
 
 def is_backtesting():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'backtest'
 
 
 def is_collecting_data():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'collect'
 
 
 def is_debuggable(debug_item):
-    """
-
-    :param debug_item:
-    :return:
-    """
     from jesse.config import config
     return is_debugging() and config['env']['logging'][debug_item]
 
 
 def is_debugging():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['debug_mode']
 
 
 def is_importing_candles():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'import-candles'
 
 
 def is_live():
-    """
-
-    :return:
-    """
     return is_livetrading() or is_paper_trading()
 
 
 def is_livetrading():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
 
 
 def is_optimizing():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'optimize'
 
 
 def is_paper_trading():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['trading_mode'] == 'papertrade'
 
 
 def is_test_driving():
-    """
-
-    :return:
-    """
     from jesse.config import config
     return config['app']['is_test_driving']
 
 
 def is_unit_testing():
-    """
-
-    :return:
-    """
     return "pytest" in sys.modules
 
 
 def key(exchange, symbol, timeframe=None):
-    """
-
-    :param exchange:
-    :param symbol:
-    :param timeframe:
-    :return:
-    """
     if timeframe is None:
         return '{}-{}'.format(exchange, symbol)
 
@@ -442,11 +317,6 @@ def key(exchange, symbol, timeframe=None):
 
 
 def max_timeframe(timeframes_list):
-    """
-
-    :param timeframes_list:
-    :return:
-    """
     from jesse.enums import timeframes
 
     if timeframes.DAY_1 in timeframes_list:
@@ -484,10 +354,6 @@ def normalize(x, x_min, x_max):
 
 
 def now():
-    """
-
-    :return:
-    """
     if not (is_live() or is_collecting_data() or is_importing_candles()):
         from jesse.store import store
         return store.app.time
@@ -496,13 +362,6 @@ def now():
 
 
 def np_shift(arr: np.ndarray, num: int, fill_value=0):
-    """
-
-    :param arr:
-    :param num:
-    :param fill_value:
-    :return:
-    """
     result = np.empty_like(arr)
 
     if num > 0:
@@ -518,11 +377,6 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0):
 
 
 def opposite_side(s):
-    """
-
-    :param s:
-    :return:
-    """
     from jesse.enums import sides
 
     if s == sides.BUY:
@@ -533,11 +387,6 @@ def opposite_side(s):
 
 
 def opposite_type(t):
-    """
-
-    :param t:
-    :return:
-    """
     from jesse.enums import trade_types
 
     if t == trade_types.LONG:
@@ -548,13 +397,6 @@ def opposite_type(t):
 
 
 def orderbook_insertion_index_search(arr, target, ascending=True):
-    """
-
-    :param arr:
-    :param target:
-    :param ascending:
-    :return:
-    """
     target = target[0]
     lower = 0
     upper = len(arr)
@@ -610,12 +452,6 @@ def orderbook_trim_price(p: float, ascending: bool, unit: float):
 
 
 def prepare_qty(qty, side):
-    """
-
-    :param qty:
-    :param side:
-    :return:
-    """
     if side.lower() in ('sell', 'short'):
         return -abs(qty)
 
@@ -626,20 +462,10 @@ def prepare_qty(qty, side):
 
 
 def python_version() -> float:
-    """
-
-    :return:
-    """
     return float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
 
 
 def readable_duration(seconds, granularity=2):
-    """
-
-    :param seconds:
-    :param granularity:
-    :return:
-    """
     intervals = (
         ('weeks', 604800),  # 60 * 60 * 24 * 7
         ('days', 86400),  # 60 * 60 * 24
@@ -661,11 +487,6 @@ def readable_duration(seconds, granularity=2):
 
 
 def relative_to_absolute(path: str) -> str:
-    """
-
-    :param path:
-    :return:
-    """
     return os.path.abspath(path)
 
 
@@ -710,28 +531,14 @@ def round_qty_for_live_mode(price, roundable_qty):
 
 
 def secure_hash(msg: str) -> str:
-    """
-
-    :param msg:
-    :return:
-    """
     return hashlib.sha256(msg.encode()).hexdigest()
 
 
 def should_execute_silently() -> bool:
-    """
-
-    :return:
-    """
     return is_optimizing() or is_unit_testing()
 
 
 def side_to_type(s):
-    """
-
-    :param s:
-    :return:
-    """
     from jesse.enums import trade_types, sides
 
     if s == sides.BUY:
@@ -742,12 +549,6 @@ def side_to_type(s):
 
 
 def string_after_character(string: str, character: str):
-    """
-
-    :param string:
-    :param character:
-    :return:
-    """
     try:
         return string.split(character, 1)[1]
     except IndexError:
@@ -755,12 +556,6 @@ def string_after_character(string: str, character: str):
 
 
 def style(msg_text: str, msg_style: str):
-    """
-
-    :param msg_text:
-    :param msg_style:
-    :return:
-    """
     if msg_style is None:
         return msg_text
 
@@ -774,9 +569,6 @@ def style(msg_text: str, msg_style: str):
 
 
 def terminate_app():
-    """
-
-    """
     # close the database
     from jesse.services.db import close_connection
     close_connection()
@@ -785,11 +577,6 @@ def terminate_app():
 
 
 def timeframe_to_one_minutes(timeframe):
-    """
-
-    :param timeframe:
-    :return:
-    """
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
 
@@ -817,29 +604,14 @@ def timeframe_to_one_minutes(timeframe):
 
 
 def timestamp_to_arrow(timestamp):
-    """
-
-    :param timestamp:
-    :return:
-    """
     return get_arrow(timestamp)
 
 
 def timestamp_to_date(timestamp: int) -> str:
-    """
-
-    :param timestamp:
-    :return:
-    """
     return str(arrow.get(timestamp / 1000))[:10]
 
 
 def timestamp_to_time(timestamp):
-    """
-
-    :param timestamp:
-    :return:
-    """
     return str(arrow.get(timestamp / 1000))
 
 
@@ -853,11 +625,6 @@ def today() -> int:
 
 
 def type_to_side(t):
-    """
-
-    :param t:
-    :return:
-    """
     from jesse.enums import trade_types, sides
 
     if t == trade_types.LONG:

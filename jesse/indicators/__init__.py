@@ -102,6 +102,7 @@ from .ultosc import ultosc
 from .var import var
 from .vi import vi
 from .vidya import vidya
+from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
 from .vosc import vosc

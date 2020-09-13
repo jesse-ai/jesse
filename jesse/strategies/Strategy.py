@@ -63,6 +63,12 @@ class Strategy(ABC):
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
+        if self.hp is None:
+            if len(self.hyper_parameters()) > 0:
+                self.hp = {}
+                for dna in self.hyper_parameters():
+                    self.hp[dna['name']] = dna['default']
+
     @property
     def is_reduced(self):
         """
@@ -143,8 +149,7 @@ class Strategy(ABC):
     def filters(self):
         return []
 
-    @staticmethod
-    def hyper_parameters():
+    def hyper_parameters(self):
         return []
 
     def _execute_long(self):

@@ -47,7 +47,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
     # load historical candles
     if candles is None:
         print('loading candles...')
-        candles = _load_candles(start_date, finish_date)
+        candles = load_candles(start_date, finish_date)
         click.clear()
 
     if not jh.should_execute_silently():
@@ -83,7 +83,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
             print(jh.color('No trades were made.', 'yellow'))
 
 
-def _load_candles(start_date_str: str, finish_date_str: str):
+def load_candles(start_date_str: str, finish_date_str: str):
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 
@@ -93,15 +93,16 @@ def _load_candles(start_date_str: str, finish_date_str: str):
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
     if finish_date > arrow.utcnow().timestamp * 1000:
-        raise ValueError('Can\'t backtest the future!')
+        raise ValueError("Can't load data of the future!")
 
-    # load and add required initial candles for backtest
-    for c in config['app']['considering_candles']:
-        required_candles.inject_required_candles_to_store(
-            required_candles.load_required_candles(c[0], c[1], start_date_str, finish_date_str),
-            c[0],
-            c[1]
-        )
+    # load and add required warm-up candles for backtest
+    if jh.is_backtesting():
+        for c in config['app']['considering_candles']:
+            required_candles.inject_required_candles_to_store(
+                required_candles.load_required_candles(c[0], c[1], start_date_str, finish_date_str),
+                c[0],
+                c[1]
+            )
 
     # download candles for the duration of the backtest
     candles = {}
@@ -149,11 +150,6 @@ def _load_candles(start_date_str: str, finish_date_str: str):
 
 
 def simulator(candles, hyper_parameters=None):
-    """
-
-    :param candles:
-    :param hyper_parameters:
-    """
     begin_time_track = time.time()
     key = '{}-{}'.format(config['app']['trading_exchanges'][0], config['app']['trading_symbols'][0])
     first_candles_set = candles[key]['candles']
@@ -164,10 +160,6 @@ def simulator(candles, hyper_parameters=None):
     # initiate strategies
     for r in router.routes:
         StrategyClass = jh.get_strategy_class(r.strategy_name)
-
-        # convert DNS string into hyper_parameters
-        if r.dna and hyper_parameters is None:
-            hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(), r.dna)
 
         try:
             r.strategy = StrategyClass()
@@ -184,12 +176,18 @@ def simulator(candles, hyper_parameters=None):
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
 
-        # init few objects that couldn't be initiated in Strategy __init__
-        r.strategy._init_objects()
-
         # inject hyper parameters (used for optimize_mode)
+        # convert DNS string into hyper_parameters
+        if r.dna and hyper_parameters is None:
+            hyper_parameters = jh.dna_to_hp(r.strategy.hyper_parameters(), r.dna)
+
+        # inject hyper_parameters sent within the optimize mode
         if hyper_parameters is not None:
             r.strategy.hp = hyper_parameters
+
+        # init few objects that couldn't be initiated in Strategy __init__
+        # it also injects hyper_parameters into self.hp in case the route does not uses any DNAs
+        r.strategy._init_objects()
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 

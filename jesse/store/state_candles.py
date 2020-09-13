@@ -11,21 +11,11 @@ from jesse.services.candle import generate_candle_from_one_minutes
 
 
 class CandlesState:
-    """
-
-    """
     def __init__(self):
         self.storage = {}
         self.is_initiated = False
 
     def get_storage(self, exchange, symbol, timeframe):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :return:
-        """
         key = jh.key(exchange, symbol, timeframe)
 
         try:
@@ -38,10 +28,6 @@ class CandlesState:
             )
 
     def init_storage(self, bucket_size=1000):
-        """
-
-        :param bucket_size:
-        """
         for exchange in config['app']['considering_exchanges']:
             for symbol in config['app']['considering_symbols']:
                 # initiate the '1m' timeframes
@@ -64,17 +50,6 @@ class CandlesState:
             with_generation=True,
             is_forming_candle=False
     ):
-        """
-
-        :param candle:
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :param with_execution:
-        :param with_generation:
-        :param is_forming_candle:
-        :return:
-        """
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
             if jh.now() >= (candle[0] + 60000):
@@ -120,13 +95,6 @@ class CandlesState:
 
     @staticmethod
     def update_position(exchange: str, symbol: str, candle: np.ndarray):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param candle:
-        :return:
-        """
         # get position object
         p = selectors.get_position(exchange, symbol)
 
@@ -139,15 +107,6 @@ class CandlesState:
 
     def generate_bigger_timeframes(self, candle: np.ndarray, exchange: str, symbol: str, with_execution: bool,
                                    is_forming_candle: bool):
-        """
-
-        :param candle:
-        :param exchange:
-        :param symbol:
-        :param with_execution:
-        :param is_forming_candle:
-        :return:
-        """
         if not jh.is_live():
             return
 
@@ -176,14 +135,6 @@ class CandlesState:
                             is_forming_candle=is_forming_candle)
 
     def simulate_order_execution(self, exchange, symbol, timeframe, new_candle):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :param new_candle:
-        :return:
-        """
         previous_candle = self.get_current_candle(exchange, symbol, timeframe)
         orders = selectors.get_orders(exchange, symbol)
 
@@ -200,25 +151,10 @@ class CandlesState:
                 o.execute()
 
     def batch_add_candle(self, candles, exchange, symbol, timeframe, with_generation=True):
-        """
-
-        :param candles:
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :param with_generation:
-        """
         for c in candles:
             self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation)
 
     def forming_estimation(self, exchange, symbol, timeframe):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :return:
-        """
         long_key = jh.key(exchange, symbol, timeframe)
         short_key = jh.key(exchange, symbol, '1m')
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
@@ -231,13 +167,6 @@ class CandlesState:
     # # # # # getters
     # # # # # # # # #
     def get_candles(self, exchange, symbol, timeframe) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :return:
-        """
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
@@ -275,13 +204,6 @@ class CandlesState:
             )
 
     def get_current_candle(self, exchange, symbol, timeframe) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :param timeframe:
-        :return:
-        """
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
