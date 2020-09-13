@@ -87,15 +87,11 @@ class Optimizer(Genetics):
         if store.completed_trades.count > 5:
             training_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
             optimal_expected_total = 100
-            total = jh.normalize(training_data['total'], 0, 200)
             total_effect_rate = log10(training_data['total']) / log10(optimal_expected_total)
+            if total_effect_rate > 1:
+                total_effect_rate = 1
             win_rate = training_data['win_rate']
-
-            # a negative Sharpe Ratio is not useful, hence just set it to 0
-            if training_data['sharpe_ratio'] <= 0:
-                sharpe_ratio = 0
-            else:
-                sharpe_ratio = jh.normalize(training_data['sharpe_ratio'], 0, 5)
+            sharpe_ratio = jh.normalize(training_data['sharpe_ratio'], -.5, 4)
 
             # log for debugging/monitoring
             log = 'win-rate: {}%, total: {}, PNL: {}%'.format(
