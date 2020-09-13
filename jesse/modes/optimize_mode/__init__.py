@@ -16,11 +16,12 @@ from .Genetics import Genetics
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles, testing_candles):
+    def __init__(self, training_candles, testing_candles, optimal_total):
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
 
         self.strategy_name = router.routes[0].strategy_name
+        self.optimal_total = optimal_total
         self.exchange = router.routes[0].exchange
         self.symbol = router.routes[0].symbol
         self.timeframe = router.routes[0].timeframe
@@ -86,8 +87,7 @@ class Optimizer(Genetics):
         # I'm guessing we should accept "optimal" total from command line
         if store.completed_trades.count > 5:
             training_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
-            optimal_expected_total = 100
-            total_effect_rate = log10(training_data['total']) / log10(optimal_expected_total)
+            total_effect_rate = log10(training_data['total']) / log10(self.optimal_total)
             if total_effect_rate > 1:
                 total_effect_rate = 1
             win_rate = training_data['win_rate']
@@ -142,7 +142,7 @@ class Optimizer(Genetics):
         return score, log
 
 
-def optimize_mode(start_date: str, finish_date: str):
+def optimize_mode(start_date: str, finish_date: str, optimal_total: int):
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -157,7 +157,7 @@ def optimize_mode(start_date: str, finish_date: str):
     # clear the screen
     click.clear()
 
-    optimizer = Optimizer(training_candles, testing_candles)
+    optimizer = Optimizer(training_candles, testing_candles, optimal_total)
 
     optimizer.run()
 
