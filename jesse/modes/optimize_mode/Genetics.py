@@ -8,8 +8,8 @@ from random import randint, choices, choice
 # for macOS only
 if sys.platform == 'darwin':
     multiprocessing.set_start_method('fork')
-from multiprocessing import Process, cpu_count, Manager
-
+from multiprocessing import Process, cpu_count, Manager, get_logger
+import logging
 import click
 import numpy as np
 import pydash
@@ -63,6 +63,9 @@ class Genetics(ABC):
         if jh.file_exists(self.temp_path):
             if click.confirm('Previous session detected. Do you want to resume?', default=True):
                 self.load_progress()
+
+        multiprocessing_logger = get_logger()
+        multiprocessing_logger.setLevel(logging.INFO)
 
     @abstractmethod
     def fitness(self, dna) -> tuple:
