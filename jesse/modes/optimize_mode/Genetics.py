@@ -17,7 +17,9 @@ import pydash
 import jesse.helpers as jh
 from jesse.services import table
 from jesse.routes import router
-
+import jesse.services.logger as logger
+from jesse.store import store
+import jesse.services.report as report
 
 class Genetics(ABC):
     def __init__(self, iterations, population_size, solution_len,
@@ -100,6 +102,8 @@ class Genetics(ABC):
                         # join workers
                         for w in workers:
                             w.join()
+                            if w.exitcode > 0:
+                                logger.error('a process exited with exitcode: {}'.format(str(w.exitcode)))
                     except KeyboardInterrupt:
                         print(
                             jh.color('Terminating session...', 'red')
@@ -132,6 +136,7 @@ class Genetics(ABC):
                 table_items = [
                     ['Started at', jh.get_arrow(self.start_time).humanize()],
                     ['Index', '{}/{}'.format(len(self.population), self.population_size)],
+                    ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
                     ['Trading Route', '{}, {}, {}, {}'.format(
                         router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                         router.routes[0].strategy_name
@@ -149,6 +154,11 @@ class Genetics(ABC):
                     table_items.insert(3, ['-'*10, '-'*10])
 
                 table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
+
+                # errors
+                if jh.is_debugging() and len(report.errors()):
+                    print('\n')
+                    table.key_value(report.errors(), 'Error Logs')
 
                 for p in people:
                     self.population.append(p)
@@ -230,6 +240,8 @@ class Genetics(ABC):
 
                         for w in workers:
                             w.join()
+                            if w.exitcode > 0:
+                                logger.error('a process exited with exitcode: {}'.format(str(w.exitcode)))
                     except KeyboardInterrupt:
                         print(
                             jh.color('Terminating session...', 'red')
@@ -255,6 +267,7 @@ class Genetics(ABC):
                     table_items = [
                         ['Started At', jh.get_arrow(self.start_time).humanize()],
                         ['Index/Total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
+                        ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
                         ['Route', '{}, {}, {}, {}'.format(
                             router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
                             router.routes[0].strategy_name
@@ -262,10 +275,17 @@ class Genetics(ABC):
                     ]
                     if jh.is_debugging():
                         table_items.insert(
-                            2,
+                            3,
                             ['Population Size, Solution Length', '{}, {}'.format(self.population_size, self.solution_len)]
                         )
+
+
                     table.key_value(table_items, 'info', alignments=('left', 'right'))
+
+                    # errors
+                    if jh.is_debugging() and len(report.errors()):
+                        print('\n')
+                        table.key_value(report.errors(), 'Error Logs')
 
                     print('\n')
                     print('Best DNA candidates:')
