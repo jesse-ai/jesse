@@ -8,8 +8,8 @@ from random import randint, choices, choice
 # for macOS only
 if sys.platform == 'darwin':
     multiprocessing.set_start_method('fork')
-from multiprocessing import Process, cpu_count, Manager, get_logger
-import logging
+from multiprocessing import Process, cpu_count, Manager
+
 import click
 import numpy as np
 import pydash
@@ -20,6 +20,8 @@ from jesse.routes import router
 import jesse.services.logger as logger
 from jesse.store import store
 import jesse.services.report as report
+import traceback
+import os
 
 class Genetics(ABC):
     def __init__(self, iterations, population_size, solution_len,
@@ -64,9 +66,6 @@ class Genetics(ABC):
             if click.confirm('Previous session detected. Do you want to resume?', default=True):
                 self.load_progress()
 
-        multiprocessing_logger = get_logger()
-        multiprocessing_logger.setLevel(logging.INFO)
-
     @abstractmethod
     def fitness(self, dna) -> tuple:
         """
@@ -92,8 +91,15 @@ class Genetics(ABC):
                     workers = []
 
                     def get_fitness(dna, dna_bucket):
-                        fitness_score, fitness_log = self.fitness(dna)
-                        dna_bucket.append((dna, fitness_score, fitness_log))
+                        try:
+                            fitness_score, fitness_log = self.fitness(dna)
+                            dna_bucket.append((dna, fitness_score, fitness_log))
+                        except Exception as e:
+                            proc = os.getpid()
+                            logger.error('process failed - ID: {}'.format(str(proc)))
+                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
+                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
+                            raise e
 
                     try:
                         for _ in range(cores_num):
@@ -229,12 +235,17 @@ class Genetics(ABC):
                     workers = []
 
                     def get_baby(people):
-                        # let's make a baby together LOL
-                        baby = self.make_love()
-                        # let's mutate baby's genes, who knows, maybe we create a x-man or something
-                        baby = self.mutate(baby)
-                        people.append(baby)
-
+                        try:
+                            # let's make a baby together LOL
+                            baby = self.make_love()
+                            # let's mutate baby's genes, who knows, maybe we create a x-man or something
+                            baby = self.mutate(baby)
+                            people.append(baby)
+                        except Exception as e:
+                            proc = os.getpid()
+                            logger.error('process failed - ID: {}'.format(str(proc)))
+                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
+                            raise e
                     try:
                         for _ in range(cores_num):
                             w = Process(target=get_baby, args=[people])
