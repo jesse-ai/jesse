@@ -98,7 +98,6 @@ class Genetics(ABC):
                             proc = os.getpid()
                             logger.error('process failed - ID: {}'.format(str(proc)))
                             logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
                             raise e
 
                     try:
