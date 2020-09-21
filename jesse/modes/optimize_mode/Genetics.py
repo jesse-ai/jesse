@@ -207,7 +207,8 @@ class Genetics(ABC):
         }
 
     def select_person(self):
-        random_index = np.random.choice(self.population_size, int(self.population_size / 100), replace=False)
+        # len(self.population) instead of self.population_size because some DNAs might not have been created due errors
+        random_index = np.random.choice(len(self.population), int(len(self.population) / 100), replace=False)
         chosen_ones = []
 
         for r in random_index:
@@ -222,6 +223,9 @@ class Genetics(ABC):
         # generate the population if starting
         if self.started_index == 0:
             self.generate_initial_population()
+            if len(self.population) < 0.5 * self.population_size:
+                raise ValueError('Too many errors: less then half of the planned population size could be generated.')
+
 
         cores_num = cpu_count()
         loop_length = int(self.iterations / cores_num)
