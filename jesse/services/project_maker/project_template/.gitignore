@@ -15,6 +15,7 @@
 /storage/orders/*.json
 /storage/logs/trades/*.json
 /storage/logs/collect.txt
+/storage/logs/optimize.txt
 /storage/logs/live-trade.txt
 /storage/logs/paper-trade.txt
 /storage/genetics/*.txt

@@ -90,6 +90,9 @@ def register_custom_exception_handler():
     elif jh.is_collecting_data():
         logging.basicConfig(filename='storage/logs/collect.txt', level=logging.INFO, filemode='w',
                             format=log_format)
+    elif jh.is_optimizing():
+        logging.basicConfig(filename='storage/logs/optimize.txt', level=logging.INFO, filemode='w',
+                            format=log_format)
     else:
         logging.basicConfig(level=logging.INFO)
 

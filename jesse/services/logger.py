@@ -34,7 +34,7 @@ def error(msg):
 
     store.logs.errors.append({'time': jh.now(), 'message': msg})
 
-    if jh.is_live():
+    if jh.is_live() or jh.is_optimizing():
         msg = '[ERROR | {}] '.format(jh.timestamp_to_time(jh.now())[:19]) + str(msg)
         import logging
         logging.error(msg)
