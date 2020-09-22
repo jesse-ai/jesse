@@ -4,13 +4,7 @@ from jesse.services import table
 
 
 def run(dna=False):
-    """
-
-    :param dna:
-    """
-    # # # # # # # # # # # # # # # # # # # # # # # #
     # trading routes
-    # # # # # # # # # # # # # # # # # # # # # # # #
     arr = []
     if not dna:
         print(
@@ -39,9 +33,7 @@ def run(dna=False):
         if not translated_DNAs_count:
             print('No DNA string found.')
 
-    # # # # # # # # # # # # # # # # # # # # # # # #
     # extra_candles
-    # # # # # # # # # # # # # # # # # # # # # # # #
     if not dna:
         print(
             jh.color('{}{}{}'.format('#' * 25, ' Extra Candles ', '#' * 25), 'blue')
