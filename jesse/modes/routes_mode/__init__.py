@@ -4,13 +4,7 @@ from jesse.services import table
 
 
 def run(dna=False):
-    """
-
-    :param dna:
-    """
-    # # # # # # # # # # # # # # # # # # # # # # # #
     # trading routes
-    # # # # # # # # # # # # # # # # # # # # # # # #
     arr = []
     if not dna:
         print(
@@ -27,7 +21,7 @@ def run(dna=False):
         if dna and r.dna:
             translated_DNAs_count += 1
             StrategyClass = jh.get_strategy_class(r.strategy_name)
-            hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(), r.dna)
+            hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(None), r.dna)
             table.key_value(hyper_parameters.items(), r.strategy_name, uppercase_title=False)
             print('\n')
         else:
@@ -39,9 +33,7 @@ def run(dna=False):
         if not translated_DNAs_count:
             print('No DNA string found.')
 
-    # # # # # # # # # # # # # # # # # # # # # # # #
     # extra_candles
-    # # # # # # # # # # # # # # # # # # # # # # # #
     if not dna:
         print(
             jh.color('{}{}{}'.format('#' * 25, ' Extra Candles ', '#' * 25), 'blue')
