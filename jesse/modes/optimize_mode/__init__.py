@@ -26,11 +26,11 @@ class Optimizer(Genetics):
         self.symbol = router.routes[0].symbol
         self.timeframe = router.routes[0].timeframe
         StrategyClass = jh.get_strategy_class(self.strategy_name)
-        self.strategy_hp = StrategyClass.hyper_parameters(None)
+        self.strategy_hp = StrategyClass.hyperparameters(None)
         solution_len = len(self.strategy_hp)
 
         if solution_len == 0:
-            raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyper_parameters() method.')
+            raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyperparameters() method.')
 
         super().__init__(
             iterations=2000 * solution_len,

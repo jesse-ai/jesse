@@ -21,8 +21,8 @@ def run(dna=False):
         if dna and r.dna:
             translated_DNAs_count += 1
             StrategyClass = jh.get_strategy_class(r.strategy_name)
-            hyper_parameters = jh.dna_to_hp(StrategyClass.hyper_parameters(None), r.dna)
-            table.key_value(hyper_parameters.items(), r.strategy_name, uppercase_title=False)
+            hyperparameters = jh.dna_to_hp(StrategyClass.hyperparameters(None), r.dna)
+            table.key_value(hyperparameters.items(), r.strategy_name, uppercase_title=False)
             print('\n')
         else:
             arr.append([r.exchange, r.symbol, r.timeframe, r.strategy_name, r.dna])

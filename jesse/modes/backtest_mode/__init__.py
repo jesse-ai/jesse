@@ -149,7 +149,7 @@ def load_candles(start_date_str: str, finish_date_str: str):
     return candles
 
 
-def simulator(candles, hyper_parameters=None):
+def simulator(candles, hyperparameters=None):
     begin_time_track = time.time()
     key = '{}-{}'.format(config['app']['trading_exchanges'][0], config['app']['trading_symbols'][0])
     first_candles_set = candles[key]['candles']
@@ -177,16 +177,16 @@ def simulator(candles, hyper_parameters=None):
         r.strategy.timeframe = r.timeframe
 
         # inject hyper parameters (used for optimize_mode)
-        # convert DNS string into hyper_parameters
-        if r.dna and hyper_parameters is None:
-            hyper_parameters = jh.dna_to_hp(r.strategy.hyper_parameters(), r.dna)
+        # convert DNS string into hyperparameters
+        if r.dna and hyperparameters is None:
+            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.dna)
 
-        # inject hyper_parameters sent within the optimize mode
-        if hyper_parameters is not None:
-            r.strategy.hp = hyper_parameters
+        # inject hyperparameters sent within the optimize mode
+        if hyperparameters is not None:
+            r.strategy.hp = hyperparameters
 
         # init few objects that couldn't be initiated in Strategy __init__
-        # it also injects hyper_parameters into self.hp in case the route does not uses any DNAs
+        # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy

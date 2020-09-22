@@ -64,9 +64,9 @@ class Strategy(ABC):
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None:
-            if len(self.hyper_parameters()) > 0:
+            if len(self.hyperparameters()) > 0:
                 self.hp = {}
-                for dna in self.hyper_parameters():
+                for dna in self.hyperparameters():
                     self.hp[dna['name']] = dna['default']
 
     @property
@@ -149,7 +149,7 @@ class Strategy(ABC):
     def filters(self):
         return []
 
-    def hyper_parameters(self):
+    def hyperparameters(self):
         return []
 
     def _execute_long(self):
