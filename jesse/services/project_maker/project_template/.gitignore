@@ -19,6 +19,8 @@
 /storage/logs/live-trade.txt
 /storage/logs/paper-trade.txt
 /storage/genetics/*.txt
+/storage/csv/*.csv
+/storage/json/*.json
 /storage/charts/*.png
 *.pyc
 /__pycache__
