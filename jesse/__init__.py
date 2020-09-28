@@ -9,6 +9,7 @@ import jesse.helpers as jh
 
 # Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Python version validation.
@@ -253,9 +254,6 @@ def register_custom_exception_handler():
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli():
-    """
-
-    """
     pass
 
 
@@ -330,10 +328,13 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
 @click.argument('finish_date', required=True, type=str)
 @click.argument('optimal_total', required=True, type=int)
 @click.option(
+    '--cpu', default=0, show_default=True,
+    help='The number of CPU cores that Jesse is allowed to use. If set to 0, it will use as many as is available on your machine.')
+@click.option(
     '--debug/--no-debug', default=False,
     help='Displays detailed logs about the genetics algorithm. Use it if you are interested int he genetics algorithm.'
 )
-def optimize(start_date, finish_date, optimal_total, debug):
+def optimize(start_date, finish_date, optimal_total, cpu, debug):
     """
     tunes the hyper-parameters of your strategy
     """
@@ -348,7 +349,7 @@ def optimize(start_date, finish_date, optimal_total, debug):
 
     from jesse.modes.optimize_mode import optimize_mode
 
-    optimize_mode(start_date, finish_date, optimal_total)
+    optimize_mode(start_date, finish_date, optimal_total, cpu)
 
 
 @cli.command()

@@ -8,7 +8,7 @@ from random import randint, choices, choice
 # for macOS only
 if sys.platform == 'darwin':
     multiprocessing.set_start_method('fork')
-from multiprocessing import Process, cpu_count, Manager
+from multiprocessing import Process, Manager
 
 import click
 import numpy as np
@@ -23,19 +23,12 @@ import jesse.services.report as report
 import traceback
 import os
 
+
 class Genetics(ABC):
     def __init__(self, iterations, population_size, solution_len,
                  charset='()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
                  fitness_goal=1,
                  options=None):
-        """
-        :param iterations: int
-        :param population_size: int
-        :param solution_len: int
-        :param charset: str default= '()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw'
-        which is 40-119 (len=80)
-        :param fitness_goal:
-        """
         # used for naming the files related to this session
         self.session_id = str(jh.now())
         self.started_index = 0
@@ -46,6 +39,7 @@ class Genetics(ABC):
         self.solution_len = solution_len
         self.charset = charset
         self.fitness_goal = fitness_goal
+        self.cpu_cores = 0
 
         if options is None:
             self.options = {}
@@ -80,8 +74,7 @@ class Genetics(ABC):
         """
         generates the initial population
         """
-        cores_num = cpu_count()
-        loop_length = int(self.population_size / cores_num)
+        loop_length = int(self.population_size / self.cpu_cores)
 
         with click.progressbar(length=loop_length, label='Generating initial population...') as progressbar:
             for i in range(loop_length):
@@ -101,7 +94,7 @@ class Genetics(ABC):
                             raise e
 
                     try:
-                        for _ in range(cores_num):
+                        for _ in range(self.cpu_cores):
                             dna = ''.join(choices(self.charset, k=self.solution_len))
                             w = Process(target=get_fitness, args=(dna, dna_bucket))
                             w.start()
@@ -227,8 +220,7 @@ class Genetics(ABC):
                 raise ValueError('Too many errors: less then half of the planned population size could be generated.')
 
 
-        cores_num = cpu_count()
-        loop_length = int(self.iterations / cores_num)
+        loop_length = int(self.iterations / self.cpu_cores)
 
         i = self.started_index
         with click.progressbar(length=loop_length, label='Evolving...') as progressbar:
@@ -250,7 +242,7 @@ class Genetics(ABC):
                             logger.error("".join(traceback.TracebackException.from_exception(e).format()))
                             raise e
                     try:
-                        for _ in range(cores_num):
+                        for _ in range(self.cpu_cores):
                             w = Process(target=get_baby, args=[people])
                             w.start()
                             workers.append(w)
@@ -283,7 +275,7 @@ class Genetics(ABC):
 
                     table_items = [
                         ['Started At', jh.get_arrow(self.start_time).humanize()],
-                        ['Index/Total', '{}/{}'.format((i + 1) * cores_num, self.iterations)],
+                        ['Index/Total', '{}/{}'.format((i + 1) * self.cpu_cores, self.iterations)],
                         ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
                         ['Route', '{}, {}, {}, {}'.format(
                             router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
@@ -347,12 +339,12 @@ class Genetics(ABC):
                             return baby
 
                     # save progress after every n iterations
-                    if i != 0 and int(i * cores_num) % 50 == 0:
+                    if i != 0 and int(i * self.cpu_cores) % 50 == 0:
                         self.save_progress(i)
 
                     # store a take_snapshot of the fittest individuals of the population
-                    if i != 0 and i % int(100 / cores_num) == 0:
-                        self.take_snapshot(i * cores_num)
+                    if i != 0 and i % int(100 / self.cpu_cores) == 0:
+                        self.take_snapshot(i * self.cpu_cores)
 
                     i += 1
 

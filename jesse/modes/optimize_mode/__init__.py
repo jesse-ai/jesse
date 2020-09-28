@@ -2,6 +2,7 @@ from math import log10
 
 import arrow
 import click
+from multiprocessing import cpu_count
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
@@ -16,7 +17,7 @@ from .Genetics import Genetics
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles, testing_candles, optimal_total):
+    def __init__(self, training_candles, testing_candles, optimal_total, cpu_cores):
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
 
@@ -43,6 +44,15 @@ class Optimizer(Genetics):
                 'timeframe': self.timeframe
             }
         )
+
+        if cpu_cores > cpu_count():
+            raise ValueError('Entered cpu cores number is more than available on this machine which is {}'.format(
+                cpu_count()
+            ))
+        elif cpu_cores == 0:
+            self.cpu_cores = cpu_count()
+        else:
+            self.cpu_cores = cpu_cores
 
         self.training_candles = training_candles
         self.testing_candles = testing_candles
@@ -142,7 +152,7 @@ class Optimizer(Genetics):
         return score, log
 
 
-def optimize_mode(start_date: str, finish_date: str, optimal_total: int):
+def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int):
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -157,7 +167,7 @@ def optimize_mode(start_date: str, finish_date: str, optimal_total: int):
     # clear the screen
     click.clear()
 
-    optimizer = Optimizer(training_candles, testing_candles, optimal_total)
+    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores)
 
     optimizer.run()
 
