@@ -219,6 +219,11 @@ class Genetics(ABC):
             if len(self.population) < 0.5 * self.population_size:
                 raise ValueError('Too many errors: less then half of the planned population size could be generated.')
 
+            # if even our best individual is too weak, then we better not continue
+            if  self.population[0]['fitness'] == 0.0001:
+                print(jh.color('Cannot continue because no individual with the minimum fitness-score was found. '
+                      'Your strategy seems to be flawed or maybe it requires modifications. ', 'yellow'))
+                jh.terminate_app()
 
         loop_length = int(self.iterations / self.cpu_cores)
 
@@ -301,7 +306,10 @@ class Genetics(ABC):
                     print('\n')
 
                     # print fittest individuals
-                    fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
+                    if jh.is_debugging():
+                        fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
+                    else:
+                        fittest_list = [['Rank', 'DNA', 'Training log || Testing log'], ]
                     if self.population_size > 50:
                         number_of_ind_to_show = 15
                     elif self.population_size > 20:
@@ -312,11 +320,28 @@ class Genetics(ABC):
                         raise ValueError('self.population_size cannot be less than 10')
 
                     for j in range(number_of_ind_to_show):
-                        fittest_list.append(
-                            [j + 1, self.population[j]['dna'], self.population[j]['fitness'],
-                             self.population[j]['log']],
-                        )
-                    table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'right', 'left'))
+                        if jh.is_debugging():
+                            fittest_list.append(
+                                [
+                                    j + 1,
+                                    self.population[j]['dna'],
+                                    self.population[j]['fitness'],
+                                    self.population[j]['log']
+                                ],
+                            )
+                        else:
+                            fittest_list.append(
+                                [
+                                    j + 1,
+                                    self.population[j]['dna'],
+                                    self.population[j]['log']
+                                ],
+                            )
+
+                    if jh.is_debugging():
+                        table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'right', 'left'))
+                    else:
+                        table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'left'))
 
                     # one person has to die and be replaced with the newborn baby
                     for baby in people:
