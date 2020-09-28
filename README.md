@@ -28,37 +28,49 @@ Check out Jesse's [blog](https://jesse-ai.com/blog) for tutorials that go throug
 
 Here's an example output for a backtest simulation just to get you excited:
 ```
-CANDLES               |
+ CANDLES              |
 ----------------------+--------------------------
- period               |   1557 days (4.27 years)
- starting-ending date | 2016-01-01 => 2020-04-06
+ period               |    974 days (2.67 years)
+ starting-ending date | 2018-01-01 => 2020-09-01
 
-exchange    | symbol   | timeframe   | strategy           | DNA
-------------+----------+-------------+--------------------+-------
- Bitfinex   | BTCUSD   | 6h          | TrendFollowingStrategy |
+
+ exchange   | symbol   | timeframe   | strategy         |   DNA
+------------+----------+-------------+------------------+-------
+ Bitfinex   | BTCUSD   | 6h          | TrendFollowing05 |
+
 
 Executing simulation...  [####################################]  100%
-Executed backtest simulation in:  107.89 seconds
+Executed backtest simulation in:  68.13 seconds
 
-METRICS                          |
----------------------------------+------------------------------------
- Total Closed Trades             |                                192
- Total Net Profit                |                 64735.12 (647.35%)
- Starting => Finishing Balance   |                   10000 => 74659.0
- Total Open Trades               |                                  0
- Open PL                         |                                  0
- Total Paid Fees                 |                           10620.84
- Max Drawdown                    |                            -24.83%
- Sharpe Ratio                    |                                1.2
- Annual Return                   |                             38.43%
- Expectancy                      |                     337.16 (3.37%)
- Avg Win | Avg Loss              |                   1261.49 | 351.89
- Ratio Avg Win / Avg Loss        |                               3.58
- Percent Profitable              |                                43%
- Longs | Shorts                  |                          58% | 42%
- Avg Holding Time                | 3.0 days, 20.0 hours, 15.0 minutes
- Winning Trades Avg Holding Time | 6.0 days, 11.0 hours, 19.0 minutes
- Losing Trades Avg Holding Time  |  1.0 day, 21.0 hours, 14.0 minutes
+
+ METRICS                         |
+---------------------------------+--------------------------------------
+ Total Closed Trades             |                                  112
+ Total Net Profit                |                   47767.14 (477.67%)
+ Starting => Finishing Balance   |                    10000 => 57685.82
+ Total Open Trades               |                                    0
+ Open PL                         |                                    0
+ Total Paid Fees                 |                              10384.3
+ Max Drawdown                    |                              -36.05%
+ Annual Return                   |                               57.29%
+ Expectancy                      |                       426.49 (4.26%)
+ Avg Win | Avg Loss              |                     1609.68 | 527.69
+ Ratio Avg Win / Avg Loss        |                                 3.05
+ Percent Profitable              |                                  45%
+ Longs | Shorts                  |                            48% | 52%
+ Avg Holding Time                |   3.0 days, 12.0 hours, 16.0 minutes
+ Winning Trades Avg Holding Time | 6.0 days, 41.0 minutes, 44.0 seconds
+ Losing Trades Avg Holding Time  |    1.0 day, 11.0 hours, 32.0 minutes
+ Sharpe Ratio                    |                                 0.99
+ Calmar Ratio                    |                                 1.59
+ Sortino Ratio                   |                                 2.24
+ Omega Ratio                     |                                 1.45
+ Winning Streak                  |                                    4
+ Losing Streak                   |                                    7
+ Largest Winning Trade           |                              9755.96
+ Largest Losing Trade            |                              -1859.7
+ Total Winning Trades            |                                   50
+ Total Losing Trades             |                                   62
 ```
 
 And here are generated charts:
