@@ -643,16 +643,16 @@ class Strategy(ABC):
             store.orders.execute_pending_market_orders()
 
         if self.position.is_close and self._open_position_orders == []:
+            should_short = self.should_short()
+            should_long = self.should_long()
             # validation
-            if self.should_short() and self.should_long():
+            if should_short and should_long:
                 raise exceptions.ConflictingRules(
                     'should_short and should_long should not be true at the same time.'
                 )
-
-            if self.should_long():
+            if should_long:
                 self._execute_long()
-
-            if self.should_short():
+            elif should_short:
                 self._execute_short()
 
     def _on_open_position(self):
