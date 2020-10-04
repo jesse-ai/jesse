@@ -1,6 +1,6 @@
 psycopg2-binary==2.8.6
 pytest-watch==4.2.0
-pytest==6.1.0
+pytest==6.1.1
 Click==7.1.2
 arrow==0.16.0
 requests==2.24.0
