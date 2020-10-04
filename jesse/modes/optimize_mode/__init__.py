@@ -1,8 +1,8 @@
 from math import log10
+from multiprocessing import cpu_count
 
 import arrow
 import click
-from multiprocessing import cpu_count
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
@@ -101,17 +101,37 @@ class Optimizer(Genetics):
             if total_effect_rate > 1:
                 total_effect_rate = 1
             win_rate = training_data['win_rate']
-            sharpe_ratio = jh.normalize(training_data['sharpe_ratio'], -.5, 4)
 
-            # log for debugging/monitoring
+            ratio_config = jh.get_config('env.optimization.ratio', 'sharpe')
+            if ratio_config == 'sharpe':
+                ratio = training_data['sharpe_ratio']
+            elif ratio_config == 'calmar':
+                ratio = training_data['calmar_ratio']
+            elif ratio_config == 'sortiono':
+                ratio = training_data['sortino_ratio']
+            elif ratio_config == 'omega':
+                ratio = training_data['omega_ratio']
+            else:
+                raise ValueError(
+                    'The entered ratio configuration `{}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.'.format(
+                        ratio_config))
+
+            if ratio < 0:
+                score = 0.0001
+                # reset store
+                store.reset()
+                return score, log
+
+            ratio_normalized = jh.normalize(ratio, -.5, 4)
+
+                # log for debugging/monitoring
             log = 'win-rate: {}%, total: {}, PNL: {}%'.format(
-                int(win_rate*100),
+                int(win_rate * 100),
                 training_data['total'],
                 round(training_data['net_profit_percentage'], 2),
             )
 
-            # TODO: the fitness score - Add setting for switch between the sharpe, sortino and calmar ratio in the fitness score.
-            score = total_effect_rate * sharpe_ratio
+            score = total_effect_rate * ratio_normalized
 
             # perform backtest with testing data. this is using data
             # model hasn't trained for. if it works well, there is
@@ -135,7 +155,7 @@ class Optimizer(Genetics):
             log += ' || '
             if store.completed_trades.count > 0:
                 log += 'win-rate: {}%, total: {}, PNL: {}%'.format(
-                    int(testing_data['win_rate']*100),
+                    int(testing_data['win_rate'] * 100),
                     testing_data['total'],
                     round(testing_data['net_profit_percentage'], 2),
                 )
