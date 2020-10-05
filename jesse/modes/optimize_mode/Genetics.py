@@ -1,5 +1,4 @@
 import multiprocessing
-import os
 import pickle
 import sys
 from abc import ABC, abstractmethod
@@ -29,8 +28,6 @@ class Genetics(ABC):
                  charset='()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
                  fitness_goal=1,
                  options=None):
-        # used for naming the files related to this session
-        self.session_id = str(jh.now())
         self.started_index = 0
         self.start_time = jh.now()
         self.population = []
@@ -152,7 +149,7 @@ class Genetics(ABC):
                     table_items.insert(3, ['Population Size', self.population_size])
                     table_items.insert(3, ['Iterations', self.iterations])
                     table_items.insert(3, ['Solution Length', self.solution_len])
-                    table_items.insert(3, ['-'*10, '-'*10])
+                    table_items.insert(3, ['-' * 10, '-' * 10])
 
                 table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
 
@@ -220,9 +217,9 @@ class Genetics(ABC):
                 raise ValueError('Too many errors: less then half of the planned population size could be generated.')
 
             # if even our best individual is too weak, then we better not continue
-            if  self.population[0]['fitness'] == 0.0001:
+            if self.population[0]['fitness'] == 0.0001:
                 print(jh.color('Cannot continue because no individual with the minimum fitness-score was found. '
-                      'Your strategy seems to be flawed or maybe it requires modifications. ', 'yellow'))
+                               'Your strategy seems to be flawed or maybe it requires modifications. ', 'yellow'))
                 jh.terminate_app()
 
         loop_length = int(self.iterations / self.cpu_cores)
@@ -246,6 +243,7 @@ class Genetics(ABC):
                             logger.error('process failed - ID: {}'.format(str(proc)))
                             logger.error("".join(traceback.TracebackException.from_exception(e).format()))
                             raise e
+
                     try:
                         for _ in range(self.cpu_cores):
                             w = Process(target=get_baby, args=[people])
@@ -290,9 +288,9 @@ class Genetics(ABC):
                     if jh.is_debugging():
                         table_items.insert(
                             3,
-                            ['Population Size, Solution Length', '{}, {}'.format(self.population_size, self.solution_len)]
+                            ['Population Size, Solution Length',
+                             '{}, {}'.format(self.population_size, self.solution_len)]
                         )
-
 
                     table.key_value(table_items, 'info', alignments=('left', 'right'))
 
@@ -394,7 +392,6 @@ class Genetics(ABC):
             'charset': self.charset,
             'fitness_goal': self.fitness_goal,
             'options': self.options,
-            'session_id': self.session_id
         }
 
         with open(self.temp_path, 'wb') as f:
@@ -415,13 +412,15 @@ class Genetics(ABC):
         self.charset = data['charset']
         self.fitness_goal = data['fitness_goal']
         self.options = data['options']
-        self.session_id = data['session_id']
 
     def take_snapshot(self, index):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        path = './storage/genetics/{}.txt'.format(self.session_id)
+        path = './storage/genetics/{}-{}-{}-{}.txt'.format(
+            self.options['strategy_name'], self.options['exchange'],
+            self.options['symbol'], self.options['timeframe']
+        )
         os.makedirs('./storage/genetics', exist_ok=True)
         txt = ''
         with open(path, 'a') as f:
