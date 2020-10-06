@@ -89,5 +89,16 @@ config = {
         'largest_winning_trade': False,
         'total_winning_trades': False,
         'total_losing_trades': False,
+    },
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Optimization
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #
+    # Below configurations are used in the optimization mode.
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    'optimization': {
+        # sharpe, calmar, sortino, omega
+        'ratio': 'sharpe',
     }
 }
