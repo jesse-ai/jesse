@@ -42,7 +42,7 @@ def install_routes():
                 count += 1
         if count != 1:
             raise InvalidRoutes(
-                'each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse-ai.com/docs/routes.html#trading-multiple-routes')
+                'each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse.trade/docs/routes.html#trading-multiple-routes')
 
     trading_exchanges = set()
     trading_timeframes = set()

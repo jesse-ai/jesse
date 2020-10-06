@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.12.3'
+VERSION = '0.12.4'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 REQUIRED_PACKAGES = [
     'psycopg2-binary',
@@ -34,10 +34,10 @@ setup(
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://jesse-ai.com",
+    url="https://jesse.trade",
     project_urls={
-        'Documentation': 'https://docs.jesse-ai.com',
-        'Say Thanks!': 'http://forum.jesse-ai.com/',
+        'Documentation': 'https://docs.jesse.trade',
+        'Say Thanks!': 'http://forum.jesse.trade/',
         'Source': 'http://github.com/jesse-ai/jesse',
         'Tracker': 'https://github.com/jesse-ai/jesse/issues',
     },

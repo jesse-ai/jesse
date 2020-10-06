@@ -7,10 +7,10 @@
 [![codecov](https://codecov.io/gh/jesse-ai/jesse/branch/master/graph/badge.svg)](https://codecov.io/gh/jesse-ai/jesse)
 
 ---
-[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse-ai.com)
-[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse-ai.com)
-[![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse-ai.com)
-[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse-ai.com/blog)
+[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
+[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
+[![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse.trade)
+[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
 ---
 Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
 
@@ -19,12 +19,12 @@ In short, Jesse is more accurate than other solutions, and way more simple.
 In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months.
 
 ## Getting Started
-Head over to the "getting started" section of the [documentation](https://docs.jesse-ai.com/docs/getting-started). The 
+Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
 documentation is short yet very informative. 
 
 ## Example Backtest Results
 
-Check out Jesse's [blog](https://jesse-ai.com/blog) for tutorials that go through example strategies step by step. 
+Check out Jesse's [blog](https://jesse.trade/blog) for tutorials that go through example strategies step by step. 
 
 Here's an example output for a backtest simulation just to get you excited:
 ```
@@ -77,10 +77,10 @@ And here are generated charts:
 ![chart-example](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/chart-example.png)
 
 ## What's next?
-This is the very initial release. There's way more. Subscribe to our mailing list at [jesse-ai.com](https://jesse-ai.com) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
+This is the very initial release. There's way more. Subscribe to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
 
 ## Community
-We've created a [community](http://forum.jesse-ai.com/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
+We've created a [community](http://forum.jesse.trade/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
 
 ## How to contribute
 Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 

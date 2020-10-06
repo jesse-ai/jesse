@@ -1,6 +1,6 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Make sure to read the docs about routes if you haven't already:
-# https://docs.jesse-ai.com/docs/routes.html
+# https://docs.jesse.trade/docs/routes.html
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 from jesse.utils import anchor_timeframe
