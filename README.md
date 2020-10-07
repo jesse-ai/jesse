@@ -1,12 +1,11 @@
 # Jesse
-[![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue)](https://www.python.org/)
 [![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
+[![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
-[![Build Status](https://travis-ci.com/jesse-ai/jesse.svg?branch=master)](https://travis-ci.com/jesse-ai/jesse)
-[![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 
 ---
+
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
 [![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
 [![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse.trade)
