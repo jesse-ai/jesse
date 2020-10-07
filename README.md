@@ -4,7 +4,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 [![Build Status](https://travis-ci.com/jesse-ai/jesse.svg?branch=master)](https://travis-ci.com/jesse-ai/jesse)
-[![codecov](https://codecov.io/gh/jesse-ai/jesse/branch/master/graph/badge.svg)](https://codecov.io/gh/jesse-ai/jesse)
+[![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 
 ---
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
@@ -16,7 +16,9 @@ Jesse is an advanced crypto trading framework which aims to simplify researching
 
 ## Why Jesse?
 In short, Jesse is more accurate than other solutions, and way more simple. 
-In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months.
+In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months. 
+
+[Here](https://docs.jesse.trade/docs/) you can read more about why Jesse's features. 
 
 ## Getting Started
 Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
