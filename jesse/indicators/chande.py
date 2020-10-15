@@ -2,6 +2,7 @@ from typing import Union
 
 import numpy as np
 import talib
+from scipy.ndimage.filters import maximum_filter1d, minimum_filter1d
 
 
 def chande(candles: np.ndarray, period=22, mult=3.0, direction="long", sequential=False) -> Union[float, np.ndarray]:
@@ -25,18 +26,27 @@ def chande(candles: np.ndarray, period=22, mult=3.0, direction="long", sequentia
 
     atr = talib.ATR(candles_high, candles_low, candles_close, timeperiod=period)
 
-    maxp = np.zeros(len(candles_high) - period + 1)
     if direction == 'long':
-        for i in range(period - 1, len(candles_high)):
-            maxp[i - period + 1] = np.amax(candles_high[i - period + 1:i + 1])
-        maxp = np.concatenate((np.full((candles.shape[0] - maxp.shape[0]), np.nan), maxp))
+        maxp = filter1d_same(candles_high, period, 'max')
         result = maxp - atr * mult
     elif direction == 'short':
-        for i in range(period - 1, len(candles_high)):
-            maxp[i - period + 1] = np.amin(candles_low[i - period + 1:i + 1])
-        maxp = np.concatenate((np.full((candles.shape[0] - maxp.shape[0]), np.nan), maxp))
+        maxp = filter1d_same(candles_low, period, 'min')
         result = maxp + atr * mult
     else:
         print('The last parameter must be \'short\' or \'long\'')
 
     return result if sequential else result[-1]
+
+
+def filter1d_same(a, W, type, fillna=np.nan):
+    out_dtype = np.full(0, fillna).dtype
+    hW = (W - 1) // 2  # Half window size
+    if type == 'max':
+        out = maximum_filter1d(a, size=W, origin=hW)
+    else:
+        out = minimum_filter1d(a, size=W, origin=hW)
+    if out.dtype is out_dtype:
+        out[:W - 1] = fillna
+    else:
+        out = np.concatenate((np.full(W - 1, fillna), out[W - 1:]))
+    return out
