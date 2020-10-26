@@ -92,13 +92,24 @@ config = {
     },
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Optimization
+    # Optimize mode
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #
-    # Below configurations are used in the optimization mode.
+    # Below configurations are related to the optimize mode
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     'optimization': {
         # sharpe, calmar, sortino, omega
         'ratio': 'sharpe',
+    },
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Data
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #
+    # Below configurations are related to the data
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    'data': {
+        # The minimum number of warmup candles that is loaded before each session.
+        'warmup_candles_num': 210,
     }
 }

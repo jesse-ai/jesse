@@ -27,7 +27,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         raise ValueError('Can\'t backtest the future!')
 
     max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
-    short_candles_count = 210 * jh.timeframe_to_one_minutes(max_timeframe)
+    short_candles_count = jh.get_config('env.data.warmup_candles_num', 210) * jh.timeframe_to_one_minutes(max_timeframe)
     pre_finish_date = start_date - 60_000
     pre_start_date = pre_finish_date - short_candles_count * 60_000
     # make sure starting from the beginning of the day instead
@@ -90,7 +90,8 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         # if first backtestable timestamp is in the future, that means we have some but not enough candles
         if first_backtestable_timestamp > jh.today():
             raise CandleNotFoundInDatabase(
-                'Not enough candle for {} {} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. Try importing more candles from an earlier date.'.format(
+                'Not enough candle for {} {} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. '
+                'Try importing more candles from an earlier date.'.format(
                     exchange, symbol
                 )
             )

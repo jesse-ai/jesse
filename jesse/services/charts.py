@@ -44,7 +44,7 @@ def portfolio_vs_asset_returns():
         prices = []
         candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
         max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
-        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * 210
+        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * jh.get_config('env.data.warmup_candles_num', 210)
         for i, c in enumerate(candles):
             # do not plot prices for required_initial_candles period
             if i < pre_candles_count:
