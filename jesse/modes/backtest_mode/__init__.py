@@ -21,19 +21,10 @@ from jesse.services.candle import generate_candle_from_one_minutes, print_candle
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
+from jesse.modes.utils import save_daily_portfolio_balance
 
 
 def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False, json=False):
-    """
-
-    :param start_date:
-    :param finish_date:
-    :param candles:
-    :param chart:
-    :param tradingview:
-    :param csv:
-    :param json:
-    """
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -192,7 +183,7 @@ def simulator(candles, hyperparameters=None):
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
     # add initial balance
-    _save_daily_portfolio_balance()
+    save_daily_portfolio_balance()
 
     with click.progressbar(length=length, label='Executing simulation...') as progressbar:
         for i in range(length):
@@ -251,7 +242,7 @@ def simulator(candles, hyperparameters=None):
             store.orders.execute_pending_market_orders()
 
             if i != 0 and i % 1440 == 0:
-                _save_daily_portfolio_balance()
+                save_daily_portfolio_balance()
 
     if not jh.should_execute_silently():
         if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
@@ -265,27 +256,7 @@ def simulator(candles, hyperparameters=None):
         r.strategy._terminate()
 
     # now that backtest is finished, add finishing balance
-    _save_daily_portfolio_balance()
-
-
-def _save_daily_portfolio_balance():
-    balances = []
-
-    # add exchange balances
-    for key, e in store.exchanges.storage.items():
-        balances.append(e.balance)
-
-    # add open position values
-    for key, pos in store.positions.storage.items():
-        if pos.is_open:
-            balances.append(pos.value)
-        else:
-            # if position is close, see if we have active orders for that route
-            for o in store.orders.get_orders(pos.exchange_name, pos.symbol):
-                if o.is_active:
-                    balances.append(abs(o.qty * o.price))
-
-    store.app.daily_balance.append(sum(balances))
+    save_daily_portfolio_balance()
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str):

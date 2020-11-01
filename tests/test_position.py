@@ -6,13 +6,8 @@ from jesse.store import store
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     config['app']['considering_exchanges'] = [exchanges.SANDBOX]
-    config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
-    config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 1000
     config['app']['trading_exchanges'] = [exchanges.SANDBOX]
     config['app']['trading_symbols'] = ['BTCUSD']
     config['app']['trading_timeframes'] = ['5m']
@@ -27,13 +22,11 @@ def test_close_position():
         'current_price': 50,
         'qty': 2,
     })
-    e = selectors.get_exchange('Sandbox')
     assert p.exit_price is None
 
     p._close(50)
 
     assert p.qty == 0
-    assert e.balance == 1100
     assert p.entry_price is None
     assert p.exit_price == 50
 
@@ -46,13 +39,11 @@ def test_increase_a_long_position():
         'current_price': 50,
         'qty': 2,
     })
-    e = selectors.get_exchange('Sandbox')
 
     p._increase(2, 100)
 
     assert p.qty == 4
     assert p.entry_price == 75
-    assert e.balance == 800
 
 
 def test_increase_a_short_position():
@@ -63,13 +54,11 @@ def test_increase_a_short_position():
         'current_price': 50,
         'qty': -2,
     })
-    e = selectors.get_exchange('Sandbox')
 
     p._increase(2, 40)
 
     assert p.qty == -4
     assert p.entry_price == 45
-    assert e.balance == 920
 
 
 def test_initiating_position():
@@ -96,32 +85,29 @@ def test_is_able_to_close_via_reduce_postion_too():
         'current_price': 50,
         'qty': 2,
     })
-    e = selectors.get_exchange('Sandbox')
 
     p._reduce(2, 50)
 
     assert p.qty == 0
-    assert e.balance == 1100
 
 
 def test_open_position():
     set_up()
 
     p = Position(exchanges.SANDBOX, 'BTCUSD')
-    e = selectors.get_exchange('Sandbox')
 
     assert p.qty == 0
     assert p.entry_price is None
     assert p.exit_price is None
     assert p.current_price is None
-    assert e.balance == 1000
 
     p._open(1, 50)
 
     assert p.qty == 1
     assert p.entry_price == 50
     assert p.exit_price is None
-    assert e.balance == 950
+
+
 def test_position_is_close():
     p = Position(exchanges.SANDBOX, 'BTCUSD', {
         'entry_price': 50,
@@ -230,12 +216,10 @@ def test_reduce_a_long_position():
         'current_price': 50,
         'qty': 2,
     })
-    e = selectors.get_exchange('Sandbox')
 
     p._reduce(1, 50)
 
     assert p.qty == 1
-    assert e.balance == 1050
 
 
 def test_reduce_a_short_position():
@@ -246,11 +230,9 @@ def test_reduce_a_short_position():
         'current_price': 50,
         'qty': -2,
     })
-    e = selectors.get_exchange('Sandbox')
 
     p._reduce(1, 50)
 
     assert p.qty == -1
-    assert e.balance == 1050
 
 

@@ -14,63 +14,62 @@ from jesse.models import Order
 from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
+from jesse.config import config
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
 
 
 def get_btc_and_eth_candles():
-    """
-
-    :return:
-    """
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': fake_range_candle_from_range_prices(range(101, 200))
     }
-    candles[jh.key(exchanges.SANDBOX, 'ETHUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'ETHUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSD',
+        'symbol': 'ETHUSDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
 
 
 def get_btc_candles():
-    """
-
-    :return:
-    """
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
 
 
-def set_up(routes):
-    """
-
-    :param routes:
-    """
+def set_up(routes, is_margin_trading=True):
     reset_config()
+    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
+        {'asset': 'USDT', 'balance': 10000},
+        {'asset': 'BTC', 'balance': 0},
+        {'asset': 'ETH', 'balance': 0},
+    ]
+    if is_margin_trading:
+        # used only in margin trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    else:
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
     router.set_routes(routes)
     store.reset(True)
 
 
 def single_route_backtest(strategy_name: str):
     """used to simplify simple tests"""
-    set_up([(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, strategy_name)])
+    set_up([(exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, strategy_name)])
     # dates are fake. just to pass required parameters
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
 
 def test_average_stop_loss_exception():
-    set_up([(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test39')])
+    set_up([(exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test39')])
 
     with pytest.raises(exceptions.InvalidStrategy):
         backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -96,7 +95,7 @@ def test_average_take_profit_and_average_stop_loss():
 
 
 def test_average_take_profit_exception():
-    set_up([(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test38')])
+    set_up([(exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test38')])
 
     with pytest.raises(exceptions.InvalidStrategy):
         backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -113,8 +112,8 @@ def test_can_close_a_long_position_and_go_short_at_the_same_candle():
 
 def test_can_perform_backtest_with_multiple_routes():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test01'),
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test02'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test01'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test02'),
     ])
 
     candles = {}
@@ -159,6 +158,8 @@ def test_can_perform_backtest_with_multiple_routes():
 
 def test_fee_rate_property():
     single_route_backtest('Test48')
+
+
 def test_filter_readable_exception():
     with pytest.raises(Exception) as err:
         single_route_backtest('Test47')
@@ -177,32 +178,32 @@ def test_filters():
 def test_forming_candles():
     reset_config()
     router.set_routes([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test19')
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test19')
     ])
     router.set_extra_candles([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_15)
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_15)
     ])
     store.reset(True)
 
     candles = {}
-    key = jh.key(exchanges.SANDBOX, 'BTCUSD')
+    key = jh.key(exchanges.SANDBOX, 'BTCUSDT')
     candles[key] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': test_candles_0
     }
 
     backtest_mode.run('2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
-    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5)) == math.ceil(1382 / 5)
-    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_15)) == math.ceil(
+    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5)) == math.ceil(1382 / 5)
+    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_15)) == math.ceil(
         1382 / 15)
 
 
 def test_increasing_position_size_after_opening():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test16'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test16'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -228,14 +229,14 @@ def test_is_reduced():
 
 def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test05'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test05'),
     ])
 
     candles = {}
-    key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+    key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
     candles[key] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSD',
+        'symbol': 'ETHUSDT',
         'candles': test_candles_1
     }
 
@@ -274,14 +275,14 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
 
 def test_is_smart_enough_to_open_positions_via_stop_orders():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test06'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test06'),
     ])
 
     candles = {}
-    key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+    key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
     candles[key] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSD',
+        'symbol': 'ETHUSDT',
         'candles': test_candles_1
     }
 
@@ -320,7 +321,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
 
 def test_liquidate():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test31'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test31'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -344,7 +345,7 @@ def test_liquidate():
 
 def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop_loss():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test14'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test14'),
     ])
 
     generated_candles = fake_range_candle_from_range_prices(
@@ -352,10 +353,10 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
     )
 
     candles = {}
-    key = jh.key(exchanges.SANDBOX, 'BTCUSD')
+    key = jh.key(exchanges.SANDBOX, 'BTCUSDT')
     candles[key] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': generated_candles
     }
 
@@ -374,7 +375,7 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
 
 def test_modifying_take_profit_after_opening_position():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test12'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test12'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -392,7 +393,7 @@ def test_modifying_take_profit_after_opening_position():
 
 def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_profit():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test13'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test13'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -410,8 +411,8 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
 
 def test_multiple_routes_can_communicate_with_each_other():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test03'),
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test03'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test03'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test03'),
     ])
 
     candles = {}
@@ -457,8 +458,8 @@ def test_multiple_routes_can_communicate_with_each_other():
 def test_must_not_be_able_to_set_two_similar_routes():
     reset_config()
     router.set_routes([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test01'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_30, 'Test02'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test01'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_30, 'Test02'),
     ])
     with pytest.raises(Exception) as err:
         store.reset(True)
@@ -468,7 +469,7 @@ def test_must_not_be_able_to_set_two_similar_routes():
 
 def test_on_reduced_position():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test18'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test18'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -486,15 +487,15 @@ def test_on_reduced_position():
 
 def test_on_route_canceled():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test27'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test28'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test27'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test28'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
 
     t1 = store.completed_trades.trades[0]
 
-    assert t1.symbol == 'BTCUSD'
+    assert t1.symbol == 'BTCUSDT'
     assert t1.type == 'long'
     assert t1.entry_price == 101
     assert t1.exit_price == 120
@@ -505,8 +506,8 @@ def test_on_route_canceled():
 
 def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test29'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test30'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test29'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test30'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
@@ -518,7 +519,7 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     # long ETHUSD
     t3 = store.completed_trades.trades[2]
 
-    assert t1.symbol == 'BTCUSD'
+    assert t1.symbol == 'BTCUSDT'
     assert t1.type == 'long'
     assert t1.entry_price == 121
     assert t1.exit_price == 131
@@ -526,7 +527,7 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     assert t1.qty == 1
     assert np.isnan(t1.stop_loss_at)
 
-    assert t2.symbol == 'BTCUSD'
+    assert t2.symbol == 'BTCUSDT'
     assert t2.type == 'short'
     assert t2.entry_price == 151
     assert t2.exit_price == 161
@@ -534,7 +535,7 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     assert t2.qty == 1
     assert np.isnan(t2.take_profit_at)
 
-    assert t3.symbol == 'ETHUSD'
+    assert t3.symbol == 'ETHUSDT'
     assert t3.type == 'long'
     # because we open at 10, and increase at 20, entry is the mean which is 15
     assert t3.entry_price == 15
@@ -547,8 +548,8 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
 
 def test_on_route_open_position():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test21'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test22'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test21'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test22'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
@@ -556,7 +557,7 @@ def test_on_route_open_position():
     t1 = store.completed_trades.trades[0]
     t2 = store.completed_trades.trades[1]
 
-    assert t1.symbol == 'BTCUSD'
+    assert t1.symbol == 'BTCUSDT'
     assert t1.type == 'long'
     assert t1.entry_price == 101
     assert t1.exit_price == 110
@@ -564,7 +565,7 @@ def test_on_route_open_position():
     assert t1.qty == 1
     assert np.isnan(t1.stop_loss_at)
 
-    assert t2.symbol == 'ETHUSD'
+    assert t2.symbol == 'ETHUSDT'
     assert t2.type == 'long'
     assert t2.entry_price == 10
     assert t2.exit_price == 20
@@ -575,8 +576,8 @@ def test_on_route_open_position():
 
 def test_on_route_stop_loss():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test25'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test26'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test25'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test26'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
@@ -584,7 +585,7 @@ def test_on_route_stop_loss():
     t1 = store.completed_trades.trades[0]
     t2 = store.completed_trades.trades[1]
 
-    assert t2.symbol == 'BTCUSD'
+    assert t2.symbol == 'BTCUSDT'
     assert t2.type == 'long'
     assert t2.entry_price == 101
     assert t2.exit_price == 120
@@ -592,7 +593,7 @@ def test_on_route_stop_loss():
     assert t2.qty == 1
     assert np.isnan(t2.stop_loss_at)
 
-    assert t1.symbol == 'ETHUSD'
+    assert t1.symbol == 'ETHUSDT'
     assert t1.type == 'short'
     assert t1.entry_price == 10
     assert t1.exit_price == 20
@@ -603,8 +604,8 @@ def test_on_route_stop_loss():
 
 def test_on_route_take_profit():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test23'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test24'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test23'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test24'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
@@ -612,7 +613,7 @@ def test_on_route_take_profit():
     t1 = store.completed_trades.trades[0]
     t2 = store.completed_trades.trades[1]
 
-    assert t2.symbol == 'BTCUSD'
+    assert t2.symbol == 'BTCUSDT'
     assert t2.type == 'long'
     assert t2.entry_price == 101
     assert t2.exit_price == 120
@@ -620,7 +621,7 @@ def test_on_route_take_profit():
     assert t2.qty == 1
     assert np.isnan(t2.stop_loss_at)
 
-    assert t1.symbol == 'ETHUSD'
+    assert t1.symbol == 'ETHUSDT'
     assert t1.type == 'long'
     assert t1.entry_price == 10
     assert t1.exit_price == 20
@@ -631,7 +632,7 @@ def test_on_route_take_profit():
 
 def test_opening_position_in_multiple_points():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test15'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test15'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -649,7 +650,7 @@ def test_opening_position_in_multiple_points():
 
 def test_reducing_position_size_after_opening():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test17'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test17'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -667,15 +668,15 @@ def test_reducing_position_size_after_opening():
 
 def test_shared_vars():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test32'),
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test33'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test32'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test33'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
 
     t1 = store.completed_trades.trades[0]
 
-    assert t1.symbol == 'ETHUSD'
+    assert t1.symbol == 'ETHUSDT'
     assert t1.type == 'long'
     assert t1.entry_price == 11
     assert t1.exit_price == 21
@@ -686,7 +687,7 @@ def test_shared_vars():
 
 def test_should_buy_and_execute_buy():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test01'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test01'),
     ])
 
     candles = {}
@@ -701,8 +702,6 @@ def test_should_buy_and_execute_buy():
 
     # run backtest (dates are fake just to pass)
     backtest_mode.run('2019-04-01', '2019-04-02', candles)
-
-    ss1 = store
 
     for r in routes:
         s: Strategy = r.strategy
@@ -733,7 +732,7 @@ def test_should_buy_and_execute_buy():
 
 def test_should_sell_and_execute_sell():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test02'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test02'),
     ])
 
     candles = {}
@@ -771,7 +770,7 @@ def test_should_sell_and_execute_sell():
 
 def test_stop_loss_at_multiple_points():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_1, 'Test11'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test11'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -789,8 +788,8 @@ def test_stop_loss_at_multiple_points():
 
 def test_strategy_properties():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test19'),
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test19'),
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test19'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test19'),
     ])
 
     candles = {}
@@ -824,7 +823,7 @@ def test_strategy_properties():
 
 def test_taking_profit_at_multiple_points():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSD', timeframes.MINUTE_5, 'Test10'),
+        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_5, 'Test10'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -859,34 +858,35 @@ def test_terminate():
     assert store.app.total_open_pl == 0
 
 
-def test_terminate_closes_trades_at_the_of_backtest():
+def test_terminate_closes_trades_at_the_end_of_backtest():
     single_route_backtest('Test40')
 
     # assert that Strategies's _terminate() method closes the open position
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97
 
-    assert {'time': 1552315246171.0,
-            'message': 'Closed open Sandbox-BTCUSD position at 99.0 with PNL: 97.0(4850.0%) because we reached the end of the backtest session.'} in store.logs.info
+    assert {
+               'time': 1552315246171.0,
+               'message': 'Closed open Sandbox-BTCUSDT position at 99.0 with PNL: 97.0(4850.0%) because we reached the end of the backtest session.'
+           } in store.logs.info
 
 
 def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     set_up([
-        (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_1, 'Test07')
+        (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test07')
     ])
 
     candles = {}
-    key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+    key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
     candles[key] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSD',
+        'symbol': 'ETHUSDT',
         'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
     backtest_mode.run('2019-04-01', '2019-04-02', candles)
 
-    tt = store.completed_trades
     t1: CompletedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
@@ -922,14 +922,12 @@ def test_validation_for_equal_stop_loss_and_take_profit():
 
     assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
 
-
-
 # def test_inputs_get_rounded_behind_the_scene():
-#     set_up([(exchanges.SANDBOX, 'EOSUSD', timeframes.MINUTE_1, 'Test44')])
+#     set_up([(exchanges.SANDBOX, 'EOSUSDT', timeframes.MINUTE_1, 'Test44')])
 #     candles = {}
-#     candles[jh.key(exchanges.SANDBOX, 'EOSUSD')] = {
+#     candles[jh.key(exchanges.SANDBOX, 'EOSUSDT')] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'EOSUSD',
+#         'symbol': 'EOSUSDT',
 #         'candles': fake_range_candle_from_range_prices(range(1, 100))
 #     }
 #     backtest_mode.run('2019-04-01', '2019-04-02', candles)

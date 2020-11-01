@@ -684,7 +684,7 @@ def quote_asset(symbol: str):
 
 
 def app_currency():
-    from oikos.routes import router
+    from jesse.routes import router
     return quote_asset(router.routes[0].symbol)
 
 

@@ -2,16 +2,13 @@ import jesse.helpers as jh
 import jesse.services.selectors as selectors
 import jesse.utils as ju
 from jesse.config import config
-from jesse.enums import trade_types, order_types, order_flags
+from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order
 from jesse.services import logger, notifier
 
 
 class Position:
-    """
-
-    """
     def __init__(self, exchange_name, symbol, attributes=None):
         self.id = jh.generate_unique_id()
         self.entry_price = None
@@ -117,9 +114,8 @@ class Position:
         self.exit_price = close_price
 
         if self.exchange:
-            self.exchange.increase_balance(
-                self, close_qty * self.entry_price + estimated_profit
-            )
+            self.exchange.add_realized_pnl(estimated_profit)
+            self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
         self.qty = 0
         self.entry_price = None
         self.closed_at = jh.now()
@@ -141,12 +137,12 @@ class Position:
         # just to prevent confusion
         qty = abs(qty)
 
-        estimated_profit = jh.estimate_PNL(qty, self.entry_price, price,
-                                           self.type)
+        estimated_profit = jh.estimate_PNL(qty, self.entry_price, price, self.type)
 
         if self.exchange:
-            self.exchange.increase_balance(
-                self, qty * self.entry_price + estimated_profit)
+            # self.exchange.increase_margin_balance(qty * self.entry_price + estimated_profit)
+            self.exchange.add_realized_pnl(estimated_profit)
+            self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
         if self.type == trade_types.LONG:
             self.qty -= qty
@@ -165,14 +161,13 @@ class Position:
 
     def _increase(self, qty, price):
         if not self.is_open:
-            raise OpenPositionError(
-                'position must be already open in order to incrase its size')
+            raise OpenPositionError('position must be already open in order to incrase its size')
 
         qty = abs(qty)
         size = qty * price
 
-        if self.exchange:
-            self.exchange.decrease_balance(self, size)
+        # if self.exchange:
+        #     self.exchange.decrease_margin_balance(size)
 
         self.entry_price = jh.estimate_average_price(qty, price, self.qty,
                                                      self.entry_price)
@@ -196,10 +191,10 @@ class Position:
         if self.is_open:
             raise OpenPositionError('an already open position cannot be opened')
 
-        if change_balance:
-            size = abs(qty) * price
-            if self.exchange:
-                self.exchange.decrease_balance(self, size)
+        # if change_balance:
+        #     size = abs(qty) * price
+            # if self.exchange:
+            #     self.exchange.decrease_margin_balance(size)
 
         self.entry_price = price
         self.exit_price = None
@@ -222,66 +217,66 @@ class Position:
         if order.type == order_types.MARKET:
             return
 
-        qty = order.qty
-        price = order.price
-        size = ju.qty_to_size(qty, price)
-
-        # open-position order
-        if self.qty == 0:
-            if self.exchange:
-                self.exchange.decrease_balance(self, size)
-        # increase-position order
-        elif self.qty * qty > 0:
-            if self.exchange:
-                self.exchange.decrease_balance(self, size)
-        # reduce-position order
-        elif self.qty * qty < 0:
-            if abs(qty) > abs(self.qty):
-                diff_qty = qty + self.qty
-                size = ju.qty_to_size(diff_qty, price)
-                if self.exchange:
-                    self.exchange.decrease_balance(self, size)
+        # qty = order.qty
+        # price = order.price
+        # size = ju.qty_to_size(qty, price)
+        # available_qty = self.exchange.available_assets[jh.base_asset(self.symbol)]
+        #
+        # # # open-position order
+        # # if available_qty == 0:
+        # #     if self.exchange:
+        # #         self.exchange.decrease_margin_balance(size)
+        # # # increase-position order
+        # # elif available_qty * qty > 0:
+        # #     if self.exchange:
+        # #         self.exchange.decrease_margin_balance(size)
+        # # # reduce-position order
+        # # elif available_qty * qty < 0:
+        # #     if abs(qty) > abs(available_qty):
+        # #         diff_qty = qty + available_qty
+        # #         size = ju.qty_to_size(diff_qty, price)
+        # #         if self.exchange:
+        # #             self.exchange.decrease_margin_balance(size)
 
     def _on_canceled_order(self, order):
         qty = order.qty
         price = order.price
         size = ju.qty_to_size(qty, price)
+        available_qty = self.exchange.available_assets[jh.base_asset(self.symbol)]
 
         if order.is_reduce_only:
             return
-
-        # open-position order
-        if self.qty == 0:
-            if self.exchange:
-                self.exchange.increase_balance(self, size, True)
-        # increase-position order
-        elif self.qty * qty > 0:
-            if self.exchange:
-                self.exchange.increase_balance(self, size, True)
-        # reduce-position order
-        elif self.qty * qty < 0:
-            if abs(qty) > abs(self.qty):
-                diff_qty = qty + self.qty
-                size = ju.qty_to_size(diff_qty, price)
-                if self.exchange:
-                    self.exchange.increase_balance(self, size, True)
+        #
+        # # detect reduce_only
+        # if abs(available_qty + order.qty) > abs(available_qty):
+        #     return
+        #
+        # # open-position order
+        # if available_qty == 0:
+        #     if self.exchange:
+        #         self.exchange.increase_margin_balance(size, True)
+        # # increase-position order
+        # elif available_qty * qty > 0:
+        #     if self.exchange:
+        #         self.exchange.increase_margin_balance(size, True)
+        # # reduce-position order
+        # elif available_qty * qty < 0:
+        #     if abs(qty) > abs(available_qty):
+        #         diff_qty = qty + available_qty
+        #         size = ju.qty_to_size(diff_qty, price)
+        #         if self.exchange:
+        #             self.exchange.increase_margin_balance(size, True)
 
     def _on_executed_order(self, order: Order):
         qty = order.qty
         price = order.price
 
-        # handle REDUCE_ONLY orders
-        if order.flag == order_flags.REDUCE_ONLY:
-            if self.qty == 0 or self.qty * qty > 0:
-                return
-            if self.qty * qty < 0 and abs(qty) > abs(self.qty):
-                self._close(price)
-                if self.strategy:
-                    self.strategy._on_updated_position(order)
-                return
+        # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
+
+        self.exchange.charge_fee(qty * price)
 
         # order opens position
-        if self.qty == 0 and order.type:
+        if self.qty == 0:
             change_balance = order.type == order_types.MARKET
             self._open(qty, price, change_balance)
         # order closes position
@@ -303,3 +298,37 @@ class Position:
 
         if self.strategy:
             self.strategy._on_updated_position(order)
+        #
+        # # handle REDUCE_ONLY orders
+        # if order.flag == order_flags.REDUCE_ONLY:
+        #     if self.qty == 0 or self.qty * qty > 0:
+        #         return
+        #     if self.qty * qty < 0 and abs(qty) > abs(self.qty):
+        #         self._close(price)
+        #         if self.strategy:
+        #             self.strategy._on_updated_position(order)
+        #         return
+        #
+        # # order opens position
+        # if self.qty == 0 and order.type:
+        #     change_balance = order.type == order_types.MARKET
+        #     self._open(qty, price, change_balance)
+        # # order closes position
+        # elif (self.qty + qty) == 0:
+        #     self._close(price)
+        # # order increases the size of the position
+        # elif self.qty * qty > 0:
+        #     self._increase(qty, price)
+        # # order reduces the size of the position
+        # elif self.qty * qty < 0:
+        #     # if size of the order is big enough to both close the
+        #     # position AND open it on the opposite side
+        #     if abs(qty) > abs(self.qty):
+        #         diff_qty = qty + self.qty
+        #         self._close(price)
+        #         self._open(diff_qty, price)
+        #     else:
+        #         self._reduce(qty, price)
+        #
+        # if self.strategy:
+        #     self.strategy._on_updated_position(order)

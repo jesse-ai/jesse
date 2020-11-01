@@ -8,46 +8,37 @@ from jesse.store import store
 
 
 def get_btc_and_eth_candles():
-    """
-
-    :return:
-    """
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': fake_range_candle_from_range_prices(range(101, 200))
     }
-    candles[jh.key(exchanges.SANDBOX, 'ETHUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'ETHUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSD',
+        'symbol': 'ETHUSDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
 
 
 def get_btc_candles():
-    """
-
-    :return:
-    """
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSD')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSD',
+        'symbol': 'BTCUSDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
 
 
 def set_up(routes, fee=0):
-    """
-
-    :param routes:
-    :param fee:
-    """
     reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['starting_balance'] = 10000
+    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
+        {'asset': 'USDT', 'balance': 1000},
+        {'asset': 'BTC', 'balance': 0},
+    ]
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
     router.set_routes(routes)
     router.set_extra_candles([])
@@ -55,7 +46,7 @@ def set_up(routes, fee=0):
 
 
 def test_open_pl_and_total_open_trades():
-    set_up([(exchanges.SANDBOX, 'BTCUSD', '1m', 'Test40')])
+    set_up([(exchanges.SANDBOX, 'BTCUSDT', '1m', 'Test40')])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
@@ -65,14 +56,14 @@ def test_open_pl_and_total_open_trades():
 
 # def test_statistics_for_trades_without_fee():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test06'),
+#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test06'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSD',
+#         'symbol': 'ETHUSDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -112,14 +103,14 @@ def test_open_pl_and_total_open_trades():
 #
 # def test_stats_for_a_strategy_without_losing_trades():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test08'),
+#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test08'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSD',
+#         'symbol': 'ETHUSDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -156,14 +147,14 @@ def test_open_pl_and_total_open_trades():
 #
 # def test_stats_for_a_strategy_without_any_trades():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test09'),
+#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test09'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSD',
+#         'symbol': 'ETHUSDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -201,14 +192,14 @@ def test_open_pl_and_total_open_trades():
 # #
 # # def test_statistics_for_trades_with_fee():
 # #     set_up([
-# #         (exchanges.SANDBOX, 'ETHUSD', timeframes.MINUTE_5, 'Test06'),
+# #         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test06'),
 # #     ], 0.002)
 # #
 # #     candles = {}
-# #     key = jh.key(exchanges.SANDBOX, 'ETHUSD')
+# #     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
 # #     candles[key] = {
 # #         'exchange': exchanges.SANDBOX,
-# #         'symbol': 'ETHUSD',
+# #         'symbol': 'ETHUSDT',
 # #         'candles': test_candles_1
 # #     }
 # #

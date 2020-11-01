@@ -25,37 +25,74 @@ config = {
         'exchanges': {
             'Sandbox': {
                 'fee': 0,
-                'starting_balance': 10000,
+                'type': 'spot',
+                # used only in margin trading
+                'settlement_currency': 'USDT',
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
 
             # https://www.bitfinex.com
             'Bitfinex': {
+                'type': 'margin',
+                # used only in margin trading
+                'settlement_currency': 'USD',
                 'fee': 0.002,
-                'starting_balance': 10000,
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USD', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
 
             # https://www.binance.com
             'Binance': {
+                'type': 'spot',
+                # used only in margin trading
+                'settlement_currency': 'USDT',
                 'fee': 0.001,
-                'starting_balance': 10000,
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
 
             # https://www.binance.com
             'Binance Futures': {
+                'type': 'margin',
+                # used only in margin trading
+                'settlement_currency': 'USDT',
                 'fee': 0.0002,
-                'starting_balance': 10000,
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
 
             # https://testnet.binancefuture.com
             'Testnet Binance Futures': {
+                'type': 'margin',
+                # used only in margin trading
+                'settlement_currency': 'USDT',
                 'fee': 0.0002,
-                'starting_balance': 10000,
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
 
             # https://pro.coinbase.com
             'Coinbase': {
+                'type': 'spot',
+                # used only in margin trading
+                'settlement_currency': 'USDT',
                 'fee': 0.005,
-                'starting_balance': 10000,
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'BTC', 'balance': 0},
+                ],
             },
         },
 
@@ -126,11 +163,6 @@ config = {
 
         # this would enable many console.log()s in the code, which are helpful for debugging.
         'debug_mode': False,
-
-        # setting this value to False would disable few validation checks which
-        # are required for live trading on real markets, however, it is useful
-        # for doing backtests simulations while faster strategy development.
-        'strategy-validation': True
     },
 }
 
@@ -138,22 +170,21 @@ backup_config = config.copy()
 
 
 def set_config(c):
-    """
-
-    :param c:
-    """
     global config
     config['env'] = c
     # add sandbox because it isn't in the local config file
     config['env']['exchanges']['Sandbox'] = {
+        'type': 'spot',
+        # used only in margin trading
+        'settlement_currency': 'USDT',
         'fee': 0,
-        'starting_balance': 10000,
+        'assets': [
+            {'asset': 'USDT', 'balance': 10000},
+            {'asset': 'BTC', 'balance': 0},
+        ],
     }
 
 
 def reset_config():
-    """
-
-    """
     global config
     config = backup_config.copy()

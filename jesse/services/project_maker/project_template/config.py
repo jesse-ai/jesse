@@ -23,31 +23,62 @@ config = {
         # https://www.bitfinex.com
         'Bitfinex': {
             'fee': 0.002,
-            'starting_balance': 10000,
+            'type': 'margin',
+            # used only in margin trading
+            'settlement_currency': 'USD',
+            'assets': [
+                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'USD', 'balance': 10000},
+                {'asset': 'BTC', 'balance': 0},
+            ],
         },
 
         # https://www.binance.com
         'Binance': {
             'fee': 0.001,
-            'starting_balance': 10000,
+            'type': 'spot',
+            # used only in margin trading
+            'settlement_currency': 'USDT',
+            'assets': [
+                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'BTC', 'balance': 0},
+            ],
         },
 
         # https://www.binance.com
         'Binance Futures': {
             'fee': 0.0002,
-            'starting_balance': 10000,
+            'type': 'margin',
+            # used only in margin trading
+            'settlement_currency': 'USDT',
+            'assets': [
+                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'BTC', 'balance': 0},
+            ],
         },
 
         # https://testnet.binancefuture.com
         'Testnet Binance Futures': {
             'fee': 0.0002,
-            'starting_balance': 10000,
+            'type': 'margin',
+            # used only in margin trading
+            'settlement_currency': 'USDT',
+            'assets': [
+                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'BTC', 'balance': 0},
+            ],
         },
 
         # https://pro.coinbase.com
         'Coinbase': {
             'fee': 0.005,
-            'starting_balance': 10000,
+            'type': 'spot',
+            # used only in margin trading
+            'settlement_currency': 'USD',
+            'assets': [
+                {'asset': 'USD', 'balance': 10000},
+                {'asset': 'BTC', 'balance': 0},
+            ],
         },
     },
 

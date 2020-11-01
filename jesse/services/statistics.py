@@ -46,8 +46,8 @@ def trades(trades_list: list, daily_balance: list):
     current_balance = 0
 
     for e in store.exchanges.storage:
-        starting_balance += store.exchanges.storage[e].starting_balance
-        current_balance += store.exchanges.storage[e].balance
+        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
+        current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
     starting_balance = round(starting_balance, 2)
     current_balance = round(current_balance, 2)

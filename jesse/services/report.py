@@ -6,10 +6,12 @@ import pandas as pd
 
 import jesse.helpers as jh
 from jesse.config import config
+from jesse.models import Route
 from jesse.routes import router
 from jesse.services import statistics as stats
 from jesse.services.candle import is_bullish
 from jesse.store import store
+from jesse.services import selectors
 
 warnings.filterwarnings("ignore")
 
@@ -112,19 +114,52 @@ def livetrade():
     starting_balance = 0
     current_balance = 0
     for e in store.exchanges.storage:
-        starting_balance += store.exchanges.storage[e].starting_balance
-        current_balance += store.exchanges.storage[e].balance
+        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
+        current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
     starting_balance = round(starting_balance, 2)
     current_balance = round(current_balance, 2)
 
     arr = [
-        ['started/current balance', '{}/{}'.format(starting_balance, current_balance)],
         ['started at', jh.get_arrow(store.app.starting_time).humanize()],
         ['current time', jh.timestamp_to_time(jh.now())[:19]],
         ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
         ['active orders', store.orders.count_all_active_orders()],
         ['open positions', store.positions.count_open_positions()]
     ]
+
+    # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
+    first_exchange = selectors.get_exchange(router.routes[0].exchange)
+
+    if first_exchange.type == 'margin':
+        arr.append(['started/current balance', '{}/{}'.format(starting_balance, current_balance)])
+    else:
+        # loop all trading exchanges
+        for exchange in selectors.get_all_exchanges():
+            # loop all assets
+            for asset_name, asset_balance in exchange.assets.items():
+                if asset_name == jh.base_asset(router.routes[0].symbol):
+                    current_price = selectors.get_current_price(router.routes[0].exchange, router.routes[0].symbol)
+                    arr.append(
+                        [
+                            '{}'.format(asset_name),
+                            '{}/{} ({} {})'.format(
+                                round(exchange.available_assets[asset_name], 5),
+                                round(asset_balance, 5),
+                                jh.format_currency(round(asset_balance * current_price, 2)),
+                                jh.quote_asset(router.routes[0].symbol)
+                            )
+                        ]
+                    )
+                else:
+                    arr.append(
+                        [
+                            '{}'.format(asset_name),
+                            '{}/{}'.format(
+                                round(exchange.available_assets[asset_name], 5),
+                                round(asset_balance, 5),
+                            )
+                        ]
+                    )
 
     # short trades summary
     if len(store.completed_trades.trades):

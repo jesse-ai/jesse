@@ -1021,7 +1021,8 @@ class Strategy(ABC):
     @property
     def capital(self):
         """the current capital in the trading exchange"""
-        return selectors.get_exchange(self.exchange).balance
+        e = selectors.get_exchange(self.exchange)
+        return e.tradable_balance(self.symbol)
 
     @property
     def fee_rate(self):
