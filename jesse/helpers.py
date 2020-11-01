@@ -3,7 +3,8 @@ import math
 import os
 import sys
 import uuid
-
+import random
+import string
 import arrow
 import click
 import numpy as np
@@ -648,3 +649,44 @@ def unique_list(arr) -> list:
 def floor_with_precision(num, precision=0):
     temp = 10 ** precision
     return math.floor(num * temp) / temp
+
+
+def dashed_symbol(symbol):
+    return symbol[:3] + '-' + symbol[3:]
+
+
+def dashless_symbol(symbol):
+    return symbol[:3] + symbol[4:]
+
+
+def random_str(num_characters=8):
+    return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
+
+
+def base_asset(symbol: str):
+    if symbol.endswith('USDT'):
+        return symbol[0:len(symbol) - 4]
+
+    if symbol.endswith('USD'):
+        return symbol[0:len(symbol) - 3]
+
+    return symbol[0:3]
+
+
+def quote_asset(symbol: str):
+    if symbol.endswith('USDT'):
+        return 'USDT'
+
+    if symbol.endswith('USD'):
+        return 'USD'
+
+    return symbol[3:]
+
+
+def app_currency():
+    from oikos.routes import router
+    return quote_asset(router.routes[0].symbol)
+
+
+def format_currency(num):
+    return f'{num:,}'

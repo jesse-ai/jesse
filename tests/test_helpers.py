@@ -100,23 +100,26 @@ def test_estimate_profit():
 
 
 def test_get_candle_source():
-    candle = np.array(([1575547200000, 146.51, 147.03, 149.02, 146.51, 64788.46651], [1553817660000, 4092.56783507, 4092.5, 4092.56783507, 4092.5, 9.0847059]))
+    candle = np.array(([1575547200000, 146.51, 147.03, 149.02, 146.51, 64788.46651],
+                       [1553817660000, 4092.56783507, 4092.5, 4092.56783507, 4092.5, 9.0847059]))
     close = jh.get_candle_source(candle, source_type="close")
-    assert close[-1]  == 4092.5
+    assert close[-1] == 4092.5
     high = jh.get_candle_source(candle, source_type="high")
-    assert high[-1]  == 4092.56783507
+    assert high[-1] == 4092.56783507
     low = jh.get_candle_source(candle, source_type="low")
-    assert low[-1]  == 4092.5
+    assert low[-1] == 4092.5
     open = jh.get_candle_source(candle, source_type="open")
-    assert open[-1]  == 4092.56783507
+    assert open[-1] == 4092.56783507
     volume = jh.get_candle_source(candle, source_type="volume")
-    assert volume[-1]  == 9.0847059
+    assert volume[-1] == 9.0847059
     hl2 = jh.get_candle_source(candle, source_type="hl2")
-    assert hl2[-1]  == 4092.533917535
+    assert hl2[-1] == 4092.533917535
     hlc3 = jh.get_candle_source(candle, source_type="hlc3")
-    assert hlc3[-1]  == 4092.52261169
+    assert hlc3[-1] == 4092.52261169
     ohlc4 = jh.get_candle_source(candle, source_type="ohlc4")
-    assert ohlc4[-1]  == 4092.533917535
+    assert ohlc4[-1] == 4092.533917535
+
+
 def test_get_config():
     # assert when config does NOT exist (must return passed default)
     assert jh.get_config('aaaaaaa', 2020) == 2020
@@ -297,6 +300,7 @@ def test_round_qty_for_live_mode():
         np.array([0.123, 0.124])
     )
 
+
 def test_string_after_character():
     assert jh.string_after_character('btcusdt@bookTicker', '@') == 'bookTicker'
 
@@ -354,3 +358,30 @@ def test_floor_with_precision():
     assert jh.floor_with_precision(1.123, 2) == 1.12
     assert jh.floor_with_precision(1.123, 3) == 1.123
     assert jh.floor_with_precision(1.123, 4) == 1.123
+
+
+def test_dashed_symbol():
+    assert jh.dashed_symbol('BTCUSD') == 'BTC-USD'
+    assert jh.dashed_symbol('BTCUSDT') == 'BTC-USDT'
+
+
+def test_dashless_symbol():
+    assert jh.dashless_symbol('BTC-USD') == 'BTCUSD'
+    assert jh.dashless_symbol('BTC-USDT') == 'BTCUSDT'
+
+
+def test_base_asset():
+    assert jh.base_asset('BTCUSDT') == 'BTC'
+    assert jh.base_asset('BTCUSD') == 'BTC'
+    assert jh.base_asset('DEFIUSDT') == 'DEFI'
+    assert jh.base_asset('DEFIUSD') == 'DEFI'
+
+
+def test_quote_asset():
+    assert jh.quote_asset('BTCUSDT') == 'USDT'
+    assert jh.quote_asset('DEFIUSDT') == 'USDT'
+
+
+def test_format_currency():
+    assert jh.format_currency(100_000_000) == '100,000,000'
+    assert jh.format_currency(100_000_000.23) == '100,000,000.23'
