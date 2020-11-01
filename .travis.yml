@@ -4,9 +4,7 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
-  - "3.9"
 before_install:
-  - sudo apt-get install libatlas-base-dev libblas3 liblapack3 liblapack-dev libblas-dev gfortran build-essential # for scipy python 3.9 build error because of missing wheel.
   - cd
   - pip3 install Cython numpy
   - wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q
