@@ -158,7 +158,7 @@ class Exchange:
             self.available_assets[quote_asset] -= (abs(order.qty) * order.price) * (1 + self.fee_rate)
             if self.available_assets[quote_asset] < 0:
                 raise NegativeBalance(
-                    "Balance cannot go below zero in spot market. Available capital at {} for {} is {} but you're trying to spend {}".format(
+                    "Balance cannot go below zero in spot market. Available capital at {} for {} is {} but you're trying to sell {}".format(
                         self.name, quote_asset, quote_balance, abs(order.qty * order.price)
                     )
                 )
@@ -168,7 +168,7 @@ class Exchange:
             new_base_balance = base_balance + order.qty
             if new_base_balance < 0:
                 raise NegativeBalance(
-                    "Balance cannot go below zero in spot market. Available capital at {} for {} is {} but you're trying to spend {}".format(
+                    "Balance cannot go below zero in spot market. Available capital at {} for {} is {} but you're trying to sell {}".format(
                         self.name, base_asset, base_balance, abs(order.qty)
                     )
                 )
