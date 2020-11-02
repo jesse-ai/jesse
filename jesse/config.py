@@ -67,7 +67,6 @@ config = {
                 'fee': 0.0002,
                 'assets': [
                     {'asset': 'USDT', 'balance': 10000},
-                    {'asset': 'BTC', 'balance': 0},
                 ],
             },
 
@@ -79,7 +78,6 @@ config = {
                 'fee': 0.0002,
                 'assets': [
                     {'asset': 'USDT', 'balance': 10000},
-                    {'asset': 'BTC', 'balance': 0},
                 ],
             },
 

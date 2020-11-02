@@ -53,7 +53,6 @@ config = {
             'settlement_currency': 'USDT',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
-                {'asset': 'BTC', 'balance': 0},
             ],
         },
 
@@ -65,7 +64,6 @@ config = {
             'settlement_currency': 'USDT',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
-                {'asset': 'BTC', 'balance': 0},
             ],
         },
 
