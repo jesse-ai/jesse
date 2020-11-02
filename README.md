@@ -41,21 +41,21 @@ Here's an example output for a backtest simulation just to get you excited:
 
 
 Executing simulation...  [####################################]  100%
-Executed backtest simulation in:  61.94 seconds
+Executed backtest simulation in:  61.83 seconds
 
 
  METRICS                         |
 ---------------------------------+------------------------------------
  Total Closed Trades             |                                 95
- Total Net Profit                |                 46472.32 (464.72%)
- Starting => Finishing Balance   |                   10000 => 55377.9
+ Total Net Profit                |                46,472.32 (464.72%)
+ Starting => Finishing Balance   |                 10,000 => 55,377.9
  Total Open Trades               |                                  1
  Open PL                         |                            -982.83
- Total Paid Fees                 |                             8703.5
+ Total Paid Fees                 |                            8,703.5
  Max Drawdown                    |                            -26.61%
  Annual Return                   |                             55.64%
  Expectancy                      |                     489.18 (4.89%)
- Avg Win | Avg Loss              |                   1639.79 | 637.46
+ Avg Win | Avg Loss              |                  1,639.79 | 637.46
  Ratio Avg Win / Avg Loss        |                               2.57
  Percent Profitable              |                                49%
  Longs | Shorts                  |                          48% | 52%
@@ -68,8 +68,8 @@ Executed backtest simulation in:  61.94 seconds
  Omega Ratio                     |                               1.47
  Winning Streak                  |                                  4
  Losing Streak                   |                                  4
- Largest Winning Trade           |                            9541.85
- Largest Losing Trade            |                           -1735.16
+ Largest Winning Trade           |                           9,541.85
+ Largest Losing Trade            |                          -1,735.16
  Total Winning Trades            |                                 47
  Total Losing Trades             |                                 48
 ```
