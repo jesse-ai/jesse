@@ -83,6 +83,8 @@ This is the very initial release. There's way more. Subscribe to our mailing lis
 ## Community
 We've created a [community](http://forum.jesse.trade/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
 
+**[update]:**  We now have a [discord server](https://discord.gg/rPupAQJg) to discuss Jesse and trading in general. Make sure to join. 
+
 ## How to contribute
 Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 
 
