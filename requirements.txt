@@ -16,4 +16,4 @@ matplotlib==3.3.2
 empyrical==0.5.5
 blinker==1.4.0
 tulipy==0.4.0
-scipy==1.5.3
+scipy==1.5.4
