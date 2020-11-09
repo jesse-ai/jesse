@@ -615,7 +615,7 @@ class Strategy(ABC):
             logger.info('Maximum allowed trades in test-drive mode is reached')
             return
 
-        if self._open_position_orders != [] and self.should_cancel():
+        if self._open_position_orders != [] and self.is_close and self.should_cancel():
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
