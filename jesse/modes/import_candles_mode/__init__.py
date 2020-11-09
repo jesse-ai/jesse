@@ -14,14 +14,6 @@ from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False):
-    """
-
-    :param exchange:
-    :param symbol:
-    :param start_date_str:
-    :param skip_confirmation:
-    :return:
-    """
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
