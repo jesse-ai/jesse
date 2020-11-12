@@ -3,7 +3,7 @@ pytest-watch==4.2.0
 pytest==6.1.2
 Click==7.1.2
 arrow==0.17.0
-requests==2.24.0
+requests==2.25.0
 peewee==3.14.0
 pydash==4.9.0
 numpy==1.19.4
