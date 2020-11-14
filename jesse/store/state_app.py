@@ -2,7 +2,7 @@ import arrow
 
 
 class AppState:
-    time = arrow.utcnow().timestamp * 1000
+    time = arrow.utcnow().int_timestamp * 1000
     starting_time = None
     daily_balance = []
 

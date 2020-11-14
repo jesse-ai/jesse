@@ -20,7 +20,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
         raise ValueError('start_date must be a string representing a date before today. ex: 2020-01-17')
 
     # more start_date validations
-    today = arrow.utcnow().floor('day').timestamp * 1000
+    today = arrow.utcnow().floor('day').int_timestamp * 1000
     if start_timestamp == today:
         raise ValueError("Today's date is not accepted. start_date must be a string a representing date BEFORE today.")
     elif start_timestamp > today:
@@ -49,7 +49,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
         for _ in range(candles_count):
-            temp_start_timestamp = start_date.timestamp * 1000
+            temp_start_timestamp = start_date.int_timestamp * 1000
             temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
 
             # to make sure it won't try to import candles from the future! LOL
@@ -67,7 +67,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
             if not already_exists:
                 # it's today's candles if temp_end_timestamp < now
                 if temp_end_timestamp > jh.now():
-                    temp_end_timestamp = arrow.utcnow().floor('minute').timestamp * 1000 - 60000
+                    temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
                 # fetch from market
                 candles = driver.fetch(symbol, temp_start_timestamp)
@@ -172,7 +172,7 @@ def _get_candles_from_backup_exchange(
     candles_count = days_count * 1440
     start_date = jh.timestamp_to_arrow(start_timestamp).floor('day')
     for _ in range(candles_count):
-        temp_start_timestamp = start_date.timestamp * 1000
+        temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (backup_driver.count - 1) * 60000
 
         # to make sure it won't try to import candles from the future! LOL
@@ -190,7 +190,7 @@ def _get_candles_from_backup_exchange(
         if not already_exists:
             # it's today's candles if temp_end_timestamp < now
             if temp_end_timestamp > jh.now():
-                temp_end_timestamp = arrow.utcnow().floor('minute').timestamp * 1000 - 60000
+                temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
             # fetch from market
             candles = backup_driver.fetch(symbol, temp_start_timestamp)
