@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-import newtulipy as ti
+import tulipy as ti
 
 
 def vosc(candles: np.ndarray, short_period=2, long_period=5,  sequential=False) -> Union[float, np.ndarray]:
