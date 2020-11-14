@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-import tulipy as ti
+import newtulipy as ti
 
 
 

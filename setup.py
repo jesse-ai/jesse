@@ -19,7 +19,7 @@ REQUIRED_PACKAGES = [
     'matplotlib',
     'empyrical',
     'blinker',
-    'tulipy'
+    'newtulipy'
 ]
 
 with open("README.md", "r") as fh:

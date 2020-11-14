@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-import tulipy as ti
+import newtulipy as ti
 
 from jesse.helpers import get_candle_source
 
