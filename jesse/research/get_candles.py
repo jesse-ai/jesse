@@ -31,7 +31,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
         raise ValueError('start_date and finish_date cannot be the same.')
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
-    if finish_date > arrow.utcnow().timestamp * 1000:
+    if finish_date > arrow.utcnow().int_timestamp * 1000:
         raise ValueError('Can\'t backtest the future!')
 
     # fetch from database

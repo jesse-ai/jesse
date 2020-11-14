@@ -18,7 +18,7 @@ def app_mode():
 
 
 def arrow_to_timestamp(arrow_time):
-    return arrow_time.timestamp * 1000
+    return arrow_time.int_timestamp * 1000
 
 
 def binary_search(arr: list, item) -> int:
@@ -359,7 +359,7 @@ def now():
         from jesse.store import store
         return store.app.time
 
-    return arrow.utcnow().timestamp * 1000
+    return arrow.utcnow().int_timestamp * 1000
 
 
 def np_shift(arr: np.ndarray, num: int, fill_value=0):
@@ -622,7 +622,7 @@ def today() -> int:
 
     :return: int
     """
-    return arrow.utcnow().floor('day').timestamp * 1000
+    return arrow.utcnow().floor('day').int_timestamp * 1000
 
 
 def type_to_side(t):
