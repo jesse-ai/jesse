@@ -6,6 +6,7 @@ from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order
 from jesse.services import logger, notifier
+from jesse.utils import sum_floats, subtract_floats
 
 
 class Position:
@@ -145,9 +146,9 @@ class Position:
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
         if self.type == trade_types.LONG:
-            self.qty -= qty
+            self.qty = subtract_floats(self.qty, qty)
         elif self.type == trade_types.SHORT:
-            self.qty += qty
+            self.qty = sum_floats(self.qty, qty)
 
         info_text = 'REDUCED position: {}, {}, {}, {}, ${}'.format(
             self.exchange_name, self.symbol, self.type, self.qty, round(self.entry_price, 2)
@@ -161,7 +162,7 @@ class Position:
 
     def _increase(self, qty, price):
         if not self.is_open:
-            raise OpenPositionError('position must be already open in order to incrase its size')
+            raise OpenPositionError('position must be already open in order to increase its size')
 
         qty = abs(qty)
         size = qty * price
@@ -173,9 +174,9 @@ class Position:
                                                      self.entry_price)
 
         if self.type == trade_types.LONG:
-            self.qty += qty
+            self.qty = sum_floats(self.qty, qty)
         elif self.type == trade_types.SHORT:
-            self.qty -= qty
+            self.qty = subtract_floats(self.qty, qty)
 
         info_text = 'INCREASED position: {}, {}, {}, {}, ${}'.format(
             self.exchange_name, self.symbol, self.type, self.qty, round(self.entry_price, 2)
@@ -280,7 +281,7 @@ class Position:
             change_balance = order.type == order_types.MARKET
             self._open(qty, price, change_balance)
         # order closes position
-        elif (self.qty + qty) == 0:
+        elif (sum_floats(self.qty, qty)) == 0:
             self._close(price)
         # order increases the size of the position
         elif self.qty * qty > 0:
@@ -290,7 +291,10 @@ class Position:
             # if size of the order is big enough to both close the
             # position AND open it on the opposite side
             if abs(qty) > abs(self.qty):
-                diff_qty = qty + self.qty
+                logger.info('Executed order is big enough to not close, but flip the position type. Order QTY: {}, Position QTY: {}'.format(
+                    qty, self.qty
+                ))
+                diff_qty = sum_floats(self.qty, qty)
                 self._close(price)
                 self._open(diff_qty, price)
             else:

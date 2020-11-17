@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from tests.data.test_candles_indicators import mama_candles
 
 from jesse import utils
 
@@ -116,6 +117,15 @@ def test_size_to_qty():
     assert utils.size_to_qty(100, 50, fee_rate=0.001) == 1.994
 
 
-from .data.test_candles_indicators import mama_candles
+def test_sum_floats():
+    assert utils.sum_floats(9.71, 9.813) == 19.523
+    assert utils.sum_floats(-1.123, -1.2) == -2.323
+    assert utils.sum_floats(1.19, -1.2) == -0.01
+    assert utils.sum_floats(-1.19, 1.2) == 0.01
 
 
+def test_subtract_floats():
+    assert utils.subtract_floats(9.813, 9.71) == 0.103
+    assert utils.subtract_floats(-1.123, 1.2) == -2.323
+    assert utils.subtract_floats(1.123, -1.2) == 2.323
+    assert utils.subtract_floats(-1.123, -1.2) == 0.077

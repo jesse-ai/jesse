@@ -1,3 +1,4 @@
+from decimal import Decimal
 import math
 from typing import Union
 
@@ -201,3 +202,27 @@ def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
         position_size = position_size * (1 - fee_rate * 3)
 
     return jh.floor_with_precision(position_size / entry_price, precision)
+
+
+def sum_floats(float1: float, float2: float):
+    """
+    Sums two floats without the rounding issue in Python
+
+    :param float1: float
+    :param float2: float
+
+    :return: float
+    """
+    return float(Decimal(str(float1)) + Decimal(str(float2)))
+
+
+def subtract_floats(float1: float, float2: float):
+    """
+    Subtracts two floats without the rounding issue in Python
+
+    :param float1: float
+    :param float2: float
+
+    :return: float
+    """
+    return float(Decimal(str(float1)) - Decimal(str(float2)))
