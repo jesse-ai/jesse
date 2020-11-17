@@ -14,6 +14,18 @@ config = {
     },
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Caching
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    #
+    # In some cases such as loading candles in the backtest mode, a
+    # caching mechanism is used to make further loadings faster.
+    # Valid options (so far) are: 'pickle', None
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    'caching': {
+        'driver': 'pickle'
+    },
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Exchanges
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #
