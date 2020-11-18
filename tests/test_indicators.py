@@ -1420,6 +1420,23 @@ def test_vosc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_voss():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.voss(candles)
+    seq = ta.voss(candles, sequential=True)
+
+    assert type(single).__name__ == 'VossFilter'
+    assert round(single.voss, 2) == -30.71
+    assert round(single.filt, 2) == -5.98
+
+    assert seq.voss[-1] == single.voss
+    assert seq.filt[-1] == single.filt
+    assert len(seq.voss) == len(candles)
+    assert len(seq.filt) == len(candles)
+
+
 def test_vpt():
     candles = np.array(mama_candles)
     single = ta.vpt(candles)

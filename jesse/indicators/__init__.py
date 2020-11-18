@@ -106,6 +106,7 @@ from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
 from .vosc import vosc
+from .voss import voss
 from .wad import wad
 from .wclprice import wclprice
 from .wilders import wilders
