@@ -26,8 +26,8 @@ def voss(candles: np.ndarray, period=20, predict=3, bandwith=0.25, source_type="
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    voss = np.full_like(source, np.nan)
-    filt = np.full_like(source, np.nan)
+    voss = np.full_like(source, 0)
+    filt = np.full_like(source, 0)
 
     pi = math.pi
 
@@ -36,16 +36,12 @@ def voss(candles: np.ndarray, period=20, predict=3, bandwith=0.25, source_type="
     g1 = math.cos(bandwith * 2 * pi / period)
     s1 = 1 / g1 - math.sqrt(1 / (g1 * g1) - 1)
 
-    for i, _ in enumerate(source):
-        if i <= period or i <= 5 or i <= order:
-            filt[i] = 0
-        else:
+    for i in range(source.shape[0]):
+        if not (i <= period or i <= 5 or i <= order):
             filt[i] = 0.5 * (1 - s1) * (source[i] - source[i - 2]) + f1 * (1 + s1) * filt[i - 1] - s1 * filt[i - 2]
 
-    for i, _ in enumerate(source):
-        if i <= period or i <= 5 or i <= order:
-            voss[i] = 0
-        else:
+    for i in range(source.shape[0]):
+        if not (i <= period or i <= 5 or i <= order):
             sumc = 0
             for count in range(order):
                 sumc = sumc + ((count + 1) / float(order)) * voss[i - (order - count)]
