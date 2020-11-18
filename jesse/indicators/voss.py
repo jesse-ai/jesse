@@ -14,8 +14,8 @@ def voss(candles: np.ndarray, period=20, predict=3, bandwith=0.25, source_type="
 
     :param candles: np.ndarray
     :param period: int - default=20
-    :param period: int - default=3
-    :param period: float - default=0.25
+    :param predict: int - default=3
+    :param bandwith: float - default=0.25
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 

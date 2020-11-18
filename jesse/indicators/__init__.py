@@ -93,6 +93,7 @@ from .supertrend import supertrend
 from .t3 import t3
 from .tema import tema
 from .trange import trange
+from .trendflex import trendflex
 from .trima import trima
 from .trix import trix
 from .tsf import tsf

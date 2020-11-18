@@ -1302,6 +1302,15 @@ def test_trange():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_trendflex():
+    candles = np.array(mama_candles)
+
+    single = ta.trendflex(candles)
+    seq = ta.trendflex(candles, sequential=True)
+
+    assert round(single, 2) == -1.48
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_trima():
     # use the same candles as mama_candles
