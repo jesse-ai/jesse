@@ -1,33 +1,30 @@
 import os
 import pickle
 from time import time
+import jesse.helpers as jh
 
 
 class Cache:
-    """
-
-    """
     def __init__(self, path):
         self.path = path
+        self.driver = jh.get_config('env.caching.driver', 'pickle')
 
-        # make sure path exists
-        os.makedirs(path, exist_ok=True)
+        if self.driver == 'pickle':
+            # make sure path exists
+            os.makedirs(path, exist_ok=True)
 
-        # if cache_database exists, load the dictionary
-        if os.path.isfile(self.path + "cache_database.pickle"):
-            with open(self.path + "cache_database.pickle", 'rb') as f:
-                self.db = pickle.load(f)
-        # if not, create a dict object. We'll create the file when using set_value()
-        else:
-            self.db = {}
+            # if cache_database exists, load the dictionary
+            if os.path.isfile(self.path + "cache_database.pickle"):
+                with open(self.path + "cache_database.pickle", 'rb') as f:
+                    self.db = pickle.load(f)
+            # if not, create a dict object. We'll create the file when using set_value()
+            else:
+                self.db = {}
 
     def set_value(self, key: str, data, expire_seconds=60 * 60):
-        """
+        if self.driver is None:
+            return
 
-        :param key:
-        :param data:
-        :param expire_seconds:
-        """
         # add record into the database
         expire_at = None if expire_seconds is None else time() + expire_seconds
         data_path = self.path + "{}.pickle".format(key)
@@ -43,11 +40,9 @@ class Cache:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def get_value(self, key: str):
-        """
+        if self.driver is None:
+            return
 
-        :param key:
-        :return:
-        """
         try:
             item = self.db[key]
         except KeyError:
@@ -74,6 +69,9 @@ class Cache:
             pickle.dump(self.db, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def flush(self):
+        if self.driver is None:
+            return
+
         for key, item in self.db.items():
             os.remove(item['path'])
         self.db = {}

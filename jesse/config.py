@@ -9,6 +9,10 @@ config = {
             'postgres_password': 'password',
         },
 
+        'caching': {
+            'driver': 'pickle'
+        },
+
         'logging': {
             'order_submission': True,
             'order_cancellation': True,
