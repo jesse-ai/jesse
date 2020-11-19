@@ -38,6 +38,7 @@ from .frama import frama
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .hma import hma
+from .high_pass import high_pass
 from .ht_dcperiod import ht_dcperiod
 from .ht_dcphase import ht_dcphase
 from .ht_phasor import ht_phasor
@@ -77,6 +78,7 @@ from .pvi import pvi
 from .qstick import qstick
 from .reflex import reflex
 from .roc import roc
+from .roofing import roofing
 from .rocp import rocp
 from .rocr import rocr
 from .rocr100 import rocr100

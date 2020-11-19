@@ -502,6 +502,15 @@ def test_hma():
     assert seq[-1] == single
 
 
+def test_high_pass():
+    candles = np.array(mama_candles)
+    single = ta.high_pass(candles)
+    seq = ta.high_pass(candles, sequential=True)
+    assert round(single, 0) == -101
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_ht_dcperiod():
     candles = np.array(mama_candles)
     single = ta.ht_dcperiod(candles)
@@ -1093,6 +1102,18 @@ def test_roc():
     seq = ta.roc(candles, period=14, sequential=True)
 
     assert round(single, 2) == -52.67
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_roofing():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.roofing(candles)
+    seq = ta.roofing(candles, sequential=True)
+
+    assert round(single, 0) == -36
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
