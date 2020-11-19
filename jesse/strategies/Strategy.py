@@ -656,7 +656,6 @@ class Strategy(ABC):
                 self._execute_short()
 
     def _on_open_position(self):
-        logger.info('Detected open position')
         self._broadcast('route-open-position')
 
         if self.take_profit is not None:
@@ -761,9 +760,6 @@ class Strategy(ABC):
         pass
 
     def _on_increased_position(self):
-        if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("Position size increased.")
-
         self._open_position_orders = []
 
         self._broadcast('route-increased-position')
@@ -784,9 +780,6 @@ class Strategy(ABC):
         """
         prepares for on_reduced_position() is implemented by user
         """
-        if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("Position size reduced.")
-
         self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
