@@ -1,7 +1,4 @@
 class Route:
-    """
-
-    """
     def __init__(self, exchange, symbol, timeframe=None, strategy_name=None, dna=None):
         self.exchange = exchange
         self.symbol = symbol

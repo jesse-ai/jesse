@@ -147,6 +147,7 @@ def simulator(candles, hyperparameters=None):
     length = len(first_candles_set)
     # to preset the array size for performance
     store.app.starting_time = first_candles_set[0][0]
+    store.app.time = first_candles_set[0][0]
 
     # initiate strategies
     for r in router.routes:
@@ -193,6 +194,9 @@ def simulator(candles, hyperparameters=None):
             # add candles
             for j in candles:
                 short_candle = candles[j]['candles'][i]
+                if i != 0:
+                    previous_short_candle = candles[j]['candles'][i-1]
+                    short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
                 exchange = candles[j]['exchange']
                 symbol = candles[j]['symbol']
 
@@ -257,6 +261,24 @@ def simulator(candles, hyperparameters=None):
 
     # now that backtest is finished, add finishing balance
     save_daily_portfolio_balance()
+
+
+def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray):
+    """
+    A little workaround for the times that the price has jumped and the opening
+    price of the current candle is not equal to the previous candle's close!
+
+    :param previous_candle: np.ndarray
+    :param candle: np.ndarray
+    """
+    if previous_candle[2] < candle[1]:
+        candle[1] = previous_candle[2]
+        candle[4] = min(previous_candle[2], candle[4])
+    elif previous_candle[2] > candle[1]:
+        candle[1] = previous_candle[2]
+        candle[3] = max(previous_candle[2], candle[3])
+
+    return candle
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str):
