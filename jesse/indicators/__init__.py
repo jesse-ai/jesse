@@ -75,6 +75,7 @@ from .pivot import pivot
 from .ppo import ppo
 from .pvi import pvi
 from .qstick import qstick
+from .reflex import reflex
 from .roc import roc
 from .rocp import rocp
 from .rocr import rocr

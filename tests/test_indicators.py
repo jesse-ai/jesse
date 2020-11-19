@@ -1073,6 +1073,18 @@ def test_qstick():
     assert seq[-1] == single
 
 
+def test_reflex():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.reflex(candles)
+    seq = ta.reflex(candles, sequential=True)
+
+    assert round(single, 2) == -0.55
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_roc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1302,6 +1314,7 @@ def test_trange():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_trendflex():
     candles = np.array(mama_candles)
 
@@ -1311,6 +1324,7 @@ def test_trendflex():
     assert round(single, 2) == -1.48
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_trima():
     # use the same candles as mama_candles
@@ -1429,6 +1443,7 @@ def test_vosc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_voss():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1454,6 +1469,7 @@ def test_vpt():
     assert round(single, 2) == -1733928.99
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_vwma():
     candles = np.array(vwma_candles)
