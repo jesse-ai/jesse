@@ -38,6 +38,7 @@ from .frama import frama
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .hma import hma
+from .high_pass import high_pass
 from .ht_dcperiod import ht_dcperiod
 from .ht_dcphase import ht_dcphase
 from .ht_phasor import ht_phasor
@@ -75,7 +76,9 @@ from .pivot import pivot
 from .ppo import ppo
 from .pvi import pvi
 from .qstick import qstick
+from .reflex import reflex
 from .roc import roc
+from .roofing import roofing
 from .rocp import rocp
 from .rocr import rocr
 from .rocr100 import rocr100
@@ -93,6 +96,7 @@ from .supertrend import supertrend
 from .t3 import t3
 from .tema import tema
 from .trange import trange
+from .trendflex import trendflex
 from .trima import trima
 from .trix import trix
 from .tsf import tsf
@@ -106,6 +110,7 @@ from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
 from .vosc import vosc
+from .voss import voss
 from .wad import wad
 from .wclprice import wclprice
 from .wilders import wilders

@@ -6,7 +6,7 @@ import numpy as np
 from jesse.helpers import get_candle_source
 
 
-def supersmoother(candles: np.ndarray, cutoff=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def supersmoother(candles:  np.ndarray, cutoff=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
     """
     Super Smoother Filter 2pole Butterworth
     This indicator was described by John F. Ehlers
@@ -22,7 +22,12 @@ def supersmoother(candles: np.ndarray, cutoff=14, source_type="close", sequentia
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    source = get_candle_source(candles, source_type=source_type)
+    # Accept normal array too.
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        source = get_candle_source(candles, source_type=source_type)
+
     source = source.flatten()
     N = len(source)
     source = source[~np.isnan(source)]

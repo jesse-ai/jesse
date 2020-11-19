@@ -502,6 +502,15 @@ def test_hma():
     assert seq[-1] == single
 
 
+def test_high_pass():
+    candles = np.array(mama_candles)
+    single = ta.high_pass(candles)
+    seq = ta.high_pass(candles, sequential=True)
+    assert round(single, 0) == -101
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_ht_dcperiod():
     candles = np.array(mama_candles)
     single = ta.ht_dcperiod(candles)
@@ -1073,6 +1082,18 @@ def test_qstick():
     assert seq[-1] == single
 
 
+def test_reflex():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.reflex(candles)
+    seq = ta.reflex(candles, sequential=True)
+
+    assert round(single, 2) == -0.55
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_roc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1081,6 +1102,18 @@ def test_roc():
     seq = ta.roc(candles, period=14, sequential=True)
 
     assert round(single, 2) == -52.67
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_roofing():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.roofing(candles)
+    seq = ta.roofing(candles, sequential=True)
+
+    assert round(single, 0) == -36
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1303,6 +1336,17 @@ def test_trange():
     assert seq[-1] == single
 
 
+def test_trendflex():
+    candles = np.array(mama_candles)
+
+    single = ta.trendflex(candles)
+    seq = ta.trendflex(candles, sequential=True)
+
+    assert round(single, 2) == -1.48
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_trima():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1420,6 +1464,24 @@ def test_vosc():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
+def test_voss():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.voss(candles)
+    seq = ta.voss(candles, sequential=True)
+
+    assert type(single).__name__ == 'VossFilter'
+    assert round(single.voss, 2) == -30.71
+    assert round(single.filt, 2) == -5.98
+
+    assert seq.voss[-1] == single.voss
+    assert seq.filt[-1] == single.filt
+    assert len(seq.voss) == len(candles)
+    assert len(seq.filt) == len(candles)
+
+
 def test_vpt():
     candles = np.array(mama_candles)
     single = ta.vpt(candles)
@@ -1428,6 +1490,7 @@ def test_vpt():
     assert round(single, 2) == -1733928.99
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_vwma():
     candles = np.array(vwma_candles)
