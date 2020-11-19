@@ -285,18 +285,29 @@ class Position:
             self._close(price)
         # order increases the size of the position
         elif self.qty * qty > 0:
-            self._increase(qty, price)
+            if order.is_reduce_only:
+                logger.info('Did not increase position because order is a reduce_only order')
+            else:
+                self._increase(qty, price)
         # order reduces the size of the position
         elif self.qty * qty < 0:
             # if size of the order is big enough to both close the
             # position AND open it on the opposite side
             if abs(qty) > abs(self.qty):
-                logger.info('Executed order is big enough to not close, but flip the position type. Order QTY: {}, Position QTY: {}'.format(
-                    qty, self.qty
-                ))
-                diff_qty = sum_floats(self.qty, qty)
-                self._close(price)
-                self._open(diff_qty, price)
+                if order.is_reduce_only:
+                    logger.info(
+                        'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {}, Position QTY: {}'.format(
+                            qty, self.qty
+                        ))
+                    self._close(price)
+                else:
+                    logger.info(
+                        'Executed order is big enough to not close, but flip the position type. Order QTY: {}, Position QTY: {}'.format(
+                            qty, self.qty
+                        ))
+                    diff_qty = sum_floats(self.qty, qty)
+                    self._close(price)
+                    self._open(diff_qty, price)
             else:
                 self._reduce(qty, price)
 
