@@ -10,7 +10,7 @@ DamianiVolatmeter = namedtuple('DamianiVolatmeter', ['vol', 'anti' ])
 
 def damiani_volatmeter(candles: np.ndarray, vis_atr=13, vis_std=20, sed_atr=40, sed_std=100, threshold=1.4, source_type="close", sequential=False) -> DamianiVolatmeter:
     """
-    Voss indicator by John F. Ehlers
+    Damiani Volatmeter
 
     :param candles: np.ndarray
     :param vis_atr: int - default=13
