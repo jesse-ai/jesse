@@ -12,8 +12,7 @@ class Coincap(CandleExchange):
         self.endpoint = 'https://api.coincap.io/v2/'
 
     def init_backup_exchange(self):
-        from .coinbase import Coinbase
-        self.backup_exchange = Coinbase()
+        self.backup_exchange = None
 
     def get_starting_time(self, symbol: str):
 
@@ -91,6 +90,7 @@ class Coincap(CandleExchange):
 
         payload = {
             'search': symbol,
+            'limit': 1
         }
 
         response = requests.get(self.endpoint + 'assets', params=payload)
