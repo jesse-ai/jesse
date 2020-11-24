@@ -36,9 +36,7 @@ class Coincap(CandleExchange):
 
         # wrong symbol entered
         if not len(data):
-            raise exceptions.SymbolNotFound(
-                "No candle exists for {}. You're probably misspelling the symbol name.".format(symbol)
-            )
+            raise ValueError("No candles received to determine start_date.")
 
         first_timestamp = int(data[0]['period'])
         second_timestamp = first_timestamp + 60_000 * 1440
@@ -98,7 +96,7 @@ class Coincap(CandleExchange):
         data = response.json()['data']
 
         if not data:
-            raise ValueError("No asset found for {}. You're probably misspelling the symbol name.".format(symbol))
+            raise exceptions.SymbolNotFound("No asset found for {}. You're probably misspelling the symbol name.".format(symbol))
 
         return data[0]['id']
 
