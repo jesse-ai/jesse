@@ -97,6 +97,9 @@ class Coincap(CandleExchange):
         self._handle_errors(response)
         data = response.json()['data']
 
+        if not data:
+            raise ValueError("No asset found for {}. You're probably misspelling the symbol name.".format(symbol))
+
         return data[0]['id']
 
     @staticmethod
