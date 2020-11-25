@@ -278,6 +278,21 @@ def test_cvi():
     assert seq[-1] == single
 
 
+def test_dav():
+    candles = np.array(mama_candles)
+
+    single = ta.damiani_volatmeter(candles)
+    assert type(single).__name__ == 'DamianiVolatmeter'
+    assert round(single.vol, 2) == 1.39
+    assert round(single.anti, 2) == 0.93
+
+    seq = ta.damiani_volatmeter(candles, sequential=True)
+    assert seq.vol[-1] == single.vol
+    assert seq.anti[-1] == single.anti
+    assert len(seq.vol) == len(candles)
+    assert len(seq.anti) == len(candles)
+
+
 def test_dec_osc():
     candles = np.array(mama_candles)
     single = ta.dec_osc(candles)

@@ -20,6 +20,7 @@ from .chande import chande
 from .cmo import cmo
 from .correl import correl
 from .cvi import cvi
+from .damiani_volatmeter import damiani_volatmeter
 from .dec_osc import dec_osc
 from .decycler import decycler
 from .dema import dema
