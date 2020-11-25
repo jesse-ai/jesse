@@ -15,5 +15,5 @@ TA-Lib==0.4.19
 matplotlib==3.3.3
 crypto_empyrical==1.0.4
 blinker==1.4.0
-newtulipy==0.4.1
+newtulipy==0.4.2
 scipy==1.5.4
