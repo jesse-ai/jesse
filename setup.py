@@ -3,8 +3,26 @@ from setuptools import setup, find_packages
 VERSION = '0.15.1'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
-with open("requirements.txt", "r") as f:
-    REQUIRED_PACKAGES = f.read().splitlines()
+REQUIRED_PACKAGES = [
+    'psycopg2-binary',
+    'pytest',
+    'Click',
+    'arrow',
+    'requests',
+    'peewee',
+    'pydash',
+    'numpy',
+    'pandas',
+    'tabulate',
+    'timeloop',
+    'websocket-client',
+    'TA-Lib',
+    'matplotlib',
+    'crypto_empyrical',
+    'blinker',
+    'newtulipy',
+    'scipy'
+]
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
