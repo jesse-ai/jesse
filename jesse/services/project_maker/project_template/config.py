@@ -48,7 +48,7 @@ config = {
         # https://www.binance.com
         'Binance': {
             'fee': 0.001,
-            'type': 'spot',
+            'type': 'margin',
             # used only in margin trading
             'settlement_currency': 'USDT',
             'assets': [
@@ -82,7 +82,7 @@ config = {
         # https://pro.coinbase.com
         'Coinbase': {
             'fee': 0.005,
-            'type': 'spot',
+            'type': 'margin',
             # used only in margin trading
             'settlement_currency': 'USD',
             'assets': [
