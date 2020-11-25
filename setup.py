@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.14.1'
+VERSION = '0.15.0'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
 with open("requirements.txt", "r") as f:
@@ -12,8 +12,8 @@ with open("README.md", "r", encoding="utf-8") as f:
 setup(
     name='jesse',
     version=VERSION,
-    author="Saleh Mirnezami",
-    author_email="mirnezami.saleh@gmail.com",
+    author="Saleh Mir",
+    author_email="algo@hey.com",
     packages=find_packages(),
     description=DESCRIPTION,
     long_description=long_description,
