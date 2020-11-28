@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
-from tests.data.test_candles_indicators import mama_candles
 
 from jesse import utils
+from tests.data.test_candles_indicators import mama_candles
 
 
 def test_anchor_timeframe():
@@ -64,6 +64,8 @@ def test_numpy_to_pandas():
                                              name_low="Low", name_close="Close", name_volume="Volume")
 
     pd.testing.assert_frame_equal(df, ohlcv)
+
+
 def test_qty_to_size():
     assert utils.qty_to_size(2, 50) == 100
     assert utils.qty_to_size(2, 49) == 98
