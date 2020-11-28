@@ -15,7 +15,7 @@ def test_app_currency():
 
 
 def test_app_mode():
-    assert jh.app_mode() == ''
+    assert jh.app_mode() == 'backtest'
 
 
 def test_arrow_to_timestamp():
@@ -155,7 +155,7 @@ def test_estimate_PNL_percentage():
 
 
 def test_file_exists():
-    assert jh.file_exists('test_helpers.py')
+    assert jh.file_exists('tests/test_helpers.py') is True
 
 
 def test_floor_with_precision():
@@ -238,7 +238,7 @@ def test_insert_list():
 
 
 def test_is_backtesting():
-    assert jh.is_backtesting() is False
+    assert jh.is_backtesting() is True
 
 
 def test_is_collecting_data():
@@ -311,7 +311,8 @@ def test_normalize():
 
 
 def test_now_to_timestamp():
-    assert jh.now_to_timestamp() == arrow.utcnow().int_timestamp * 1000
+    from jesse.store import store
+    assert jh.now_to_timestamp() == store.app.time
 
 
 def test_np_shift():
@@ -411,7 +412,7 @@ def test_readable_duration():
 
 def test_relative_to_absolute():
     from pathlib import Path
-    assert jh.relative_to_absolute("test_helpers.py") == str(Path(__file__).absolute())
+    assert jh.relative_to_absolute("tests/test_helpers.py") == str(Path(__file__).absolute())
 
 
 def test_round_price_for_live_mode():
