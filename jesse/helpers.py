@@ -1,15 +1,21 @@
 import hashlib
 import math
 import os
-import sys
-import uuid
 import random
 import string
+import sys
+import uuid
+
 import arrow
 import click
 import numpy as np
 
 CACHED_CONFIG = dict()
+
+
+def app_currency():
+    from jesse.routes import router
+    return quote_asset(router.routes[0].symbol)
 
 
 def app_mode():
@@ -19,6 +25,16 @@ def app_mode():
 
 def arrow_to_timestamp(arrow_time):
     return arrow_time.int_timestamp * 1000
+
+
+def base_asset(symbol: str):
+    if symbol.endswith('USDT'):
+        return symbol[0:len(symbol) - 4]
+
+    if symbol.endswith('USD'):
+        return symbol[0:len(symbol) - 3]
+
+    return symbol[0:3]
 
 
 def binary_search(arr: list, item) -> int:
@@ -81,6 +97,14 @@ def convert_number(old_max, old_min, new_max, new_min, old_value):
     new_value = (((old_value - old_min) * new_range) / old_range) + new_min
 
     return new_value
+
+
+def dashed_symbol(symbol):
+    return symbol[:3] + '-' + symbol[3:]
+
+
+def dashless_symbol(symbol):
+    return symbol[:3] + symbol[4:]
 
 
 def date_diff_in_days(date1, date2):
@@ -174,12 +198,17 @@ def file_exists(path: str) -> bool:
     return os.path.isfile(path)
 
 
+def floor_with_precision(num, precision=0):
+    temp = 10 ** precision
+    return math.floor(num * temp) / temp
+
+
+def format_currency(num):
+    return f'{num:,}'
+
+
 def generate_unique_id():
     return str(uuid.uuid4())
-
-
-def get_arrow(timestamp):
-    return arrow.get(timestamp / 1000)
 
 
 def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
@@ -354,7 +383,7 @@ def normalize(x, x_min, x_max):
     return x_new
 
 
-def now():
+def now_to_timestamp():
     if not (is_live() or is_collecting_data() or is_importing_candles()):
         from jesse.store import store
         return store.app.time
@@ -464,6 +493,20 @@ def prepare_qty(qty, side):
 
 def python_version() -> float:
     return float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
+
+
+def quote_asset(symbol: str):
+    if symbol.endswith('USDT'):
+        return 'USDT'
+
+    if symbol.endswith('USD'):
+        return 'USD'
+
+    return symbol[3:]
+
+
+def random_str(num_characters=8):
+    return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
 
 
 def readable_duration(seconds, granularity=2):
@@ -605,7 +648,7 @@ def timeframe_to_one_minutes(timeframe):
 
 
 def timestamp_to_arrow(timestamp):
-    return get_arrow(timestamp)
+    return arrow.get(timestamp / 1000)
 
 
 def timestamp_to_date(timestamp: int) -> str:
@@ -616,7 +659,7 @@ def timestamp_to_time(timestamp):
     return str(arrow.get(timestamp / 1000))
 
 
-def today() -> int:
+def today_to_timestamp() -> int:
     """
     returns today's (beginning) timestamp
 
@@ -644,49 +687,3 @@ def unique_list(arr) -> list:
     seen = set()
     seen_add = seen.add
     return [x for x in arr if not (x in seen or seen_add(x))]
-
-
-def floor_with_precision(num, precision=0):
-    temp = 10 ** precision
-    return math.floor(num * temp) / temp
-
-
-def dashed_symbol(symbol):
-    return symbol[:3] + '-' + symbol[3:]
-
-
-def dashless_symbol(symbol):
-    return symbol[:3] + symbol[4:]
-
-
-def random_str(num_characters=8):
-    return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
-
-
-def base_asset(symbol: str):
-    if symbol.endswith('USDT'):
-        return symbol[0:len(symbol) - 4]
-
-    if symbol.endswith('USD'):
-        return symbol[0:len(symbol) - 3]
-
-    return symbol[0:3]
-
-
-def quote_asset(symbol: str):
-    if symbol.endswith('USDT'):
-        return 'USDT'
-
-    if symbol.endswith('USD'):
-        return 'USD'
-
-    return symbol[3:]
-
-
-def app_currency():
-    from jesse.routes import router
-    return quote_asset(router.routes[0].symbol)
-
-
-def format_currency(num):
-    return f'{num:,}'

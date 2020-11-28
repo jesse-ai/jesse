@@ -119,7 +119,7 @@ class Position:
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
         self.qty = 0
         self.entry_price = None
-        self.closed_at = jh.now()
+        self.closed_at = jh.now_to_timestamp()
 
         info_text = 'CLOSED {} position: {}, {}. PNL: ${}, entry: {}, exit: {}'.format(
             trade_type, self.exchange_name, self.symbol, round(estimated_profit, 2), entry, close_price
@@ -200,7 +200,7 @@ class Position:
         self.entry_price = price
         self.exit_price = None
         self.qty = qty
-        self.opened_at = jh.now()
+        self.opened_at = jh.now_to_timestamp()
 
         info_text = 'OPENED {} position: {}, {}, {}, ${}'.format(
             self.type, self.exchange_name, self.symbol, self.qty, round(self.entry_price, 2)

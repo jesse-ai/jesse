@@ -52,7 +52,7 @@ class CandlesState:
     ):
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
-            if jh.now() >= (candle[0] + 60000):
+            if jh.now_to_timestamp() >= (candle[0] + 60000):
                 store_candle_into_db(exchange, symbol, candle)
             return
 
