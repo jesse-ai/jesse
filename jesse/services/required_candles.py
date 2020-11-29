@@ -31,7 +31,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
     pre_finish_date = start_date - 60_000
     pre_start_date = pre_finish_date - short_candles_count * 60_000
     # make sure starting from the beginning of the day instead
-    pre_start_date = jh.get_arrow(pre_start_date).floor('day').int_timestamp * 1000
+    pre_start_date = jh.timestamp_to_arrow(pre_start_date).floor('day').int_timestamp * 1000
     # update candles_count to count from the beginning of the day instead
     short_candles_count = int((pre_finish_date - pre_start_date) / 60_000)
 
@@ -88,7 +88,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         first_backtestable_timestamp = first_existing_candle + (pre_finish_date - pre_start_date) + (60_000 * 1440)
 
         # if first backtestable timestamp is in the future, that means we have some but not enough candles
-        if first_backtestable_timestamp > jh.today():
+        if first_backtestable_timestamp > jh.today_to_timestamp():
             raise CandleNotFoundInDatabase(
                 'Not enough candle for {} {} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. '
                 'Try importing more candles from an earlier date.'.format(

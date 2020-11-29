@@ -1039,7 +1039,7 @@ class Strategy(ABC):
             self.trade.symbol = order.symbol
             self.trade.type = trade_types.LONG if order.side == sides.BUY else trade_types.SHORT
             self.trade.qty = order.qty
-            self.trade.opened_at = jh.now()
+            self.trade.opened_at = jh.now_to_timestamp()
             self.trade.entry_candle_timestamp = self.current_candle[0]
         elif role == order_roles.INCREASE_POSITION:
             self.trade.orders.append(order)
@@ -1101,7 +1101,7 @@ class Strategy(ABC):
                 sum_price += abs(l.qty) * l.price
             self.trade.exit_price = sum_price / sum_qty
 
-            self.trade.closed_at = jh.now()
+            self.trade.closed_at = jh.now_to_timestamp()
             self.trade.qty = pydash.sum_by(
                 filter(lambda o: o.side == jh.type_to_side(self.trade.type), self.trade.orders),
                 lambda o: abs(o.qty)

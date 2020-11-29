@@ -29,7 +29,7 @@ class Genetics(ABC):
                  fitness_goal=1,
                  options=None):
         self.started_index = 0
-        self.start_time = jh.now()
+        self.start_time = jh.now_to_timestamp()
         self.population = []
         self.iterations = iterations
         self.population_size = population_size
@@ -132,7 +132,7 @@ class Genetics(ABC):
                 print('\n')
 
                 table_items = [
-                    ['Started at', jh.get_arrow(self.start_time).humanize()],
+                    ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
                     ['Index', '{}/{}'.format(len(self.population), self.population_size)],
                     ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
                     ['Trading Route', '{}, {}, {}, {}'.format(
@@ -277,7 +277,7 @@ class Genetics(ABC):
                     print('\n')
 
                     table_items = [
-                        ['Started At', jh.get_arrow(self.start_time).humanize()],
+                        ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
                         ['Index/Total', '{}/{}'.format((i + 1) * self.cpu_cores, self.iterations)],
                         ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
                         ['Route', '{}, {}, {}, {}'.format(

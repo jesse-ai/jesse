@@ -75,8 +75,8 @@ def test_PNL_percentage():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
     assert trade.PNL_percentage == 20
 
@@ -95,8 +95,8 @@ def test_PNL_with_fee():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
 
     assert trade.fee == 0.06
@@ -116,8 +116,8 @@ def test_PNL_without_fee():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
     assert trade.PNL == 10
 
@@ -135,8 +135,8 @@ def test_R():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
     assert trade.risk_reward_ratio == 2
 
@@ -154,8 +154,8 @@ def test_risk_percentage():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
     assert trade.risk_percentage == round((((10 - 5) / 1) * 10), 2)
 
@@ -171,8 +171,8 @@ def test_trade_size():
         'qty': 1,
         'orders': [],
         'symbol': 'BTCUSD',
-        'opened_at': jh.now(),
-        'closed_at': jh.now()
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp()
     })
 
     assert trade.size == 10

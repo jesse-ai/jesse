@@ -60,9 +60,9 @@ class OrderbookState:
         # generate new numpy formatted orderbook if it is
         # either the first time, or that it has passed
         # 1000 milliseconds since the last time
-        if self.temp_storage[key]['last_updated_timestamp'] is None or jh.now() - self.temp_storage[key][
+        if self.temp_storage[key]['last_updated_timestamp'] is None or jh.now_to_timestamp() - self.temp_storage[key][
             'last_updated_timestamp'] >= 1000:
-            self.temp_storage[key]['last_updated_timestamp'] = jh.now()
+            self.temp_storage[key]['last_updated_timestamp'] = jh.now_to_timestamp()
 
             formatted_orderbook = self.format_orderbook(exchange, symbol)
 

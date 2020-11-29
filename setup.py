@@ -4,24 +4,24 @@ VERSION = '0.15.1'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
 REQUIRED_PACKAGES = [
-    'psycopg2-binary',
-    'pytest',
-    'Click',
     'arrow',
-    'requests',
-    'peewee',
-    'pydash',
+    'blinker',
+    'Click',
+    'crypto_empyrical',
+    'matplotlib',
+    'newtulipy',
     'numpy',
     'pandas',
+    'peewee',
+    'psycopg2-binary',
+    'pydash',
+    'pytest',
+    'requests',
+    'scipy',
+    'TA-Lib',
     'tabulate',
     'timeloop',
-    'websocket-client',
-    'TA-Lib',
-    'matplotlib',
-    'crypto_empyrical',
-    'blinker',
-    'newtulipy',
-    'scipy'
+    'websocket-client'
 ]
 
 with open("README.md", "r", encoding="utf-8") as f:

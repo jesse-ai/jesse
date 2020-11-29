@@ -48,7 +48,7 @@ def test_cancel_order():
         'qty': 10.2041,
         'side': sides.BUY,
         'status': order_statuses.ACTIVE,
-        'created_at': jh.now(),
+        'created_at': jh.now_to_timestamp(),
     })
 
     assert order.is_canceled is False
@@ -56,7 +56,7 @@ def test_cancel_order():
     order.cancel()
 
     assert order.is_canceled is True
-    assert order.canceled_at == jh.now()
+    assert order.canceled_at == jh.now_to_timestamp()
 
 
 def test_execute_order():
@@ -71,7 +71,7 @@ def test_execute_order():
         'qty': 10.2041,
         'side': sides.BUY,
         'status': order_statuses.ACTIVE,
-        'created_at': jh.now(),
+        'created_at': jh.now_to_timestamp(),
     })
 
     assert order.is_executed is False
@@ -80,4 +80,4 @@ def test_execute_order():
     order.execute()
 
     assert order.is_executed is True
-    assert order.executed_at == jh.now()
+    assert order.executed_at == jh.now_to_timestamp()

@@ -53,7 +53,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
             temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
 
             # to make sure it won't try to import candles from the future! LOL
-            if temp_start_timestamp > jh.now():
+            if temp_start_timestamp > jh.now_to_timestamp():
                 break
 
             # prevent duplicates calls to boost performance
@@ -66,7 +66,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
 
             if not already_exists:
                 # it's today's candles if temp_end_timestamp < now
-                if temp_end_timestamp > jh.now():
+                if temp_end_timestamp > jh.now_to_timestamp():
                     temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
                 # fetch from market
@@ -176,7 +176,7 @@ def _get_candles_from_backup_exchange(
         temp_end_timestamp = temp_start_timestamp + (backup_driver.count - 1) * 60000
 
         # to make sure it won't try to import candles from the future! LOL
-        if temp_start_timestamp > jh.now():
+        if temp_start_timestamp > jh.now_to_timestamp():
             break
 
         # prevent duplicates
@@ -189,7 +189,7 @@ def _get_candles_from_backup_exchange(
 
         if not already_exists:
             # it's today's candles if temp_end_timestamp < now
-            if temp_end_timestamp > jh.now():
+            if temp_end_timestamp > jh.now_to_timestamp():
                 temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
             # fetch from market

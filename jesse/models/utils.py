@@ -111,7 +111,7 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
     """
     d = {
         'id': jh.generate_unique_id(),
-        'timestamp': jh.now(),
+        'timestamp': jh.now_to_timestamp(),
         'data': orderbook.dumps(),
         'symbol': symbol,
         'exchange': exchange,

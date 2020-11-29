@@ -7,7 +7,7 @@ from jesse.store import store
 
 
 def candles(candles_array):
-    period = jh.date_diff_in_days(jh.get_arrow(candles_array[0][0]), jh.get_arrow(candles_array[-1][0])) + 1
+    period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]), jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
         duration = '{} days ({} years)'.format(period, round(period / 365, 2))
