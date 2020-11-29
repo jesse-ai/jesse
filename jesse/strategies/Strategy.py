@@ -729,7 +729,7 @@ class Strategy(ABC):
 
     def _on_stop_loss(self):
         if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info('Yikes! stop-loss has been executed.')
+            logger.info('Stop-loss has been executed.')
 
         self._broadcast('route-stop-loss')
         self._execute_cancel()
@@ -745,7 +745,7 @@ class Strategy(ABC):
 
     def _on_take_profit(self):
         if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("Sweet! Take profit order has been executed.")
+            logger.info("Take-profit order has been executed.")
 
         self._broadcast('route-take-profit')
         self._execute_cancel()
@@ -880,8 +880,9 @@ class Strategy(ABC):
             store.app.total_open_pl += self.position.pnl
             logger.info(
                 "Closed open {}-{} position at {} with PNL: {}({}%) because we reached the end of the backtest session.".format(
-                    self.exchange, self.symbol, self.position.current_price, self.position.pnl,
-                    self.position.pnl_percentage
+                    self.exchange, self.symbol, self.position.current_price,
+                    round(self.position.pnl, 4),
+                    round(self.position.pnl_percentage, 2)
                 )
             )
             self.position._close(self.position.current_price)
