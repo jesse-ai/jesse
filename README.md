@@ -31,47 +31,47 @@ Here's an example output for a backtest simulation just to get you excited:
 ```
  CANDLES              |
 ----------------------+--------------------------
- period               |    974 days (2.67 years)
- starting-ending date | 2018-01-01 => 2020-09-01
+ period               |   1792 days (4.91 years)
+ starting-ending date | 2016-01-01 => 2020-11-27
 
 
- exchange   | symbol   | timeframe   | strategy           | DNA
-------------+----------+-------------+--------------------+-------
- Bitfinex   | BTCUSD   | 6h          | TrendFollowing05   |
+ exchange   | symbol   | timeframe   | strategy         | DNA
+------------+----------+-------------+------------------+-------
+ Bitfinex   | BTCUSD   | 6h          | TrendFollowing05 |
 
 
 Executing simulation...  [####################################]  100%
-Executed backtest simulation in:  61.83 seconds
+Executed backtest simulation in:  135.85 seconds
 
 
  METRICS                         |
 ---------------------------------+------------------------------------
- Total Closed Trades             |                                 95
- Total Net Profit                |                46,472.32 (464.72%)
- Starting => Finishing Balance   |                 10,000 => 55,377.9
- Total Open Trades               |                                  1
- Open PL                         |                            -982.83
- Total Paid Fees                 |                            8,703.5
- Max Drawdown                    |                            -26.61%
- Annual Return                   |                             55.64%
- Expectancy                      |                     489.18 (4.89%)
- Avg Win | Avg Loss              |                  1,639.79 | 637.46
- Ratio Avg Win / Avg Loss        |                               2.57
- Percent Profitable              |                                49%
- Longs | Shorts                  |                          48% | 52%
- Avg Holding Time                |  4.0 days, 7.0 hours, 59.0 minutes
- Winning Trades Avg Holding Time |  6.0 days, 4.0 hours, 58.0 minutes
- Losing Trades Avg Holding Time  | 2.0 days, 11.0 hours, 55.0 minutes
- Sharpe Ratio                    |                               1.34
- Calmar Ratio                    |                               2.09
- Sortino Ratio                   |                               2.75
- Omega Ratio                     |                               1.47
- Winning Streak                  |                                  4
- Losing Streak                   |                                  4
- Largest Winning Trade           |                           9,541.85
- Largest Losing Trade            |                          -1,735.16
- Total Winning Trades            |                                 47
- Total Losing Trades             |                                 48
+ Total Closed Trades             |                                221
+ Total Net Profit                |            1,699,245.56 (1699.25%)
+ Starting => Finishing Balance   |            100,000 => 1,799,245.56
+ Total Open Trades               |                                  0
+ Open PL                         |                                  0
+ Total Paid Fees                 |                         331,480.93
+ Max Drawdown                    |                            -22.42%
+ Annual Return                   |                             80.09%
+ Expectancy                      |                   7,688.89 (7.69%)
+ Avg Win | Avg Loss              |                 31,021.9 | 8,951.7
+ Ratio Avg Win / Avg Loss        |                               3.47
+ Percent Profitable              |                                42%
+ Longs | Shorts                  |                          60% | 40%
+ Avg Holding Time                | 3.0 days, 22.0 hours, 50.0 minutes
+ Winning Trades Avg Holding Time |  6.0 days, 14.0 hours, 9.0 minutes
+ Losing Trades Avg Holding Time  |   2.0 days, 1.0 hour, 41.0 minutes
+ Sharpe Ratio                    |                               1.88
+ Calmar Ratio                    |                               3.57
+ Sortino Ratio                   |                               3.51
+ Omega Ratio                     |                               1.49
+ Winning Streak                  |                                  5
+ Losing Streak                   |                                 10
+ Largest Winning Trade           |                         205,575.89
+ Largest Losing Trade            |                         -50,827.92
+ Total Winning Trades            |                                 92
+ Total Losing Trades             |                                129
 ```
 
 And here are generated charts:
