@@ -14,9 +14,6 @@ from jesse.store import store
 
 
 def portfolio_vs_asset_returns():
-    """
-
-    """
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure
@@ -69,8 +66,12 @@ def portfolio_vs_asset_returns():
     buy_y = []
     sell_x = []
     sell_y = []
-    for t in trades:
+    for index, t in enumerate(trades):
         key = jh.key(t.exchange, t.symbol)
+
+        # dirty fix for an issue with last trade being an open trade at the end of backtest
+        if index == len(trades) - 1 and store.app.total_open_trades > 0:
+            continue
 
         if t.type == 'long':
             buy_x.append(datetime.fromtimestamp(t.opened_at / 1000))

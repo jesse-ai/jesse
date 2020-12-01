@@ -885,8 +885,11 @@ class Strategy(ABC):
                     round(self.position.pnl_percentage, 2)
                 )
             )
-            self.position._close(self.position.current_price)
-            self._execute_cancel()
+            # fake a closing (market) order so that the calculations would be correct
+            if self.is_long:
+                self.broker.sell_at_market(self.position.qty, order_roles.CLOSE_POSITION)
+            else:
+                self.broker.buy_at_market(self.position.qty, order_roles.CLOSE_POSITION)
             return
 
         if self._open_position_orders:
