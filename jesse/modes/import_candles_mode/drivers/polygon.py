@@ -48,7 +48,6 @@ class Polygon(CandleExchange):
         candles = []
 
         for d in data:
-            print(d['t'])
             candles.append({
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
