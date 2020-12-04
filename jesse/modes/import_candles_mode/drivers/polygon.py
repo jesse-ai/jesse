@@ -24,37 +24,16 @@ class Polygon(CandleExchange):
 
     def get_starting_time(self, symbol):
 
-        payload = {
-            'interval': '1d',
-            'symbol': symbol,
-            'limit': 1500,
-        }
-
-        response = requests.get(self.endpoint, params=payload)
-
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)
-
-        data = response.json()
-        first_timestamp = int(data[0][0])
-        second_timestamp = first_timestamp + 60_000 * 1440
-
-        return second_timestamp
+        return None
 
     def fetch(self, symbol, start_timestamp):
-        """
-        note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
-        note2: like Bitfinex, start_time includes the candle and so does the end_time.
-        """
-        end_timestamp = start_timestamp + (self.count - 1) * 60000
+
+
+
+        # Check if symbol exists. Returns status: "NOT_FOUND" in case it doesn't exist.
+        response = self.restclient.reference_ticker_details(symbol)
+
+        self._handle_errors(response)
 
         payload = {
             'unadjusted': 'false',
@@ -62,17 +41,14 @@ class Polygon(CandleExchange):
             'limit': self.count,
         }
 
+        # Polygon takes string dates not timestamps
+        start_timestamp = jh.timestamp_to_date(start_timestamp)
+        end_timestamp =  jh.timestamp_to_date(start_timestamp + (self.count) * 60000)
         response = self.restclient.stocks_equities_aggregates(symbol, 1, 'minute', start_timestamp, end_timestamp, payload)
 
-        data = response.json()
+        self._handle_errors(response)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
+        data = response.json()['results']
 
         candles = []
 
@@ -90,3 +66,23 @@ class Polygon(CandleExchange):
             })
 
         return candles
+
+    @staticmethod
+    def _handle_errors(response):
+
+        first_digit_code = int(str(response.status_code)[0])
+
+        # Exchange In Maintenance
+        if first_digit_code == 5:
+            raise exceptions.ExchangeInMaintenance('Server ERROR. Please try again later')
+
+        res_json = response.json()
+        if res_json['status'] == "NOT_FOUND":
+            raise ValueError("Symbol not found.")
+
+        # unsupported user params
+        if first_digit_code == 4:
+            raise ValueError(res_json['error'])
+
+        if response.status_code != 200:
+            raise Exception(response.content)
