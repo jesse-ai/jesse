@@ -263,6 +263,10 @@ def get_config(keys: str, default=None):
     return CACHED_CONFIG[keys]
 
 
+def get_nan_indices(array):
+    return np.where(np.isnan(array))[0]
+
+
 def get_strategy_class(strategy_name):
     from pydoc import locate
 
@@ -528,6 +532,12 @@ def readable_duration(seconds, granularity=2):
                 name = name.rstrip('s')
             result.append("{} {}".format(value, name))
     return ', '.join(result[:granularity])
+
+
+def reinsert_nan(array, nan_indices):
+    for i in range(nan_indices.shape[0]):
+        array = np.concatenate((array[:nan_indices[i]], [np.nan], array[nan_indices[i]:]))
+    return array
 
 
 def relative_to_absolute(path: str) -> str:

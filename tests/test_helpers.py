@@ -217,6 +217,12 @@ def test_get_config():
     assert jh.get_config('env.logging.order_submission', 2020) is True
 
 
+def test_get_nan_indices():
+    arr = np.array([0, 11, 22, np.nan, 33, 44, 54, 55, np.nan, np.nan, 20])
+    ind = jh.get_nan_indices(arr)
+    assert (ind == np.array([3, 8, 9])).all()
+
+
 def test_get_strategy_class():
     from jesse.strategies import Strategy
     assert issubclass(jh.get_strategy_class("Test01"), Strategy)
@@ -408,6 +414,14 @@ def test_random_str():
 
 def test_readable_duration():
     assert jh.readable_duration(604312) == "6 days, 23 hours"
+
+
+def test_reinsert_nan():
+    arr = np.array([0, 11, 22, np.nan, 33, 44, 54, 55, np.nan, np.nan, 20])
+    arr_without_nan = arr[~np.isnan(arr)]
+    ind = jh.get_nan_indices(arr)
+    arr_with_nan = jh.reinsert_nan(arr_without_nan, ind)
+    assert ((arr == arr_with_nan) | (np.isnan(arr) & np.isnan(arr_with_nan))).all()
 
 
 def test_relative_to_absolute():
