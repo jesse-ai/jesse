@@ -25,8 +25,6 @@ class Polygon(CandleExchange):
 
     def fetch(self, symbol, start_timestamp):
 
-
-
         # Check if symbol exists. Returns status: "NOT_FOUND" in case it doesn't exist.
         response = self.restclient.reference_ticker_details(symbol)
 

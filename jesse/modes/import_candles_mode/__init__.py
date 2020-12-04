@@ -12,6 +12,8 @@ from jesse.models import Candle
 from jesse.modes.import_candles_mode.drivers import drivers
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
+import numpy as np
+
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False):
     try:
@@ -249,7 +251,43 @@ def _get_candles_from_backup_exchange(
 
 
 def _fill_absent_candles_with_nan(temp_candles, start_timestamp, end_timestamp):
-    pass
+    if len(temp_candles) == 0:
+        raise CandleNotFoundInExchange(
+            'No candles exists in the market for this day: {} \n'
+            'Try another start_date'.format(
+                jh.timestamp_to_time(start_timestamp)[:10],
+            )
+        )
+
+    symbol = temp_candles[0]['symbol']
+    exchange = temp_candles[0]['exchange']
+    candles = []
+    loop_length = ((end_timestamp - start_timestamp) / 60000) + 1
+
+    i = 0
+    while i < loop_length:
+        candle_for_timestamp = pydash.find(
+            temp_candles, lambda c: c['timestamp'] == start_timestamp)
+
+        if candle_for_timestamp is None:
+            candles.append({
+                'id': jh.generate_unique_id(),
+                'symbol': symbol,
+                'exchange': exchange,
+                'timestamp': start_timestamp,
+                'open': np.nan,
+                'high': np.nan,
+                'low': np.nan,
+                'close': np.nan,
+                'volume': np.nan
+            })
+        # candle is present
+        else:
+            candles.append(candle_for_timestamp)
+
+        start_timestamp += 60000
+        i += 1
+    return candles
 
 
 def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
