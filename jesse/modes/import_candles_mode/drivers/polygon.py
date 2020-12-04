@@ -57,12 +57,12 @@ class Polygon(CandleExchange):
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
-                'timestamp': int(d[0]),
-                'open': float(d[1]),
-                'close': float(d[4]),
-                'high': float(d[2]),
-                'low': float(d[3]),
-                'volume': float(d[5])
+                'timestamp': int(d['t']),
+                'open': float(d['o']),
+                'close': float(d['c']),
+                'high': float(d['h']),
+                'low': float(d['l']),
+                'volume': float(d['v'])
             })
 
         return candles
