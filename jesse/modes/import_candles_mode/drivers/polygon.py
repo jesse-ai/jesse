@@ -1,8 +1,9 @@
+from polygon import RESTClient
+from requests import HTTPError
+
 import jesse.helpers as jh
-from jesse import exceptions
 from .interface import CandleExchange
 
-from polygon import RESTClient
 
 class Polygon(CandleExchange):
 
@@ -25,10 +26,11 @@ class Polygon(CandleExchange):
 
     def fetch(self, symbol, start_timestamp):
 
-        # Check if symbol exists. Returns status: "NOT_FOUND" in case it doesn't exist.
-        response = self.restclient.reference_ticker_details(symbol)
-
-        self._handle_errors(response)
+        # Check if symbol exists. Raises HTTP 404 if it doesn't.
+        try:
+            exists = self.restclient.reference_ticker_details(symbol)
+        except HTTPError:
+            raise ValueError("Symbol ({}) probably doesn't exist.".format(symbol))
 
         payload = {
             'unadjusted': 'false',
@@ -37,17 +39,16 @@ class Polygon(CandleExchange):
         }
 
         # Polygon takes string dates not timestamps
-        start_timestamp = jh.timestamp_to_date(start_timestamp)
-        end_timestamp =  jh.timestamp_to_date(start_timestamp + (self.count) * 60000)
-        response = self.restclient.stocks_equities_aggregates(symbol, 1, 'minute', start_timestamp, end_timestamp, payload)
+        start = jh.timestamp_to_date(start_timestamp)
+        end = jh.timestamp_to_date(start_timestamp + (self.count) * 60000)
+        response = self.restclient.stocks_equities_aggregates(symbol, 1, 'minute', start, end, **payload)
 
-        self._handle_errors(response)
-
-        data = response.json()['results']
+        data = response.results
 
         candles = []
 
         for d in data:
+            print(d['t'])
             candles.append({
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
@@ -61,23 +62,3 @@ class Polygon(CandleExchange):
             })
 
         return candles
-
-    @staticmethod
-    def _handle_errors(response):
-
-        first_digit_code = int(str(response.status_code)[0])
-
-        # Exchange In Maintenance
-        if first_digit_code == 5:
-            raise exceptions.ExchangeInMaintenance('Server ERROR. Please try again later')
-
-        res_json = response.json()
-        if res_json['status'] == "NOT_FOUND":
-            raise ValueError("Symbol not found.")
-
-        # unsupported user params
-        if first_digit_code == 4:
-            raise ValueError(res_json['error'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)
