@@ -62,7 +62,7 @@ class Polygon(CandleExchange):
                 'close': float(d['c']),
                 'high': float(d['h']),
                 'low': float(d['l']),
-                'volume': float(d['v'])
+                'volume': int(d['v'])
             })
 
         return candles

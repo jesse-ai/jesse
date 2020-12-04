@@ -108,8 +108,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
                         run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
                         return
 
-                # fill absent candles (if there's any)
-                candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
+                if driver.stock_mode:
+                    candles = _fill_absent_candles_with_nan(candles, temp_start_timestamp, temp_end_timestamp)
+                else:
+                    # fill absent candles (if there's any)
+                    candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
                 # store in the database
                 if skip_confirmation:
@@ -245,6 +248,10 @@ def _get_candles_from_backup_exchange(
         return total_candles
 
 
+def _fill_absent_candles_with_nan(temp_candles, start_timestamp, end_timestamp):
+    pass
+
+
 def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
     if len(temp_candles) == 0:
         raise CandleNotFoundInExchange(
@@ -305,3 +312,4 @@ def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
 
 def _insert_to_database(candles):
     Candle.insert_many(candles).on_conflict_ignore().execute()
+
