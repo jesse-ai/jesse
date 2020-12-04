@@ -5,11 +5,12 @@ class CandleExchange(ABC):
     """
 
     """
-    def __init__(self, name, count, sleep_time):
+    def __init__(self, name, count, sleep_time, stock_mode = False):
         self.name = name
         self.count = count
         self.sleep_time = sleep_time
         self.backup_exchange: CandleExchange = None
+        self.stock_mode = stock_mode
 
     @abstractmethod
     def init_backup_exchange(self):

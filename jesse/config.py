@@ -10,7 +10,7 @@ config = {
         },
 
         'caching': {
-            'driver': 'pickle'
+            'driver': None
         },
 
         'logging': {
@@ -95,6 +95,9 @@ config = {
                     {'asset': 'USDT', 'balance': 10000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
+            },
+            'Polygon': {
+                'api_key': '',
             },
         },
 
