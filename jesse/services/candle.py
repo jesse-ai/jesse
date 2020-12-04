@@ -21,11 +21,11 @@ def generate_candle_from_one_minutes(timeframe,
 
     return np.array([
         candles[0][0],
-        candles[0][1],
-        candles[-1][2],
-        candles[:, 3].max(),
-        candles[:, 4].min(),
-        candles[:, 5].sum(),
+        candles[0][1] if not np.isnan(candles[:, 1]).any() else np.nan,
+        candles[-1][2] if not np.isnan(candles[:, 2]).any() else np.nan,
+        candles[:, 3].max() if not np.isnan(candles[:, 3]).any() else np.nan,
+        candles[:, 4].min() if not np.isnan(candles[:, 4]).any() else np.nan,
+        candles[:, 5].sum() if not np.isnan(candles[:, 5]).any() else np.nan,
     ])
 
 
