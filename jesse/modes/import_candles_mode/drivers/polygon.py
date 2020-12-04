@@ -1,9 +1,6 @@
-import requests
-
 import jesse.helpers as jh
 from jesse import exceptions
 from .interface import CandleExchange
-from jesse.config import config
 
 from polygon import RESTClient
 
