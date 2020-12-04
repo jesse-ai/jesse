@@ -7,6 +7,7 @@ newtulipy~=0.4.2
 numpy~=1.19.4
 pandas~=1.1.4
 peewee~=3.14.0
+polygon-api-client~=0.1.9
 psycopg2-binary~=2.8.6
 pydash~=4.9.0
 pytest-watch~=4.2.0

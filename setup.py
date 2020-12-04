@@ -13,6 +13,7 @@ REQUIRED_PACKAGES = [
     'numpy',
     'pandas',
     'peewee',
+    'polygon-api-client',
     'psycopg2-binary',
     'pydash',
     'pytest',
