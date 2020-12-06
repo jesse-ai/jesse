@@ -23,10 +23,13 @@ class Bitfinex(CandleExchange):
         :param symbol:
         :return:
         """
+
+        dashless_symbol = jh.dashless_symbol(symbol)
+
         # hard-code few common symbols
-        if symbol == 'BTCUSD':
+        if symbol == 'BTC-USD':
             return jh.date_to_timestamp('2015-08-01')
-        elif symbol == 'ETHUSD':
+        elif symbol == 'ETH-USD':
             return jh.date_to_timestamp('2016-01-01')
 
         payload = {
@@ -34,7 +37,7 @@ class Bitfinex(CandleExchange):
             'limit': 5000,
         }
 
-        response = requests.get(self.endpoint + '/trade:1D:t{}/hist'.format(symbol), params=payload)
+        response = requests.get(self.endpoint + '/trade:1D:t{}/hist'.format(dashless_symbol), params=payload)
 
         if response.status_code != 200:
             raise Exception(response.content)
@@ -70,8 +73,10 @@ class Bitfinex(CandleExchange):
             'sort': 1
         }
 
+        dashless_symbol = jh.dashless_symbol(symbol)
+
         response = requests.get(
-            self.endpoint + '/trade:1m:t{}/hist'.format(symbol),
+            self.endpoint + '/trade:1m:t{}/hist'.format(dashless_symbol),
             params=payload
         )
 

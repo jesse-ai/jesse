@@ -9,7 +9,7 @@ def set_up():
     reset_config()
     config['app']['considering_exchanges'] = [exchanges.SANDBOX]
     config['app']['trading_exchanges'] = [exchanges.SANDBOX]
-    config['app']['trading_symbols'] = ['BTCUSD']
+    config['app']['trading_symbols'] = ['BTC-USD']
     config['app']['trading_timeframes'] = ['5m']
     store.reset()
 

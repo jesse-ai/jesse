@@ -22,9 +22,12 @@ class Binance(CandleExchange):
         :param symbol:
         :return:
         """
+
+        dashless_symbol = jh.dashless_symbol(symbol)
+
         payload = {
             'interval': '1d',
-            'symbol': symbol,
+            'symbol': dashless_symbol,
             'limit': 1500,
         }
 
@@ -54,9 +57,11 @@ class Binance(CandleExchange):
         """
         end_timestamp = start_timestamp + (self.count - 1) * 60000
 
+        dashless_symbol = jh.dashless_symbol(symbol)
+
         payload = {
             'interval': '1m',
-            'symbol': symbol,
+            'symbol': dashless_symbol,
             'startTime': start_timestamp,
             'endTime': end_timestamp,
             'limit': self.count,
