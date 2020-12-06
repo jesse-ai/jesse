@@ -10,7 +10,7 @@ def set_up():
 
     """
     reset_config()
-    config['app']['considering_candles'] = [('Sandbox', 'BTCUSD')]
+    config['app']['considering_candles'] = [('Sandbox', 'BTC-USD')]
     store.reset()
     store.trades.init_storage()
 
@@ -18,7 +18,7 @@ def set_up():
 def test_can_add_add_trade():
     set_up()
 
-    np.testing.assert_equal(store.trades.get_trades('Sandbox', 'BTCUSD'), np.zeros((0, 6)))
+    np.testing.assert_equal(store.trades.get_trades('Sandbox', 'BTC-USD'), np.zeros((0, 6)))
 
     # add first trade
     t1 = np.array([jh.now_to_timestamp(), 100, 2, 1], dtype=np.float64)
@@ -26,20 +26,20 @@ def test_can_add_add_trade():
     t3 = np.array([jh.now_to_timestamp(), 98, 2, 0], dtype=np.float64)
     t4 = np.array([jh.now_to_timestamp(), 98, 2, 0], dtype=np.float64)
     t5 = np.array([jh.now_to_timestamp(), 98, 2, 0], dtype=np.float64)
-    store.trades.add_trade(t1, 'Sandbox', 'BTCUSD')
-    store.trades.add_trade(t2, 'Sandbox', 'BTCUSD')
-    store.trades.add_trade(t3, 'Sandbox', 'BTCUSD')
-    store.trades.add_trade(t4, 'Sandbox', 'BTCUSD')
-    store.trades.add_trade(t5, 'Sandbox', 'BTCUSD')
+    store.trades.add_trade(t1, 'Sandbox', 'BTC-USD')
+    store.trades.add_trade(t2, 'Sandbox', 'BTC-USD')
+    store.trades.add_trade(t3, 'Sandbox', 'BTC-USD')
+    store.trades.add_trade(t4, 'Sandbox', 'BTC-USD')
+    store.trades.add_trade(t5, 'Sandbox', 'BTC-USD')
 
-    assert len(store.trades.get_trades('Sandbox', 'BTCUSD')) == 0
+    assert len(store.trades.get_trades('Sandbox', 'BTC-USD')) == 0
 
     t6 = np.array([jh.now_to_timestamp() + 1000, 98, 2, 1], dtype=np.float64)
-    store.trades.add_trade(t6, 'Sandbox', 'BTCUSD')
+    store.trades.add_trade(t6, 'Sandbox', 'BTC-USD')
 
-    assert len(store.trades.get_trades('Sandbox', 'BTCUSD')) == 1
+    assert len(store.trades.get_trades('Sandbox', 'BTC-USD')) == 1
 
-    np.testing.assert_equal(store.trades.get_current_trade('Sandbox', 'BTCUSD'), np.array([
+    np.testing.assert_equal(store.trades.get_current_trade('Sandbox', 'BTC-USD'), np.array([
         jh.now_to_timestamp(),
         # price
         (100 * 2 + 98 * 2 + 98 * 2 + 98 * 2 + 98 * 2) / 10,
@@ -55,9 +55,9 @@ def test_can_add_add_trade():
 
     # add another after two seconds
     t7 = np.array([jh.now_to_timestamp() + 3000, 98, 2, 1], dtype=np.float64)
-    store.trades.add_trade(t7, 'Sandbox', 'BTCUSD')
+    store.trades.add_trade(t7, 'Sandbox', 'BTC-USD')
 
-    np.testing.assert_equal(store.trades.get_current_trade('Sandbox', 'BTCUSD'), np.array([
+    np.testing.assert_equal(store.trades.get_current_trade('Sandbox', 'BTC-USD'), np.array([
         jh.now_to_timestamp() + 1000,
         # price
         98,
@@ -72,7 +72,7 @@ def test_can_add_add_trade():
     ]))
 
     # test get_past_trade
-    np.testing.assert_equal(store.trades.get_past_trade('Sandbox', 'BTCUSD', 1), np.array([
+    np.testing.assert_equal(store.trades.get_past_trade('Sandbox', 'BTC-USD', 1), np.array([
         jh.now_to_timestamp(),
         # price
         (100 * 2 + 98 * 2 + 98 * 2 + 98 * 2 + 98 * 2) / 10,
@@ -87,7 +87,7 @@ def test_can_add_add_trade():
     ]))
 
     # test get_trades
-    np.testing.assert_equal(store.trades.get_trades('Sandbox', 'BTCUSD'), np.array([
+    np.testing.assert_equal(store.trades.get_trades('Sandbox', 'BTC-USD'), np.array([
         [
             jh.now_to_timestamp(),
             # price

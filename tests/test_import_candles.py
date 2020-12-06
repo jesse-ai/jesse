@@ -6,7 +6,7 @@ test_object_candles = []
 for c in test_candles_0:
     test_object_candles.append({
         'id': jh.generate_unique_id(),
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'exchange': 'Sandbox',
         'timestamp': c[0],
         'open': c[1],

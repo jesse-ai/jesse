@@ -64,7 +64,6 @@ def test_state_order_get_orders():
     o2 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USD'})
     store.orders.add_order(o1)
     store.orders.add_order(o2)
-    assert store.orders.get_orders(exchanges.SANDBOX,
-                                   'ETH-USD') == [o1, o2]
+    assert store.orders.get_orders(exchanges.SANDBOX,'ETH-USD') == [o1, o2]
 
 
