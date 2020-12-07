@@ -105,12 +105,16 @@ class Optimizer(Genetics):
             ratio_config = jh.get_config('env.optimization.ratio', 'sharpe')
             if ratio_config == 'sharpe':
                 ratio = training_data['sharpe_ratio']
+                ratio_normalized = jh.normalize(ratio, -.5, 5)
             elif ratio_config == 'calmar':
                 ratio = training_data['calmar_ratio']
+                ratio_normalized = jh.normalize(ratio, -.5, 30)
             elif ratio_config == 'sortiono':
                 ratio = training_data['sortino_ratio']
+                ratio_normalized = jh.normalize(ratio, -.5, 15)
             elif ratio_config == 'omega':
                 ratio = training_data['omega_ratio']
+                ratio_normalized = jh.normalize(ratio, -.5, 5)
             else:
                 raise ValueError(
                     'The entered ratio configuration `{}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.'.format(
@@ -121,8 +125,6 @@ class Optimizer(Genetics):
                 # reset store
                 store.reset()
                 return score, log
-
-            ratio_normalized = jh.normalize(ratio, -.5, 4)
 
                 # log for debugging/monitoring
             log = 'win-rate: {}%, total: {}, PNL: {}%'.format(
