@@ -36,7 +36,7 @@ class Order:
             setattr(self, a, attributes[a])
 
         if self.created_at is None:
-            self.created_at = jh.now()
+            self.created_at = jh.now_to_timestamp()
 
         p = selectors.get_position(self.exchange, self.symbol)
         if p:
@@ -109,7 +109,7 @@ class Order:
         if self.is_canceled or self.is_executed:
             return
 
-        self.canceled_at = jh.now()
+        self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
 
         p = selectors.get_position(self.exchange, self.symbol)
@@ -137,7 +137,7 @@ class Order:
         if self.is_canceled or self.is_executed:
             return
 
-        self.executed_at = jh.now()
+        self.executed_at = jh.now_to_timestamp()
         self.status = order_statuses.EXECUTED
 
         # log

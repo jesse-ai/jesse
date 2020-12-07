@@ -1,35 +1,37 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.14.1'
+VERSION = '0.15.2'
 DESCRIPTION = "A trading framework for cryptocurrencies"
+
 REQUIRED_PACKAGES = [
-    'psycopg2-binary',
-    'pytest',
-    'Click',
     'arrow',
-    'requests',
-    'peewee',
-    'pydash',
+    'blinker',
+    'Click',
+    'crypto_empyrical',
+    'matplotlib',
+    'newtulipy',
     'numpy',
     'pandas',
+    'peewee',
+    'psycopg2-binary',
+    'pydash',
+    'pytest',
+    'requests',
+    'scipy',
+    'TA-Lib',
     'tabulate',
     'timeloop',
-    'websocket-client',
-    'TA-Lib',
-    'matplotlib',
-    'empyrical',
-    'blinker',
-    'tulipy'
+    'websocket-client'
 ]
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open("README.md", "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name='jesse',
     version=VERSION,
-    author="Saleh Mirnezami",
-    author_email="mirnezami.saleh@gmail.com",
+    author="Saleh Mir",
+    author_email="algo@hey.com",
     packages=find_packages(),
     description=DESCRIPTION,
     long_description=long_description,

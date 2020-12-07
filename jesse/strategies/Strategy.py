@@ -729,7 +729,7 @@ class Strategy(ABC):
 
     def _on_stop_loss(self):
         if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info('Yikes! stop-loss has been executed.')
+            logger.info('Stop-loss has been executed.')
 
         self._broadcast('route-stop-loss')
         self._execute_cancel()
@@ -745,7 +745,7 @@ class Strategy(ABC):
 
     def _on_take_profit(self):
         if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("Sweet! Take profit order has been executed.")
+            logger.info("Take-profit order has been executed.")
 
         self._broadcast('route-take-profit')
         self._execute_cancel()
@@ -880,12 +880,16 @@ class Strategy(ABC):
             store.app.total_open_pl += self.position.pnl
             logger.info(
                 "Closed open {}-{} position at {} with PNL: {}({}%) because we reached the end of the backtest session.".format(
-                    self.exchange, self.symbol, self.position.current_price, self.position.pnl,
-                    self.position.pnl_percentage
+                    self.exchange, self.symbol, self.position.current_price,
+                    round(self.position.pnl, 4),
+                    round(self.position.pnl_percentage, 2)
                 )
             )
-            self.position._close(self.position.current_price)
-            self._execute_cancel()
+            # fake a closing (market) order so that the calculations would be correct
+            if self.is_long:
+                self.broker.sell_at_market(self.position.qty, order_roles.CLOSE_POSITION)
+            else:
+                self.broker.buy_at_market(self.position.qty, order_roles.CLOSE_POSITION)
             return
 
         if self._open_position_orders:
@@ -1038,7 +1042,7 @@ class Strategy(ABC):
             self.trade.symbol = order.symbol
             self.trade.type = trade_types.LONG if order.side == sides.BUY else trade_types.SHORT
             self.trade.qty = order.qty
-            self.trade.opened_at = jh.now()
+            self.trade.opened_at = jh.now_to_timestamp()
             self.trade.entry_candle_timestamp = self.current_candle[0]
         elif role == order_roles.INCREASE_POSITION:
             self.trade.orders.append(order)
@@ -1100,7 +1104,7 @@ class Strategy(ABC):
                 sum_price += abs(l.qty) * l.price
             self.trade.exit_price = sum_price / sum_qty
 
-            self.trade.closed_at = jh.now()
+            self.trade.closed_at = jh.now_to_timestamp()
             self.trade.qty = pydash.sum_by(
                 filter(lambda o: o.side == jh.type_to_side(self.trade.type), self.trade.orders),
                 lambda o: abs(o.qty)

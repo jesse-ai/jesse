@@ -205,7 +205,7 @@ def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
     # divide into training(85%) and testing(15%) sets
     training_candles = {}
     testing_candles = {}
-    days_diff = jh.date_diff_in_days(jh.get_arrow(start_date), jh.get_arrow(finish_date))
+    days_diff = jh.date_diff_in_days(jh.timestamp_to_arrow(start_date), jh.timestamp_to_arrow(finish_date))
     divider_index = int(days_diff * 0.85) * 1440
     for key in candles:
         training_candles[key] = {

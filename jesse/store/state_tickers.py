@@ -29,7 +29,7 @@ class TickersState:
         key = jh.key(exchange, symbol)
 
         # only process once per second
-        if len(self.storage[key][:]) == 0 or jh.now() - self.storage[key][-1][0] >= 1000:
+        if len(self.storage[key][:]) == 0 or jh.now_to_timestamp() - self.storage[key][-1][0] >= 1000:
             self.storage[key].append(ticker)
 
             if jh.is_collecting_data():

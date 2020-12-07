@@ -258,6 +258,7 @@ def simulator(candles, hyperparameters=None):
 
     for r in router.routes:
         r.strategy._terminate()
+        store.orders.execute_pending_market_orders()
 
     # now that backtest is finished, add finishing balance
     save_daily_portfolio_balance()

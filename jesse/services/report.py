@@ -44,7 +44,7 @@ def positions():
                 jh.color(pos.type, type_color),
                 pos.strategy.name,
                 pos.symbol,
-                '' if pos.is_close else '{} ago'.format(jh.readable_duration((jh.now() - pos.opened_at) / 1000, 3)),
+                '' if pos.is_close else '{} ago'.format(jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)),
                 pos.qty if abs(pos.qty) > 0 else None,
                 pos.entry_price,
                 pos.current_price,
@@ -120,8 +120,8 @@ def livetrade():
     current_balance = round(current_balance, 2)
 
     arr = [
-        ['started at', jh.get_arrow(store.app.starting_time).humanize()],
-        ['current time', jh.timestamp_to_time(jh.now())[:19]],
+        ['started at', jh.timestamp_to_arrow(store.app.starting_time).humanize()],
+        ['current time', jh.timestamp_to_time(jh.now_to_timestamp())[:19]],
         ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
         ['active orders', store.orders.count_all_active_orders()],
         ['open positions', store.positions.count_open_positions()]
