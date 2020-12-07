@@ -50,7 +50,7 @@ def test_open_pl_and_total_open_trades():
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
-    assert len(store.completed_trades.trades) == 0
+    assert len(store.completed_trades.trades) == 1
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97  # 99 - 2
 

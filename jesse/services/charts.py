@@ -94,8 +94,9 @@ def portfolio_vs_asset_returns():
                 price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.opened_at))]]
             )
 
-    plt.plot(buy_x, buy_y, '.', color='green')
-    plt.plot(sell_x, sell_y, '.', color='red')
+
+    plt.plot(buy_x, np.array(buy_y)*0.99, '^', color='blue', markersize=7)
+    plt.plot(sell_x, np.array(sell_y)*1.01, 'v', color='red', markersize=7)
 
     plt.xlabel('date')
     plt.ylabel('price change %')
