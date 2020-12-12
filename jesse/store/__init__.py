@@ -40,6 +40,13 @@ def install_routes():
             raise InvalidRoutes(
                 'each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse.trade/docs/routes.html#trading-multiple-routes')
 
+    # check to make sure if trading more than one route, they all have the same quote
+    # currency because otherwise we cannot calculate the correct performance metrics
+    first_routes_quote = jh.quote_asset(router.routes[0].symbol)
+    for r in router.routes:
+        if jh.quote_asset(r.symbol) != first_routes_quote:
+            raise InvalidRoutes('All trading routes must have the same quote asset.')
+
     trading_exchanges = set()
     trading_timeframes = set()
     trading_symbols = set()
