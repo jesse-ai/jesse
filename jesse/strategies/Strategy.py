@@ -1186,10 +1186,10 @@ class Strategy(ABC):
     def shared_vars(self):
         return store.vars
 
-    # @property
-    # def routes(self) -> List[Route]:
-    #     from jesse.routes import router
-    #     return router.routes
+    @property
+    def routes(self) -> List[Route]:
+        from jesse.routes import router
+        return router.routes
 
     @property
     def has_active_entry_orders(self) -> bool:
