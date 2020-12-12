@@ -15,10 +15,6 @@ from .state_trades import TradesState
 
 
 def install_routes():
-    """
-
-    :return:
-    """
     considering_candles = set()
 
     # when importing market data, considering_candles is all we need
@@ -77,9 +73,6 @@ def install_routes():
 
 
 class StoreClass:
-    """
-
-    """
     app = AppState()
     orders = OrdersState()
     completed_trades = CompletedTrades()
@@ -95,7 +88,8 @@ class StoreClass:
         self.vars = {}
 
     def reset(self, force_install_routes=False):
-        """resets all the states within the store
+        """
+        Resets all the states within the store
         
         Keyword Arguments:
             force_install_routes {bool} -- used for unit_testing (default: {False})
@@ -117,5 +111,6 @@ class StoreClass:
 
 if not jh.is_unit_testing():
     install_routes()
+
 store = StoreClass()
 store.reset()
