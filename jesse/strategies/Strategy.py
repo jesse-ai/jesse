@@ -1190,7 +1190,7 @@ class Strategy(ABC):
     # def routes(self) -> List[Route]:
     #     from jesse.routes import router
     #     return router.routes
-    #
-    # @property
-    # def has_active_entry_orders(self) -> bool:
-    #     return len(self._open_position_orders) > 0
+
+    @property
+    def has_active_entry_orders(self) -> bool:
+        return len(self._open_position_orders) > 0
