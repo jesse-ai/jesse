@@ -23,6 +23,8 @@ def run(dna=False):
             StrategyClass = jh.get_strategy_class(r.strategy_name)
             hyperparameters = jh.dna_to_hp(StrategyClass.hyperparameters(None), r.dna)
             table.key_value(hyperparameters.items(), r.strategy_name, uppercase_title=False)
+            print()
+            print(jh.color('Parameter Dict:', 'blue'), hyperparameters)
             print('\n')
         else:
             arr.append([r.exchange, r.symbol, r.timeframe, r.strategy_name, r.dna])
