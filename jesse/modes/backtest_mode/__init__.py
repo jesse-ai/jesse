@@ -43,7 +43,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
 
     if not jh.should_execute_silently():
         # print candles table
-        key = '{}-{}'.format(config['app']['trading_exchanges'][0], config['app']['trading_symbols'][0])
+        key = '{}-{}'.format(config['app']['considering_candles'][0][0], config['app']['considering_candles'][0][1])
         table.key_value(stats.candles(candles[key]['candles']), 'candles', alignments=('left', 'right'))
         print('\n')
 
@@ -97,52 +97,53 @@ def load_candles(start_date_str: str, finish_date_str: str):
 
     # download candles for the duration of the backtest
     candles = {}
-    for exchange in config['app']['considering_exchanges']:
-        for symbol in config['app']['considering_symbols']:
-            key = jh.key(exchange, symbol)
+    for c in config['app']['considering_candles']:
+        exchange, symbol = c[0], c[1]
 
-            cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
-            cached_value = cache.get_value(cache_key)
-            # if cache exists
-            if cached_value:
-                candles_tuple = cached_value
-            # not cached, get and cache for later calls in the next 5 minutes
-            else:
-                # fetch from database
-                candles_tuple = Candle.select(
-                    Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                    Candle.volume
-                ).where(
-                    Candle.timestamp.between(start_date, finish_date),
-                    Candle.exchange == exchange,
-                    Candle.symbol == symbol
-                ).order_by(Candle.timestamp.asc()).tuples()
+        key = jh.key(exchange, symbol)
 
-            # validate that there are enough candles for selected period
-            required_candles_count = (finish_date - start_date) / 60_000
-            if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-                raise exceptions.CandleNotFoundInDatabase(
-                    'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
-            elif len(candles_tuple) != required_candles_count + 1:
-                raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
-                    start_date_str, finish_date_str
-                ))
+        cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
+        cached_value = cache.get_value(cache_key)
+        # if cache exists
+        if cached_value:
+            candles_tuple = cached_value
+        # not cached, get and cache for later calls in the next 5 minutes
+        else:
+            # fetch from database
+            candles_tuple = Candle.select(
+                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+                Candle.volume
+            ).where(
+                Candle.timestamp.between(start_date, finish_date),
+                Candle.exchange == exchange,
+                Candle.symbol == symbol
+            ).order_by(Candle.timestamp.asc()).tuples()
 
-            # cache it for near future calls
-            cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        # validate that there are enough candles for selected period
+        required_candles_count = (finish_date - start_date) / 60_000
+        if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
+            raise exceptions.CandleNotFoundInDatabase(
+                'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
+        elif len(candles_tuple) != required_candles_count + 1:
+            raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
+                start_date_str, finish_date_str
+            ))
 
-            candles[key] = {
-                'exchange': exchange,
-                'symbol': symbol,
-                'candles': np.array(candles_tuple)
-            }
+        # cache it for near future calls
+        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+
+        candles[key] = {
+            'exchange': exchange,
+            'symbol': symbol,
+            'candles': np.array(candles_tuple)
+        }
 
     return candles
 
 
 def simulator(candles, hyperparameters=None):
     begin_time_track = time.time()
-    key = '{}-{}'.format(config['app']['trading_exchanges'][0], config['app']['trading_symbols'][0])
+    key = '{}-{}'.format(config['app']['considering_candles'][0][0], config['app']['considering_candles'][0][1])
     first_candles_set = candles[key]['candles']
     length = len(first_candles_set)
     # to preset the array size for performance
