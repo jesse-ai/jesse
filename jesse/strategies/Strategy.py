@@ -10,7 +10,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
-from jesse.models import CompletedTrade, Order
+from jesse.models import CompletedTrade, Order, Route
 from jesse.services.broker import Broker
 from jesse.store import store
 
@@ -430,167 +430,175 @@ class Strategy(ABC):
         if self.position.is_close:
             return
 
-        if self.is_long:
-            # prepare format
-            if type(self.buy[0]) not in [list, tuple, np.ndarray]:
-                self.buy = [self.buy]
-            self.buy = np.array(self.buy, dtype=float)
+        try:
+            if self.is_long:
+                # prepare format
+                if type(self.buy[0]) not in [list, tuple, np.ndarray]:
+                    self.buy = [self.buy]
+                self.buy = np.array(self.buy, dtype=float)
 
-            # if entry has been modified
-            if not np.array_equal(self.buy, self._buy):
-                self._buy = self.buy.copy()
+                # if entry has been modified
+                if not np.array_equal(self.buy, self._buy):
+                    self._buy = self.buy.copy()
 
-                # cancel orders
-                for o in self._open_position_orders:
-                    if o.is_active or o.is_queued:
-                        self.broker.cancel_order(o.id)
+                    # cancel orders
+                    for o in self._open_position_orders:
+                        if o.is_active or o.is_queued:
+                            self.broker.cancel_order(o.id)
 
-                # clean orders array but leave executed ones
-                self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
-                for o in self._buy:
-                    # STOP order
-                    if o[1] > self.price:
-                        self._open_position_orders.append(
-                            self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
-                        )
-                    # LIMIT order
-                    elif o[1] < self.price:
-                        self._open_position_orders.append(
-                            self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
-                        )
-                    # MARKET order
-                    elif o[1] == self.price:
-                        self._open_position_orders.append(
-                            self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
-                        )
-
-        elif self.is_short:
-            # prepare format
-            if type(self.sell[0]) not in [list, tuple, np.ndarray]:
-                self.sell = [self.sell]
-            self.sell = np.array(self.sell, dtype=float)
-
-            # if entry has been modified
-            if not np.array_equal(self.sell, self._sell):
-                self._sell = self.sell.copy()
-
-                # cancel orders
-                for o in self._open_position_orders:
-                    if o.is_active or o.is_queued:
-                        self.broker.cancel_order(o.id)
-
-                # clean orders array but leave executed ones
-                self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
-
-                for o in self._sell:
-                    # STOP order
-                    if o[1] > self.price:
-                        self._open_position_orders.append(
-                            self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
-                        )
-                    # LIMIT order
-                    elif o[1] < self.price:
-                        self._open_position_orders.append(
-                            self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-                        )
-                    # MARKET order
-                    elif o[1] == self.price:
-                        self._open_position_orders.append(
-                            self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
-                        )
-
-        if self.position.is_open and self.take_profit is not None:
-            self._validate_take_profit()
-            self._prepare_take_profit(False)
-
-            # if _take_profit has been modified
-            if not np.array_equal(self.take_profit, self._take_profit):
-                self._take_profit = self.take_profit.copy()
-
-                # cancel orders
-                for o in self._take_profit_orders:
-                    if o.is_active or o.is_queued:
-                        self.broker.cancel_order(o.id)
-
-                # clean orders array but leave executed ones
-                self._take_profit_orders = [o for o in self._take_profit_orders if o.is_executed]
-                self._log_take_profit = []
-                for s in self._take_profit_orders:
-                    self._log_take_profit.append(
-                        (abs(s.qty), s.price)
-                    )
-                for o in self._take_profit:
-                    self._log_take_profit.append(o)
-
-                    if o[1] == self.price:
-                        if self.is_long:
-                            self._take_profit_orders.append(
-                                self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
+                    # clean orders array but leave executed ones
+                    self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
+                    for o in self._buy:
+                        # STOP order
+                        if o[1] > self.price:
+                            self._open_position_orders.append(
+                                self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
                             )
-                        elif self.is_short:
-                            self._take_profit_orders.append(
-                                self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
+                        # LIMIT order
+                        elif o[1] < self.price:
+                            self._open_position_orders.append(
+                                self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
                             )
-                    else:
-                        if (self.is_long and o[1] > self.price) or (self.is_short and o[1] < self.price):
+                        # MARKET order
+                        elif o[1] == self.price:
+                            self._open_position_orders.append(
+                                self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                            )
 
-                            self._take_profit_orders.append(
-                                self.broker.reduce_position_at(
-                                    o[0],
-                                    o[1],
-                                    order_roles.CLOSE_POSITION
+            elif self.is_short:
+                # prepare format
+                if type(self.sell[0]) not in [list, tuple, np.ndarray]:
+                    self.sell = [self.sell]
+                self.sell = np.array(self.sell, dtype=float)
+
+                # if entry has been modified
+                if not np.array_equal(self.sell, self._sell):
+                    self._sell = self.sell.copy()
+
+                    # cancel orders
+                    for o in self._open_position_orders:
+                        if o.is_active or o.is_queued:
+                            self.broker.cancel_order(o.id)
+
+                    # clean orders array but leave executed ones
+                    self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
+
+                    for o in self._sell:
+                        # STOP order
+                        if o[1] > self.price:
+                            self._open_position_orders.append(
+                                self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
+                            )
+                        # LIMIT order
+                        elif o[1] < self.price:
+                            self._open_position_orders.append(
+                                self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
+                            )
+                        # MARKET order
+                        elif o[1] == self.price:
+                            self._open_position_orders.append(
+                                self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+                            )
+
+            if self.position.is_open and self.take_profit is not None:
+                self._validate_take_profit()
+                self._prepare_take_profit(False)
+
+                # if _take_profit has been modified
+                if not np.array_equal(self.take_profit, self._take_profit):
+                    self._take_profit = self.take_profit.copy()
+
+                    # cancel orders
+                    for o in self._take_profit_orders:
+                        if o.is_active or o.is_queued:
+                            self.broker.cancel_order(o.id)
+
+                    # clean orders array but leave executed ones
+                    self._take_profit_orders = [o for o in self._take_profit_orders if o.is_executed]
+                    self._log_take_profit = []
+                    for s in self._take_profit_orders:
+                        self._log_take_profit.append(
+                            (abs(s.qty), s.price)
+                        )
+                    for o in self._take_profit:
+                        self._log_take_profit.append(o)
+
+                        if o[1] == self.price:
+                            if self.is_long:
+                                self._take_profit_orders.append(
+                                    self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
                                 )
-                            )
-                        elif (self.is_long and o[1] < self.price) or (self.is_short and o[1] > self.price):
-                            self._take_profit_orders.append(
+                            elif self.is_short:
+                                self._take_profit_orders.append(
+                                    self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
+                                )
+                        else:
+                            if (self.is_long and o[1] > self.price) or (self.is_short and o[1] < self.price):
+
+                                self._take_profit_orders.append(
+                                    self.broker.reduce_position_at(
+                                        o[0],
+                                        o[1],
+                                        order_roles.CLOSE_POSITION
+                                    )
+                                )
+                            elif (self.is_long and o[1] < self.price) or (self.is_short and o[1] > self.price):
+                                self._take_profit_orders.append(
+                                    self.broker.stop_loss_at(
+                                        o[0],
+                                        o[1],
+                                        order_roles.CLOSE_POSITION
+                                    )
+                                )
+
+            if self.position.is_open and self.stop_loss is not None:
+                self._validate_stop_loss()
+                self._prepare_stop_loss(False)
+
+                # if stop_loss has been modified
+                if not np.array_equal(self.stop_loss, self._stop_loss):
+                    # prepare format
+                    self._stop_loss = self.stop_loss.copy()
+
+                    # cancel orders
+                    for o in self._stop_loss_orders:
+                        if o.is_active or o.is_queued:
+                            self.broker.cancel_order(o.id)
+
+                    # clean orders array but leave executed ones
+                    self._stop_loss_orders = [o for o in self._stop_loss_orders if o.is_executed]
+                    self._log_stop_loss = []
+                    for s in self._stop_loss_orders:
+                        self._log_stop_loss.append(
+                            (abs(s.qty), s.price)
+                        )
+                    for o in self._stop_loss:
+                        self._log_stop_loss.append(o)
+
+                        if o[1] == self.price:
+                            if self.is_long:
+                                self._stop_loss_orders.append(
+                                    self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
+                                )
+                            elif self.is_short:
+                                self._stop_loss_orders.append(
+                                    self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
+                                )
+                        else:
+                            self._stop_loss_orders.append(
                                 self.broker.stop_loss_at(
                                     o[0],
                                     o[1],
                                     order_roles.CLOSE_POSITION
                                 )
                             )
-
-        if self.position.is_open and self.stop_loss is not None:
-            self._validate_stop_loss()
-            self._prepare_stop_loss(False)
-
-            # if stop_loss has been modified
-            if not np.array_equal(self.stop_loss, self._stop_loss):
-                # prepare format
-                self._stop_loss = self.stop_loss.copy()
-
-                # cancel orders
-                for o in self._stop_loss_orders:
-                    if o.is_active or o.is_queued:
-                        self.broker.cancel_order(o.id)
-
-                # clean orders array but leave executed ones
-                self._stop_loss_orders = [o for o in self._stop_loss_orders if o.is_executed]
-                self._log_stop_loss = []
-                for s in self._stop_loss_orders:
-                    self._log_stop_loss.append(
-                        (abs(s.qty), s.price)
-                    )
-                for o in self._stop_loss:
-                    self._log_stop_loss.append(o)
-
-                    if o[1] == self.price:
-                        if self.is_long:
-                            self._stop_loss_orders.append(
-                                self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                            )
-                        elif self.is_short:
-                            self._stop_loss_orders.append(
-                                self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                            )
-                    else:
-                        self._stop_loss_orders.append(
-                            self.broker.stop_loss_at(
-                                o[0],
-                                o[1],
-                                order_roles.CLOSE_POSITION
-                            )
-                        )
+        except TypeError:
+            raise exceptions.InvalidStrategy(
+                'Something odd is going on with your strategy. '
+                'Try running it with "--debug" to see what was going on near the end, and fix it.'
+            )
+        except:
+            raise
 
         # validations: stop-loss and take-profit should not be the same
         if self.position.is_open:
@@ -1177,3 +1185,12 @@ class Strategy(ABC):
     @property
     def shared_vars(self):
         return store.vars
+
+    # @property
+    # def routes(self) -> List[Route]:
+    #     from jesse.routes import router
+    #     return router.routes
+    #
+    # @property
+    # def has_active_entry_orders(self) -> bool:
+    #     return len(self._open_position_orders) > 0
