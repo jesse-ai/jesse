@@ -10,7 +10,7 @@ peewee~=3.14.0
 psycopg2-binary~=2.8.6
 pydash~=4.9.0
 pytest-watch~=4.2.0
-pytest~=6.1.2
+pytest==6.2.0
 requests~=2.25.0
 scipy~=1.5.4
 TA-Lib~=0.4.19
