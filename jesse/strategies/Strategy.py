@@ -116,7 +116,9 @@ class Strategy(ABC):
             r.strategy._detect_and_handle_entry_and_exit_modifications()
 
     def _on_updated_position(self, order: Order):
-        """handles executed order
+        """
+        Handles the after-effect of the executed order
+
         Note that it assumes that the position has already been affected
         by the executed order.
 
@@ -485,12 +487,12 @@ class Strategy(ABC):
 
                     for o in self._sell:
                         # STOP order
-                        if o[1] > self.price:
+                        if o[1] < self.price:
                             self._open_position_orders.append(
-                                self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
+                                self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
                             )
                         # LIMIT order
-                        elif o[1] < self.price:
+                        elif o[1] > self.price:
                             self._open_position_orders.append(
                                 self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
                             )
