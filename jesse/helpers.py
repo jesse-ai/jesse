@@ -655,6 +655,10 @@ def timestamp_to_arrow(timestamp):
     return arrow.get(timestamp / 1000)
 
 
+def get_arrow(timestamp):
+    return timestamp_to_arrow(timestamp)
+
+
 def timestamp_to_date(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))[:10]
 
