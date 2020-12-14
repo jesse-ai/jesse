@@ -391,6 +391,10 @@ def now_to_timestamp():
     return arrow.utcnow().int_timestamp * 1000
 
 
+def now():
+    return now_to_timestamp()
+
+
 def np_shift(arr: np.ndarray, num: int, fill_value=0):
     result = np.empty_like(arr)
 
