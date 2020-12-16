@@ -391,6 +391,10 @@ def now_to_timestamp():
     return arrow.utcnow().int_timestamp * 1000
 
 
+def now():
+    return now_to_timestamp()
+
+
 def np_shift(arr: np.ndarray, num: int, fill_value=0):
     result = np.empty_like(arr)
 
@@ -649,6 +653,10 @@ def timeframe_to_one_minutes(timeframe):
 
 def timestamp_to_arrow(timestamp):
     return arrow.get(timestamp / 1000)
+
+
+def get_arrow(timestamp):
+    return timestamp_to_arrow(timestamp)
 
 
 def timestamp_to_date(timestamp: int) -> str:

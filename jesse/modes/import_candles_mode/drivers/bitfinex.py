@@ -6,9 +6,6 @@ from .interface import CandleExchange
 
 
 class Bitfinex(CandleExchange):
-    """
-
-    """
     def __init__(self):
         super().__init__('Bitfinex', 1440, 1)
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
@@ -18,11 +15,6 @@ class Bitfinex(CandleExchange):
         self.backup_exchange = Coinbase()
 
     def get_starting_time(self, symbol: str):
-        """
-
-        :param symbol:
-        :return:
-        """
         # hard-code few common symbols
         if symbol == 'BTCUSD':
             return jh.date_to_timestamp('2015-08-01')
@@ -52,13 +44,7 @@ class Bitfinex(CandleExchange):
 
         return second_timestamp
 
-    def fetch(self, symbol, start_timestamp):
-        """
-
-        :param symbol:
-        :param start_timestamp:
-        :return:
-        """
+    def fetch(self, symbol: str, start_timestamp):
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
         # instead of limit. Therefore, we use limit number to calculate the end_timestamp
         end_timestamp = start_timestamp + (self.count - 1) * 60000
