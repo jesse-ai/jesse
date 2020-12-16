@@ -138,15 +138,15 @@ class Strategy(ABC):
         self._log_position_update(order, role)
 
         if role == order_roles.OPEN_POSITION:
-            self._on_open_position()
+            self._on_open_position(order)
         elif role == order_roles.CLOSE_POSITION and order in self._take_profit_orders:
-            self._on_take_profit()
+            self._on_take_profit(order)
         elif role == order_roles.CLOSE_POSITION and order in self._stop_loss_orders:
-            self._on_stop_loss()
+            self._on_stop_loss(order)
         elif role == order_roles.INCREASE_POSITION:
-            self._on_increased_position()
+            self._on_increased_position(order)
         elif role == order_roles.REDUCE_POSITION:
-            self._on_reduced_position()
+            self._on_reduced_position(order)
 
     def filters(self):
         return []
@@ -665,7 +665,7 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
-    def _on_open_position(self):
+    def _on_open_position(self, order: Order):
         self._broadcast('route-open-position')
 
         if self.take_profit is not None:
@@ -728,57 +728,57 @@ class Strategy(ABC):
 
         self._open_position_orders = []
         self._initial_qty = self.position.qty
-        self.on_open_position()
+        self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_open_position(self):
+    def on_open_position(self, order: Order):
         """
         What should happen after the open position order has been executed
         """
         pass
 
-    def _on_stop_loss(self):
+    def _on_stop_loss(self, order: Order):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info('Stop-loss has been executed.')
 
         self._broadcast('route-stop-loss')
         self._execute_cancel()
-        self.on_stop_loss()
+        self.on_stop_loss(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_stop_loss(self):
+    def on_stop_loss(self, order: Order):
         """
         What should happen after the stop-loss order has been executed
         """
         pass
 
-    def _on_take_profit(self):
+    def _on_take_profit(self, order: Order):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Take-profit order has been executed.")
 
         self._broadcast('route-take-profit')
         self._execute_cancel()
-        self.on_take_profit()
+        self.on_take_profit(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_take_profit(self):
+    def on_take_profit(self, order: Order):
         """
         What should happen after the take-profit order is executed.
         """
         pass
 
-    def _on_increased_position(self):
+    def _on_increased_position(self, order: Order):
         self._open_position_orders = []
 
         self._broadcast('route-increased-position')
 
-        self.on_increased_position()
+        self.on_increased_position(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_increased_position(self):
+    def on_increased_position(self, order: Order):
         """
         What should happen after the order (if any) increasing the
         size of the position is executed. Overwrite it if needed.
@@ -786,7 +786,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_reduced_position(self):
+    def _on_reduced_position(self, order: Order):
         """
         prepares for on_reduced_position() is implemented by user
         """
@@ -794,11 +794,11 @@ class Strategy(ABC):
 
         self._broadcast('route-reduced-position')
 
-        self.on_reduced_position()
+        self.on_reduced_position(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_reduced_position(self):
+    def on_reduced_position(self, order: Order):
         """
         What should happen after the order (if any) reducing the size of the position is executed.
         """
@@ -1014,11 +1014,6 @@ class Strategy(ABC):
     def time(self):
         """returns the current time"""
         return store.app.time
-
-    @property
-    def BTCUSD(self):
-        """shortcut for BTCUSD symbol string """
-        return 'BTCUSD' if self.exchange == 'Bitfinex' else 'BTCUSDT'
 
     @property
     def balance(self):
