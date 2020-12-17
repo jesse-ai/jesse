@@ -200,6 +200,9 @@ class Strategy(ABC):
                 )
 
     def _prepare_buy(self, make_copies=True):
+        if type(self.buy) is np.ndarray:
+            return
+
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
         if type(self.buy[0]) not in [list, tuple]:
@@ -210,6 +213,9 @@ class Strategy(ABC):
             self._buy = self.buy.copy()
 
     def _prepare_sell(self, make_copies=True):
+        if type(self.sell) is np.ndarray:
+            return
+
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
         if type(self.sell[0]) not in [list, tuple]:
@@ -435,9 +441,7 @@ class Strategy(ABC):
         try:
             if self.is_long:
                 # prepare format
-                if type(self.buy[0]) not in [list, tuple, np.ndarray]:
-                    self.buy = [self.buy]
-                self.buy = np.array(self.buy, dtype=float)
+                self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
                 if not np.array_equal(self.buy, self._buy):
@@ -469,9 +473,7 @@ class Strategy(ABC):
 
             elif self.is_short:
                 # prepare format
-                if type(self.sell[0]) not in [list, tuple, np.ndarray]:
-                    self.sell = [self.sell]
-                self.sell = np.array(self.sell, dtype=float)
+                self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
                 if not np.array_equal(self.sell, self._sell):
