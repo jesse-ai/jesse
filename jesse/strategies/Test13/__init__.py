@@ -29,5 +29,5 @@ class Test13(Strategy):
         return []
 
     def update_position(self):
-        if self.is_reduced:
+        if self.reduced_count > 0:
             self.take_profit = self.position.qty, 16

@@ -20,7 +20,7 @@ class Test14(Strategy):
         self.take_profit = qty, 13
 
     def update_position(self):
-        if self.is_reduced:
+        if self.reduced_count > 0:
             self.stop_loss = self.position.qty, 4
 
     def go_short(self):

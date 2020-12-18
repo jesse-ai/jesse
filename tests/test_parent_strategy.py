@@ -218,15 +218,6 @@ def test_increasing_position_size_after_opening():
     assert t1.qty == 2
     assert t1.fee == 0
 
-
-def test_is_increased():
-    single_route_backtest('Test42')
-
-
-def test_is_reduced():
-    single_route_backtest('Test43')
-
-
 def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up([
         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test05'),
@@ -925,6 +916,10 @@ def test_validation_for_equal_stop_loss_and_take_profit():
 
 def test_has_active_entry_orders():
     single_route_backtest('TestHasEntryOrders')
+
+
+def test_increaed_and_reduced_count():
+    single_route_backtest('TestIncreasedAndReducedCount')
 
 
 # def test_route_capital_isolation():

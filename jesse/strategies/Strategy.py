@@ -29,6 +29,9 @@ class Strategy(ABC):
         self.index = 0
         self.vars = {}
 
+        self.increased_count = 0
+        self.reduced_count = 0
+
         self.buy = None
         self._buy = None
         self.sell = None
@@ -47,7 +50,6 @@ class Strategy(ABC):
         self.trade = None
         self.trades_count = 0
 
-        self._initial_qty = None
         self._is_executing = False
         self._is_initiated = False
 
@@ -68,24 +70,6 @@ class Strategy(ABC):
                 self.hp = {}
                 for dna in self.hyperparameters():
                     self.hp[dna['name']] = dna['default']
-
-    @property
-    def is_reduced(self):
-        """
-        Has the size of position been reduced since it was opened
-        :return: bool
-        """
-        if self.position.is_close:
-            return None
-
-        return self.position.qty < self._initial_qty
-
-    @property
-    def is_increased(self):
-        if self.position.is_close:
-            return None
-
-        return self.position.qty > self._initial_qty
 
     def _broadcast(self, msg: str):
         """Broadcasts the event to all OTHER strategies
@@ -403,7 +387,8 @@ class Strategy(ABC):
         self._stop_loss_orders = []
         self._take_profit_orders = []
 
-        self._initial_qty = None
+        self.increased_count = 0
+        self.reduced_count = 0
 
     def on_cancel(self):
         """
@@ -668,6 +653,8 @@ class Strategy(ABC):
                 self._execute_short()
 
     def _on_open_position(self, order: Order):
+        self.increased_count = 1
+
         self._broadcast('route-open-position')
 
         if self.take_profit is not None:
@@ -729,7 +716,6 @@ class Strategy(ABC):
                 )
 
         self._open_position_orders = []
-        self._initial_qty = self.position.qty
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -772,6 +758,8 @@ class Strategy(ABC):
         pass
 
     def _on_increased_position(self, order: Order):
+        self.increased_count += 1
+
         self._open_position_orders = []
 
         self._broadcast('route-increased-position')
@@ -792,6 +780,8 @@ class Strategy(ABC):
         """
         prepares for on_reduced_position() is implemented by user
         """
+        self.reduced_count += 1
+
         self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
