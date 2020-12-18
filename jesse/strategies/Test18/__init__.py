@@ -16,7 +16,7 @@ class Test18(Strategy):
             (1, 13)
         ]
 
-    def on_reduced_position(self):
+    def on_reduced_position(self, order):
         self.take_profit = abs(self.position.qty), self.price
 
     def go_short(self):
