@@ -923,6 +923,10 @@ def test_increased_and_reduced_count():
     single_route_backtest('TestIncreasedAndReducedCount')
 
 
+def test_before():
+    single_route_backtest('TestBeforeMethod')
+
+
 def test_after():
     single_route_backtest('TestAfterMethod')
 
