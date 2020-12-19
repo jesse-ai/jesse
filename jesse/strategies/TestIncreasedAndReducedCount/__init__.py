@@ -35,7 +35,7 @@ class TestIncreasedAndReducedCount(Strategy):
             # close trade
             self.liquidate()
 
-    def prepare(self):
+    def before(self):
         if self.trades_count == 1:
             assert self.increased_count == 0
             assert self.reduced_count == 0

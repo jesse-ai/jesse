@@ -410,8 +410,10 @@ class Strategy(ABC):
     def should_cancel(self) -> bool:
         pass
 
-    def prepare(self):
-        """What should get updated after each strategy execution?"""
+    def before(self):
+        """
+        Get's executed before executing the strategy's logic
+        """
         pass
 
     def _update_position(self):
@@ -851,7 +853,7 @@ class Strategy(ABC):
 
         self._is_executing = True
 
-        self.prepare()
+        self.before()
         self._check()
 
         self._is_executing = False
