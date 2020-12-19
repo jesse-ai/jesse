@@ -412,7 +412,13 @@ class Strategy(ABC):
 
     def before(self):
         """
-        Get's executed before executing the strategy's logic
+        Get's executed BEFORE executing the strategy's logic
+        """
+        pass
+
+    def after(self):
+        """
+        Get's executed AFTER executing the strategy's logic
         """
         pass
 
@@ -855,6 +861,7 @@ class Strategy(ABC):
 
         self.before()
         self._check()
+        self.after()
 
         self._is_executing = False
         self.index += 1
