@@ -20,6 +20,6 @@ class TestHasEntryOrders(Strategy):
     def should_cancel(self):
         return False
 
-    def prepare(self):
+    def before(self):
         if 0 < self.index < 2:
             assert self.has_active_entry_orders is True

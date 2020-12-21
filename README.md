@@ -8,6 +8,7 @@
 
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
 [![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
+[![Docs](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
 [![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse.trade)
 [![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
 ---

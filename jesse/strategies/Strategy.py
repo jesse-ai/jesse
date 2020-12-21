@@ -29,6 +29,9 @@ class Strategy(ABC):
         self.index = 0
         self.vars = {}
 
+        self.increased_count = 0
+        self.reduced_count = 0
+
         self.buy = None
         self._buy = None
         self.sell = None
@@ -47,7 +50,6 @@ class Strategy(ABC):
         self.trade = None
         self.trades_count = 0
 
-        self._initial_qty = None
         self._is_executing = False
         self._is_initiated = False
 
@@ -68,24 +70,6 @@ class Strategy(ABC):
                 self.hp = {}
                 for dna in self.hyperparameters():
                     self.hp[dna['name']] = dna['default']
-
-    @property
-    def is_reduced(self):
-        """
-        Has the size of position been reduced since it was opened
-        :return: bool
-        """
-        if self.position.is_close:
-            return None
-
-        return self.position.qty < self._initial_qty
-
-    @property
-    def is_increased(self):
-        if self.position.is_close:
-            return None
-
-        return self.position.qty > self._initial_qty
 
     def _broadcast(self, msg: str):
         """Broadcasts the event to all OTHER strategies
@@ -138,15 +122,15 @@ class Strategy(ABC):
         self._log_position_update(order, role)
 
         if role == order_roles.OPEN_POSITION:
-            self._on_open_position()
+            self._on_open_position(order)
         elif role == order_roles.CLOSE_POSITION and order in self._take_profit_orders:
-            self._on_take_profit()
+            self._on_take_profit(order)
         elif role == order_roles.CLOSE_POSITION and order in self._stop_loss_orders:
-            self._on_stop_loss()
+            self._on_stop_loss(order)
         elif role == order_roles.INCREASE_POSITION:
-            self._on_increased_position()
+            self._on_increased_position(order)
         elif role == order_roles.REDUCE_POSITION:
-            self._on_reduced_position()
+            self._on_reduced_position(order)
 
     def filters(self):
         return []
@@ -200,6 +184,9 @@ class Strategy(ABC):
                 )
 
     def _prepare_buy(self, make_copies=True):
+        if type(self.buy) is np.ndarray:
+            return
+
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
         if type(self.buy[0]) not in [list, tuple]:
@@ -210,6 +197,9 @@ class Strategy(ABC):
             self._buy = self.buy.copy()
 
     def _prepare_sell(self, make_copies=True):
+        if type(self.sell) is np.ndarray:
+            return
+
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
         if type(self.sell[0]) not in [list, tuple]:
@@ -397,7 +387,8 @@ class Strategy(ABC):
         self._stop_loss_orders = []
         self._take_profit_orders = []
 
-        self._initial_qty = None
+        self.increased_count = 0
+        self.reduced_count = 0
 
     def on_cancel(self):
         """
@@ -419,8 +410,16 @@ class Strategy(ABC):
     def should_cancel(self) -> bool:
         pass
 
-    def prepare(self):
-        """What should get updated after each strategy execution?"""
+    def before(self):
+        """
+        Get's executed BEFORE executing the strategy's logic
+        """
+        pass
+
+    def after(self):
+        """
+        Get's executed AFTER executing the strategy's logic
+        """
         pass
 
     def _update_position(self):
@@ -435,9 +434,7 @@ class Strategy(ABC):
         try:
             if self.is_long:
                 # prepare format
-                if type(self.buy[0]) not in [list, tuple, np.ndarray]:
-                    self.buy = [self.buy]
-                self.buy = np.array(self.buy, dtype=float)
+                self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
                 if not np.array_equal(self.buy, self._buy):
@@ -469,9 +466,7 @@ class Strategy(ABC):
 
             elif self.is_short:
                 # prepare format
-                if type(self.sell[0]) not in [list, tuple, np.ndarray]:
-                    self.sell = [self.sell]
-                self.sell = np.array(self.sell, dtype=float)
+                self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
                 if not np.array_equal(self.sell, self._sell):
@@ -665,7 +660,9 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
-    def _on_open_position(self):
+    def _on_open_position(self, order: Order):
+        self.increased_count = 1
+
         self._broadcast('route-open-position')
 
         if self.take_profit is not None:
@@ -727,58 +724,59 @@ class Strategy(ABC):
                 )
 
         self._open_position_orders = []
-        self._initial_qty = self.position.qty
-        self.on_open_position()
+        self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_open_position(self):
+    def on_open_position(self, order: Order):
         """
         What should happen after the open position order has been executed
         """
         pass
 
-    def _on_stop_loss(self):
+    def _on_stop_loss(self, order: Order):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info('Stop-loss has been executed.')
 
         self._broadcast('route-stop-loss')
         self._execute_cancel()
-        self.on_stop_loss()
+        self.on_stop_loss(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_stop_loss(self):
+    def on_stop_loss(self, order: Order):
         """
         What should happen after the stop-loss order has been executed
         """
         pass
 
-    def _on_take_profit(self):
+    def _on_take_profit(self, order: Order):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Take-profit order has been executed.")
 
         self._broadcast('route-take-profit')
         self._execute_cancel()
-        self.on_take_profit()
+        self.on_take_profit(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_take_profit(self):
+    def on_take_profit(self, order: Order):
         """
         What should happen after the take-profit order is executed.
         """
         pass
 
-    def _on_increased_position(self):
+    def _on_increased_position(self, order: Order):
+        self.increased_count += 1
+
         self._open_position_orders = []
 
         self._broadcast('route-increased-position')
 
-        self.on_increased_position()
+        self.on_increased_position(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_increased_position(self):
+    def on_increased_position(self, order: Order):
         """
         What should happen after the order (if any) increasing the
         size of the position is executed. Overwrite it if needed.
@@ -786,19 +784,21 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_reduced_position(self):
+    def _on_reduced_position(self, order: Order):
         """
         prepares for on_reduced_position() is implemented by user
         """
+        self.reduced_count += 1
+
         self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
 
-        self.on_reduced_position()
+        self.on_reduced_position(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_reduced_position(self):
+    def on_reduced_position(self, order: Order):
         """
         What should happen after the order (if any) reducing the size of the position is executed.
         """
@@ -859,8 +859,9 @@ class Strategy(ABC):
 
         self._is_executing = True
 
-        self.prepare()
+        self.before()
         self._check()
+        self.after()
 
         self._is_executing = False
         self.index += 1
@@ -1014,11 +1015,6 @@ class Strategy(ABC):
     def time(self):
         """returns the current time"""
         return store.app.time
-
-    @property
-    def BTCUSD(self):
-        """shortcut for BTCUSD symbol string """
-        return 'BTCUSD' if self.exchange == 'Bitfinex' else 'BTCUSDT'
 
     @property
     def balance(self):
