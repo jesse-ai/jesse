@@ -343,7 +343,7 @@ class Genetics(ABC):
 
                     # one person has to die and be replaced with the newborn baby
                     for baby in people:
-                        random_index = randint(0, len(self.population) - 1)
+                        random_index = randint(1, len(self.population) - 1)  # never kill our best perforemr
                         try:
                             self.population[random_index] = baby
                         except IndexError:
