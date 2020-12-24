@@ -219,14 +219,6 @@ def test_increasing_position_size_after_opening():
     assert t1.fee == 0
 
 
-def test_is_increased():
-    single_route_backtest('Test42')
-
-
-def test_is_reduced():
-    single_route_backtest('Test43')
-
-
 def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up([
         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test05'),
@@ -927,6 +919,18 @@ def test_has_active_entry_orders():
     single_route_backtest('TestHasEntryOrders')
 
 
+def test_increased_and_reduced_count():
+    single_route_backtest('TestIncreasedAndReducedCount')
+
+
+def test_before():
+    single_route_backtest('TestBeforeMethod')
+
+
+def test_after():
+    single_route_backtest('TestAfterMethod')
+
+
 # def test_route_capital_isolation():
 #     set_up(
 #         [
@@ -937,7 +941,6 @@ def test_has_active_entry_orders():
 #
 #     # run backtest (dates are fake just to pass)
 #     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
-
 
 
 # def test_inputs_get_rounded_behind_the_scene():

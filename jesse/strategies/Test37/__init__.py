@@ -3,7 +3,7 @@ from jesse.strategies import Strategy
 
 # test_filters
 class Test37(Strategy):
-    def prepare(self):
+    def before(self):
         """used it to do assertions"""
         if self.index in [3, 11]:
             assert self.take_profit is None
