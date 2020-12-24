@@ -35,7 +35,7 @@ class Optimizer(Genetics):
 
         super().__init__(
             iterations=2000 * solution_len,
-            population_size=solution_len * 100,
+            population_size=solution_len * 20,
             solution_len=solution_len,
             options={
                 'strategy_name': self.strategy_name,
