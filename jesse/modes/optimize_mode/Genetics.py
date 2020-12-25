@@ -445,7 +445,7 @@ class Genetics(ABC):
         path = './storage/genetics/{}.txt'.format(study_name)
         os.makedirs('./storage/genetics', exist_ok=True)
         txt = ''
-        with open(path, 'a') as f:
+        with open(path, 'a', encoding="utf-8") as f:
             txt += '\n\n'
             txt += '# iteration {}'.format(index)
             txt += '\n'
@@ -470,7 +470,7 @@ class Genetics(ABC):
 
             df = json_normalize(dnas_json['snapshot'])
 
-            with open(path, 'a', newline='') as outfile:
+            with open(path, 'a', newline='', encoding="utf-8") as outfile:
                 if not exists:
                     # header of CSV file
                     df.to_csv(outfile, header=True, index=False, encoding='utf-8')
@@ -481,11 +481,12 @@ class Genetics(ABC):
             path = 'storage/genetics/json/{}.json'.format(study_name)
             os.makedirs('./storage/genetics/json', exist_ok=True)
             exists = os.path.isfile(path)
-            with open(path, 'w+') as file:
+            with open(path, 'w+', encoding="utf-8") as file:
                 if exists:
                     # Append to existing json
+                    print(file)
                     data = json.load(file)
                     data.update(dnas_json['snapshot'])
-                    json.dump(data, file)
+                    json.dump(data, file, ensure_ascii=False)
                 else:
-                    json.dump(dnas_json['snapshot'], file)
+                    json.dump(dnas_json, file, ensure_ascii=False)

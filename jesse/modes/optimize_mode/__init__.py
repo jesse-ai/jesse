@@ -158,9 +158,7 @@ class Optimizer(Genetics):
             if store.completed_trades.count > 0:
                 testing_log = {'win-rate': int(testing_data['win_rate'] * 100), 'total': testing_data['total'],
                                'PNL': round(testing_data['net_profit_percentage'], 2)}
-            else:
-                testing_log = {'win-rate': None, 'total': None,
-                               'PNL': None}
+         
         else:
             score = 0.0001
 
