@@ -23,6 +23,7 @@ import traceback
 import os
 import csv
 import json
+from pandas import json_normalize
 
 
 class Genetics(ABC):
@@ -450,7 +451,7 @@ class Genetics(ABC):
             txt += '\n'
 
             for i in range(30):
-                log = 'win-rate: {}%, total: {}, PNL: {}% || win-rate: {}%, total: {}, PNL: {}%'.format(
+                log = 'win-rate: {} %, total: {}, PNL: {} % || win-rate: {} %, total: {}, PNL: {} %'.format(
                     self.population[i]['training_log']['win-rate'], self.population[i]['training_log']['total'],
                     self.population[i]['training_log']['PNL'], self.population[i]['testing_log']['win-rate'],
                     self.population[i]['testing_log']['total'], self.population[i]['testing_log']['PNL'])
@@ -466,15 +467,15 @@ class Genetics(ABC):
             path = 'storage/genetics/csv/{}.csv'.format(study_name)
             os.makedirs('./storage/genetics/csv', exist_ok=True)
             exists = os.path.isfile(path)
+
+            df = json_normalize(dnas_json['snapshot'])
+
             with open(path, 'a', newline='') as outfile:
-                wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
+                if not exists:
+                    # header of CSV file
+                    df.to_csv(outfile, header=True, index=False, encoding='utf-8')
 
-                for i, t in enumerate(dnas_json['snapshot']):
-                    if not exists:
-                        # header of CSV file
-                        wr.writerow(t.keys())
-
-                    wr.writerow(t.values())
+                df.to_csv(outfile, header=False, index=False, encoding='utf-8')
 
         if self.options['json']:
             path = 'storage/genetics/json/{}.json'.format(study_name)
@@ -484,7 +485,7 @@ class Genetics(ABC):
                 if exists:
                     # Append to existing json
                     data = json.load(file)
-                    data.update(dnas_json)
+                    data.update(dnas_json['snapshot'])
                     json.dump(data, file)
                 else:
-                    json.dump(dnas_json, file)
+                    json.dump(dnas_json['snapshot'], file)

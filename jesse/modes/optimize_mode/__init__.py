@@ -93,7 +93,10 @@ class Optimizer(Genetics):
         # run backtest simulation
         simulator(self.training_candles, hp)
 
-        log = ''
+        training_log = {'win-rate': None, 'total': None,
+                        'PNL': None}
+        testing_log = {'win-rate': None, 'total': None,
+                       'PNL': None}
 
         # TODO: some of these have to be dynamic based on how many days it's trading for like for example "total"
         # I'm guessing we should accept "optimal" total from command line
@@ -125,10 +128,11 @@ class Optimizer(Genetics):
                 score = 0.0001
                 # reset store
                 store.reset()
-                return score, log
+                return score, training_log, testing_log
 
-                # log for debugging/monitoring
-            training_log = {'win-rate': int(training_data['win_rate'] * 100), 'total': training_data['total'],'PNL': round(training_data['net_profit_percentage'], 2)}
+            # log for debugging/monitoring
+            training_log = {'win-rate': int(training_data['win_rate'] * 100), 'total': training_data['total'],
+                            'PNL': round(training_data['net_profit_percentage'], 2)}
 
             score = total_effect_rate * ratio_normalized
 
@@ -151,18 +155,9 @@ class Optimizer(Genetics):
             testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
             # log for debugging/monitoring
-            testing_log += ' || '
             if store.completed_trades.count > 0:
                 testing_log = {'win-rate': int(testing_data['win_rate'] * 100), 'total': testing_data['total'],
-                       'PNL': round(testing_data['net_profit_percentage'], 2)}
-
-                log += 'win-rate: {}%, total: {}, PNL: {}%'.format(
-                    int(testing_data['win_rate'] * 100),
-                    testing_data['total'],
-                    round(testing_data['net_profit_percentage'], 2),
-                )
-                if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
-                    log = jh.style(log, 'bold')
+                               'PNL': round(testing_data['net_profit_percentage'], 2)}
             else:
                 testing_log = {'win-rate': None, 'total': None,
                                'PNL': None}
