@@ -62,6 +62,7 @@ from .macd import macd
 from .macdext import macdext
 from .mama import mama
 from .mass import mass
+from .mcginley_dynamic import mcginley_dynamic
 from .marketfi import marketfi
 from .medprice import medprice
 from .mfi import mfi

@@ -379,6 +379,7 @@ def test_dpo():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_dti():
     candles = np.array(mama_candles)
 
@@ -388,6 +389,7 @@ def test_dti():
     assert round(single, 2) == -32.6
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_dx():
     candles = np.array(dema_candles)
@@ -821,6 +823,16 @@ def test_mass():
     seq = ta.mass(candles, sequential=True)
 
     assert round(single, 2) == 5.76
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_mcginley_dynamic():
+    candles = np.array(mama_candles)
+
+    single = ta.mcginley_dynamic(candles)
+    seq = ta.mcginley_dynamic(candles, sequential=True)
+    assert round(single, 2) == 107.82
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
