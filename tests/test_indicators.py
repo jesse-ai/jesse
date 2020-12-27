@@ -619,6 +619,22 @@ def test_ichimoku_cloud():
     assert (current_conversion_line, current_base_line, span_a, span_b) == (8861.59, 8861.59, 8466.385, 8217.45)
 
 
+def test_ichimoku_cloud_seq():
+    candles = np.array(ichimoku_candles)
+
+    conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b = ta.ichimoku_cloud_seq(
+        candles)
+    seq = ta.ichimoku_cloud_seq(candles, sequential=True)
+
+    assert type(seq).__name__ == 'IchimokuCloud'
+    assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
+    seq.conversion_line[-1], seq.base_line[-1], seq.span_a[-1], seq.span_b[-1], seq.lagging_line[-1],
+    seq.future_span_a[-1], seq.future_span_b[-1])
+    assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
+    8861.59, 8861.59, 8465.25, 8204.715, 8730.0, 8861.59, 8579.49)
+    assert len(seq.conversion_line) == len(candles)
+
+
 def test_itrend():
     candles = np.array(mama_candles)
     single = ta.itrend(candles)

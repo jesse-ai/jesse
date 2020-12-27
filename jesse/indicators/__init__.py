@@ -48,6 +48,7 @@ from .ht_sine import ht_sine
 from .ht_trendline import ht_trendline
 from .ht_trendmode import ht_trendmode
 from .ichimoku_cloud import ichimoku_cloud
+from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .itrend import itrend
 from .kama import kama
 from .keltner import keltner
