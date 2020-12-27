@@ -628,10 +628,10 @@ def test_ichimoku_cloud_seq():
 
     assert type(seq).__name__ == 'IchimokuCloud'
     assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
-    seq.conversion_line[-1], seq.base_line[-1], seq.span_a[-1], seq.span_b[-1], seq.lagging_line[-1],
-    seq.future_span_a[-1], seq.future_span_b[-1])
+        seq.conversion_line[-1], seq.base_line[-1], seq.span_a[-1], seq.span_b[-1], seq.lagging_line[-1],
+        seq.future_span_a[-1], seq.future_span_b[-1])
     assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
-    8861.59, 8861.59, 8465.25, 8204.715, 8730.0, 8861.59, 8579.49)
+        8861.59, 8861.59, 8465.25, 8204.715, 8730.0, 8861.59, 8579.49)
     assert len(seq.conversion_line) == len(candles)
 
 
@@ -1532,6 +1532,17 @@ def test_voss():
     assert seq.filt[-1] == single.filt
     assert len(seq.voss) == len(candles)
     assert len(seq.filt) == len(candles)
+
+
+def test_vpci():
+    candles = np.array(mama_candles)
+    single = ta.vpci(candles)
+    seq = ta.vpci(candles, sequential=True)
+
+    assert round(single.vpci, 2) == -29.46
+    assert round(single.vpcis, 2) == -14.4
+    assert len(seq.vpci) == len(candles)
+    assert seq.vpci[-1] == single.vpci
 
 
 def test_vpt():

@@ -110,6 +110,7 @@ from .ultosc import ultosc
 from .var import var
 from .vi import vi
 from .vidya import vidya
+from .vpci import vpci
 from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
