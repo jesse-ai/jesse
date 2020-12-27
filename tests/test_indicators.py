@@ -379,6 +379,15 @@ def test_dpo():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_dti():
+    candles = np.array(mama_candles)
+
+    single = ta.dti(candles)
+    seq = ta.dti(candles, sequential=True)
+
+    assert round(single, 2) == -32.6
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_dx():
     candles = np.array(dema_candles)
