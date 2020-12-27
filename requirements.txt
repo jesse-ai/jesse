@@ -5,12 +5,11 @@ crypto_empyrical~=1.0.4
 matplotlib~=3.3.3
 newtulipy~=0.4.2
 numpy~=1.19.4
-pandas~=1.1.4
+pandas==1.2.0
 peewee~=3.14.0
 psycopg2-binary~=2.8.6
 pydash~=4.9.0
-pytest-watch~=4.2.0
-pytest~=6.1.2
+pytest==6.2.1
 requests~=2.25.0
 scipy~=1.5.4
 TA-Lib~=0.4.19
