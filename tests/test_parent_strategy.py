@@ -219,14 +219,6 @@ def test_increasing_position_size_after_opening():
     assert t1.fee == 0
 
 
-def test_is_increased():
-    single_route_backtest('Test42')
-
-
-def test_is_reduced():
-    single_route_backtest('Test43')
-
-
 def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up([
         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'Test05'),
@@ -844,7 +836,7 @@ def test_terminate():
     """
     test that user can use terminate() method. in this unit test use it
     to close the open position.
-    """
+    `"""
     single_route_backtest('Test41')
 
     # assert terminate() is actually executed by logging a
@@ -921,6 +913,35 @@ def test_validation_for_equal_stop_loss_and_take_profit():
         single_route_backtest('Test46')
 
     assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
+
+
+def test_has_active_entry_orders():
+    single_route_backtest('TestHasEntryOrders')
+
+
+def test_increased_and_reduced_count():
+    single_route_backtest('TestIncreasedAndReducedCount')
+
+
+def test_before():
+    single_route_backtest('TestBeforeMethod')
+
+
+def test_after():
+    single_route_backtest('TestAfterMethod')
+
+
+# def test_route_capital_isolation():
+#     set_up(
+#         [
+#             (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation1'),
+#             (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation2'),
+#         ],
+#     )
+#
+#     # run backtest (dates are fake just to pass)
+#     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
+
 
 # def test_inputs_get_rounded_behind_the_scene():
 #     set_up([(exchanges.SANDBOX, 'EOSUSDT', timeframes.MINUTE_1, 'Test44')])

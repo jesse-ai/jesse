@@ -30,3 +30,5 @@ __pycache__
 .vscode
 /.ipynb_checkpoints
 /plugins
+config.py
+routes.py

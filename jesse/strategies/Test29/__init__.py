@@ -45,10 +45,10 @@ class Test29(Strategy):
     def should_cancel(self):
         return False
 
-    def on_take_profit(self):
+    def on_take_profit(self, order):
         self.vars['should_long'] = False
         self.vars['should_short'] = False
 
-    def on_stop_loss(self):
+    def on_stop_loss(self, order):
         self.vars['should_long'] = False
         self.vars['should_short'] = False
