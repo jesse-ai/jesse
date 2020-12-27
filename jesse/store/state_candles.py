@@ -28,17 +28,18 @@ class CandlesState:
             )
 
     def init_storage(self, bucket_size=1000):
-        for exchange in config['app']['considering_exchanges']:
-            for symbol in config['app']['considering_symbols']:
-                # initiate the '1m' timeframes
-                key = jh.key(exchange, symbol, timeframes.MINUTE_1)
-                self.storage[key] = DynamicNumpyArray((bucket_size, 6))
+        for c in config['app']['considering_candles']:
+            exchange, symbol = c[0], c[1]
 
-                for timeframe in config['app']['considering_timeframes']:
-                    key = jh.key(exchange, symbol, timeframe)
-                    # ex: 1440 / 60 + 1 (reserve one for forming candle)
-                    total_bigger_timeframe = int((bucket_size / jh.timeframe_to_one_minutes(timeframe)) + 1)
-                    self.storage[key] = DynamicNumpyArray((total_bigger_timeframe, 6))
+            # initiate the '1m' timeframes
+            key = jh.key(exchange, symbol, timeframes.MINUTE_1)
+            self.storage[key] = DynamicNumpyArray((bucket_size, 6))
+
+            for timeframe in config['app']['considering_timeframes']:
+                key = jh.key(exchange, symbol, timeframe)
+                # ex: 1440 / 60 + 1 (reserve one for forming candle)
+                total_bigger_timeframe = int((bucket_size / jh.timeframe_to_one_minutes(timeframe)) + 1)
+                self.storage[key] = DynamicNumpyArray((total_bigger_timeframe, 6))
 
     def add_candle(
             self,

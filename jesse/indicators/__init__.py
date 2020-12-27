@@ -18,6 +18,7 @@ from .cc import cc
 from .cci import cci
 from .chande import chande
 from .cmo import cmo
+from .correlation_cycle import correlation_cycle
 from .correl import correl
 from .cvi import cvi
 from .damiani_volatmeter import damiani_volatmeter
@@ -29,6 +30,7 @@ from .dm import dm
 from .dx import dx
 from .donchian import donchian
 from .dpo import dpo
+from .dti import dti
 from .efi import efi
 from .ema import ema
 from .emd import emd
@@ -47,6 +49,7 @@ from .ht_sine import ht_sine
 from .ht_trendline import ht_trendline
 from .ht_trendmode import ht_trendmode
 from .ichimoku_cloud import ichimoku_cloud
+from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .itrend import itrend
 from .kama import kama
 from .keltner import keltner
@@ -61,6 +64,7 @@ from .macd import macd
 from .macdext import macdext
 from .mama import mama
 from .mass import mass
+from .mcginley_dynamic import mcginley_dynamic
 from .marketfi import marketfi
 from .medprice import medprice
 from .mfi import mfi
@@ -107,6 +111,7 @@ from .ultosc import ultosc
 from .var import var
 from .vi import vi
 from .vidya import vidya
+from .vpci import vpci
 from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd

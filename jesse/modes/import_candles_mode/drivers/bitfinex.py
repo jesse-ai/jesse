@@ -55,13 +55,7 @@ class Bitfinex(CandleExchange):
 
         return second_timestamp
 
-    def fetch(self, symbol, start_timestamp):
-        """
-
-        :param symbol:
-        :param start_timestamp:
-        :return:
-        """
+    def fetch(self, symbol: str, start_timestamp):
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
         # instead of limit. Therefore, we use limit number to calculate the end_timestamp
         end_timestamp = start_timestamp + (self.count - 1) * 60000

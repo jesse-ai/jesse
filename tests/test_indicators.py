@@ -267,6 +267,27 @@ def test_correl():
     assert seq[-1] == single
 
 
+def test_correlation_cycle():
+    candles = np.array(mama_candles)
+
+    single = ta.correlation_cycle(candles)
+    assert type(single).__name__ == 'CC'
+    assert round(single.real, 2) == 0.23
+    assert round(single.imag, 2) == 0.38
+    assert round(single.angle, 2) == -55.87
+    assert round(single.state, 2) == -1
+
+    seq = ta.correlation_cycle(candles, sequential=True)
+    assert seq.real[-1] == single.real
+    assert seq.imag[-1] == single.imag
+    assert seq.angle[-1] == single.angle
+    assert seq.state[-1] == single.state
+    assert len(seq.real) == len(candles)
+    assert len(seq.imag) == len(candles)
+    assert len(seq.angle) == len(candles)
+    assert len(seq.state) == len(candles)
+
+
 def test_cvi():
     candles = np.array(mama_candles)
 
@@ -376,6 +397,17 @@ def test_dpo():
     seq = ta.dpo(candles, sequential=True)
 
     assert round(single, 0) == 22
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_dti():
+    candles = np.array(mama_candles)
+
+    single = ta.dti(candles)
+    seq = ta.dti(candles, sequential=True)
+
+    assert round(single, 2) == -32.6
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -608,6 +640,22 @@ def test_ichimoku_cloud():
     assert (current_conversion_line, current_base_line, span_a, span_b) == (8861.59, 8861.59, 8466.385, 8217.45)
 
 
+def test_ichimoku_cloud_seq():
+    candles = np.array(ichimoku_candles)
+
+    conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b = ta.ichimoku_cloud_seq(
+        candles)
+    seq = ta.ichimoku_cloud_seq(candles, sequential=True)
+
+    assert type(seq).__name__ == 'IchimokuCloud'
+    assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
+        seq.conversion_line[-1], seq.base_line[-1], seq.span_a[-1], seq.span_b[-1], seq.lagging_line[-1],
+        seq.future_span_a[-1], seq.future_span_b[-1])
+    assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (
+        8861.59, 8861.59, 8465.25, 8204.715, 8730.0, 8861.59, 8579.49)
+    assert len(seq.conversion_line) == len(candles)
+
+
 def test_itrend():
     candles = np.array(mama_candles)
     single = ta.itrend(candles)
@@ -812,6 +860,16 @@ def test_mass():
     seq = ta.mass(candles, sequential=True)
 
     assert round(single, 2) == 5.76
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_mcginley_dynamic():
+    candles = np.array(mama_candles)
+
+    single = ta.mcginley_dynamic(candles)
+    seq = ta.mcginley_dynamic(candles, sequential=True)
+    assert round(single, 2) == 107.82
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1495,6 +1553,17 @@ def test_voss():
     assert seq.filt[-1] == single.filt
     assert len(seq.voss) == len(candles)
     assert len(seq.filt) == len(candles)
+
+
+def test_vpci():
+    candles = np.array(mama_candles)
+    single = ta.vpci(candles)
+    seq = ta.vpci(candles, sequential=True)
+
+    assert round(single.vpci, 2) == -29.46
+    assert round(single.vpcis, 2) == -14.4
+    assert len(seq.vpci) == len(candles)
+    assert seq.vpci[-1] == single.vpci
 
 
 def test_vpt():
