@@ -18,6 +18,7 @@ from .cc import cc
 from .cci import cci
 from .chande import chande
 from .cmo import cmo
+from .correlation_cycle import correlation_cycle
 from .correl import correl
 from .cvi import cvi
 from .damiani_volatmeter import damiani_volatmeter

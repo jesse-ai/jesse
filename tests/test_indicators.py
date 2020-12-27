@@ -267,6 +267,27 @@ def test_correl():
     assert seq[-1] == single
 
 
+def test_correlation_cycle():
+    candles = np.array(mama_candles)
+
+    single = ta.correlation_cycle(candles)
+    assert type(single).__name__ == 'CC'
+    assert round(single.real, 2) == 0.23
+    assert round(single.imag, 2) == 0.38
+    assert round(single.angle, 2) == -55.87
+    assert round(single.state, 2) == -1
+
+    seq = ta.correlation_cycle(candles, sequential=True)
+    assert seq.real[-1] == single.real
+    assert seq.imag[-1] == single.imag
+    assert seq.angle[-1] == single.angle
+    assert seq.state[-1] == single.state
+    assert len(seq.real) == len(candles)
+    assert len(seq.imag) == len(candles)
+    assert len(seq.angle) == len(candles)
+    assert len(seq.state) == len(candles)
+
+
 def test_cvi():
     candles = np.array(mama_candles)
 
