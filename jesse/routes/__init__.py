@@ -10,7 +10,14 @@ class RouterClass:
         self.extra_candles = []
         self.market_data = []
 
+    def _reset(self):
+        self.routes = []
+        self.extra_candles = []
+        self.market_data = []
+
     def set_routes(self, routes):
+        self._reset()
+
         self.routes = []
 
         for r in routes:

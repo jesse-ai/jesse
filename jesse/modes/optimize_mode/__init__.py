@@ -1,6 +1,5 @@
 from math import log10
 from multiprocessing import cpu_count
-
 import arrow
 import click
 
@@ -14,6 +13,9 @@ from jesse.services import statistics as stats
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
+
+import os
+os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 class Optimizer(Genetics):
