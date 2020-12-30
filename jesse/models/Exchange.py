@@ -72,7 +72,7 @@ class Exchange:
                 if asset == self.settlement_currency:
                     continue
 
-                position = selectors.get_position(self.name, asset + self.settlement_currency)
+                position = selectors.get_position(self.name, asset + "-" + self.settlement_currency)
                 if position is None:
                     continue
 
