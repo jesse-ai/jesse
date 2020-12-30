@@ -1,6 +1,9 @@
 language: python
 dist: bionic
-cache: pip
+cache:
+  directories:
+  - $HOME/.cache/pip
+  - $HOME/ta-lib
 python:
   - "3.7"
   - "3.8"
