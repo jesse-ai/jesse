@@ -11,11 +11,10 @@ python:
 before_install:
   - cd
   - pip3 install Cython numpy
-  - wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q
-  - tar -xzf ta-lib-0.4.0-src.tar.gz
+  - if [ ! -f "$HOME/ta-lib/src" ]; then wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz; fi
   - cd ta-lib/
   - ./configure --prefix=/usr
-  - make
+  - if [ ! -f "$HOME/ta-lib/src" ]; then make; fi
   - sudo make install
   - cd
 # command to install dependencies
