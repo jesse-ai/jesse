@@ -632,13 +632,12 @@ def test_ichimoku_cloud():
     candles = np.array(ichimoku_candles)
 
     ic = ta.ichimoku_cloud(candles)
-    print(candles[:, 2][-27])
 
-    conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b = ic
+    current_conversion_line, current_base_line, span_a, span_b = ic
 
     assert type(ic).__name__ == 'IchimokuCloud'
 
-    assert (conversion_line, base_line, span_a, span_b, lagging_line, future_span_a, future_span_b) == (8861.59, 8861.59, 8465.25, 8217.45, 8627.13, 8861.59, 8579.49)
+    assert (current_conversion_line, current_base_line, span_a, span_b) == (8861.59, 8861.59, 8466.385, 8217.45)
 
 
 def test_ichimoku_cloud_seq():
