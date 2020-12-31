@@ -11,7 +11,7 @@ psycopg2-binary~=2.8.6
 pydash~=4.9.0
 pytest==6.2.1
 requests~=2.25.0
-scipy~=1.5.4
+scipy==1.6.0
 TA-Lib~=0.4.19
 tabulate~=0.8.7
 timeloop~=1.0.2
