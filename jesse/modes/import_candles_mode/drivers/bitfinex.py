@@ -6,9 +6,6 @@ from .interface import CandleExchange
 
 
 class Bitfinex(CandleExchange):
-    """
-
-    """
     def __init__(self):
         super().__init__('Bitfinex', 1440, 1)
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
@@ -18,12 +15,6 @@ class Bitfinex(CandleExchange):
         self.backup_exchange = Coinbase()
 
     def get_starting_time(self, symbol: str):
-        """
-
-        :param symbol:
-        :return:
-        """
-
         dashless_symbol = jh.dashless_symbol(symbol)
 
         # hard-code few common symbols
