@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_canceled part 2 - ETHUSD
+# test_on_route_canceled part 2 - ETH-USD
 class Test28(Strategy):
     def should_long(self):
         return self.price == 10

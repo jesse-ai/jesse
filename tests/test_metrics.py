@@ -9,14 +9,14 @@ from jesse.store import store
 
 def get_btc_and_eth_candles():
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSDT',
+        'symbol': 'BTC-USDT',
         'candles': fake_range_candle_from_range_prices(range(101, 200))
     }
-    candles[jh.key(exchanges.SANDBOX, 'ETHUSDT')] = {
+    candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'ETHUSDT',
+        'symbol': 'ETH-USDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
@@ -24,9 +24,9 @@ def get_btc_and_eth_candles():
 
 def get_btc_candles():
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSDT',
+        'symbol': 'BTC-USDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
@@ -46,7 +46,7 @@ def set_up(routes, fee=0):
 
 
 def test_open_pl_and_total_open_trades():
-    set_up([(exchanges.SANDBOX, 'BTCUSDT', '1m', 'Test40')])
+    set_up([(exchanges.SANDBOX, 'BTC-USDT', '1m', 'Test40')])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
@@ -56,14 +56,14 @@ def test_open_pl_and_total_open_trades():
 
 # def test_statistics_for_trades_without_fee():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test06'),
+#         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test06'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
+#     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSDT',
+#         'symbol': 'ETH-USDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -103,14 +103,14 @@ def test_open_pl_and_total_open_trades():
 #
 # def test_stats_for_a_strategy_without_losing_trades():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test08'),
+#         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test08'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
+#     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSDT',
+#         'symbol': 'ETH-USDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -147,14 +147,14 @@ def test_open_pl_and_total_open_trades():
 #
 # def test_stats_for_a_strategy_without_any_trades():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test09'),
+#         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test09'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
+#     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
 #     candles[key] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'ETHUSDT',
+#         'symbol': 'ETH-USDT',
 #         'candles': test_candles_1
 #     }
 #
@@ -192,14 +192,14 @@ def test_open_pl_and_total_open_trades():
 # #
 # # def test_statistics_for_trades_with_fee():
 # #     set_up([
-# #         (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_5, 'Test06'),
+# #         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test06'),
 # #     ], 0.002)
 # #
 # #     candles = {}
-# #     key = jh.key(exchanges.SANDBOX, 'ETHUSDT')
+# #     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
 # #     candles[key] = {
 # #         'exchange': exchanges.SANDBOX,
-# #         'symbol': 'ETHUSDT',
+# #         'symbol': 'ETH-USDT',
 # #         'candles': test_candles_1
 # #     }
 # #

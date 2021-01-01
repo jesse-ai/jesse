@@ -9,7 +9,7 @@ def test_app_currency():
     from jesse.routes import router
     from jesse.enums import exchanges, timeframes
     router.set_routes([
-        (exchanges.BITFINEX, 'ETHUSD', timeframes.HOUR_3, 'Test19'),
+        (exchanges.BITFINEX, 'ETH-USD', timeframes.HOUR_3, 'Test19'),
     ])
     assert jh.app_currency() == 'USD'
 
@@ -24,16 +24,10 @@ def test_arrow_to_timestamp():
 
 
 def test_base_asset():
-    assert jh.base_asset('BTCUSDT') == 'BTC'
-    assert jh.base_asset('BTCUSD') == 'BTC'
-    assert jh.base_asset('BTCBNB') == 'BTC'
-    assert jh.base_asset('BTCEUR') == 'BTC'
-    assert jh.base_asset('BTCGBP') == 'BTC'
-    assert jh.base_asset('DEFIUSDT') == 'DEFI'
-    assert jh.base_asset('DEFIUSD') == 'DEFI'
-    assert jh.base_asset('DEFIBNB') == 'DEFI'
-    assert jh.base_asset('DEFIEUR') == 'DEFI'
-    assert jh.base_asset('DEFIGBP') == 'DEFI'
+    assert jh.base_asset('BTC-USDT') == 'BTC'
+    assert jh.base_asset('BTC-USD') == 'BTC'
+    assert jh.base_asset('DEFI-USDT') == 'DEFI'
+    assert jh.base_asset('DEFI-USD') == 'DEFI'
 
 
 def test_binary_search():
@@ -76,12 +70,6 @@ def test_convert_number():
     old_value = 41
 
     assert jh.convert_number(old_max, old_min, new_max, new_min, old_value) == 0.5443037974683544
-
-
-def test_dashed_symbol():
-    assert jh.dashed_symbol('BTCUSD') == 'BTC-USD'
-    assert jh.dashed_symbol('BTCUSDT') == 'BTC-USDT'
-
 
 def test_dashless_symbol():
     assert jh.dashless_symbol('BTC-USD') == 'BTCUSD'
@@ -290,10 +278,10 @@ def test_is_unit_testing():
 
 def test_key():
     exchange = "Exchange"
-    symbol = "BTCUSD"
+    symbol = "BTC-USD"
     timeframe = "6h"
-    assert jh.key(exchange, symbol) == "Exchange-BTCUSD"
-    assert jh.key(exchange, symbol, timeframe) == "Exchange-BTCUSD-6h"
+    assert jh.key(exchange, symbol) == "Exchange-BTC-USD"
+    assert jh.key(exchange, symbol, timeframe) == "Exchange-BTC-USD-6h"
 
 
 def test_max_timeframe():
@@ -404,16 +392,9 @@ def test_python_version():
 
 
 def test_quote_asset():
-    assert jh.quote_asset('BTCUSDT') == 'USDT'
-    assert jh.quote_asset('BTCUSD') == 'USD'
-    assert jh.quote_asset('BTCBNB') == 'BNB'
-    assert jh.quote_asset('BTCEUR') == 'EUR'
-    assert jh.quote_asset('BTCGBP') == 'GBP'
-    assert jh.quote_asset('DEFIUSDT') == 'USDT'
-    assert jh.quote_asset('DEFIUSD') == 'USD'
-    assert jh.quote_asset('DEFIBNB') == 'BNB'
-    assert jh.quote_asset('DEFIEUR') == 'EUR'
-    assert jh.quote_asset('DEFIGBP') == 'GBP'
+    assert jh.quote_asset('BTC-USDT') == 'USDT'
+    assert jh.quote_asset('DEFI-USDT') == 'USDT'
+    assert jh.quote_asset('DEFI-EUR') == 'EUR'
 
 
 def test_random_str():

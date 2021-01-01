@@ -28,13 +28,7 @@ def arrow_to_timestamp(arrow_time):
 
 
 def base_asset(symbol: str):
-    if symbol.endswith('USDT'):
-        return symbol[0:len(symbol) - 4]
-
-    bases = map(symbol.endswith, ['USD', 'EUR', 'GBP', 'BNB'])
-    if any(bases):
-        return symbol[0:len(symbol) - 3]
-    return symbol[0:3]
+    return symbol.split('-')[0]
 
 
 def binary_search(arr: list, item) -> int:
@@ -98,14 +92,8 @@ def convert_number(old_max, old_min, new_max, new_min, old_value):
 
     return new_value
 
-
-def dashed_symbol(symbol):
-    return symbol[:3] + '-' + symbol[3:]
-
-
 def dashless_symbol(symbol):
-    return symbol[:3] + symbol[4:]
-
+    return symbol.replace("-", "")
 
 def date_diff_in_days(date1, date2):
     if type(date1) is not arrow.arrow.Arrow or type(
@@ -500,14 +488,7 @@ def python_version() -> float:
 
 
 def quote_asset(symbol: str):
-    if symbol.endswith('USDT'):
-        return 'USDT'
-
-    bases = map(symbol.endswith, ['USD', 'EUR', 'GBP', 'BNB'])
-    if any(bases):
-        return symbol[-3:]
-
-    return symbol[-3:]
+    return symbol.split('-')[1]
 
 
 def random_str(num_characters=8):
