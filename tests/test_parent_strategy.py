@@ -934,8 +934,8 @@ def test_after():
 # def test_route_capital_isolation():
 #     set_up(
 #         [
-#             (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation1'),
-#             (exchanges.SANDBOX, 'ETHUSDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation2'),
+#             (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation1'),
+#             (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation2'),
 #         ],
 #     )
 #

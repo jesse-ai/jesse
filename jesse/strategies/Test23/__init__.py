@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_take_profit part 1 - BTCUSD
+# test_on_route_take_profit part 1 - BTC-USD
 class Test23(Strategy):
     def should_long(self):
         # buy on market at first candle, close when on_route_take_profit event is fired

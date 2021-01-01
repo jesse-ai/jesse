@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 2 - ETHUSD
+# test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 2 - ETH-USD
 class Test30(Strategy):
     def update_position(self):
         # increase position size

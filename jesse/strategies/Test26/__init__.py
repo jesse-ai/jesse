@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_stop_loss part 2 - ETHUSD
+# test_on_route_stop_loss part 2 - ETH-USD
 class Test26(Strategy):
     def should_long(self):
         return False
