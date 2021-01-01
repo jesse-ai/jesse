@@ -31,9 +31,9 @@ def base_asset(symbol: str):
     if symbol.endswith('USDT'):
         return symbol[0:len(symbol) - 4]
 
-    if symbol.endswith('USD'):
+    bases = map(symbol.endswith, ['USD', 'EUR', 'GBP', 'BNB'])
+    if any(bases):
         return symbol[0:len(symbol) - 3]
-
     return symbol[0:3]
 
 
@@ -503,10 +503,11 @@ def quote_asset(symbol: str):
     if symbol.endswith('USDT'):
         return 'USDT'
 
-    if symbol.endswith('USD'):
-        return 'USD'
+    bases = map(symbol.endswith, ['USD', 'EUR', 'GBP', 'BNB'])
+    if any(bases):
+        return symbol[-3:]
 
-    return symbol[3:]
+    return symbol[-3:]
 
 
 def random_str(num_characters=8):
