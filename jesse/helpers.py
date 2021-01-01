@@ -488,7 +488,11 @@ def python_version() -> float:
 
 
 def quote_asset(symbol: str):
-    return symbol.split('-')[1]
+    try:
+        return symbol.split('-')[1]
+    except IndexError:
+        from jesse.exceptions import InvalidRoutes
+        raise InvalidRoutes("The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{}'".format(symbol))
 
 
 def random_str(num_characters=8):
