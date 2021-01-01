@@ -26,8 +26,14 @@ def test_arrow_to_timestamp():
 def test_base_asset():
     assert jh.base_asset('BTCUSDT') == 'BTC'
     assert jh.base_asset('BTCUSD') == 'BTC'
+    assert jh.base_asset('BTCBNB') == 'BTC'
+    assert jh.base_asset('BTCEUR') == 'BTC'
+    assert jh.base_asset('BTCGBP') == 'BTC'
     assert jh.base_asset('DEFIUSDT') == 'DEFI'
     assert jh.base_asset('DEFIUSD') == 'DEFI'
+    assert jh.base_asset('DEFIBNB') == 'DEFI'
+    assert jh.base_asset('DEFIEUR') == 'DEFI'
+    assert jh.base_asset('DEFIGBP') == 'DEFI'
 
 
 def test_binary_search():
@@ -399,7 +405,15 @@ def test_python_version():
 
 def test_quote_asset():
     assert jh.quote_asset('BTCUSDT') == 'USDT'
+    assert jh.quote_asset('BTCUSD') == 'USD'
+    assert jh.quote_asset('BTCBNB') == 'BNB'
+    assert jh.quote_asset('BTCEUR') == 'EUR'
+    assert jh.quote_asset('BTCGBP') == 'GBP'
     assert jh.quote_asset('DEFIUSDT') == 'USDT'
+    assert jh.quote_asset('DEFIUSD') == 'USD'
+    assert jh.quote_asset('DEFIBNB') == 'BNB'
+    assert jh.quote_asset('DEFIEUR') == 'EUR'
+    assert jh.quote_asset('DEFIGBP') == 'GBP'
 
 
 def test_random_str():
