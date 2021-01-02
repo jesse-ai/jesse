@@ -77,7 +77,7 @@ def test_dashless_symbol():
     assert jh.dashless_symbol('BTC-USDT') == 'BTCUSDT'
 
 
-def test_with_dash_symbol():
+def test_dashy_symbol():
     assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
     assert jh.dashy_symbol('BTCUSDT') == 'BTC-USDT'
 
