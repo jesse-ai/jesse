@@ -92,8 +92,14 @@ def convert_number(old_max, old_min, new_max, new_min, old_value):
 
     return new_value
 
-def dashless_symbol(symbol):
+
+def dashless_symbol(symbol: str):
     return symbol.replace("-", "")
+
+
+def dashy_symbol(symbol: str):
+    return symbol[0:3] + '-' + symbol[3:]
+
 
 def date_diff_in_days(date1, date2):
     if type(date1) is not arrow.arrow.Arrow or type(
