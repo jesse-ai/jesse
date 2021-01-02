@@ -38,7 +38,7 @@ Here's an example output for a backtest simulation just to get you excited:
 
  exchange   | symbol   | timeframe   | strategy         | DNA
 ------------+----------+-------------+------------------+-------
- Bitfinex   | BTCUSD   | 6h          | TrendFollowing05 |
+ Bitfinex   | BTC-USD   | 6h          | TrendFollowing05 |
 
 
 Executing simulation...  [####################################]  100%
