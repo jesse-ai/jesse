@@ -19,7 +19,7 @@ def fake_order(attributes=None):
     global first_timestamp
     first_timestamp += 60000
     exchange = exchanges.SANDBOX
-    symbol = 'BTCUSD'
+    symbol = 'BTC-USD'
     side = sides.BUY
     order_type = order_types.LIMIT
     price = randint(40, 100)

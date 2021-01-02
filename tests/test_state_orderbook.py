@@ -10,7 +10,7 @@ def set_up():
 
     """
     reset_config()
-    config['app']['considering_candles'] = [('Sandbox', 'BTCUSD')]
+    config['app']['considering_candles'] = [('Sandbox', 'BTC-USD')]
     store.reset()
     store.orderbooks.init_storage()
 
@@ -51,24 +51,24 @@ def test_add_orderbook_and_orderbook_getters():
             [6280.56, 0.085], [6277.79, 0.01], [6246.4, 0.01], [6220.0, 200.0], [6215.16, 0.01], [6184.08, 0.01],
             [6153.15, 0.01], [6122.38, 0.01], [6091.76, 0.01], [6061.3, 0.01], [6030.99, 0.01], [6021.0, 30.0],
             [6000.83, 0.01], [6000.0, 16.701]]
-    store.orderbooks.add_orderbook('Sandbox', 'BTCUSD', asks, bids)
+    store.orderbooks.add_orderbook('Sandbox', 'BTC-USD', asks, bids)
 
     # test get_best_ask
     np.testing.assert_equal(
-        store.orderbooks.get_best_ask('Sandbox', 'BTCUSD'),
+        store.orderbooks.get_best_ask('Sandbox', 'BTC-USD'),
         np.array(
             [9189.0, 52.66]
         )
     )
     # test get_current_asks
     np.testing.assert_equal(
-        store.orderbooks.get_current_asks('Sandbox', 'BTCUSD')[0],
+        store.orderbooks.get_current_asks('Sandbox', 'BTC-USD')[0],
         np.array(
             [9189.0, 52.66]
         )
     )
     np.testing.assert_equal(
-        store.orderbooks.get_current_asks('Sandbox', 'BTCUSD')[1],
+        store.orderbooks.get_current_asks('Sandbox', 'BTC-USD')[1],
         np.array(
             [9190.0, 27.58]
         )
@@ -76,20 +76,20 @@ def test_add_orderbook_and_orderbook_getters():
 
     # test get_best_bid
     np.testing.assert_equal(
-        store.orderbooks.get_best_bid('Sandbox', 'BTCUSD'),
+        store.orderbooks.get_best_bid('Sandbox', 'BTC-USD'),
         np.array(
             [9188.0, 53.43]
         )
     )
     # test get_current_bids
     np.testing.assert_equal(
-        store.orderbooks.get_current_bids('Sandbox', 'BTCUSD')[0],
+        store.orderbooks.get_current_bids('Sandbox', 'BTC-USD')[0],
         np.array(
             [9188.0, 53.43]
         )
     )
     np.testing.assert_equal(
-        store.orderbooks.get_current_bids('Sandbox', 'BTCUSD')[1],
+        store.orderbooks.get_current_bids('Sandbox', 'BTC-USD')[1],
         np.array(
             [9187.0, 21.68]
         )
@@ -97,7 +97,7 @@ def test_add_orderbook_and_orderbook_getters():
 
     # test get_current_orderbook
     np.testing.assert_equal(
-        store.orderbooks.get_current_orderbook('Sandbox', 'BTCUSD')[0][0],
+        store.orderbooks.get_current_orderbook('Sandbox', 'BTC-USD')[0][0],
         np.array(
             [9189.0, 52.66]
         )
@@ -105,7 +105,7 @@ def test_add_orderbook_and_orderbook_getters():
 
     # test get_orderbooks
     np.testing.assert_equal(
-        store.orderbooks.get_orderbooks('Sandbox', 'BTCUSD')[-1][0][0],
+        store.orderbooks.get_orderbooks('Sandbox', 'BTC-USD')[-1][0][0],
         np.array(
             [9189.0, 52.66]
         )
