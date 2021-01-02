@@ -26,11 +26,12 @@ class Polygon(CandleExchange):
 
     def fetch(self, symbol, start_timestamp):
 
+        base = jh.base_asset(symbol)
         # Check if symbol exists. Raises HTTP 404 if it doesn't.
         try:
-            exists = self.restclient.reference_ticker_details(symbol)
+            details = self.restclient.reference_ticker_details(base)
         except HTTPError:
-            raise ValueError("Symbol ({}) probably doesn't exist.".format(symbol))
+            raise ValueError("Symbol ({}) probably doesn't exist.".format(base))
 
         payload = {
             'unadjusted': 'false',
@@ -41,7 +42,7 @@ class Polygon(CandleExchange):
         # Polygon takes string dates not timestamps
         start = jh.timestamp_to_date(start_timestamp)
         end = jh.timestamp_to_date(start_timestamp + (self.count) * 60000)
-        response = self.restclient.stocks_equities_aggregates(symbol, 1, 'minute', start, end, **payload)
+        response = self.restclient.stocks_equities_aggregates(base, 1, 'minute', start, end, **payload)
 
         data = response.results
 
