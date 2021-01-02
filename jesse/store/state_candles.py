@@ -61,7 +61,6 @@ class CandlesState:
 
         if jh.is_live():
             self.update_position(exchange, symbol, candle)
-
         # initial
         if len(arr) == 0:
             arr.append(candle)

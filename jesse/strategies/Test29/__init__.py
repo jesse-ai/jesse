@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 1 - BTCUSD
+# test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 1 - BTC-USD
 class Test29(Strategy):
     """
 

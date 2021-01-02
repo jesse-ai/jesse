@@ -1,7 +1,7 @@
 from jesse.strategies import Strategy
 
 
-# test_on_route_canceled part 1 - BTCUSD
+# test_on_route_canceled part 1 - BTC-USD
 class Test27(Strategy):
     def should_long(self):
         # buy on market at first candle, close when on_route_stop_loss event is fired

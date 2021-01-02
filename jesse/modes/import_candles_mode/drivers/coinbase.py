@@ -6,9 +6,6 @@ from .interface import CandleExchange
 
 
 class Coinbase(CandleExchange):
-    """
-
-    """
     def __init__(self):
         super().__init__('Coinbase', 300, 0.6)
         self.endpoint = 'https://api.pro.coinbase.com/products'
@@ -25,11 +22,11 @@ class Coinbase(CandleExchange):
         :param symbol: str
         :return: int
         """
-        if symbol == 'BTCUSD':
+        if symbol == 'BTC-USD':
             return 1438387200000
-        elif symbol == 'ETHUSD':
+        elif symbol == 'ETH-USD':
             return 1464739200000
-        elif symbol == 'LTCUSD':
+        elif symbol == 'LTC-USD':
             return 1477958400000
 
         return None
@@ -47,9 +44,8 @@ class Coinbase(CandleExchange):
             'end': jh.timestamp_to_time(end_timestamp),
         }
 
-        dashed_symbol = symbol[:3] + '-' + symbol[3:]
         response = requests.get(
-            self.endpoint + '/{}/candles'.format(dashed_symbol),
+            self.endpoint + '/{}/candles'.format(symbol),
             params=payload
         )
 

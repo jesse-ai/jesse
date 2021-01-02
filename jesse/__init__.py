@@ -13,10 +13,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Python version validation.
-if jh.python_version() < 3.6:
+if jh.python_version() < 3.7:
     print(
         jh.color(
-            'Jesse requires Python version above 3.6. Yours is {}'.format(jh.python_version()),
+            'Jesse requires Python version above 3.7. Yours is {}'.format(jh.python_version()),
             'red'
         )
     )

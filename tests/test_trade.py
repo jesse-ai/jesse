@@ -34,7 +34,7 @@ def test_can_add_trade_to_store():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': 1552309186171,
         'closed_at': 1552309186171 + 60000
     })
@@ -53,7 +53,7 @@ def test_holding_period():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': 1552309186171,
         'closed_at': 1552309186171 + 60000
     })
@@ -74,7 +74,7 @@ def test_PNL_percentage():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
@@ -94,7 +94,7 @@ def test_PNL_with_fee():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
@@ -115,7 +115,7 @@ def test_PNL_without_fee():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
@@ -134,7 +134,7 @@ def test_R():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
@@ -153,7 +153,7 @@ def test_risk_percentage():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
@@ -170,7 +170,7 @@ def test_trade_size():
         'stop_loss_at': 5,
         'qty': 1,
         'orders': [],
-        'symbol': 'BTCUSD',
+        'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })

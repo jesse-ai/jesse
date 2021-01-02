@@ -6,9 +6,6 @@ from .interface import CandleExchange
 
 
 class Binance(CandleExchange):
-    """
-
-    """
     def __init__(self):
         super().__init__('Binance', 1000, 0.5)
         self.endpoint = 'https://www.binance.com/api/v1/klines'
@@ -17,14 +14,11 @@ class Binance(CandleExchange):
         self.backup_exchange = None
 
     def get_starting_time(self, symbol):
-        """
+        dashless_symbol = jh.dashless_symbol(symbol)
 
-        :param symbol:
-        :return:
-        """
         payload = {
             'interval': '1d',
-            'symbol': symbol,
+            'symbol': dashless_symbol,
             'limit': 1500,
         }
 
@@ -54,9 +48,11 @@ class Binance(CandleExchange):
         """
         end_timestamp = start_timestamp + (self.count - 1) * 60000
 
+        dashless_symbol = jh.dashless_symbol(symbol)
+
         payload = {
             'interval': '1m',
-            'symbol': symbol,
+            'symbol': dashless_symbol,
             'startTime': start_timestamp,
             'endTime': end_timestamp,
             'limit': self.count,

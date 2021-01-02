@@ -26,12 +26,12 @@ def set_up_without_fee(is_margin_trading=False):
         config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
-    router.set_routes([(exchanges.SANDBOX, 'BTCUSDT', '5m', 'Test19')])
+    router.set_routes([(exchanges.SANDBOX, 'BTC-USDT', '5m', 'Test19')])
     store.reset(True)
 
     global position
     global exchange
-    position = selectors.get_position(exchanges.SANDBOX, 'BTCUSDT')
+    position = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
     position.current_price = 50
     exchange = selectors.get_exchange(exchanges.SANDBOX)
 
@@ -42,7 +42,7 @@ def test_cancel_order():
     order = Order({
         'id': jh.generate_unique_id(),
         'exchange': exchange.name,
-        'symbol': 'BTCUSDT',
+        'symbol': 'BTC-USDT',
         'type': order_types.LIMIT,
         'price': 129.33,
         'qty': 10.2041,
@@ -64,7 +64,7 @@ def test_execute_order():
 
     order = Order({
         'id': jh.generate_unique_id(),
-        'symbol': 'BTCUSDT',
+        'symbol': 'BTC-USDT',
         'exchange': exchange.name,
         'type': order_types.LIMIT,
         'price': 129.33,

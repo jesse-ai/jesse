@@ -11,9 +11,9 @@ from jesse.config import config
 
 def get_btc_candles():
     candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTCUSDT')] = {
+    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
         'exchange': exchanges.SANDBOX,
-        'symbol': 'BTCUSDT',
+        'symbol': 'BTC-USDT',
         'candles': fake_range_candle_from_range_prices(range(1, 100))
     }
     return candles
@@ -32,7 +32,7 @@ def set_up(routes, is_margin_trading=True):
 
 def test_can_handle_multiple_entry_orders_too_close_to_each_other():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test34'),
+        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test34'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -57,7 +57,7 @@ def test_can_handle_multiple_entry_orders_too_close_to_each_other():
     assert t.orders[2].role == order_roles.INCREASE_POSITION
 def test_conflicting_orders():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test04'),
+        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test04'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -75,7 +75,7 @@ def test_conflicting_orders():
 
 def test_conflicting_orders_2():
     set_up([
-        (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test20'),
+        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test20'),
     ])
 
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
@@ -94,7 +94,7 @@ def test_conflicting_orders_2():
 #
 # def test_can_handle_not_correctly_sorted_multiple_orders():
 #     set_up([
-#         (exchanges.SANDBOX, 'BTCUSDT', timeframes.MINUTE_1, 'Test35'),
+#         (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test35'),
 #     ])
 #
 #     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
