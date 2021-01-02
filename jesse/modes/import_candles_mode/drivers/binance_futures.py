@@ -6,9 +6,6 @@ from .interface import CandleExchange
 
 
 class BinanceFutures(CandleExchange):
-    """
-
-    """
     def __init__(self):
         super().__init__('Binance Futures', 1000, 0.5)
         self.endpoint = 'https://fapi.binance.com/fapi/v1/klines'
@@ -18,12 +15,6 @@ class BinanceFutures(CandleExchange):
         self.backup_exchange = Binance()
 
     def get_starting_time(self, symbol):
-        """
-
-        :param symbol:
-        :return:
-        """
-
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
