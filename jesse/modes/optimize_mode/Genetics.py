@@ -77,47 +77,10 @@ class Genetics(ABC):
             for i in range(loop_length):
                 people = []
                 with Manager() as manager:
-                    dna_bucket = manager.list([])
-                    workers = []
+                    dna_bucket = manager.list([])                   
 
-                    def get_fitness(dna, dna_bucket):
-                        try:
-                            fitness_score, fitness_log = self.fitness(dna)
-                            dna_bucket.append((dna, fitness_score, fitness_log))
-                        except Exception as e:
-                            proc = os.getpid()
-                            logger.error('process failed - ID: {}'.format(str(proc)))
-                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-                            raise e
-
-                    try:
-                        for _ in range(self.cpu_cores):
-                            dna = ''.join(choices(self.charset, k=self.solution_len))
-                            w = Process(target=get_fitness, args=(dna, dna_bucket))
-                            w.start()
-                            workers.append(w)
-
-                        # join workers
-                        for w in workers:
-                            w.join()
-                            if w.exitcode > 0:
-                                logger.error('a process exited with exitcode: {}'.format(str(w.exitcode)))
-                    except KeyboardInterrupt:
-                        print(
-                            jh.color('Terminating session...', 'red')
-                        )
-
-                        # terminate all workers
-                        for w in workers:
-                            w.terminate()
-
-                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-                        manager.shutdown()
-
-                        # now we can terminate the main session safely
-                        jh.terminate_app()
-                    except:
-                        raise
+                    dna = ''.join(choices(self.charset, k=self.solution_len))
+                    dna_bucket.append((dna, 0.1, ''))
 
                     for d in dna_bucket:
                         people.append({
@@ -163,6 +126,8 @@ class Genetics(ABC):
 
         # sort the population
         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
+        self.started_index = 1
+        return
 
     def mutate(self, baby):
         replace_at = randint(0, self.solution_len - 1)
