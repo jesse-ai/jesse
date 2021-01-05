@@ -5,6 +5,7 @@ from pydoc import locate
 import click
 import pkg_resources
 
+from jesse.services.notifier import notify
 import jesse.helpers as jh
 
 # Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
@@ -129,6 +130,7 @@ def register_custom_exception_handler():
 
         # send notifications if it's a live session
         if jh.is_live():
+            notify('{}: {}'.format(exc_type.__name__, exc_value))
             jesse_logger.error(
                 '{}: {}'.format(exc_type.__name__, exc_value)
             )
@@ -204,6 +206,7 @@ def register_custom_exception_handler():
 
             # send notifications if it's a live session
             if jh.is_live():
+                notify('{}: {}'.format(exc_type.__name__, exc_value))
                 jesse_logger.error(
                     '{}: {}'.format(args.exc_type.__name__, args.exc_value)
                 )
