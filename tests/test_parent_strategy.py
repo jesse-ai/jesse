@@ -14,58 +14,10 @@ from jesse.models import Order
 from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
-from jesse.config import config
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
-
-
-def get_btc_and_eth_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(101, 200))
-    }
-    candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'ETH-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
-    }
-    return candles
-
-
-def get_btc_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
-    }
-    return candles
-
-
-def set_up(routes, is_margin_trading=True):
-    reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 10000},
-        {'asset': 'BTC', 'balance': 0},
-        {'asset': 'ETH', 'balance': 0},
-    ]
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
-    else:
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
-    router.set_routes(routes)
-    store.reset(True)
-
-
-def single_route_backtest(strategy_name: str):
-    """used to simplify simple tests"""
-    set_up([(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)])
-    # dates are fake. just to pass required parameters
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+from .utils import get_btc_candles, get_btc_and_eth_candles, set_up, single_route_backtest
 
 
 def test_average_stop_loss_exception():
@@ -845,7 +797,7 @@ def test_terminate():
 
     # assert inside strategies terminate() that we have indeed an open position
 
-    # assert that Strategies's terminate() method closes the open position
+    # assert that Strategy's terminate() method closes the open position
     assert store.app.total_open_trades == 0
     assert store.app.total_open_pl == 0
 
@@ -853,7 +805,7 @@ def test_terminate():
 def test_terminate_closes_trades_at_the_end_of_backtest():
     single_route_backtest('Test40')
 
-    # assert that Strategies's _terminate() method closes the open position
+    # assert that Strategy's _terminate() method closes the open position
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97
 
@@ -944,11 +896,11 @@ def test_after():
 
 
 # def test_inputs_get_rounded_behind_the_scene():
-#     set_up([(exchanges.SANDBOX, 'EOSUSDT', timeframes.MINUTE_1, 'Test44')])
+#     set_up([(exchanges.SANDBOX, 'EOS-USDT', timeframes.MINUTE_1, 'Test44')])
 #     candles = {}
-#     candles[jh.key(exchanges.SANDBOX, 'EOSUSDT')] = {
+#     candles[jh.key(exchanges.SANDBOX, 'EOS-USDT')] = {
 #         'exchange': exchanges.SANDBOX,
-#         'symbol': 'EOSUSDT',
+#         'symbol': 'EOS-USDT',
 #         'candles': fake_range_candle_from_range_prices(range(1, 100))
 #     }
 #     backtest_mode.run('2019-04-01', '2019-04-02', candles)
