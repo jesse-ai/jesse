@@ -265,7 +265,7 @@ def cli():
 @click.argument('exchange', required=True, type=str)
 @click.argument('symbol', required=True, type=str)
 @click.argument('start_date', required=True, type=str)
-@click.option('--skip_confirmation', is_flag=True,
+@click.option('--skip-confirmation', is_flag=True,
                 help="Will prevent confirmation for skipping duplicates")
 def import_candles(exchange, symbol, start_date, skip_confirmation):
     """
