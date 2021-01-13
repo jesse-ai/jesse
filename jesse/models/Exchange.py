@@ -59,38 +59,40 @@ class Exchange:
         self.settlement_currency = settlement_currency.upper()
 
     def tradable_balance(self, symbol=''):
+        # SPOT is super easy:
         if self.type == 'spot':
             if symbol == '':
                 raise ValueError
             quote_asset = jh.quote_asset(symbol)
             return self.available_assets[quote_asset]
-        else:
-            temp_credit = self.assets[self.settlement_currency]
-            # we need to consider buy and sell orders of ALL pairs
-            # also, consider the value of all open positions
-            for asset in self.assets:
-                if asset == self.settlement_currency:
-                    continue
 
-                position = selectors.get_position(self.name, asset + "-" + self.settlement_currency)
-                if position is None:
-                    continue
+        # MARGIN
+        temp_credit = self.assets[self.settlement_currency]
+        # we need to consider buy and sell orders of ALL pairs
+        # also, consider the value of all open positions
+        for asset in self.assets:
+            if asset == self.settlement_currency:
+                continue
 
-                if position.is_open:
-                    # add unrealized PNL
-                    temp_credit += position.pnl
+            position = selectors.get_position(self.name, asset + "-" + self.settlement_currency)
+            if position is None:
+                continue
 
-                # subtract worst scenario orders' used margin
-                sum_buy_orders = (self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]).sum()
-                sum_sell_orders = (self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]).sum()
-                if position.is_open:
-                    if position.type == 'long':
-                        sum_buy_orders += position.value
-                    else:
-                        sum_sell_orders -= abs(position.value)
-                temp_credit -= max(abs(sum_buy_orders), abs(sum_sell_orders))
+            if position.is_open:
+                # add unrealized PNL
+                temp_credit += position.pnl
 
-            return temp_credit
+            # subtract worst scenario orders' used margin
+            sum_buy_orders = (self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]).sum()
+            sum_sell_orders = (self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]).sum()
+            if position.is_open:
+                if position.type == 'long':
+                    sum_buy_orders += position.value
+                else:
+                    sum_sell_orders -= abs(position.value)
+            temp_credit -= max(abs(sum_buy_orders), abs(sum_sell_orders))
+
+        return temp_credit
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # MARGIN ONLY
@@ -146,7 +148,22 @@ class Exchange:
                 self.buy_orders[base_asset].append(np.array([order.qty, order.price]))
             else:
                 self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
-            # self.available_assets[quote_asset] -= order.qty * order.price
+
+            # # validate for capital limit
+            # print(order.is_reduce_only)
+            # print(order.side, order.type)
+            # print('####')
+            # print(order.price)
+            # print('####')
+            #
+            # if not order.is_reduce_only:
+            #     order_size = abs(order.qty * order.price)
+            #     remaining_margin = self.tradable_balance()
+            #     if order_size > remaining_margin:
+            #         raise NegativeBalance('You cannot submit an order for {} when your remaining margin is {}'.format(
+            #             order_size, remaining_margin
+            #         ))
+
             return
 
         # used for logging balance change
