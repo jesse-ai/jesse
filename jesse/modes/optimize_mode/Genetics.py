@@ -440,7 +440,7 @@ class Genetics(ABC):
         for i in range(30):
             dnas_json['snapshot'].append(
                 {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log']})
+                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'], 'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
 
         path = './storage/genetics/{}.txt'.format(study_name)
         os.makedirs('./storage/genetics', exist_ok=True)
