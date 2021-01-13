@@ -335,7 +335,9 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
     '--debug/--no-debug', default=False,
     help='Displays detailed logs about the genetics algorithm. Use it if you are interested int he genetics algorithm.'
 )
-def optimize(start_date, finish_date, optimal_total, cpu, debug):
+@click.option('--csv/--no-csv', default=False, help='Outputs a CSV file of all DNAs on completion.')
+@click.option('--json/--no-json', default=False, help='Outputs a JSON file of all DNAs on completion.')
+def optimize(start_date, finish_date, optimal_total, cpu, debug, csv, json):
     """
     tunes the hyper-parameters of your strategy
     """
@@ -350,7 +352,7 @@ def optimize(start_date, finish_date, optimal_total, cpu, debug):
 
     from jesse.modes.optimize_mode import optimize_mode
 
-    optimize_mode(start_date, finish_date, optimal_total, cpu)
+    optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
 
 
 @cli.command()
