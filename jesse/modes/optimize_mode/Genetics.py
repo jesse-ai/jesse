@@ -466,7 +466,7 @@ class Genetics(ABC):
         if self.options['csv']:
             path = 'storage/genetics/csv/{}.csv'.format(study_name)
             os.makedirs('./storage/genetics/csv', exist_ok=True)
-            exists = os.path.isfile(path)
+            exists = os.path.exists(path)
 
             df = json_normalize(dnas_json['snapshot'])
 
@@ -480,13 +480,20 @@ class Genetics(ABC):
         if self.options['json']:
             path = 'storage/genetics/json/{}.json'.format(study_name)
             os.makedirs('./storage/genetics/json', exist_ok=True)
-            exists = os.path.isfile(path)
-            with open(path, 'w+', encoding="utf-8") as file:
-                if exists:
-                    # Append to existing json
-                    print(file)
-                    data = json.load(file)
-                    data.update(dnas_json['snapshot'])
-                    json.dump(data, file, ensure_ascii=False)
-                else:
-                    json.dump(dnas_json, file, ensure_ascii=False)
+            exists = os.path.exists(path)
+
+            mode = 'r+' if exists else 'w'
+            with open(path, mode, encoding="utf-8") as file:
+                    if not exists:
+                        snapshots = {"snapshots": []}
+                        snapshots["snapshots"].append(dnas_json['snapshot'])
+                        json.dump(snapshots, file, ensure_ascii=False)
+                        file.write('\n')
+                    else:
+                        # file exists - append
+                        file.seek(0)
+                        data = json.load(file)
+                        data["snapshots"].append(dnas_json['snapshot'])
+                        file.seek(0)
+                        json.dump(data, file, ensure_ascii=False)
+                        file.write('\n')
