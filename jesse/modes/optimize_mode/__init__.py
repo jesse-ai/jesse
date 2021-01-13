@@ -44,6 +44,7 @@ class Optimizer(Genetics):
                 'exchange': self.exchange,
                 'symbol': self.symbol,
                 'timeframe': self.timeframe,
+                'strategy_hp': self.strategy_hp,
                 'csv': csv,
                 'json': json
             }
