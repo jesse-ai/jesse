@@ -19,7 +19,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles, testing_candles, optimal_total, cpu_cores):
+    def __init__(self, training_candles, testing_candles, optimal_total, cpu_cores, csv, json):
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
 
@@ -43,7 +43,10 @@ class Optimizer(Genetics):
                 'strategy_name': self.strategy_name,
                 'exchange': self.exchange,
                 'symbol': self.symbol,
-                'timeframe': self.timeframe
+                'timeframe': self.timeframe,
+                'strategy_hp': self.strategy_hp,
+                'csv': csv,
+                'json': json
             }
         )
 
@@ -93,7 +96,10 @@ class Optimizer(Genetics):
         # run backtest simulation
         simulator(self.training_candles, hp)
 
-        log = ''
+        training_log = {'win-rate': None, 'total': None,
+                        'PNL': None}
+        testing_log = {'win-rate': None, 'total': None,
+                       'PNL': None}
 
         # TODO: some of these have to be dynamic based on how many days it's trading for like for example "total"
         # I'm guessing we should accept "optimal" total from command line
@@ -102,7 +108,6 @@ class Optimizer(Genetics):
             total_effect_rate = log10(training_data['total']) / log10(self.optimal_total)
             if total_effect_rate > 1:
                 total_effect_rate = 1
-            win_rate = training_data['win_rate']
 
             ratio_config = jh.get_config('env.optimization.ratio', 'sharpe')
             if ratio_config == 'sharpe':
@@ -126,14 +131,11 @@ class Optimizer(Genetics):
                 score = 0.0001
                 # reset store
                 store.reset()
-                return score, log
+                return score, training_log, testing_log
 
-                # log for debugging/monitoring
-            log = 'win-rate: {}%, total: {}, PNL: {}%'.format(
-                int(win_rate * 100),
-                training_data['total'],
-                round(training_data['net_profit_percentage'], 2),
-            )
+            # log for debugging/monitoring
+            training_log = {'win-rate': int(training_data['win_rate'] * 100), 'total': training_data['total'],
+                            'PNL': round(training_data['net_profit_percentage'], 2)}
 
             score = total_effect_rate * ratio_normalized
 
@@ -156,27 +158,20 @@ class Optimizer(Genetics):
             testing_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
             # log for debugging/monitoring
-            log += ' || '
             if store.completed_trades.count > 0:
-                log += 'win-rate: {}%, total: {}, PNL: {}%'.format(
-                    int(testing_data['win_rate'] * 100),
-                    testing_data['total'],
-                    round(testing_data['net_profit_percentage'], 2),
-                )
-                if testing_data['net_profit_percentage'] > 0 and training_data['net_profit_percentage'] > 0:
-                    log = jh.style(log, 'bold')
-            else:
-                log += 'win-rate: -, total: -, PNL%: -'
+                testing_log = {'win-rate': int(testing_data['win_rate'] * 100), 'total': testing_data['total'],
+                               'PNL': round(testing_data['net_profit_percentage'], 2)}
+         
         else:
             score = 0.0001
 
         # reset store
         store.reset()
 
-        return score, log
+        return score, training_log, testing_log
 
 
-def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int):
+def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int, csv: bool, json: bool):
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -191,7 +186,7 @@ def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cor
     # clear the screen
     click.clear()
 
-    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores)
+    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores, csv, json)
 
     optimizer.run()
 
