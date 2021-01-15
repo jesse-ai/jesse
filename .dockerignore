@@ -18,6 +18,8 @@ coverage.xml
 *.md
 !README*.md
 README-secret.md
-.drone.yml
+.travis.yml
 Dockerfile
 docker-compose.yml
+.idea
+venv
