@@ -1,5 +1,3 @@
-import os
-
 config = {
     # these values are related to the user's environment
     'env': {
