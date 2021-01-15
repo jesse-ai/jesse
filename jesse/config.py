@@ -4,11 +4,11 @@ config = {
     # these values are related to the user's environment
     'env': {
         'databases': {
-            'postgres_host': os.environ.get('POSTGRES_HOST') if os.environ.get('POSTGRES_HOST') is not None else '127.0.0.1',
-            'postgres_name': os.environ.get('POSTGRES_NAME') if os.environ.get('POSTGRES_NAME') is not None else 'jesse_db',
-            'postgres_port': os.environ.get('POSTGRES_PORT') if os.environ.get('POSTGRES_PORT') is not None else 5432,
-            'postgres_username': os.environ.get('POSTGRES_USERNAME') if os.environ.get('POSTGRES_USERNAME') is not None else 'jesse_user',
-            'postgres_password': os.environ.get('POSTGRES_PASSWORD') if os.environ.get('POSTGRES_PASSWORD') is not None else 'password',
+            'postgres_host': '127.0.0.1',
+            'postgres_name': 'jesse_db',
+            'postgres_port': 5432,
+            'postgres_username': 'jesse_user',
+            'postgres_password': 'password',
         },
 
         'caching': {
