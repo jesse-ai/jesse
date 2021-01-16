@@ -237,3 +237,13 @@ def strictly_decreasing(series: np.array, lookback: int) -> bool:
     a = series[-lookback:]
     diff = np.diff(a)
     return np.all(diff < 0)
+
+def streaks(series: np.array) -> np.array:
+    arr = np.diff(series)
+    pos = np.clip(arr, 0, 1).astype(bool).cumsum()
+    neg = np.clip(arr, -1, 0).astype(bool).cumsum()
+    streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
+                      -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
+
+    res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
+    return res
