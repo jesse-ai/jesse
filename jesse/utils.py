@@ -203,7 +203,7 @@ def size_to_qty(position_size, entry_price, precision: int = 3, fee_rate: float 
     return jh.floor_with_precision(position_size / entry_price, precision)
 
 
-def subtract_floats(float1: float, float2: float):
+def subtract_floats(float1: float, float2: float) -> float:
     """
     Subtracts two floats without the rounding issue in Python
 
@@ -215,7 +215,7 @@ def subtract_floats(float1: float, float2: float):
     return float(Decimal(str(float1)) - Decimal(str(float2)))
 
 
-def sum_floats(float1: float, float2: float):
+def sum_floats(float1: float, float2: float) -> float:
     """
     Sums two floats without the rounding issue in Python
 
@@ -227,13 +227,13 @@ def sum_floats(float1: float, float2: float):
     return float(Decimal(str(float1)) + Decimal(str(float2)))
 
 
-def strictly_increasing(series: np.array, lookback: int):
+def strictly_increasing(series: np.array, lookback: int) -> bool:
     a = series[-lookback:]
     diff = np.diff(a)
     return np.all(diff > 0)
 
 
-def strictly_decreasing(series: np.array, lookback: int):
+def strictly_decreasing(series: np.array, lookback: int) -> bool:
     a = series[-lookback:]
     diff = np.diff(a)
     return np.all(diff < 0)
