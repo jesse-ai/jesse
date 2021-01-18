@@ -566,8 +566,13 @@ def round_qty_for_live_mode(price, roundable_qty):
         qty_round_precision = n + 1
         if qty_round_precision > 3:
             qty_round_precision = 3
+    rounded = np.round(roundable_qty, qty_round_precision)
 
-    return np.round(roundable_qty, qty_round_precision)
+    for index, q in enumerate(rounded):
+        if q == 0.0:
+            rounded[index] = 0.001
+
+    return rounded
 
 
 def secure_hash(msg: str) -> str:

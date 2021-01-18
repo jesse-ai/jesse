@@ -487,6 +487,12 @@ def test_round_qty_for_live_mode():
         np.array([0.123, 0.124])
     )
 
+    # assert that orders smaller than 0.001 will get rounded to 0.001 because that's the minimum order qty on Binance
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(6700.123456, np.array([0.0005, 0.0004])),
+        np.array([0.001, 0.001])
+    )
+
 
 def test_secure_hash():
     assert jh.secure_hash('test') == "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
