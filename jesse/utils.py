@@ -2,13 +2,12 @@ import math
 from decimal import Decimal
 from typing import Union
 
+import jesse.helpers as jh
 import numpy as np
 import pandas as pd
 
-import jesse.helpers as jh
 
-
-def anchor_timeframe(timeframe) -> str:
+def anchor_timeframe(timeframe: str) -> str:
     """
     Returns the anchor timeframe. Useful for writing
     dynamic strategies using multiple timeframes.
@@ -35,12 +34,12 @@ def anchor_timeframe(timeframe) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], direction=None, sequential=False) -> bool:
+def crossed(series1: np.array, series2: Union[float, int, np.array], direction=None, sequential=False) -> bool:
     """
     Helper for detecion of crosses
 
-    :param series1: np.ndarray
-    :param series2: float, int, np.ndarray
+    :param series1: np.array
+    :param series2: float, int, np.array
     :param direction: str - default: None - above or below
 
     :return: bool
@@ -184,7 +183,7 @@ def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> fl
     return min(temp_size, capital_size)
 
 
-def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
+def size_to_qty(position_size, entry_price, precision: int = 3, fee_rate: float = 0) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of %50 would return 2
@@ -204,7 +203,7 @@ def size_to_qty(position_size, entry_price, precision=3, fee_rate=0) -> float:
     return jh.floor_with_precision(position_size / entry_price, precision)
 
 
-def subtract_floats(float1: float, float2: float):
+def subtract_floats(float1: float, float2: float) -> float:
     """
     Subtracts two floats without the rounding issue in Python
 
@@ -216,7 +215,7 @@ def subtract_floats(float1: float, float2: float):
     return float(Decimal(str(float1)) - Decimal(str(float2)))
 
 
-def sum_floats(float1: float, float2: float):
+def sum_floats(float1: float, float2: float) -> float:
     """
     Sums two floats without the rounding issue in Python
 
@@ -228,6 +227,35 @@ def sum_floats(float1: float, float2: float):
     return float(Decimal(str(float1)) + Decimal(str(float2)))
 
 
+def strictly_increasing(series: np.array, lookback: int) -> bool:
+    a = series[-lookback:]
+    diff = np.diff(a)
+    return np.all(diff > 0)
+
+
+def strictly_decreasing(series: np.array, lookback: int) -> bool:
+    a = series[-lookback:]
+    diff = np.diff(a)
+    return np.all(diff < 0)
+
+
+def streaks(series: np.array) -> np.array:
+    arr = np.diff(series)
+    pos = np.clip(arr, 0, 1).astype(bool).cumsum()
+    neg = np.clip(arr, -1, 0).astype(bool).cumsum()
+    streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
+                      -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
+
+    res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
+    return res
+
+
 def dd(msg):
+    """
+    The dd function dumps the given variables and ends execution of the script. 
+    Used for debugging. 
+
+    :param msg: str
+    """
     print(msg)
     jh.terminate_app()
