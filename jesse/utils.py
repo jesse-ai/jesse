@@ -226,3 +226,8 @@ def sum_floats(float1: float, float2: float):
     :return: float
     """
     return float(Decimal(str(float1)) + Decimal(str(float2)))
+
+
+def dd(msg):
+    print(msg)
+    jh.terminate_app()
