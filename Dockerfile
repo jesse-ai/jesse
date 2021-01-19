@@ -17,10 +17,12 @@ COPY docker_build_helpers/* /tmp/
 RUN cd /tmp && /tmp/install_ta-lib.sh && rm -r /tmp/*ta-lib*
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-COPY . /jesse-docker
+# Install dependencies
+COPY requirements.txt /jesse-docker
+RUN pip3 install -r requirements.txt
 
-# Install dependencies and Build
+# Build
+COPY . /jesse-docker
 RUN pip3 install -e .
 
 WORKDIR /home
-RUN rm -r /jesse-docker
