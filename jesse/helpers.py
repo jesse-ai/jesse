@@ -249,10 +249,13 @@ def get_config(keys: str, default=None):
         raise ValueError('keys string cannot be empty')
 
     if not keys in CACHED_CONFIG:
-        from functools import reduce
-        from jesse.config import config
-        CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
-                                     keys.split("."), config)
+        if os.environ.get(keys.upper().replace(".", "_")) is not None:
+            CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_"))
+        else:
+            from functools import reduce
+            from jesse.config import config
+            CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
+                                         keys.split("."), config)
 
     return CACHED_CONFIG[keys]
 

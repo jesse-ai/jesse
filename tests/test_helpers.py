@@ -220,11 +220,15 @@ def test_get_candle_source():
     assert ohlc4[-1] == 4092.533917535
 
 
-def test_get_config():
+def test_get_config(monkeypatch):
     # assert when config does NOT exist (must return passed default)
     assert jh.get_config('aaaaaaa', 2020) == 2020
     # assert when config does exist
     assert jh.get_config('env.logging.order_submission', 2020) is True
+    # assert env is taked
+    monkeypatch.setenv("ENV_DATABASES_POSTGRES_HOST", "db")
+    assert jh.get_config('env.databases.postgres_host', 'default') == 'db'
+    monkeypatch.delenv("ENV_DATABASES_POSTGRES_HOST")
 
 
 def test_get_strategy_class():
