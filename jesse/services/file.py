@@ -22,7 +22,7 @@ def store_logs(export_json=False, export_tradingview=False, export_csv=False):
     now = str(arrow.utcnow())[0:19]
     study_name = '{}-{}'.format(mode, now).replace(":", "-")
     path = 'storage/json/{}.json'.format(study_name)
-    trades_json = {'trades': []}
+    trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
     for t in store.completed_trades.trades:
         trades_json['trades'].append(t.toJSON())
 
