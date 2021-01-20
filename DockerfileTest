@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get clean \
     && pip install --upgrade pip
 
-RUN pip3 install Cython numpy
+RUN pip3 install Cython numpy codecov pytest-cov
 
 # Prepare environment
 RUN mkdir /jesse-docker
@@ -25,4 +25,4 @@ RUN pip3 install -r requirements.txt
 COPY . /jesse-docker
 RUN pip3 install -e .
 
-WORKDIR /home
+ENTRYPOINT pytest --cov=./ # && codecov
