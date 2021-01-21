@@ -1012,6 +1012,16 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
+    def trades(self) -> List[CompletedTrade]:
+        """
+        Returns all the completed trades for this strategy.
+
+        Returns:
+            [List[CompletedTrade]] -- completed trades by strategy
+        """
+        return store.completed_trades.trades
+
+    @property
     def time(self):
         """returns the current time"""
         return store.app.time
