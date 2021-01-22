@@ -35,8 +35,8 @@ config = {
         # https://www.bitfinex.com
         'Bitfinex': {
             'fee': 0.002,
-            'type': 'margin',
-            # used only in margin trading
+            'type': 'futures',
+            # used only in futures trading
             'settlement_currency': 'USD',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
@@ -48,8 +48,8 @@ config = {
         # https://www.binance.com
         'Binance': {
             'fee': 0.001,
-            'type': 'margin',
-            # used only in margin trading
+            'type': 'futures',
+            # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
@@ -60,8 +60,8 @@ config = {
         # https://www.binance.com
         'Binance Futures': {
             'fee': 0.0002,
-            'type': 'margin',
-            # used only in margin trading
+            'type': 'futures',
+            # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
@@ -71,8 +71,8 @@ config = {
         # https://testnet.binancefuture.com
         'Testnet Binance Futures': {
             'fee': 0.0002,
-            'type': 'margin',
-            # used only in margin trading
+            'type': 'futures',
+            # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
                 {'asset': 'USDT', 'balance': 10000},
@@ -82,8 +82,8 @@ config = {
         # https://pro.coinbase.com
         'Coinbase': {
             'fee': 0.005,
-            'type': 'margin',
-            # used only in margin trading
+            'type': 'futures',
+            # used only in futures trading
             'settlement_currency': 'USD',
             'assets': [
                 {'asset': 'USD', 'balance': 10000},
