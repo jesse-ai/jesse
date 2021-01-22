@@ -14,16 +14,16 @@ exchange: Exchange = None
 broker: Broker = None
 
 
-def set_up_without_fee(is_margin_trading=False):
+def set_up_without_fee(is_futures_trading=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 1000},
         {'asset': 'BTC', 'balance': 0},
     ]
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    if is_futures_trading:
+        # used only in futures trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
@@ -41,16 +41,16 @@ def set_up_without_fee(is_margin_trading=False):
     broker = Broker(position, exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)
 
 
-def set_up_with_fee(is_margin_trading=False):
+def set_up_with_fee(is_futures_trading=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0.002
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 1000},
         {'asset': 'BTC', 'balance': 0},
     ]
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    if is_futures_trading:
+        # used only in futures trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
@@ -70,7 +70,7 @@ def set_up_with_fee(is_margin_trading=False):
 
 
 def test_cancel_all_orders():
-    set_up_without_fee()
+    set_up_without_fee(is_futures_trading=True)
 
     # create 3 ACTIVE orders
     o1 = broker.buy_at(1, 40)
@@ -159,7 +159,7 @@ def test_limit_orders():
 
 
 def test_opening_and_closing_position_with_stop():
-    set_up_without_fee(is_margin_trading=True)
+    set_up_without_fee(is_futures_trading=True)
 
     assert position.current_price == 50
     assert position.is_close is True
@@ -228,7 +228,7 @@ def test_start_profit():
 
 
 def test_stop_loss():
-    set_up_without_fee(is_margin_trading=True)
+    set_up_without_fee(is_futures_trading=True)
 
     assert position.current_price == 50
     assert position.is_close is True
@@ -260,7 +260,7 @@ def test_stop_loss():
 
 
 def test_should_not_submit_reduce_only_orders_when_position_is_closed():
-    set_up_without_fee(is_margin_trading=True)
+    set_up_without_fee(is_futures_trading=True)
 
     with pytest.raises(OrderNotAllowed):
         broker.reduce_position_at(1, 20)

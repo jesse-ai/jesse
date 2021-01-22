@@ -19,16 +19,33 @@ class Position:
         self.opened_at = None
         self.closed_at = None
 
+        # self._mark_price = None
+
+        # cross, isolated, spot
+        self.mode = None
+        self.margin = None
+
         if attributes is None:
             attributes = {}
 
         self.exchange_name = exchange_name
         self.exchange = selectors.get_exchange(self.exchange_name)
+        # if self.exchange.type == 'spot':
+        #     self.mode = 'spot'
+        # else:
+        #     # TODO: should support both cross and isolated
+        #     self.mode = 'cross'
+
         self.symbol = symbol
         self.strategy = None
 
         for a in attributes:
             setattr(self, a, attributes[a])
+
+    # @property
+    # def mark_price(self):
+    #     # make sure that it is available only for live trading in futures markets
+    #     return self._mark_price
 
     @property
     def value(self):
@@ -141,7 +158,7 @@ class Position:
         estimated_profit = jh.estimate_PNL(qty, self.entry_price, price, self.type)
 
         if self.exchange:
-            # self.exchange.increase_margin_balance(qty * self.entry_price + estimated_profit)
+            # self.exchange.increase_futures_balance(qty * self.entry_price + estimated_profit)
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
@@ -168,7 +185,7 @@ class Position:
         size = qty * price
 
         # if self.exchange:
-        #     self.exchange.decrease_margin_balance(size)
+        #     self.exchange.decrease_futures_balance(size)
 
         self.entry_price = jh.estimate_average_price(qty, price, self.qty,
                                                      self.entry_price)
@@ -195,7 +212,7 @@ class Position:
         # if change_balance:
         #     size = abs(qty) * price
             # if self.exchange:
-            #     self.exchange.decrease_margin_balance(size)
+            #     self.exchange.decrease_futures_balance(size)
 
         self.entry_price = price
         self.exit_price = None
@@ -226,18 +243,18 @@ class Position:
         # # # open-position order
         # # if available_qty == 0:
         # #     if self.exchange:
-        # #         self.exchange.decrease_margin_balance(size)
+        # #         self.exchange.decrease_futures_balance(size)
         # # # increase-position order
         # # elif available_qty * qty > 0:
         # #     if self.exchange:
-        # #         self.exchange.decrease_margin_balance(size)
+        # #         self.exchange.decrease_futures_balance(size)
         # # # reduce-position order
         # # elif available_qty * qty < 0:
         # #     if abs(qty) > abs(available_qty):
         # #         diff_qty = qty + available_qty
         # #         size = ju.qty_to_size(diff_qty, price)
         # #         if self.exchange:
-        # #             self.exchange.decrease_margin_balance(size)
+        # #             self.exchange.decrease_futures_balance(size)
 
     def _on_canceled_order(self, order):
         qty = order.qty
@@ -255,18 +272,18 @@ class Position:
         # # open-position order
         # if available_qty == 0:
         #     if self.exchange:
-        #         self.exchange.increase_margin_balance(size, True)
+        #         self.exchange.increase_futures_balance(size, True)
         # # increase-position order
         # elif available_qty * qty > 0:
         #     if self.exchange:
-        #         self.exchange.increase_margin_balance(size, True)
+        #         self.exchange.increase_futures_balance(size, True)
         # # reduce-position order
         # elif available_qty * qty < 0:
         #     if abs(qty) > abs(available_qty):
         #         diff_qty = qty + available_qty
         #         size = ju.qty_to_size(diff_qty, price)
         #         if self.exchange:
-        #             self.exchange.increase_margin_balance(size, True)
+        #             self.exchange.increase_futures_balance(size, True)
 
     def _on_executed_order(self, order: Order):
         qty = order.qty
@@ -341,9 +358,20 @@ class Position:
         #     if abs(qty) > abs(self.qty):
         #         diff_qty = qty + self.qty
         #         self._close(price)
-        #         self._open(diff_qty, price)
+        #         self._open(diff_qty, price)1
         #     else:
         #         self._reduce(qty, price)
         #
         # if self.strategy:
         #     self.strategy._on_updated_position(order)
+
+    # - Margin Ratio
+    # * Liquidation price
+    # * mark price?!
+    # * ROE(PNL?)
+    # * Maintenance futures
+    # * futures balance
+
+    # @property
+    # def futures_ratio(self):
+    #     return 0

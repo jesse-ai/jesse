@@ -2,7 +2,7 @@ from jesse.strategies import Strategy
 from jesse import utils
 
 
-# test_negative_balance_validation_for_margin_market
+# test_negative_balance_validation_for_futures_market
 class TestMarginNegativeBalance(Strategy):
     def should_long(self) -> bool:
         return self.index == 0

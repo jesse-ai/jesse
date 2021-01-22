@@ -7,9 +7,6 @@ from jesse.store import store
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     config['app']['considering_timeframes'] = ['1m', '5m']
     config['app']['considering_symbols'] = ['BTC-USD']
@@ -106,6 +103,8 @@ def test_get_candles_including_forming():
     assert len(store.candles.get_candles('Sandbox', 'BTC-USD', '5m')) == 3
     assert candles[-1][2] == candles_to_add[13][2]
     assert candles[-1][0] == candles_to_add[10][0]
+
+
 def test_get_forming_candle():
     set_up()
 

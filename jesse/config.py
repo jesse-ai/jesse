@@ -30,7 +30,7 @@ config = {
             'Sandbox': {
                 'fee': 0,
                 'type': 'spot',
-                # used only in margin trading
+                # used only in futures trading
                 'settlement_currency': 'USDT',
                 'assets': [
                     {'asset': 'USDT', 'balance': 10000},
@@ -40,8 +40,8 @@ config = {
 
             # https://www.bitfinex.com
             'Bitfinex': {
-                'type': 'margin',
-                # used only in margin trading
+                'type': 'futures',
+                # used only in futures trading
                 'settlement_currency': 'USD',
                 'fee': 0.002,
                 'assets': [
@@ -54,7 +54,7 @@ config = {
             # https://www.binance.com
             'Binance': {
                 'type': 'spot',
-                # used only in margin trading
+                # used only in futures trading
                 'settlement_currency': 'USDT',
                 'fee': 0.001,
                 'assets': [
@@ -65,8 +65,8 @@ config = {
 
             # https://www.binance.com
             'Binance Futures': {
-                'type': 'margin',
-                # used only in margin trading
+                'type': 'futures',
+                # used only in futures trading
                 'settlement_currency': 'USDT',
                 'fee': 0.0002,
                 'assets': [
@@ -76,8 +76,8 @@ config = {
 
             # https://testnet.binancefuture.com
             'Testnet Binance Futures': {
-                'type': 'margin',
-                # used only in margin trading
+                'type': 'futures',
+                # used only in futures trading
                 'settlement_currency': 'USDT',
                 'fee': 0.0002,
                 'assets': [
@@ -88,7 +88,7 @@ config = {
             # https://pro.coinbase.com
             'Coinbase': {
                 'type': 'spot',
-                # used only in margin trading
+                # used only in futures trading
                 'settlement_currency': 'USDT',
                 'fee': 0.005,
                 'assets': [
@@ -177,7 +177,7 @@ def set_config(c):
     # add sandbox because it isn't in the local config file
     config['env']['exchanges']['Sandbox'] = {
         'type': 'spot',
-        # used only in margin trading
+        # used only in futures trading
         'settlement_currency': 'USDT',
         'fee': 0,
         'assets': [

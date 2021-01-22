@@ -14,7 +14,7 @@ def test_backtesting_one_route():
     router.set_routes([
         (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5, 'Test19')
     ])
-    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     store.reset(True)
 
     candles = {}
@@ -75,7 +75,7 @@ def test_backtesting_three_routes():
         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test19'),
         (exchanges.SANDBOX, 'XRP-USDT', timeframes.MINUTE_15, 'Test19'),
     ])
-    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     store.reset(True)
     candles = {}
     routes = router.routes

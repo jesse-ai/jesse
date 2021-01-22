@@ -38,7 +38,7 @@ def set_up(routes, fee=0):
         {'asset': 'USDT', 'balance': 1000},
         {'asset': 'BTC', 'balance': 0},
     ]
-    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
     router.set_routes(routes)
     router.set_extra_candles([])

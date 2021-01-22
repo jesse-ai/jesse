@@ -12,17 +12,17 @@ position: Position = None
 exchange: Exchange = None
 
 
-def set_up_without_fee(is_margin_trading=False):
+def set_up_without_fee(is_futures_trading=False):
     reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 1000},
         {'asset': 'BTC', 'balance': 0},
     ]
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    if is_futures_trading:
+        # used only in futures trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
         config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
