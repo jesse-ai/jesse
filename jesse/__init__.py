@@ -115,7 +115,7 @@ def register_custom_exception_handler():
 
         # handle Breaking exceptions
         if exc_type in [
-            exceptions.ConfigException, exceptions.RouteNotFound, exceptions.InvalidRoutes,
+            exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
             exceptions.CandleNotFoundInDatabase
         ]:
             click.clear()
@@ -190,7 +190,7 @@ def register_custom_exception_handler():
 
             # handle Breaking exceptions
             if args.exc_type in [
-                exceptions.ConfigException, exceptions.RouteNotFound, exceptions.InvalidRoutes,
+                exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
                 exceptions.CandleNotFoundInDatabase
             ]:
                 click.clear()
