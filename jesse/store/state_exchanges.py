@@ -1,5 +1,6 @@
 from jesse.config import config
 from jesse.models import SpotExchange, FuturesExchange
+from jesse.exceptions import InvalidConfig
 
 
 class ExchangesState:
@@ -15,3 +16,5 @@ class ExchangesState:
                 self.storage[name] = SpotExchange(name, starting_assets, fee)
             elif exchange_type == 'futures':
                 self.storage[name] = FuturesExchange(name, starting_assets, fee, settlement_currency=config['env']['exchanges'][name]['settlement_currency'])
+            else:
+                raise InvalidConfig('Value for exchange type in your config file in not valid. Supported values are "spot" and "futures"')
