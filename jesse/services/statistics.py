@@ -49,8 +49,6 @@ def trades(trades_list: list, daily_balance: list):
         starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
-    starting_balance = round(starting_balance, 2)
-    current_balance = round(current_balance, 2)
 
     if len(trades_list) == 0:
         return None
@@ -70,33 +68,33 @@ def trades(trades_list: list, daily_balance: list):
     winning_i = df['PNL'] > 0
     winning_streaks = winning_i.ne(winning_i.shift()).cumsum()
     winning_streak = winning_streaks[winning_i].value_counts().max()
-    largest_losing_trade = round(df['PNL'].min(), 2)
-    largest_winning_trade = round(df['PNL'].max(), 2)
+    largest_losing_trade = df['PNL'].min()
+    largest_winning_trade = df['PNL'].max()
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
-    max_R = round(df['R'].max(), 2)
-    min_R = round(df['R'].min(), 2)
-    mean_R = round(df['R'].mean(), 2)
+    max_R = df['R'].max()
+    min_R = df['R'].min()
+    mean_R = df['R'].mean()
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
     short_percentage = 100 - longs_percentage
     fee = df['fee'].sum()
-    net_profit = round(df['PNL'].sum(), 2)
-    net_profit_percentage = round((net_profit / starting_balance) * 100, 2)
+    net_profit = df['PNL'].sum()
+    net_profit_percentage = (net_profit / starting_balance) * 100
     average_win = winning_trades['PNL'].mean()
     average_loss = abs(losing_trades['PNL'].mean())
     ratio_avg_win_loss = average_win / average_loss
     expectancy = (0 if np.isnan(average_win) else average_win) * win_rate - (
         0 if np.isnan(average_loss) else average_loss) * (1 - win_rate)
-    expectancy = round(expectancy, 2)
-    expectancy_percentage = round((expectancy / starting_balance) * 100, 2)
-    expected_net_profit_every_100_trades = round(expectancy_percentage * 100, 2)
+    expectancy = expectancy
+    expectancy_percentage = (expectancy / starting_balance) * 100
+    expected_net_profit_every_100_trades = expectancy_percentage * 100
     average_holding_period = df['holding_period'].mean()
     average_winning_holding_period = winning_trades['holding_period'].mean()
     average_losing_holding_period = losing_trades['holding_period'].mean()
-    gross_profit = round(df.loc[df['PNL'] > 0]['PNL'].sum(), 2)
-    gross_loss = round(df.loc[df['PNL'] < 0]['PNL'].sum(), 2)
+    gross_profit = df.loc[df['PNL'] > 0]['PNL'].sum()
+    gross_loss = df.loc[df['PNL'] < 0]['PNL'].sum()
 
     daily_returns = pd.Series(daily_balance).pct_change(1).values
     max_drawdown = crypto_empyrical.max_drawdown(daily_returns) * 100
