@@ -66,7 +66,7 @@ def trades(trades_list: list, daily_balance: list):
     neg = np.clip(arr, -1, 0).astype(bool).cumsum()
     current_streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
                               -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
-
+    
     s_min = current_streak.min()
     losing_streak = 0 if s_min > 0 else abs(s_min)
     

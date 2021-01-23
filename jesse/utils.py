@@ -240,12 +240,13 @@ def strictly_decreasing(series: np.array, lookback: int) -> bool:
     return np.all(diff < 0)
 
 
-def streaks(series: np.array) -> np.array:
-    arr = np.diff(series)
-    pos = np.clip(arr, 0, 1).astype(bool).cumsum()
-    neg = np.clip(arr, -1, 0).astype(bool).cumsum()
-    streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
-                      -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
+def streaks(series: np.array, use_diff=True) -> np.array:
+    if use_diff:
+        series = np.diff(series)
+    pos = np.clip(series, 0, 1).astype(bool).cumsum()
+    neg = np.clip(series, -1, 0).astype(bool).cumsum()
+    streak = np.where(series >= 0, pos - np.maximum.accumulate(np.where(series <= 0, pos, 0)),
+                      -neg + np.maximum.accumulate(np.where(series >= 0, neg, 0)))
 
     res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
     return res
@@ -253,6 +254,7 @@ def streaks(series: np.array) -> np.array:
 
 def kelly_criterion(win_rate, ratio_avg_win_loss):
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
+
 
 def dd(msg):
     """
