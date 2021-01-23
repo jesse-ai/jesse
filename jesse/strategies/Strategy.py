@@ -11,6 +11,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order, Route
+from jesse.services.statistics import trades as trades_statistics
 from jesse.services.broker import Broker
 from jesse.store import store
 
@@ -326,20 +327,20 @@ class Strategy(ABC):
                     "(no parentheses must be present at the end)"
                     "\n\n"
                     u"\u274C " + "Incorrect Example:\n"
-                    "return [\n"
-                    "    self.filter_1()\n"
-                    "]\n\n"
-                    u"\u2705 " + "Correct Example:\n"
-                    "return [\n"
-                    "    self.filter_1\n"
-                    "]\n"
+                                 "return [\n"
+                                 "    self.filter_1()\n"
+                                 "]\n\n"
+                                 u"\u2705 " + "Correct Example:\n"
+                                              "return [\n"
+                                              "    self.filter_1\n"
+                                              "]\n"
                 )
 
             if passed == False:
                 logger.info(f.__name__)
                 self._reset()
                 return False
-        
+
         return True
 
     @abstractmethod
@@ -1020,6 +1021,13 @@ class Strategy(ABC):
             [List[CompletedTrade]] -- completed trades by strategy
         """
         return store.completed_trades.trades
+
+    @property
+    def statistics(self):
+        """
+        Returns all the metrics of the strategy.
+        """
+        return trades_statistics(store.completed_trades.trades, store.app.daily_balance)
 
     @property
     def time(self):
