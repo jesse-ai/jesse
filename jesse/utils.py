@@ -4,6 +4,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from talib import MA
 
 import jesse.helpers as jh
 
@@ -250,6 +251,10 @@ def streaks(series: np.array, use_diff=True) -> np.array:
 
     res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
     return res
+
+
+def signal_line(series: np.array, period=10, matype=0):
+    return MA(series, timeperiod=period, matype=matype)
 
 
 def kelly_criterion(win_rate, ratio_avg_win_loss):
