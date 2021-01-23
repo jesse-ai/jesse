@@ -2,9 +2,10 @@ import math
 from decimal import Decimal
 from typing import Union
 
-import jesse.helpers as jh
 import numpy as np
 import pandas as pd
+
+import jesse.helpers as jh
 
 
 def anchor_timeframe(timeframe: str) -> str:
@@ -249,6 +250,9 @@ def streaks(series: np.array) -> np.array:
     res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
     return res
 
+
+def kelly_criterion(win_rate, ratio_avg_win_loss):
+    return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
 def dd(msg):
     """
