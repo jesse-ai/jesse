@@ -84,8 +84,8 @@ def trades(trades_list: list, daily_balance: list):
     fee = df['fee'].sum()
     net_profit = round(df['PNL'].sum(), 2)
     net_profit_percentage = round((net_profit / starting_balance) * 100, 2)
-    average_win = round(winning_trades['PNL'].mean(), 2)
-    average_loss = round(abs(losing_trades['PNL'].mean()), 2)
+    average_win = winning_trades['PNL'].mean()
+    average_loss = abs(losing_trades['PNL'].mean())
     ratio_avg_win_loss = average_win / average_loss
     expectancy = (0 if np.isnan(average_win) else average_win) * win_rate - (
         0 if np.isnan(average_loss) else average_loss) * (1 - win_rate)
@@ -99,12 +99,12 @@ def trades(trades_list: list, daily_balance: list):
     gross_loss = round(df.loc[df['PNL'] < 0]['PNL'].sum(), 2)
 
     daily_returns = pd.Series(daily_balance).pct_change(1).values
-    max_drawdown = round(crypto_empyrical.max_drawdown(daily_returns) * 100, 2)
-    annual_return = round(crypto_empyrical.annual_return(daily_returns) * 100, 2)
-    sharpe_ratio = round(crypto_empyrical.sharpe_ratio(daily_returns), 2)
-    calmar_ratio = round(crypto_empyrical.calmar_ratio(daily_returns), 2)
-    sortino_ratio = round(crypto_empyrical.sortino_ratio(daily_returns), 2)
-    omega_ratio = round(crypto_empyrical.omega_ratio(daily_returns), 2)
+    max_drawdown = crypto_empyrical.max_drawdown(daily_returns) * 100
+    annual_return = crypto_empyrical.annual_return(daily_returns) * 100
+    sharpe_ratio = crypto_empyrical.sharpe_ratio(daily_returns)
+    calmar_ratio = crypto_empyrical.calmar_ratio(daily_returns)
+    sortino_ratio = crypto_empyrical.sortino_ratio(daily_returns)
+    omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 

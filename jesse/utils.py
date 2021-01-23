@@ -249,6 +249,8 @@ def streaks(series: np.array) -> np.array:
     res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
     return res
 
+def kelly_criterion(win_rate, ratio_avg_win_loss):
+    return
 
 def dd(msg):
     """

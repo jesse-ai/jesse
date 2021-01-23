@@ -194,8 +194,8 @@ def portfolio_metrics():
         ['Total Open Trades', data['total_open_trades']],
         ['Open PL', jh.format_currency(round(data['open_pl'], 2))],
         ['Total Paid Fees', jh.format_currency(round(data['fee'], 2))],
-        ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
-        ['Annual Return', '{}%'.format(data['annual_return'])],
+        ['Max Drawdown', '{}%'.format(round(data['max_drawdown'],2))],
+        ['Annual Return', '{}%'.format(round(data['annual_return'],2))],
         ['Expectancy',
          '{} ({})'.format(jh.format_currency(round(data['expectancy'], 2)), str(round(data['expectancy_percentage'], 2)) + '%')],
         ['Avg Win | Avg Loss', '{} | {}'.format(jh.format_currency(round(data['average_win'], 2)), jh.format_currency(round(data['average_loss'], 2)))],
@@ -212,13 +212,13 @@ def portfolio_metrics():
     ]
 
     if jh.get_config('env.metrics.sharpe_ratio', True):
-        metrics.append(['Sharpe Ratio', data['sharpe_ratio']])
+        metrics.append(['Sharpe Ratio', round(data['sharpe_ratio'], 2)])
     if jh.get_config('env.metrics.calmar_ratio', False):
-        metrics.append(['Calmar Ratio', data['calmar_ratio']])
+        metrics.append(['Calmar Ratio', round(data['calmar_ratio'], 2)])
     if jh.get_config('env.metrics.sortino_ratio', False):
-        metrics.append(['Sortino Ratio', data['sortino_ratio']])
+        metrics.append(['Sortino Ratio', round(data['sortino_ratio'], 2)])
     if jh.get_config('env.metrics.omega_ratio', False):
-        metrics.append(['Omega Ratio', data['omega_ratio']])
+        metrics.append(['Omega Ratio', round(data['omega_ratio'], 2)])
     if jh.get_config('env.metrics.winning_streak', False):
         metrics.append(['Winning Streak', data['winning_streak']])
     if jh.get_config('env.metrics.losing_streak', False):
