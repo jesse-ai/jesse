@@ -61,13 +61,16 @@ def trades(trades_list: list, daily_balance: list):
     losing_trades = df.loc[df['PNL'] < 0]
     total_losing_trades = len(losing_trades)
 
-    losing_i = df['PNL'] < 0
-    losing_streaks = losing_i.ne(losing_i.shift()).cumsum()
-    losing_streak = losing_streaks[losing_i].value_counts().max()
+    arr = df['PNL'].to_numpy()
+    pos = np.clip(arr, 0, 1).astype(bool).cumsum()
+    neg = np.clip(arr, -1, 0).astype(bool).cumsum()
+    current_streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
+                              -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
 
-    winning_i = df['PNL'] > 0
-    winning_streaks = winning_i.ne(winning_i.shift()).cumsum()
-    winning_streak = winning_streaks[winning_i].value_counts().max()
+    losing_streak = abs(current_streak.min())
+
+    winning_streak = current_streak.max()
+
     largest_losing_trade = df['PNL'].min()
     largest_winning_trade = df['PNL'].max()
 
@@ -105,6 +108,7 @@ def trades(trades_list: list, daily_balance: list):
     omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
+
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
@@ -147,4 +151,5 @@ def trades(trades_list: list, daily_balance: list):
         'losing_streak': losing_streak,
         'largest_losing_trade': largest_losing_trade,
         'largest_winning_trade': largest_winning_trade,
+        'current_streak': current_streak[-1],
     }
