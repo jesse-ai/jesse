@@ -67,9 +67,11 @@ def trades(trades_list: list, daily_balance: list):
     current_streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
                               -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
 
-    losing_streak = abs(current_streak.min())
-
-    winning_streak = current_streak.max()
+    s_min = current_streak.min()
+    losing_streak = 0 if s_min > 0 else abs(s_min)
+    
+    s_max = current_streak.max()
+    winning_streak = 0 if s_max < 0 else s_max
 
     largest_losing_trade = df['PNL'].min()
     largest_winning_trade = df['PNL'].max()
