@@ -58,12 +58,13 @@ class InvalidShape(Exception):
     pass
 
 
-class ConfigException(Exception):
+class InvalidConfig(Exception):
     pass
 
 
 class InvalidTimeframe(Exception):
     pass
+
 
 class NegativeBalance(Exception):
     pass

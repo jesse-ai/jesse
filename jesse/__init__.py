@@ -85,9 +85,11 @@ def register_custom_exception_handler():
     os.makedirs('storage/logs', exist_ok=True)
 
     if jh.is_livetrading():
-        logging.basicConfig(filename='storage/logs/live-trade.txt', level=logging.INFO, filemode='w', format=log_format)
+        logging.basicConfig(filename='storage/logs/live-trade.txt', level=logging.INFO,
+                            filemode='w', format=log_format)
     elif jh.is_paper_trading():
-        logging.basicConfig(filename='storage/logs/paper-trade.txt', level=logging.INFO, filemode='w',
+        logging.basicConfig(filename='storage/logs/paper-trade.txt', level=logging.INFO,
+                            filemode='w',
                             format=log_format)
     elif jh.is_collecting_data():
         logging.basicConfig(filename='storage/logs/collect.txt', level=logging.INFO, filemode='w',
@@ -113,7 +115,7 @@ def register_custom_exception_handler():
 
         # handle Breaking exceptions
         if exc_type in [
-            exceptions.ConfigException, exceptions.RouteNotFound, exceptions.InvalidRoutes,
+            exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
             exceptions.CandleNotFoundInDatabase
         ]:
             click.clear()
@@ -188,7 +190,7 @@ def register_custom_exception_handler():
 
             # handle Breaking exceptions
             if args.exc_type in [
-                exceptions.ConfigException, exceptions.RouteNotFound, exceptions.InvalidRoutes,
+                exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
                 exceptions.CandleNotFoundInDatabase
             ]:
                 click.clear()
@@ -209,7 +211,8 @@ def register_custom_exception_handler():
                 )
 
             if jh.is_live() or jh.is_collecting_data():
-                logging.error("Uncaught Exception:", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+                logging.error("Uncaught Exception:",
+                              exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
             else:
                 print('=' * 30 + ' EXCEPTION TRACEBACK:')
                 traceback.print_tb(args.exc_traceback, file=sys.stdout)
@@ -262,7 +265,9 @@ def cli():
 @click.argument('exchange', required=True, type=str)
 @click.argument('symbol', required=True, type=str)
 @click.argument('start_date', required=True, type=str)
-def import_candles(exchange, symbol, start_date):
+@click.option('--skip-confirmation', is_flag=True,
+                help="Will prevent confirmation for skipping duplicates")
+def import_candles(exchange, symbol, start_date, skip_confirmation):
     """
     imports historical candles from exchange
     """
@@ -276,7 +281,7 @@ def import_candles(exchange, symbol, start_date):
 
     from jesse.modes import import_candles_mode
 
-    import_candles_mode.run(exchange, symbol, start_date)
+    import_candles_mode.run(exchange, symbol, start_date, skip_confirmation)
 
     db.close_connection()
 
@@ -290,7 +295,8 @@ def import_candles(exchange, symbol, start_date):
               help='Outputs a CSV file of all executed trades on completion.')
 @click.option('--json/--no-json', default=False,
               help='Outputs a JSON file of all executed trades on completion.')
-@click.option('--fee/--no-fee', default=True, help='You can use "--no-fee" as a quick way to set trading fee to zero.')
+@click.option('--fee/--no-fee', default=True,
+              help='You can use "--no-fee" as a quick way to set trading fee to zero.')
 @click.option('--chart/--no-chart', default=False,
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
 @click.option('--tradingview/--no-tradingview', default=False,
@@ -319,7 +325,8 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
             config['env']['exchanges'][e]['fee'] = 0
             get_exchange(e).fee = 0
 
-    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv, json=json)
+    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv,
+                      json=json)
 
     db.close_connection()
 
@@ -335,7 +342,9 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
     '--debug/--no-debug', default=False,
     help='Displays detailed logs about the genetics algorithm. Use it if you are interested int he genetics algorithm.'
 )
-def optimize(start_date, finish_date, optimal_total, cpu, debug):
+@click.option('--csv/--no-csv', default=False, help='Outputs a CSV file of all DNAs on completion.')
+@click.option('--json/--no-json', default=False, help='Outputs a JSON file of all DNAs on completion.')
+def optimize(start_date, finish_date, optimal_total, cpu, debug, csv, json):
     """
     tunes the hyper-parameters of your strategy
     """
@@ -350,7 +359,7 @@ def optimize(start_date, finish_date, optimal_total, cpu, debug):
 
     from jesse.modes.optimize_mode import optimize_mode
 
-    optimize_mode(start_date, finish_date, optimal_total, cpu)
+    optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
 
 
 @cli.command()
@@ -389,7 +398,8 @@ def make_project(name):
 
 
 @cli.command()
-@click.option('--dna/--no-dna', default=False, help='Translates DNA into parameters. Used in optimize mode only')
+@click.option('--dna/--no-dna', default=False,
+              help='Translates DNA into parameters. Used in optimize mode only')
 def routes(dna):
     """
     lists all routes

@@ -130,7 +130,7 @@ def livetrade():
     # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
     first_exchange = selectors.get_exchange(router.routes[0].exchange)
 
-    if first_exchange.type == 'margin':
+    if first_exchange.type == 'futures':
         arr.append(['started/current balance', '{}/{}'.format(starting_balance, current_balance)])
     else:
         # loop all trading exchanges

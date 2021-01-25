@@ -33,26 +33,26 @@ def get_btc_candles():
     return candles
 
 
-def set_up(routes, is_margin_trading=True):
+def set_up(routes, is_futures_trading=True):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 10_000},
         {'asset': 'BTC', 'balance': 0},
         {'asset': 'ETH', 'balance': 0},
     ]
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    if is_futures_trading:
+        # used only in futures trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
     router.set_routes(routes)
     store.reset(True)
 
 
-def single_route_backtest(strategy_name: str, is_margin_trading=True):
+def single_route_backtest(strategy_name: str, is_futures_trading=True):
     """
     used to simplify simple tests
     """
-    set_up([(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)], is_margin_trading=is_margin_trading)
+    set_up([(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)], is_futures_trading=is_futures_trading)
     # dates are fake. just to pass required parameters
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())

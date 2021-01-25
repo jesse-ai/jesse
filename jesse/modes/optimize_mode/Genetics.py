@@ -21,6 +21,9 @@ from jesse.store import store
 import jesse.services.report as report
 import traceback
 import os
+import csv
+import json
+from pandas import json_normalize
 
 
 class Genetics(ABC):
@@ -82,8 +85,8 @@ class Genetics(ABC):
 
                     def get_fitness(dna, dna_bucket):
                         try:
-                            fitness_score, fitness_log = self.fitness(dna)
-                            dna_bucket.append((dna, fitness_score, fitness_log))
+                            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+                            dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
                         except Exception as e:
                             proc = os.getpid()
                             logger.error('process failed - ID: {}'.format(str(proc)))
@@ -123,7 +126,8 @@ class Genetics(ABC):
                         people.append({
                             'dna': d[0],
                             'fitness': d[1],
-                            'log': d[2]
+                            'training_log': d[2],
+                            'testing_log': d[3]
                         })
 
                 # update dashboard
@@ -168,12 +172,13 @@ class Genetics(ABC):
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
         dna = '{}{}{}'.format(baby['dna'][:replace_at], replace_with, baby['dna'][replace_at + 1:])
-        fitness_score, fitness_log = self.fitness(dna)
+        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
 
         return {
             'dna': dna,
             'fitness': fitness_score,
-            'log': fitness_log
+            'training_log': fitness_log_training,
+            'testing_log': fitness_log_testing
         }
 
     def make_love(self):
@@ -188,12 +193,13 @@ class Genetics(ABC):
             else:
                 dna += mommy['dna'][i]
 
-        fitness_score, fitness_log = self.fitness(dna)
+        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
 
         return {
             'dna': dna,
             'fitness': fitness_score,
-            'log': fitness_log
+            'training_log': fitness_log_training,
+            'testing_log': fitness_log_testing
         }
 
     def select_person(self):
@@ -318,13 +324,21 @@ class Genetics(ABC):
                         raise ValueError('self.population_size cannot be less than 10')
 
                     for j in range(number_of_ind_to_show):
+                        log = 'win-rate: {}%, total: {}, PNL: {}% || win-rate: {}%, total: {}, PNL: {}%'.format(
+                            self.population[j]['training_log']['win-rate'], self.population[j]['training_log']['total'],
+                            self.population[j]['training_log']['PNL'], self.population[j]['testing_log']['win-rate'],
+                            self.population[j]['testing_log']['total'], self.population[j]['testing_log']['PNL'])
+                        if self.population[j]['testing_log']['PNL'] is not None and self.population[j]['training_log'][
+                            'PNL'] > 0 and self.population[j]['testing_log'][
+                            'PNL'] > 0:
+                            log = jh.style(log, 'bold')
                         if jh.is_debugging():
                             fittest_list.append(
                                 [
                                     j + 1,
                                     self.population[j]['dna'],
                                     self.population[j]['fitness'],
-                                    self.population[j]['log']
+                                    log
                                 ],
                             )
                         else:
@@ -332,7 +346,7 @@ class Genetics(ABC):
                                 [
                                     j + 1,
                                     self.population[j]['dna'],
-                                    self.population[j]['log']
+                                    log
                                 ],
                             )
 
@@ -417,21 +431,69 @@ class Genetics(ABC):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        path = './storage/genetics/{}-{}-{}-{}.txt'.format(
+        study_name = '{}-{}-{}-{}'.format(
             self.options['strategy_name'], self.options['exchange'],
             self.options['symbol'], self.options['timeframe']
         )
+
+        dnas_json = {'snapshot': []}
+        for i in range(30):
+            dnas_json['snapshot'].append(
+                {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
+                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'], 'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
+
+        path = './storage/genetics/{}.txt'.format(study_name)
         os.makedirs('./storage/genetics', exist_ok=True)
         txt = ''
-        with open(path, 'a') as f:
+        with open(path, 'a', encoding="utf-8") as f:
             txt += '\n\n'
             txt += '# iteration {}'.format(index)
             txt += '\n'
 
             for i in range(30):
+                log = 'win-rate: {} %, total: {}, PNL: {} % || win-rate: {} %, total: {}, PNL: {} %'.format(
+                    self.population[i]['training_log']['win-rate'], self.population[i]['training_log']['total'],
+                    self.population[i]['training_log']['PNL'], self.population[i]['testing_log']['win-rate'],
+                    self.population[i]['testing_log']['total'], self.population[i]['testing_log']['PNL'])
+
                 txt += '\n'
                 txt += "{} ==  {}  ==  {}  ==  {}".format(
-                    i + 1, self.population[i]['dna'], self.population[i]['fitness'], self.population[i]['log']
+                    i + 1, self.population[i]['dna'], self.population[i]['fitness'], log
                 )
 
             f.write(txt)
+
+        if self.options['csv']:
+            path = 'storage/genetics/csv/{}.csv'.format(study_name)
+            os.makedirs('./storage/genetics/csv', exist_ok=True)
+            exists = os.path.exists(path)
+
+            df = json_normalize(dnas_json['snapshot'])
+
+            with open(path, 'a', newline='', encoding="utf-8") as outfile:
+                if not exists:
+                    # header of CSV file
+                    df.to_csv(outfile, header=True, index=False, encoding='utf-8')
+
+                df.to_csv(outfile, header=False, index=False, encoding='utf-8')
+
+        if self.options['json']:
+            path = 'storage/genetics/json/{}.json'.format(study_name)
+            os.makedirs('./storage/genetics/json', exist_ok=True)
+            exists = os.path.exists(path)
+
+            mode = 'r+' if exists else 'w'
+            with open(path, mode, encoding="utf-8") as file:
+                    if not exists:
+                        snapshots = {"snapshots": []}
+                        snapshots["snapshots"].append(dnas_json['snapshot'])
+                        json.dump(snapshots, file, ensure_ascii=False)
+                        file.write('\n')
+                    else:
+                        # file exists - append
+                        file.seek(0)
+                        data = json.load(file)
+                        data["snapshots"].append(dnas_json['snapshot'])
+                        file.seek(0)
+                        json.dump(data, file, ensure_ascii=False)
+                        file.write('\n')

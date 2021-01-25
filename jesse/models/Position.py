@@ -30,6 +30,7 @@ class Position:
 
         self.exchange_name = exchange_name
         self.exchange = selectors.get_exchange(self.exchange_name)
+        
         if self.exchange:
             if self.exchange.type == 'spot':
                 self.mode = 'spot'
