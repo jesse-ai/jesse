@@ -33,7 +33,7 @@ config = {
                 # used only in futures trading
                 'settlement_currency': 'USDT',
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
@@ -45,8 +45,8 @@ config = {
                 'settlement_currency': 'USD',
                 'fee': 0.002,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
-                    {'asset': 'USD', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
+                    {'asset': 'USD', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
@@ -58,7 +58,7 @@ config = {
                 'settlement_currency': 'USDT',
                 'fee': 0.001,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
@@ -68,9 +68,9 @@ config = {
                 'type': 'futures',
                 # used only in futures trading
                 'settlement_currency': 'USDT',
-                'fee': 0.0002,
+                'fee': 0.0004,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                 ],
             },
 
@@ -79,9 +79,9 @@ config = {
                 'type': 'futures',
                 # used only in futures trading
                 'settlement_currency': 'USDT',
-                'fee': 0.0002,
+                'fee': 0.0004,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                 ],
             },
 
@@ -92,7 +92,7 @@ config = {
                 'settlement_currency': 'USDT',
                 'fee': 0.005,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
@@ -181,7 +181,7 @@ def set_config(c):
         'settlement_currency': 'USDT',
         'fee': 0,
         'assets': [
-            {'asset': 'USDT', 'balance': 10000},
+            {'asset': 'USDT', 'balance': 10_000},
             {'asset': 'BTC', 'balance': 0},
         ],
     }

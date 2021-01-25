@@ -39,8 +39,8 @@ config = {
             # used only in futures trading
             'settlement_currency': 'USD',
             'assets': [
-                {'asset': 'USDT', 'balance': 10000},
-                {'asset': 'USD', 'balance': 10000},
+                {'asset': 'USDT', 'balance': 10_000},
+                {'asset': 'USD', 'balance': 10_000},
                 {'asset': 'BTC', 'balance': 0},
             ],
         },
@@ -52,30 +52,30 @@ config = {
             # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
-                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'USDT', 'balance': 10_000},
                 {'asset': 'BTC', 'balance': 0},
             ],
         },
 
         # https://www.binance.com
         'Binance Futures': {
-            'fee': 0.0002,
+            'fee': 0.0004,
             'type': 'futures',
             # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
-                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'USDT', 'balance': 10_000},
             ],
         },
 
         # https://testnet.binancefuture.com
         'Testnet Binance Futures': {
-            'fee': 0.0002,
+            'fee': 0.0004,
             'type': 'futures',
             # used only in futures trading
             'settlement_currency': 'USDT',
             'assets': [
-                {'asset': 'USDT', 'balance': 10000},
+                {'asset': 'USDT', 'balance': 10_000},
             ],
         },
 
@@ -86,7 +86,7 @@ config = {
             # used only in futures trading
             'settlement_currency': 'USD',
             'assets': [
-                {'asset': 'USD', 'balance': 10000},
+                {'asset': 'USD', 'balance': 10_000},
                 {'asset': 'BTC', 'balance': 0},
             ],
         },
