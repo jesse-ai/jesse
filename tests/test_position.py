@@ -77,7 +77,7 @@ def test_initiating_position():
     assert position.exit_price is None
 
 
-def test_is_able_to_close_via_reduce_postion_too():
+def test_is_able_to_close_via_reduce_position_too():
     set_up()
 
     p = Position(exchanges.SANDBOX, 'BTC-USD', {
@@ -186,6 +186,18 @@ def test_position_pnl_percentage():
     assert p.pnl_percentage == 20
 
 
+def test_position_roi():
+    set_up()
+    p = Position(exchanges.SANDBOX, 'BTC-USD')
+    p._open(3, 100)
+    p.current_price = 110
+
+    assert p.value == 330
+    assert p.total_cost == 300
+
+    assert p.roi == 10
+
+
 def test_position_type():
     p = Position(exchanges.SANDBOX, 'BTC-USD', {'current_price': 100, 'qty': 0})
     assert p.type == 'close'
@@ -206,6 +218,21 @@ def test_position_value():
 
     assert long_position.value == 100
     assert short_position.value == 100
+
+
+def test_position_total_cost():
+    set_up()
+
+    p = Position(exchanges.SANDBOX, 'BTC-USD')
+
+    assert p.qty == 0
+    assert p.total_cost is None
+
+    p._open(3, 50)
+    p.current_price = 60
+
+    assert p.value == 180
+    assert p.total_cost == 150
 
 
 def test_reduce_a_long_position():
