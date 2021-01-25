@@ -1,6 +1,5 @@
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
-import jesse.utils as ju
 from jesse.config import config
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
@@ -19,24 +18,13 @@ class Position:
         self.opened_at = None
         self.closed_at = None
 
-        # self._mark_price = None
-
-        # cross, isolated, spot
-        self.mode = None
-        self.margin = None
+        # TODO: self._mark_price = None
 
         if attributes is None:
             attributes = {}
 
         self.exchange_name = exchange_name
         self.exchange = selectors.get_exchange(self.exchange_name)
-        
-        if self.exchange:
-            if self.exchange.type == 'spot':
-                self.mode = 'spot'
-            else:
-                # TODO: should support both cross and isolated
-                self.mode = 'cross'
 
         self.symbol = symbol
         self.strategy = None
@@ -46,7 +34,7 @@ class Position:
 
     # @property
     # def mark_price(self):
-    #     # make sure that it is available only for live trading in futures markets
+    #     # TODO: make sure that it is available only for live trading in futures markets
     #     return self._mark_price
 
     @property
@@ -99,10 +87,17 @@ class Position:
         """
         How much we paid to open this position (currently does not include fees, should we?!)
         """
-        if not self.entry_price:
+        if self.is_close:
             return None
 
         return self.entry_price * abs(self.qty)
+
+    @property
+    def entry_margin(self):
+        """
+        Alias for self.total_cost
+        """
+        return self.total_cost
 
     @property
     def pnl(self):
@@ -135,6 +130,13 @@ class Position:
         :return: bool
         """
         return self.qty == 0
+
+    @property
+    def mode(self):
+        if self.exchange.spot == 'spot':
+            return 'spot'
+        else:
+            return self.exchange.futures_leverage_mode
 
     # - Margin Ratio
     # * Liquidation price

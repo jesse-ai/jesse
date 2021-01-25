@@ -227,12 +227,14 @@ def test_position_total_cost():
 
     assert p.qty == 0
     assert p.total_cost is None
+    assert p.entry_margin is None
 
     p._open(3, 50)
     p.current_price = 60
 
     assert p.value == 180
     assert p.total_cost == 150
+    assert p.entry_margin == 150
 
 
 def test_reduce_a_long_position():
