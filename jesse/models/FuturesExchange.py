@@ -12,16 +12,25 @@ from .Exchange import Exchange
 class FuturesExchange(Exchange):
     # current holding assets
     assets = {}
-    # used for calculating available balance in futures mode:
-    temp_reduced_amount = {}
     # current available assets (dynamically changes based on active orders)
     available_assets = {}
 
     buy_orders = {}
     sell_orders = {}
 
-    def __init__(self, name: str, starting_assets: list, fee_rate: float, settlement_currency: str):
+    def __init__(
+            self,
+            name: str,
+            starting_assets: list,
+            fee_rate: float,
+            settlement_currency: str,
+            futures_leverage_mode: str,
+            futures_leverage: int
+    ):
         super().__init__(name, starting_assets, fee_rate, 'futures')
+
+        self.futures_leverage_mode = futures_leverage_mode
+        self.futures_leverage = futures_leverage
 
         for item in starting_assets:
             self.buy_orders[item['asset']] = DynamicNumpyArray((10, 2))
@@ -37,8 +46,6 @@ class FuturesExchange(Exchange):
                 self.buy_orders[base] = DynamicNumpyArray((10, 2))
             if base not in self.sell_orders:
                 self.sell_orders[base] = DynamicNumpyArray((10, 2))
-            if base not in self.temp_reduced_amount:
-                self.temp_reduced_amount[base] = 0
 
         self.starting_assets = self.assets.copy()
         self.available_assets = self.assets.copy()
@@ -120,7 +127,9 @@ class FuturesExchange(Exchange):
         # print('####')
         # print(order.price)
         # print('####')
-        #
+        # TODO: here we should check for the leverage based on the config value
+        # TODO: here we should check for the leverage based on the config value
+        # TODO: here we should check for the leverage based on the config value
         # if not order.is_reduce_only:
         #     order_size = abs(order.qty * order.price)
         #     remaining_futures = self.tradable_balance()
