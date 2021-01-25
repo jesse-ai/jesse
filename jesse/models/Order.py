@@ -38,20 +38,16 @@ class Order:
         if self.created_at is None:
             self.created_at = jh.now_to_timestamp()
 
-        p = selectors.get_position(self.exchange, self.symbol)
-        if p:
-            if jh.is_live() and config['env']['notifications']['events']['submitted_orders']:
-                self.notify_submission()
-            if jh.is_debuggable('order_submission'):
-                logger.info(
-                    '{} order: {}, {}, {}, {}, ${}'.format(
-                        'QUEUED' if self.is_queued else 'SUBMITTED',
-                        self.symbol, self.type, self.side, self.qty,
-                        round(self.price, 2)
-                    )
+        if jh.is_live() and config['env']['notifications']['events']['submitted_orders']:
+            self.notify_submission()
+        if jh.is_debuggable('order_submission'):
+            logger.info(
+                '{} order: {}, {}, {}, {}, ${}'.format(
+                    'QUEUED' if self.is_queued else 'SUBMITTED',
+                    self.symbol, self.type, self.side, self.qty,
+                    round(self.price, 2)
                 )
-
-            p._on_opened_order(self)
+            )
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
@@ -112,22 +108,18 @@ class Order:
         self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
 
-        p = selectors.get_position(self.exchange, self.symbol)
-        if p:
-            if jh.is_debuggable('order_cancellation'):
-                logger.info(
-                    'CANCELED order: {}, {}, {}, {}, ${}'.format(
-                        self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                    )
+        if jh.is_debuggable('order_cancellation'):
+            logger.info(
+                'CANCELED order: {}, {}, {}, {}, ${}'.format(
+                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
                 )
-            if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
-                notify(
-                    'CANCELED order: {}, {}, {}, {}, {}'.format(
-                        self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                    )
+            )
+        if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
+            notify(
+                'CANCELED order: {}, {}, {}, {}, {}'.format(
+                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
                 )
-
-            p._on_canceled_order(self)
+            )
 
         # handle exchange balance
         e = selectors.get_exchange(self.exchange)
