@@ -13,6 +13,7 @@ from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes
 from jesse.models import Candle
+from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report
@@ -21,7 +22,6 @@ from jesse.services.candle import generate_candle_from_one_minutes, print_candle
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
-from jesse.modes.utils import save_daily_portfolio_balance
 
 
 def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False, json=False):
@@ -61,8 +61,34 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
     if not jh.should_execute_silently():
         # print trades statistics
         if store.completed_trades.count > 0:
+
+            change = []
+            # calcualte market change
+            for e in router.routes:
+                if e.strategy is None:
+                    return
+
+                first = Candle.select(
+                    Candle.close
+                ).where(
+                    Candle.timestamp == jh.date_to_timestamp(start_date),
+                    Candle.exchange == e.exchange,
+                    Candle.symbol == e.symbol
+                ).first()
+                last = Candle.select(
+                    Candle.close
+                ).where(
+                    Candle.timestamp == jh.date_to_timestamp(finish_date) - 60000,
+                    Candle.exchange == e.exchange,
+                    Candle.symbol == e.symbol
+                ).first()
+
+                change.append(((last.close - first.close) / first.close) * 100.0)
+
+            data = report.portfolio_metrics()
+            data.append(['Market Change', str(round(np.average(change), 2)) + "%"])
             print('\n')
-            table.key_value(report.portfolio_metrics(), 'Metrics', alignments=('left', 'right'))
+            table.key_value(data, 'Metrics', alignments=('left', 'right'))
             print('\n')
 
             # save logs
@@ -75,8 +101,8 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
 
 
 def load_candles(start_date_str: str, finish_date_str: str):
-    start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
-    finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
+    start_date = jh.date_to_timestamp(start_date_str)
+    finish_date = jh.date_to_timestamp(finish_date_str) - 60000
 
     # validate
     if start_date == finish_date:
@@ -196,7 +222,7 @@ def simulator(candles, hyperparameters=None):
             for j in candles:
                 short_candle = candles[j]['candles'][i]
                 if i != 0:
-                    previous_short_candle = candles[j]['candles'][i-1]
+                    previous_short_candle = candles[j]['candles'][i - 1]
                     short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
                 exchange = candles[j]['exchange']
                 symbol = candles[j]['symbol']
