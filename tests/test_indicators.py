@@ -1237,6 +1237,15 @@ def test_rsi():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_rsx():
+    candles = np.array(mama_candles)
+
+    single = ta.rsx(candles)
+    seq = ta.rsx(candles, sequential=True)
+
+    assert round(single, 2) == 57.84
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_sar():
     # use the same candles as mama_candles

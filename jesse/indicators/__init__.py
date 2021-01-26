@@ -88,6 +88,7 @@ from .rocp import rocp
 from .rocr import rocr
 from .rocr100 import rocr100
 from .rsi import rsi
+from .rsx import rsx
 from .sar import sar
 from .sarext import sarext
 from .sma import sma
