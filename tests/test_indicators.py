@@ -1243,7 +1243,7 @@ def test_rsx():
     single = ta.rsx(candles)
     seq = ta.rsx(candles, sequential=True)
 
-    assert round(single, 2) == 57.84
+    assert round(single, 2) == 27.81
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
