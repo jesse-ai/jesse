@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.exceptions import NegativeBalance
+from jesse.exceptions import NegativeBalance, InsufficientMargin
 from jesse.models import Order
 from jesse.enums import sides, order_types
 from jesse.libs import DynamicNumpyArray
@@ -72,7 +72,7 @@ class FuturesExchange(Exchange):
                 # add unrealized PNL
                 temp_credit += position.pnl
 
-            # subtract worst scenario orders' used futures
+            # subtract worst scenario orders' used margin
             sum_buy_orders = (self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]).sum()
             sum_sell_orders = (self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]).sum()
             if position.is_open:
@@ -109,6 +109,16 @@ class FuturesExchange(Exchange):
     def on_order_submission(self, order: Order, skip_market_order=True):
         base_asset = jh.base_asset(order.symbol)
 
+        # make sure we don't spend more than we're allowed considering current allowed leverage
+        if order.type != order_types.MARKET or skip_market_order:
+            if not order.is_reduce_only:
+                order_size = abs(order.qty * order.price)
+                remaining_margin = self.tradable_balance()
+                if order_size > remaining_margin * self.futures_leverage:
+                    raise InsufficientMargin('You cannot submit an order for {} when your margin balance is {}'.format(
+                        round(order_size), round(remaining_margin)
+                    ))
+
         # skip market order at the time of submission because we don't have
         # the exact order.price. Instead, we call on_order_submission() one
         # more time at time of execution without "skip_market_order=False".
@@ -120,25 +130,6 @@ class FuturesExchange(Exchange):
             self.buy_orders[base_asset].append(np.array([order.qty, order.price]))
         else:
             self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
-
-        # # validate for capital limit
-        # print(order.is_reduce_only)
-        # print(order.side, order.type)
-        # print('####')
-        # print(order.price)
-        # print('####')
-        # TODO: here we should check for the leverage based on the config value
-        # TODO: here we should check for the leverage based on the config value
-        # TODO: here we should check for the leverage based on the config value
-        # if not order.is_reduce_only:
-        #     order_size = abs(order.qty * order.price)
-        #     remaining_futures = self.tradable_balance()
-        #     if order_size > remaining_futures:
-        #         raise NegativeBalance('You cannot submit an order for {} when your remaining futures is {}'.format(
-        #             order_size, remaining_futures
-        #         ))
-
-        return
 
     def on_order_execution(self, order: Order):
         base_asset = jh.base_asset(order.symbol)

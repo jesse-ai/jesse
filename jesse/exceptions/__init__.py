@@ -68,3 +68,7 @@ class InvalidTimeframe(Exception):
 
 class NegativeBalance(Exception):
     pass
+
+
+class InsufficientMargin(Exception):
+    pass

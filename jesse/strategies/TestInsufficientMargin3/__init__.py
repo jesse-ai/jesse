@@ -3,19 +3,19 @@ from jesse import utils
 
 
 # test_negative_balance_validation_for_futures_market
-class TestMarginNegativeBalance(Strategy):
+class TestInsufficientMargin3(Strategy):
     def should_long(self) -> bool:
-        return self.index == 0
-
-    def should_short(self) -> bool:
         return False
 
+    def should_short(self) -> bool:
+        return self.index == 0
+
     def go_long(self):
-        qty = utils.size_to_qty(10_001, self.price)
-        self.buy = qty, self.price
+        pass
 
     def go_short(self):
-        pass
+        qty = utils.size_to_qty(10_001, self.price * .99)
+        self.sell = qty, self.price * .99
 
     def should_cancel(self):
         return False
