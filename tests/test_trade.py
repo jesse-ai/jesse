@@ -62,7 +62,7 @@ def test_holding_period():
     assert trade.holding_period == 60
 
 
-def test_PNL_percentage():
+def test_pnl_percentage():
     no_fee()
 
     trade = CompletedTrade({
@@ -78,7 +78,7 @@ def test_PNL_percentage():
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
-    assert trade.PNL_percentage == 20
+    assert trade.pnl_percentage == 20
 
 
 def test_PNL_with_fee():
@@ -100,7 +100,7 @@ def test_PNL_with_fee():
     })
 
     assert trade.fee == 0.06
-    assert trade.PNL == 9.94
+    assert trade.pnl == 9.94
 
 
 def test_PNL_without_fee():
@@ -119,7 +119,7 @@ def test_PNL_without_fee():
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
-    assert trade.PNL == 10
+    assert trade.pnl == 10
 
 
 def test_R():

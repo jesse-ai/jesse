@@ -54,9 +54,9 @@ class CompletedTrade:
             "size": self.size,
             "risk": self.risk,
             "risk_percentage": self.risk_percentage,
-            "R": self.R,
-            "PNL": self.PNL,
-            "PNL_percentage": self.PNL_percentage,
+            "R": self.r,
+            "PNL": self.pnl,
+            "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
             "opened_at": self.opened_at,
             "closed_at": self.closed_at,
@@ -86,9 +86,9 @@ class CompletedTrade:
             "size": self.size,
             "risk": self.risk,
             "risk_percentage": self.risk_percentage,
-            "R": self.R,
-            "PNL": self.PNL,
-            "PNL_percentage": self.PNL_percentage,
+            "R": self.r,
+            "PNL": self.pnl,
+            "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
         }
 
@@ -118,21 +118,21 @@ class CompletedTrade:
         return self.reward / self.risk
 
     @property
-    def R(self):
+    def r(self):
         """alias for risk_reward_ratio"""
         return self.risk_reward_ratio
 
     @property
-    def PNL(self):
+    def pnl(self):
         """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
         return jh.estimate_PNL(self.qty, self.entry_price, self.exit_price,
                                self.type, fee)
 
     @property
-    def PNL_percentage(self):
+    def pnl_percentage(self):
         """The PNL%"""
-        return round((self.PNL / self.size) * 100, 2)
+        return round((self.pnl / self.size) * 100, 2)
 
     @property
     def holding_period(self):
