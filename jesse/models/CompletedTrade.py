@@ -134,8 +134,25 @@ class CompletedTrade:
 
     @property
     def pnl_percentage(self):
-        """The PNL%"""
-        return round((self.pnl / self.size) * 100, 2)
+        """
+        Alias for self.roi
+        """
+        return self.roi
+
+    @property
+    def roi(self):
+        """
+        Return on Investment in percentage
+        More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
+        """
+        return self.pnl / self.total_cost * 100
+
+    @property
+    def total_cost(self):
+        """
+        How much we paid to open this position (currently does not include fees, should we?!)
+        """
+        return self.entry_price * abs(self.qty) / self.leverage
 
     @property
     def holding_period(self):

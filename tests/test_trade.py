@@ -60,6 +60,7 @@ def test_holding_period():
 def test_pnl_percentage():
     no_fee()
 
+    # 1x leverage
     trade = CompletedTrade({
         'type': 'long',
         'exchange': 'Sandbox',
@@ -71,9 +72,27 @@ def test_pnl_percentage():
         'orders': [],
         'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
-        'closed_at': jh.now_to_timestamp()
+        'closed_at': jh.now_to_timestamp(),
+        'leverage': 1,
     })
     assert trade.pnl_percentage == 20
+
+    # 2x leverage
+    trade = CompletedTrade({
+        'type': 'long',
+        'exchange': 'Sandbox',
+        'entry_price': 10,
+        'exit_price': 12,
+        'take_profit_at': 20,
+        'stop_loss_at': 5,
+        'qty': 1,
+        'orders': [],
+        'symbol': 'BTC-USD',
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp(),
+        'leverage': 2,
+    })
+    assert trade.pnl_percentage == 40
 
 
 def test_pnl_with_fee():
