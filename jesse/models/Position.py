@@ -63,16 +63,11 @@ class Position:
     @property
     def pnl_percentage(self):
         """
-        The PNL% of the position
+        Alias for self.roi
 
         :return: float
         """
-        if self.qty == 0:
-            return 0
-
-        exit_price = self.current_price if self.exit_price is None else self.exit_price
-
-        return jh.estimate_PNL_percentage(self.qty, self.entry_price, exit_price, self.type)
+        return self.roi
 
     @property
     def roi(self):
@@ -80,7 +75,7 @@ class Position:
         Return on Investment in percentage
         More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
         """
-        return (self.value - self.total_cost) / self.total_cost * 100
+        return self.pnl / self.total_cost * 100
 
     @property
     def total_cost(self):
@@ -90,7 +85,7 @@ class Position:
         if self.is_close:
             return None
 
-        return self.entry_price * abs(self.qty)
+        return self.entry_price * abs(self.qty) / self.exchange.futures_leverage
 
     @property
     def entry_margin(self):
