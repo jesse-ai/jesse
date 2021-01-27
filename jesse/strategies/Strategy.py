@@ -10,7 +10,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
-from jesse.models import CompletedTrade, Order, Route
+from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange
 from jesse.services.broker import Broker
 from jesse.store import store
 
@@ -897,10 +897,7 @@ class Strategy(ABC):
                 )
             )
             # fake a closing (market) order so that the calculations would be correct
-            if self.is_long:
-                self.broker.sell_at_market(self.position.qty, order_roles.CLOSE_POSITION)
-            else:
-                self.broker.buy_at_market(self.position.qty, order_roles.CLOSE_POSITION)
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION)
             return
 
         if self._open_position_orders:
@@ -1040,6 +1037,7 @@ class Strategy(ABC):
         """
         if role == order_roles.OPEN_POSITION:
             self.trade = CompletedTrade()
+            self.trade.leverage = self.leverage
             self.trade.orders = [order]
             self.trade.timeframe = self.timeframe
             self.trade.id = order.id
@@ -1192,3 +1190,13 @@ class Strategy(ABC):
     @property
     def has_active_entry_orders(self) -> bool:
         return len(self._open_position_orders) > 0
+
+    # TODO:
+    # @property
+    # def leverage(self):
+    #     if type(self.position.exchange) == SpotExchange:
+    #         return 1
+    #     elif type(self.position.exchange) == FuturesExchange:
+    #         return self.position.exchange.futures_leverage
+    #     else:
+    #         raise ValueError('exchange type not supported!')
