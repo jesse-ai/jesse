@@ -6,12 +6,11 @@ import pandas as pd
 
 import jesse.helpers as jh
 from jesse.config import config
-from jesse.models import Route
 from jesse.routes import router
+from jesse.services import selectors
 from jesse.services import statistics as stats
 from jesse.services.candle import is_bullish
 from jesse.store import store
-from jesse.services import selectors
 
 warnings.filterwarnings("ignore")
 
@@ -44,7 +43,8 @@ def positions():
                 jh.color(pos.type, type_color),
                 pos.strategy.name,
                 pos.symbol,
-                '' if pos.is_close else '{} ago'.format(jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)),
+                '' if pos.is_close else '{} ago'.format(
+                    jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)),
                 pos.qty if abs(pos.qty) > 0 else None,
                 pos.entry_price,
                 pos.current_price,
@@ -188,17 +188,21 @@ def portfolio_metrics():
     metrics = [
         ['Total Closed Trades', data['total']],
         ['Total Net Profit',
-         '{} ({})'.format(jh.format_currency(round(data['net_profit'], 4)), str(data['net_profit_percentage']) + '%')],
+         '{} ({})'.format(jh.format_currency(round(data['net_profit'], 4)),
+                          str(round(data['net_profit_percentage'], 2)) + '%')],
         ['Starting => Finishing Balance',
-         '{} => {}'.format(jh.format_currency(round(data['starting_balance'], 2)), jh.format_currency(round(data['finishing_balance'], 2)))],
+         '{} => {}'.format(jh.format_currency(round(data['starting_balance'], 2)),
+                           jh.format_currency(round(data['finishing_balance'], 2)))],
         ['Total Open Trades', data['total_open_trades']],
         ['Open PL', jh.format_currency(round(data['open_pl'], 2))],
         ['Total Paid Fees', jh.format_currency(round(data['fee'], 2))],
-        ['Max Drawdown', '{}%'.format(data['max_drawdown'])],
-        ['Annual Return', '{}%'.format(data['annual_return'])],
+        ['Max Drawdown', '{}%'.format(round(data['max_drawdown'], 2))],
+        ['Annual Return', '{}%'.format(round(data['annual_return'], 2))],
         ['Expectancy',
-         '{} ({})'.format(jh.format_currency(round(data['expectancy'], 2)), str(round(data['expectancy_percentage'], 2)) + '%')],
-        ['Avg Win | Avg Loss', '{} | {}'.format(jh.format_currency(round(data['average_win'], 2)), jh.format_currency(round(data['average_loss'], 2)))],
+         '{} ({})'.format(jh.format_currency(round(data['expectancy'], 2)),
+                          str(round(data['expectancy_percentage'], 2)) + '%')],
+        ['Avg Win | Avg Loss', '{} | {}'.format(jh.format_currency(round(data['average_win'], 2)),
+                                                jh.format_currency(round(data['average_loss'], 2)))],
         ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
         ['Percent Profitable', str(round(data['win_rate'] * 100)) + '%'],
         ['Longs | Shorts', '{}% | {}%'.format(round(data['longs_percentage']), round(data['short_percentage']))],
@@ -212,21 +216,21 @@ def portfolio_metrics():
     ]
 
     if jh.get_config('env.metrics.sharpe_ratio', True):
-        metrics.append(['Sharpe Ratio', data['sharpe_ratio']])
+        metrics.append(['Sharpe Ratio', round(data['sharpe_ratio'], 2)])
     if jh.get_config('env.metrics.calmar_ratio', False):
-        metrics.append(['Calmar Ratio', data['calmar_ratio']])
+        metrics.append(['Calmar Ratio', round(data['calmar_ratio'], 2)])
     if jh.get_config('env.metrics.sortino_ratio', False):
-        metrics.append(['Sortino Ratio', data['sortino_ratio']])
+        metrics.append(['Sortino Ratio', round(data['sortino_ratio'], 2)])
     if jh.get_config('env.metrics.omega_ratio', False):
-        metrics.append(['Omega Ratio', data['omega_ratio']])
+        metrics.append(['Omega Ratio', round(data['omega_ratio'], 2)])
     if jh.get_config('env.metrics.winning_streak', False):
         metrics.append(['Winning Streak', data['winning_streak']])
     if jh.get_config('env.metrics.losing_streak', False):
         metrics.append(['Losing Streak', data['losing_streak']])
     if jh.get_config('env.metrics.largest_winning_trade', False):
-        metrics.append(['Largest Winning Trade', jh.format_currency(data['largest_winning_trade'])])
+        metrics.append(['Largest Winning Trade', jh.format_currency(round(data['largest_winning_trade'], 2))])
     if jh.get_config('env.metrics.largest_losing_trade', False):
-        metrics.append(['Largest Losing Trade', jh.format_currency(data['largest_losing_trade'])])
+        metrics.append(['Largest Losing Trade', jh.format_currency(round(data['largest_losing_trade'], 2))])
     if jh.get_config('env.metrics.total_winning_trades', False):
         metrics.append(['Total Winning Trades', data['total_winning_trades']])
     if jh.get_config('env.metrics.total_losing_trades', False):
