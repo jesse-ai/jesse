@@ -33,26 +33,36 @@ def get_btc_candles():
     return candles
 
 
-def set_up(routes, is_futures_trading=True):
+def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cross'):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 10_000},
         {'asset': 'BTC', 'balance': 0},
         {'asset': 'ETH', 'balance': 0},
     ]
+
     if is_futures_trading:
         # used only in futures trading
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][exchanges.SANDBOX]['futures_leverage_mode'] = leverage_mode
+        config['env']['exchanges'][exchanges.SANDBOX]['futures_leverage'] = leverage
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
-    router.set_routes(routes)
+
+    if routes:
+        router.set_routes(routes)
+
     store.reset(True)
 
 
-def single_route_backtest(strategy_name: str, is_futures_trading=True):
+def single_route_backtest(strategy_name: str, is_futures_trading=True, leverage=1):
     """
     used to simplify simple tests
     """
-    set_up([(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)], is_futures_trading=is_futures_trading)
+    set_up(
+        [(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)],
+        is_futures_trading=is_futures_trading,
+        leverage=leverage
+    )
     # dates are fake. just to pass required parameters
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
