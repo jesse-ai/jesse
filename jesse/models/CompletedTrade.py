@@ -27,6 +27,7 @@ class CompletedTrade:
         self.reduced_at = None
         self.reduction_timestamp = None
         self.reduction_candle_timestamp = None
+        self.leverage = None
 
         if attributes is None:
             attributes = {}
@@ -94,7 +95,7 @@ class CompletedTrade:
 
     @property
     def fee(self):
-        trading_fee = config['env']['exchanges'][self.exchange]['fee']
+        trading_fee = jh.get_config('env.exchanges.{}.fee'.format(self.exchange))
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
@@ -126,8 +127,10 @@ class CompletedTrade:
     def pnl(self):
         """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
-        return jh.estimate_PNL(self.qty, self.entry_price, self.exit_price,
-                               self.type, fee)
+        return jh.estimate_PNL(
+            self.qty, self.entry_price, self.exit_price,
+            self.type, fee
+        )
 
     @property
     def pnl_percentage(self):

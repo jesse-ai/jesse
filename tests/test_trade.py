@@ -5,17 +5,10 @@ from jesse.store import store
 
 
 def no_fee():
-    """
-
-    """
-    print(config)
     config['env']['exchanges']['Sandbox']['fee'] = 0
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     store.reset(True)
 
@@ -43,6 +36,8 @@ def test_can_add_trade_to_store():
     assert store.completed_trades.trades == [trade]
     store.reset()
     assert store.completed_trades.trades == []
+
+
 def test_holding_period():
     trade = CompletedTrade({
         'type': 'long',
@@ -81,7 +76,7 @@ def test_pnl_percentage():
     assert trade.pnl_percentage == 20
 
 
-def test_PNL_with_fee():
+def test_pnl_with_fee():
     # set fee (0.20%)
     config['env']['exchanges']['Sandbox']['fee'] = 0.002
 
@@ -103,7 +98,7 @@ def test_PNL_with_fee():
     assert trade.pnl == 9.94
 
 
-def test_PNL_without_fee():
+def test_pnl_without_fee():
     no_fee()
 
     trade = CompletedTrade({
