@@ -248,7 +248,7 @@ def get_config(keys: str, default=None):
     if not str:
         raise ValueError('keys string cannot be empty')
 
-    if not keys in CACHED_CONFIG:
+    if is_unit_testing() or not keys in CACHED_CONFIG:
         from functools import reduce
         from jesse.config import config
         CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
