@@ -1191,12 +1191,11 @@ class Strategy(ABC):
     def has_active_entry_orders(self) -> bool:
         return len(self._open_position_orders) > 0
 
-    # TODO:
-    # @property
-    # def leverage(self):
-    #     if type(self.position.exchange) == SpotExchange:
-    #         return 1
-    #     elif type(self.position.exchange) == FuturesExchange:
-    #         return self.position.exchange.futures_leverage
-    #     else:
-    #         raise ValueError('exchange type not supported!')
+    @property
+    def leverage(self):
+        if type(self.position.exchange) is SpotExchange:
+            return 1
+        elif type(self.position.exchange) is FuturesExchange:
+            return self.position.exchange.futures_leverage
+        else:
+            raise ValueError('exchange type not supported!')
