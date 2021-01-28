@@ -5,54 +5,16 @@ from jesse.factories import fake_range_candle_from_range_prices
 from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
-
-
-def get_btc_and_eth_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(101, 200))
-    }
-    candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'ETH-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
-    }
-    return candles
-
-
-def get_btc_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
-    }
-    return candles
-
-
-def set_up(routes, fee=0):
-    reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 1000},
-        {'asset': 'BTC', 'balance': 0},
-    ]
-    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
-    config['env']['exchanges'][exchanges.SANDBOX]['fee'] = fee
-    router.set_routes(routes)
-    router.set_extra_candles([])
-    store.reset(True)
+from .utils import single_route_backtest
 
 
 def test_open_pl_and_total_open_trades():
-    set_up([(exchanges.SANDBOX, 'BTC-USDT', '1m', 'Test40')])
-
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+    single_route_backtest('Test40')
 
     assert len(store.completed_trades.trades) == 1
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97  # 99 - 2
+
 
 # def test_statistics_for_trades_without_fee():
 #     set_up([
