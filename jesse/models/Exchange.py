@@ -28,7 +28,11 @@ class Exchange(ABC):
         self.fee_rate = fee_rate
 
     @abstractmethod
-    def tradable_balance(self, symbol=''):
+    def wallet_balance(self, symbol=''):
+        pass
+
+    @abstractmethod
+    def available_margin(self, symbol=''):
         pass
 
     @abstractmethod

@@ -10,7 +10,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
-from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange
+from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services.broker import Broker
 from jesse.store import store
 
@@ -53,7 +53,7 @@ class Strategy(ABC):
         self._is_executing = False
         self._is_initiated = False
 
-        self.position = None
+        self.position: Position = None
         self.broker = None
 
     def _init_objects(self):
@@ -1009,6 +1009,16 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
+    def trades(self) -> List[CompletedTrade]:
+        """
+        Returns all the completed trades for this strategy.
+
+        Returns:
+         [List[CompletedTrade]] -- completed trades by strategy
+        """
+        return store.completed_trades.trades
+
+    @property
     def time(self):
         """returns the current time"""
         return store.app.time
@@ -1021,8 +1031,12 @@ class Strategy(ABC):
     @property
     def capital(self):
         """the current capital in the trading exchange"""
-        e = selectors.get_exchange(self.exchange)
-        return e.tradable_balance(self.symbol)
+        return self.position.exchange.wallet_balance(self.symbol)
+
+    @property
+    def available_margin(self):
+        """Current available margin considering leverage"""
+        return self.position.exchange.available_margin(self.symbol)
 
     @property
     def fee_rate(self):

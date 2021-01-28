@@ -21,11 +21,14 @@ class SpotExchange(Exchange):
     def __init__(self, name: str, starting_assets: list, fee_rate: float):
         super().__init__(name, starting_assets, fee_rate, 'spot')
 
-    def tradable_balance(self, symbol=''):
+    def wallet_balance(self, symbol=''):
         if symbol == '':
             raise ValueError
         quote_asset = jh.quote_asset(symbol)
-        return self.available_assets[quote_asset]
+        return self.assets[quote_asset]
+
+    def available_margin(self, symbol=''):
+        return self.wallet_balance(symbol)
 
     def on_order_submission(self, order: Order, skip_market_order=True):
         base_asset = jh.base_asset(order.symbol)

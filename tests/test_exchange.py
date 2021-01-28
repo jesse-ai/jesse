@@ -36,3 +36,13 @@ def test_negative_balance_validation_for_futures_market():
     # but with more leverage, it should work
     single_route_backtest('TestInsufficientMargin3', is_futures_trading=True, leverage=2)
 
+
+def test_wallet_balance_and_available_margin_for_futures_market():
+    """
+    Works the same way as Binance Futures'es wallet balance does.
+    It is only changed at commission charges and after realized PNL is added.
+    """
+    single_route_backtest('TestWalletBalance', is_futures_trading=True, leverage=2)
+
+
+# TODO: test_wallet_balance_and_available_margin_for_spot_market

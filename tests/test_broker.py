@@ -164,7 +164,8 @@ def test_opening_and_closing_position_with_stop():
     assert position.current_price == 50
     assert position.is_close is True
     assert exchange.assets['USDT'] == 1000
-    assert exchange.tradable_balance() == 1000
+    assert exchange.available_margin() == 1000
+    assert exchange.wallet_balance() == 1000
     # open position
     open_position_order = broker.start_profit_at('buy', 1, 60, order_roles.OPEN_POSITION)
     open_position_order.execute()
@@ -172,13 +173,15 @@ def test_opening_and_closing_position_with_stop():
     assert position.entry_price == 60
     assert position.qty == 1
     assert exchange.assets['USDT'] == 1000
-    assert exchange.tradable_balance() == 940
+    assert exchange.wallet_balance() == 1000
+    assert exchange.available_margin() == 940
 
     # submit stop-loss order
     stop_loss_order = broker.stop_loss_at(1, 40, order_roles.CLOSE_POSITION)
     assert stop_loss_order.flag == order_flags.REDUCE_ONLY
     # balance should NOT have changed
     assert exchange.assets['USDT'] == 1000
+    assert exchange.wallet_balance() == 1000
     # submit take-profit order also
     take_profit_order = broker.reduce_position_at(1, 80, order_roles.CLOSE_POSITION)
     assert take_profit_order.flag == order_flags.REDUCE_ONLY
@@ -187,9 +190,10 @@ def test_opening_and_closing_position_with_stop():
     # execute stop order
     stop_loss_order.execute()
     assert exchange.assets['USDT'] == 980
-    assert exchange.tradable_balance() == 900
+    assert exchange.wallet_balance() == 980
+    assert exchange.available_margin() == 900
     take_profit_order.cancel()
-    assert exchange.tradable_balance() == 900 + 80
+    assert exchange.available_margin() == 900 + 80
     assert position.is_close is True
     assert position.entry_price is None
     assert position.exit_price == 40
@@ -232,7 +236,8 @@ def test_stop_loss():
 
     assert position.current_price == 50
     assert position.is_close is True
-    assert exchange.tradable_balance() == 1000
+    assert exchange.available_margin() == 1000
+    assert exchange.wallet_balance() == 1000
     # open position
     broker.buy_at_market(1)
     # fake it
@@ -240,7 +245,9 @@ def test_stop_loss():
     assert position.is_open is True
     assert position.entry_price == 50
     assert position.qty == 1
-    assert exchange.tradable_balance() == 950
+    assert exchange.available_margin() == 950
+    # even executed orders should not affect wallet_balance unless it's for reducing positon
+    assert exchange.wallet_balance() == 1000
 
     order = broker.stop_loss_at(1, 40)
     assert order.type == order_types.STOP
@@ -249,14 +256,16 @@ def test_stop_loss():
     assert order.side == 'sell'
     assert order.flag == order_flags.REDUCE_ONLY
     # balance should NOT have changed
-    assert exchange.tradable_balance() == 950
+    assert exchange.available_margin() == 950
+    assert exchange.wallet_balance() == 1000
 
     # execute stop order
     order.execute()
     assert position.is_close is True
     assert position.entry_price is None
     assert position.exit_price == 40
-    assert exchange.tradable_balance() == 990
+    assert exchange.available_margin() == 990
+    assert exchange.wallet_balance() == 990
 
 
 def test_should_not_submit_reduce_only_orders_when_position_is_closed():

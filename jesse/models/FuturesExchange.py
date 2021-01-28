@@ -56,8 +56,11 @@ class FuturesExchange(Exchange):
 
         self.settlement_currency = settlement_currency.upper()
 
-    def tradable_balance(self, symbol=''):
-        temp_credit = self.assets[self.settlement_currency]
+    def wallet_balance(self, symbol=''):
+        return self.assets[self.settlement_currency]
+
+    def available_margin(self, symbol=''):
+        temp_credit = self.assets[self.settlement_currency] * self.futures_leverage
         # we need to consider buy and sell orders of ALL pairs
         # also, consider the value of all open positions
         for asset in self.assets:
@@ -113,8 +116,8 @@ class FuturesExchange(Exchange):
         if order.type != order_types.MARKET or skip_market_order:
             if not order.is_reduce_only:
                 order_size = abs(order.qty * order.price)
-                remaining_margin = self.tradable_balance()
-                if order_size > remaining_margin * self.futures_leverage:
+                remaining_margin = self.available_margin()
+                if order_size > remaining_margin:
                     raise InsufficientMargin('You cannot submit an order for {} when your margin balance is {}'.format(
                         round(order_size), round(remaining_margin)
                     ))
