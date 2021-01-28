@@ -3,7 +3,7 @@ import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
-from jesse.models import Order
+from jesse.models import Order, Exchange
 from jesse.services import logger, notifier
 from jesse.utils import sum_floats, subtract_floats
 
@@ -24,7 +24,7 @@ class Position:
             attributes = {}
 
         self.exchange_name = exchange_name
-        self.exchange = selectors.get_exchange(self.exchange_name)
+        self.exchange: Exchange = selectors.get_exchange(self.exchange_name)
 
         self.symbol = symbol
         self.strategy = None
