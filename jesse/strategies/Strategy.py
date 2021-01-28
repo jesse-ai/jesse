@@ -13,6 +13,7 @@ from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services.broker import Broker
 from jesse.store import store
+from jesse.services import metrics
 
 
 class Strategy(ABC):
@@ -1019,11 +1020,11 @@ class Strategy(ABC):
         return store.completed_trades.trades
 
     @property
-    def statistics(self):
+    def metrics(self):
         """
         Returns all the metrics of the strategy.
         """
-        return trades_statistics(store.completed_trades.trades, store.app.daily_balance)
+        return metrics.trades(store.completed_trades.trades, store.app.daily_balance)
 
     @property
     def time(self):

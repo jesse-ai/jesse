@@ -8,7 +8,7 @@ import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
 from jesse.services import selectors
-from jesse.services import statistics as stats
+from jesse.services import metrics as stats
 from jesse.services.candle import is_bullish
 from jesse.store import store
 

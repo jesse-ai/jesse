@@ -7,7 +7,7 @@ import numpy as np
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
-import jesse.services.statistics as stats
+import jesse.services.metrics as stats
 import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
@@ -59,7 +59,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
     simulator(candles)
 
     if not jh.should_execute_silently():
-        # print trades statistics
+        # print trades metrics
         if store.completed_trades.count > 0:
 
             change = []

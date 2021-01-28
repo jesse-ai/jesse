@@ -9,7 +9,7 @@ from jesse import exceptions
 from jesse.config import config
 from jesse.modes.backtest_mode import simulator
 from jesse.routes import router
-from jesse.services import statistics as stats
+from jesse.services import metrics as stats
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
