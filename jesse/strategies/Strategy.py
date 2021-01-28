@@ -10,8 +10,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
-from jesse.models import CompletedTrade, Order, Route
-from jesse.services.statistics import trades as trades_statistics
+from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services.broker import Broker
 from jesse.store import store
 
@@ -54,7 +53,7 @@ class Strategy(ABC):
         self._is_executing = False
         self._is_initiated = False
 
-        self.position = None
+        self.position: Position = None
         self.broker = None
 
     def _init_objects(self):
@@ -898,10 +897,7 @@ class Strategy(ABC):
                 )
             )
             # fake a closing (market) order so that the calculations would be correct
-            if self.is_long:
-                self.broker.sell_at_market(self.position.qty, order_roles.CLOSE_POSITION)
-            else:
-                self.broker.buy_at_market(self.position.qty, order_roles.CLOSE_POSITION)
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION)
             return
 
         if self._open_position_orders:
@@ -1018,7 +1014,7 @@ class Strategy(ABC):
         Returns all the completed trades for this strategy.
 
         Returns:
-            [List[CompletedTrade]] -- completed trades by strategy
+         [List[CompletedTrade]] -- completed trades by strategy
         """
         return store.completed_trades.trades
 
@@ -1042,8 +1038,12 @@ class Strategy(ABC):
     @property
     def capital(self):
         """the current capital in the trading exchange"""
-        e = selectors.get_exchange(self.exchange)
-        return e.tradable_balance(self.symbol)
+        return self.position.exchange.wallet_balance(self.symbol)
+
+    @property
+    def available_margin(self):
+        """Current available margin considering leverage"""
+        return self.position.exchange.available_margin(self.symbol)
 
     @property
     def fee_rate(self):
@@ -1058,6 +1058,7 @@ class Strategy(ABC):
         """
         if role == order_roles.OPEN_POSITION:
             self.trade = CompletedTrade()
+            self.trade.leverage = self.leverage
             self.trade.orders = [order]
             self.trade.timeframe = self.timeframe
             self.trade.id = order.id
@@ -1210,3 +1211,12 @@ class Strategy(ABC):
     @property
     def has_active_entry_orders(self) -> bool:
         return len(self._open_position_orders) > 0
+
+    @property
+    def leverage(self):
+        if type(self.position.exchange) is SpotExchange:
+            return 1
+        elif type(self.position.exchange) is FuturesExchange:
+            return self.position.exchange.futures_leverage
+        else:
+            raise ValueError('exchange type not supported!')

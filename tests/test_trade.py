@@ -5,17 +5,10 @@ from jesse.store import store
 
 
 def no_fee():
-    """
-
-    """
-    print(config)
     config['env']['exchanges']['Sandbox']['fee'] = 0
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     store.reset(True)
 
@@ -43,6 +36,8 @@ def test_can_add_trade_to_store():
     assert store.completed_trades.trades == [trade]
     store.reset()
     assert store.completed_trades.trades == []
+
+
 def test_holding_period():
     trade = CompletedTrade({
         'type': 'long',
@@ -62,9 +57,10 @@ def test_holding_period():
     assert trade.holding_period == 60
 
 
-def test_PNL_percentage():
+def test_pnl_percentage():
     no_fee()
 
+    # 1x leverage
     trade = CompletedTrade({
         'type': 'long',
         'exchange': 'Sandbox',
@@ -76,12 +72,30 @@ def test_PNL_percentage():
         'orders': [],
         'symbol': 'BTC-USD',
         'opened_at': jh.now_to_timestamp(),
-        'closed_at': jh.now_to_timestamp()
+        'closed_at': jh.now_to_timestamp(),
+        'leverage': 1,
     })
-    assert trade.PNL_percentage == 20
+    assert trade.pnl_percentage == 20
+
+    # 2x leverage
+    trade = CompletedTrade({
+        'type': 'long',
+        'exchange': 'Sandbox',
+        'entry_price': 10,
+        'exit_price': 12,
+        'take_profit_at': 20,
+        'stop_loss_at': 5,
+        'qty': 1,
+        'orders': [],
+        'symbol': 'BTC-USD',
+        'opened_at': jh.now_to_timestamp(),
+        'closed_at': jh.now_to_timestamp(),
+        'leverage': 2,
+    })
+    assert trade.pnl_percentage == 40
 
 
-def test_PNL_with_fee():
+def test_pnl_with_fee():
     # set fee (0.20%)
     config['env']['exchanges']['Sandbox']['fee'] = 0.002
 
@@ -100,10 +114,10 @@ def test_PNL_with_fee():
     })
 
     assert trade.fee == 0.06
-    assert trade.PNL == 9.94
+    assert trade.pnl == 9.94
 
 
-def test_PNL_without_fee():
+def test_pnl_without_fee():
     no_fee()
 
     trade = CompletedTrade({
@@ -119,7 +133,7 @@ def test_PNL_without_fee():
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
-    assert trade.PNL == 10
+    assert trade.pnl == 10
 
 
 def test_R():

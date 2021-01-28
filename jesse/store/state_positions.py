@@ -3,9 +3,6 @@ from jesse.models import Position
 
 
 class PositionsState:
-    """
-
-    """
     def __init__(self):
         self.storage = {}
 

@@ -27,6 +27,7 @@ class CompletedTrade:
         self.reduced_at = None
         self.reduction_timestamp = None
         self.reduction_candle_timestamp = None
+        self.leverage = None
 
         if attributes is None:
             attributes = {}
@@ -54,9 +55,9 @@ class CompletedTrade:
             "size": self.size,
             "risk": self.risk,
             "risk_percentage": self.risk_percentage,
-            "R": self.R,
-            "PNL": self.PNL,
-            "PNL_percentage": self.PNL_percentage,
+            "R": self.r,
+            "PNL": self.pnl,
+            "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
             "opened_at": self.opened_at,
             "closed_at": self.closed_at,
@@ -86,15 +87,15 @@ class CompletedTrade:
             "size": self.size,
             "risk": self.risk,
             "risk_percentage": self.risk_percentage,
-            "R": self.R,
-            "PNL": self.PNL,
-            "PNL_percentage": self.PNL_percentage,
+            "R": self.r,
+            "PNL": self.pnl,
+            "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
         }
 
     @property
     def fee(self):
-        trading_fee = config['env']['exchanges'][self.exchange]['fee']
+        trading_fee = jh.get_config('env.exchanges.{}.fee'.format(self.exchange))
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
@@ -118,21 +119,40 @@ class CompletedTrade:
         return self.reward / self.risk
 
     @property
-    def R(self):
+    def r(self):
         """alias for risk_reward_ratio"""
         return self.risk_reward_ratio
 
     @property
-    def PNL(self):
+    def pnl(self):
         """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
-        return jh.estimate_PNL(self.qty, self.entry_price, self.exit_price,
-                               self.type, fee)
+        return jh.estimate_PNL(
+            self.qty, self.entry_price, self.exit_price,
+            self.type, fee
+        )
 
     @property
-    def PNL_percentage(self):
-        """The PNL%"""
-        return round((self.PNL / self.size) * 100, 2)
+    def pnl_percentage(self):
+        """
+        Alias for self.roi
+        """
+        return self.roi
+
+    @property
+    def roi(self):
+        """
+        Return on Investment in percentage
+        More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
+        """
+        return self.pnl / self.total_cost * 100
+
+    @property
+    def total_cost(self):
+        """
+        How much we paid to open this position (currently does not include fees, should we?!)
+        """
+        return self.entry_price * abs(self.qty) / self.leverage
 
     @property
     def holding_period(self):

@@ -110,7 +110,7 @@ class Broker:
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
         # validation
-        if side == 'buy' and price >= self.position.current_price:
+        if side == 'buy' and price > self.position.current_price:
             raise OrderNotAllowed(
                 'Cannot reduce (via LIMIT) buy at ${} when current_price is ${}'.format(
                     price,
@@ -118,12 +118,23 @@ class Broker:
                 )
             )
         # validation
-        if side == 'sell' and price <= self.position.current_price:
+        if side == 'sell' and price < self.position.current_price:
             raise OrderNotAllowed(
                 'Cannot reduce (via LIMIT) sell at ${} when current_price is ${}'.format(
                     price,
                     self.position.current_price
                 )
+            )
+
+        if price == self.position.current_price:
+            return self.api.market_order(
+                self.exchange,
+                self.symbol,
+                qty,
+                price,
+                side,
+                role,
+                [order_flags.REDUCE_ONLY]
             )
 
         return self.api.limit_order(

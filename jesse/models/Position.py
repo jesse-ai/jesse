@@ -1,10 +1,9 @@
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
-import jesse.utils as ju
 from jesse.config import config
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
-from jesse.models import Order
+from jesse.models import Order, Exchange
 from jesse.services import logger, notifier
 from jesse.utils import sum_floats, subtract_floats
 
@@ -19,21 +18,29 @@ class Position:
         self.opened_at = None
         self.closed_at = None
 
+        # TODO: self._mark_price = None
+
         if attributes is None:
             attributes = {}
 
         self.exchange_name = exchange_name
-        self.exchange = selectors.get_exchange(self.exchange_name)
+        self.exchange: Exchange = selectors.get_exchange(self.exchange_name)
+
         self.symbol = symbol
         self.strategy = None
 
         for a in attributes:
             setattr(self, a, attributes[a])
 
+    # @property
+    # def mark_price(self):
+    #     # TODO: make sure that it is available only for live trading in futures markets
+    #     return self._mark_price
+
     @property
     def value(self):
         """
-        The value of open position
+        The value of open position in the quote currency
 
         :return: float
         """
@@ -56,16 +63,36 @@ class Position:
     @property
     def pnl_percentage(self):
         """
-        The PNL% of the position
+        Alias for self.roi
 
         :return: float
         """
-        if self.qty == 0:
-            return 0
+        return self.roi
 
-        exit_price = self.current_price if self.exit_price is None else self.exit_price
+    @property
+    def roi(self):
+        """
+        Return on Investment in percentage
+        More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
+        """
+        return self.pnl / self.total_cost * 100
 
-        return jh.estimate_PNL_percentage(self.qty, self.entry_price, exit_price, self.type)
+    @property
+    def total_cost(self):
+        """
+        How much we paid to open this position (currently does not include fees, should we?!)
+        """
+        if self.is_close:
+            return None
+
+        return self.entry_price * abs(self.qty) / self.exchange.futures_leverage
+
+    @property
+    def entry_margin(self):
+        """
+        Alias for self.total_cost
+        """
+        return self.total_cost
 
     @property
     def pnl(self):
@@ -98,6 +125,24 @@ class Position:
         :return: bool
         """
         return self.qty == 0
+
+    @property
+    def mode(self):
+        if self.exchange.spot == 'spot':
+            return 'spot'
+        else:
+            return self.exchange.futures_leverage_mode
+
+    # - Margin Ratio
+    # * Liquidation price
+    # * mark price?!
+    # * ROE(PNL?)
+    # * Maintenance futures
+    # * futures balance
+
+    # @property
+    # def futures_ratio(self):
+    #     return 0
 
     def _close(self, close_price):
         if self.is_open is False:
@@ -141,7 +186,7 @@ class Position:
         estimated_profit = jh.estimate_PNL(qty, self.entry_price, price, self.type)
 
         if self.exchange:
-            # self.exchange.increase_margin_balance(qty * self.entry_price + estimated_profit)
+            # self.exchange.increase_futures_balance(qty * self.entry_price + estimated_profit)
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
@@ -168,7 +213,7 @@ class Position:
         size = qty * price
 
         # if self.exchange:
-        #     self.exchange.decrease_margin_balance(size)
+        #     self.exchange.decrease_futures_balance(size)
 
         self.entry_price = jh.estimate_average_price(qty, price, self.qty,
                                                      self.entry_price)
@@ -192,11 +237,6 @@ class Position:
         if self.is_open:
             raise OpenPositionError('an already open position cannot be opened')
 
-        # if change_balance:
-        #     size = abs(qty) * price
-            # if self.exchange:
-            #     self.exchange.decrease_margin_balance(size)
-
         self.entry_price = price
         self.exit_price = None
         self.qty = qty
@@ -211,62 +251,6 @@ class Position:
 
         if jh.is_live() and config['env']['notifications']['events']['updated_position']:
             notifier.notify(info_text)
-
-    def _on_opened_order(self, order):
-        # skip MARKET orders because they're already
-        # being impacted at self.on_executed_order
-        if order.type == order_types.MARKET:
-            return
-
-        # qty = order.qty
-        # price = order.price
-        # size = ju.qty_to_size(qty, price)
-        # available_qty = self.exchange.available_assets[jh.base_asset(self.symbol)]
-        #
-        # # # open-position order
-        # # if available_qty == 0:
-        # #     if self.exchange:
-        # #         self.exchange.decrease_margin_balance(size)
-        # # # increase-position order
-        # # elif available_qty * qty > 0:
-        # #     if self.exchange:
-        # #         self.exchange.decrease_margin_balance(size)
-        # # # reduce-position order
-        # # elif available_qty * qty < 0:
-        # #     if abs(qty) > abs(available_qty):
-        # #         diff_qty = qty + available_qty
-        # #         size = ju.qty_to_size(diff_qty, price)
-        # #         if self.exchange:
-        # #             self.exchange.decrease_margin_balance(size)
-
-    def _on_canceled_order(self, order):
-        qty = order.qty
-        price = order.price
-        size = ju.qty_to_size(qty, price)
-        available_qty = self.exchange.available_assets[jh.base_asset(self.symbol)]
-
-        if order.is_reduce_only:
-            return
-        #
-        # # detect reduce_only
-        # if abs(available_qty + order.qty) > abs(available_qty):
-        #     return
-        #
-        # # open-position order
-        # if available_qty == 0:
-        #     if self.exchange:
-        #         self.exchange.increase_margin_balance(size, True)
-        # # increase-position order
-        # elif available_qty * qty > 0:
-        #     if self.exchange:
-        #         self.exchange.increase_margin_balance(size, True)
-        # # reduce-position order
-        # elif available_qty * qty < 0:
-        #     if abs(qty) > abs(available_qty):
-        #         diff_qty = qty + available_qty
-        #         size = ju.qty_to_size(diff_qty, price)
-        #         if self.exchange:
-        #             self.exchange.increase_margin_balance(size, True)
 
     def _on_executed_order(self, order: Order):
         qty = order.qty
@@ -313,37 +297,3 @@ class Position:
 
         if self.strategy:
             self.strategy._on_updated_position(order)
-        #
-        # # handle REDUCE_ONLY orders
-        # if order.flag == order_flags.REDUCE_ONLY:
-        #     if self.qty == 0 or self.qty * qty > 0:
-        #         return
-        #     if self.qty * qty < 0 and abs(qty) > abs(self.qty):
-        #         self._close(price)
-        #         if self.strategy:
-        #             self.strategy._on_updated_position(order)
-        #         return
-        #
-        # # order opens position
-        # if self.qty == 0 and order.type:
-        #     change_balance = order.type == order_types.MARKET
-        #     self._open(qty, price, change_balance)
-        # # order closes position
-        # elif (self.qty + qty) == 0:
-        #     self._close(price)
-        # # order increases the size of the position
-        # elif self.qty * qty > 0:
-        #     self._increase(qty, price)
-        # # order reduces the size of the position
-        # elif self.qty * qty < 0:
-        #     # if size of the order is big enough to both close the
-        #     # position AND open it on the opposite side
-        #     if abs(qty) > abs(self.qty):
-        #         diff_qty = qty + self.qty
-        #         self._close(price)
-        #         self._open(diff_qty, price)
-        #     else:
-        #         self._reduce(qty, price)
-        #
-        # if self.strategy:
-        #     self.strategy._on_updated_position(order)

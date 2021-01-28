@@ -30,69 +30,119 @@ config = {
             'Sandbox': {
                 'fee': 0,
                 'type': 'spot',
-                # used only in margin trading
+                # used only in futures trading
                 'settlement_currency': 'USDT',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
 
             # https://www.bitfinex.com
             'Bitfinex': {
-                'type': 'margin',
-                # used only in margin trading
-                'settlement_currency': 'USD',
                 'fee': 0.002,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USD',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                # used for spot exchange only
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
-                    {'asset': 'USD', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
+                    {'asset': 'USD', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
 
             # https://www.binance.com
             'Binance': {
-                'type': 'spot',
-                # used only in margin trading
-                'settlement_currency': 'USDT',
                 'fee': 0.001,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USDT',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                # used for spot exchange only
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
 
             # https://www.binance.com
             'Binance Futures': {
-                'type': 'margin',
-                # used only in margin trading
+                'fee': 0.0004,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                'type': 'futures',
+
+                # futures mode only
                 'settlement_currency': 'USDT',
-                'fee': 0.0002,
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                # used for spot exchange only
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                 ],
             },
 
             # https://testnet.binancefuture.com
             'Testnet Binance Futures': {
-                'type': 'margin',
-                # used only in margin trading
+                'fee': 0.0004,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                'type': 'futures',
+
+                # futures mode only
                 'settlement_currency': 'USDT',
-                'fee': 0.0002,
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                # used for spot mode
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
                 ],
             },
 
             # https://pro.coinbase.com
             'Coinbase': {
-                'type': 'spot',
-                # used only in margin trading
-                'settlement_currency': 'USDT',
                 'fee': 0.005,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USD',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                # used for spot exchange only
                 'assets': [
-                    {'asset': 'USDT', 'balance': 10000},
+                    {'asset': 'USDT', 'balance': 10_000},
+                    {'asset': 'USD', 'balance': 10_000},
                     {'asset': 'BTC', 'balance': 0},
                 ],
             },
@@ -177,11 +227,13 @@ def set_config(c):
     # add sandbox because it isn't in the local config file
     config['env']['exchanges']['Sandbox'] = {
         'type': 'spot',
-        # used only in margin trading
+        # used only in futures trading
         'settlement_currency': 'USDT',
         'fee': 0,
+        'futures_leverage_mode': 'cross',
+        'futures_leverage': 1,
         'assets': [
-            {'asset': 'USDT', 'balance': 10000},
+            {'asset': 'USDT', 'balance': 10_000},
             {'asset': 'BTC', 'balance': 0},
         ],
     }

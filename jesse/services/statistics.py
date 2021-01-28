@@ -7,7 +7,8 @@ from jesse.store import store
 
 
 def candles(candles_array):
-    period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]), jh.timestamp_to_arrow(candles_array[-1][0])) + 1
+    period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]),
+                                  jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
         duration = '{} days ({} years)'.format(period, round(period / 365, 2))
@@ -49,7 +50,6 @@ def trades(trades_list: list, daily_balance: list):
         starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
-
     if len(trades_list) == 0:
         return None
 
@@ -66,10 +66,10 @@ def trades(trades_list: list, daily_balance: list):
     neg = np.clip(arr, -1, 0).astype(bool).cumsum()
     current_streak = np.where(arr >= 0, pos - np.maximum.accumulate(np.where(arr <= 0, pos, 0)),
                               -neg + np.maximum.accumulate(np.where(arr >= 0, neg, 0)))
-    
+
     s_min = current_streak.min()
     losing_streak = 0 if s_min > 0 else abs(s_min)
-    
+
     s_max = current_streak.max()
     winning_streak = 0 if s_max < 0 else s_max
 

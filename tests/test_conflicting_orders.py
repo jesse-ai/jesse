@@ -19,11 +19,11 @@ def get_btc_candles():
     return candles
 
 
-def set_up(routes, is_margin_trading=True):
+def set_up(routes, is_futures_trading=True):
     reset_config()
-    if is_margin_trading:
-        # used only in margin trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'margin'
+    if is_futures_trading:
+        # used only in futures trading
+        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
     router.set_routes(routes)
