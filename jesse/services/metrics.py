@@ -42,7 +42,7 @@ def routes(routes):
     return array
 
 
-def trades(trades_list: list, daily_balance: list):
+def trades(trades_list: list, daily_balance: list) -> dict:
     starting_balance = 0
     current_balance = 0
 
@@ -110,7 +110,6 @@ def trades(trades_list: list, daily_balance: list):
     omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
-
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
