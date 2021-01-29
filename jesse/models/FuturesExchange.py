@@ -118,7 +118,7 @@ class FuturesExchange(Exchange):
                 order_size = abs(order.qty * order.price)
                 remaining_margin = self.available_margin()
                 if order_size > remaining_margin:
-                    raise InsufficientMargin('You cannot submit an order for {} when your margin balance is {}'.format(
+                    raise InsufficientMargin('You cannot submit an order for ${} when your margin balance is ${}'.format(
                         round(order_size), round(remaining_margin)
                     ))
 
