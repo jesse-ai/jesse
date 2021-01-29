@@ -6,6 +6,7 @@ from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
 from jesse.services import logger, notifier
 from jesse.utils import sum_floats, subtract_floats
+import numpy as np
 
 
 class Position:
@@ -83,7 +84,7 @@ class Position:
         How much we paid to open this position (currently does not include fees, should we?!)
         """
         if self.is_close:
-            return None
+            return np.nan
 
         return self.entry_price * abs(self.qty) / self.exchange.futures_leverage
 
