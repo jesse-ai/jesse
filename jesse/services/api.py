@@ -29,7 +29,7 @@ class API:
                 from jesse.exchanges import Sandbox
                 self.drivers[e] = Sandbox(e)
 
-    def market_order(self, exchange, symbol, qty, current_price, side, role, flags):
+    def market_order(self, exchange, symbol, qty, current_price, side, role, flags, description):
         """
 
         :param exchange:
@@ -39,11 +39,12 @@ class API:
         :param side:
         :param role:
         :param flags:
+        :param description
         :return:
         """
-        return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags)
+        return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags, description)
 
-    def limit_order(self, exchange, symbol, qty, price, side, role, flags):
+    def limit_order(self, exchange, symbol, qty, price, side, role, flags, description):
         """
 
         :param exchange:
@@ -53,11 +54,12 @@ class API:
         :param side:
         :param role:
         :param flags:
+        :param description
         :return:
         """
-        return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags)
+        return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags, description)
 
-    def stop_order(self, exchange, symbol, qty, price, side, role, flags):
+    def stop_order(self, exchange, symbol, qty, price, side, role, flags, description):
         """
 
         :param exchange:
@@ -67,9 +69,10 @@ class API:
         :param side:
         :param role:
         :param flags:
+        :param description
         :return:
         """
-        return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags)
+        return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags, description)
 
     def cancel_all_orders(self, exchange, symbol):
         """

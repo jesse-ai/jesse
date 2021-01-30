@@ -19,7 +19,7 @@ class Broker:
         if qty == 0:
             raise InvalidStrategy('qty cannot be 0')
 
-    def sell_at_market(self, qty, role=None) -> Order:
+    def sell_at_market(self, qty, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -28,10 +28,12 @@ class Broker:
             abs(qty),
             self.position.current_price,
             sides.SELL,
-            role, []
+            role,
+            [],
+            description
         )
 
-    def sell_at(self, qty, price, role=None) -> Order:
+    def sell_at(self, qty, price, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -52,10 +54,11 @@ class Broker:
             price,
             sides.SELL,
             role,
-            []
+            [],
+            description
         )
 
-    def buy_at_market(self, qty, role=None) -> Order:
+    def buy_at_market(self, qty, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -65,10 +68,11 @@ class Broker:
             self.position.current_price,
             sides.BUY,
             role,
-            []
+            [],
+            description
         )
 
-    def buy_at(self, qty, price, role=None) -> Order:
+    def buy_at(self, qty, price, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -89,10 +93,11 @@ class Broker:
             price,
             sides.BUY,
             role,
-            []
+            [],
+            description
         )
 
-    def reduce_position_at(self, qty, price, role=None) -> Order:
+    def reduce_position_at(self, qty, price, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -134,7 +139,8 @@ class Broker:
                 price,
                 side,
                 role,
-                [order_flags.REDUCE_ONLY]
+                [order_flags.REDUCE_ONLY],
+				description
             )
 
         return self.api.limit_order(
@@ -144,10 +150,11 @@ class Broker:
             price,
             side,
             role,
-            [order_flags.REDUCE_ONLY]
+            [order_flags.REDUCE_ONLY],
+            description
         )
 
-    def start_profit_at(self, side, qty, price, role=None) -> Order:
+    def start_profit_at(self, side, qty, price, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -175,10 +182,11 @@ class Broker:
             price,
             side,
             role,
-            []
+            [],
+            description
         )
 
-    def stop_loss_at(self, qty, price, role=None) -> Order:
+    def stop_loss_at(self, qty, price, role=None, description='') -> Order:
         self._validate_qty(qty)
 
         # validation
@@ -214,7 +222,8 @@ class Broker:
             price,
             side,
             role,
-            [order_flags.REDUCE_ONLY]
+            [order_flags.REDUCE_ONLY],
+            description
         )
 
     def cancel_all_orders(self):

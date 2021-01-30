@@ -13,7 +13,7 @@ class Sandbox(Exchange):
         super().__init__()
         self.name = name
 
-    def market_order(self, symbol, qty, current_price, side, role, flags):
+    def market_order(self, symbol, qty, current_price, side, role, flags, description):
         """
 
         :param symbol:
@@ -22,6 +22,7 @@ class Sandbox(Exchange):
         :param side:
         :param role:
         :param flags:
+        :param description:
         :return:
         """
         order = Order({
@@ -33,7 +34,8 @@ class Sandbox(Exchange):
             'flag': self.get_exec_inst(flags),
             'qty': jh.prepare_qty(qty, side),
             'price': current_price,
-            'role': role
+            'role': role,
+            'description': description
         })
 
         store.orders.add_order(order)
@@ -42,7 +44,7 @@ class Sandbox(Exchange):
 
         return order
 
-    def limit_order(self, symbol, qty, price, side, role, flags):
+    def limit_order(self, symbol, qty, price, side, role, flags, description):
         """
 
         :param symbol:
@@ -51,6 +53,7 @@ class Sandbox(Exchange):
         :param side:
         :param role:
         :param flags:
+        :param description:
         :return:
         """
         order = Order({
@@ -62,14 +65,15 @@ class Sandbox(Exchange):
             'flag': self.get_exec_inst(flags),
             'qty': jh.prepare_qty(qty, side),
             'price': price,
-            'role': role
+            'role': role,
+            'description': description
         })
 
         store.orders.add_order(order)
 
         return order
 
-    def stop_order(self, symbol, qty, price, side, role, flags):
+    def stop_order(self, symbol, qty, price, side, role, flags, description):
         """
 
         :param symbol:
@@ -89,7 +93,8 @@ class Sandbox(Exchange):
             'flag': self.get_exec_inst(flags),
             'qty': jh.prepare_qty(qty, side),
             'price': price,
-            'role': role
+            'role': role,
+            'description': description
         })
 
         store.orders.add_order(order)

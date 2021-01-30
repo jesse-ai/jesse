@@ -28,6 +28,7 @@ class Order:
         self.executed_at = None
         self.canceled_at = None
         self.role = None
+        self.description = None
 
         if attributes is None:
             attributes = {}
