@@ -301,7 +301,10 @@ def import_candles(exchange, symbol, start_date, skip_confirmation):
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
 @click.option('--tradingview/--no-tradingview', default=False,
               help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
-def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview):
+@click.option('--tradingview-debug/--no-tradingview-debug', default=False,
+              help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts. "
+                   "This flag will also generate an additional file to add to TradingView with a visual indicator label for each order, with debugging information to know why each order was fired.")
+def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview, tradingview_debug):
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
     """
@@ -325,6 +328,9 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
             config['env']['exchanges'][e]['fee'] = 0
             get_exchange(e).fee = 0
 
+    # tradingview_debug flag
+    if True == tradingview_debug:
+        tradingview = True
     backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv,
                       json=json)
 
