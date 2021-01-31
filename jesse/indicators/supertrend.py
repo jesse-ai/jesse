@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-SuperTrend = namedtuple('SuperTrend', ['trend', 'changed', 'switched_to', 'current_trend'])
+SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 
 
 def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> SuperTrend:
@@ -15,7 +15,7 @@ def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> Su
     :param factor: int - default=3
     :param sequential: bool - default=False
 
-    :return: SuperTrend(trend, changed, switched_to, current_trend)
+    :return: SuperTrend(trend, changed)
     """
 
     if not sequential and len(candles) > 240:
@@ -58,7 +58,6 @@ def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> Su
             super_trend[i - 1] = prevLowerBand
         prevSuperTrend = super_trend[i - 1]
 
-    switchedTo = ''
     for i in range(period, len(candles)):
         prevClose = candles[:, 2][i - 1]
         prevUpperBand = upper_band[i - 1]
@@ -72,26 +71,18 @@ def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> Su
             if candles[:, 2][i] <= currUpperBand:
                 super_trend[i] = currUpperBand  # remain in DOWNTREND
                 changed[i] = False
-                switched_to = ''
-                current_trend = 'dowtrend'
             else:
                 super_trend[i] = currLowerBand  # switch to UPTREND
                 changed[i] = True
-                switched_to = 'uptrend'
-                current_trend = 'uptrend'
         elif prevSuperTrend == prevLowerBand:  # if currently in UPTREND
             if candles[:, 2][i] >= currLowerBand:
                 super_trend[i] = currLowerBand  # remain in UPTREND
                 changed[i] = False
-                switched_to = ''
-                current_trend = 'uptrend'
             else:
                 super_trend[i] = currUpperBand  # switch to DOWNTREND
                 changed[i] = True
-                switched_to = 'downtrend'
-                current_trend = 'downtrend'
 
     if sequential:
-        return SuperTrend(super_trend, changed, switched_to, current_trend)
+        return SuperTrend(super_trend, changed)
     else:
-        return SuperTrend(super_trend[-1], changed[-1], switched_to, current_trend)
+        return SuperTrend(super_trend[-1], changed[-1])
