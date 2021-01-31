@@ -12,7 +12,7 @@ def test_open_pl_and_total_open_trades():
     assert store.app.total_open_pl == 97  # 99 - 2
 
 
-def test_statistics_for_trades_without_fee():
+def test_metrics_for_trades_without_fee():
     single_route_backtest('TestMetrics1')
 
     trades = store.completed_trades.trades
