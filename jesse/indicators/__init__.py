@@ -92,6 +92,7 @@ from .rsi import rsi
 from .rsx import rsx
 from .sar import sar
 from .sarext import sarext
+from .sinwma import sinwma
 from .sma import sma
 from .smma import smma
 from .srsi import srsi

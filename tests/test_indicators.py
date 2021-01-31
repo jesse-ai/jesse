@@ -1285,6 +1285,15 @@ def test_sar_ext():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_sinwma():
+    candles = np.array(mama_candles)
+
+    single = ta.sinwma(candles)
+    seq = ta.sinwma(candles, sequential=True)
+
+    assert round(single, 2) == 218.86
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_sma():
     close_prices = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29]
