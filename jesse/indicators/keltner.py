@@ -8,7 +8,7 @@ from jesse.helpers import get_candle_source
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 
 
-def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, ma_type: int = 1, source_type: str = "close",
+def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype: int = 1, source_type: str = "close",
             sequential: bool = False) -> KeltnerChannel:
     """
     Keltner Channels
@@ -16,7 +16,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, ma_typ
     :param candles: np.ndarray
     :param period: int - default: 20
     :param multiplier: int - default: 2
-    :param ma_type: int - default: 1
+    :param matype: int - default: 1
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
@@ -27,7 +27,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, ma_typ
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    e = talib.MA(source, timeperiod=period, matype=ma_type)
+    e = talib.MA(source, timeperiod=period, matype=matype)
     a = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     up = e + a * multiplier

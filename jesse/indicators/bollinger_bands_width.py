@@ -6,7 +6,7 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, ma_type: int = 0,
+def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, matype: int = 0,
                           source_type: str = "close",
                           sequential: bool = False) -> Union[float, np.ndarray]:
     """
@@ -16,7 +16,7 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 
     :param period: int - default: 20
     :param devup: float - default: 2
     :param devdn: float - default: 2
-    :param ma_type: int - default: 0
+    :param matype: int - default: 0
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
@@ -27,7 +27,7 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 
 
     source = get_candle_source(candles, source_type=source_type)
     upperbands, middlebands, lowerbands = talib.BBANDS(source, timeperiod=period, nbdevup=devup, nbdevdn=devdn,
-                                                       matype=ma_type)
+                                                       matype=matype)
 
     if sequential:
         return (upperbands - lowerbands) / middlebands

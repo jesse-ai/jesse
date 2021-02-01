@@ -92,8 +92,8 @@ def test_apo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.apo(candles, fast_period=12, slow_period=26, ma_type=1)
-    seq = ta.apo(candles, fast_period=12, slow_period=26, ma_type=1, sequential=True)
+    single = ta.apo(candles, fast_period=12, slow_period=26, matype=1)
+    seq = ta.apo(candles, fast_period=12, slow_period=26, matype=1, sequential=True)
 
     assert round(single, 2) == -15.32
     assert len(seq) == len(candles)
@@ -819,9 +819,9 @@ def test_macd():
 def test_macdext():
     candles = np.array(mama_candles)
 
-    single = ta.macdext(candles, fast_period=12, fast_ma_type=0, slow_period=26, slow_ma_type=0, signal_period=9,
-                        signal_ma_type=0)
-    seq = ta.macdext(candles, fast_period=12, fast_ma_type=0, slow_period=26, slow_ma_type=0, signal_period=9, signal_ma_type=0,
+    single = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
+                        signal_matype=0)
+    seq = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9, signal_matype=0,
                      sequential=True)
 
     assert type(single).__name__ == 'MACDEXT'
@@ -1132,8 +1132,8 @@ def test_ppo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.ppo(candles, fast_period=12, slow_period=26, ma_type=1)
-    seq = ta.ppo(candles, fast_period=12, slow_period=26, ma_type=1, sequential=True)
+    single = ta.ppo(candles, fast_period=12, slow_period=26, matype=1)
+    seq = ta.ppo(candles, fast_period=12, slow_period=26, matype=1, sequential=True)
 
     assert round(single, 0) == -7
     assert len(seq) == len(candles)
@@ -1347,13 +1347,13 @@ def test_stddev():
 def test_stoch():
     candles = np.array(stoch_candles)
 
-    stoch = ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_ma_type=0, slowd_period=3, slowd_ma_type=0)
+    stoch = ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
     k, d = stoch
     assert type(stoch).__name__ == 'Stochastic'
     assert round(k, 2) == 53.68
     assert round(d, 2) == 49.08
 
-    stoch = ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_ma_type=0, slowd_period=3, slowd_ma_type=0,
+    stoch = ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0,
                      sequential=True)
     assert stoch.d[-1] == d
     assert stoch.k[-1] == k
@@ -1364,8 +1364,8 @@ def test_stoch():
 def test_stochf():
     candles = np.array(mama_candles)
 
-    single = ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_ma_type=0)
-    seq = ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_ma_type=0, sequential=True)
+    single = ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=0)
+    seq = ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=0, sequential=True)
 
     assert type(single).__name__ == 'StochasticFast'
     assert round(single.k, 2) == 4.87
