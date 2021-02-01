@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def correl(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.ndarray]:
+def correl(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     CORREL - Pearson's Correlation Coefficient (r)
 

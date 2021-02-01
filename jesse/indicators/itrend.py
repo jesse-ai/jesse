@@ -7,7 +7,7 @@ from jesse.helpers import get_candle_source
 ITREND = namedtuple('ITREND', ['signal', 'it', 'trigger'])
 
 
-def itrend(candles: np.ndarray, alpha=0.07, source_type="hl2", sequential=False) -> ITREND:
+def itrend(candles: np.ndarray, alpha: float = 0.07, source_type: str = "hl2", sequential: bool = False) -> ITREND:
     """
     Instantaneous Trendline
 

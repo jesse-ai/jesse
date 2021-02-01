@@ -6,7 +6,7 @@ import tulipy as ti
 from jesse.helpers import get_candle_source
 
 
-def nvi(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def nvi(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     NVI - Negative Volume Index
 

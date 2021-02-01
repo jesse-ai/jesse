@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def trix(candles: np.ndarray, period=18, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def trix(candles: np.ndarray, period: int = 18, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     TRIX - 1-day Rate-Of-Change (ROC) of a Triple Smooth EMA
 

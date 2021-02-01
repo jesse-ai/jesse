@@ -1,14 +1,16 @@
-import talib
 from collections import namedtuple
 
 import numpy as np
+import talib
 
 from jesse.helpers import get_candle_source
 
-DamianiVolatmeter = namedtuple('DamianiVolatmeter', ['vol', 'anti' ])
+DamianiVolatmeter = namedtuple('DamianiVolatmeter', ['vol', 'anti'])
 
 
-def damiani_volatmeter(candles: np.ndarray, vis_atr=13, vis_std=20, sed_atr=40, sed_std=100, threshold=1.4, source_type="close", sequential=False) -> DamianiVolatmeter:
+def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20, sed_atr: int = 40, sed_std: int = 100,
+                       threshold: float = 1.4, source_type: str = "close",
+                       sequential: bool = False) -> DamianiVolatmeter:
     """
     Damiani Volatmeter
 
@@ -39,7 +41,7 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr=13, vis_std=20, sed_atr=40, 
 
     for i in range(source.shape[0]):
         if not (i < sed_std):
-            vol[i]=atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
+            vol[i] = atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
             anti_thres = np.std(source[i - vis_std:i]) / np.std(source[i - sed_std:i])
             t[i] = threshold - anti_thres
 

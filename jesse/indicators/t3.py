@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def t3(candles: np.ndarray, period=5, vfactor=0, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: str = "close",
+       sequential: bool = False) -> Union[float, np.ndarray]:
     """
     T3 - Triple Exponential Moving Average (T3)
 

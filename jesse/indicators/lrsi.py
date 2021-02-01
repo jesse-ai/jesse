@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 
-def lrsi(candles: np.ndarray, alpha=0.2, sequential=False) -> Union[float, np.ndarray]:
+def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     RSI Laguerre Filter
 

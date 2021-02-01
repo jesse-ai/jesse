@@ -6,7 +6,7 @@ from scipy.signal import argrelextrema
 EXTREMA = namedtuple('EXTREMA', ['min', 'max', 'last_min', 'last_max'])
 
 
-def minmax(candles: np.ndarray, order=3, sequential=False) -> EXTREMA:
+def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXTREMA:
     """
     minmax - Get extrema
 

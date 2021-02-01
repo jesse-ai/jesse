@@ -5,7 +5,8 @@ import numpy as np
 from jesse.helpers import get_candle_source
 
 
-def dec_osc(candles: np.ndarray, hp_period=125, k=1, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type: str = "close",
+            sequential: bool = False) -> Union[float, np.ndarray]:
     """
     Ehlers Decycler Oscillator
 

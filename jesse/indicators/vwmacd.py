@@ -6,12 +6,13 @@ import talib
 VWMACD = namedtuple('VWMACD', ['macd', 'signal', 'hist'])
 
 
-def vwmacd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, sequential=False) -> VWMACD:
+def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signalperiod: int = 9,
+           sequential: bool = False) -> VWMACD:
     """
     VWMACD - Volume Weighted Moving Average Convergence/Divergence
 
     :param candles: np.ndarray
-    :param fastperiod: int - default: 12
+    :param fast_period: int - default: 12
     :param slow_period: int - default: 26
     :param signal_period: int - default: 9
     :param sequential: bool - default: False
@@ -21,8 +22,8 @@ def vwmacd(candles: np.ndarray, fastperiod=12, slowperiod=26, signalperiod=9, se
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slowperiod) / talib.SMA(candles[:, 5], slowperiod)
-    vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fastperiod) / talib.SMA(candles[:, 5], fastperiod)
+    vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slow_period) / talib.SMA(candles[:, 5], slow_period)
+    vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fast_period) / talib.SMA(candles[:, 5], fast_period)
     vwmacd = vwma_fast - vwma_slow
     signal = talib.EMA(vwmacd, signalperiod)
     hist = vwmacd - signal

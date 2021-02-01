@@ -6,7 +6,7 @@ import talib
 AO = namedtuple('AO', ['osc', 'change'])
 
 
-def ao(candles: np.ndarray, sequential=False) -> AO:
+def ao(candles: np.ndarray, sequential: bool = False) -> AO:
     """
     Awesome Oscillator
 

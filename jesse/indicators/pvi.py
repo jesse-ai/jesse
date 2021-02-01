@@ -6,7 +6,7 @@ import tulipy as ti
 from jesse.helpers import get_candle_source
 
 
-def pvi(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def pvi(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     PVI - Positive Volume Index
 

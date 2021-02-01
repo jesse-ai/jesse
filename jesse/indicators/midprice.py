@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def midprice(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:
+def midprice(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     MIDPRICE - Midpoint Price over period
 

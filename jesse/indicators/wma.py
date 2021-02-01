@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def wma(candles: np.ndarray, period=30, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def wma(candles: np.ndarray, period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     WMA - Weighted Moving Average
 

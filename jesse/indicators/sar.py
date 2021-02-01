@@ -4,7 +4,8 @@ import numpy as np
 import talib
 
 
-def sar(candles: np.ndarray, acceleration=0.02, maximum=0.2, sequential=False) -> Union[float, np.ndarray]:
+def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     SAR - Parabolic SAR
 

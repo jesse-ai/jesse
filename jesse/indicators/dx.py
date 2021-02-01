@@ -4,8 +4,7 @@ import numpy as np
 import talib
 
 
-
-def dx(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:
+def dx(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     DX - Directional Movement Index
 

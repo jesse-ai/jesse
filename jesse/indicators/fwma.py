@@ -1,13 +1,14 @@
-from typing import Union
 from math import fabs
+from typing import Union
+
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
-
 
 from jesse.helpers import get_candle_source
 
 
-def fwma(candles: np.ndarray, period=5, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Fibonacci's Weighted Moving Average (FWMA)
 
@@ -27,6 +28,7 @@ def fwma(candles: np.ndarray, period=5, source_type="close", sequential=False) -
     res = np.average(swv, weights=fibs, axis=-1)
 
     return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
+
 
 def fibonacci(n: int = 2, **kwargs: dict) -> np.array:
     """Fibonacci Sequence as a numpy array"""

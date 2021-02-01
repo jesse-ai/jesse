@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def medprice(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def medprice(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     MEDPRICE - Median Price
 

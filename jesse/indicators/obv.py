@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def obv(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def obv(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     OBV - On Balance Volume
 

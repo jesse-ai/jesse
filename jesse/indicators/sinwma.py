@@ -1,14 +1,15 @@
+from math import pi
+from math import sin
 from typing import Union
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
-from math import pi
-from math import sin
 
 from jesse.helpers import get_candle_source
 
 
-def sinwma(candles: np.ndarray, period=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def sinwma(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Sine Weighted Moving Average (SINWMA)
 

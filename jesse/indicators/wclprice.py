@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def wclprice(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def wclprice(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     WCLPRICE - Weighted Close Price
 

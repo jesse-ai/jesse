@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def mfi(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:
+def mfi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     MFI - Money Flow Index
 

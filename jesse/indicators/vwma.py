@@ -6,7 +6,8 @@ import tulipy as ti
 from jesse.helpers import get_candle_source
 
 
-def vwma(candles: np.ndarray, period=20, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     VWMA - Volume Weighted Moving Average
 

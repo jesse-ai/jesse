@@ -6,14 +6,15 @@ import talib
 StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
 
 
-def stochf(candles: np.ndarray, fastk_period=5, fastd_period=3, fastd_matype=0, sequential=False) -> StochasticFast:
+def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fastd_ma_type: int = 0,
+           sequential: bool = False) -> StochasticFast:
     """
     Stochastic Fast
 
     :param candles: np.ndarray
     :param fastk_period: int - default=5
     :param fastd_period: int - default=3
-    :param fastd_matype: int - default=0
+    :param fastd_ma_type: int - default=0
     :param sequential: bool - default=False
 
     :return: StochasticFast(k, d)
@@ -27,7 +28,7 @@ def stochf(candles: np.ndarray, fastk_period=5, fastd_period=3, fastd_matype=0, 
         candles[:, 2],
         fastk_period=fastk_period,
         fastd_period=fastd_period,
-        fastd_matype=fastd_matype
+        fastd_ma_type=fastd_ma_type
     )
 
     if sequential:

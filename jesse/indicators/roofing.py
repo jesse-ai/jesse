@@ -6,8 +6,8 @@ from .high_pass import high_pass
 from .supersmoother import supersmoother
 
 
-def roofing(candles: np.ndarray, hp_period=48, lp_period=10, source_type="close", sequential=False) -> Union[
-    float, np.ndarray]:
+def roofing(candles: np.ndarray, hp_period: int = 48, lp_period: int = 10, source_type: str = "close",
+            sequential: bool = False) -> Union[float, np.ndarray]:
     """
     Roofing Filter indicator by John F. Ehlers
 
@@ -17,7 +17,7 @@ def roofing(candles: np.ndarray, hp_period=48, lp_period=10, source_type="close"
     :param sequential: bool - default=False
 
     :return: float | np.ndarray
-    """
+        """
 
     if not sequential and len(candles) > 240:
         candles = candles[-240:]

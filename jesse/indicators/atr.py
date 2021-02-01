@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def atr(candles: np.ndarray, period=14, sequential=False) -> Union[float, np.ndarray]:
+def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     ATR - Average True Range
 

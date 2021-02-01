@@ -6,7 +6,7 @@ import talib
 DI = namedtuple('DI', ['plus', 'minus'])
 
 
-def di(candles: np.ndarray, period=14, sequential=False) -> DI:
+def di(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DI:
     """
     DI - Directional Indicator
 

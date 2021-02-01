@@ -5,7 +5,8 @@ import numpy as np
 from jesse.helpers import get_candle_source
 
 
-def mcginley_dynamic(candles: np.ndarray, period=10, k=0.6, source_type="close", sequential=False) -> Union[
+def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, source_type: str = "close",
+                     sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
     McGinley Dynamic

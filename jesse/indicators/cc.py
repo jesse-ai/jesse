@@ -6,7 +6,9 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def cc(candles: np.ndarray, wma_period=10, roc_short_period=11, roc_long_period=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, roc_long_period: int = 14,
+       source_type: str = "close",
+       sequential: bool = False) -> Union[float, np.ndarray]:
     """
     CC - Coppock Curve
 
@@ -23,6 +25,7 @@ def cc(candles: np.ndarray, wma_period=10, roc_short_period=11, roc_long_period=
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.WMA(talib.ROC(source, timeperiod=roc_long_period) + talib.ROC(source, timeperiod=roc_short_period), timeperiod=wma_period)
+    res = talib.WMA(talib.ROC(source, timeperiod=roc_long_period) + talib.ROC(source, timeperiod=roc_short_period),
+                    timeperiod=wma_period)
 
     return res if sequential else res[-1]

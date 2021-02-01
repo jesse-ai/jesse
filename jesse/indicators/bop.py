@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def bop(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def bop(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     BOP - Balance Of Power
 

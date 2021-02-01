@@ -4,14 +4,15 @@ import numpy as np
 import talib
 
 
-def sarext(candles: np.ndarray, startvalue=0, offsetonreverse=0, accelerationinitlong=0, accelerationlong=0,
-           accelerationmaxlong=0, accelerationinitshort=0, accelerationshort=0, accelerationmaxshort=0,
-           sequential=False) -> Union[float, np.ndarray]:
+def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float = 0, acceleration_init_long: float = 0,
+           acceleration_long: float = 0, acceleration_max_long: float = 0, acceleration_init_short: float = 0,
+           acceleration_short: float = 0, acceleration_max_short: float = 0, sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     SAREXT - Parabolic SAR - Extended
 
     :param candles: np.ndarray
-    :param startvalue: float - default: 0
+    :param start_value: float - default: 0
     :param offsetonreverse: float - default: 0
     :param accelerationinitlong: float - default: 0
     :param accelerationlong: float - default: 0
@@ -26,9 +27,9 @@ def sarext(candles: np.ndarray, startvalue=0, offsetonreverse=0, accelerationini
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    res = talib.SAREXT(candles[:, 3], candles[:, 4], startvalue=startvalue, offsetonreverse=offsetonreverse,
-                       accelerationinitlong=accelerationinitlong, accelerationlong=accelerationlong,
-                       accelerationmaxlong=accelerationmaxlong, accelerationinitshort=accelerationinitshort,
-                       accelerationshort=accelerationshort, accelerationmaxshort=accelerationmaxshort)
+    res = talib.SAREXT(candles[:, 3], candles[:, 4], startvalue=start_value, offsetonreverse=offset_on_reverse,
+                       accelerationinitlong=acceleration_init_long, accelerationlong=acceleration_long,
+                       accelerationmaxlong=acceleration_max_long, accelerationinitshort=acceleration_init_short,
+                       accelerationshort=acceleration_short, accelerationmaxshort=acceleration_max_short)
 
     return res if sequential else res[-1]

@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def sma(candles: np.ndarray, period=5, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     SMA - Simple Moving Average
 

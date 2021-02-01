@@ -7,7 +7,8 @@ from jesse.helpers import get_candle_source
 
 SINEWAVE = namedtuple('SINEWAVE', ['sine', 'lead'])
 
-def ht_sine(candles: np.ndarray, source_type="close", sequential=False) -> SINEWAVE:
+
+def ht_sine(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> SINEWAVE:
     """
     HT_SINE - Hilbert Transform - SineWave
 

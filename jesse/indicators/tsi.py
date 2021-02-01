@@ -6,8 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def tsi(candles: np.ndarray, long_period=25, short_period=13, source_type="close", sequential=False) -> Union[
-    float, np.ndarray]:
+def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, source_type: str = "close",
+        sequential: bool = False) -> Union[float, np.ndarray]:
     """
      True strength index (TSI)
 

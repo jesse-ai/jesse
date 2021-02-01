@@ -6,7 +6,7 @@ import talib
 DM = namedtuple('DM', ['plus', 'minus'])
 
 
-def dm(candles: np.ndarray, period=14, sequential=False) -> DM:
+def dm(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DM:
     """
     DM - Directional Movement
 
@@ -19,8 +19,8 @@ def dm(candles: np.ndarray, period=14, sequential=False) -> DM:
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-    MINUS_DI = talib.MINUS_DM(candles[:, 3], candles[:, 4],  timeperiod=period)
-    PLUS_DI = talib.PLUS_DM(candles[:, 3], candles[:, 4],  timeperiod=period)
+    MINUS_DI = talib.MINUS_DM(candles[:, 3], candles[:, 4], timeperiod=period)
+    PLUS_DI = talib.PLUS_DM(candles[:, 3], candles[:, 4], timeperiod=period)
 
     if sequential:
         return DM(PLUS_DI, MINUS_DI)

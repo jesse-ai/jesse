@@ -7,7 +7,7 @@ from jesse.helpers import get_candle_source, np_shift
 AG = namedtuple('AG', ['jaw', 'teeth', 'lips'])
 
 
-def alligator(candles: np.ndarray, source_type="close", sequential=False) -> AG:
+def alligator(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> AG:
     """
     Alligator
 
@@ -32,7 +32,7 @@ def alligator(candles: np.ndarray, source_type="close", sequential=False) -> AG:
         return AG(jaw[-1], teeth[-1], lips[-1])
 
 
-def numpy_ewma(data, window):
+def numpy_ewma(data: np.array, window: int):
     """
 
     :param data:
