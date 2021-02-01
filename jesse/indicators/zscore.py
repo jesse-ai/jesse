@@ -24,7 +24,7 @@ def zscore(candles: np.ndarray, period: int = 14, ma_type: int = 0, nbdev: float
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    means = talib.MA(source, timeperiod=period, ma_type=ma_type)
+    means = talib.MA(source, timeperiod=period, matype=ma_type)
     sigmas = talib.STDDEV(source, timeperiod=period, nbdev=nbdev)
     zScores = (source - means) / sigmas
 

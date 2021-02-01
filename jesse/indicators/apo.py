@@ -6,8 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def apo(candles: np.ndarray, fast_period=12, slow_period=26, ma_type=0, source_type: str ="close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def apo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, ma_type: int = 0, source_type: str = "close",
+        sequential: bool = False) -> Union[float, np.ndarray]:
     """
     APO - Absolute Price Oscillator
 
@@ -25,6 +25,6 @@ def apo(candles: np.ndarray, fast_period=12, slow_period=26, ma_type=0, source_t
 
     source = get_candle_source(candles, source_type=source_type)
 
-    res = talib.APO(source, fast_period=fast_period, slow_period=slow_period, ma_type=ma_type)
+    res = talib.APO(source, fastperiod=fast_period, slowperiod=slow_period, matype=ma_type)
 
     return res if sequential else res[-1]

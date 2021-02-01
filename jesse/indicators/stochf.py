@@ -28,7 +28,7 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
         candles[:, 2],
         fastk_period=fastk_period,
         fastd_period=fastd_period,
-        fastd_ma_type=fastd_ma_type
+        fastd_matype=fastd_ma_type
     )
 
     if sequential:

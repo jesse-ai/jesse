@@ -24,6 +24,6 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, ma_ty
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.PPO(source, fast_period=fast_period, slow_period=slow_period, ma_type=ma_type)
+    res = talib.PPO(source, fastperiod=fast_period, slowperiod=slow_period, matype=ma_type)
 
     return res if sequential else res[-1]

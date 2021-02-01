@@ -30,9 +30,9 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
         candles[:, 2],
         fastk_period=fastk_period,
         slowk_period=slowk_period,
-        slowk_ma_type=slowk_ma_type,
+        slowk_matype=slowk_ma_type,
         slowd_period=slowd_period,
-        slowd_ma_type=slowd_ma_type
+        slowd_matype=slowd_ma_type
     )
 
     if sequential:

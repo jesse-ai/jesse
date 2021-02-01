@@ -30,9 +30,9 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_ma_type: int = 0, s
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    macd, macdsignal, macdhist = talib.MACDEXT(source, fast_period=fast_period, fastma_type=fast_ma_type,
-                                               slow_period=slow_period, slowma_type=slow_ma_type,
-                                               signalperiod=signal_period, signalma_type=signal_ma_type)
+    macd, macdsignal, macdhist = talib.MACDEXT(source, fastperiod=fast_period, fastmatype=fast_ma_type,
+                                               slowperiod=slow_period, slowmatype=slow_ma_type,
+                                               signalperiod=signal_period, signalmatype=signal_ma_type)
 
     if sequential:
         return MACDEXT(macd, macdsignal, macdhist)

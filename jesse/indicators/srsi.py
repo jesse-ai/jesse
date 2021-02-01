@@ -9,7 +9,7 @@ from jesse.helpers import get_candle_source
 StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
 
 
-def srsi(candles: np.ndarray, period_rsi: int = 14, period_stoch: int = 14, k: int = 3, d: int = 3,
+def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int = 3, d: int = 3,
          source_type: str = "close", sequential: bool = False) -> StochasticRSI:
     """
     Stochastic RSI
@@ -28,7 +28,7 @@ def srsi(candles: np.ndarray, period_rsi: int = 14, period_stoch: int = 14, k: i
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    rsi_np = talib.RSI(source, timeperiod=period_rsi)
+    rsi_np = talib.RSI(source, timeperiod=period)
     rsi_np = rsi_np[np.logical_not(np.isnan(rsi_np))]
     fast_k, fast_d = ti.stoch(rsi_np, rsi_np, rsi_np, period_stoch, k, d)
 

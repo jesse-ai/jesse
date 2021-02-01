@@ -27,7 +27,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, ma_typ
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    e = talib.MA(source, timeperiod=period, ma_type=ma_type)
+    e = talib.MA(source, timeperiod=period, matype=ma_type)
     a = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     up = e + a * multiplier

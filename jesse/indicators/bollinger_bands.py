@@ -29,7 +29,7 @@ def bollinger_bands(candles: np.ndarray, period: int = 20, devup: float = 2, dev
 
     source = get_candle_source(candles, source_type=source_type)
     upperbands, middlebands, lowerbands = talib.BBANDS(source, timeperiod=period, nbdevup=devup, nbdevdn=devdn,
-                                                       ma_type=ma_type)
+                                                       matype=ma_type)
 
     if sequential:
         return BollingerBands(upperbands, middlebands, lowerbands)
