@@ -7,9 +7,6 @@ from jesse.models import store_orderbook_into_db
 
 
 class OrderbookState:
-    """
-
-    """
     def __init__(self):
         self.storage = {}
         self.temp_storage = {}
@@ -25,12 +22,6 @@ class OrderbookState:
             self.storage[key] = DynamicNumpyArray((60, 2, 50, 2), drop_at=60)
 
     def format_orderbook(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
 
         # trim prices
@@ -46,13 +37,6 @@ class OrderbookState:
         ])
 
     def add_orderbook(self, exchange: str, symbol: str, asks: list, bids: list):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param asks:
-        :param bids:
-        """
         key = jh.key(exchange, symbol)
         self.temp_storage[key]['asks'] = asks
         self.temp_storage[key]['bids'] = bids
@@ -72,62 +56,26 @@ class OrderbookState:
                 self.storage[key].append(formatted_orderbook)
 
     def get_current_orderbook(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1]
 
     def get_current_asks(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1][0]
 
     def get_best_ask(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1][0][0]
 
     def get_current_bids(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1][1]
 
     def get_best_bid(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1][1][0]
 
     def get_orderbooks(self, exchange: str, symbol: str) -> np.ndarray:
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][:]
 

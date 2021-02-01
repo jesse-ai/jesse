@@ -7,9 +7,6 @@ from jesse.models import store_trade_into_db
 
 
 class TradesState:
-    """
-
-    """
     def __init__(self):
         self.storage = {}
         self.temp_storage = {}
@@ -21,12 +18,6 @@ class TradesState:
             self.temp_storage[key] = DynamicNumpyArray((100, 4))
 
     def add_trade(self, trade: np.ndarray, exchange: str, symbol: str):
-        """
-
-        :param trade:
-        :param exchange:
-        :param symbol:
-        """
         key = jh.key(exchange, symbol)
         if not len(self.temp_storage[key]) or trade[0] - self.temp_storage[key][0][0] < 1000:
             self.temp_storage[key].append(trade)
@@ -59,33 +50,14 @@ class TradesState:
             self.temp_storage[key].append(trade)
 
     def get_trades(self, exchange: str, symbol: str):
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][:]
 
     def get_current_trade(self, exchange: str, symbol: str):
-        """
-
-        :param exchange:
-        :param symbol:
-        :return:
-        """
         key = jh.key(exchange, symbol)
         return self.storage[key][-1]
 
     def get_past_trade(self, exchange: str, symbol: str, number_of_trades_ago: int):
-        """
-
-        :param exchange:
-        :param symbol:
-        :param number_of_trades_ago:
-        :return:
-        """
         if number_of_trades_ago > 120:
             raise ValueError('Max accepted value for number_of_trades_ago is 120')
 

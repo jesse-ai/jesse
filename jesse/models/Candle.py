@@ -5,9 +5,6 @@ from jesse.services.db import db
 
 
 class Candle(peewee.Model):
-    """
-
-    """
     id = peewee.UUIDField(primary_key=True)
     timestamp = peewee.BigIntegerField()
     open = peewee.FloatField()
