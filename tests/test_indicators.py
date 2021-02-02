@@ -224,6 +224,18 @@ def test_cci():
     assert seq[-1] == single
 
 
+def test_cfo():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.cfo(candles)
+    seq = ta.cfo(candles, sequential=True)
+
+    assert round(single, 2) == -66.53
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_chande():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -538,21 +550,21 @@ def test_gauss():
     assert seq[-1] == single
 
 
+def test_high_pass():
+    candles = np.array(mama_candles)
+    single = ta.high_pass(candles)
+    seq = ta.high_pass(candles, sequential=True)
+    assert round(single, 0) == -101
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_hma():
     candles = np.array(mama_candles)
     single = ta.hma(candles)
     seq = ta.hma(candles, sequential=True)
 
     assert round(single, 0) == 134
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_high_pass():
-    candles = np.array(mama_candles)
-    single = ta.high_pass(candles)
-    seq = ta.high_pass(candles, sequential=True)
-    assert round(single, 0) == -101
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1179,18 +1191,6 @@ def test_roc():
     assert seq[-1] == single
 
 
-def test_roofing():
-    # use the same candles as mama_candles
-    candles = np.array(mama_candles)
-
-    single = ta.roofing(candles)
-    seq = ta.roofing(candles, sequential=True)
-
-    assert round(single, 0) == -36
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
 def test_rocp():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -1223,6 +1223,18 @@ def test_rocr100():
     seq = ta.rocr100(candles, period=14, sequential=True)
 
     assert round(single, 2) == 47.33
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_roofing():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.roofing(candles)
+    seq = ta.roofing(candles, sequential=True)
+
+    assert round(single, 0) == -36
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
