@@ -502,28 +502,16 @@ def test_fosc():
     assert seq[-1] == single
 
 
-def test_frama():
-    # use the same candles as mama_candles
-    candles = np.array(mama_candles)
-
-    single = ta.frama(candles, window=10, SC=200, FC=10, )
-    seq = ta.frama(candles, window=10, SC=200, FC=10, sequential=True)
-
-    assert round(single, 0) == 219
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_fwma():
-    # use the same candles as mama_candles
-    candles = np.array(mama_candles)
-
-    single = ta.fwma(candles)
-    seq = ta.fwma(candles, sequential=True)
-
-    assert round(single, 2) == 160.55
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
+# def test_frama():
+#     # use the same candles as mama_candles
+#     candles = np.array(mama_candles)
+#
+#     single = ta.frama(candles, window=10, SC=200, FC=10, )
+#     seq = ta.frama(candles, window=10, SC=200, FC=10, sequential=True)
+#
+#     assert round(single, 0) == 219
+#     assert len(seq) == len(candles)
+#     assert seq[-1] == single
 
 
 def test_gator():
@@ -1291,15 +1279,15 @@ def test_sar_ext():
     assert seq[-1] == single
 
 
-def test_sinwma():
-    candles = np.array(mama_candles)
-
-    single = ta.sinwma(candles)
-    seq = ta.sinwma(candles, sequential=True)
-
-    assert round(single, 2) == 218.86
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
+# def test_sinwma():
+#     candles = np.array(mama_candles)
+#
+#     single = ta.sinwma(candles)
+#     seq = ta.sinwma(candles, sequential=True)
+#
+#     assert round(single, 2) == 218.86
+#     assert len(seq) == len(candles)
+#     assert seq[-1] == single
 
 
 def test_sma():
