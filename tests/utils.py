@@ -33,13 +33,16 @@ def get_btc_candles():
     return candles
 
 
-def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cross'):
+def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 10_000},
         {'asset': 'BTC', 'balance': 0},
         {'asset': 'ETH', 'balance': 0},
     ]
+
+    if zero_fee:
+        config['env']['exchanges']['Sandbox']['fee'] = 0
 
     if is_futures_trading:
         # used only in futures trading
