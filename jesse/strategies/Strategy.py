@@ -1062,7 +1062,7 @@ class Strategy(ABC):
             self.trade.leverage = self.leverage
             self.trade.orders = [order]
             self.trade.timeframe = self.timeframe
-            self.trade.id = order.id
+            self.trade.id = jh.generate_unique_id()
             self.trade.strategy_name = self.name
             self.trade.exchange = order.exchange
             self.trade.symbol = order.symbol
