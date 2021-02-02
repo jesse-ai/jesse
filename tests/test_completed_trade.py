@@ -1,16 +1,8 @@
 import jesse.helpers as jh
-from jesse.config import config, reset_config
+from jesse.config import config
 from jesse.models import CompletedTrade
 from jesse.store import store
-
-
-def no_fee():
-    config['env']['exchanges']['Sandbox']['fee'] = 0
-
-
-def set_up():
-    reset_config()
-    store.reset(True)
+from .utils import set_up
 
 
 def test_can_add_trade_to_store():
@@ -58,7 +50,7 @@ def test_holding_period():
 
 
 def test_pnl_percentage():
-    no_fee()
+    set_up(zero_fee=True)
 
     # 1x leverage
     trade = CompletedTrade({
@@ -118,7 +110,7 @@ def test_pnl_with_fee():
 
 
 def test_pnl_without_fee():
-    no_fee()
+    set_up(zero_fee=True)
 
     trade = CompletedTrade({
         'type': 'long',
@@ -136,8 +128,8 @@ def test_pnl_without_fee():
     assert trade.pnl == 10
 
 
-def test_R():
-    no_fee()
+def test_r():
+    set_up(zero_fee=True)
 
     trade = CompletedTrade({
         'type': 'long',
@@ -156,7 +148,7 @@ def test_R():
 
 
 def test_risk_percentage():
-    no_fee()
+    set_up(zero_fee=True)
 
     trade = CompletedTrade({
         'type': 'long',
@@ -190,5 +182,3 @@ def test_trade_size():
     })
 
     assert trade.size == 10
-
-
