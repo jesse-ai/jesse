@@ -17,6 +17,7 @@ from .bop import bop
 from .cc import cc
 from .cci import cci
 from .cfo import cfo
+from .cg import cg
 from .chande import chande
 from .cmo import cmo
 from .correl import correl

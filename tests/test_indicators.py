@@ -18,6 +18,14 @@ def test_acosc():
     assert len(seq.osc) == len(candles)
 
 
+def test_cg():
+    candles = np.array(mama_candles)
+    single = ta.cg(candles)
+    seq = ta.cg(candles, sequential=True)
+    assert round(single, 2) == -5.37
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 def test_ad():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
