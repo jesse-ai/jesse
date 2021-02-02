@@ -10,9 +10,6 @@ from jesse.models.Trade import Trade
 
 
 def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
-    """
-    store candle into the database
-    """
     d = {
         'id': jh.generate_unique_id(),
         'symbol': symbol,
@@ -39,12 +36,6 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
 
 
 def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
-    """
-
-    :param exchange:
-    :param symbol:
-    :param ticker:
-    """
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': ticker[0],
@@ -69,12 +60,6 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
 
 
 def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
-    """
-
-    :param exchange:
-    :param symbol:
-    :param trade:
-    """
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': trade[0],
@@ -103,12 +88,6 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
 
 
 def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
-    """
-
-    :param exchange:
-    :param symbol:
-    :param orderbook:
-    """
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': jh.now_to_timestamp(),
@@ -137,14 +116,6 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
 
 
 def fetch_candles_from_db(exchange: str, symbol: str, start_date: int, finish_date: int) -> tuple:
-    """
-
-    :param exchange:
-    :param symbol:
-    :param start_date:
-    :param finish_date:
-    :return:
-    """
     candles_tuple = tuple(
         Candle.select(
             Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
