@@ -6,7 +6,7 @@ import talib
 AC = namedtuple('AC', ['osc', 'change'])
 
 
-def acosc(candles: np.ndarray, sequential=False) -> AC:
+def acosc(candles: np.ndarray, sequential: bool = False) -> AC:
     """
     Acceleration / Deceleration Oscillator (AC)
 

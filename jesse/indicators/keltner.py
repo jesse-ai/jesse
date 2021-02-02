@@ -8,7 +8,8 @@ from jesse.helpers import get_candle_source
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 
 
-def keltner(candles: np.ndarray, period=20, multiplier=2, matype=1, source_type="close", sequential=False) -> KeltnerChannel:
+def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype: int = 1, source_type: str = "close",
+            sequential: bool = False) -> KeltnerChannel:
     """
     Keltner Channels
 

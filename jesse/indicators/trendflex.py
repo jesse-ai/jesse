@@ -6,8 +6,8 @@ import numpy as np
 from .supersmoother import supersmoother
 
 
-
-def trendflex(candles: np.ndarray, period=20, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def trendflex(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Trendflex indicator by John F. Ehlers
 

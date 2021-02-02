@@ -33,8 +33,8 @@ def test_adosc():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.adosc(candles, fastperiod=3, slowperiod=10)
-    seq = ta.adosc(candles, fastperiod=3, slowperiod=10, sequential=True)
+    single = ta.adosc(candles, fast_period=3, slow_period=10)
+    seq = ta.adosc(candles, fast_period=3, slow_period=10, sequential=True)
 
     assert round(single / 1000000, 3) == -1.122
     assert len(seq) == len(candles)
@@ -92,8 +92,8 @@ def test_apo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.apo(candles, fastperiod=12, slowperiod=26, matype=1)
-    seq = ta.apo(candles, fastperiod=12, slowperiod=26, matype=1, sequential=True)
+    single = ta.apo(candles, fast_period=12, slow_period=26, matype=1)
+    seq = ta.apo(candles, fast_period=12, slow_period=26, matype=1, sequential=True)
 
     assert round(single, 2) == -15.32
     assert len(seq) == len(candles)
@@ -171,7 +171,6 @@ def test_bollinger_bands():
     assert round(l, 1) == 136.7
 
     seq_bb = ta.bollinger_bands(candles, sequential=True)
-    print(seq_bb)
     assert seq_bb.upperband[-1] == u
     assert len(seq_bb.upperband) == len(candles)
     assert len(seq_bb.middleband) == len(candles)
@@ -514,6 +513,16 @@ def test_frama():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_fwma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.fwma(candles)
+    seq = ta.fwma(candles, sequential=True)
+
+    assert round(single,  2) == 160.55
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_gator():
     candles = np.array(mama_candles)
@@ -793,8 +802,8 @@ def test_lrsi():
 def test_macd():
     candles = np.array(mama_candles)
 
-    single = ta.macd(candles, fastperiod=12, slowperiod=26, signalperiod=9)
-    seq = ta.macd(candles, fastperiod=12, slowperiod=26, signalperiod=9, sequential=True)
+    single = ta.macd(candles, fast_period=12, slow_period=26, signal_period=9)
+    seq = ta.macd(candles, fast_period=12, slow_period=26, signal_period=9, sequential=True)
 
     assert type(single).__name__ == 'MACD'
     assert round(single.macd, 2) == -15.32
@@ -810,9 +819,9 @@ def test_macd():
 def test_macdext():
     candles = np.array(mama_candles)
 
-    single = ta.macdext(candles, fastperiod=12, fastmatype=0, slowperiod=26, slowmatype=0, signalperiod=9,
-                        signalmatype=0)
-    seq = ta.macdext(candles, fastperiod=12, fastmatype=0, slowperiod=26, slowmatype=0, signalperiod=9, signalmatype=0,
+    single = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
+                        signal_matype=0)
+    seq = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9, signal_matype=0,
                      sequential=True)
 
     assert type(single).__name__ == 'MACDEXT'
@@ -1123,8 +1132,8 @@ def test_ppo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.ppo(candles, fastperiod=12, slowperiod=26, matype=1)
-    seq = ta.ppo(candles, fastperiod=12, slowperiod=26, matype=1, sequential=True)
+    single = ta.ppo(candles, fast_period=12, slow_period=26, matype=1)
+    seq = ta.ppo(candles, fast_period=12, slow_period=26, matype=1, sequential=True)
 
     assert round(single, 0) == -7
     assert len(seq) == len(candles)
@@ -1263,18 +1272,27 @@ def test_sar_ext():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.sarext(candles, startvalue=0.02, offsetonreverse=0, accelerationinitlong=0.02, accelerationlong=0.02,
-                       accelerationmaxlong=0.2, accelerationinitshort=0.02, accelerationshort=0.02,
-                       accelerationmaxshort=0.2)
-    seq = ta.sarext(candles, startvalue=0.02, offsetonreverse=0, accelerationinitlong=0.02, accelerationlong=0.02,
-                    accelerationmaxlong=0.2, accelerationinitshort=0.02, accelerationshort=0.02,
-                    accelerationmaxshort=0.2,
+    single = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02, acceleration_long=0.02,
+                       acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
+                       acceleration_max_short=0.2)
+    seq = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02, acceleration_long=0.02,
+                    acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
+                    acceleration_max_short=0.2,
                     sequential=True)
 
     assert round(single, 2) == -243.15
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_sinwma():
+    candles = np.array(mama_candles)
+
+    single = ta.sinwma(candles)
+    seq = ta.sinwma(candles, sequential=True)
+
+    assert round(single, 2) == 218.86
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_sma():
     close_prices = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29]
@@ -1598,8 +1616,8 @@ def test_vwma():
 def test_vwmacd():
     candles = np.array(mama_candles)
 
-    single = ta.vwmacd(candles, fastperiod=12, slowperiod=26, signalperiod=9)
-    seq = ta.vwmacd(candles, fastperiod=12, slowperiod=26, signalperiod=9, sequential=True)
+    single = ta.vwmacd(candles, fast_period=12, slow_period=26, signalperiod=9)
+    seq = ta.vwmacd(candles, fast_period=12, slow_period=26, signalperiod=9, sequential=True)
 
     assert type(single).__name__ == 'VWMACD'
     assert round(single.macd, 2) == -31.37

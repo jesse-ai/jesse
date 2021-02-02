@@ -7,7 +7,8 @@ from jesse.helpers import get_candle_source
 
 MSW = namedtuple('MSW', ['sine', 'lead'])
 
-def msw(candles: np.ndarray, period=5, source_type="close", sequential=False) -> MSW:
+
+def msw(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> MSW:
     """
     MSW - Mesa Sine Wave
 

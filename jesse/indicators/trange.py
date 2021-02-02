@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def trange(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def trange(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     TRANGE - True Range
 

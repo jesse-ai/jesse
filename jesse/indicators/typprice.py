@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def typprice(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def typprice(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     TYPPRICE - Typical Price
 

@@ -1,14 +1,11 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
-
-from jesse.helpers import get_candle_source
 
 VI = namedtuple('VI', ['plus', 'minus'])
 
 
-def vi(candles: np.ndarray, period=14, sequential=False) -> VI:
+def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
     """
     Vortex Indicator (VI)
 

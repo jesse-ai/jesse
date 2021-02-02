@@ -6,7 +6,8 @@ import talib
 import jesse.helpers as jh
 
 
-def dti(candles: np.ndarray, r=14, s=10, u=5, sequential=False) -> Union[float, np.ndarray]:
+def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     DTI by William Blau
 

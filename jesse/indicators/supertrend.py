@@ -6,13 +6,13 @@ import talib
 SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 
 
-def supertrend(candles: np.ndarray, period=10, factor=3, sequential=False) -> SuperTrend:
+def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequential: bool = False) -> SuperTrend:
     """
     SuperTrend
 
     :param candles: np.ndarray
     :param period: int - default=14
-    :param factor: int - default=3
+    :param factor: float - default=3
     :param sequential: bool - default=False
 
     :return: SuperTrend(trend, changed)

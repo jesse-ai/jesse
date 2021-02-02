@@ -4,8 +4,8 @@ import numpy as np
 import talib
 
 
-def ultosc(candles: np.ndarray, timeperiod1=7, timeperiod2=14, timeperiod3=28, sequential=False) -> Union[
-    float, np.ndarray]:
+def ultosc(candles: np.ndarray, timeperiod1: int = 7, timeperiod2: int = 14, timeperiod3: int = 28,
+           sequential: bool = False) -> Union[float, np.ndarray]:
     """
     ULTOSC - Ultimate Oscillator
 

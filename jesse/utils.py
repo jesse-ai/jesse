@@ -36,7 +36,7 @@ def anchor_timeframe(timeframe: str) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.array, series2: Union[float, int, np.array], direction=None, sequential=False) -> bool:
+def crossed(series1: np.array, series2: Union[float, int, np.array], direction=None, sequential: bool = False) -> bool:
     """
     Helper for detecion of crosses
 
@@ -81,7 +81,7 @@ def crossed(series1: np.array, series2: Union[float, int, np.array], direction=N
             return cross_below
 
 
-def estimate_risk(entry_price, stop_price) -> float:
+def estimate_risk(entry_price: float, stop_price: float) -> float:
     """
     estimates the risk per share
 
@@ -95,7 +95,7 @@ def estimate_risk(entry_price, stop_price) -> float:
     return abs(entry_price - stop_price)
 
 
-def limit_stop_loss(entry_price, stop_price, trade_type, max_allowed_risk_percentage) -> float:
+def limit_stop_loss(entry_price: float, stop_price: float, trade_type: str, max_allowed_risk_percentage: int) -> float:
     """
     Limits the stop-loss price according to the max allowed risk percentage.
     (How many percent you're OK with the price going against your position)
@@ -112,8 +112,10 @@ def limit_stop_loss(entry_price, stop_price, trade_type, max_allowed_risk_percen
     return (entry_price - risk) if trade_type == 'long' else (entry_price + risk)
 
 
-def numpy_candles_to_dataframe(candles: np.ndarray, name_date="date", name_open="open", name_high="high",
-                               name_low="low", name_close="close", name_volume="volume") -> pd.DataFrame:
+def numpy_candles_to_dataframe(candles: np.ndarray, name_date: str = "date", name_open: str = "open",
+                               name_high: str = "high",
+                               name_low: str = "low", name_close: str = "close",
+                               name_volume: str = "volume") -> pd.DataFrame:
     """
 
     :param candles:
@@ -131,7 +133,7 @@ def numpy_candles_to_dataframe(candles: np.ndarray, name_date="date", name_open=
     return df
 
 
-def qty_to_size(qty, price) -> float:
+def qty_to_size(qty: float, price: float) -> float:
     """
     converts quantity to position-size
     example: requesting 2 shares at the price of %50 would return $100
@@ -146,7 +148,8 @@ def qty_to_size(qty, price) -> float:
     return qty * price
 
 
-def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price, fee_rate=0) -> float:
+def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, stop_loss_price: float,
+                fee_rate: float = 0) -> float:
     """
     a risk management tool to quickly get the qty based on risk percentage
 
@@ -166,7 +169,7 @@ def risk_to_qty(capital, risk_per_capital, entry_price, stop_loss_price, fee_rat
     return size_to_qty(size, entry_price, fee_rate=fee_rate)
 
 
-def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> float:
+def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: float, entry_price: float) -> float:
     """
     calculates the size of the position based on the amount of risk percentage you're willing to take
     example: round(risk_to_size(10000, 1, 0.7, 8.6)) == 1229
@@ -185,7 +188,7 @@ def risk_to_size(capital_size, risk_percentage, risk_per_qty, entry_price) -> fl
     return min(temp_size, capital_size)
 
 
-def size_to_qty(position_size, entry_price, precision: int = 3, fee_rate: float = 0) -> float:
+def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of %50 would return 2
@@ -253,15 +256,15 @@ def streaks(series: np.array, use_diff=True) -> np.array:
     return res
 
 
-def signal_line(series: np.array, period=10, matype=0):
+def signal_line(series: np.array, period: int = 10, matype: int = 0) -> np.array:
     return MA(series, timeperiod=period, matype=matype)
 
 
-def kelly_criterion(win_rate, ratio_avg_win_loss):
+def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
 
-def dd(msg):
+def dd(msg: str):
     """
     The dd function dumps the given variables and ends execution of the script. 
     Used for debugging. 

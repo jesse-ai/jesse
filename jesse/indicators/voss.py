@@ -5,10 +5,11 @@ import numpy as np
 
 from jesse.helpers import get_candle_source
 
-VossFilter = namedtuple('VossFilter', ['voss', 'filt' ])
+VossFilter = namedtuple('VossFilter', ['voss', 'filt'])
 
 
-def voss(candles: np.ndarray, period=20, predict=3, bandwith=0.25, source_type="close", sequential=False) -> VossFilter:
+def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: float = 0.25, source_type: str = "close",
+         sequential: bool = False) -> VossFilter:
     """
     Voss indicator by John F. Ehlers
 

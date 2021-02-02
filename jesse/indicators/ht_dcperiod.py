@@ -6,7 +6,7 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def ht_dcperiod(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def ht_dcperiod(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     HT_DCPERIOD - Hilbert Transform - Dominant Cycle Period
 

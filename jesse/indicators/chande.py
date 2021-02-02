@@ -5,7 +5,8 @@ import talib
 from scipy.ndimage.filters import maximum_filter1d, minimum_filter1d
 
 
-def chande(candles: np.ndarray, period=22, mult=3.0, direction="long", sequential=False) -> Union[float, np.ndarray]:
+def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",
+           sequential: bool = False) -> Union[float, np.ndarray]:
     """
     Chandelier Exits
 
@@ -38,7 +39,7 @@ def chande(candles: np.ndarray, period=22, mult=3.0, direction="long", sequentia
     return result if sequential else result[-1]
 
 
-def filter1d_same(a, W, type, fillna=np.nan):
+def filter1d_same(a: np.array, W: int, type: str, fillna=np.nan):
     out_dtype = np.full(0, fillna).dtype
     hW = (W - 1) // 2  # Half window size
     if type == 'max':

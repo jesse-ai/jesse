@@ -6,7 +6,7 @@ import talib
 AROON = namedtuple('AROON', ['down', 'up'])
 
 
-def aroon(candles: np.ndarray, period=14, sequential=False) -> AROON:
+def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AROON:
     """
     AROON - Aroon
 

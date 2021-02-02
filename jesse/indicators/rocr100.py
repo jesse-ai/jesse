@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def rocr100(candles: np.ndarray, period=10, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def rocr100(candles: np.ndarray, period: int = 10, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     ROCR100 - Rate of change ratio 100 scale: (price/prevPrice)*100
 

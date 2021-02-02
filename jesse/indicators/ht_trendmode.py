@@ -6,7 +6,7 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def ht_trendmode(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def ht_trendmode(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     HT_TRENDMODE - Hilbert Transform - Trend vs Cycle Mode
 

@@ -6,13 +6,14 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def stddev(candles: np.ndarray, period=5, nbdev=1, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def stddev(candles: np.ndarray, period: int = 5, nbdev: float = 1, source_type: str = "close",
+           sequential: bool = False) -> Union[float, np.ndarray]:
     """
     STDDEV - Standard Deviation
 
     :param candles: np.ndarray
     :param period: int - default: 5
-    :param nbdev: int - default: 1
+    :param nbdev: float - default: 1
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 

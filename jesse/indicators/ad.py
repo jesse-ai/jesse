@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 
-def ad(candles: np.ndarray, sequential=False) -> Union[float, np.ndarray]:
+def ad(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     AD - Chaikin A/D Line
 

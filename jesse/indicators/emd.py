@@ -7,7 +7,7 @@ import talib
 EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
 
 
-def emd(candles: np.ndarray, period=20, delta=0.5, fraction=0.1, sequential=False) -> EMD:
+def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequential: bool = False) -> EMD:
     """
     Empirical Mode Decomposition by John F. Ehlers and Ric Way
 

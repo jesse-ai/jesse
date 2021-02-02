@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def tema(candles: np.ndarray, period=9, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def tema(candles: np.ndarray, period: int = 9, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     TEMA - Triple Exponential Moving Average
 

@@ -6,7 +6,8 @@ import numpy as np
 from .supersmoother import supersmoother
 
 
-def reflex(candles: np.ndarray, period=20, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Reflex indicator by John F. Ehlers
 

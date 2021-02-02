@@ -1,18 +1,20 @@
+from math import pi
+from math import sin
 from typing import Union
 
 import numpy as np
-import tulipy as ti
+from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import get_candle_source
 
 
-def dpo(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
+def sinwma(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
-    DPO - Detrended Price Oscillator
+    Sine Weighted Moving Average (SINWMA)
 
     :param candles: np.ndarray
-    :param period: int - default: 5
+    :param period: int - default: 14
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
@@ -22,6 +24,9 @@ def dpo(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    res = ti.dpo(np.ascontiguousarray(source), period=period)
+    sines = np.array([sin((i + 1) * pi / (period + 1)) for i in range(0, period)])
+    w = sines / sines.sum()
+    swv = sliding_window_view(source, window_shape=period)
+    res = np.average(swv, weights=w, axis=-1)
 
     return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]

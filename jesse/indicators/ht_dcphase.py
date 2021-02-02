@@ -6,7 +6,7 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def ht_dcphase(candles: np.ndarray, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def ht_dcphase(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     HT_DCPHASE - Hilbert Transform - Dominant Cycle Phase
 
@@ -20,6 +20,6 @@ def ht_dcphase(candles: np.ndarray, source_type="close", sequential=False) -> Un
         candles = candles[-240:]
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.HT_DCPHASE (source)
+    res = talib.HT_DCPHASE(source)
 
     return res if sequential else res[-1]

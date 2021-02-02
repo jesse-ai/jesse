@@ -23,11 +23,11 @@ def app_mode():
     return config['app']['trading_mode']
 
 
-def arrow_to_timestamp(arrow_time):
+def arrow_to_timestamp(arrow_time: arrow.arrow.Arrow) -> int:
     return arrow_time.int_timestamp * 1000
 
 
-def base_asset(symbol: str):
+def base_asset(symbol: str) -> str:
     return symbol.split('-')[0]
 
 
@@ -93,15 +93,15 @@ def convert_number(old_max, old_min, new_max, new_min, old_value):
     return new_value
 
 
-def dashless_symbol(symbol: str):
+def dashless_symbol(symbol: str) -> str:
     return symbol.replace("-", "")
 
 
-def dashy_symbol(symbol: str):
+def dashy_symbol(symbol: str) -> str:
     return symbol[0:3] + '-' + symbol[3:]
 
 
-def date_diff_in_days(date1, date2):
+def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow):
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
         raise TypeError('dates must be Arrow instances')
@@ -149,7 +149,8 @@ def dump_exception():
     terminate_app()
 
 
-def estimate_average_price(order_qty, order_price, current_qty, current_entry_price):
+def estimate_average_price(order_qty: float, order_price: float, current_qty: float,
+                           current_entry_price: float) -> float:
     """Estimates the new entry price for the position.
     This is used after having a new order and updating the currently holding position.
 
@@ -166,7 +167,7 @@ def estimate_average_price(order_qty, order_price, current_qty, current_entry_pr
             current_entry_price) / (abs(order_qty) + abs(current_qty))
 
 
-def estimate_PNL(qty, entry_price, exit_price, trade_type, trading_fee=0):
+def estimate_PNL(qty: float, entry_price: float, exit_price: float, trade_type: str, trading_fee: float = 0) -> float:
     qty = abs(qty)
     profit = qty * (exit_price - entry_price)
 
@@ -178,7 +179,7 @@ def estimate_PNL(qty, entry_price, exit_price, trade_type, trading_fee=0):
     return profit - fee
 
 
-def estimate_PNL_percentage(qty, entry_price, exit_price, trade_type):
+def estimate_PNL_percentage(qty: float, entry_price: float, exit_price: float, trade_type: str) -> float:
     qty = abs(qty)
     profit = qty * (exit_price - entry_price)
 
@@ -192,7 +193,7 @@ def file_exists(path: str) -> bool:
     return os.path.isfile(path)
 
 
-def floor_with_precision(num, precision=0):
+def floor_with_precision(num: float, precision: int = 0) -> float:
     temp = 10 ** precision
     return math.floor(num * temp) / temp
 
@@ -336,7 +337,7 @@ def is_unit_testing():
     return "pytest" in sys.modules
 
 
-def key(exchange, symbol, timeframe=None):
+def key(exchange: str, symbol: str, timeframe=None):
     if timeframe is None:
         return '{}-{}'.format(exchange, symbol)
 
@@ -372,7 +373,7 @@ def max_timeframe(timeframes_list):
     return timeframes.MINUTE_1
 
 
-def normalize(x, x_min, x_max):
+def normalize(x: float, x_min: float, x_max: float):
     """
     Rescaling data to have values between 0 and 1
     """
@@ -427,7 +428,7 @@ def opposite_type(t):
     raise ValueError('unsupported type')
 
 
-def orderbook_insertion_index_search(arr, target, ascending=True):
+def orderbook_insertion_index_search(arr, target: int, ascending=True):
     target = target[0]
     lower = 0
     upper = len(arr)
@@ -462,14 +463,7 @@ def orderbook_insertion_index_search(arr, target, ascending=True):
                 upper = x
 
 
-def orderbook_trim_price(p: float, ascending: bool, unit: float):
-    """
-
-    :param p:
-    :param ascending:
-    :param unit:
-    :return:
-    """
+def orderbook_trim_price(p: float, ascending: bool, unit: float) -> float:
     if ascending:
         trimmed = np.ceil(p / unit) * unit
         if math.log10(unit) < 0:
@@ -482,7 +476,7 @@ def orderbook_trim_price(p: float, ascending: bool, unit: float):
     return p if trimmed == p - unit else trimmed
 
 
-def prepare_qty(qty, side):
+def prepare_qty(qty, side) -> float:
     if side.lower() in ('sell', 'short'):
         return -abs(qty)
 
@@ -496,7 +490,7 @@ def python_version() -> float:
     return float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
 
 
-def quote_asset(symbol: str):
+def quote_asset(symbol: str) -> str:
     try:
         return symbol.split('-')[1]
     except IndexError:
@@ -504,11 +498,11 @@ def quote_asset(symbol: str):
         raise InvalidRoutes("The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{}'".format(symbol))
 
 
-def random_str(num_characters=8):
+def random_str(num_characters: int = 8) -> str:
     return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
 
 
-def readable_duration(seconds, granularity=2):
+def readable_duration(seconds: int, granularity: int = 2):
     intervals = (
         ('weeks', 604800),  # 60 * 60 * 24 * 7
         ('days', 86400),  # 60 * 60 * 24
@@ -533,12 +527,12 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
-def round_price_for_live_mode(price, roundable_price):
+def round_price_for_live_mode(price: float, roundable_price: float):
     """
     Rounds price(s) based on exchange requirements
 
     :param price: float
-    :param roundable_price: float | nd.array
+    :param roundable_price: float
     :return: float | nd.array
     """
     n = int(math.log10(price))
@@ -596,7 +590,7 @@ def side_to_type(s):
     raise ValueError
 
 
-def string_after_character(string: str, character: str):
+def string_after_character(string: str, character: str) -> str:
     try:
         return string.split(character, 1)[1]
     except IndexError:
@@ -624,7 +618,7 @@ def terminate_app():
     os._exit(1)
 
 
-def timeframe_to_one_minutes(timeframe):
+def timeframe_to_one_minutes(timeframe: str):
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
 
@@ -651,11 +645,11 @@ def timeframe_to_one_minutes(timeframe):
                 timeframe))
 
 
-def timestamp_to_arrow(timestamp):
+def timestamp_to_arrow(timestamp: int):
     return arrow.get(timestamp / 1000)
 
 
-def get_arrow(timestamp):
+def get_arrow(timestamp: int) -> arrow.Arrow:
     return timestamp_to_arrow(timestamp)
 
 
@@ -663,7 +657,7 @@ def timestamp_to_date(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))[:10]
 
 
-def timestamp_to_time(timestamp):
+def timestamp_to_time(timestamp) -> str:
     return str(arrow.get(timestamp / 1000))
 
 

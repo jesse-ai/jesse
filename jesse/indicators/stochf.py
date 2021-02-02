@@ -6,7 +6,8 @@ import talib
 StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
 
 
-def stochf(candles: np.ndarray, fastk_period=5, fastd_period=3, fastd_matype=0, sequential=False) -> StochasticFast:
+def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fastd_matype: int = 0,
+           sequential: bool = False) -> StochasticFast:
     """
     Stochastic Fast
 

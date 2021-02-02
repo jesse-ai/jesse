@@ -7,7 +7,8 @@ from jesse.helpers import get_candle_source
 
 IQ = namedtuple('IQ', ['inphase', 'quadrature'])
 
-def ht_phasor(candles: np.ndarray, source_type="close", sequential=False) -> IQ:
+
+def ht_phasor(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> IQ:
     """
     HT_PHASOR - Hilbert Transform - Phasor Components
 

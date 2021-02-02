@@ -8,7 +8,8 @@ from jesse.helpers import get_candle_source, np_shift
 CC = namedtuple('CC', ['real', 'imag', 'angle', 'state'])
 
 
-def correlation_cycle(candles: np.ndarray, period=20, threshold=9, source_type="close", sequential=False) -> CC:
+def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9, source_type: str = "close",
+                      sequential: bool = False) -> CC:
     """
     "Correlation Cycle, Correlation Angle, Market State - John Ehlers
 

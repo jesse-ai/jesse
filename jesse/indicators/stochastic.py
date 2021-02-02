@@ -6,13 +6,17 @@ import talib
 Stochastic = namedtuple('Stochastic', ['k', 'd'])
 
 
-def stoch(candles: np.ndarray, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0,
-          sequential=False) -> Stochastic:
+def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, slowk_matype: int = 0,
+          slowd_period: int = 3, slowd_matype: int = 0, sequential: bool = False) -> Stochastic:
     """
     The Stochastic Oscillator
 
     :param candles: np.ndarray
-    :param period: int - default=14
+    :param fastk_period: int - default=14
+    :param slowk_period: int - default=3
+    :param slowk_matype: int - default=0
+    :param slowd_period: int - default=3
+    :param slowd_matype: int - default=0
     :param sequential: bool - default=False
 
     :return: Stochastic(k, d)

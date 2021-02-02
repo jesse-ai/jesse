@@ -38,6 +38,7 @@ from .emv import emv
 from .fisher import fisher
 from .fosc import fosc
 from .frama import frama
+from .fwma import fwma
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .hma import hma
@@ -91,6 +92,7 @@ from .rsi import rsi
 from .rsx import rsx
 from .sar import sar
 from .sarext import sarext
+from .sinwma import sinwma
 from .sma import sma
 from .smma import smma
 from .srsi import srsi

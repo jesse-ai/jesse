@@ -10,8 +10,9 @@ IchimokuCloud = namedtuple('IchimokuCloud',
                             'future_span_b'])
 
 
-def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period=9, base_line_period=26, lagging_line_period=52,
-                       displacement=26, sequential=False) -> IchimokuCloud:
+def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, base_line_period: int = 26,
+                       lagging_line_period: int = 52, displacement: int = 26,
+                       sequential: bool = False) -> IchimokuCloud:
     """
     Ichimoku Cloud
 

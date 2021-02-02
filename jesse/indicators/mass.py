@@ -4,8 +4,7 @@ import numpy as np
 import tulipy as ti
 
 
-
-def mass(candles: np.ndarray, period=5, sequential=False) -> Union[float, np.ndarray]:
+def mass(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     MASS - Mass Index
 

@@ -6,7 +6,7 @@ import tulipy as ti
 FisherTransform = namedtuple('FisherTransform', ['fisher', 'signal'])
 
 
-def fisher(candles: np.ndarray, period=9, sequential=False) -> FisherTransform:
+def fisher(candles: np.ndarray, period: int = 9, sequential: bool = False) -> FisherTransform:
     """
     The Fisher Transform helps identify price reversals.
 

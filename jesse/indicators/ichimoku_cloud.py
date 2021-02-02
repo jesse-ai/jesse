@@ -5,8 +5,8 @@ import numpy as np
 IchimokuCloud = namedtuple('IchimokuCloud', ['conversion_line', 'base_line', 'span_a', 'span_b'])
 
 
-def ichimoku_cloud(candles: np.ndarray, conversion_line_period=9, base_line_period=26, lagging_line_period=52,
-                   displacement=26) -> IchimokuCloud:
+def ichimoku_cloud(candles: np.ndarray, conversion_line_period: int = 9, base_line_period: int = 26,
+                   lagging_line_period: int = 52, displacement: int = 26) -> IchimokuCloud:
     """
     Ichimoku Cloud
 

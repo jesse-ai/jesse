@@ -4,7 +4,8 @@ from typing import Union
 import numpy as np
 
 
-def frama(candles: np.ndarray, window=10, FC=1, SC=300, sequential=False) -> Union[float, np.ndarray]:
+def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Fractal Adaptive Moving Average (FRAMA)
 

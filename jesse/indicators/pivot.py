@@ -5,7 +5,7 @@ import numpy as np
 PIVOT = namedtuple('PIVOT', ['r4', 'r3', 'r2', 'r1', 'pp', 's1', 's2', 's3', 's4'])
 
 
-def pivot(candles: np.ndarray, mode=0, sequential=False) -> PIVOT:
+def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT:
     """
     Pivot Points
 

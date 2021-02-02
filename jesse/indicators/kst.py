@@ -8,7 +8,9 @@ from jesse.helpers import get_candle_source
 KST = namedtuple('KST', ['line', 'signal'])
 
 
-def kst(candles: np.ndarray, sma_period1=10, sma_period2=10, sma_period3=10, sma_period4=15, roc_period1=10, roc_period2=15, roc_period3=20, roc_period4=30, signal_period=9, source_type="close", sequential=False) -> KST:
+def kst(candles: np.ndarray, sma_period1: int = 10, sma_period2: int = 10, sma_period3: int = 10, sma_period4: int = 15,
+        roc_period1: int = 10, roc_period2: int = 15, roc_period3: int = 20, roc_period4: int = 30,
+        signal_period: int = 9, source_type: str = "close", sequential: bool = False) -> KST:
     """
     Know Sure Thing (KST)
 
@@ -30,9 +32,7 @@ def kst(candles: np.ndarray, sma_period1=10, sma_period2=10, sma_period3=10, sma
     if not sequential and len(candles) > 240:
         candles = candles[-240:]
 
-
     source = get_candle_source(candles, source_type=source_type)
-
 
     aroc1 = talib.SMA(talib.ROC(source, timeperiod=roc_period1), sma_period1)
     aroc2 = talib.SMA(talib.ROC(source, timeperiod=roc_period2), sma_period2)

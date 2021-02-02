@@ -6,7 +6,7 @@ import talib
 DonchianChannel = namedtuple('DonchianChannel', ['upperband', 'middleband', 'lowerband'])
 
 
-def donchian(candles: np.ndarray, period=20, sequential=False) -> DonchianChannel:
+def donchian(candles: np.ndarray, period: int = 20, sequential: bool = False) -> DonchianChannel:
     """
     Donchian Channels
 

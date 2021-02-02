@@ -8,7 +8,7 @@ from jesse.helpers import get_candle_source, np_shift
 GATOR = namedtuple('GATOR', ['upper', 'lower', 'upper_change', 'lower_change'])
 
 
-def gatorosc(candles: np.ndarray, source_type="close", sequential=False) -> GATOR:
+def gatorosc(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> GATOR:
     """
     Gator Oscillator by Bill M. Williams
 
@@ -38,6 +38,7 @@ def gatorosc(candles: np.ndarray, source_type="close", sequential=False) -> GATO
         return GATOR(upper, lower, upper_change, lower_change)
     else:
         return GATOR(upper[-1], lower[-1], upper_change[-1], lower_change[-1])
+
 
 def numpy_ewma(data, window):
     """

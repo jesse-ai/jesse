@@ -4,7 +4,8 @@ import numpy as np
 import talib
 
 
-def pattern_recognition(candles: np.ndarray, pattern_type, penetration=0, sequential=False) -> Union[int, np.ndarray]:
+def pattern_recognition(candles: np.ndarray, pattern_type: str, penetration: int = 0, sequential: bool = False) -> \
+Union[int, np.ndarray]:
     """
     Pattern Recognition
 

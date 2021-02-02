@@ -6,7 +6,8 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def tsf(candles: np.ndarray, period=14, source_type="close", sequential=False) -> Union[float, np.ndarray]:
+def tsf(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     TSF - Time Series Forecast
 

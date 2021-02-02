@@ -6,8 +6,9 @@ import talib
 from jesse.helpers import get_candle_source
 
 
-def bollinger_bands_width(candles: np.ndarray, period=20, devup=2, devdn=2, matype=0, source_type="close",
-                          sequential=False) -> Union[float, np.ndarray]:
+def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, matype: int = 0,
+                          source_type: str = "close",
+                          sequential: bool = False) -> Union[float, np.ndarray]:
     """
     BBW - Bollinger Bands Width - Bollinger Bands Bandwidth
 
