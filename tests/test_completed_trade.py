@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.config import config
 from jesse.models import CompletedTrade
 from jesse.store import store
-from .utils import set_up
+from .utils import set_up, single_route_backtest
 
 
 def test_can_add_trade_to_store():
@@ -182,3 +182,7 @@ def test_trade_size():
     })
 
     assert trade.size == 10
+
+
+def test_completed_trade_after_exiting_the_trade():
+    single_route_backtest('TestCompletedTradeAfterExitingTrade', leverage=2)
