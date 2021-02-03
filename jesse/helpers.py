@@ -660,6 +660,9 @@ def timestamp_to_date(timestamp: int) -> str:
 def timestamp_to_time(timestamp) -> str:
     return str(arrow.get(timestamp / 1000))
 
+def next_date(datestr: str) -> str:
+    return timestamp_to_date(arrow_to_timestamp(arrow.get(datestr, 'YYYY-MM-DD').shift(days=1)))
+
 
 def today_to_timestamp() -> int:
     """

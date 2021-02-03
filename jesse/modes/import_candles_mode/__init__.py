@@ -78,12 +78,13 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
 
                     # if driver can't provide accurate get_starting_time()
                     if first_existing_timestamp is None:
-                        raise CandleNotFoundInExchange(
-                            'No candles exists in the market for this day: {} \n'
-                            'Try another start_date'.format(
+                        print(
+                            'No candles exists in the market for this day: {} - attempting next date.'.format(
                                 jh.timestamp_to_time(temp_start_timestamp)[:10],
                             )
                         )
+                        time.sleep(driver.sleep_time)
+                        run(exchange, symbol, jh.next_date(start_date_str), skip_confirmation=True)
 
                     # handle when there's missing candles during the period
                     if temp_start_timestamp > first_existing_timestamp:
