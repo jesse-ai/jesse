@@ -182,21 +182,8 @@ def test_format_currency():
 
 
 def test_generate_unique_id():
-    from uuid import UUID
-    uuid_string = jh.generate_unique_id()
-    try:
-        val = UUID(uuid_string, version=4)
-    except ValueError:
-        # If it's a value error, then the string
-        # is not a valid hex code for a UUID.
-        return False
-
-        # If the uuid_string is a valid hex code,
-        # but an invalid uuid4,
-        # the UUID.__init__ will convert it to a
-        # valid uuid4. This is bad for validation purposes.
-
-    assert val.hex == uuid_string.replace('-', '')
+    assert jh.is_valid_uuid(jh.generate_unique_id()) is True
+    assert jh.is_valid_uuid('asdfasdfasdfasfsadfsd') is False
 
 
 def test_get_candle_source():
