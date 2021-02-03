@@ -2,32 +2,38 @@ import numpy as np
 
 import jesse.helpers as jh
 from jesse.config import config
+import peewee
+from jesse.services.db import db
 
 
-class CompletedTrade:
+class CompletedTrade(peewee.Model):
     """A trade is made when a position is opened AND closed."""
 
-    def __init__(self, attributes=None):
-        self.id = ''
-        self.strategy_name = ''
-        self.symbol = ''
-        self.exchange = ''
-        self.type = ''
-        self.timeframe = None
-        self.entry_price = np.nan
-        self.exit_price = np.nan
-        self.take_profit_at = np.nan
-        self.stop_loss_at = np.nan
-        self.qty = np.nan
-        self.orders = []
-        self.opened_at = None
-        self.closed_at = None
-        self.entry_candle_timestamp = None
-        self.exit_candle_timestamp = None
-        self.reduced_at = None
-        self.reduction_timestamp = None
-        self.reduction_candle_timestamp = None
-        self.leverage = None
+    id = peewee.UUIDField(primary_key=True)
+    strategy_name = peewee.CharField()
+    symbol = peewee.CharField()
+    exchange = peewee.CharField()
+    type = peewee.CharField()
+    timeframe = peewee.CharField()
+    entry_price = peewee.FloatField(default=np.nan)
+    exit_price = peewee.FloatField(default=np.nan)
+    take_profit_at = peewee.FloatField(default=np.nan)
+    stop_loss_at = peewee.FloatField(default=np.nan)
+    qty = peewee.FloatField(default=np.nan)
+    opened_at = peewee.BigIntegerField()
+    closed_at = peewee.BigIntegerField()
+    entry_candle_timestamp = peewee.BigIntegerField()
+    exit_candle_timestamp = peewee.BigIntegerField()
+    leverage = peewee.IntegerField()
+
+    orders = []
+
+    class Meta:
+        database = db
+        indexes = ((('strategy_name', 'exchange', 'symbol'), True),)
+
+    def __init__(self, attributes=None, **kwargs):
+        peewee.Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
             attributes = {}
@@ -158,3 +164,8 @@ class CompletedTrade:
     def holding_period(self):
         """How many SECONDS has it taken for the trade to be done."""
         return (self.closed_at - self.opened_at) / 1000
+
+
+if not jh.is_unit_testing():
+    # create the table
+    CompletedTrade.create_table()
