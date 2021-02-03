@@ -1057,12 +1057,18 @@ class Strategy(ABC):
         Arguments:
             order {order} -- the order object
         """
+        # set the trade_id for the order if we're in the middle of a trade. Otherwise, it
+        # is done at order_roles.OPEN_POSITION
+        if self.trade:
+            order.trade_id = self.trade.id
+
         if role == order_roles.OPEN_POSITION:
             self.trade = CompletedTrade()
             self.trade.leverage = self.leverage
             self.trade.orders = [order]
             self.trade.timeframe = self.timeframe
             self.trade.id = jh.generate_unique_id()
+            order.trade_id = self.trade.id
             self.trade.strategy_name = self.name
             self.trade.exchange = order.exchange
             self.trade.symbol = order.symbol
