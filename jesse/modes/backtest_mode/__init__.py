@@ -110,7 +110,7 @@ def load_candles(start_date_str: str, finish_date_str: str):
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
     if finish_date > arrow.utcnow().int_timestamp * 1000:
-        raise ValueError("Can't load data of the future!")
+        raise ValueError("Can't load candle data from the future!")
 
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
