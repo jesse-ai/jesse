@@ -167,8 +167,9 @@ class Position:
         self.entry_price = None
         self.closed_at = jh.now_to_timestamp()
 
-        info_text = 'CLOSED {} position: {}, {}. PNL: ${}, entry: {}, exit: {}'.format(
-            trade_type, self.exchange_name, self.symbol, round(estimated_profit, 2), entry, close_price
+        info_text = 'CLOSED {} position: {}, {}, {}. PNL: ${}, Balance: ${}, entry: {}, exit: {}'.format(
+            trade_type, self.exchange_name, self.symbol, self.strategy.name,
+            round(estimated_profit, 2), jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2)), entry, close_price
         )
 
         if jh.is_debuggable('position_closed'):
