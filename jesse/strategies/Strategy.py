@@ -11,6 +11,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.models.utils import store_completed_trede_into_db, store_order_into_db
 from jesse.services.broker import Broker
 from jesse.store import store
 from jesse.services import metrics
@@ -48,7 +49,7 @@ class Strategy(ABC):
         self._stop_loss_orders = []
         self._take_profit_orders = []
 
-        self.trade = None
+        self.trade: CompletedTrade = None
         self.trades_count = 0
 
         self._is_executing = False
@@ -1143,8 +1144,13 @@ class Strategy(ABC):
             )
 
             store.completed_trades.add_trade(self.trade)
+            if jh.is_livetrading():
+                store_completed_trede_into_db(self.trade)
             self.trade = None
             self.trades_count += 1
+
+        if jh.is_livetrading():
+            store_order_into_db(order)
 
     @property
     def is_long(self):

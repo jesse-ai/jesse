@@ -7,6 +7,9 @@ from jesse.models.Candle import Candle
 from jesse.models.Orderbook import Orderbook
 from jesse.models.Ticker import Ticker
 from jesse.models.Trade import Trade
+from jesse.models.CompletedTrade import CompletedTrade
+from jesse.models.Order import Order
+from jesse.services import logger
 
 
 def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
@@ -54,6 +57,68 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
                 jh.timestamp_to_time(d['timestamp']), exchange, symbol, ticker
             ), 'yellow')
         )
+
+    # async call
+    threading.Thread(target=async_save).start()
+
+
+def store_completed_trede_into_db(completed_trade: CompletedTrade):
+    d = {
+        'id': completed_trade.id,
+        'strategy_name': completed_trade.strategy_name,
+        'symbol': completed_trade.symbol,
+        'exchange': completed_trade.exchange,
+        'type': completed_trade.type,
+        'timeframe': completed_trade.timeframe,
+        'entry_price': completed_trade.entry_price,
+        'exit_price': completed_trade.exit_price,
+        'take_profit_at': completed_trade.take_profit_at,
+        'stop_loss_at': completed_trade.stop_loss_at,
+        'qty': completed_trade.qty,
+        'opened_at': completed_trade.opened_at,
+        'closed_at': completed_trade.closed_at,
+        'entry_candle_timestamp': completed_trade.entry_candle_timestamp,
+        'exit_candle_timestamp': completed_trade.exit_candle_timestamp,
+        'leverage': completed_trade.leverage,
+    }
+
+    def async_save():
+        CompletedTrade.insert(**d).execute()
+        if jh.is_debugging():
+            logger.info('Stored the completed trade record for {}-{}-{} into database.'.format(
+                completed_trade.exchange, completed_trade.symbol, completed_trade.strategy_name
+            ))
+
+    # async call
+    threading.Thread(target=async_save).start()
+
+
+def store_order_into_db(order: Order):
+    d = {
+        'id': order.id,
+        'trade_id': order.trade_id,
+        'exchange_id': order.exchange_id,
+        'vars': order.vars,
+        'symbol': order.symbol,
+        'exchange': order.exchange,
+        'side': order.side,
+        'type': order.type,
+        'flag': order.flag,
+        'qty': order.qty,
+        'price': order.price,
+        'status': order.status,
+        'created_at': order.created_at,
+        'executed_at': order.executed_at,
+        'canceled_at': order.canceled_at,
+        'role': order.role,
+    }
+
+    def async_save():
+        Order.insert(**d).execute()
+        if jh.is_debugging():
+            logger.info('Stored the executed order record for {}-{} into database.'.format(
+                order.exchange, order.symbol
+            ))
 
     # async call
     threading.Thread(target=async_save).start()

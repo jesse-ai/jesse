@@ -30,7 +30,7 @@ class CompletedTrade(peewee.Model):
 
     class Meta:
         database = db
-        indexes = ((('strategy_name', 'exchange', 'symbol'), True),)
+        indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
 
     def __init__(self, attributes=None, **kwargs):
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
