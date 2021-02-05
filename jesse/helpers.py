@@ -355,6 +355,8 @@ def key(exchange: str, symbol: str, timeframe=None):
 def max_timeframe(timeframes_list):
     from jesse.enums import timeframes
 
+    if timeframes.WEEK_1 in timeframes_list:
+        return timeframes.WEEK_1
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
     if timeframes.HOUR_8 in timeframes_list:
@@ -643,13 +645,14 @@ def timeframe_to_one_minutes(timeframe: str):
         timeframes.HOUR_6: 60 * 6,
         timeframes.HOUR_8: 60 * 8,
         timeframes.DAY_1: 60 * 24,
+        timeframes.WEEK_1: 60 * 24 * 7,
     }
 
     try:
         return dic[timeframe]
     except KeyError:
         raise InvalidTimeframe(
-            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
+            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D, 1W'.format(
                 timeframe))
 
 
