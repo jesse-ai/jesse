@@ -23,7 +23,7 @@ class Order(Model):
     exchange = CharField()
     side = CharField()
     type = CharField()
-    flag = CharField()
+    flag = CharField(null=True)
     qty = FloatField()
     price = FloatField(default=np.nan)
     status = CharField(default=order_statuses.ACTIVE)
@@ -34,7 +34,7 @@ class Order(Model):
 
     class Meta:
         database = db
-        indexes = ((('exchange', 'symbol'), True),)
+        indexes = ((('exchange', 'symbol'), False),)
 
     def __init__(self, attributes=None, **kwargs):
         Model.__init__(self, attributes=attributes, **kwargs)
@@ -165,3 +165,8 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+
+if not jh.is_unit_testing():
+    # create the table
+    Order.create_table()
