@@ -355,6 +355,8 @@ def key(exchange: str, symbol: str, timeframe=None):
 def max_timeframe(timeframes_list):
     from jesse.enums import timeframes
 
+    if timeframes.WEEK_1 in timeframes_list:
+        return timeframes.WEEK_1
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
     if timeframes.HOUR_8 in timeframes_list:
