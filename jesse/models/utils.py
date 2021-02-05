@@ -62,7 +62,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
     threading.Thread(target=async_save).start()
 
 
-def store_completed_trede_into_db(completed_trade: CompletedTrade):
+def store_completed_trade_into_db(completed_trade: CompletedTrade):
     d = {
         'id': completed_trade.id,
         'strategy_name': completed_trade.strategy_name,
