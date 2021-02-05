@@ -9,6 +9,7 @@ from jesse.models.Ticker import Ticker
 from jesse.models.Trade import Trade
 from jesse.models.CompletedTrade import CompletedTrade
 from jesse.models.Order import Order
+from jesse.models.DailyBalance import DailyBalance
 from jesse.services import logger
 
 
@@ -118,6 +119,18 @@ def store_order_into_db(order: Order):
         if jh.is_debugging():
             logger.info('Stored the executed order record for {}-{} into database.'.format(
                 order.exchange, order.symbol
+            ))
+
+    # async call
+    threading.Thread(target=async_save).start()
+
+
+def store_daily_balance_into_db(daily_balance: dict):
+    def async_save():
+        DailyBalance.insert(**daily_balance).execute()
+        if jh.is_debugging():
+            logger.info('Stored daily portfolio balance record into the database: {} => {}'.format(
+                daily_balance['asset'], jh.format_currency(round(daily_balance['balance'], 2))
             ))
 
     # async call
