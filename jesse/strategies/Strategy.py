@@ -11,7 +11,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.models.utils import store_completed_trede_into_db, store_order_into_db
+from jesse.models.utils import store_completed_trade_into_db, store_order_into_db
 from jesse.services.broker import Broker
 from jesse.store import store
 from jesse.services import metrics
@@ -1145,7 +1145,7 @@ class Strategy(ABC):
 
             store.completed_trades.add_trade(self.trade)
             if jh.is_livetrading():
-                store_completed_trede_into_db(self.trade)
+                store_completed_trade_into_db(self.trade)
             self.trade = None
             self.trades_count += 1
 

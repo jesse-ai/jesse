@@ -167,16 +167,18 @@ class Position:
         self.entry_price = None
         self.closed_at = jh.now_to_timestamp()
 
-        info_text = 'CLOSED {} position: {}, {}, {}. PNL: ${}, Balance: ${}, entry: {}, exit: {}'.format(
-            trade_type, self.exchange_name, self.symbol, self.strategy.name,
-            round(estimated_profit, 2), jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2)), entry, close_price
-        )
+        if not jh.is_unit_testing():
+            info_text = 'CLOSED {} position: {}, {}, {}. PNL: ${}, Balance: ${}, entry: {}, exit: {}'.format(
+                trade_type, self.exchange_name, self.symbol, self.strategy.name,
+                round(estimated_profit, 2), jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2)),
+                entry, close_price
+            )
 
-        if jh.is_debuggable('position_closed'):
-            logger.info(info_text)
+            if jh.is_debuggable('position_closed'):
+                logger.info(info_text)
 
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
+            if jh.is_live() and config['env']['notifications']['events']['updated_position']:
+                notifier.notify(info_text)
 
     def _reduce(self, qty, price):
         if self.is_open is False:
