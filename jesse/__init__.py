@@ -1,14 +1,13 @@
 import os
 import sys
+# Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
+import warnings
 from pydoc import locate
 
 import click
 import pkg_resources
 
 import jesse.helpers as jh
-
-# Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
-import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -28,7 +27,7 @@ ls = os.listdir('.')
 is_jesse_project = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
 
 
-def validate_cwd():
+def validate_cwd() -> None:
     """
     make sure we're in a Jesse project
     """
@@ -42,7 +41,7 @@ def validate_cwd():
         os._exit(1)
 
 
-def inject_local_config():
+def inject_local_config() -> None:
     """
     injects config from local config file
     """
@@ -51,7 +50,7 @@ def inject_local_config():
     set_config(local_config)
 
 
-def inject_local_routes():
+def inject_local_routes() -> None:
     """
     injects routes from local routes folder
     """
@@ -68,7 +67,7 @@ if is_jesse_project:
     inject_local_routes()
 
 
-def register_custom_exception_handler():
+def register_custom_exception_handler() -> None:
     """
 
     :return:
@@ -101,14 +100,7 @@ def register_custom_exception_handler():
         logging.basicConfig(level=logging.INFO)
 
     # main thread
-    def handle_exception(exc_type, exc_value, exc_traceback):
-        """
-
-        :param exc_type:
-        :param exc_value:
-        :param exc_traceback:
-        :return:
-        """
+    def handle_exception(exc_type, exc_value, exc_traceback) -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.excepthook(exc_type, exc_value, exc_traceback)
             return
@@ -179,12 +171,7 @@ def register_custom_exception_handler():
 
     # other threads
     if jh.python_version() >= 3.8:
-        def handle_thread_exception(args):
-            """
-
-            :param args:
-            :return:
-            """
+        def handle_thread_exception(args) -> None:
             if args.exc_type == SystemExit:
                 return
 
@@ -257,7 +244,7 @@ def register_custom_exception_handler():
 # create a Click group
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse").version)
-def cli():
+def cli() -> None:
     pass
 
 
@@ -266,8 +253,8 @@ def cli():
 @click.argument('symbol', required=True, type=str)
 @click.argument('start_date', required=True, type=str)
 @click.option('--skip-confirmation', is_flag=True,
-                help="Will prevent confirmation for skipping duplicates")
-def import_candles(exchange, symbol, start_date, skip_confirmation):
+              help="Will prevent confirmation for skipping duplicates")
+def import_candles(exchange: str, symbol: str, start_date: str, skip_confirmation: bool) -> None:
     """
     imports historical candles from exchange
     """
@@ -301,7 +288,8 @@ def import_candles(exchange, symbol, start_date, skip_confirmation):
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
 @click.option('--tradingview/--no-tradingview', default=False,
               help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
-def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview):
+def backtest(start_date: str, finish_date: str, debug: bool, csv: bool, json: bool, fee: bool, chart: bool,
+             tradingview: bool) -> None:
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
     """
@@ -344,7 +332,8 @@ def backtest(start_date, finish_date, debug, csv, json, fee, chart, tradingview)
 )
 @click.option('--csv/--no-csv', default=False, help='Outputs a CSV file of all DNAs on completion.')
 @click.option('--json/--no-json', default=False, help='Outputs a JSON file of all DNAs on completion.')
-def optimize(start_date, finish_date, optimal_total, cpu, debug, csv, json):
+def optimize(start_date: str, finish_date: str, optimal_total: int, cpu: int, debug: bool, csv: bool,
+             json: bool) -> None:
     """
     tunes the hyper-parameters of your strategy
     """
@@ -364,7 +353,7 @@ def optimize(start_date, finish_date, optimal_total, cpu, debug, csv, json):
 
 @cli.command()
 @click.argument('name', required=True, type=str)
-def make_strategy(name):
+def make_strategy(name: str) -> None:
     """
     generates a new strategy folder from jesse/strategies/ExampleStrategy
     """
@@ -382,7 +371,7 @@ def make_strategy(name):
 
 @cli.command()
 @click.argument('name', required=True, type=str)
-def make_project(name):
+def make_project(name: str) -> None:
     """
     generates a new strategy folder from jesse/strategies/ExampleStrategy
     """
@@ -400,7 +389,7 @@ def make_project(name):
 @cli.command()
 @click.option('--dna/--no-dna', default=False,
               help='Translates DNA into parameters. Used in optimize mode only')
-def routes(dna):
+def routes(dna: bool) -> None:
     """
     lists all routes
     """
@@ -418,7 +407,7 @@ def routes(dna):
 
 if 'plugins' in ls:
     @cli.command()
-    def collect():
+    def collect() -> None:
         """
         fetches streamed market data such as tickers, trades, and orderbook from
         the WS connection and stores them into the database for later research.
@@ -441,7 +430,7 @@ if 'plugins' in ls:
     @click.option('--debug/--no-debug', default=False)
     @click.option('--dev/--no-dev', default=False)
     @click.option('--fee/--no-fee', default=True)
-    def live(testdrive, debug, dev, fee):
+    def live(testdrive: bool, debug: bool, dev: bool, fee: bool) -> None:
         """
         trades in real-time on exchange with REAL money
         """
@@ -478,7 +467,7 @@ if 'plugins' in ls:
     @click.option('--debug/--no-debug', default=False)
     @click.option('--dev/--no-dev', default=False)
     @click.option('--fee/--no-fee', default=True)
-    def paper(debug, dev, fee):
+    def paper(debug: bool, dev: bool, fee: bool) -> None:
         """
         trades in real-time on exchange with PAPER money
         """
