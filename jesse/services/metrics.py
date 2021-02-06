@@ -1,3 +1,5 @@
+from typing import List, Any, Union
+
 import crypto_empyrical
 import numpy as np
 import pandas as pd
@@ -6,7 +8,7 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def candles(candles_array):
+def candles(candles_array: np.ndarray) -> List[List[str]]:
     period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]),
                                   jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
@@ -24,7 +26,7 @@ def candles(candles_array):
     ]
 
 
-def routes(routes):
+def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
     array = []
 
     # header

@@ -1,3 +1,5 @@
+from typing import Union, ValuesView
+
 from jesse.config import config
 from jesse.models import SpotExchange, FuturesExchange
 from jesse.exceptions import InvalidConfig

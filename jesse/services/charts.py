@@ -13,7 +13,7 @@ from jesse.routes import router
 from jesse.store import store
 
 
-def portfolio_vs_asset_returns():
+def portfolio_vs_asset_returns() -> None:
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure

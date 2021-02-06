@@ -4,15 +4,11 @@ import jesse.helpers as jh
 from jesse.config import config
 
 
-def notify(msg):
-    """
-
-    :param msg:
-    """
+def notify(msg: str) -> None:
     _telegram(msg)
 
 
-def _telegram(msg):
+def _telegram(msg: str) -> None:
     token = jh.get_config('env.notifications.telegram_bot_token', '')
     chat_IDs: list = jh.get_config('env.notifications.telegram_chat_IDs', [])
 

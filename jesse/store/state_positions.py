@@ -11,7 +11,7 @@ class PositionsState:
                 key = '{}-{}'.format(exchange, symbol)
                 self.storage[key] = Position(exchange, symbol)
 
-    def count_open_positions(self):
+    def count_open_positions(self) -> int:
         c = 0
         for key in self.storage:
             p = self.storage[key]

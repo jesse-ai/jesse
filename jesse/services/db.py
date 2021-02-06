@@ -11,7 +11,7 @@ if not jh.is_unit_testing():
                                    port=int(jh.get_config('env.databases.postgres_port')))
 
 
-    def close_connection():
+    def close_connection() -> None:
         db.close()
 
 

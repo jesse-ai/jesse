@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.services.notifier import notify
 
 
-def info(msg):
+def info(msg: str) -> None:
     from jesse.store import store
 
     store.logs.info.append({'time': jh.now_to_timestamp(), 'message': msg})
@@ -16,7 +16,7 @@ def info(msg):
         logging.info(msg)
 
 
-def error(msg):
+def error(msg: str) -> None:
     from jesse.store import store
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True):

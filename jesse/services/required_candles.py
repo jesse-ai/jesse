@@ -10,7 +10,7 @@ from jesse.services.candle import generate_candle_from_one_minutes
 from jesse.store import store
 
 
-def load_required_candles(exchange: str, symbol: str, start_date_str: str, finish_date_str: str):
+def load_required_candles(exchange: str, symbol: str, start_date_str: str, finish_date_str: str) -> np.ndarray:
     """
     loads initial candles that required before executing strategies.
     210 for the biggest timeframe and more for the rest
@@ -109,7 +109,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
     return candles
 
 
-def inject_required_candles_to_store(candles: np.ndarray, exchange: str, symbol: str):
+def inject_required_candles_to_store(candles: np.ndarray, exchange: str, symbol: str) -> None:
     """
     generate and add required candles to the candle store
     """

@@ -1,21 +1,23 @@
 # silent (pandas) warnings
 import warnings
+from typing import List, Any, Union, Dict, Optional
 
 import numpy as np
 import pandas as pd
+from peewee import CharField, FloatField
 
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
-from jesse.services import selectors
 from jesse.services import metrics as stats
+from jesse.services import selectors
 from jesse.services.candle import is_bullish
 from jesse.store import store
 
 warnings.filterwarnings("ignore")
 
 
-def positions():
+def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]]]:
     array = []
 
     # headers
@@ -54,11 +56,10 @@ def positions():
                 ),
             ]
         )
-
     return array
 
 
-def candles():
+def candles() -> List[List[str]]:
     array = []
     candle_keys = []
 
@@ -105,11 +106,13 @@ def candles():
             return
         except Exception:
             raise
-
     return array
 
 
-def livetrade():
+def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, int]], List[Union[
+    str, Dict[str, Union[str, int]], Dict[str, str], Dict[str, bool], Dict[str, Union[
+        Dict[str, Union[int, str, List[Dict[str, Union[str, int]]]]], Dict[
+            str, Union[float, str, int, List[Dict[str, Union[str, int]]]]]]], Dict[str, int]]]]]:
     # sum up balance of all trading exchanges
     starting_balance = 0
     current_balance = 0
@@ -178,11 +181,11 @@ def livetrade():
 
     if config['app']['is_test_driving']:
         arr.append(['Test Drive', config['app']['is_test_driving']])
-
     return arr
 
 
-def portfolio_metrics():
+def portfolio_metrics() -> List[
+    Union[Union[List[Union[str, Any]], List[str], List[Union[Union[str, float], Any]]], Any]]:
     data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
     metrics = [
@@ -239,18 +242,17 @@ def portfolio_metrics():
     return metrics
 
 
-def info():
+def info() -> List[List[Union[str, Any]]]:
     array = []
 
     for w in store.logs.info[::-1][0:5]:
         array.append(
             [jh.timestamp_to_time(w['time'])[11:19],
              (w['message'][:70] + '..') if len(w['message']) > 70 else w['message']])
-
     return array
 
 
-def watch_list():
+def watch_list() -> Optional[Any]:
     # only support one route
     if len(router.routes) > 1:
         return None
@@ -266,17 +268,16 @@ def watch_list():
     return watch_list_array if len(watch_list_array) else None
 
 
-def errors():
+def errors() -> List[List[Union[str, Any]]]:
     array = []
 
     for w in store.logs.errors[::-1][0:5]:
         array.append([jh.timestamp_to_time(w['time'])[11:19],
                       (w['message'][:70] + '..') if len(w['message']) > 70 else w['message']])
-
     return array
 
 
-def orders():
+def orders() -> List[Union[List[str], List[Union[CharField, str, FloatField]]]]:
     array = []
 
     # headers
@@ -305,5 +306,4 @@ def orders():
             jh.timestamp_to_time(o.created_at)[:19] if o.is_active else jh.color(
                 jh.timestamp_to_time(o.created_at)[:19], 'gray'),
         ])
-
     return array
