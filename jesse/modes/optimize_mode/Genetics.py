@@ -62,7 +62,7 @@ class Genetics(ABC):
                 self.load_progress()
 
     @abstractmethod
-    def fitness(self, dna) -> tuple:
+    def fitness(self, dna: str) -> tuple:
         """
         calculates and returns the fitness score the the DNA
         """
@@ -81,7 +81,7 @@ class Genetics(ABC):
                     dna_bucket = manager.list([])
                     workers = []
 
-                    def get_fitness(dna, dna_bucket) -> None:
+                    def get_fitness(dna: str, dna_bucket: list) -> None:
                         try:
                             fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
                             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
@@ -234,7 +234,7 @@ class Genetics(ABC):
                     people = manager.list([])
                     workers = []
 
-                    def get_baby(people) -> None:
+                    def get_baby(people: List) -> None:
                         try:
                             # let's make a baby together LOL
                             baby = self.make_love()
