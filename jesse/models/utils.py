@@ -4,15 +4,15 @@ import numpy as np
 
 import jesse.helpers as jh
 from jesse.models.Candle import Candle
+from jesse.models.CompletedTrade import CompletedTrade
+from jesse.models.Order import Order
 from jesse.models.Orderbook import Orderbook
 from jesse.models.Ticker import Ticker
 from jesse.models.Trade import Trade
-from jesse.models.CompletedTrade import CompletedTrade
-from jesse.models.Order import Order
 from jesse.services import logger
 
 
-def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
+def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None:
     d = {
         'id': jh.generate_unique_id(),
         'symbol': symbol,
@@ -25,7 +25,7 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
         'volume': candle[5]
     }
 
-    def async_save():
+    def async_save() -> None:
         Candle.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
@@ -38,7 +38,7 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray):
     threading.Thread(target=async_save).start()
 
 
-def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
+def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None:
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': ticker[0],
@@ -50,7 +50,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
         'exchange': exchange,
     }
 
-    def async_save():
+    def async_save() -> None:
         Ticker.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color('ticker: {}-{}-{}: {}'.format(
@@ -62,7 +62,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray):
     threading.Thread(target=async_save).start()
 
 
-def store_completed_trede_into_db(completed_trade: CompletedTrade):
+def store_completed_trede_into_db(completed_trade: CompletedTrade) -> None:
     d = {
         'id': completed_trade.id,
         'strategy_name': completed_trade.strategy_name,
@@ -82,7 +82,7 @@ def store_completed_trede_into_db(completed_trade: CompletedTrade):
         'leverage': completed_trade.leverage,
     }
 
-    def async_save():
+    def async_save() -> None:
         CompletedTrade.insert(**d).execute()
         if jh.is_debugging():
             logger.info('Stored the completed trade record for {}-{}-{} into database.'.format(
@@ -93,7 +93,7 @@ def store_completed_trede_into_db(completed_trade: CompletedTrade):
     threading.Thread(target=async_save).start()
 
 
-def store_order_into_db(order: Order):
+def store_order_into_db(order: Order) -> None:
     d = {
         'id': order.id,
         'trade_id': order.trade_id,
@@ -113,7 +113,7 @@ def store_order_into_db(order: Order):
         'role': order.role,
     }
 
-    def async_save():
+    def async_save() -> None:
         Order.insert(**d).execute()
         if jh.is_debugging():
             logger.info('Stored the executed order record for {}-{} into database.'.format(
@@ -124,7 +124,7 @@ def store_order_into_db(order: Order):
     threading.Thread(target=async_save).start()
 
 
-def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
+def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': trade[0],
@@ -137,7 +137,7 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
         'exchange': exchange,
     }
 
-    def async_save():
+    def async_save() -> None:
         Trade.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
@@ -152,7 +152,7 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray):
     threading.Thread(target=async_save).start()
 
 
-def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
+def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -> None:
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': jh.now_to_timestamp(),
@@ -161,7 +161,7 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray):
         'exchange': exchange,
     }
 
-    def async_save():
+    def async_save() -> None:
         Orderbook.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(

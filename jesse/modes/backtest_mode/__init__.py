@@ -1,13 +1,14 @@
 import time
+from typing import Dict, Union
 
 import arrow
 import click
 import numpy as np
 
 import jesse.helpers as jh
+import jesse.services.metrics as stats
 import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
-import jesse.services.metrics as stats
 import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
@@ -24,7 +25,9 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 
 
-def run(start_date: str, finish_date: str, candles=None, chart=False, tradingview=False, csv=False, json=False):
+def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
+        chart: bool = False, tradingview: bool = False,
+        csv: bool = False, json: bool = False) -> None:
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -100,7 +103,7 @@ def run(start_date: str, finish_date: str, candles=None, chart=False, tradingvie
             print(jh.color('No trades were made.', 'yellow'))
 
 
-def load_candles(start_date_str: str, finish_date_str: str):
+def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
     start_date = jh.date_to_timestamp(start_date_str)
     finish_date = jh.date_to_timestamp(finish_date_str) - 60000
 
@@ -167,7 +170,7 @@ def load_candles(start_date_str: str, finish_date_str: str):
     return candles
 
 
-def simulator(candles, hyperparameters=None):
+def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters=None) -> None:
     begin_time_track = time.time()
     key = '{}-{}'.format(config['app']['considering_candles'][0][0], config['app']['considering_candles'][0][1])
     first_candles_set = candles[key]['candles']
@@ -291,7 +294,7 @@ def simulator(candles, hyperparameters=None):
     save_daily_portfolio_balance()
 
 
-def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray):
+def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) -> np.ndarray:
     """
     A little workaround for the times that the price has jumped and the opening
     price of the current candle is not equal to the previous candle's close!
@@ -309,7 +312,7 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray):
     return candle
 
 
-def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str):
+def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
     orders = store.orders.get_orders(exchange, symbol)
 
     current_temp_candle = real_candle.copy()
