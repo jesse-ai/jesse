@@ -27,7 +27,7 @@ class FuturesExchange(Exchange):
             futures_leverage_mode: str,
             futures_leverage: int
     ) -> None:
-        super().__init__(name, starting_assets, fee_rate, 'futures')
+        super().__init__(name, starting_assets, fee_rate, 'futures', settlement_currency)
 
         self.futures_leverage_mode = futures_leverage_mode
         self.futures_leverage = futures_leverage
