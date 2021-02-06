@@ -5,7 +5,7 @@ import random
 import string
 import sys
 import uuid
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 
 import arrow
 import click
@@ -244,7 +244,7 @@ def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.arr
         raise ValueError('type string not recognised')
 
 
-def get_config(keys: str, default=None) -> str:
+def get_config(keys: str, default:Any=None) -> Any:
     """
     Gets keys as a single string separated with "." and returns value.
     Also accepts a default value so that the app would work even if

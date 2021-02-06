@@ -81,7 +81,7 @@ class Genetics(ABC):
                     dna_bucket = manager.list([])
                     workers = []
 
-                    def get_fitness(dna, dna_bucket):
+                    def get_fitness(dna, dna_bucket) -> None:
                         try:
                             fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
                             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
@@ -199,7 +199,7 @@ class Genetics(ABC):
             'testing_log': fitness_log_testing
         }
 
-    def select_person(self):
+    def select_person(self) -> Dict[str, Union[str, Any]]:
         # len(self.population) instead of self.population_size because some DNAs might not have been created due errors
         random_index = np.random.choice(len(self.population), int(len(self.population) / 100), replace=False)
         chosen_ones = []
@@ -234,7 +234,7 @@ class Genetics(ABC):
                     people = manager.list([])
                     workers = []
 
-                    def get_baby(people):
+                    def get_baby(people) -> None:
                         try:
                             # let's make a baby together LOL
                             baby = self.make_love()

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import pydash
@@ -1021,7 +1021,7 @@ class Strategy(ABC):
         return store.completed_trades.trades
 
     @property
-    def metrics(self) -> list:
+    def metrics(self) -> dict:
         """
         Returns all the metrics of the strategy.
         """
@@ -1213,7 +1213,7 @@ class Strategy(ABC):
             self.stop_loss = self.position.qty, self.price
 
     @property
-    def shared_vars(self) -> list:
+    def shared_vars(self) -> dict:
         return store.vars
 
     @property
