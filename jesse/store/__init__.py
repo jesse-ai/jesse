@@ -14,7 +14,7 @@ from .state_tickers import TickersState
 from .state_trades import TradesState
 
 
-def install_routes():
+def install_routes() -> None:
     considering_candles = set()
 
     # when importing market data, considering_candles is all we need
@@ -94,7 +94,7 @@ class StoreClass:
     def __init__(self) -> None:
         self.vars = {}
 
-    def reset(self, force_install_routes=False):
+    def reset(self, force_install_routes: bool = False) -> None:
         """
         Resets all the states within the store
         

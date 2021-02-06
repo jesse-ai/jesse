@@ -1,7 +1,7 @@
 from tabulate import tabulate
 
 
-def key_value(data, title, alignments=None, uppercase_title=True):
+def key_value(data, title, alignments=None, uppercase_title=True) -> None:
     """
 
     :param data:
@@ -21,7 +21,7 @@ def key_value(data, title, alignments=None, uppercase_title=True):
                        colalign=alignments))
 
 
-def multi_value(data, with_headers=True, alignments=None):
+def multi_value(data, with_headers=True, alignments=None) -> None:
     """
 
     :param data:
