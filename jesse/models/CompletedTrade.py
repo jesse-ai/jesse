@@ -1,8 +1,8 @@
 import numpy as np
+import peewee
 
 import jesse.helpers as jh
 from jesse.config import config
-import peewee
 from jesse.services.db import db
 
 
@@ -32,7 +32,7 @@ class CompletedTrade(peewee.Model):
         database = db
         indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs):
+    def __init__(self, attributes=None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -41,7 +41,7 @@ class CompletedTrade(peewee.Model):
         for a in attributes:
             setattr(self, a, attributes[a])
 
-    def toJSON(self):
+    def toJSON(self) -> dict:
         orders = []
         for o in self.orders:
             orders.append(o.__dict__)
@@ -72,7 +72,7 @@ class CompletedTrade(peewee.Model):
             "orders": orders,
         }
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'strategy_name': self.strategy_name,
@@ -100,37 +100,37 @@ class CompletedTrade(peewee.Model):
         }
 
     @property
-    def fee(self):
+    def fee(self) -> float:
         trading_fee = jh.get_config('env.exchanges.{}.fee'.format(self.exchange))
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
-    def reward(self):
+    def reward(self) -> float:
         return abs(self.take_profit_at - self.entry_price) * self.qty
 
     @property
-    def size(self):
+    def size(self) -> float:
         return self.qty * self.entry_price
 
     @property
-    def risk(self):
+    def risk(self) -> float:
         return abs(self.stop_loss_at - self.entry_price) * self.qty
 
     @property
-    def risk_percentage(self):
+    def risk_percentage(self) -> float:
         return round((self.risk / self.size) * 100, 2)
 
     @property
-    def risk_reward_ratio(self):
+    def risk_reward_ratio(self) -> float:
         return self.reward / self.risk
 
     @property
-    def r(self):
+    def r(self) -> float:
         """alias for risk_reward_ratio"""
         return self.risk_reward_ratio
 
     @property
-    def pnl(self):
+    def pnl(self) -> float:
         """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
         return jh.estimate_PNL(
@@ -139,14 +139,14 @@ class CompletedTrade(peewee.Model):
         )
 
     @property
-    def pnl_percentage(self):
+    def pnl_percentage(self) -> float:
         """
         Alias for self.roi
         """
         return self.roi
 
     @property
-    def roi(self):
+    def roi(self) -> float:
         """
         Return on Investment in percentage
         More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
@@ -154,14 +154,14 @@ class CompletedTrade(peewee.Model):
         return self.pnl / self.total_cost * 100
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> float:
         """
         How much we paid to open this position (currently does not include fees, should we?!)
         """
         return self.entry_price * abs(self.qty) / self.leverage
 
     @property
-    def holding_period(self):
+    def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
         return (self.closed_at - self.opened_at) / 1000
 

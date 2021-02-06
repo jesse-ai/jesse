@@ -36,7 +36,7 @@ class Order(Model):
         database = db
         indexes = ((('exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs):
+    def __init__(self, attributes=None, **kwargs)-> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -63,7 +63,7 @@ class Order(Model):
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
 
-    def notify_submission(self):
+    def notify_submission(self) -> None:
         notify(
             '{} order: {}, {}, {}, {}, ${}'.format(
                 'QUEUED' if self.is_queued else 'SUBMITTED',
@@ -111,7 +111,7 @@ class Order(Model):
     def is_close(self) -> bool:
         return self.flag == order_flags.CLOSE
 
-    def cancel(self):
+    def cancel(self) -> None:
         if self.is_canceled or self.is_executed:
             return
 
@@ -135,7 +135,7 @@ class Order(Model):
         e = selectors.get_exchange(self.exchange)
         e.on_order_cancellation(self)
 
-    def execute(self):
+    def execute(self) -> None:
         if self.is_canceled or self.is_executed:
             return
 

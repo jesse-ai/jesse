@@ -1,5 +1,6 @@
 class Route:
-    def __init__(self, exchange, symbol, timeframe=None, strategy_name=None, dna=None):
+    def __init__(self, exchange: str, symbol: str, timeframe: str = None, strategy_name: str = None,
+                 dna: str = None) -> None:
         self.exchange = exchange
         self.symbol = symbol
         self.timeframe = timeframe

@@ -1,5 +1,6 @@
-from jesse.models import Order
 from abc import ABC, abstractmethod
+
+from jesse.models import Order
 
 
 class Exchange(ABC):
@@ -15,7 +16,7 @@ class Exchange(ABC):
     # used for calculating final performance metrics
     starting_assets = {}
 
-    def __init__(self, name: str, starting_assets: list, fee_rate: float, exchange_type: str):
+    def __init__(self, name: str, starting_assets: list, fee_rate: float, exchange_type: str) -> None:
         self.name = name
         self.type = exchange_type.lower()
 
@@ -28,15 +29,15 @@ class Exchange(ABC):
         self.fee_rate = fee_rate
 
     @abstractmethod
-    def wallet_balance(self, symbol=''):
+    def wallet_balance(self, symbol: str = ''):
         pass
 
     @abstractmethod
-    def available_margin(self, symbol=''):
+    def available_margin(self, symbol: str = ''):
         pass
 
     @abstractmethod
-    def on_order_submission(self, order: Order, skip_market_order=True):
+    def on_order_submission(self, order: Order, skip_market_order: bool = True):
         pass
 
     @abstractmethod
@@ -52,5 +53,5 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    def charge_fee(self, amount):
+    def charge_fee(self, amount: float):
         pass
