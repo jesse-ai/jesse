@@ -91,7 +91,7 @@ class StoreClass:
     trades = TradesState()
     orderbooks = OrderbookState()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.vars = {}
 
     def reset(self, force_install_routes=False):

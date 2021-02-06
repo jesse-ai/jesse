@@ -6,7 +6,7 @@ from .interface import CandleExchange
 
 
 class TestnetBinanceFutures(CandleExchange):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Testnet Binance Futures', 1000, 0.5)
         self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 

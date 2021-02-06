@@ -7,7 +7,7 @@ from jesse.models import Order
 
 
 class OrdersState:
-    def __init__(self):
+    def __init__(self) -> None:
         # used in simulation only
         self.to_execute = []
 

@@ -20,7 +20,7 @@ from jesse.services import metrics
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.id = jh.generate_unique_id()
         self.name = None
         self.symbol = None

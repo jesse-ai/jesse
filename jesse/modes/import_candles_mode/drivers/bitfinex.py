@@ -6,7 +6,7 @@ from .interface import CandleExchange
 
 
 class Bitfinex(CandleExchange):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Bitfinex', 1440, 1)
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
 

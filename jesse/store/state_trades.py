@@ -7,7 +7,7 @@ from jesse.models import store_trade_into_db
 
 
 class TradesState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
         self.temp_storage = {}
 

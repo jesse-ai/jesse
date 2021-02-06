@@ -3,7 +3,7 @@ from jesse.models import Position
 
 
 class PositionsState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
 
         for exchange in config['app']['trading_exchanges']:

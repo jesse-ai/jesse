@@ -7,7 +7,7 @@ from jesse.models import store_ticker_into_db
 
 
 class TickersState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
 
     def init_storage(self):

@@ -1,11 +1,13 @@
 import os
 import pickle
 from time import time
+from typing import Any
+
 import jesse.helpers as jh
 
 
 class Cache:
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.path = path
         self.driver = jh.get_config('env.caching.driver', 'pickle')
 
@@ -21,7 +23,7 @@ class Cache:
             else:
                 self.db = {}
 
-    def set_value(self, key: str, data, expire_seconds=60 * 60):
+    def set_value(self, key: str, data: Any, expire_seconds: int = 60 * 60) -> None:
         if self.driver is None:
             return
 
@@ -39,7 +41,7 @@ class Cache:
         with open(data_path, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def get_value(self, key: str):
+    def get_value(self, key: str) -> Any:
         if self.driver is None:
             return
 
@@ -63,12 +65,12 @@ class Cache:
         with open(item['path'], 'rb') as f:
             return pickle.load(f)
 
-    def _update_db(self):
+    def _update_db(self) -> None:
         # store/update database
         with open(self.path + "cache_database.pickle", 'wb') as f:
             pickle.dump(self.db, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def flush(self):
+    def flush(self) -> None:
         if self.driver is None:
             return
 

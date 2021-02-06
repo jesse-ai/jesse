@@ -1,5 +1,5 @@
 class CompletedTrades:
-    def __init__(self):
+    def __init__(self) -> None:
         self.trades = []
 
     def add_trade(self, trade):

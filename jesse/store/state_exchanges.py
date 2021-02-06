@@ -5,7 +5,7 @@ import jesse.helpers as jh
 
 
 class ExchangesState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
 
         for name in config['app']['considering_exchanges']:

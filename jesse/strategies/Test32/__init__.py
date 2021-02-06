@@ -3,7 +3,7 @@ from jesse.strategies import Strategy
 
 # test_shared_vars [part 1]
 class Test32(Strategy):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.shared_vars['buy-eth'] = False

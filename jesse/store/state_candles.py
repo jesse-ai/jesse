@@ -11,7 +11,7 @@ from jesse.services.candle import generate_candle_from_one_minutes
 
 
 class CandlesState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
         self.is_initiated = False
 

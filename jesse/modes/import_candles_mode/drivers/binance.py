@@ -6,7 +6,7 @@ from .interface import CandleExchange
 
 
 class Binance(CandleExchange):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Binance', 1000, 0.5)
         self.endpoint = 'https://www.binance.com/api/v1/klines'
 
