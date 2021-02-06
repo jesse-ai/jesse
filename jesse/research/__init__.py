@@ -1,10 +1,7 @@
 from .get_candles import get_candles
 
 
-def init():
-    """
-
-    """
+def init() -> None:
     from pydoc import locate
     import os
     import sys

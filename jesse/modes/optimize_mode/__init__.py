@@ -1,7 +1,11 @@
+import os
 from math import log10
 from multiprocessing import cpu_count
+from typing import Dict, Any, Tuple, Union
+
 import arrow
 import click
+from numpy import ndarray
 
 import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
@@ -14,12 +18,12 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
 
-import os
 os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles, testing_candles, optimal_total, cpu_cores, csv, json):
+    def __init__(self, training_candles, testing_candles, optimal_total: int, cpu_cores: int, csv: bool,
+                 json: bool) -> None:
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
 
@@ -79,7 +83,7 @@ class Optimizer(Genetics):
                 required_candles.load_required_candles(c[0], c[1], testing_candles_start_date,
                                                        testing_candles_finish_date))
 
-    def fitness(self, dna) -> tuple:
+    def fitness(self, dna: str) -> tuple:
         hp = jh.dna_to_hp(self.strategy_hp, dna)
 
         # init candle store
@@ -161,7 +165,7 @@ class Optimizer(Genetics):
             if store.completed_trades.count > 0:
                 testing_log = {'win-rate': int(testing_data['win_rate'] * 100), 'total': testing_data['total'],
                                'PNL': round(testing_data['net_profit_percentage'], 2)}
-         
+
         else:
             score = 0.0001
 
@@ -171,7 +175,7 @@ class Optimizer(Genetics):
         return score, training_log, testing_log
 
 
-def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int, csv: bool, json: bool):
+def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int, csv: bool, json: bool) -> None:
     # clear the screen
     click.clear()
     print('loading candles...')
@@ -193,7 +197,8 @@ def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cor
     # TODO: store hyper parameters into each strategies folder per each Exchange-symbol-timeframe
 
 
-def get_training_and_testing_candles(start_date_str: str, finish_date_str: str):
+def get_training_and_testing_candles(start_date_str: str, finish_date_str: str) -> Tuple[
+    Dict[str, Dict[str, Union[Union[str, ndarray], Any]]], Dict[str, Dict[str, Union[Union[str, ndarray], Any]]]]:
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 

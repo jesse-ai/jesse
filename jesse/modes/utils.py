@@ -1,9 +1,9 @@
-from jesse.store import store
 from jesse import helpers
 from jesse.services import logger
+from jesse.store import store
 
 
-def save_daily_portfolio_balance():
+def save_daily_portfolio_balance() -> None:
     balances = []
 
     # add exchange balances

@@ -1,9 +1,11 @@
+from typing import List, Any
+
 import jesse.helpers as jh
 from jesse.routes import router
 from jesse.services import table
 
 
-def run(dna=False):
+def run(dna: bool = False) -> None:
     # trading routes
     arr = []
     if not dna:
