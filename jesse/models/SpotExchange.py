@@ -7,6 +7,7 @@ from .Exchange import Exchange
 
 
 
+
 class SpotExchange(Exchange):
     def add_realized_pnl(self, realized_pnl: float):
         pass
