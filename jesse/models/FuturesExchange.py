@@ -1,14 +1,12 @@
-import numpy as np
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.enums import sides, order_types
-from jesse.exceptions import InsufficientMargin
-from jesse.libs import DynamicNumpyArray
+from jesse.exceptions import NegativeBalance, InsufficientMargin
 from jesse.models import Order
+from jesse.enums import sides, order_types
+from jesse.libs import DynamicNumpyArray
+import numpy as np
 from jesse.services import selectors
 from .Exchange import Exchange
-
 
 class FuturesExchange(Exchange):
     # current holding assets

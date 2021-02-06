@@ -1,9 +1,10 @@
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.enums import sides, order_types
 from jesse.exceptions import NegativeBalance
 from jesse.models import Order
+from jesse.enums import sides, order_types
 from .Exchange import Exchange
+
 
 
 class SpotExchange(Exchange):
