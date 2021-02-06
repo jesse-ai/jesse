@@ -36,7 +36,8 @@ def anchor_timeframe(timeframe: str) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.array, series2: Union[float, int, np.array], direction=None, sequential: bool = False) -> bool:
+def crossed(series1: np.array, series2: Union[float, int, np.array], direction: str = None,
+            sequential: bool = False) -> bool:
     """
     Helper for detecion of crosses
 
@@ -264,7 +265,7 @@ def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
 
-def dd(msg: str):
+def dd(msg: str) -> None:
     """
     The dd function dumps the given variables and ends execution of the script. 
     Used for debugging. 
