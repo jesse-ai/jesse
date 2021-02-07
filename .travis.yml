@@ -1,0 +1,33 @@
+language: python
+dist: bionic
+cache:
+  directories:
+  - $HOME/.cache/pip
+  - $HOME/ta-lib
+python:
+  - "3.7"
+  - "3.8"
+  - "3.9"
+before_install:
+  - cd
+  - pip3 install Cython numpy
+  - if [ ! -f "$HOME/ta-lib/src" ]; then wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz; fi
+  - cd ta-lib/
+  - ./configure --prefix=/usr
+  - if [ ! -f "$HOME/ta-lib/src" ]; then make; fi
+  - sudo make install
+  - cd
+# command to install dependencies
+install:
+  - pip install codecov
+  - pip install pytest-cov
+  - cd $TRAVIS_BUILD_DIR
+  - pip install -r requirements.txt
+  - pip install -e .
+
+# command to run tests
+script:
+  - pytest --cov=./
+
+after_success:
+  - codecov
