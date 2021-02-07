@@ -13,7 +13,7 @@ from jesse.routes import router
 from jesse.store import store
 
 
-def portfolio_vs_asset_returns():
+def portfolio_vs_asset_returns() -> None:
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure
@@ -41,7 +41,8 @@ def portfolio_vs_asset_returns():
         prices = []
         candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
         max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
-        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * jh.get_config('env.data.warmup_candles_num', 210)
+        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * jh.get_config('env.data.warmup_candles_num',
+                                                                                       210)
         for i, c in enumerate(candles):
             # do not plot prices for required_initial_candles period
             if i < pre_candles_count:
@@ -94,9 +95,8 @@ def portfolio_vs_asset_returns():
                 price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.opened_at))]]
             )
 
-
-    plt.plot(buy_x, np.array(buy_y)*0.99, '^', color='blue', markersize=7)
-    plt.plot(sell_x, np.array(sell_y)*1.01, 'v', color='red', markersize=7)
+    plt.plot(buy_x, np.array(buy_y) * 0.99, '^', color='blue', markersize=7)
+    plt.plot(sell_x, np.array(sell_y) * 1.01, 'v', color='red', markersize=7)
 
     plt.xlabel('date')
     plt.ylabel('price change %')

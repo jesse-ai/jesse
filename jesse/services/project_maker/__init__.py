@@ -4,7 +4,7 @@ import shutil
 import jesse.helpers as jh
 
 
-def generate(name):
+def generate(name: str) -> None:
     path = '{}'.format(name)
 
     # validate that doesn't create if current directory is inside a Jesse project

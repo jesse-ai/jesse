@@ -4,7 +4,7 @@ from jesse.services import logger
 from jesse.models.utils import store_daily_balance_into_db
 
 
-def save_daily_portfolio_balance():
+def save_daily_portfolio_balance() -> None:
     balances = []
 
     # add exchange balances

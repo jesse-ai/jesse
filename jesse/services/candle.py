@@ -5,9 +5,9 @@ import numpy as np
 import jesse.helpers as jh
 
 
-def generate_candle_from_one_minutes(timeframe,
+def generate_candle_from_one_minutes(timeframe: str,
                                      candles: np.ndarray,
-                                     accept_forming_candles=False):
+                                     accept_forming_candles: bool = False) -> np.array:
     if len(candles) == 0:
         raise ValueError('No candles were passed')
 
@@ -29,7 +29,7 @@ def generate_candle_from_one_minutes(timeframe,
     ])
 
 
-def print_candle(candle, is_partial, symbol):
+def print_candle(candle: np.array, is_partial: bool, symbol: str) -> None:
     if jh.should_execute_silently():
         return
 
@@ -64,7 +64,7 @@ def is_bearish(candle: np.ndarray) -> bool:
     return candle[2] < candle[1]
 
 
-def candle_includes_price(candle, price) -> bool:
+def candle_includes_price(candle: np.ndarray, price: float) -> bool:
     return (price >= candle[4]) and (price <= candle[3])
 
 

@@ -1,6 +1,7 @@
 import math
 import threading
 import time
+from typing import Dict, List, Any, Union
 
 import arrow
 import click
@@ -13,7 +14,7 @@ from jesse.modes.import_candles_mode.drivers import drivers
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
-def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False):
+def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False) -> None:
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
@@ -127,15 +128,9 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation=False
                 time.sleep(driver.sleep_time)
 
 
-def _get_candles_from_backup_exchange(
-        exchange: str,
-        backup_driver: CandleExchange,
-        symbol: str,
-        start_timestamp: int,
-        end_timestamp: int
-):
+def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,
+                                      end_timestamp: int) -> List[Dict[str, Union[str, Any]]]:
     total_candles = []
-
     # try fetching from database first
     backup_candles = Candle.select(
         Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
@@ -245,7 +240,8 @@ def _get_candles_from_backup_exchange(
         return total_candles
 
 
-def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
+def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> \
+        List[Dict[str, Union[str, Any]]]:
     if len(temp_candles) == 0:
         raise CandleNotFoundInExchange(
             'No candles exists in the market for this day: {} \n'
@@ -303,5 +299,5 @@ def _fill_absent_candles(temp_candles, start_timestamp, end_timestamp):
     return candles
 
 
-def _insert_to_database(candles):
+def _insert_to_database(candles: List[Dict[str, Union[str, Any]]]) -> None:
     Candle.insert_many(candles).on_conflict_ignore().execute()

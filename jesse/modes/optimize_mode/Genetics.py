@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from random import randint, choices, choice
 
 # for macOS only
+from typing import Dict, Union, Any, List
+
 if sys.platform == 'darwin':
     multiprocessing.set_start_method('fork')
 from multiprocessing import Process, Manager
@@ -21,16 +23,15 @@ from jesse.store import store
 import jesse.services.report as report
 import traceback
 import os
-import csv
 import json
 from pandas import json_normalize
 
 
 class Genetics(ABC):
-    def __init__(self, iterations, population_size, solution_len,
-                 charset='()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
-                 fitness_goal=1,
-                 options=None):
+    def __init__(self, iterations: int, population_size: int, solution_len: int,
+                 charset: str = '()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
+                 fitness_goal: float = 1,
+                 options: Dict[str, Union[bool, Any]] = None) -> None:
         self.started_index = 0
         self.start_time = jh.now_to_timestamp()
         self.population = []
@@ -61,16 +62,13 @@ class Genetics(ABC):
                 self.load_progress()
 
     @abstractmethod
-    def fitness(self, dna) -> tuple:
+    def fitness(self, dna: str) -> tuple:
         """
         calculates and returns the fitness score the the DNA
-
-        :param dna: str
-        :return: float
         """
         pass
 
-    def generate_initial_population(self):
+    def generate_initial_population(self) -> None:
         """
         generates the initial population
         """
@@ -83,7 +81,7 @@ class Genetics(ABC):
                     dna_bucket = manager.list([])
                     workers = []
 
-                    def get_fitness(dna, dna_bucket):
+                    def get_fitness(dna: str, dna_bucket: list) -> None:
                         try:
                             fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
                             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
@@ -168,12 +166,11 @@ class Genetics(ABC):
         # sort the population
         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
 
-    def mutate(self, baby):
+    def mutate(self, baby: Dict[str, Union[str, Any]]) -> Dict[str, Union[str, Any]]:
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
         dna = '{}{}{}'.format(baby['dna'][:replace_at], replace_with, baby['dna'][replace_at + 1:])
         fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
-
         return {
             'dna': dna,
             'fitness': fitness_score,
@@ -181,7 +178,7 @@ class Genetics(ABC):
             'testing_log': fitness_log_testing
         }
 
-    def make_love(self):
+    def make_love(self) -> Dict[str, Union[str, Any]]:
         mommy = self.select_person()
         daddy = self.select_person()
 
@@ -202,7 +199,7 @@ class Genetics(ABC):
             'testing_log': fitness_log_testing
         }
 
-    def select_person(self):
+    def select_person(self) -> Dict[str, Union[str, Any]]:
         # len(self.population) instead of self.population_size because some DNAs might not have been created due errors
         random_index = np.random.choice(len(self.population), int(len(self.population) / 100), replace=False)
         chosen_ones = []
@@ -212,7 +209,7 @@ class Genetics(ABC):
 
         return pydash.max_by(chosen_ones, 'fitness')
 
-    def evolve(self):
+    def evolve(self) -> List[Any]:
         """
         the main method, that runs the evolutionary algorithm
         """
@@ -237,7 +234,7 @@ class Genetics(ABC):
                     people = manager.list([])
                     workers = []
 
-                    def get_baby(people):
+                    def get_baby(people: List) -> None:
                         try:
                             # let's make a baby together LOL
                             baby = self.make_love()
@@ -387,13 +384,12 @@ class Genetics(ABC):
 
         print('\n\n')
         print('Finished {} iterations.'.format(self.iterations))
-
         return self.population
 
-    def run(self):
+    def run(self) -> List[Any]:
         return self.evolve()
 
-    def save_progress(self, iterations_index):
+    def save_progress(self, iterations_index: int) -> None:
         """
         pickles data so we can later resume optimizing
         """
@@ -411,7 +407,7 @@ class Genetics(ABC):
         with open(self.temp_path, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def load_progress(self):
+    def load_progress(self) -> None:
         """
         unpickles data to resume from previous optimizing session population
         """
@@ -427,7 +423,7 @@ class Genetics(ABC):
         self.fitness_goal = data['fitness_goal']
         self.options = data['options']
 
-    def take_snapshot(self, index):
+    def take_snapshot(self, index: int) -> None:
         """
         stores a snapshot of the fittest population members into a file.
         """
@@ -440,7 +436,8 @@ class Genetics(ABC):
         for i in range(30):
             dnas_json['snapshot'].append(
                 {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'], 'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
+                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
+                 'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
 
         path = './storage/genetics/{}.txt'.format(study_name)
         os.makedirs('./storage/genetics', exist_ok=True)
@@ -484,16 +481,16 @@ class Genetics(ABC):
 
             mode = 'r+' if exists else 'w'
             with open(path, mode, encoding="utf-8") as file:
-                    if not exists:
-                        snapshots = {"snapshots": []}
-                        snapshots["snapshots"].append(dnas_json['snapshot'])
-                        json.dump(snapshots, file, ensure_ascii=False)
-                        file.write('\n')
-                    else:
-                        # file exists - append
-                        file.seek(0)
-                        data = json.load(file)
-                        data["snapshots"].append(dnas_json['snapshot'])
-                        file.seek(0)
-                        json.dump(data, file, ensure_ascii=False)
-                        file.write('\n')
+                if not exists:
+                    snapshots = {"snapshots": []}
+                    snapshots["snapshots"].append(dnas_json['snapshot'])
+                    json.dump(snapshots, file, ensure_ascii=False)
+                    file.write('\n')
+                else:
+                    # file exists - append
+                    file.seek(0)
+                    data = json.load(file)
+                    data["snapshots"].append(dnas_json['snapshot'])
+                    file.seek(0)
+                    json.dump(data, file, ensure_ascii=False)
+                    file.write('\n')

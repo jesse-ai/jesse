@@ -11,11 +11,11 @@ from jesse.services.candle import generate_candle_from_one_minutes
 
 
 class CandlesState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
         self.is_initiated = False
 
-    def get_storage(self, exchange, symbol, timeframe):
+    def get_storage(self, exchange: str, symbol: str, timeframe: str):
         key = jh.key(exchange, symbol, timeframe)
 
         try:
@@ -27,7 +27,7 @@ class CandlesState:
                 )
             )
 
-    def init_storage(self, bucket_size=1000):
+    def init_storage(self, bucket_size: int = 1000) -> None:
         for c in config['app']['considering_candles']:
             exchange, symbol = c[0], c[1]
 
@@ -47,10 +47,10 @@ class CandlesState:
             exchange: str,
             symbol: str,
             timeframe: str,
-            with_execution=True,
-            with_generation=True,
-            is_forming_candle=False
-    ):
+            with_execution: bool = True,
+            with_generation: bool = True,
+            is_forming_candle: bool = False
+    ) -> None:
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
             if jh.now_to_timestamp() >= (candle[0] + 60000):
@@ -94,7 +94,7 @@ class CandlesState:
             return
 
     @staticmethod
-    def update_position(exchange: str, symbol: str, candle: np.ndarray):
+    def update_position(exchange: str, symbol: str, candle: np.ndarray) -> None:
         # get position object
         p = selectors.get_position(exchange, symbol)
 
@@ -106,7 +106,7 @@ class CandlesState:
         p.current_price = jh.round_price_for_live_mode(candle[2], candle[2])
 
     def generate_bigger_timeframes(self, candle: np.ndarray, exchange: str, symbol: str, with_execution: bool,
-                                   is_forming_candle: bool):
+                                   is_forming_candle: bool) -> None:
         if not jh.is_live():
             return
 
@@ -134,7 +134,7 @@ class CandlesState:
             self.add_candle(generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False,
                             is_forming_candle=is_forming_candle)
 
-    def simulate_order_execution(self, exchange, symbol, timeframe, new_candle):
+    def simulate_order_execution(self, exchange: str, symbol: str, timeframe: str, new_candle: np.ndarray) -> None:
         previous_candle = self.get_current_candle(exchange, symbol, timeframe)
         orders = selectors.get_orders(exchange, symbol)
 
@@ -150,11 +150,12 @@ class CandlesState:
                     (o.price <= previous_candle[2]) and (o.price >= new_candle[2])):
                 o.execute()
 
-    def batch_add_candle(self, candles, exchange, symbol, timeframe, with_generation=True):
+    def batch_add_candle(self, candles: np.ndarray, exchange: str, symbol: str, timeframe: str,
+                         with_generation: bool = True) -> None:
         for c in candles:
             self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation)
 
-    def forming_estimation(self, exchange, symbol, timeframe):
+    def forming_estimation(self, exchange: str, symbol: str, timeframe: str) -> tuple:
         long_key = jh.key(exchange, symbol, timeframe)
         short_key = jh.key(exchange, symbol, '1m')
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
@@ -166,7 +167,7 @@ class CandlesState:
     # # # # # # # # #
     # # # # # getters
     # # # # # # # # #
-    def get_candles(self, exchange, symbol, timeframe) -> np.ndarray:
+    def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
@@ -203,7 +204,7 @@ class CandlesState:
                 ), axis=0
             )
 
-    def get_current_candle(self, exchange, symbol, timeframe) -> np.ndarray:
+    def get_current_candle(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')

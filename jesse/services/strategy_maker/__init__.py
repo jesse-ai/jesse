@@ -4,7 +4,7 @@ import shutil
 import jesse.helpers as jh
 
 
-def generate(name):
+def generate(name: str) -> None:
     """
 
     :param name:

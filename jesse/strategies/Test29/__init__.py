@@ -6,7 +6,7 @@ class Test29(Strategy):
     """
 
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.vars['should_short'] = False

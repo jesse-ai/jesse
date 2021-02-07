@@ -7,11 +7,11 @@ from jesse.models import store_orderbook_into_db
 
 
 class OrderbookState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = {}
         self.temp_storage = {}
 
-    def init_storage(self):
+    def init_storage(self) -> None:
         for c in config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             self.temp_storage[key] = {
@@ -36,7 +36,7 @@ class OrderbookState:
             asks, bids
         ])
 
-    def add_orderbook(self, exchange: str, symbol: str, asks: list, bids: list):
+    def add_orderbook(self, exchange: str, symbol: str, asks: list, bids: list) -> None:
         key = jh.key(exchange, symbol)
         self.temp_storage[key]['asks'] = asks
         self.temp_storage[key]['bids'] = bids
@@ -80,7 +80,7 @@ class OrderbookState:
         return self.storage[key][:]
 
 
-def _trim_orderbook_list(arr: list, ascending: bool, limit_len=50) -> list:
+def _trim_orderbook_list(arr: list, ascending: bool, limit_len: int = 50) -> list:
     """trims prices up to 4 digits precision"""
     first_price = arr[0][0]
     if first_price < 0.1:

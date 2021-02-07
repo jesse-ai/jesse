@@ -6,8 +6,8 @@ from jesse.models import Position
 
 
 class Broker:
-    def __init__(self, position, exchange, symbol, timeframe):
-        self.position: Position = position
+    def __init__(self, position: Position, exchange: str, symbol: str, timeframe: str) -> None:
+        self.position = position
         self.symbol = symbol
         self.timeframe = timeframe
         self.exchange = exchange
@@ -15,11 +15,11 @@ class Broker:
         self.api = api
 
     @staticmethod
-    def _validate_qty(qty):
+    def _validate_qty(qty: float) -> None:
         if qty == 0:
             raise InvalidStrategy('qty cannot be 0')
 
-    def sell_at_market(self, qty, role=None) -> Order:
+    def sell_at_market(self, qty: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -31,7 +31,7 @@ class Broker:
             role, []
         )
 
-    def sell_at(self, qty, price, role=None) -> Order:
+    def sell_at(self, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -55,7 +55,7 @@ class Broker:
             []
         )
 
-    def buy_at_market(self, qty, role=None) -> Order:
+    def buy_at_market(self, qty: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -68,7 +68,7 @@ class Broker:
             []
         )
 
-    def buy_at(self, qty, price, role=None) -> Order:
+    def buy_at(self, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -92,7 +92,7 @@ class Broker:
             []
         )
 
-    def reduce_position_at(self, qty, price, role=None) -> Order:
+    def reduce_position_at(self, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -147,7 +147,7 @@ class Broker:
             [order_flags.REDUCE_ONLY]
         )
 
-    def start_profit_at(self, side, qty, price, role=None) -> Order:
+    def start_profit_at(self, side: str, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         if price < 0:
@@ -178,7 +178,7 @@ class Broker:
             []
         )
 
-    def stop_loss_at(self, qty, price, role=None) -> Order:
+    def stop_loss_at(self, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
 
         # validation
@@ -217,8 +217,8 @@ class Broker:
             [order_flags.REDUCE_ONLY]
         )
 
-    def cancel_all_orders(self):
+    def cancel_all_orders(self) -> bool:
         return self.api.cancel_all_orders(self.exchange, self.symbol)
 
-    def cancel_order(self, order_id: str):
+    def cancel_order(self, order_id: str) -> bool:
         return self.api.cancel_order(self.exchange, self.symbol, order_id)

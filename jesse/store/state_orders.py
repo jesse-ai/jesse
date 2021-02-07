@@ -7,7 +7,7 @@ from jesse.models import Order
 
 
 class OrdersState:
-    def __init__(self):
+    def __init__(self) -> None:
         # used in simulation only
         self.to_execute = []
 
@@ -18,11 +18,11 @@ class OrdersState:
                 key = '{}-{}'.format(exchange, symbol)
                 self.storage[key] = []
 
-    def reset(self):
+    def reset(self) -> None:
         for key in self.storage:
             self.storage[key].clear()
 
-    def add_order(self, order):
+    def add_order(self, order: Order) -> None:
         key = '{}-{}'.format(order.exchange, order.symbol)
         self.storage[key].append(order)
 
@@ -49,10 +49,10 @@ class OrdersState:
                 c += 1
         return c
 
-    def count(self, exchange, symbol) -> int:
+    def count(self, exchange: str, symbol: str) -> int:
         return len(self.get_orders(exchange, symbol))
 
-    def get_order_by_id(self, exchange: str, symbol: str, id: str, use_exchange_id=False) -> Order:
+    def get_order_by_id(self, exchange: str, symbol: str, id: str, use_exchange_id: bool = False) -> Order:
         key = '{}-{}'.format(exchange, symbol)
 
         if use_exchange_id:
@@ -60,7 +60,7 @@ class OrdersState:
 
         return pydash.find(self.storage[key], lambda o: o.id == id)
 
-    def execute_pending_market_orders(self):
+    def execute_pending_market_orders(self) -> None:
         if not self.to_execute:
             return
 

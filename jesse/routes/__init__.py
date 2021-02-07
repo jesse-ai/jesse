@@ -1,21 +1,23 @@
-from jesse.models import Route
+import sys
+from typing import List, Any
+
 import jesse.helpers as jh
 from jesse import exceptions
-import sys
+from jesse.models import Route
 
 
 class RouterClass:
-    def __init__(self):
+    def __init__(self) -> None:
         self.routes = []
         self.extra_candles = []
         self.market_data = []
 
-    def _reset(self):
+    def _reset(self) -> None:
         self.routes = []
         self.extra_candles = []
         self.market_data = []
 
-    def set_routes(self, routes):
+    def set_routes(self, routes: List[Any]) -> None:
         self._reset()
 
         self.routes = []
@@ -42,12 +44,12 @@ class RouterClass:
 
             self.routes.append(Route(*r))
 
-    def set_market_data(self, routes):
+    def set_market_data(self, routes: List[Any]) -> None:
         self.market_data = []
         for r in routes:
             self.market_data.append(Route(*r))
 
-    def set_extra_candles(self, extra_candles):
+    def set_extra_candles(self, extra_candles) -> None:
         self.extra_candles = extra_candles
 
 

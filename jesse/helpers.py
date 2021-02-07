@@ -5,6 +5,7 @@ import random
 import string
 import sys
 import uuid
+from typing import List, Tuple, Union, Any
 
 import arrow
 import click
@@ -13,12 +14,12 @@ import numpy as np
 CACHED_CONFIG = dict()
 
 
-def app_currency():
+def app_currency() -> str:
     from jesse.routes import router
     return quote_asset(router.routes[0].symbol)
 
 
-def app_mode():
+def app_mode() -> str:
     from jesse.config import config
     return config['app']['trading_mode']
 
@@ -49,11 +50,11 @@ def binary_search(arr: list, item) -> int:
         return -1
 
 
-def clean_orderbook_list(arr):
+def clean_orderbook_list(arr) -> List[List[float]]:
     return [[float(i[0]), float(i[1])] for i in arr]
 
 
-def color(msg_text: str, msg_color: str):
+def color(msg_text: str, msg_color: str) -> str:
     if not msg_text:
         return ''
 
@@ -77,7 +78,7 @@ def color(msg_text: str, msg_color: str):
     raise ValueError('unsupported color')
 
 
-def convert_number(old_max, old_min, new_max, new_min, old_value):
+def convert_number(old_max: float, old_min: float, new_max: float, new_min: float, old_value: float) -> float:
     """
     convert a number from one range (ex 40-119) to another
     range (ex 0-30) while keeping the ratio.
@@ -101,12 +102,13 @@ def dashy_symbol(symbol: str) -> str:
     return symbol[0:3] + '-' + symbol[3:]
 
 
-def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow):
+def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
         raise TypeError('dates must be Arrow instances')
 
     dif = date2 - date1
+
     return abs(dif.days)
 
 
@@ -136,11 +138,10 @@ def dna_to_hp(strategy_hp, dna: str):
             raise TypeError('Only int and float types are implemented')
 
         hp[h['name']] = decoded_gene
-
     return hp
 
 
-def dump_exception():
+def dump_exception() -> None:
     """
     a useful debugging helper
     """
@@ -198,15 +199,15 @@ def floor_with_precision(num: float, precision: int = 0) -> float:
     return math.floor(num * temp) / temp
 
 
-def format_currency(num):
+def format_currency(num: float) -> str:
     return f'{num:,}'
 
 
-def generate_unique_id():
+def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
 
-def is_valid_uuid(uuid_to_test, version=4) -> bool:
+def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_to_test, version=version)
     except ValueError:
@@ -214,13 +215,13 @@ def is_valid_uuid(uuid_to_test, version=4) -> bool:
     return str(uuid_obj) == uuid_to_test
 
 
-def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
+def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.array:
     """
      Returns the candles corresponding the selected type.
 
      :param candles: np.ndarray
      :param source_type: string
-     :return: np.ndarray
+     :return: np.array
      """
 
     if source_type == "close":
@@ -243,7 +244,7 @@ def get_candle_source(candles: np.ndarray, source_type="close") -> np.ndarray:
         raise ValueError('type string not recognised')
 
 
-def get_config(keys: str, default=None):
+def get_config(keys: str, default:Any=None) -> Any:
     """
     Gets keys as a single string separated with "." and returns value.
     Also accepts a default value so that the app would work even if
@@ -269,7 +270,7 @@ def get_config(keys: str, default=None):
     return CACHED_CONFIG[keys]
 
 
-def get_strategy_class(strategy_name):
+def get_strategy_class(strategy_name: str):
     from pydoc import locate
 
     if is_unit_testing():
@@ -282,7 +283,7 @@ def insecure_hash(msg: str) -> str:
     return hashlib.md5(msg.encode()).hexdigest()
 
 
-def insert_list(index: int, item, arr: list):
+def insert_list(index: int, item, arr: list) -> list:
     """
     helper to insert an item in a Python List without removing the item
     """
@@ -292,67 +293,67 @@ def insert_list(index: int, item, arr: list):
     return arr[:index] + [item] + arr[index:]
 
 
-def is_backtesting():
+def is_backtesting() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'backtest'
 
 
-def is_collecting_data():
+def is_collecting_data() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'collect'
 
 
-def is_debuggable(debug_item):
+def is_debuggable(debug_item) -> bool:
     from jesse.config import config
     return is_debugging() and config['env']['logging'][debug_item]
 
 
-def is_debugging():
+def is_debugging() -> bool:
     from jesse.config import config
     return config['app']['debug_mode']
 
 
-def is_importing_candles():
+def is_importing_candles() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'import-candles'
 
 
-def is_live():
+def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
 
-def is_livetrading():
+def is_livetrading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
 
 
-def is_optimizing():
+def is_optimizing() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'optimize'
 
 
-def is_paper_trading():
+def is_paper_trading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'papertrade'
 
 
-def is_test_driving():
+def is_test_driving() -> bool:
     from jesse.config import config
     return config['app']['is_test_driving']
 
 
-def is_unit_testing():
+def is_unit_testing() -> bool:
     return "pytest" in sys.modules
 
 
-def key(exchange: str, symbol: str, timeframe=None):
+def key(exchange: str, symbol: str, timeframe: str = None):
     if timeframe is None:
         return '{}-{}'.format(exchange, symbol)
 
     return '{}-{}-{}'.format(exchange, symbol, timeframe)
 
 
-def max_timeframe(timeframes_list):
+def max_timeframe(timeframes_list: list) -> str:
     from jesse.enums import timeframes
 
     if timeframes.WEEK_1 in timeframes_list:
@@ -383,7 +384,7 @@ def max_timeframe(timeframes_list):
     return timeframes.MINUTE_1
 
 
-def normalize(x: float, x_min: float, x_max: float):
+def normalize(x: float, x_min: float, x_max: float) -> float:
     """
     Rescaling data to have values between 0 and 1
     """
@@ -391,7 +392,7 @@ def normalize(x: float, x_min: float, x_max: float):
     return x_new
 
 
-def now_to_timestamp():
+def now_to_timestamp() -> int:
     if not (is_live() or is_collecting_data() or is_importing_candles()):
         from jesse.store import store
         return store.app.time
@@ -399,11 +400,11 @@ def now_to_timestamp():
     return arrow.utcnow().int_timestamp * 1000
 
 
-def now():
+def now() -> int:
     return now_to_timestamp()
 
 
-def np_shift(arr: np.ndarray, num: int, fill_value=0):
+def np_shift(arr: np.array, num: int, fill_value=0) -> np.array:
     result = np.empty_like(arr)
 
     if num > 0:
@@ -418,7 +419,7 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0):
     return result
 
 
-def opposite_side(s):
+def opposite_side(s: str) -> str:
     from jesse.enums import sides
 
     if s == sides.BUY:
@@ -428,7 +429,7 @@ def opposite_side(s):
     raise ValueError('unsupported side')
 
 
-def opposite_type(t):
+def opposite_type(t: str) -> str:
     from jesse.enums import trade_types
 
     if t == trade_types.LONG:
@@ -438,7 +439,7 @@ def opposite_type(t):
     raise ValueError('unsupported type')
 
 
-def orderbook_insertion_index_search(arr, target: int, ascending=True):
+def orderbook_insertion_index_search(arr, target: int, ascending: bool = True) -> Tuple[bool, int]:
     target = target[0]
     lower = 0
     upper = len(arr)
@@ -486,7 +487,7 @@ def orderbook_trim_price(p: float, ascending: bool, unit: float) -> float:
     return p if trimmed == p - unit else trimmed
 
 
-def prepare_qty(qty, side) -> float:
+def prepare_qty(qty: float, side: str) -> float:
     if side.lower() in ('sell', 'short'):
         return -abs(qty)
 
@@ -512,7 +513,7 @@ def random_str(num_characters: int = 8) -> str:
     return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
 
 
-def readable_duration(seconds: int, granularity: int = 2):
+def readable_duration(seconds: int, granularity: int = 2) -> str:
     intervals = (
         ('weeks', 604800),  # 60 * 60 * 24 * 7
         ('days', 86400),  # 60 * 60 * 24
@@ -537,7 +538,7 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
-def round_price_for_live_mode(price: float, roundable_price: float):
+def round_price_for_live_mode(price: float, roundable_price: float) -> Union[float, np.array]:
     """
     Rounds price(s) based on exchange requirements
 
@@ -557,7 +558,7 @@ def round_price_for_live_mode(price: float, roundable_price: float):
     return np.round(roundable_price, price_round_precision)
 
 
-def round_qty_for_live_mode(price, roundable_qty):
+def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, np.array]:
     """
     Rounds qty(s) based on exchange requirements
 
@@ -590,7 +591,7 @@ def should_execute_silently() -> bool:
     return is_optimizing() or is_unit_testing()
 
 
-def side_to_type(s):
+def side_to_type(s: str) -> str:
     from jesse.enums import trade_types, sides
 
     if s == sides.BUY:
@@ -607,7 +608,7 @@ def string_after_character(string: str, character: str) -> str:
         return None
 
 
-def style(msg_text: str, msg_style: str):
+def style(msg_text: str, msg_style: str) -> str:
     if msg_style is None:
         return msg_text
 
@@ -620,7 +621,7 @@ def style(msg_text: str, msg_style: str):
     raise ValueError('unsupported style')
 
 
-def terminate_app():
+def terminate_app() -> None:
     # close the database
     from jesse.services.db import close_connection
     close_connection()
@@ -628,7 +629,7 @@ def terminate_app():
     os._exit(1)
 
 
-def timeframe_to_one_minutes(timeframe: str):
+def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
 
@@ -656,11 +657,11 @@ def timeframe_to_one_minutes(timeframe: str):
                 timeframe))
 
 
-def timestamp_to_arrow(timestamp: int):
+def timestamp_to_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return arrow.get(timestamp / 1000)
 
 
-def get_arrow(timestamp: int) -> arrow.Arrow:
+def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return timestamp_to_arrow(timestamp)
 
 
@@ -668,7 +669,7 @@ def timestamp_to_date(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))[:10]
 
 
-def timestamp_to_time(timestamp) -> str:
+def timestamp_to_time(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))
 
 
@@ -681,7 +682,7 @@ def today_to_timestamp() -> int:
     return arrow.utcnow().floor('day').int_timestamp * 1000
 
 
-def type_to_side(t):
+def type_to_side(t: str) -> str:
     from jesse.enums import trade_types, sides
 
     if t == trade_types.LONG:

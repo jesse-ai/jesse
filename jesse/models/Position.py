@@ -1,3 +1,5 @@
+import numpy as np
+
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
 from jesse.config import config
@@ -6,11 +8,10 @@ from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
 from jesse.services import logger, notifier
 from jesse.utils import sum_floats, subtract_floats
-import numpy as np
 
 
 class Position:
-    def __init__(self, exchange_name, symbol, attributes=None):
+    def __init__(self, exchange_name: str, symbol: str, attributes=None) -> None:
         self.id = jh.generate_unique_id()
         self.entry_price = None
         self.exit_price = None
@@ -39,7 +40,7 @@ class Position:
     #     return self._mark_price
 
     @property
-    def value(self):
+    def value(self) -> float:
         """
         The value of open position in the quote currency
 
@@ -48,7 +49,7 @@ class Position:
         return abs(self.current_price * self.qty)
 
     @property
-    def type(self):
+    def type(self) -> str:
         """
         The type of open position - long, short, or close
 
@@ -62,7 +63,7 @@ class Position:
         return 'close'
 
     @property
-    def pnl_percentage(self):
+    def pnl_percentage(self) -> float:
         """
         Alias for self.roi
 
@@ -71,7 +72,7 @@ class Position:
         return self.roi
 
     @property
-    def roi(self):
+    def roi(self) -> float:
         """
         Return on Investment in percentage
         More at: https://www.binance.com/en/support/faq/5b9ad93cb4854f5990b9fb97c03cfbeb
@@ -79,7 +80,7 @@ class Position:
         return self.pnl / self.total_cost * 100
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> float:
         """
         How much we paid to open this position (currently does not include fees, should we?!)
         """
@@ -89,14 +90,14 @@ class Position:
         return self.entry_price * abs(self.qty) / self.exchange.futures_leverage
 
     @property
-    def entry_margin(self):
+    def entry_margin(self) -> float:
         """
         Alias for self.total_cost
         """
         return self.total_cost
 
     @property
-    def pnl(self):
+    def pnl(self) -> float:
         """
         The PNL of the position
 
@@ -110,7 +111,7 @@ class Position:
         return -diff if self.type == 'short' else diff
 
     @property
-    def is_open(self):
+    def is_open(self) -> bool:
         """
         Is the current position open?
 
@@ -119,7 +120,7 @@ class Position:
         return self.qty != 0
 
     @property
-    def is_close(self):
+    def is_close(self) -> bool:
         """
         Is the current position close?
 
@@ -128,7 +129,7 @@ class Position:
         return self.qty == 0
 
     @property
-    def mode(self):
+    def mode(self) -> str:
         if self.exchange.spot == 'spot':
             return 'spot'
         else:
@@ -145,7 +146,7 @@ class Position:
     # def futures_ratio(self):
     #     return 0
 
-    def _close(self, close_price):
+    def _close(self, close_price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is already closed.')
 
@@ -180,7 +181,7 @@ class Position:
             if jh.is_live() and config['env']['notifications']['events']['updated_position']:
                 notifier.notify(info_text)
 
-    def _reduce(self, qty, price):
+    def _reduce(self, qty: float, price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is closed.')
 
@@ -209,7 +210,7 @@ class Position:
         if jh.is_live() and config['env']['notifications']['events']['updated_position']:
             notifier.notify(info_text)
 
-    def _increase(self, qty, price):
+    def _increase(self, qty: float, price: float) -> None:
         if not self.is_open:
             raise OpenPositionError('position must be already open in order to increase its size')
 
@@ -237,7 +238,7 @@ class Position:
         if jh.is_live() and config['env']['notifications']['events']['updated_position']:
             notifier.notify(info_text)
 
-    def _open(self, qty, price, change_balance=True):
+    def _open(self, qty: float, price: float, change_balance: bool = True) -> None:
         if self.is_open:
             raise OpenPositionError('an already open position cannot be opened')
 
@@ -256,7 +257,7 @@ class Position:
         if jh.is_live() and config['env']['notifications']['events']['updated_position']:
             notifier.notify(info_text)
 
-    def _on_executed_order(self, order: Order):
+    def _on_executed_order(self, order: Order) -> None:
         qty = order.qty
         price = order.price
 

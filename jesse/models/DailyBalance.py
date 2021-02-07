@@ -19,7 +19,7 @@ class DailyBalance(peewee.Model):
             (('identifier', 'exchange'), False),
         )
 
-    def __init__(self, attributes=None, **kwargs):
+    def __init__(self, attributes=None, **kwargs)-> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:

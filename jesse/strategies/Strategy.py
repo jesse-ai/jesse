@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import pydash
@@ -12,15 +12,15 @@ from jesse import exceptions
 from jesse.enums import sides, trade_types, order_roles
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.models.utils import store_completed_trade_into_db, store_order_into_db
+from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
-from jesse.services import metrics
 
 
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.id = jh.generate_unique_id()
         self.name = None
         self.symbol = None
@@ -58,7 +58,7 @@ class Strategy(ABC):
         self.position: Position = None
         self.broker = None
 
-    def _init_objects(self):
+    def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
         is just a workaround as a part of not being able to set them inside
@@ -73,7 +73,7 @@ class Strategy(ABC):
                 for dna in self.hyperparameters():
                     self.hp[dna['name']] = dna['default']
 
-    def _broadcast(self, msg: str):
+    def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
 
         Arguments:
@@ -101,7 +101,7 @@ class Strategy(ABC):
 
             r.strategy._detect_and_handle_entry_and_exit_modifications()
 
-    def _on_updated_position(self, order: Order):
+    def _on_updated_position(self, order: Order) -> None:
         """
         Handles the after-effect of the executed order
 
@@ -134,13 +134,13 @@ class Strategy(ABC):
         elif role == order_roles.REDUCE_POSITION:
             self._on_reduced_position(order)
 
-    def filters(self):
+    def filters(self) -> list:
         return []
 
-    def hyperparameters(self):
+    def hyperparameters(self) -> list:
         return []
 
-    def _execute_long(self):
+    def _execute_long(self) -> None:
         self.go_long()
 
         # validation
@@ -185,7 +185,7 @@ class Strategy(ABC):
                     self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
                 )
 
-    def _prepare_buy(self, make_copies=True):
+    def _prepare_buy(self, make_copies: bool = True) -> None:
         if type(self.buy) is np.ndarray:
             return
 
@@ -198,7 +198,7 @@ class Strategy(ABC):
         if make_copies:
             self._buy = self.buy.copy()
 
-    def _prepare_sell(self, make_copies=True):
+    def _prepare_sell(self, make_copies: bool = True) -> None:
         if type(self.sell) is np.ndarray:
             return
 
@@ -211,7 +211,7 @@ class Strategy(ABC):
         if make_copies:
             self._sell = self.sell.copy()
 
-    def _prepare_stop_loss(self, make_copies=True):
+    def _prepare_stop_loss(self, make_copies: bool = True) -> None:
         # if it's numpy, then it has already been prepared
         if type(self.stop_loss) is np.ndarray:
             return
@@ -224,7 +224,7 @@ class Strategy(ABC):
             self._stop_loss = self.stop_loss.copy()
             self._log_stop_loss = self._stop_loss.copy()
 
-    def _prepare_take_profit(self, make_copies=True):
+    def _prepare_take_profit(self, make_copies: bool = True) -> None:
         # if it's numpy, then it has already been prepared
         if type(self.take_profit) is np.ndarray:
             return
@@ -238,7 +238,7 @@ class Strategy(ABC):
             self._log_take_profit = self._take_profit.copy()
 
     @staticmethod
-    def _convert_to_numpy_array(arr, name):
+    def _convert_to_numpy_array(arr, name) -> np.ndarray:
         if type(arr) is np.ndarray:
             return arr
 
@@ -265,19 +265,19 @@ class Strategy(ABC):
                 )
             )
 
-    def _validate_stop_loss(self):
+    def _validate_stop_loss(self) -> None:
         if self.stop_loss is None:
             raise exceptions.InvalidStrategy('You forgot to set self.stop_loss. example [qty, price]')
         elif type(self.stop_loss) not in [tuple, list, np.ndarray]:
             raise exceptions.InvalidStrategy('self.stop_loss must be either a list or a tuple. example: [qty, price]')
 
-    def _validate_take_profit(self):
+    def _validate_take_profit(self) -> None:
         if self.take_profit is None:
             raise exceptions.InvalidStrategy('You forgot to set self.take_profit. example [qty, price]')
         elif type(self.take_profit) not in [tuple, list, np.ndarray]:
             raise exceptions.InvalidStrategy('self.take_profit must be either a list or a tuple. example: [qty, price]')
 
-    def _execute_short(self):
+    def _execute_short(self) -> None:
         self.go_short()
 
         # validation
@@ -318,7 +318,7 @@ class Strategy(ABC):
                     self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
                 )
 
-    def _execute_filters(self):
+    def _execute_filters(self) -> bool:
         for f in self.filters():
             try:
                 passed = f()
@@ -352,7 +352,7 @@ class Strategy(ABC):
     def go_short(self):
         pass
 
-    def _execute_cancel(self):
+    def _execute_cancel(self) -> None:
         """
         cancels everything so that the strategy can keep looking for new trades.
         """
@@ -373,7 +373,7 @@ class Strategy(ABC):
         if not jh.is_unit_testing() and not jh.is_live():
             store.orders.storage['{}-{}'.format(self.exchange, self.symbol)].clear()
 
-    def _reset(self):
+    def _reset(self) -> None:
         self.buy = None
         self._buy = None
         self.sell = None
@@ -424,12 +424,12 @@ class Strategy(ABC):
         """
         pass
 
-    def _update_position(self):
+    def _update_position(self) -> None:
         self.update_position()
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def _detect_and_handle_entry_and_exit_modifications(self):
+    def _detect_and_handle_entry_and_exit_modifications(self) -> None:
         if self.position.is_close:
             return
 
@@ -609,7 +609,7 @@ class Strategy(ABC):
     def update_position(self):
         pass
 
-    def _check(self):
+    def _check(self) -> None:
         """Based on the newly updated info, check if we should take action or not"""
         if not self._is_initiated:
             self._is_initiated = True
@@ -662,7 +662,7 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
-    def _on_open_position(self, order: Order):
+    def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
 
         self._broadcast('route-open-position')
@@ -735,7 +735,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_stop_loss(self, order: Order):
+    def _on_stop_loss(self, order: Order) -> None:
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info('Stop-loss has been executed.')
 
@@ -751,7 +751,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_take_profit(self, order: Order):
+    def _on_take_profit(self, order: Order) -> None:
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info("Take-profit order has been executed.")
 
@@ -767,7 +767,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_increased_position(self, order: Order):
+    def _on_increased_position(self, order: Order) -> None:
         self.increased_count += 1
 
         self._open_position_orders = []
@@ -786,7 +786,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _on_reduced_position(self, order: Order):
+    def _on_reduced_position(self, order: Order) -> None:
         """
         prepares for on_reduced_position() is implemented by user
         """
@@ -851,7 +851,7 @@ class Strategy(ABC):
         """
         pass
 
-    def _execute(self):
+    def _execute(self) -> None:
         """
         Handles the execution permission for the strategy.
         """
@@ -868,7 +868,7 @@ class Strategy(ABC):
         self._is_executing = False
         self.index += 1
 
-    def _terminate(self):
+    def _terminate(self) -> None:
         """
         Optional for executing code after completion of a backTest.
         This block will not execute in live use as a live
@@ -909,7 +909,7 @@ class Strategy(ABC):
     def terminate(self):
         pass
 
-    def watch_list(self):
+    def watch_list(self) -> list:
         """
         returns an array containing an array of key-value items that should
         be logged when backTested, and monitored while liveTraded
@@ -929,7 +929,7 @@ class Strategy(ABC):
         return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
-    def open(self):
+    def open(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
@@ -939,7 +939,7 @@ class Strategy(ABC):
         return self.current_candle[1]
 
     @property
-    def close(self):
+    def close(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
@@ -949,7 +949,7 @@ class Strategy(ABC):
         return self.current_candle[2]
 
     @property
-    def price(self):
+    def price(self) -> float:
         """
         Same as self.close, except in livetrde, this is rounded as the exchanges require it.
 
@@ -959,7 +959,7 @@ class Strategy(ABC):
         return self.position.current_price
 
     @property
-    def high(self):
+    def high(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
@@ -969,7 +969,7 @@ class Strategy(ABC):
         return self.current_candle[3]
 
     @property
-    def low(self):
+    def low(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
@@ -1021,37 +1021,37 @@ class Strategy(ABC):
         return store.completed_trades.trades
 
     @property
-    def metrics(self):
+    def metrics(self) -> dict:
         """
         Returns all the metrics of the strategy.
         """
         return metrics.trades(store.completed_trades.trades, store.app.daily_balance)
 
     @property
-    def time(self):
+    def time(self) -> int:
         """returns the current time"""
         return store.app.time
 
     @property
-    def balance(self):
+    def balance(self) -> float:
         """alias for self.capital"""
         return self.capital
 
     @property
-    def capital(self):
+    def capital(self) -> float:
         """the current capital in the trading exchange"""
         return self.position.exchange.wallet_balance(self.symbol)
 
     @property
-    def available_margin(self):
+    def available_margin(self) -> float:
         """Current available margin considering leverage"""
         return self.position.exchange.available_margin(self.symbol)
 
     @property
-    def fee_rate(self):
+    def fee_rate(self) -> float:
         return selectors.get_exchange(self.exchange).fee_rate
 
-    def _log_position_update(self, order: Order, role: str):
+    def _log_position_update(self, order: Order, role: str) -> None:
         """
         A log can be either about opening, adding, reducing, or closing the position.
 
@@ -1153,19 +1153,19 @@ class Strategy(ABC):
             store_order_into_db(order)
 
     @property
-    def is_long(self):
+    def is_long(self) -> bool:
         return self.position.type == 'long'
 
     @property
-    def is_short(self):
+    def is_short(self) -> bool:
         return self.position.type == 'short'
 
     @property
-    def is_open(self):
+    def is_open(self) -> bool:
         return self.position.is_open
 
     @property
-    def is_close(self):
+    def is_close(self) -> bool:
         return self.position.is_close
 
     @property
@@ -1186,7 +1186,7 @@ class Strategy(ABC):
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
-    def average_entry_price(self):
+    def average_entry_price(self) -> float:
         if self.is_long:
             arr = self._buy
         elif self.is_short:
@@ -1200,7 +1200,7 @@ class Strategy(ABC):
 
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
-    def liquidate(self):
+    def liquidate(self) -> None:
         """
         closes open position with a MARKET order
         """
@@ -1213,7 +1213,7 @@ class Strategy(ABC):
             self.stop_loss = self.position.qty, self.price
 
     @property
-    def shared_vars(self):
+    def shared_vars(self) -> dict:
         return store.vars
 
     @property
@@ -1226,7 +1226,7 @@ class Strategy(ABC):
         return len(self._open_position_orders) > 0
 
     @property
-    def leverage(self):
+    def leverage(self) -> int:
         if type(self.position.exchange) is SpotExchange:
             return 1
         elif type(self.position.exchange) is FuturesExchange:
