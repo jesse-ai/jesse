@@ -6,8 +6,6 @@ from jesse.enums import sides, order_types
 from .Exchange import Exchange
 
 
-
-
 class SpotExchange(Exchange):
     def add_realized_pnl(self, realized_pnl: float):
         pass
@@ -20,19 +18,19 @@ class SpotExchange(Exchange):
     # current available assets (dynamically changes based on active orders)
     available_assets = {}
 
-    def __init__(self, name: str, starting_assets: list, fee_rate: float) -> None:
+    def __init__(self, name: str, starting_assets: list, fee_rate: float):
         super().__init__(name, starting_assets, fee_rate, 'spot')
 
-    def wallet_balance(self, symbol: str = '') -> float:
+    def wallet_balance(self, symbol=''):
         if symbol == '':
             raise ValueError
         quote_asset = jh.quote_asset(symbol)
         return self.assets[quote_asset]
 
-    def available_margin(self, symbol:str='')-> float:
+    def available_margin(self, symbol=''):
         return self.wallet_balance(symbol)
 
-    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+    def on_order_submission(self, order: Order, skip_market_order=True):
         base_asset = jh.base_asset(order.symbol)
         quote_asset = jh.quote_asset(order.symbol)
 
@@ -85,7 +83,7 @@ class SpotExchange(Exchange):
                 )
             )
 
-    def on_order_execution(self, order: Order) -> None:
+    def on_order_execution(self, order: Order):
         base_asset = jh.base_asset(order.symbol)
         quote_asset = jh.quote_asset(order.symbol)
 
@@ -143,7 +141,7 @@ class SpotExchange(Exchange):
                 )
             )
 
-    def on_order_cancellation(self, order: Order) -> None:
+    def on_order_cancellation(self, order: Order):
         base_asset = jh.base_asset(order.symbol)
         quote_asset = jh.quote_asset(order.symbol)
 

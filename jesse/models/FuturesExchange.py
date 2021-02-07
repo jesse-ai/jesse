@@ -1,13 +1,13 @@
-import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.enums import sides, order_types
-from jesse.exceptions import InsufficientMargin
-from jesse.libs import DynamicNumpyArray
+from jesse.exceptions import NegativeBalance, InsufficientMargin
 from jesse.models import Order
+from jesse.enums import sides, order_types
+from jesse.libs import DynamicNumpyArray
+import numpy as np
 from jesse.services import selectors
-
 from .Exchange import Exchange
+
 
 class FuturesExchange(Exchange):
     # current holding assets
@@ -26,8 +26,8 @@ class FuturesExchange(Exchange):
             settlement_currency: str,
             futures_leverage_mode: str,
             futures_leverage: int
-    ) -> None:
-        super().__init__(name, starting_assets, fee_rate, 'futures', settlement_currency)
+    ):
+        super().__init__(name, starting_assets, fee_rate, 'futures')
 
         self.futures_leverage_mode = futures_leverage_mode
         self.futures_leverage = futures_leverage
@@ -56,10 +56,10 @@ class FuturesExchange(Exchange):
 
         self.settlement_currency = settlement_currency.upper()
 
-    def wallet_balance(self, symbol: str = '') -> float:
+    def wallet_balance(self, symbol=''):
         return self.assets[self.settlement_currency]
 
-    def available_margin(self, symbol: str = '') -> float:
+    def available_margin(self, symbol=''):
         temp_credit = self.assets[self.settlement_currency] * self.futures_leverage
         # we need to consider buy and sell orders of ALL pairs
         # also, consider the value of all open positions
@@ -87,7 +87,7 @@ class FuturesExchange(Exchange):
 
         return temp_credit
 
-    def charge_fee(self, amount: float) -> None:
+    def charge_fee(self, amount):
         fee_amount = abs(amount) * self.fee_rate
         new_balance = self.assets[self.settlement_currency] - fee_amount
         logger.info(
@@ -99,7 +99,7 @@ class FuturesExchange(Exchange):
         )
         self.assets[self.settlement_currency] = new_balance
 
-    def add_realized_pnl(self, realized_pnl: float) -> None:
+    def add_realized_pnl(self, realized_pnl: float):
         new_balance = self.assets[self.settlement_currency] + realized_pnl
         logger.info('Added realized PNL of {}. Balance for {} on {} changed from {} to {}'.format(
             round(realized_pnl, 2),
@@ -109,7 +109,7 @@ class FuturesExchange(Exchange):
         ))
         self.assets[self.settlement_currency] = new_balance
 
-    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+    def on_order_submission(self, order: Order, skip_market_order=True):
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
@@ -118,10 +118,9 @@ class FuturesExchange(Exchange):
                 order_size = abs(order.qty * order.price)
                 remaining_margin = self.available_margin()
                 if order_size > remaining_margin:
-                    raise InsufficientMargin(
-                        'You cannot submit an order for ${} when your margin balance is ${}'.format(
-                            round(order_size), round(remaining_margin)
-                        ))
+                    raise InsufficientMargin('You cannot submit an order for ${} when your margin balance is ${}'.format(
+                        round(order_size), round(remaining_margin)
+                    ))
 
         # skip market order at the time of submission because we don't have
         # the exact order.price. Instead, we call on_order_submission() one
@@ -135,7 +134,7 @@ class FuturesExchange(Exchange):
         else:
             self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
 
-    def on_order_execution(self, order: Order) -> None:
+    def on_order_execution(self, order: Order):
         base_asset = jh.base_asset(order.symbol)
 
         if order.type == order_types.MARKET:
@@ -155,7 +154,7 @@ class FuturesExchange(Exchange):
                     break
         return
 
-    def on_order_cancellation(self, order: Order) -> None:
+    def on_order_cancellation(self, order: Order):
         base_asset = jh.base_asset(order.symbol)
 
         self.available_assets[base_asset] -= order.qty
