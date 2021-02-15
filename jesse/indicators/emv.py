@@ -1,8 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import tulipy as ti
+
+from jesse.helpers import get_config
 
 
 def emv(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:

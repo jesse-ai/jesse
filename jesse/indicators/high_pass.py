@@ -2,9 +2,9 @@ import math
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close", sequential: bool = False) -> Union[
@@ -33,7 +33,7 @@ def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close",
             alpha_arg = 2 * math.pi / (period * 1.414)
             alpha1 = (math.cos(alpha_arg) + math.sin(alpha_arg) - 1) / math.cos(alpha_arg)
             hpf[i] = math.pow(1.0 - alpha1 / 2.0, 2) * (source[i] - 2 * source[i - 1] + source[i - 2]) + 2 * (
-                        1 - alpha1) * hpf[i - 1] - math.pow(1 - alpha1, 2) * hpf[i - 2]
+                    1 - alpha1) * hpf[i - 1] - math.pow(1 - alpha1, 2) * hpf[i - 2]
 
     if sequential:
         return hpf

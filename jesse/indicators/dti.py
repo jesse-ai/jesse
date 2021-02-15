@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 import jesse.helpers as jh
+from jesse.helpers import get_config
 
 
 def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: bool = False) -> Union[

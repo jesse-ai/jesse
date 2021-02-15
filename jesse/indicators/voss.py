@@ -2,9 +2,9 @@ import math
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 VossFilter = namedtuple('VossFilter', ['voss', 'filt'])
 

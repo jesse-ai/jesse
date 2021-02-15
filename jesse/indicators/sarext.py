@@ -1,8 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 
 def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float = 0, acceleration_init_long: float = 0,

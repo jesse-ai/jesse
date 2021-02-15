@@ -1,8 +1,9 @@
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 import tulipy as ti
+
+from jesse.helpers import get_config
 
 FisherTransform = namedtuple('FisherTransform', ['fisher', 'signal'])
 

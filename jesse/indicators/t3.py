@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: str = "close",

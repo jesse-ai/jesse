@@ -1,8 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 
 def beta(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:

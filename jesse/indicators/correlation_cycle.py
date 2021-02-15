@@ -2,9 +2,9 @@ import math
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source, np_shift
+from jesse.helpers import get_config
 
 CC = namedtuple('CC', ['real', 'imag', 'angle', 'state'])
 

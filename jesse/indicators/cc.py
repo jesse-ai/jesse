@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, roc_long_period: int = 14,

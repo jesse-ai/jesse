@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", sequential: bool = False) -> Union[

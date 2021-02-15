@@ -489,6 +489,13 @@ def test_emd():
     assert len(seq.upperband) == len(candles)
     assert len(seq.lowerband) == len(candles)
 
+def test_er():
+    candles = np.array(mama_candles)
+    single = ta.er(candles)
+    seq = ta.er(candles, sequential=True)
+    assert round(single, 2) == 0.02
+    assert len(seq) == len(candles)
+    assert round(seq[-1], 2) == round(single, 2)
 
 def test_emv():
     candles = np.array(mama_candles)

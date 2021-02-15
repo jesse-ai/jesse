@@ -1,8 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 
 def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, sequential: bool = False) -> Union[

@@ -1,9 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 from scipy.ndimage.filters import maximum_filter1d, minimum_filter1d
+
+from jesse.helpers import get_config
 
 
 def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",

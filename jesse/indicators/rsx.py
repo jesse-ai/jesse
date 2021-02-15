@@ -1,12 +1,13 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
+
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
-
-def rsx(candles: np.ndarray, period:int=14, source_type: str ="close", sequential: bool = False) -> Union[float, np.ndarray]:
+def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Relative Strength Xtra (rsx)
    

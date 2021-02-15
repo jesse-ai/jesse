@@ -2,9 +2,9 @@ import math
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: str = "close",

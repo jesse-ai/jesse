@@ -1,14 +1,14 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def linearreg_slope(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> \
-Union[float, np.ndarray]:
+        Union[float, np.ndarray]:
     """
     LINEARREG_SLOPE - Linear Regression Slope
 

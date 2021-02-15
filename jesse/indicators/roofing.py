@@ -1,8 +1,8 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
+from jesse.helpers import get_config
 from .high_pass import high_pass
 from .supersmoother import supersmoother
 

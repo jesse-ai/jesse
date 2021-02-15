@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, matype: int = 0,

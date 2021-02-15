@@ -1,9 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def smma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[

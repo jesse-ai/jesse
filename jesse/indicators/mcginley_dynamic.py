@@ -1,9 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, source_type: str = "close",

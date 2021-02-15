@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+
 from jesse.helpers import get_config
 
 PIVOT = namedtuple('PIVOT', ['r4', 'r3', 'r2', 'r1', 'pp', 's1', 's2', 's3', 's4'])

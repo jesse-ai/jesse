@@ -1,10 +1,10 @@
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 

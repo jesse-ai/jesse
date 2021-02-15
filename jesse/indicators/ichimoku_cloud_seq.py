@@ -1,9 +1,9 @@
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
+from jesse.helpers import get_config
 from jesse.helpers import np_shift
 
 IchimokuCloud = namedtuple('IchimokuCloud',

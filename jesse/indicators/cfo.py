@@ -1,13 +1,14 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
-def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: str = "close", sequential: bool = False) -> Union[
+def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: str = "close",
+        sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
     CFO - Chande Forcast Oscillator
@@ -27,7 +28,6 @@ def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type:
 
     cfo = scalar * (source - talib.LINEARREG(source, timeperiod=period))
     cfo /= source
-
 
     if sequential:
         return cfo

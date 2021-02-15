@@ -1,8 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 
 def ultosc(candles: np.ndarray, timeperiod1: int = 7, timeperiod2: int = 14, timeperiod3: int = 28,

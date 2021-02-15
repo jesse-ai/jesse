@@ -1,9 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type: str = "close",

@@ -2,8 +2,8 @@ import math
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 
+from jesse.helpers import get_config
 from .supersmoother import supersmoother
 
 

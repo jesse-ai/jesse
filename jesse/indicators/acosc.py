@@ -1,8 +1,9 @@
 from collections import namedtuple
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 AC = namedtuple('AC', ['osc', 'change'])
 

@@ -37,6 +37,7 @@ from .efi import efi
 from .ema import ema
 from .emd import emd
 from .emv import emv
+from .er import er
 from .fisher import fisher
 from .fosc import fosc
 from .frama import frama

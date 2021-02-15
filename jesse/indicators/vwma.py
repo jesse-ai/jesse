@@ -1,10 +1,10 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import tulipy as ti
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[

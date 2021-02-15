@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+
 from jesse.helpers import get_config
 
 VI = namedtuple('VI', ['plus', 'minus'])

@@ -1,12 +1,13 @@
 from typing import Union
 
 import numpy as np
-from jesse.helpers import get_config
 import talib
+
+from jesse.helpers import get_config
 
 
 def pattern_recognition(candles: np.ndarray, pattern_type: str, penetration: int = 0, sequential: bool = False) -> \
-Union[int, np.ndarray]:
+        Union[int, np.ndarray]:
     """
     Pattern Recognition
 
