@@ -2,9 +2,10 @@ from typing import Union
 
 import numpy as np
 
+from jesse.helpers import get_candle_source
 from jesse.helpers import get_config
-from .high_pass import high_pass
-from .supersmoother import supersmoother
+from .high_pass_2_pole import high_pass_2_pole_fast
+from .supersmoother import supersmoother_fast
 
 
 def roofing(candles: np.ndarray, hp_period: int = 48, lp_period: int = 10, source_type: str = "close",
@@ -24,9 +25,11 @@ def roofing(candles: np.ndarray, hp_period: int = 48, lp_period: int = 10, sourc
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 
-    hpf = high_pass(candles, period=hp_period, source_type=source_type, sequential=True)
+    source = get_candle_source(candles, source_type=source_type)
 
-    res = supersmoother(hpf, cutoff=lp_period, sequential=True)
+    hpf = high_pass_2_pole_fast(source, hp_period)
+
+    res = supersmoother_fast(hpf, lp_period)
 
     if sequential:
         return res

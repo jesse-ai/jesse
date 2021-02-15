@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import talib
+from numba import njit
 
 from jesse.helpers import get_config
 
@@ -27,6 +28,16 @@ def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequent
     # calculation of ATR using TALIB function
     atr = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
+    super_trend, changed = supertrend_fast(candles, atr, factor, period)
+
+    if sequential:
+        return SuperTrend(super_trend, changed)
+    else:
+        return SuperTrend(super_trend[-1], changed[-1])
+
+
+@njit
+def supertrend_fast(candles, atr, factor, period):
     # Calculation of SuperTrend
     upper_basic = (candles[:, 3] + candles[:, 4]) / 2 + (factor * atr)
     lower_basic = (candles[:, 3] + candles[:, 4]) / 2 - (factor * atr)
@@ -84,8 +95,4 @@ def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequent
             else:
                 super_trend[i] = currUpperBand  # switch to DOWNTREND
                 changed[i] = True
-
-    if sequential:
-        return SuperTrend(super_trend, changed)
-    else:
-        return SuperTrend(super_trend[-1], changed[-1])
+    return super_trend, changed

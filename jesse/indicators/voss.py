@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import get_config
@@ -28,6 +29,16 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
         candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
+    voss, filt = voss_fast(source, period, predict, bandwith)
+
+    if sequential:
+        return VossFilter(voss, filt)
+    else:
+        return VossFilter(voss[-1], filt[-1])
+
+
+@njit
+def voss_fast(source, period, predict, bandwith):
     voss = np.full_like(source, 0)
     filt = np.full_like(source, 0)
 
@@ -49,8 +60,4 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
                 sumc = sumc + ((count + 1) / float(order)) * voss[i - (order - count)]
 
             voss[i] = ((3 + order) / 2) * filt[i] - sumc
-
-    if sequential:
-        return VossFilter(voss, filt)
-    else:
-        return VossFilter(voss[-1], filt[-1])
+    return voss, filt
