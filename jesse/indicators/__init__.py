@@ -57,6 +57,7 @@ from .ichimoku_cloud import ichimoku_cloud
 from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .itrend import itrend
 from .kama import kama
+from .kaufmanstop import kaufmanstop
 from .keltner import keltner
 from .kst import kst
 from .kvo import kvo
@@ -94,6 +95,7 @@ from .rocr100 import rocr100
 from .roofing import roofing
 from .rsi import rsi
 from .rsx import rsx
+from .safezonestop import safezonestop
 from .sar import sar
 from .sarext import sarext
 from .sinwma import sinwma
