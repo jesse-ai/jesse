@@ -25,6 +25,7 @@ from .correlation_cycle import correlation_cycle
 from .cvi import cvi
 from .damiani_volatmeter import damiani_volatmeter
 from .dec_osc import dec_osc
+from .devstop import devstop
 from .decycler import decycler
 from .dema import dema
 from .di import di

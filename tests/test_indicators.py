@@ -363,6 +363,17 @@ def test_dema():
     assert seq[-1] == single
 
 
+def test_devstop():
+    candles = np.array(mama_candles)
+
+    single = ta.devstop(candles)
+    seq = ta.devstop(candles, sequential=True)
+
+    assert round(single, 0) == 248.0
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_di():
     candles = np.array(mama_candles)
 
