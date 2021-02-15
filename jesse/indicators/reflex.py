@@ -25,10 +25,16 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
 
     ssf = supersmoother(candles, cutoff=period / 2, source_type=source_type, sequential=True)
 
+
+    if sequential:
+        return rf
+    else:
+        return None if np.isnan(rf[-1]) else rf[-1]
+
+def reflex_fast(ssf, period):
     rf = np.full_like(ssf, 0)
     ms = np.full_like(ssf, 0)
     sums = np.full_like(ssf, 0)
-
     for i in range(ssf.shape[0]):
         if not (i < period):
             slope = (ssf[i - period] - ssf[i]) / period
@@ -41,8 +47,3 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] > 0:
                 rf[i] = sums[i] / np.sqrt(ms[i])
-
-    if sequential:
-        return rf
-    else:
-        return None if np.isnan(rf[-1]) else rf[-1]

@@ -104,6 +104,7 @@ from .stddev import stddev
 from .stochastic import stoch
 from .stochf import stochf
 from .supersmoother import supersmoother
+from .supersmoother_3_pole import supersmoother_3_pole
 from .supertrend import supertrend
 from .t3 import t3
 from .tema import tema

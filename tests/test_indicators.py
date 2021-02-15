@@ -26,6 +26,7 @@ def test_cg():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_ad():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -489,6 +490,7 @@ def test_emd():
     assert len(seq.upperband) == len(candles)
     assert len(seq.lowerband) == len(candles)
 
+
 def test_er():
     candles = np.array(mama_candles)
     single = ta.er(candles)
@@ -496,6 +498,7 @@ def test_er():
     assert round(single, 2) == 0.02
     assert len(seq) == len(candles)
     assert round(seq[-1], 2) == round(single, 2)
+
 
 def test_emv():
     candles = np.array(mama_candles)
@@ -539,6 +542,7 @@ def test_frama():
     assert round(single, 0) == 219
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_fwma():
     # use the same candles as mama_candles
@@ -584,6 +588,7 @@ def test_high_pass():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_high_pass_2_pole():
     candles = np.array(mama_candles)
     single = ta.high_pass_2_pole(candles)
@@ -591,6 +596,7 @@ def test_high_pass_2_pole():
     assert round(single, 0) == -101
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_hma():
     candles = np.array(mama_candles)
@@ -1421,6 +1427,15 @@ def test_supersmoother():
     candles = np.array(mama_candles)
     single = ta.supersmoother(candles)
     seq = ta.supersmoother(candles, sequential=True)
+    assert round(single, 0) == 201
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_supersmoother_3_pole():
+    candles = np.array(mama_candles)
+    single = ta.supersmoother_3_pole(candles)
+    seq = ta.supersmoother_3_pole(candles, sequential=True)
     assert round(single, 0) == 201
     assert len(seq) == len(candles)
     assert seq[-1] == single

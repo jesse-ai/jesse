@@ -54,9 +54,9 @@ def frame_fast(candles, n, SC, FC):
         v1 = per[len(per)//2:]
         v2 = per[:len(per)//2]
 
-        N1 = (np.max(v1[:, 3]) - np.min(v1[:, 4])) / (n / 2)
-        N2 = (np.max(v2[:, 3]) - np.min(v2[:, 4])) / (n / 2)
-        N3 = (np.max(per[:, 3]) - np.min(per[:, 4])) / n
+        N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
+        N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)
+        N3 = (max(per[:, 3]) - min(per[:, 4])) / n
 
         if N1 > 0 and N2 > 0 and N3 > 0:
             D[i] = (np.log(N1 + N2) - np.log(N3)) / np.log(2)
@@ -65,8 +65,8 @@ def frame_fast(candles, n, SC, FC):
 
         oldalpha = np.exp(w * (D[i] - 1))
         # keep btwn 1 & 0.01
-        oldalpha = np.max([oldalpha, 0.1])
-        oldalpha = np.min([oldalpha, 1])
+        oldalpha = max([oldalpha, 0.1])
+        oldalpha = min([oldalpha, 1])
 
         oldN = (2 - oldalpha) / oldalpha
         N = ((SC - FC) * ((oldN - 1) / (SC - 1))) + FC
