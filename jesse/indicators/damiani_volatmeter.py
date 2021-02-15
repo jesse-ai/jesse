@@ -27,7 +27,7 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
     :return: float | np.ndarray
     """
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 

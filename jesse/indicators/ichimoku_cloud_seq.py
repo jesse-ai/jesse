@@ -30,7 +30,7 @@ def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, bas
     if len(candles) < lagging_line_period + displacement:
         raise ValueError("Too few candles available for lagging_line_period + displacement.")
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 

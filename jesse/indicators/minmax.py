@@ -18,7 +18,7 @@ def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXT
 
     :return: EXTREMA(min, max, last_min, last_max)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 

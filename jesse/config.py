@@ -181,7 +181,7 @@ config = {
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         'data': {
             # The minimum number of warmup candles that is loaded before each session.
-            'warmup_candles_num': 210,
+            'warmup_candles_num': 240,
         }
     },
 

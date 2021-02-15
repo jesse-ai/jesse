@@ -23,7 +23,7 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
 
     :return: Stochastic(k, d)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 
