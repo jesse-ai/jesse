@@ -540,6 +540,17 @@ def test_frama():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_fwma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.fwma(candles)
+    seq = ta.fwma(candles, sequential=True)
+
+    assert round(single, 0) == 161
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 
 def test_gator():
     candles = np.array(mama_candles)

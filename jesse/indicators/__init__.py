@@ -41,6 +41,7 @@ from .er import er
 from .fisher import fisher
 from .fosc import fosc
 from .frama import frama
+from .fwma import fwma
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .high_pass import high_pass

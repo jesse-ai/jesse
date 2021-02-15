@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import get_config
@@ -25,6 +26,21 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
         candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
+    fil, to_fill = gauss_fast(source, period, poles)
+
+    if to_fill != 0:
+        res = np.insert(fil[poles:], 0, np.repeat(np.nan, to_fill))
+    else:
+        res = fil[poles:]
+
+    if sequential:
+        return res
+    else:
+        return None if np.isnan(res[-1]) else res[-1]
+
+
+@njit
+def gauss_fast(source, period, poles):
     N = len(source)
     source = source[~np.isnan(source)]
     to_fill = N - len(source)
@@ -54,12 +70,4 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
 
         fil[poles + i] = np.dot(coeff, val)
 
-    if to_fill != 0:
-        res = np.insert(fil[poles:], 0, np.repeat(np.nan, to_fill))
-    else:
-        res = fil[poles:]
-
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return fil, to_fill

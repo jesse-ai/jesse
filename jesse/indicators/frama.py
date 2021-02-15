@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_config
 
@@ -29,6 +30,16 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         print("FRAMA n must be even. Adding one")
         n += 1
 
+    frama = frame_fast(candles, n, SC, FC)
+
+    if sequential:
+        return frama
+    else:
+        return frama[-1]
+
+
+@njit
+def frame_fast(candles, n, SC, FC):
     w = np.log(2.0 / (SC + 1))
 
     D = np.zeros(len(candles))
@@ -40,10 +51,8 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
     for i in range(n, len(candles)):
         per = candles[i - n:i]
 
-        # take 2 batches of the input
-        split = np.split(per, 2)
-        v1 = split[0]
-        v2 = split[1]
+        v1 = per[len(per)//2:]
+        v2 = per[:len(per)//2]
 
         N1 = (np.max(v1[:, 3]) - np.min(v1[:, 4])) / (n / 2)
         N2 = (np.max(v2[:, 3]) - np.min(v2[:, 4])) / (n / 2)
@@ -75,8 +84,4 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     for i in range(n, len(frama)):
         frama[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama[i - 1]
-
-    if sequential:
-        return frama
-    else:
-        return frama[-1]
+    return frama
