@@ -2,6 +2,7 @@ import math
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
@@ -19,8 +20,9 @@ def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequenti
 
     :return: EMD(upperband, middleband, lowerband)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     price = (candles[:, 3] + candles[:, 4]) / 2
     # bandpass filter

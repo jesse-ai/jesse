@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 AC = namedtuple('AC', ['osc', 'change'])
@@ -15,8 +16,9 @@ def acosc(candles: np.ndarray, sequential: bool = False) -> AC:
 
     :return: AC(osc, change)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
     ao = talib.SMA(med, 5) - talib.SMA(med, 34)

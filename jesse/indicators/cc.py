@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
@@ -21,8 +22,9 @@ def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, ro
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     res = talib.WMA(talib.ROC(source, timeperiod=roc_long_period) + talib.ROC(source, timeperiod=roc_short_period),

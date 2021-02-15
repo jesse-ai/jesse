@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
@@ -20,8 +21,9 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matyp
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     res = talib.PPO(source, fastperiod=fast_period, slowperiod=slow_period, matype=matype)

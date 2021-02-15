@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
@@ -23,8 +24,9 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype
     :return: KeltnerChannel(upperband, middleband, lowerband)
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     e = talib.MA(source, timeperiod=period, matype=matype)

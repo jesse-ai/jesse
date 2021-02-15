@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 
 IchimokuCloud = namedtuple('IchimokuCloud', ['conversion_line', 'base_line', 'span_a', 'span_b'])
 

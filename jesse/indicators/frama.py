@@ -2,6 +2,7 @@ import math
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 
 
 def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[
@@ -17,9 +18,9 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     :return:  float | np.ndarray
     """
-
-    if len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     n = window
 

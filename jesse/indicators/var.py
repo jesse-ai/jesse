@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 from jesse.helpers import get_candle_source
@@ -19,8 +20,9 @@ def var(candles: np.ndarray, period: int = 14, nbdev: float = 1, source_type: st
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     res = talib.VAR(candles[:, 2], timeperiod=period, nbdev=nbdev)

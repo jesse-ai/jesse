@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 import tulipy as ti
 
@@ -24,8 +25,9 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
 
     :return: StochasticRSI(k, d)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     rsi_np = talib.RSI(source, timeperiod=period)

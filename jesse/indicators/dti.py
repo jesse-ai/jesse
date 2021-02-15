@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 import jesse.helpers as jh
@@ -19,8 +20,9 @@ def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: b
 
     :return: float
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     high = candles[:, 3]
     low = candles[:, 4]

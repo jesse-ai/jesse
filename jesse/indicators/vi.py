@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 
 VI = namedtuple('VI', ['plus', 'minus'])
 
@@ -15,8 +16,9 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
 
     :return: VI(plus, minus)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]

@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 
 from jesse.helpers import get_candle_source
 
@@ -17,8 +18,9 @@ def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     alphaArg1 = 2 * np.pi * 0.707 / hp_period

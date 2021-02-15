@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 import tulipy as ti
 
 
@@ -14,8 +15,9 @@ def cvi(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     res = ti.cvi(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]), period=period)
 

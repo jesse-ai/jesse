@@ -2,6 +2,7 @@ import math
 from typing import Union
 
 import numpy as np
+from jesse.helpers import get_config
 
 from .supersmoother import supersmoother
 
@@ -19,8 +20,9 @@ def trendflex(candles: np.ndarray, period: int = 20, source_type: str = "close",
     :return: float | np.ndarray
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     ssf = supersmoother(candles, cutoff=period / 2, source_type=source_type, sequential=True)
 

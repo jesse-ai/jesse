@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+from jesse.helpers import get_config
 import talib
 
 DM = namedtuple('DM', ['plus', 'minus'])
@@ -16,8 +17,9 @@ def dm(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DM:
 
     :return: DM(plus, minus)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 210)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     MINUS_DI = talib.MINUS_DM(candles[:, 3], candles[:, 4], timeperiod=period)
     PLUS_DI = talib.PLUS_DM(candles[:, 3], candles[:, 4], timeperiod=period)
