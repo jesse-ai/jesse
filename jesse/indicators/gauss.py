@@ -1,4 +1,3 @@
-import math
 from typing import Union
 
 import numpy as np
@@ -29,9 +28,9 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
     N = len(source)
     source = source[~np.isnan(source)]
     to_fill = N - len(source)
-    PI = math.pi
-    beta = (1 - math.cos(2 * PI / period)) / (math.pow(2, 1 / poles) - 1)
-    alpha = -beta + math.sqrt(math.pow(beta, 2) + 2 * beta)
+    PI = np.pi
+    beta = (1 - np.cos(2 * PI / period)) / (np.power(2, 1 / poles) - 1)
+    alpha = -beta + np.sqrt(np.power(beta, 2) + 2 * beta)
 
     fil = np.zeros(poles + len(source))
     if poles == 1:

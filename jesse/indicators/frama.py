@@ -1,4 +1,3 @@
-import math
 from typing import Union
 
 import numpy as np
@@ -30,7 +29,7 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         print("FRAMA n must be even. Adding one")
         n += 1
 
-    w = math.log(2.0 / (SC + 1))
+    w = np.log(2.0 / (SC + 1))
 
     D = np.zeros(len(candles))
     D[:n] = np.NaN
@@ -51,11 +50,11 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         N3 = (np.max(per[:, 3]) - np.min(per[:, 4])) / n
 
         if N1 > 0 and N2 > 0 and N3 > 0:
-            D[i] = (math.log(N1 + N2) - math.log(N3)) / math.log(2)
+            D[i] = (np.log(N1 + N2) - np.log(N3)) / np.log(2)
         else:
             D[i] = D[i - 1]
 
-        oldalpha = math.exp(w * (D[i] - 1))
+        oldalpha = np.exp(w * (D[i] - 1))
         # keep btwn 1 & 0.01
         oldalpha = np.max([oldalpha, 0.1])
         oldalpha = np.min([oldalpha, 1])

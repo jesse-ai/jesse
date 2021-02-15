@@ -1,4 +1,3 @@
-import math
 from collections import namedtuple
 
 import numpy as np
@@ -46,7 +45,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
 @njit
 def go_fast(source, period, threshold):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
-    PIx2 = 4.0 * math.asin(1.0)
+    PIx2 = 4.0 * np.asin(1.0)
     period = max(2, period)
 
     realPart = np.full_like(source, np.nan)
@@ -95,7 +94,7 @@ def go_fast(source, period, threshold):  # Function is compiled to machine code 
             imagPart[i] = (period * Ixy - Ix * Iy) / np.sqrt(temp_1 * temp_2)
 
     # Correlation Angle Phasor
-    HALF_OF_PI = math.asin(1.0)
+    HALF_OF_PI = np.asin(1.0)
     angle = np.where(imagPart == 0, 0.0, np.degrees(np.arctan(realPart / imagPart) + HALF_OF_PI))
     angle = np.where(imagPart > 0.0, angle - 180.0, angle)
 

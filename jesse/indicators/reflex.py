@@ -1,4 +1,3 @@
-import math
 from typing import Union
 
 import numpy as np
@@ -41,7 +40,7 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] > 0:
-                rf[i] = sums[i] / math.sqrt(ms[i])
+                rf[i] = sums[i] / np.sqrt(ms[i])
 
     if sequential:
         return rf

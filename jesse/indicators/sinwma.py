@@ -1,5 +1,3 @@
-from math import pi
-from math import sin
 from typing import Union
 
 import numpy as np
@@ -26,7 +24,7 @@ def sinwma(candles: np.ndarray, period: int = 14, source_type: str = "close", se
         candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
-    sines = np.array([sin((i + 1) * pi / (period + 1)) for i in range(0, period)])
+    sines = np.array([np.sin((i + 1) * np.pi / (period + 1)) for i in range(0, period)])
     w = sines / sines.sum()
     swv = sliding_window_view(source, window_shape=period)
     res = np.average(swv, weights=w, axis=-1)

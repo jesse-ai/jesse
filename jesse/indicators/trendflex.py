@@ -1,4 +1,3 @@
-import math
 from typing import Union
 
 import numpy as np
@@ -40,7 +39,7 @@ def trendflex(candles: np.ndarray, period: int = 20, source_type: str = "close",
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] != 0:
-                tf[i] = sums[i] / math.sqrt(ms[i])
+                tf[i] = sums[i] / np.sqrt(ms[i])
 
     if sequential:
         return tf

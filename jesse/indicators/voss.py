@@ -1,4 +1,3 @@
-import math
 from collections import namedtuple
 
 import numpy as np
@@ -32,12 +31,12 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
     voss = np.full_like(source, 0)
     filt = np.full_like(source, 0)
 
-    pi = math.pi
+    pi = np.pi
 
     order = 3 * predict
-    f1 = math.cos(2 * pi / period)
-    g1 = math.cos(bandwith * 2 * pi / period)
-    s1 = 1 / g1 - math.sqrt(1 / (g1 * g1) - 1)
+    f1 = np.cos(2 * pi / period)
+    g1 = np.cos(bandwith * 2 * pi / period)
+    s1 = 1 / g1 - np.sqrt(1 / (g1 * g1) - 1)
 
     for i in range(source.shape[0]):
         if not (i <= period or i <= 5 or i <= order):

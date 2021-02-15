@@ -1,4 +1,3 @@
-import math
 from typing import Union
 
 import numpy as np
@@ -36,10 +35,10 @@ def supersmoother(candles: np.ndarray, cutoff: int = 14, source_type: str = "clo
     source = source[~np.isnan(source)]
     to_fill = N - len(source)
 
-    PI = math.pi
-    f = (math.sqrt(2) * PI) / cutoff
-    a = math.exp(-f)
-    c2 = 2 * a * math.cos(f)
+    PI = np.pi
+    f = (np.sqrt(2) * PI) / cutoff
+    a = np.exp(-f)
+    c2 = 2 * a * np.cos(f)
     c3 = -a * a
     c1 = 1 - c2 - c3
 
