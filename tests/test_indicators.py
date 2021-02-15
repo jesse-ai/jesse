@@ -1460,7 +1460,7 @@ def test_supersmoother_3_pole():
     candles = np.array(mama_candles)
     single = ta.supersmoother_3_pole(candles)
     seq = ta.supersmoother_3_pole(candles, sequential=True)
-    assert round(single, 0) == 201
+    assert round(single, 0) == 207
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
