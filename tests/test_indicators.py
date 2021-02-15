@@ -318,7 +318,7 @@ def test_cvi():
     assert seq[-1] == single
 
 
-def test_dav():
+def test_damiani_volatmeter():
     candles = np.array(mama_candles)
 
     single = ta.damiani_volatmeter(candles)
@@ -569,10 +569,17 @@ def test_high_pass():
     candles = np.array(mama_candles)
     single = ta.high_pass(candles)
     seq = ta.high_pass(candles, sequential=True)
-    assert round(single, 0) == -101
+    assert round(single, 0) == -106
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_high_pass_2_pole():
+    candles = np.array(mama_candles)
+    single = ta.high_pass_2_pole(candles)
+    seq = ta.high_pass_2_pole(candles, sequential=True)
+    assert round(single, 0) == -101
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_hma():
     candles = np.array(mama_candles)

@@ -3,6 +3,7 @@ from collections import namedtuple
 
 import numpy as np
 from numba import njit
+
 from jesse.helpers import get_candle_source, np_shift
 from jesse.helpers import get_config
 

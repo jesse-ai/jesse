@@ -44,6 +44,7 @@ from .frama import frama
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .high_pass import high_pass
+from .high_pass_2_pole import high_pass_2_pole
 from .hma import hma
 from .ht_dcperiod import ht_dcperiod
 from .ht_dcphase import ht_dcphase
