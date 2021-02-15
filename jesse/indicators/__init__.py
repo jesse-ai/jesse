@@ -94,6 +94,7 @@ from .rocr import rocr
 from .rocr100 import rocr100
 from .roofing import roofing
 from .rsi import rsi
+from .rsmk import rsmk
 from .rsx import rsx
 from .safezonestop import safezonestop
 from .sar import sar

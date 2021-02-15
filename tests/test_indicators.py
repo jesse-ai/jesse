@@ -1301,6 +1301,22 @@ def test_rsi():
     assert seq[-1] == single
 
 
+def test_rsmk():
+    candles = np.array(srsi_candles)
+    candles2 = np.array(mama_candles)
+
+    rsmk = ta.rsmk(candles, candles2)
+    assert type(rsmk).__name__ == 'RSMK'
+    assert round(rsmk.indicator, 2) == 2.1
+    assert round(rsmk.signal, 2) == -31.56
+
+    rsmk_seq = ta.rsmk(candles, candles2, sequential=True)
+    assert rsmk_seq.indicator[-1] == rsmk.indicator
+    assert rsmk_seq.signal[-1] == rsmk.signal
+    assert len(rsmk_seq.indicator) == len(candles)
+    assert len(rsmk_seq.signal) == len(candles)
+
+
 def test_rsx():
     candles = np.array(mama_candles)
 
