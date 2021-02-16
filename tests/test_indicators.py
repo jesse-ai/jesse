@@ -1432,6 +1432,16 @@ def test_srsi():
     assert len(srsi.k) == len(candles)
 
 
+def test_stc():
+    candles = np.array(mama_candles)
+    single = ta.stc(candles)
+    seq = ta.stc(candles, sequential=True)
+
+    assert round(single, 2) == 0.0
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_stddev():
     candles = np.array(mama_candles)
     single = ta.stddev(candles)
