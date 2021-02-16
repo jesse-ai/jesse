@@ -3,6 +3,8 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
+from .high_pass_2_pole import high_pass_2_pole_fast
 
 
 def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type: str = "close",
@@ -17,30 +19,17 @@ def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
-    alphaArg1 = 2 * np.pi * 0.707 / hp_period
-    alpha1 = (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
-    coeff1 = np.array([(1 - alpha1 / 2) ** 2, 2 * (1 - alpha1), -(1 - alpha1) ** 2])
-    hp1 = np.copy(source)
 
-    alphaArg2 = 2 * np.pi * 0.707 / (0.5 * hp_period)
-    alpha2 = (np.cos(alphaArg2) + np.sin(alphaArg2) - 1) / np.cos(alphaArg2)
-    coeff2 = np.array([(1 - alpha2 / 2) ** 2, 2 * (1 - alpha2), -(1 - alpha2) ** 2])
-    hp2 = np.copy(source)
+    hp = high_pass_2_pole_fast(source, hp_period)
+    dec = source - hp
+    decosc = high_pass_2_pole_fast(dec, 0.5 * hp_period)
 
-    for i in range(source.shape[0]):
-        val1 = np.array([source[i] - 2 * source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
-        hp1[i] = np.matmul(coeff1, val1)
-
-        val2 = np.array(
-            [(source[i] - hp1[i]) - 2 * (source[i - 1] - hp1[i - 1]) + (source[i - 2] - hp1[i - 2]), hp2[i - 1],
-             hp2[i - 2]])
-        hp2[i] = np.matmul(coeff2, val2)
-
-    res = 100 * k * hp2 / source
+    res = 100 * k * decosc / source
 
     if sequential:
         return res

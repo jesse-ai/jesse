@@ -3,6 +3,8 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
+from jesse.helpers import get_config
+
 
 def kvo(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[
     float, np.ndarray]:
@@ -16,8 +18,9 @@ def kvo(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequen
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     res = ti.kvo(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
                  np.ascontiguousarray(candles[:, 2]), np.ascontiguousarray(candles[:, 5]), short_period=short_period,

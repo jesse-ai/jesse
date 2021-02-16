@@ -4,6 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source, np_shift
+from jesse.helpers import get_config
 
 GATOR = namedtuple('GATOR', ['upper', 'lower', 'upper_change', 'lower_change'])
 
@@ -19,8 +20,9 @@ def gatorosc(candles: np.ndarray, source_type: str = "close", sequential: bool =
     :return: GATOR(upper, lower, upper_change, lower_change)
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
 

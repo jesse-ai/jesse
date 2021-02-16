@@ -1,11 +1,14 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
+
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
-
-def rsx(candles: np.ndarray, period:int=14, source_type: str ="close", sequential: bool = False) -> Union[float, np.ndarray]:
+def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     Relative Strength Xtra (rsx)
    
@@ -15,11 +18,21 @@ def rsx(candles: np.ndarray, period:int=14, source_type: str ="close", sequentia
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
+    res = rsx_fast(source, period)
 
+    if sequential:
+        return res
+    else:
+        return None if np.isnan(res[-1]) else res[-1]
+
+
+@njit
+def rsx_fast(source, period):
     # variables
     f0 = 0
     f8 = 0
@@ -103,8 +116,4 @@ def rsx(candles: np.ndarray, period:int=14, source_type: str ="close", sequentia
         else:
             v4 = 50.0
         res[i] = v4
-
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return res

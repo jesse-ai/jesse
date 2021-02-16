@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
+from jesse.helpers import get_config
+
 VPCI = namedtuple('VPCI', ['vpci', 'vpcis'])
 
 
@@ -17,8 +19,9 @@ def vpci(candles: np.ndarray, short_range: int = 5, long_range: int = 25, sequen
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     vwma_long = talib.SMA(candles[:, 2] * candles[:, 5], long_range) / talib.SMA(candles[:, 5], long_range)
     VPC = vwma_long - talib.SMA(candles[:, 2], long_range)

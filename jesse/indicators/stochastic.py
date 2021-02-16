@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
+from jesse.helpers import get_config
+
 Stochastic = namedtuple('Stochastic', ['k', 'd'])
 
 
@@ -21,8 +23,9 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
 
     :return: Stochastic(k, d)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     k, d = talib.STOCH(
         candles[:, 3],

@@ -1,9 +1,10 @@
-import math
 from collections import namedtuple
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source, np_shift
+from jesse.helpers import get_config
 
 CC = namedtuple('CC', ['real', 'imag', 'angle', 'state'])
 
@@ -21,13 +22,30 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
 
     :return: CC(real, imag)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
 
+    realPart, imagPart, angle = go_fast(source, period, threshold)
+
+    priorAngle = np_shift(angle, 1, fill_value=np.nan)
+    angle = np.where(np.logical_and(priorAngle > angle, priorAngle - angle < 270.0), priorAngle, angle)
+
+    # Market State Function
+    state = np.where(np.abs(angle - priorAngle) < threshold, np.where(angle >= 0.0, 1, np.where(angle < 0.0, -1, 0)), 0)
+
+    if sequential:
+        return CC(realPart, imagPart, angle, state)
+    else:
+        return CC(realPart[-1], imagPart[-1], angle[-1], state[-1])
+
+
+@njit
+def go_fast(source, period, threshold):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
-    PIx2 = 4.0 * math.asin(1.0)
+    PIx2 = 4.0 * np.arcsin(1.0)
     period = max(2, period)
 
     realPart = np.full_like(source, np.nan)
@@ -76,16 +94,9 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
             imagPart[i] = (period * Ixy - Ix * Iy) / np.sqrt(temp_1 * temp_2)
 
     # Correlation Angle Phasor
-    HALF_OF_PI = math.asin(1.0)
+    HALF_OF_PI = np.arcsin(1.0)
     angle = np.where(imagPart == 0, 0.0, np.degrees(np.arctan(realPart / imagPart) + HALF_OF_PI))
     angle = np.where(imagPart > 0.0, angle - 180.0, angle)
-    priorAngle = np_shift(angle, 1, fill_value=np.nan)
-    angle = np.where(np.logical_and(priorAngle > angle, priorAngle - angle < 270.0), priorAngle, angle)
 
-    # Market State Function
-    state = np.where(np.abs(angle - priorAngle) < threshold, np.where(angle >= 0.0, 1, np.where(angle < 0.0, -1, 0)), 0)
 
-    if sequential:
-        return CC(realPart, imagPart, angle, state)
-    else:
-        return CC(realPart[-1], imagPart[-1], angle[-1], state[-1])
+    return realPart, imagPart, angle

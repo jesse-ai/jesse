@@ -1,6 +1,9 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
+
+from jesse.helpers import get_config
 
 
 def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> Union[float, np.ndarray]:
@@ -13,11 +16,21 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
+    rsi = lrsi_fast(alpha, candles)
+
+    if sequential:
+        return rsi
+    else:
+        return None if np.isnan(rsi[-1]) else rsi[-1]
+
+
+@njit
+def lrsi_fast(alpha, candles):
     price = (candles[:, 3] + candles[:, 4]) / 2
-
     l0 = np.copy(price)
     l1 = np.copy(price)
     l2 = np.copy(price)
@@ -55,7 +68,4 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
         else:
             rsi[i] = cu / (cu + cd)
 
-    if sequential:
-        return rsi
-    else:
-        return None if np.isnan(rsi[-1]) else rsi[-1]
+    return rsi

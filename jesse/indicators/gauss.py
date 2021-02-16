@@ -1,9 +1,10 @@
-import math
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: str = "close",
@@ -20,16 +21,32 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
     :return: float | np.ndarray
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
+    fil, to_fill = gauss_fast(source, period, poles)
+
+    if to_fill != 0:
+        res = np.insert(fil[poles:], 0, np.repeat(np.nan, to_fill))
+    else:
+        res = fil[poles:]
+
+    if sequential:
+        return res
+    else:
+        return None if np.isnan(res[-1]) else res[-1]
+
+
+@njit
+def gauss_fast(source, period, poles):
     N = len(source)
     source = source[~np.isnan(source)]
     to_fill = N - len(source)
-    PI = math.pi
-    beta = (1 - math.cos(2 * PI / period)) / (math.pow(2, 1 / poles) - 1)
-    alpha = -beta + math.sqrt(math.pow(beta, 2) + 2 * beta)
+    PI = np.pi
+    beta = (1 - np.cos(2 * PI / period)) / (np.power(2, 1 / poles) - 1)
+    alpha = -beta + np.sqrt(np.power(beta, 2) + 2 * beta)
 
     fil = np.zeros(poles + len(source))
     if poles == 1:
@@ -53,12 +70,4 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
 
         fil[poles + i] = np.dot(coeff, val)
 
-    if to_fill != 0:
-        res = np.insert(fil[poles:], 0, np.repeat(np.nan, to_fill))
-    else:
-        res = fil[poles:]
-
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return fil, to_fill

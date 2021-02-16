@@ -3,6 +3,8 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
+from jesse.helpers import get_config
+
 
 def qstick(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """
@@ -14,8 +16,9 @@ def qstick(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Un
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     res = ti.qstick(np.ascontiguousarray(candles[:, 1]), np.ascontiguousarray(candles[:, 2]), period=period)
 

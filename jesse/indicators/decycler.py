@@ -3,6 +3,8 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
+from .high_pass_2_pole import high_pass_2_pole_fast
 
 
 def decycler(candles: np.ndarray, hp_period: int = 125, source_type: str = "close", sequential: bool = False) -> Union[
@@ -16,20 +18,13 @@ def decycler(candles: np.ndarray, hp_period: int = 125, source_type: str = "clos
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
-    alphaArg1 = 2 * np.pi * 0.707 / hp_period
-    alpha1 = (np.cos(alphaArg1) + np.sin(alphaArg1) - 1) / np.cos(alphaArg1)
-    coeff1 = np.array([(1 - alpha1 / 2) ** 2, 2 * (1 - alpha1), -(1 - alpha1) ** 2])
-    hp1 = np.copy(source)
-
-    for i in range(source.shape[0]):
-        val1 = np.array([source[i] - 2 * source[i - 1] + source[i - 2], hp1[i - 1], hp1[i - 2]])
-        hp1[i] = np.matmul(coeff1, val1)
-
-    res = source - hp1
+    hp = high_pass_2_pole_fast(source, hp_period)
+    res = source - hp
 
     if sequential:
         return res

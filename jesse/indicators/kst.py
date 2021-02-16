@@ -4,6 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 KST = namedtuple('KST', ['line', 'signal'])
 
@@ -29,8 +30,9 @@ def kst(candles: np.ndarray, sma_period1: int = 10, sma_period2: int = 10, sma_p
 
     :return: KST(line, signal)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
 

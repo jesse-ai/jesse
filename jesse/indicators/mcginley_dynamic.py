@@ -1,8 +1,10 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, source_type: str = "close",
@@ -18,19 +20,27 @@ def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, sour
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
 
-    mg = np.full_like(source, np.nan)
-    for i in range(len(source)):
-        if i == 0:
-            mg[i] = source[i]
-        else:
-            mg[i] = mg[i - 1] + ((source[i] - mg[i - 1]) / np.max([(k * period * ((source[i] / mg[i - 1]) ** 4)), 1]))
+    mg = md_fast(source, k, period)
 
     if sequential:
         return mg
     else:
         return None if np.isnan(mg[-1]) else mg[-1]
+
+
+@njit
+def md_fast(source, k, period):
+    mg = np.full_like(source, np.nan)
+    for i in range(len(source)):
+        if i == 0:
+            mg[i] = source[i]
+        else:
+            mg[i] = mg[i - 1] + ((source[i] - mg[i - 1]) / max([(k * period * ((source[i] / mg[i - 1]) ** 4)), 1]))
+
+    return mg

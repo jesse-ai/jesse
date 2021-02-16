@@ -18,14 +18,6 @@ def test_acosc():
     assert len(seq.osc) == len(candles)
 
 
-def test_cg():
-    candles = np.array(mama_candles)
-    single = ta.cg(candles)
-    seq = ta.cg(candles, sequential=True)
-    assert round(single, 2) == -5.37
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
 def test_ad():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -244,6 +236,15 @@ def test_cfo():
     assert seq[-1] == single
 
 
+def test_cg():
+    candles = np.array(mama_candles)
+    single = ta.cg(candles)
+    seq = ta.cg(candles, sequential=True)
+    assert round(single, 2) == -5.37
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_chande():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -318,7 +319,7 @@ def test_cvi():
     assert seq[-1] == single
 
 
-def test_dav():
+def test_damiani_volatmeter():
     candles = np.array(mama_candles)
 
     single = ta.damiani_volatmeter(candles)
@@ -358,6 +359,17 @@ def test_dema():
     seq = ta.dema(candles, 9, sequential=True)
 
     assert round(single, 0) == 165
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_devstop():
+    candles = np.array(mama_candles)
+
+    single = ta.devstop(candles)
+    seq = ta.devstop(candles, sequential=True)
+
+    assert round(single, 0) == 248.0
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -499,6 +511,15 @@ def test_emv():
     assert seq[-1] == single
 
 
+def test_er():
+    candles = np.array(mama_candles)
+    single = ta.er(candles)
+    seq = ta.er(candles, sequential=True)
+    assert round(single, 2) == 0.02
+    assert len(seq) == len(candles)
+    assert round(seq[-1], 2) == round(single, 2)
+
+
 def test_fisher():
     candles = np.array(mama_candles)
     single = ta.fisher(candles, period=9)
@@ -534,6 +555,18 @@ def test_frama():
     assert seq[-1] == single
 
 
+def test_fwma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.fwma(candles)
+    seq = ta.fwma(candles, sequential=True)
+
+    assert round(single, 0) == 161
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_gator():
     candles = np.array(mama_candles)
     single = ta.gatorosc(candles)
@@ -562,6 +595,15 @@ def test_high_pass():
     candles = np.array(mama_candles)
     single = ta.high_pass(candles)
     seq = ta.high_pass(candles, sequential=True)
+    assert round(single, 0) == -106
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_high_pass_2_pole():
+    candles = np.array(mama_candles)
+    single = ta.high_pass_2_pole(candles)
+    seq = ta.high_pass_2_pole(candles, sequential=True)
     assert round(single, 0) == -101
     assert len(seq) == len(candles)
     assert seq[-1] == single
@@ -699,6 +741,18 @@ def test_kama():
     seq = ta.kama(candles, 10, sequential=True)
 
     assert round(single, 0) == 202
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_kaufmanstop():
+    # use the same candles as dema_candles
+    candles = np.array(dema_candles)
+
+    single = ta.kaufmanstop(candles)
+    seq = ta.kaufmanstop(candles, sequential=True)
+
+    assert round(single, 0) == -57
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1258,6 +1312,22 @@ def test_rsi():
     assert seq[-1] == single
 
 
+def test_rsmk():
+    candles = np.array(srsi_candles)
+    candles2 = np.array(mama_candles)
+
+    rsmk = ta.rsmk(candles, candles2)
+    assert type(rsmk).__name__ == 'RSMK'
+    assert round(rsmk.indicator, 2) == 2.1
+    assert round(rsmk.signal, 2) == -31.56
+
+    rsmk_seq = ta.rsmk(candles, candles2, sequential=True)
+    assert rsmk_seq.indicator[-1] == rsmk.indicator
+    assert rsmk_seq.signal[-1] == rsmk.signal
+    assert len(rsmk_seq.indicator) == len(candles)
+    assert len(rsmk_seq.signal) == len(candles)
+
+
 def test_rsx():
     candles = np.array(mama_candles)
 
@@ -1265,6 +1335,18 @@ def test_rsx():
     seq = ta.rsx(candles, sequential=True)
 
     assert round(single, 2) == 27.81
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_safezonestop():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.safezonestop(candles)
+    seq = ta.safezonestop(candles, sequential=True)
+
+    assert round(single, 2) == -39.15
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1397,6 +1479,15 @@ def test_supersmoother():
     single = ta.supersmoother(candles)
     seq = ta.supersmoother(candles, sequential=True)
     assert round(single, 0) == 201
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_supersmoother_3_pole():
+    candles = np.array(mama_candles)
+    single = ta.supersmoother_3_pole(candles)
+    seq = ta.supersmoother_3_pole(candles, sequential=True)
+    assert round(single, 0) == 207
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

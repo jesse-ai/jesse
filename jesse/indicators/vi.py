@@ -1,6 +1,9 @@
 from collections import namedtuple
 
 import numpy as np
+from numba import njit
+
+from jesse.helpers import get_config
 
 VI = namedtuple('VI', ['plus', 'minus'])
 
@@ -15,9 +18,20 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
 
     :return: VI(plus, minus)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
+    vpn_with_nan, vmn_with_nan = vi_fast(candles, period)
+
+    if sequential:
+        return VI(vpn_with_nan, vmn_with_nan)
+    else:
+        return VI(vpn_with_nan[-1], vmn_with_nan[-1])
+
+
+@njit
+def vi_fast(candles, period):
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]
     candles_low = candles[:, 4]
@@ -47,8 +61,4 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
     vmn = vmd / trd
     vpn_with_nan = np.concatenate((np.full((candles.shape[0] - vpn.shape[0]), np.nan), vpn))
     vmn_with_nan = np.concatenate((np.full((candles.shape[0] - vmn.shape[0]), np.nan), vmn))
-
-    if sequential:
-        return VI(vpn_with_nan, vmn_with_nan)
-    else:
-        return VI(vpn_with_nan[-1], vmn_with_nan[-1])
+    return vpn_with_nan, vmn_with_nan

@@ -1,9 +1,11 @@
-import math
 from typing import Union
 
 import numpy as np
+from numba import njit
 
-from .supersmoother import supersmoother
+from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
+from .supersmoother import supersmoother_fast
 
 
 def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
@@ -19,15 +21,26 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
     :return: float | np.ndarray
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
-    ssf = supersmoother(candles, cutoff=period / 2, source_type=source_type, sequential=True)
+    source = get_candle_source(candles, source_type=source_type)
 
+    ssf = supersmoother_fast(source, period / 2)
+    rf = reflex_fast(ssf, period)
+
+    if sequential:
+        return rf
+    else:
+        return None if np.isnan(rf[-1]) else rf[-1]
+
+
+@njit
+def reflex_fast(ssf, period):
     rf = np.full_like(ssf, 0)
     ms = np.full_like(ssf, 0)
     sums = np.full_like(ssf, 0)
-
     for i in range(ssf.shape[0]):
         if not (i < period):
             slope = (ssf[i - period] - ssf[i]) / period
@@ -39,9 +52,5 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] > 0:
-                rf[i] = sums[i] / math.sqrt(ms[i])
-
-    if sequential:
-        return rf
-    else:
-        return None if np.isnan(rf[-1]) else rf[-1]
+                rf[i] = sums[i] / np.sqrt(ms[i])
+    return rf

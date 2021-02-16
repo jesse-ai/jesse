@@ -2,8 +2,10 @@ from collections import namedtuple
 
 import numpy as np
 import talib
+from numba import njit
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 DamianiVolatmeter = namedtuple('DamianiVolatmeter', ['vol', 'anti'])
 
@@ -26,26 +28,33 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
     :return: float | np.ndarray
     """
 
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
-
-    lag_s = 0.5
-
-    vol = np.full_like(source, 0)
-    t = np.full_like(source, 0)
 
     atrvis = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=vis_atr)
     atrsed = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=sed_atr)
 
-    for i in range(source.shape[0]):
-        if not (i < sed_std):
-            vol[i] = atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
-            anti_thres = np.std(source[i - vis_std:i]) / np.std(source[i - sed_std:i])
-            t[i] = threshold - anti_thres
+    vol, t = damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std, threshold)
 
     if sequential:
         return DamianiVolatmeter(vol, t)
     else:
         return DamianiVolatmeter(vol[-1], t[-1])
+
+
+@njit
+def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std,
+                            threshold):  # Function is compiled to machine code when called the first time
+    lag_s = 0.5
+
+    vol = np.full_like(source, 0)
+    t = np.full_like(source, 0)
+    for i in range(source.shape[0]):
+        if not (i < sed_std):
+            vol[i] = atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
+            anti_thres = np.std(source[i - vis_std:i]) / np.std(source[i - sed_std:i])
+            t[i] = threshold - anti_thres
+    return vol, t

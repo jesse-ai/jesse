@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 import tulipy as ti
 
+from jesse.helpers import get_config
+
 FisherTransform = namedtuple('FisherTransform', ['fisher', 'signal'])
 
 
@@ -16,8 +18,9 @@ def fisher(candles: np.ndarray, period: int = 9, sequential: bool = False) -> Fi
 
     :return: FisherTransform(fisher, signal)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     fisher, fisher_signal = ti.fisher(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
                                       period=period)

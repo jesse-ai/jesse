@@ -4,6 +4,8 @@ import numpy as np
 import talib
 from scipy.ndimage.filters import maximum_filter1d, minimum_filter1d
 
+from jesse.helpers import get_config
+
 
 def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",
            sequential: bool = False) -> Union[float, np.ndarray]:
@@ -18,8 +20,9 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]

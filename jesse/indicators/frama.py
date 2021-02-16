@@ -1,7 +1,9 @@
-import math
 from typing import Union
 
 import numpy as np
+from numba import njit
+
+from jesse.helpers import get_config
 
 
 def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[
@@ -17,9 +19,9 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     :return:  float | np.ndarray
     """
-
-    if len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     n = window
 
@@ -28,7 +30,17 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         print("FRAMA n must be even. Adding one")
         n += 1
 
-    w = math.log(2.0 / (SC + 1))
+    frama = frame_fast(candles, n, SC, FC)
+
+    if sequential:
+        return frama
+    else:
+        return frama[-1]
+
+
+@njit
+def frame_fast(candles, n, SC, FC):
+    w = np.log(2.0 / (SC + 1))
 
     D = np.zeros(len(candles))
     D[:n] = np.NaN
@@ -39,24 +51,22 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
     for i in range(n, len(candles)):
         per = candles[i - n:i]
 
-        # take 2 batches of the input
-        split = np.split(per, 2)
-        v1 = split[0]
-        v2 = split[1]
+        v1 = per[len(per)//2:]
+        v2 = per[:len(per)//2]
 
-        N1 = (np.max(v1[:, 3]) - np.min(v1[:, 4])) / (n / 2)
-        N2 = (np.max(v2[:, 3]) - np.min(v2[:, 4])) / (n / 2)
-        N3 = (np.max(per[:, 3]) - np.min(per[:, 4])) / n
+        N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
+        N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)
+        N3 = (max(per[:, 3]) - min(per[:, 4])) / n
 
         if N1 > 0 and N2 > 0 and N3 > 0:
-            D[i] = (math.log(N1 + N2) - math.log(N3)) / math.log(2)
+            D[i] = (np.log(N1 + N2) - np.log(N3)) / np.log(2)
         else:
             D[i] = D[i - 1]
 
-        oldalpha = math.exp(w * (D[i] - 1))
+        oldalpha = np.exp(w * (D[i] - 1))
         # keep btwn 1 & 0.01
-        oldalpha = np.max([oldalpha, 0.1])
-        oldalpha = np.min([oldalpha, 1])
+        oldalpha = max([oldalpha, 0.1])
+        oldalpha = min([oldalpha, 1])
 
         oldN = (2 - oldalpha) / oldalpha
         N = ((SC - FC) * ((oldN - 1) / (SC - 1))) + FC
@@ -74,8 +84,4 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     for i in range(n, len(frama)):
         frama[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama[i - 1]
-
-    if sequential:
-        return frama
-    else:
-        return frama[-1]
+    return frama

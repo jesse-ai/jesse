@@ -4,6 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source
+from jesse.helpers import get_config
 
 
 def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float = 1, source_type: str = "close",
@@ -20,8 +21,9 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     source = get_candle_source(candles, source_type=source_type)
     means = talib.MA(source, timeperiod=period, matype=matype)

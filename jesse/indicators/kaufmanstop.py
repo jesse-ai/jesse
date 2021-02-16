@@ -6,12 +6,15 @@ import talib
 from jesse.helpers import get_config
 
 
-def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, direction: str = "long", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
-    NATR - Normalized Average True Range
+    Perry Kaufman's Stops
 
     :param candles: np.ndarray
-    :param period: int - default=14
+    :param period: int - default=22
+    :param mult: float - default=2
+    :param direction: str - default=long
     :param sequential: bool - default=False
 
     :return: float | np.ndarray
@@ -20,7 +23,15 @@ def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
     if not sequential and len(candles) > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
 
-    res = talib.NATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
+    high = candles[:, 3]
+    low = candles[:, 4]
+
+    hl_diff = talib.SMA(high - low, period)
+
+    if direction == "long":
+        res = hl_diff * mult - low
+    else:
+        res = hl_diff * mult + high
 
     if sequential:
         return res

@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 from scipy.signal import argrelextrema
 
+from jesse.helpers import get_config
+
 EXTREMA = namedtuple('EXTREMA', ['min', 'max', 'last_min', 'last_max'])
 
 
@@ -16,8 +18,9 @@ def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXT
 
     :return: EXTREMA(min, max, last_min, last_max)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     low = candles[:, 4]
     high = candles[:, 3]

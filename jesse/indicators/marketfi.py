@@ -3,6 +3,8 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
+from jesse.helpers import get_config
+
 
 def marketfi(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarray]:
     """
@@ -13,8 +15,9 @@ def marketfi(candles: np.ndarray, sequential: bool = False) -> Union[float, np.n
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     res = ti.marketfi(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
                       np.ascontiguousarray(candles[:, 5]))

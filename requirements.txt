@@ -4,8 +4,9 @@ click==7.1.2
 crypto-empyrical==1.0.4
 matplotlib==3.3.4
 newtulipy==0.4.4
+numba==0.52.0
 numpy==1.20.1
-pandas==1.2.1
+pandas==1.2.2
 peewee==3.14.1
 psycopg2-binary==2.8.6
 pydash==4.9.2

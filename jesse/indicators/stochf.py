@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
+from jesse.helpers import get_config
+
 StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
 
 
@@ -19,8 +21,9 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
 
     :return: StochasticFast(k, d)
     """
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
 
     k, d = talib.STOCHF(
         candles[:, 3],

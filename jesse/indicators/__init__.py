@@ -25,6 +25,7 @@ from .correlation_cycle import correlation_cycle
 from .cvi import cvi
 from .damiani_volatmeter import damiani_volatmeter
 from .dec_osc import dec_osc
+from .devstop import devstop
 from .decycler import decycler
 from .dema import dema
 from .di import di
@@ -37,12 +38,15 @@ from .efi import efi
 from .ema import ema
 from .emd import emd
 from .emv import emv
+from .er import er
 from .fisher import fisher
 from .fosc import fosc
 from .frama import frama
+from .fwma import fwma
 from .gatorosc import gatorosc
 from .gauss import gauss
 from .high_pass import high_pass
+from .high_pass_2_pole import high_pass_2_pole
 from .hma import hma
 from .ht_dcperiod import ht_dcperiod
 from .ht_dcphase import ht_dcphase
@@ -54,6 +58,7 @@ from .ichimoku_cloud import ichimoku_cloud
 from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .itrend import itrend
 from .kama import kama
+from .kaufmanstop import kaufmanstop
 from .keltner import keltner
 from .kst import kst
 from .kvo import kvo
@@ -90,7 +95,9 @@ from .rocr import rocr
 from .rocr100 import rocr100
 from .roofing import roofing
 from .rsi import rsi
+from .rsmk import rsmk
 from .rsx import rsx
+from .safezonestop import safezonestop
 from .sar import sar
 from .sarext import sarext
 from .sinwma import sinwma
@@ -101,6 +108,7 @@ from .stddev import stddev
 from .stochastic import stoch
 from .stochf import stochf
 from .supersmoother import supersmoother
+from .supersmoother_3_pole import supersmoother_3_pole
 from .supertrend import supertrend
 from .t3 import t3
 from .tema import tema
