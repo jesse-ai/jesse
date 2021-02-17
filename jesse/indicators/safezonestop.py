@@ -32,12 +32,11 @@ def safezonestop(candles: np.ndarray, period: int = 22, mult: float = 2.5, max_l
     last_low = np_shift(low, 1, fill_value=np.nan)
 
     if direction == "long":
-        res = last_low - mult * talib.MINUS_DM(high, low, timeperiod=period)
-        swv = sliding_window_view(res, window_shape=max_lookback)
-        res = np.max(swv, axis=-1)
+        res = talib.MAX(last_low - mult * talib.MINUS_DM(high, low, timeperiod=period), max_lookback)
     else:
-        res = last_high + mult * talib.PLUS_DM(high, low, timeperiod=period)
-        swv = sliding_window_view(res, window_shape=max_lookback)
-        res = np.min(swv, axis=-1)
+        res = talib.MIN(last_high + mult * talib.PLUS_DM(high, low, timeperiod=period), max_lookback)
 
-    return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
+    if sequential:
+        return res
+    else:
+        return None if np.isnan(res[-1]) else res[-1]
