@@ -1338,6 +1338,15 @@ def test_rsx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_rvi():
+    candles = np.array(mama_candles)
+
+    single = ta.rvi(candles)
+    seq = ta.rvi(candles, sequential=True)
+
+    assert round(single, 2) == 27.99
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_safezonestop():
     # use the same candles as mama_candles

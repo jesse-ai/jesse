@@ -97,6 +97,7 @@ from .roofing import roofing
 from .rsi import rsi
 from .rsmk import rsmk
 from .rsx import rsx
+from .rvi import rvi
 from .safezonestop import safezonestop
 from .sar import sar
 from .sarext import sarext
