@@ -131,6 +131,7 @@ from .vpci import vpci
 from .vpt import vpt
 from .vwma import vwma
 from .vwmacd import vwmacd
+from .vwap import vwap
 from .wad import wad
 from .wclprice import wclprice
 from .wilders import wilders
