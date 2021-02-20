@@ -6,6 +6,7 @@ matplotlib==3.3.4
 newtulipy==0.4.4
 numba==0.53.0rc1.post1
 numpy==1.20.1
+numpy_groupies==0.9.13
 pandas==1.2.2
 peewee==3.14.1
 psycopg2-binary==2.8.6

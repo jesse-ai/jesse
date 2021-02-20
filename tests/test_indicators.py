@@ -1338,6 +1338,7 @@ def test_rsx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_rvi():
     candles = np.array(mama_candles)
 
@@ -1347,6 +1348,7 @@ def test_rvi():
     assert round(single, 2) == 27.99
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_safezonestop():
     # use the same candles as mama_candles
@@ -1728,14 +1730,16 @@ def test_vpt():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_vwap():
     candles = np.array(mama_candles)
     single = ta.vwap(candles)
     seq = ta.vwap(candles, sequential=True)
 
-    assert round(single, 2) == 189.99
+    assert round(single, 2) == 134.86
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_vwma():
     candles = np.array(vwma_candles)

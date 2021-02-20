@@ -1,13 +1,14 @@
 from typing import Union
 
 import numpy as np
-from numba import njit
+from numpy_groupies import aggregate_nb as aggregate
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import get_config
 
 
-def vwap(candles: np.ndarray, source_type: str = "hlc3", sequential: bool = False) -> Union[float, np.ndarray]:
+def vwap(candles: np.ndarray, source_type: str = "hlc3", anchor: str = "D", sequential: bool = False) -> Union[
+    float, np.ndarray]:
     """
     VWAP
 
@@ -23,14 +24,11 @@ def vwap(candles: np.ndarray, source_type: str = "hlc3", sequential: bool = Fals
 
     source = get_candle_source(candles, source_type=source_type)
 
-    res = np_vwap(source, candles[:, 5])
+    group_idx = candles[:, 0].astype('datetime64[ms]').astype('datetime64[{}]'.format(anchor)).astype('int')
+    vwap = aggregate(group_idx, candles[:, 5] * source, func='cumsum')
+    vwap /= aggregate(group_idx, candles[:, 5], func='cumsum')
 
     if sequential:
-        return res
+        return vwap
     else:
-        return None if np.isnan(res[-1]) else res[-1]
-
-
-@njit
-def np_vwap(source, volume):
-    return np.cumsum(volume * source) / np.cumsum(volume)
+        return None if np.isnan(vwap[-1]) else vwap[-1]
