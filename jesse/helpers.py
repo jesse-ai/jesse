@@ -358,8 +358,12 @@ def max_timeframe(timeframes_list: list) -> str:
 
     if timeframes.WEEK_1 in timeframes_list:
         return timeframes.WEEK_1
+    if timeframes.DAY_3 in timeframes_list:
+        return timeframes.DAY_3
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
+    if timeframes.HOUR_12 in timeframes_list:
+        return timeframes.HOUR_12
     if timeframes.HOUR_8 in timeframes_list:
         return timeframes.HOUR_8
     if timeframes.HOUR_6 in timeframes_list:
@@ -372,6 +376,8 @@ def max_timeframe(timeframes_list: list) -> str:
         return timeframes.HOUR_2
     if timeframes.HOUR_1 in timeframes_list:
         return timeframes.HOUR_1
+    if timeframes.MINUTE_45 in timeframes_list:
+        return timeframes.MINUTE_45
     if timeframes.MINUTE_30 in timeframes_list:
         return timeframes.MINUTE_30
     if timeframes.MINUTE_15 in timeframes_list:
@@ -639,13 +645,16 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         timeframes.MINUTE_5: 5,
         timeframes.MINUTE_15: 15,
         timeframes.MINUTE_30: 30,
+        timeframes.MINUTE_45: 45,
         timeframes.HOUR_1: 60,
         timeframes.HOUR_2: 60 * 2,
         timeframes.HOUR_3: 60 * 3,
         timeframes.HOUR_4: 60 * 4,
         timeframes.HOUR_6: 60 * 6,
         timeframes.HOUR_8: 60 * 8,
+        timeframes.HOUR_12: 60 * 12,
         timeframes.DAY_1: 60 * 24,
+        timeframes.DAY_3: 60 * 24 * 3,
         timeframes.WEEK_1: 60 * 24 * 7,
     }
 
@@ -653,7 +662,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         return dic[timeframe]
     except KeyError:
         raise InvalidTimeframe(
-            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D, 1W'.format(
+            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W'.format(
                 timeframe))
 
 
