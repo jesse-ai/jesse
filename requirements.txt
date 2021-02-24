@@ -15,6 +15,6 @@ pytest==6.2.2
 requests==2.25.1
 scipy==1.6.1
 TA-Lib==0.4.19
-tabulate==0.8.8
+tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==0.57.0
