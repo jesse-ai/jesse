@@ -50,6 +50,11 @@ def binary_search(arr: list, item) -> int:
         return -1
 
 
+def class_iter(Class):
+    return (value for variable, value in vars(Class).items() if
+            not callable(getattr(Class, variable)) and not variable.startswith("__"))
+
+
 def clean_orderbook_list(arr) -> List[List[float]]:
     return [[float(i[0]), float(i[1])] for i in arr]
 
@@ -207,12 +212,8 @@ def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
 
-def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
-    try:
-        uuid_obj = uuid.UUID(uuid_to_test, version=version)
-    except ValueError:
-        return False
-    return str(uuid_obj) == uuid_to_test
+def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
+    return timestamp_to_arrow(timestamp)
 
 
 def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.array:
@@ -244,7 +245,7 @@ def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.arr
         raise ValueError('type string not recognised')
 
 
-def get_config(keys: str, default:Any=None) -> Any:
+def get_config(keys: str, default: Any = None) -> Any:
     """
     Gets keys as a single string separated with "." and returns value.
     Also accepts a default value so that the app would work even if
@@ -346,6 +347,14 @@ def is_unit_testing() -> bool:
     return "pytest" in sys.modules
 
 
+def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
+    try:
+        uuid_obj = uuid.UUID(uuid_to_test, version=version)
+    except ValueError:
+        return False
+    return str(uuid_obj) == uuid_to_test
+
+
 def key(exchange: str, symbol: str, timeframe: str = None):
     if timeframe is None:
         return '{}-{}'.format(exchange, symbol)
@@ -398,16 +407,16 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
     return x_new
 
 
+def now() -> int:
+    return now_to_timestamp()
+
+
 def now_to_timestamp() -> int:
     if not (is_live() or is_collecting_data() or is_importing_candles()):
         from jesse.store import store
         return store.app.time
 
     return arrow.utcnow().int_timestamp * 1000
-
-
-def now() -> int:
-    return now_to_timestamp()
 
 
 def np_shift(arr: np.array, num: int, fill_value=0) -> np.array:
@@ -638,6 +647,7 @@ def terminate_app() -> None:
 def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
+    all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
 
     dic = {
         timeframes.MINUTE_1: 1,
@@ -662,16 +672,12 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         return dic[timeframe]
     except KeyError:
         raise InvalidTimeframe(
-            'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W'.format(
-                timeframe))
+            'Timeframe "{}" is invalid. Supported timeframes are {}.'.format(
+                timeframe, ', '.join(all_timeframes)))
 
 
 def timestamp_to_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return arrow.get(timestamp / 1000)
-
-
-def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
-    return timestamp_to_arrow(timestamp)
 
 
 def timestamp_to_date(timestamp: int) -> str:

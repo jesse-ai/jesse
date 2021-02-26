@@ -3,6 +3,7 @@ from typing import List, Any
 
 import jesse.helpers as jh
 from jesse import exceptions
+from jesse.enums import timeframes
 from jesse.models import Route
 
 
@@ -35,11 +36,12 @@ class RouterClass:
                     'A strategy with the name of "{}" could not be found.'.format(r[3]))
 
             # validate timeframe
-            timeframe = r[2]
-            if timeframe not in ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '3h', '4h', '6h', '8h', '1D']:
+            route_timeframe = r[2]
+            all_timeframes = [timeframe for timeframe in jh.class_iter(timeframes)]
+            if route_timeframe not in all_timeframes:
                 raise exceptions.InvalidRoutes(
-                    'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
-                        timeframe)
+                    'Timeframe "{}" is invalid. Supported timeframes are {}'.format(
+                        route_timeframe, ', '.join(all_timeframes))
                 )
 
             self.routes.append(Route(*r))
