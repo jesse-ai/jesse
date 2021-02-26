@@ -36,9 +36,9 @@ class RouterClass:
 
             # validate timeframe
             timeframe = r[2]
-            if timeframe not in ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '3h', '4h', '6h', '8h', '1D']:
+            if timeframe not in ['1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '3h', '4h', '6h', '8h', '12h', '1D', '3D', '1W'']:
                 raise exceptions.InvalidRoutes(
-                    'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 1h, 2h, 3h, 4h, 6h, 8h, 1D'.format(
+                    'Timeframe "{}" is invalid. Supported timeframes are 1m, 3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W'.format(
                         timeframe)
                 )
 
