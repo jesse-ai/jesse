@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class CandleExchange(ABC):
-    """
-
-    """
     def __init__(self, name, count, sleep_time):
         self.name = name
         self.count = count
@@ -17,17 +14,8 @@ class CandleExchange(ABC):
 
     @abstractmethod
     def fetch(self, symbol, start_timestamp):
-        """
-
-        :param symbol:
-        :param start_timestamp:
-        """
         pass
 
     @abstractmethod
     def get_starting_time(self, symbol) -> int:
-        """
-
-        :param symbol:
-        """
         pass
