@@ -56,10 +56,6 @@ class DynamicNumpyArray:
         self.array[i] = item
 
     def append(self, item: np.ndarray):
-        """
-
-        :param item:
-        """
         self.index += 1
 
         # expand if the arr is almost full
@@ -84,11 +80,6 @@ class DynamicNumpyArray:
         return self.array[self.index]
 
     def get_past_item(self, past_index):
-        """
-
-        :param past_index:
-        :return:
-        """
         # validation
         if self.index == -1:
             raise IndexError('list assignment index out of range')
