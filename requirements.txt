@@ -17,4 +17,4 @@ scipy==1.6.1
 TA-Lib==0.4.19
 tabulate==0.8.9
 timeloop==1.0.2
-websocket-client==0.57.0
+websocket-client==0.58.0
