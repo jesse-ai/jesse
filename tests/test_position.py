@@ -4,7 +4,7 @@ from jesse.enums import exchanges
 from jesse.models import Position
 from .utils import set_up, single_route_backtest
 
-DummyStrategy = namedtuple('DummyStrategy', ['leverage'])
+StrategyMock = namedtuple('StrategyMock', 'leverage')
 
 
 def test_close_position():
@@ -165,7 +165,7 @@ def test_position_pnl_percentage():
         'current_price': 60,
         'qty': 2,
     })
-    p.strategy = DummyStrategy(1)
+    p.strategy = StrategyMock(1)
 
     # long position
     assert p.pnl_percentage == 20
@@ -183,7 +183,7 @@ def test_position_pnl_percentage():
 def test_position_roi():
     set_up()
     p = Position(exchanges.SANDBOX, 'BTC-USDT')
-    p.strategy = DummyStrategy(1)
+    p.strategy = StrategyMock(1)
     p._open(3, 100)
     p.current_price = 110
 
