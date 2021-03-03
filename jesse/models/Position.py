@@ -87,7 +87,7 @@ class Position:
         if self.is_close:
             return np.nan
 
-        return self.entry_price * abs(self.qty) / self.exchange.futures_leverage
+        return self.entry_price * abs(self.qty) / self.strategy.leverage
 
     @property
     def entry_margin(self) -> float:
@@ -130,7 +130,7 @@ class Position:
 
     @property
     def mode(self) -> str:
-        if self.exchange.spot == 'spot':
+        if self.exchange.type == 'spot':
             return 'spot'
         else:
             return self.exchange.futures_leverage_mode
