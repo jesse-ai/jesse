@@ -538,6 +538,7 @@ def readable_duration(seconds: int, granularity: int = 2) -> str:
     )
 
     result = []
+    seconds = int(seconds)
 
     for name, count in intervals:
         value = seconds // count
