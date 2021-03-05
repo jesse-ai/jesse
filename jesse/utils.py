@@ -47,31 +47,37 @@ def crossed(series1: np.array, series2: Union[float, int, np.array], direction: 
 
     :return: bool
     """
-    series1 = pd.Series(series1)
-
-    series2 = pd.Series(index=series1.index, data=series2)
 
     if sequential:
+        series1_shifted = jh.np_shift(series1, 1, np.nan)
+
+        if type(series2) is np.array:
+            series2_shifted = jh.np_shift(series2, 1, np.nan)
+        else:
+            series2_shifted = series2
 
         if direction is None or direction == "above":
-            cross_above = pd.Series((series1 > series2) & (series1.shift(1) <= series2.shift(1)))
+            cross_above = np.logical_and(series1 > series2, series1_shifted <= series2_shifted)
 
         if direction is None or direction == "below":
-            cross_below = pd.Series((series1 < series2) & (series1.shift(1) >= series2.shift(1)))
+            cross_below = np.logical_and(series1 < series2, series1_shifted >= series2_shifted)
 
         if direction is None:
-            cross_any = cross_above | cross_below
-            return cross_any.to_numpy()
+            cross_any = np.logical_or(cross_above, cross_below)
+            return cross_any
 
         if direction == "above":
-            return cross_above.to_numpy()
+            return cross_above
         else:
-            return cross_below.to_numpy()
+            return cross_below
     else:
+        if not type(series2) is np.array:
+            series2 = np.array([series2, series2])
+
         if direction is None or direction == "above":
-            cross_above = series1.iloc[-2] <= series2.iloc[-2] and series1.iloc[-1] > series2.iloc[-1]
+            cross_above = series1[-2] <= series2[-2] and series1[-1] > series2[-1]
         if direction is None or direction == "below":
-            cross_below = series1.iloc[-2] >= series2.iloc[-2] and series1.iloc[-1] < series2.iloc[-1]
+            cross_below = series1[-2] >= series2[-2] and series1[-1] < series2[-1]
 
         if direction is None:
             return cross_above or cross_below

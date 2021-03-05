@@ -35,6 +35,18 @@ def test_crossed():
     assert seq_cross_200[-5] == False
     seq_cross_120 = utils.crossed(candles[:, 2], 120, sequential=True)
     assert seq_cross_120[-1] == True
+    array_array_cross_above = utils.crossed(np.array([1., 2, 3, 4, 5, 6]), np.array([3., 3, 3, 3, 3, 3]),
+                                            direction="above",
+                                            sequential=True)
+    assert array_array_cross_above[-3] == True
+    array_array_cross_below = utils.crossed(np.array([1., 2, 3, 2, 1, 6]), np.array([3., 3, 3, 3, 3, 3]),
+                                            direction="below",
+                                            sequential=True)
+    assert array_array_cross_below[-3] == True
+    array_array_cross = utils.crossed(np.array([1., 2, 3, 4, 1, 2]), np.array([3., 3, 3, 3, 3, 3]),
+                                      sequential=True)
+    assert array_array_cross[-3] == True
+    assert array_array_cross[-2] == True
 
 
 def test_estimate_risk():
