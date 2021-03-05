@@ -25,12 +25,16 @@ def anchor_timeframe(timeframe: str) -> str:
         timeframes.MINUTE_5: timeframes.MINUTE_30,
         timeframes.MINUTE_15: timeframes.HOUR_2,
         timeframes.MINUTE_30: timeframes.HOUR_3,
+        timeframes.MINUTE_45: timeframes.HOUR_3,
         timeframes.HOUR_1: timeframes.HOUR_4,
         timeframes.HOUR_2: timeframes.HOUR_6,
         timeframes.HOUR_3: timeframes.DAY_1,
         timeframes.HOUR_4: timeframes.DAY_1,
         timeframes.HOUR_6: timeframes.DAY_1,
         timeframes.HOUR_8: timeframes.DAY_1,
+        timeframes.HOUR_12: timeframes.DAY_1,
+        timeframes.DAY_1: timeframes.WEEK_1,
+        timeframes.DAY_3: timeframes.WEEK_1,
     }
 
     return dic[timeframe]
