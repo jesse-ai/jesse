@@ -55,7 +55,7 @@ def crossed(series1: np.array, series2: Union[float, int, np.array], direction: 
     if sequential:
         series1_shifted = jh.np_shift(series1, 1, np.nan)
 
-        if type(series2) is np.array:
+        if type(series2) is np.ndarray:
             series2_shifted = jh.np_shift(series2, 1, np.nan)
         else:
             series2_shifted = series2
@@ -75,7 +75,7 @@ def crossed(series1: np.array, series2: Union[float, int, np.array], direction: 
         else:
             return cross_below
     else:
-        if not type(series2) is np.array:
+        if not type(series2) is np.ndarray:
             series2 = np.array([series2, series2])
 
         if direction is None or direction == "above":
