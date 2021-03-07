@@ -40,12 +40,12 @@ def anchor_timeframe(timeframe: str) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.array, series2: Union[float, int, np.array], direction: str = None,
+def crossed(series1: np.ndarray, series2: Union[float, int, np.array], direction: str = None,
             sequential: bool = False) -> bool:
     """
     Helper for detecion of crosses
 
-    :param series1: np.array
+    :param series1: np.ndarray
     :param series2: float, int, np.array
     :param direction: str - default: None - above or below
 
@@ -243,19 +243,19 @@ def sum_floats(float1: float, float2: float) -> float:
     return float(Decimal(str(float1)) + Decimal(str(float2)))
 
 
-def strictly_increasing(series: np.array, lookback: int) -> bool:
+def strictly_increasing(series: np.ndarray, lookback: int) -> bool:
     a = series[-lookback:]
     diff = np.diff(a)
     return np.all(diff > 0)
 
 
-def strictly_decreasing(series: np.array, lookback: int) -> bool:
+def strictly_decreasing(series: np.ndarray, lookback: int) -> bool:
     a = series[-lookback:]
     diff = np.diff(a)
     return np.all(diff < 0)
 
 
-def streaks(series: np.array, use_diff=True) -> np.array:
+def streaks(series: np.ndarray, use_diff=True) -> np.ndarray:
     if use_diff:
         series = np.diff(series)
     pos = np.clip(series, 0, 1).astype(bool).cumsum()
@@ -267,7 +267,7 @@ def streaks(series: np.array, use_diff=True) -> np.array:
     return res
 
 
-def signal_line(series: np.array, period: int = 10, matype: int = 0) -> np.array:
+def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.ndarray:
     return MA(series, timeperiod=period, matype=matype)
 
 

@@ -34,7 +34,7 @@ def alligator(candles: np.ndarray, source_type: str = "close", sequential: bool 
         return AG(jaw[-1], teeth[-1], lips[-1])
 
 
-def numpy_ewma(data: np.array, window: int):
+def numpy_ewma(data: np.ndarray, window: int):
     """
 
     :param data:

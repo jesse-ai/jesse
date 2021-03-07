@@ -32,7 +32,7 @@ def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
     return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
 
 
-def fibonacci(n: int = 2) -> np.array:
+def fibonacci(n: int = 2) -> np.ndarray:
     """Fibonacci Sequence as a numpy array"""
     n = int(fabs(n)) if n >= 0 else 2
 

@@ -42,7 +42,7 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
     return result if sequential else result[-1]
 
 
-def filter1d_same(a: np.array, W: int, type: str, fillna=np.nan):
+def filter1d_same(a: np.ndarray, W: int, type: str, fillna=np.nan):
     out_dtype = np.full(0, fillna).dtype
     hW = (W - 1) // 2  # Half window size
     if type == 'max':

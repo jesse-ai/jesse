@@ -7,7 +7,7 @@ import jesse.helpers as jh
 
 def generate_candle_from_one_minutes(timeframe: str,
                                      candles: np.ndarray,
-                                     accept_forming_candles: bool = False) -> np.array:
+                                     accept_forming_candles: bool = False) -> np.ndarray:
     if len(candles) == 0:
         raise ValueError('No candles were passed')
 
@@ -29,7 +29,7 @@ def generate_candle_from_one_minutes(timeframe: str,
     ])
 
 
-def print_candle(candle: np.array, is_partial: bool, symbol: str) -> None:
+def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
     if jh.should_execute_silently():
         return
 
