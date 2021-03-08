@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 from scipy.signal import argrelextrema
 
-from jesse.helpers import get_config
+from jesse.helpers import get_config, np_ffill
 
 EXTREMA = namedtuple('EXTREMA', ['min', 'max', 'last_min', 'last_max'])
 
@@ -44,19 +44,3 @@ def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXT
     else:
         return EXTREMA(min[-1], max[-1], last_min[-1], last_max[-1])
 
-
-def np_ffill(arr, axis=0):
-    """
-
-    :param arr:
-    :param axis:
-    :return:
-    """
-    idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
-    idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
-    np.maximum.accumulate(idx, axis=axis, out=idx)
-    slc = [np.arange(k)[tuple([slice(None) if dim == i else np.newaxis
-                               for dim in range(len(arr.shape))])]
-           for i, k in enumerate(arr.shape)]
-    slc[axis] = idx
-    return arr[tuple(slc)]

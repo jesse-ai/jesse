@@ -419,6 +419,17 @@ def now_to_timestamp() -> int:
     return arrow.utcnow().int_timestamp * 1000
 
 
+def np_ffill(arr: np.ndarray, axis: int = 0) -> np.ndarray:
+    idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
+    idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
+    np.maximum.accumulate(idx, axis=axis, out=idx)
+    slc = [np.arange(k)[tuple([slice(None) if dim == i else np.newaxis
+                               for dim in range(len(arr.shape))])]
+           for i, k in enumerate(arr.shape)]
+    slc[axis] = idx
+    return arr[tuple(slc)]
+
+
 def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
     result = np.empty_like(arr)
 
