@@ -2,7 +2,6 @@ from typing import Union
 
 import numpy as np
 import talib
-from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import np_shift, get_config
 

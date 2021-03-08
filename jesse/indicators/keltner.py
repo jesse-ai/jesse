@@ -16,7 +16,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype
 
     :param candles: np.ndarray
     :param period: int - default: 20
-    :param multiplier: int - default: 2
+    :param multiplier: float - default: 2
     :param matype: int - default: 1
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
