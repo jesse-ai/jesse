@@ -522,33 +522,13 @@ class Strategy(ABC):
                     for o in self._take_profit:
                         self._log_take_profit.append(o)
 
-                        if o[1] == self.price:
-                            if self.is_long:
-                                self._take_profit_orders.append(
-                                    self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                                )
-                            elif self.is_short:
-                                self._take_profit_orders.append(
-                                    self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                                )
-                        else:
-                            if (self.is_long and o[1] > self.price) or (self.is_short and o[1] < self.price):
-
-                                self._take_profit_orders.append(
-                                    self.broker.reduce_position_at(
-                                        o[0],
-                                        o[1],
-                                        order_roles.CLOSE_POSITION
-                                    )
-                                )
-                            elif (self.is_long and o[1] < self.price) or (self.is_short and o[1] > self.price):
-                                self._take_profit_orders.append(
-                                    self.broker.stop_loss_at(
-                                        o[0],
-                                        o[1],
-                                        order_roles.CLOSE_POSITION
-                                    )
-                                )
+                        self._take_profit_orders.append(
+                            self.broker.reduce_position_at(
+                                o[0],
+                                o[1],
+                                order_roles.CLOSE_POSITION
+                            )
+                        )
 
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
@@ -574,23 +554,13 @@ class Strategy(ABC):
                     for o in self._stop_loss:
                         self._log_stop_loss.append(o)
 
-                        if o[1] == self.price:
-                            if self.is_long:
-                                self._stop_loss_orders.append(
-                                    self.broker.sell_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                                )
-                            elif self.is_short:
-                                self._stop_loss_orders.append(
-                                    self.broker.buy_at_market(o[0], role=order_roles.CLOSE_POSITION)
-                                )
-                        else:
-                            self._stop_loss_orders.append(
-                                self.broker.stop_loss_at(
-                                    o[0],
-                                    o[1],
-                                    order_roles.CLOSE_POSITION
-                                )
+                        self._stop_loss_orders.append(
+                            self.broker.reduce_position_at(
+                                o[0],
+                                o[1],
+                                order_roles.CLOSE_POSITION
                             )
+                        )
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on with your strategy. '

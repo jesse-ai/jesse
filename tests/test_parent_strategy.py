@@ -891,6 +891,10 @@ def test_leverage_property():
     single_route_backtest('TestLeverageProperty2', is_futures_trading=True, leverage=2)
 
 
+def test_reduce_only_market_orders():
+    single_route_backtest('TestReduceOnlyMarketOrders', is_futures_trading=True, leverage=1)
+
+
 # def test_route_capital_isolation():
 #     set_up(
 #         [

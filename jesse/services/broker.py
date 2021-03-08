@@ -37,14 +37,6 @@ class Broker:
         if price < 0:
             raise ValueError('price cannot be negative.')
 
-        # if price <= self.position.current_price:
-        #     raise OrderNotAllowed(
-        #         'Cannot LIMIT sell at ${} when current_price is ${}'.format(
-        #             price,
-        #             self.position.current_price
-        #         )
-        #     )
-
         return self.api.limit_order(
             self.exchange,
             self.symbol,
@@ -74,14 +66,6 @@ class Broker:
         if price < 0:
             raise ValueError('price cannot be negative.')
 
-        # if price >= self.position.current_price:
-        #     raise OrderNotAllowed(
-        #         'Cannot LIMIT buy at ${} when current_price is ${}'.format(
-        #             price,
-        #             self.position.current_price
-        #         )
-        #     )
-
         return self.api.limit_order(
             self.exchange,
             self.symbol,
@@ -109,23 +93,6 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
-        # validation
-        if side == 'buy' and price > self.position.current_price:
-            raise OrderNotAllowed(
-                'Cannot reduce (via LIMIT) buy at ${} when current_price is ${}'.format(
-                    price,
-                    self.position.current_price
-                )
-            )
-        # validation
-        if side == 'sell' and price < self.position.current_price:
-            raise OrderNotAllowed(
-                'Cannot reduce (via LIMIT) sell at ${} when current_price is ${}'.format(
-                    price,
-                    self.position.current_price
-                )
-            )
-
         if price == self.position.current_price:
             return self.api.market_order(
                 self.exchange,
@@ -137,15 +104,28 @@ class Broker:
                 [order_flags.REDUCE_ONLY]
             )
 
-        return self.api.limit_order(
-            self.exchange,
-            self.symbol,
-            qty,
-            price,
-            side,
-            role,
-            [order_flags.REDUCE_ONLY]
-        )
+        elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (side == 'buy' and self.position.type == 'short' and price < self.position.current_price):
+            return self.api.limit_order(
+                self.exchange,
+                self.symbol,
+                qty,
+                price,
+                side,
+                role,
+                [order_flags.REDUCE_ONLY]
+            )
+        elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
+            return self.api.stop_order(
+                self.exchange,
+                self.symbol,
+                abs(qty),
+                price,
+                side,
+                role,
+                [order_flags.REDUCE_ONLY]
+            )
+        else:
+            raise OrderNotAllowed("This order doesn't seem to be for reducing the position.")
 
     def start_profit_at(self, side: str, qty: float, price: float, role: str = None) -> Order:
         self._validate_qty(qty)
