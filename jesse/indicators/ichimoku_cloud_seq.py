@@ -3,8 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
 from jesse.helpers import np_shift
+from jesse.helpers import slice_candles
 
 IchimokuCloud = namedtuple('IchimokuCloud',
                            ['conversion_line', 'base_line', 'span_a', 'span_b', 'lagging_line', 'future_span_a',
@@ -30,9 +30,7 @@ def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, bas
     if len(candles) < lagging_line_period + displacement:
         raise ValueError("Too few candles available for lagging_line_period + displacement.")
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     small_ph = talib.MAX(candles[:, 3], conversion_line_period)
     small_pl = talib.MIN(candles[:, 4], conversion_line_period)

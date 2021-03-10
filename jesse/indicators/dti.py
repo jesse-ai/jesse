@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 import jesse.helpers as jh
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: bool = False) -> Union[
@@ -20,9 +20,7 @@ def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: b
 
     :return: float
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     high = candles[:, 3]
     low = candles[:, 4]

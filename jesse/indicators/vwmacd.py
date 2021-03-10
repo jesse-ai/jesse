@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 VWMACD = namedtuple('VWMACD', ['macd', 'signal', 'hist'])
 
@@ -21,9 +21,7 @@ def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, si
 
     :return: VWMACD(macd, signal, hist)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slow_period) / talib.SMA(candles[:, 5], slow_period)
     vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fast_period) / talib.SMA(candles[:, 5], fast_period)

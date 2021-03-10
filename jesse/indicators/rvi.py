@@ -3,8 +3,8 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, same_length
+from jesse.helpers import slice_candles
 
 
 def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1, source_type: str = "close",
@@ -19,16 +19,14 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     :param sequential: bool - default=False
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
 
     stdev = talib.STDDEV(source, timeperiod=period)
 
     diff = np.diff(source)
-    diff = np.concatenate((np.full((candles.shape[0] - diff.shape[0]), 0), diff), axis=0)
+    diff = same_length(source, diff)
 
     up = np.nan_to_num(np.where(diff <= 0, 0, stdev))
     down = np.nan_to_num(np.where(diff > 0, 0, stdev))

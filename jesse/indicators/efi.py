@@ -4,8 +4,7 @@ import numpy as np
 import talib
 from numba import njit
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", sequential: bool = False) -> Union[
@@ -20,16 +19,14 @@ def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", seque
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
 
     dif = efi_fast(source, candles[:, 5])
 
     res = talib.EMA(dif, timeperiod=period)
-    res_with_nan = np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res))
+    res_with_nan = same_length(candles, res)
 
     return res_with_nan if sequential else res_with_nan[-1]
 

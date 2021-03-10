@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 AROON = namedtuple('AROON', ['down', 'up'])
 
@@ -18,9 +18,7 @@ def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AR
 
     :return: AROON(down, up)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     aroondown, aroonup = talib.AROON(candles[:, 3], candles[:, 4], timeperiod=period)
 

@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 from numba import njit
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 VI = namedtuple('VI', ['plus', 'minus'])
 
@@ -18,9 +18,7 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
 
     :return: VI(plus, minus)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     vpn_with_nan, vmn_with_nan = vi_fast(candles, period)
 

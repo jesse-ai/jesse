@@ -3,10 +3,11 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
-def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, direction: str = "long", sequential: bool = False) -> Union[
+def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, direction: str = "long",
+                sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
     Perry Kaufman's Stops
@@ -19,9 +20,7 @@ def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, directio
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     high = candles[:, 3]
     low = candles[:, 4]
@@ -33,7 +32,4 @@ def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, directio
     else:
         res = hl_diff * mult + high
 
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return res if sequential else res[-1]

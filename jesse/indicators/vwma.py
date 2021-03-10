@@ -3,8 +3,8 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, same_length
+from jesse.helpers import slice_candles
 
 
 def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
@@ -19,11 +19,9 @@ def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequ
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     res = ti.vwma(np.ascontiguousarray(source), np.ascontiguousarray(candles[:, 5]), period=period)
 
-    return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
+    return same_length(candles, res) if sequential else res[-1]

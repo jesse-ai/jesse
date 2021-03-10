@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 
@@ -24,9 +24,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype
     :return: KeltnerChannel(upperband, middleband, lowerband)
     """
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     e = talib.MA(source, timeperiod=period, matype=matype)

@@ -2,8 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles
 
 
 def smma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
@@ -18,9 +17,7 @@ def smma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     res = numpy_ewma(source, period)

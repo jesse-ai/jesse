@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 AO = namedtuple('AO', ['osc', 'change'])
 
@@ -17,9 +17,7 @@ def ao(candles: np.ndarray, sequential: bool = False) -> AO:
 
     :return: AO(osc, change)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
     res = talib.SMA(med, 5) - talib.SMA(med, 34)

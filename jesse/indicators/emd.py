@@ -4,7 +4,7 @@ import numpy as np
 import talib
 from numba import njit
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
 
@@ -21,9 +21,7 @@ def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequenti
 
     :return: EMD(upperband, middleband, lowerband)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     price = (candles[:, 3] + candles[:, 4]) / 2
 

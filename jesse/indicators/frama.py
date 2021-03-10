@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 from numba import njit
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[
@@ -19,9 +19,7 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     :return:  float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     n = window
 
@@ -51,8 +49,8 @@ def frame_fast(candles, n, SC, FC):
     for i in range(n, len(candles)):
         per = candles[i - n:i]
 
-        v1 = per[len(per)//2:]
-        v2 = per[:len(per)//2]
+        v1 = per[len(per) // 2:]
+        v2 = per[:len(per) // 2]
 
         N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
         N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)

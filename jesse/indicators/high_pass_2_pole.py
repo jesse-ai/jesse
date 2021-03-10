@@ -3,12 +3,12 @@ from typing import Union
 import numpy as np
 from numba import njit
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles
 
 
-def high_pass_2_pole(candles: np.ndarray, period: int = 48, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def high_pass_2_pole(candles: np.ndarray, period: int = 48, source_type: str = "close", sequential: bool = False) -> \
+        Union[
+            float, np.ndarray]:
     """
     (2 pole) high-pass filter indicator by John F. Ehlers
 
@@ -20,9 +20,7 @@ def high_pass_2_pole(candles: np.ndarray, period: int = 48, source_type: str = "
     :return: float | np.ndarray
     """
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
 

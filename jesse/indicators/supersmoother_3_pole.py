@@ -3,12 +3,12 @@ from typing import Union
 import numpy as np
 from numba import njit
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles
 
 
-def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> \
+        Union[
+            float, np.ndarray]:
     """
     Super Smoother Filter 3pole Butterworth
     This indicator was described by John F. Ehlers
@@ -21,9 +21,7 @@ def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str
     :return: float | np.ndarray
     """
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     # Accept normal array too.
     if len(candles.shape) == 1:
@@ -33,10 +31,8 @@ def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str
 
     res = supersmoother_fast(source, period)
 
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return res if sequential else res[-1]
+
 
 @njit
 def supersmoother_fast(source, period):

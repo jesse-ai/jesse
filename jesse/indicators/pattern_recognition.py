@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def pattern_recognition(candles: np.ndarray, pattern_type: str, penetration: int = 0, sequential: bool = False) -> \
@@ -18,9 +18,7 @@ def pattern_recognition(candles: np.ndarray, pattern_type: str, penetration: int
 
     :return: int | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     if pattern_type == "CDL2CROWS":
         res = talib.CDL2CROWS(candles[:, 1], candles[:, 3], candles[:, 4], candles[:, 2])

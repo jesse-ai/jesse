@@ -129,9 +129,9 @@ from .vosc import vosc
 from .voss import voss
 from .vpci import vpci
 from .vpt import vpt
+from .vwap import vwap
 from .vwma import vwma
 from .vwmacd import vwmacd
-from .vwap import vwap
 from .wad import wad
 from .wclprice import wclprice
 from .wilders import wilders

@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def linearreg_slope(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> \
@@ -19,9 +19,7 @@ def linearreg_slope(candles: np.ndarray, period: int = 14, source_type: str = "c
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     res = talib.LINEARREG_SLOPE(source, timeperiod=period)

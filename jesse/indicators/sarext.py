@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float = 0, acceleration_init_long: float = 0,
@@ -26,9 +26,7 @@ def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     res = talib.SAREXT(candles[:, 3], candles[:, 4], startvalue=start_value, offsetonreverse=offset_on_reverse,
                        accelerationinitlong=acceleration_init_long, accelerationlong=acceleration_long,

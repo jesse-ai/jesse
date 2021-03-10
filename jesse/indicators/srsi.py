@@ -4,8 +4,7 @@ import numpy as np
 import talib
 import tulipy as ti
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
 
@@ -25,9 +24,7 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
 
     :return: StochasticRSI(k, d)
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     rsi_np = talib.RSI(source, timeperiod=period)
@@ -35,8 +32,8 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
     fast_k, fast_d = ti.stoch(rsi_np, rsi_np, rsi_np, period_stoch, k, d)
 
     if sequential:
-        fast_k = np.concatenate((np.full((candles.shape[0] - fast_k.shape[0]), np.nan), fast_k), axis=0)
-        fast_d = np.concatenate((np.full((candles.shape[0] - fast_d.shape[0]), np.nan), fast_d), axis=0)
+        fast_k = same_length(candles, fast_k)
+        fast_d = same_length(candles, fast_d)
         return StochasticRSI(fast_k, fast_d)
     else:
         return StochasticRSI(fast_k[-1], fast_d[-1])

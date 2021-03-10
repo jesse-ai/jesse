@@ -2,8 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles
 from .high_pass_2_pole import high_pass_2_pole_fast
 from .supersmoother import supersmoother_fast
 
@@ -21,9 +20,7 @@ def roofing(candles: np.ndarray, hp_period: int = 48, lp_period: int = 10, sourc
     :return: float | np.ndarray
         """
 
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
 
@@ -31,7 +28,4 @@ def roofing(candles: np.ndarray, hp_period: int = 48, lp_period: int = 10, sourc
 
     res = supersmoother_fast(hpf, lp_period)
 
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return res if sequential else res[-1]

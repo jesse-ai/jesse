@@ -4,7 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
 
 def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, source_type: str = "close",
@@ -20,9 +20,7 @@ def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, sour
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     r = 100 * (talib.EMA((talib.EMA(talib.MOM(source, 1), long_period)), short_period)) / (

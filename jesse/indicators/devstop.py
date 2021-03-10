@@ -3,9 +3,11 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_config
+from jesse.helpers import slice_candles
 
-def devstop(candles: np.ndarray, period:int=20, mult: float = 0, direction: str = "long", sequential: bool = False) -> Union[
+
+def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, direction: str = "long",
+            sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
     Kase Dev Stops
@@ -18,9 +20,7 @@ def devstop(candles: np.ndarray, period:int=20, mult: float = 0, direction: str 
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     high = candles[:, 3]
     low = candles[:, 4]
@@ -33,7 +33,4 @@ def devstop(candles: np.ndarray, period:int=20, mult: float = 0, direction: str 
     else:
         res = talib.MIN(low + AVTR + mult * SD, period)
 
-    if sequential:
-        return res
-    else:
-        return None if np.isnan(res[-1]) else res[-1]
+    return res if sequential else res[-1]

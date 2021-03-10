@@ -4,8 +4,7 @@ from typing import Union
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles, same_length
 
 
 def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
@@ -20,16 +19,14 @@ def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
     fibs = fibonacci(n=period)
     swv = sliding_window_view(source, window_shape=period)
     res = np.average(swv, weights=fibs, axis=-1)
 
-    return np.concatenate((np.full((candles.shape[0] - res.shape[0]), np.nan), res), axis=0) if sequential else res[-1]
+    return same_length(candles, res) if sequential else res[-1]
 
 
 def fibonacci(n: int = 2) -> np.ndarray:

@@ -3,8 +3,7 @@ from typing import Union
 import numpy as np
 from numba import njit
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import get_config
+from jesse.helpers import get_candle_source, slice_candles
 
 
 def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, source_type: str = "close",
@@ -20,18 +19,13 @@ def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, sour
 
     :return: float | np.ndarray
     """
-    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
-        candles = candles[-warmup_candles_num:]
+    candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
 
     mg = md_fast(source, k, period)
 
-    if sequential:
-        return mg
-    else:
-        return None if np.isnan(mg[-1]) else mg[-1]
+    return mg if sequential else mg[-1]
 
 
 @njit

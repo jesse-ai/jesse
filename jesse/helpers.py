@@ -609,8 +609,10 @@ def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, 
 
     return rounded
 
-def same_length(bigger, shorter) -> np.ndarray:
+
+def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
     return np.concatenate((np.full((bigger.shape[0] - shorter.shape[0]), np.nan), shorter))
+
 
 def secure_hash(msg: str) -> str:
     return hashlib.sha256(msg.encode()).hexdigest()
@@ -635,6 +637,13 @@ def string_after_character(string: str, character: str) -> str:
         return string.split(character, 1)[1]
     except IndexError:
         return None
+
+
+def slice_candles(candles: np.ndarray, sequential: bool) -> np.ndarray:
+    warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
+    if not sequential and len(candles) > warmup_candles_num:
+        candles = candles[-warmup_candles_num:]
+    return candles
 
 
 def style(msg_text: str, msg_style: str) -> str:
