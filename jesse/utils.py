@@ -40,7 +40,7 @@ def anchor_timeframe(timeframe: str) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.ndarray, series2: Union[float, int, np.array], direction: str = None,
+def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], direction: str = None,
             sequential: bool = False) -> bool:
     """
     Helper for detecion of crosses

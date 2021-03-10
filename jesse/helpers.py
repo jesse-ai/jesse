@@ -565,7 +565,7 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
-def round_price_for_live_mode(price: float, roundable_price: float) -> Union[float, np.array]:
+def round_price_for_live_mode(price: float, roundable_price: float) -> Union[float, np.ndarray]:
     """
     Rounds price(s) based on exchange requirements
 
@@ -585,7 +585,7 @@ def round_price_for_live_mode(price: float, roundable_price: float) -> Union[flo
     return np.round(roundable_price, price_round_precision)
 
 
-def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, np.array]:
+def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, np.ndarray]:
     """
     Rounds qty(s) based on exchange requirements
 
@@ -609,6 +609,8 @@ def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, 
 
     return rounded
 
+def same_length(bigger, shorter) -> np.ndarray:
+    return np.concatenate((np.full((bigger.shape[0] - shorter.shape[0]), np.nan), shorter))
 
 def secure_hash(msg: str) -> str:
     return hashlib.sha256(msg.encode()).hexdigest()
