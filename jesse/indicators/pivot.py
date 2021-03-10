@@ -35,14 +35,14 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
     r4 = np.copy(s1)
 
     # Standard Pivot Points / Floor Pivot Points
-    if (mode == 0):
+    if mode == 0:
         p = (high + low + close) / 3
         s1 = (2 * p) - high
         s2 = p - (high - low)
         r1 = (2 * p) - low
         r2 = p + (high - low)
     # Fibonacci Pivot Points
-    elif (mode == 1):
+    elif mode == 1:
         p = (high + low + close) / 3
         s1 = p - 0.382 * (high - low)
         s2 = p - 0.618 * (high - low)
@@ -51,7 +51,7 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
         r2 = p + 0.618 * (high - low)
         r3 = p + 1 * (high - low)
     # Demark Pivot Points
-    elif (mode == 2):
+    elif mode == 2:
         p = np.where(close < open, (high + 2 * low + close) / 4, np.where(close > open, (2 * high + low + close) / 4,
                                                                           np.where(close == open,
                                                                                    (high + low + 2 * close) / 4,
@@ -62,7 +62,7 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
         r1 = np.where(close < open, (high + 2 * low + close) / 2 - low,
                       np.where(close > open, (2 * high + low + close) / 2 - low,
                                np.where(close == open, (high + low + 2 * close) / 2 - low, np.nan)))
-    elif (mode == 3):
+    elif mode == 3:
         # Camarilla Pivot Points
         p = (high + low + close) / 3
         r4 = (0.55 * (high - low)) + close
@@ -74,7 +74,7 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
         s3 = close - (0.275 * (high - low))
         s4 = close - (0.55 * (high - low))
     # Woodie's Pivot Points
-    elif (mode == 4):
+    elif mode == 4:
         p = (high + low + (2 * open)) / 4
         r3 = high + 2 * (p - low)
         r4 = r3 + (high - low)

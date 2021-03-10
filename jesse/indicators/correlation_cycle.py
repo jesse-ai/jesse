@@ -82,12 +82,12 @@ def go_fast(source, period, threshold):  # Function is compiled to machine code 
 
         temp_1 = period * Rxx - Rx * Rx
         temp_2 = period * Ryy - Ry * Ry
-        if (temp_1 > 0.0 and temp_2 > 0.0):
+        if temp_1 > 0.0 and temp_2 > 0.0:
             realPart[i] = (period * Rxy - Rx * Ry) / np.sqrt(temp_1 * temp_2)
 
         temp_1 = period * Ixx - Ix * Ix
         temp_2 = period * Iyy - Iy * Iy
-        if (temp_1 > 0.0 and temp_2 > 0.0):
+        if temp_1 > 0.0 and temp_2 > 0.0:
             imagPart[i] = (period * Ixy - Ix * Iy) / np.sqrt(temp_1 * temp_2)
 
     # Correlation Angle Phasor
