@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Union
+from typing import List
 
 import numpy as np
 import pydash

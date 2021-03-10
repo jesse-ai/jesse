@@ -1,7 +1,7 @@
-from jesse.store import store
 import jesse.helpers as jh
-from jesse.services import logger
 from jesse.models.utils import store_daily_balance_into_db
+from jesse.services import logger
+from jesse.store import store
 
 
 def save_daily_portfolio_balance() -> None:

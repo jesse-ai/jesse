@@ -104,7 +104,8 @@ class Broker:
                 [order_flags.REDUCE_ONLY]
             )
 
-        elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (side == 'buy' and self.position.type == 'short' and price < self.position.current_price):
+        elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (
+                side == 'buy' and self.position.type == 'short' and price < self.position.current_price):
             return self.api.limit_order(
                 self.exchange,
                 self.symbol,
@@ -114,7 +115,8 @@ class Broker:
                 role,
                 [order_flags.REDUCE_ONLY]
             )
-        elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
+        elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (
+                side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
             return self.api.stop_order(
                 self.exchange,
                 self.symbol,

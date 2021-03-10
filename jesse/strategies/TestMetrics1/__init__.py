@@ -1,6 +1,6 @@
-from jesse.strategies import Strategy
-from jesse import utils
 import numpy as np
+
+from jesse.strategies import Strategy
 
 
 class TestMetrics1(Strategy):

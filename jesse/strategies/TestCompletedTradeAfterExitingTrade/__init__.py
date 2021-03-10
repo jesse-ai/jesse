@@ -1,8 +1,6 @@
+import jesse.helpers as jh
 from jesse.models import Order
 from jesse.strategies import Strategy
-from jesse import utils
-import jesse.helpers as jh
-import numpy as np
 
 
 class TestCompletedTradeAfterExitingTrade(Strategy):

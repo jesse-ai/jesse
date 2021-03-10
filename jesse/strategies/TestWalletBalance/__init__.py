@@ -1,5 +1,5 @@
-from jesse.strategies import Strategy
 from jesse import utils
+from jesse.strategies import Strategy
 
 
 # test_wallet_balance_for_futures_market
@@ -27,7 +27,7 @@ class TestWalletBalance(Strategy):
             # now that position is closed, available_margin should equal to wallet_balance*leverage
             assert self.position.exchange.available_margin() == self.position.exchange.wallet_balance() * 2 == self.available_margin
             assert self.balance == self.position.exchange.wallet_balance()
-            assert self.balance*self.leverage == self.available_margin
+            assert self.balance * self.leverage == self.available_margin
 
     def should_long(self) -> bool:
         return self.price == 10
@@ -36,11 +36,11 @@ class TestWalletBalance(Strategy):
         return False
 
     def go_long(self):
-        qty1 = utils.size_to_qty(2000, self.price+2)
-        qty2 = utils.size_to_qty(2000, self.price+4)
+        qty1 = utils.size_to_qty(2000, self.price + 2)
+        qty2 = utils.size_to_qty(2000, self.price + 4)
         self.buy = [
-            (qty1, self.price+2),
-            (qty2, self.price+4),
+            (qty1, self.price + 2),
+            (qty2, self.price + 4),
         ]
 
     def update_position(self):

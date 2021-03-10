@@ -1,5 +1,3 @@
-from typing import List, Any
-
 import jesse.helpers as jh
 from jesse.routes import router
 from jesse.services import table

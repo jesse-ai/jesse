@@ -1,5 +1,5 @@
-from jesse.strategies import Strategy
 from jesse import utils
+from jesse.strategies import Strategy
 
 
 # test_negative_balance_validation_for_futures_market

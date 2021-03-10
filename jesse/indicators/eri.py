@@ -7,7 +7,9 @@ from jesse.helpers import get_candle_source, slice_candles
 
 ERI = namedtuple('ERI', ['bull', 'bear'])
 
-def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str = "close", sequential: bool = False) -> ERI:
+
+def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str = "close",
+        sequential: bool = False) -> ERI:
     """
     Elder Ray Index (ERI)
 

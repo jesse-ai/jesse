@@ -1,6 +1,3 @@
-from typing import List
-
-
 class CompletedTrades:
     def __init__(self) -> None:
         self.trades = []

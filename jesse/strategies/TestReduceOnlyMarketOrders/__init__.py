@@ -1,5 +1,5 @@
-from jesse.strategies import Strategy
 from jesse import utils
+from jesse.strategies import Strategy
 
 
 class TestReduceOnlyMarketOrders(Strategy):

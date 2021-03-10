@@ -1,9 +1,7 @@
-from typing import Union, ValuesView
-
-from jesse.config import config
-from jesse.models import SpotExchange, FuturesExchange
-from jesse.exceptions import InvalidConfig
 import jesse.helpers as jh
+from jesse.config import config
+from jesse.exceptions import InvalidConfig
+from jesse.models import SpotExchange, FuturesExchange
 
 
 class ExchangesState:
@@ -25,4 +23,5 @@ class ExchangesState:
                     futures_leverage=jh.get_config('env.exchanges.{}.futures_leverage'.format(name)),
                 )
             else:
-                raise InvalidConfig('Value for exchange type in your config file in not valid. Supported values are "spot" and "futures"')
+                raise InvalidConfig(
+                    'Value for exchange type in your config file in not valid. Supported values are "spot" and "futures"')

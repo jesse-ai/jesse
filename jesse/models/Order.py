@@ -1,12 +1,13 @@
+import numpy as np
+from playhouse.postgres_ext import *
+
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import order_statuses, order_flags
-from jesse.services.notifier import notify
-from playhouse.postgres_ext import *
 from jesse.services.db import db
-import numpy as np
+from jesse.services.notifier import notify
 
 
 class Order(Model):
@@ -36,7 +37,7 @@ class Order(Model):
         database = db
         indexes = ((('exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs)-> None:
+    def __init__(self, attributes=None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:

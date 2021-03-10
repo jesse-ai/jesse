@@ -1,10 +1,11 @@
+import numpy as np
+
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.exceptions import NegativeBalance, InsufficientMargin
-from jesse.models import Order
 from jesse.enums import sides, order_types
+from jesse.exceptions import InsufficientMargin
 from jesse.libs import DynamicNumpyArray
-import numpy as np
+from jesse.models import Order
 from jesse.services import selectors
 from .Exchange import Exchange
 
@@ -118,9 +119,10 @@ class FuturesExchange(Exchange):
                 order_size = abs(order.qty * order.price)
                 remaining_margin = self.available_margin()
                 if order_size > remaining_margin:
-                    raise InsufficientMargin('You cannot submit an order for ${} when your margin balance is ${}'.format(
-                        round(order_size), round(remaining_margin)
-                    ))
+                    raise InsufficientMargin(
+                        'You cannot submit an order for ${} when your margin balance is ${}'.format(
+                            round(order_size), round(remaining_margin)
+                        ))
 
         # skip market order at the time of submission because we don't have
         # the exact order.price. Instead, we call on_order_submission() one

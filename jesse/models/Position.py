@@ -86,11 +86,11 @@ class Position:
         """
         if self.is_close:
             return np.nan
-        
+
         base_cost = self.entry_price * abs(self.qty)
         if self.strategy:
             return base_cost / self.strategy.leverage
-        
+
         return base_cost
 
     @property

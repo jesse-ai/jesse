@@ -93,4 +93,3 @@ def encode_symbol(symbol: str) -> str:
 
 def decode_symbol(symbol: str) -> str:
     return symbol.replace('USD_', '-')
-

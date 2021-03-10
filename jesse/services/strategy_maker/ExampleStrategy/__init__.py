@@ -1,6 +1,4 @@
 from jesse.strategies import Strategy
-from jesse import utils
-import jesse.indicators as ta
 
 
 class ExampleStrategy(Strategy):

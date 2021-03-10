@@ -1,5 +1,4 @@
 from jesse.strategies import Strategy
-from jesse import utils
 
 
 class TestPositionWithLeverage1(Strategy):

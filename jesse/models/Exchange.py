@@ -1,5 +1,6 @@
-from jesse.models import Order
 from abc import ABC, abstractmethod
+
+from jesse.models import Order
 
 
 class Exchange(ABC):
