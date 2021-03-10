@@ -519,6 +519,18 @@ def test_er():
     assert len(seq) == len(candles)
     assert round(seq[-1], 2) == round(single, 2)
 
+def test_eri():
+    candles = np.array(mama_candles)
+    single = ta.eri(candles)
+    seq = ta.eri(candles, sequential=True)
+
+    assert type(single).__name__ == 'ERI'
+    assert round(single.bull, 2) == -7.14
+    assert round(single.bear, 2) == -101.49
+
+    assert seq.bull[-1] == single.bull
+    assert len(seq.bull) == len(candles)
+    assert len(seq.bear) == len(candles)
 
 def test_fisher():
     candles = np.array(mama_candles)
