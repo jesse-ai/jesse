@@ -17,6 +17,7 @@ from jesse.models import Candle
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
+from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.cache import cache
 from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle
@@ -26,7 +27,7 @@ from jesse.store import store
 
 
 def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
-        chart: bool = False, tradingview: bool = False,
+        chart: bool = False, tradingview: bool = False, full_reports: bool = False,
         csv: bool = False, json: bool = False) -> None:
     # clear the screen
     if not jh.should_execute_silently():
@@ -99,6 +100,10 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
             if chart:
                 charts.portfolio_vs_asset_returns()
+
+            # QuantStats' report
+            if full_reports:
+                quantstats.quantstats_tearsheet()
         else:
             print(jh.color('No trades were made.', 'yellow'))
 
