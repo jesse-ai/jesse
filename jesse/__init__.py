@@ -288,8 +288,10 @@ def import_candles(exchange: str, symbol: str, start_date: str, skip_confirmatio
               help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
 @click.option('--tradingview/--no-tradingview', default=False,
               help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
+@click.option('--full-reports/--no-full-reports', default=False,
+              help="Generates QuantStats' HTML output with metrics reports like Sharpe ratio, Win rate, Volatility, etc., and batch plotting for visualizing performance, drawdowns, rolling statistics, monthly returns, etc.")
 def backtest(start_date: str, finish_date: str, debug: bool, csv: bool, json: bool, fee: bool, chart: bool,
-             tradingview: bool) -> None:
+             tradingview: bool, full_reports: bool) -> None:
     """
     backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
     """
@@ -314,7 +316,7 @@ def backtest(start_date: str, finish_date: str, debug: bool, csv: bool, json: bo
             get_exchange(e).fee = 0
 
     backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv,
-                      json=json)
+                      json=json, full_reports=full_reports)
 
     db.close_connection()
 
