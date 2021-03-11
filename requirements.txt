@@ -8,7 +8,7 @@ numba==0.53.0rc3
 numpy==1.20.1
 numpy_groupies==0.9.13
 pandas==1.2.3
-peewee==3.14.2
+peewee==3.14.3
 psycopg2-binary==2.8.6
 pydash==4.9.3
 pytest==6.2.2
