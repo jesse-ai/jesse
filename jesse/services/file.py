@@ -10,7 +10,6 @@ from jesse.store import store
 
 
 def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
-    # store trades
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
@@ -23,7 +22,12 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
     if export_json:
         os.makedirs('./storage/json', exist_ok=True)
         with open(path, 'w+') as outfile:
-            json.dump(trades_json, outfile)
+            def set_default(obj):
+                if isinstance(obj, set):
+                    return list(obj)
+                raise TypeError
+
+            json.dump(trades_json, outfile, default=set_default)
 
         print('\nJSON output saved at: \n{}'.format(path))
 
