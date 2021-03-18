@@ -22,6 +22,7 @@
 /storage/csv/*.csv
 /storage/json/*.json
 /storage/charts/*.png
+/storage/full-reports/*.html
 *.pyc
 /__pycache__
 /venv
