@@ -21,7 +21,7 @@ def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]
     array = []
 
     # headers
-    array.append(['type', 'strategy', 'symbol', 'opened at', 'qty', 'entry', 'current price', 'PNL (%)'])
+    array.append(['type', 'strategy', 'symbol', 'leverage', 'opened at', 'qty', 'entry', 'current price', 'PNL (%)'])
 
     for p in store.positions.storage:
         pos = store.positions.storage[p]
@@ -45,6 +45,7 @@ def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]
                 jh.color(pos.type, type_color),
                 pos.strategy.name,
                 pos.symbol,
+                pos.leverage,
                 '' if pos.is_close else '{} ago'.format(
                     jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)),
                 pos.qty if abs(pos.qty) > 0 else None,
