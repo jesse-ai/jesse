@@ -89,9 +89,19 @@ class Position:
 
         base_cost = self.entry_price * abs(self.qty)
         if self.strategy:
-            return base_cost / self.strategy.leverage
+            return base_cost / self.leverage
 
         return base_cost
+
+    @property
+    def leverage(self):
+        if self.exchange.type == 'spot':
+            return 1
+
+        if self.strategy:
+            return self.strategy.leverage
+        else:
+            return np.nan
 
     @property
     def entry_margin(self) -> float:
