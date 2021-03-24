@@ -46,7 +46,6 @@ config = {
             # 1x, 2x, 10x, 50x, etc. Enter as integers
             'futures_leverage': 1,
 
-            # used for spot exchange only
             'assets': [
                 {'asset': 'USDT', 'balance': 10_000},
                 {'asset': 'USD', 'balance': 10_000},
@@ -68,7 +67,6 @@ config = {
             # 1x, 2x, 10x, 50x, etc. Enter as integers
             'futures_leverage': 1,
 
-            # used for spot exchange only
             'assets': [
                 {'asset': 'USDT', 'balance': 10_000},
                 {'asset': 'BTC', 'balance': 0},
@@ -89,7 +87,6 @@ config = {
             # 1x, 2x, 10x, 50x, etc. Enter as integers
             'futures_leverage': 1,
 
-            # used for spot exchange only
             'assets': [
                 {'asset': 'USDT', 'balance': 10_000},
             ],
@@ -129,7 +126,6 @@ config = {
             # 1x, 2x, 10x, 50x, etc. Enter as integers
             'futures_leverage': 1,
 
-            # used for spot exchange only
             'assets': [
                 {'asset': 'USDT', 'balance': 10_000},
                 {'asset': 'USD', 'balance': 10_000},
