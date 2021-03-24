@@ -449,9 +449,10 @@ if 'plugins' in ls:
 
         from plugins.live import init
         from jesse.services.selectors import get_exchange
+        live_config = locate('live-config.config')
 
         # inject live config
-        init(config)
+        init(config, live_config)
 
         # execute live session
         from plugins.live.live_mode import run
@@ -478,9 +479,10 @@ if 'plugins' in ls:
 
         from plugins.live import init
         from jesse.services.selectors import get_exchange
+        live_config = locate('live-config.config')
 
         # inject live config
-        init(config)
+        init(config, live_config)
 
         # execute live session
         from plugins.live.live_mode import run
