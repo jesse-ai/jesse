@@ -431,8 +431,7 @@ if 'plugins' in ls:
     @click.option('--testdrive/--no-testdrive', default=False)
     @click.option('--debug/--no-debug', default=False)
     @click.option('--dev/--no-dev', default=False)
-    @click.option('--fee/--no-fee', default=True)
-    def live(testdrive: bool, debug: bool, dev: bool, fee: bool) -> None:
+    def live(testdrive: bool, debug: bool, dev: bool) -> None:
         """
         trades in real-time on exchange with REAL money
         """
@@ -451,12 +450,6 @@ if 'plugins' in ls:
         from plugins.live import init
         from jesse.services.selectors import get_exchange
 
-        # fee flag
-        if not fee:
-            for e in config['app']['trading_exchanges']:
-                config['env']['exchanges'][e]['fee'] = 0
-                get_exchange(e).fee = 0
-
         # inject live config
         init(config)
 
@@ -468,8 +461,7 @@ if 'plugins' in ls:
     @cli.command()
     @click.option('--debug/--no-debug', default=False)
     @click.option('--dev/--no-dev', default=False)
-    @click.option('--fee/--no-fee', default=True)
-    def paper(debug: bool, dev: bool, fee: bool) -> None:
+    def paper(debug: bool, dev: bool) -> None:
         """
         trades in real-time on exchange with PAPER money
         """
@@ -486,12 +478,6 @@ if 'plugins' in ls:
 
         from plugins.live import init
         from jesse.services.selectors import get_exchange
-
-        # fee flag
-        if not fee:
-            for e in config['app']['trading_exchanges']:
-                config['env']['exchanges'][e]['fee'] = 0
-                get_exchange(e).fee = 0
 
         # inject live config
         init(config)
