@@ -58,6 +58,8 @@ class Strategy(ABC):
         self.position: Position = None
         self.broker = None
 
+        self.metrics = None
+
     def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
@@ -715,6 +717,9 @@ class Strategy(ABC):
 
         self._detect_and_handle_entry_and_exit_modifications()
 
+        # set metrics only after a trade happens and they actually change
+        self.metrics = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
     def on_stop_loss(self, order: Order):
         """
         What should happen after the stop-loss order has been executed
@@ -730,6 +735,10 @@ class Strategy(ABC):
         self.on_take_profit(order)
 
         self._detect_and_handle_entry_and_exit_modifications()
+
+        # set metrics only after a trade happens and they actually change
+        self.metrics = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
 
     def on_take_profit(self, order: Order):
         """
@@ -989,13 +998,6 @@ class Strategy(ABC):
          [List[CompletedTrade]] -- completed trades by strategy
         """
         return store.completed_trades.trades
-
-    @property
-    def metrics(self) -> dict:
-        """
-        Returns all the metrics of the strategy.
-        """
-        return metrics.trades(store.completed_trades.trades, store.app.daily_balance)
 
     @property
     def time(self) -> int:
