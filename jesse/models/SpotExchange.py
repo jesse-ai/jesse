@@ -1,7 +1,7 @@
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.enums import sides, order_types
-from jesse.exceptions import NegativeBalance
+from jesse.exceptions import NegativeBalance, InvalidConfig
 from jesse.models import Order
 from .Exchange import Exchange
 
@@ -20,6 +20,16 @@ class SpotExchange(Exchange):
 
     def __init__(self, name: str, starting_assets: list, fee_rate: float):
         super().__init__(name, starting_assets, fee_rate, 'spot')
+
+        from jesse.routes import router
+        # check if base assets are configured
+        for route in router.routes:
+          base_asset = jh.base_asset(route.symbol)
+          if base_asset not in self.available_assets:
+            raise InvalidConfig(
+              "Jesse needs to know the balance of your base asset for spot mode. Please add {} to your exchanges assets config.".format(
+                base_asset))
+
 
     def wallet_balance(self, symbol=''):
         if symbol == '':

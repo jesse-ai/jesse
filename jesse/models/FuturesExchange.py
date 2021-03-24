@@ -43,6 +43,7 @@ class FuturesExchange(Exchange):
             base = jh.base_asset(r.symbol)
             if base not in self.assets:
                 self.assets[base] = 0
+                self.temp_reduced_amount[base] = 0
             if base not in self.buy_orders:
                 self.buy_orders[base] = DynamicNumpyArray((10, 2))
             if base not in self.sell_orders:
