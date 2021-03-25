@@ -58,6 +58,8 @@ class Strategy(ABC):
         self.position: Position = None
         self.broker = None
 
+        self._cached_metrics = {}
+
     def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
@@ -995,7 +997,11 @@ class Strategy(ABC):
         """
         Returns all the metrics of the strategy.
         """
-        return metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+        if self.index in self._cached_metrics:
+            return self._cached_metrics[self.index]
+        else:
+            self._cached_metrics[self.index] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+            return self._cached_metrics[self.index]
 
     @property
     def time(self) -> int:
