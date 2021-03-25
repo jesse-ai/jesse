@@ -407,7 +407,12 @@ def routes(dna: bool) -> None:
     routes_mode.run(dna)
 
 
-if 'plugins' in ls:
+live_package_exists = True
+try:
+    import jesse_live
+except ModuleNotFoundError:
+    live_package_exists = False
+if live_package_exists:
     @cli.command()
     def collect() -> None:
         """
@@ -422,7 +427,7 @@ if 'plugins' in ls:
 
         register_custom_exception_handler()
 
-        from plugins.live.collect_mode import run
+        from jesse_live.live.collect_mode import run
 
         run()
 
@@ -447,7 +452,7 @@ if 'plugins' in ls:
         # debug flag
         config['app']['debug_mode'] = debug
 
-        from plugins.live import init
+        from jesse_live import init
         from jesse.services.selectors import get_exchange
         live_config = locate('live-config.config')
 
@@ -455,7 +460,7 @@ if 'plugins' in ls:
         init(config, live_config)
 
         # execute live session
-        from plugins.live.live_mode import run
+        from jesse_live.live_mode import run
         run(dev)
 
 
@@ -477,7 +482,7 @@ if 'plugins' in ls:
         # debug flag
         config['app']['debug_mode'] = debug
 
-        from plugins.live import init
+        from jesse_live import init
         from jesse.services.selectors import get_exchange
         live_config = locate('live-config.config')
 
@@ -485,5 +490,5 @@ if 'plugins' in ls:
         init(config, live_config)
 
         # execute live session
-        from plugins.live.live_mode import run
+        from jesse_live.live_mode import run
         run(dev)

@@ -30,7 +30,6 @@ storage/logs/collect.txt
 __pycache__
 .vscode
 /.ipynb_checkpoints
-/plugins
 config.py
 live-config.py
 routes.py
