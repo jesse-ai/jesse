@@ -32,4 +32,5 @@ __pycache__
 /.ipynb_checkpoints
 /plugins
 config.py
+live-config.py
 routes.py
