@@ -18,4 +18,4 @@ TA-Lib==0.4.19
 tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==0.58.0
-quantstats==0.0.26
+quantstats==0.0.30
