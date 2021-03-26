@@ -997,11 +997,11 @@ class Strategy(ABC):
         """
         Returns all the metrics of the strategy.
         """
-        if self.index in self._cached_metrics:
-            return self._cached_metrics[self.index]
+        if self.trades_count in self._cached_metrics:
+            return self._cached_metrics[self.trades_count]
         else:
-            self._cached_metrics[self.index] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
-            return self._cached_metrics[self.index]
+            self._cached_metrics[self.trades_count] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+            return self._cached_metrics[self.trades_count]
 
     @property
     def time(self) -> int:
