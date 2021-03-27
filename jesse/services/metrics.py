@@ -13,16 +13,15 @@ def candles(candles_array: np.ndarray) -> List[List[str]]:
                                   jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
-        duration = '{} days ({} years)'.format(period, round(period / 365, 2))
+        duration = f'{period} days ({round(period / 365, 2)} years)'
     elif period > 30:
-        duration = '{} days ({} months)'.format(period, round(period / 30, 2))
+        duration = f'{period} days ({round(period / 30, 2)} months)'
     else:
-        duration = '{} days'.format(period)
+        duration = f'{period} days'
 
     return [
         ['period', duration],
-        ['starting-ending date', '{} => {}'.format(jh.timestamp_to_time(candles_array[0][0])[:10],
-                                                   jh.timestamp_to_time(candles_array[-1][0] + 60_000)[:10])],
+        ['starting-ending date', f'{jh.timestamp_to_time(candles_array[0][0])[:10]} => {jh.timestamp_to_time(candles_array[-1][0] + 60_000)[:10]}'],
     ]
 
 

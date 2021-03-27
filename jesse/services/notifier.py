@@ -29,9 +29,7 @@ def _telegram(msg: str) -> None:
 
     for id in chat_IDs:
         requests.get(
-            'https://api.telegram.org/bot{}/sendMessage?chat_id={}&parse_mode=Markdown&text={}'.format(
-                token, id, msg
-            )
+            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={id}&parse_mode=Markdown&text={msg}'
         )
 
 
@@ -44,9 +42,7 @@ def _telegram_errors_bot(msg: str) -> None:
 
     for id in chat_IDs:
         requests.get(
-            'https://api.telegram.org/bot{}/sendMessage?chat_id={}&parse_mode=Markdown&text={}'.format(
-                token, id, msg
-            )
+            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={id}&parse_mode=Markdown&text={msg}'
         )
 
 

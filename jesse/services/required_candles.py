@@ -36,7 +36,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
     short_candles_count = int((pre_finish_date - pre_start_date) / 60_000)
 
     key = jh.key(exchange, symbol)
-    cache_key = '{}-{}-{}'.format(jh.timestamp_to_date(pre_start_date), jh.timestamp_to_date(pre_finish_date), key)
+    cache_key = f'{jh.timestamp_to_date(pre_start_date)}-{jh.timestamp_to_date(pre_finish_date)}-{key}'
     cached_value = cache.get_value(cache_key)
 
     # if cache exists
@@ -71,9 +71,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
 
         if not len(first_existing_candle):
             raise CandleNotFoundInDatabase(
-                'No candle for {} {} is present in the database. Try importing candles.'.format(
-                    exchange, symbol
-                )
+                f'No candle for {exchange} {symbol} is present in the database. Try importing candles.'
             )
 
         first_existing_candle = first_existing_candle[0][0]
@@ -90,20 +88,14 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         # if first backtestable timestamp is in the future, that means we have some but not enough candles
         if first_backtestable_timestamp > jh.today_to_timestamp():
             raise CandleNotFoundInDatabase(
-                'Not enough candle for {} {} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. '
-                'Try importing more candles from an earlier date.'.format(
-                    exchange, symbol
-                )
+                f'Not enough candle for {exchange} {symbol} is present in the database. Jesse requires "210 * biggest_timeframe" warm-up candles. '
+                'Try importing more candles from an earlier date.'
             )
 
         raise CandleNotFoundInDatabase(
-            'Not enough candles for {} {} exists to run backtest from {} => {}. \n'
-            'First available date is {}\n'
-            'Last available date is {}'.format(
-                exchange, symbol, start_date_str, finish_date_str,
-                jh.timestamp_to_date(first_backtestable_timestamp),
-                jh.timestamp_to_date(last_existing_candle),
-            )
+            f'Not enough candles for {exchange} {symbol} exists to run backtest from {start_date_str} => {finish_date_str}. \n'
+            f'First available date is {jh.timestamp_to_date(first_backtestable_timestamp)}\n'
+            f'Last available date is {jh.timestamp_to_date(last_existing_candle)}'
         )
 
     return candles

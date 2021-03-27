@@ -53,11 +53,7 @@ class Order(Model):
             self.notify_submission()
         if jh.is_debuggable('order_submission'):
             logger.info(
-                '{} order: {}, {}, {}, {}, ${}'.format(
-                    'QUEUED' if self.is_queued else 'SUBMITTED',
-                    self.symbol, self.type, self.side, self.qty,
-                    round(self.price, 2)
-                )
+                f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
             )
 
         # handle exchange balance for ordered asset
@@ -66,11 +62,7 @@ class Order(Model):
 
     def notify_submission(self) -> None:
         notify(
-            '{} order: {}, {}, {}, {}, ${}'.format(
-                'QUEUED' if self.is_queued else 'SUBMITTED',
-                self.symbol, self.type, self.side, self.qty,
-                round(self.price, 2)
-            )
+            f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
         )
 
     @property
@@ -121,15 +113,11 @@ class Order(Model):
 
         if jh.is_debuggable('order_cancellation'):
             logger.info(
-                'CANCELED order: {}, {}, {}, {}, ${}'.format(
-                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                )
+                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
             )
         if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
             notify(
-                'CANCELED order: {}, {}, {}, {}, {}'.format(
-                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                )
+                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
             )
 
         # handle exchange balance
@@ -146,16 +134,12 @@ class Order(Model):
         # log
         if jh.is_debuggable('order_execution'):
             logger.info(
-                'EXECUTED order: {}, {}, {}, {}, ${}'.format(
-                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                )
+                f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
             )
         # notify
         if jh.is_live() and config['env']['notifications']['events']['executed_orders']:
             notify(
-                'EXECUTED order: {}, {}, {}, {}, {}'.format(
-                    self.symbol, self.type, self.side, self.qty, round(self.price, 2)
-                )
+                f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
             )
 
         p = selectors.get_position(self.exchange, self.symbol)

@@ -13,8 +13,8 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
-    study_name = '{}-{}'.format(mode, now).replace(":", "-")
-    path = 'storage/json/{}.json'.format(study_name)
+    study_name = f'{mode}-{now}'.replace(":", "-")
+    path = f'storage/json/{study_name}.json'
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
     for t in store.completed_trades.trades:
         trades_json['trades'].append(t.toJSON())
@@ -29,7 +29,7 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
 
             json.dump(trades_json, outfile, default=set_default)
 
-        print('\nJSON output saved at: \n{}'.format(path))
+        print(f'\nJSON output saved at: \n{path}')
 
     # store output for TradingView.com's pine-editor
     if export_tradingview:
@@ -37,7 +37,7 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
 
     # also write a CSV file
     if export_csv:
-        path = 'storage/csv/{}.csv'.format(study_name)
+        path = f'storage/csv/{study_name}.csv'
         os.makedirs('./storage/csv', exist_ok=True)
 
         with open(path, 'w', newline='') as outfile:
@@ -50,4 +50,4 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
 
                 wr.writerow(t.values())
 
-        print('\nCSV output saved at: \n{}'.format(path))
+        print(f'\nCSV output saved at: \n{path}')

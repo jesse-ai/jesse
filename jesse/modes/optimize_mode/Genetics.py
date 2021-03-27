@@ -48,10 +48,7 @@ class Genetics(ABC):
             self.options = options
 
         os.makedirs('./storage/temp/optimize', exist_ok=True)
-        self.temp_path = './storage/temp/optimize/{}-{}-{}-{}.pickle'.format(
-            self.options['strategy_name'], self.options['exchange'],
-            self.options['symbol'], self.options['timeframe']
-        )
+        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}.pickle"
 
         if fitness_goal > 1 or fitness_goal < 0:
             raise ValueError('fitness scores must be between 0 and 1')
@@ -87,7 +84,7 @@ class Genetics(ABC):
                             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
                         except Exception as e:
                             proc = os.getpid()
-                            logger.error('process failed - ID: {}'.format(str(proc)))
+                            logger.error(f'process failed - ID: {str(proc)}')
                             logger.error("".join(traceback.TracebackException.from_exception(e).format()))
                             raise e
 
@@ -102,7 +99,7 @@ class Genetics(ABC):
                         for w in workers:
                             w.join()
                             if w.exitcode > 0:
-                                logger.error('a process exited with exitcode: {}'.format(str(w.exitcode)))
+                                logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
                     except KeyboardInterrupt:
                         print(
                             jh.color('Terminating session...', 'red')
@@ -135,12 +132,9 @@ class Genetics(ABC):
 
                 table_items = [
                     ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
-                    ['Index', '{}/{}'.format(len(self.population), self.population_size)],
-                    ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
-                    ['Trading Route', '{}, {}, {}, {}'.format(
-                        router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
-                        router.routes[0].strategy_name
-                    )],
+                    ['Index', f'{len(self.population)}/{self.population_size}'],
+                    ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
+                    ['Trading Route', f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}'],
                     # TODO: add generated DNAs?
                     # ['-'*10, '-'*10],
                     # ['DNA', people[0]['dna']],
@@ -169,7 +163,7 @@ class Genetics(ABC):
     def mutate(self, baby: Dict[str, Union[str, Any]]) -> Dict[str, Union[str, Any]]:
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
-        dna = '{}{}{}'.format(baby['dna'][:replace_at], replace_with, baby['dna'][replace_at + 1:])
+        dna = f"{baby['dna'][:replace_at]}{replace_with}{baby['dna'][replace_at + 1:]}"
         fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
         return {
             'dna': dna,
@@ -243,7 +237,7 @@ class Genetics(ABC):
                             people.append(baby)
                         except Exception as e:
                             proc = os.getpid()
-                            logger.error('process failed - ID: {}'.format(str(proc)))
+                            logger.error(f'process failed - ID: {str(proc)}')
                             logger.error("".join(traceback.TracebackException.from_exception(e).format()))
                             raise e
 
@@ -256,7 +250,7 @@ class Genetics(ABC):
                         for w in workers:
                             w.join()
                             if w.exitcode > 0:
-                                logger.error('a process exited with exitcode: {}'.format(str(w.exitcode)))
+                                logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
                     except KeyboardInterrupt:
                         print(
                             jh.color('Terminating session...', 'red')
@@ -281,18 +275,15 @@ class Genetics(ABC):
 
                     table_items = [
                         ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
-                        ['Index/Total', '{}/{}'.format((i + 1) * self.cpu_cores, self.iterations)],
-                        ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
-                        ['Route', '{}, {}, {}, {}'.format(
-                            router.routes[0].exchange, router.routes[0].symbol, router.routes[0].timeframe,
-                            router.routes[0].strategy_name
-                        )]
+                        ['Index/Total', f'{(i + 1) * self.cpu_cores}/{self.iterations}'],
+                        ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
+                        ['Route', f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}']
                     ]
                     if jh.is_debugging():
                         table_items.insert(
                             3,
                             ['Population Size, Solution Length',
-                             '{}, {}'.format(self.population_size, self.solution_len)]
+                             f'{self.population_size}, {self.solution_len}']
                         )
 
                     table.key_value(table_items, 'info', alignments=('left', 'right'))
@@ -321,10 +312,7 @@ class Genetics(ABC):
                         raise ValueError('self.population_size cannot be less than 10')
 
                     for j in range(number_of_ind_to_show):
-                        log = 'win-rate: {}%, total: {}, PNL: {}% || win-rate: {}%, total: {}, PNL: {}%'.format(
-                            self.population[j]['training_log']['win-rate'], self.population[j]['training_log']['total'],
-                            self.population[j]['training_log']['PNL'], self.population[j]['testing_log']['win-rate'],
-                            self.population[j]['testing_log']['total'], self.population[j]['testing_log']['PNL'])
+                        log = f"win-rate: {self.population[j]['training_log']['win-rate']}%, total: {self.population[j]['training_log']['total']}, PNL: {self.population[j]['training_log']['PNL']}% || win-rate: {self.population[j]['testing_log']['win-rate']}%, total: {self.population[j]['testing_log']['total']}, PNL: {self.population[j]['testing_log']['PNL']}%"
                         if self.population[j]['testing_log']['PNL'] is not None and self.population[j]['training_log'][
                             'PNL'] > 0 and self.population[j]['testing_log'][
                             'PNL'] > 0:
@@ -359,8 +347,8 @@ class Genetics(ABC):
                             self.population[random_index] = baby
                         except IndexError:
                             print('=============')
-                            print('self.population_size: {}'.format(self.population_size))
-                            print('self.population length: {}'.format(len(self.population)))
+                            print(f'self.population_size: {self.population_size}')
+                            print(f'self.population length: {len(self.population)}')
                             jh.terminate_app()
 
                         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
@@ -369,7 +357,7 @@ class Genetics(ABC):
                         if baby['fitness'] >= self.fitness_goal:
                             progressbar.update(self.iterations - i)
                             print('\n')
-                            print('fitness goal reached after iteration {}'.format(i))
+                            print(f'fitness goal reached after iteration {i}')
                             return baby
 
                     # save progress after every n iterations
@@ -383,7 +371,7 @@ class Genetics(ABC):
                     i += 1
 
         print('\n\n')
-        print('Finished {} iterations.'.format(self.iterations))
+        print(f'Finished {self.iterations} iterations.')
         return self.population
 
     def run(self) -> List[Any]:
@@ -427,10 +415,7 @@ class Genetics(ABC):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        study_name = '{}-{}-{}-{}'.format(
-            self.options['strategy_name'], self.options['exchange'],
-            self.options['symbol'], self.options['timeframe']
-        )
+        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}"
 
         dnas_json = {'snapshot': []}
         for i in range(30):
@@ -439,29 +424,24 @@ class Genetics(ABC):
                  'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
                  'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
 
-        path = './storage/genetics/{}.txt'.format(study_name)
+        path = f'./storage/genetics/{study_name}.txt'
         os.makedirs('./storage/genetics', exist_ok=True)
         txt = ''
         with open(path, 'a', encoding="utf-8") as f:
             txt += '\n\n'
-            txt += '# iteration {}'.format(index)
+            txt += f'# iteration {index}'
             txt += '\n'
 
             for i in range(30):
-                log = 'win-rate: {} %, total: {}, PNL: {} % || win-rate: {} %, total: {}, PNL: {} %'.format(
-                    self.population[i]['training_log']['win-rate'], self.population[i]['training_log']['total'],
-                    self.population[i]['training_log']['PNL'], self.population[i]['testing_log']['win-rate'],
-                    self.population[i]['testing_log']['total'], self.population[i]['testing_log']['PNL'])
+                log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
 
                 txt += '\n'
-                txt += "{} ==  {}  ==  {}  ==  {}".format(
-                    i + 1, self.population[i]['dna'], self.population[i]['fitness'], log
-                )
+                txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
 
             f.write(txt)
 
         if self.options['csv']:
-            path = 'storage/genetics/csv/{}.csv'.format(study_name)
+            path = f'storage/genetics/csv/{study_name}.csv'
             os.makedirs('./storage/genetics/csv', exist_ok=True)
             exists = os.path.exists(path)
 
@@ -475,7 +455,7 @@ class Genetics(ABC):
                 df.to_csv(outfile, header=False, index=False, encoding='utf-8')
 
         if self.options['json']:
-            path = 'storage/genetics/json/{}.json'.format(study_name)
+            path = f'storage/genetics/json/{study_name}.json'
             os.makedirs('./storage/genetics/json', exist_ok=True)
             exists = os.path.exists(path)
 

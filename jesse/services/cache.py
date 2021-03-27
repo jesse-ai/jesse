@@ -16,8 +16,8 @@ class Cache:
             os.makedirs(path, exist_ok=True)
 
             # if cache_database exists, load the dictionary
-            if os.path.isfile(self.path + "cache_database.pickle"):
-                with open(self.path + "cache_database.pickle", 'rb') as f:
+            if os.path.isfile(f"{self.path}cache_database.pickle"):
+                with open(f"{self.path}cache_database.pickle", 'rb') as f:
                     self.db = pickle.load(f)
             # if not, create a dict object. We'll create the file when using set_value()
             else:
@@ -29,7 +29,7 @@ class Cache:
 
         # add record into the database
         expire_at = None if expire_seconds is None else time() + expire_seconds
-        data_path = self.path + "{}.pickle".format(key)
+        data_path = f"{self.path}{key}.pickle"
         self.db[key] = {
             'expire_seconds': expire_seconds,
             'expire_at': expire_at,
@@ -67,7 +67,7 @@ class Cache:
 
     def _update_db(self) -> None:
         # store/update database
-        with open(self.path + "cache_database.pickle", 'wb') as f:
+        with open(f"{self.path}cache_database.pickle", 'wb') as f:
             pickle.dump(self.db, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def flush(self) -> None:

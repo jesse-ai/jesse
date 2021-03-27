@@ -39,14 +39,13 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
-        raise ValueError('{} is not a supported exchange'.format(exchange))
+        raise ValueError(f'{exchange} is not a supported exchange')
 
     loop_length = int(candles_count / driver.count) + 1
     # ask for confirmation
     if not skip_confirmation:
         click.confirm(
-            'Importing {} days candles from "{}" for "{}". Duplicates will be skipped. All good?'
-                .format(days_count, exchange, symbol), abort=True, default=True)
+            f'Importing {days_count} days candles from "{exchange}" for "{symbol}". Duplicates will be skipped. All good?', abort=True, default=True)
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
         for _ in range(candles_count):
@@ -80,10 +79,8 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                     # if driver can't provide accurate get_starting_time()
                     if first_existing_timestamp is None:
                         raise CandleNotFoundInExchange(
-                            'No candles exists in the market for this day: {} \n'
-                            'Try another start_date'.format(
-                                jh.timestamp_to_time(temp_start_timestamp)[:10],
-                            )
+                            f'No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n'
+                            'Try another start_date'
                         )
 
                     # handle when there's missing candles during the period
@@ -98,13 +95,9 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
                     else:
                         if not skip_confirmation:
-                            print(jh.color('No candle exists in the market for {}\n'.format(
-                                jh.timestamp_to_time(temp_start_timestamp)[:10]), 'yellow'))
+                            print(jh.color(f'No candle exists in the market for {jh.timestamp_to_time(temp_start_timestamp)[:10]}\n', 'yellow'))
                             click.confirm(
-                                'First present candle is since {}. Would you like to continue?'.format(
-                                    jh.timestamp_to_time(first_existing_timestamp)[:10]
-                                )
-                                , abort=True, default=True)
+                                f'First present candle is since {jh.timestamp_to_time(first_existing_timestamp)[:10]}. Would you like to continue?', abort=True, default=True)
 
                         run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
                         return
@@ -192,10 +185,8 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
 
             if not len(candles):
                 raise CandleNotFoundInExchange(
-                    'No candles exists in the market for this day: {} \n'
-                    'Try another start_date'.format(
-                        jh.timestamp_to_time(temp_start_timestamp)[:10],
-                    )
+                    f'No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n'
+                    'Try another start_date'
                 )
 
             # fill absent candles (if there's any)
@@ -244,10 +235,8 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
         List[Dict[str, Union[str, Any]]]:
     if len(temp_candles) == 0:
         raise CandleNotFoundInExchange(
-            'No candles exists in the market for this day: {} \n'
-            'Try another start_date'.format(
-                jh.timestamp_to_time(start_timestamp)[:10],
-            )
+            f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
+            'Try another start_date'
         )
 
     symbol = temp_candles[0]['symbol']

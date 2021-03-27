@@ -90,7 +90,7 @@ def convert_number(old_max: float, old_min: float, new_max: float, new_min: floa
     """
     # validation
     if old_value > old_max or old_value < old_min:
-        raise ValueError('old_value:{} must be within the range. {}-{}'.format(old_value, old_min, old_max))
+        raise ValueError(f'old_value:{old_value} must be within the range. {old_min}-{old_max}')
 
     old_range = (old_max - old_min)
     new_range = (new_max - new_min)
@@ -104,7 +104,7 @@ def dashless_symbol(symbol: str) -> str:
 
 
 def dashy_symbol(symbol: str) -> str:
-    return symbol[0:3] + '-' + symbol[3:]
+    return f"{symbol[0:3]}-{symbol[3:]}"
 
 
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
@@ -275,9 +275,9 @@ def get_strategy_class(strategy_name: str):
     from pydoc import locate
 
     if is_unit_testing():
-        return locate('jesse.strategies.{}.{}'.format(strategy_name, strategy_name))
+        return locate(f'jesse.strategies.{strategy_name}.{strategy_name}')
     else:
-        return locate('strategies.{}.{}'.format(strategy_name, strategy_name))
+        return locate(f'strategies.{strategy_name}.{strategy_name}')
 
 
 def insecure_hash(msg: str) -> str:
@@ -357,9 +357,9 @@ def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
 
 def key(exchange: str, symbol: str, timeframe: str = None):
     if timeframe is None:
-        return '{}-{}'.format(exchange, symbol)
+        return f'{exchange}-{symbol}'
 
-    return '{}-{}-{}'.format(exchange, symbol, timeframe)
+    return f'{exchange}-{symbol}-{timeframe}'
 
 
 def max_timeframe(timeframes_list: list) -> str:
@@ -524,7 +524,7 @@ def prepare_qty(qty: float, side: str) -> float:
 
 
 def python_version() -> float:
-    return float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
+    return float(f'{sys.version_info[0]}.{sys.version_info[1]}')
 
 
 def quote_asset(symbol: str) -> str:
@@ -532,7 +532,7 @@ def quote_asset(symbol: str) -> str:
         return symbol.split('-')[1]
     except IndexError:
         from jesse.exceptions import InvalidRoutes
-        raise InvalidRoutes("The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{}'".format(symbol))
+        raise InvalidRoutes(f"The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{symbol}'")
 
 
 def random_str(num_characters: int = 8) -> str:
@@ -557,7 +557,7 @@ def readable_duration(seconds: int, granularity: int = 2) -> str:
             seconds -= value * count
             if value == 1:
                 name = name.rstrip('s')
-            result.append("{} {}".format(value, name))
+            result.append(f"{value} {name}")
     return ', '.join(result[:granularity])
 
 
@@ -695,8 +695,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         return dic[timeframe]
     except KeyError:
         raise InvalidTimeframe(
-            'Timeframe "{}" is invalid. Supported timeframes are {}.'.format(
-                timeframe, ', '.join(all_timeframes)))
+            f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.')
 
 
 def timestamp_to_arrow(timestamp: int) -> arrow.arrow.Arrow:

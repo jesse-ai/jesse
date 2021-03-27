@@ -30,7 +30,7 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
         Candle.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
-                'candle: {}-{}-{}: {}'.format(jh.timestamp_to_time(d['timestamp']), exchange, symbol, candle),
+                f"candle: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}",
                 'blue'
             )
         )
@@ -54,9 +54,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None
     def async_save() -> None:
         Ticker.insert(**d).on_conflict_ignore().execute()
         print(
-            jh.color('ticker: {}-{}-{}: {}'.format(
-                jh.timestamp_to_time(d['timestamp']), exchange, symbol, ticker
-            ), 'yellow')
+            jh.color(f'ticker: {jh.timestamp_to_time(d["timestamp"])}-{exchange}-{symbol}: {ticker}', 'yellow')
         )
 
     # async call
@@ -86,9 +84,7 @@ def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
     def async_save() -> None:
         CompletedTrade.insert(**d).execute()
         if jh.is_debugging():
-            logger.info('Stored the completed trade record for {}-{}-{} into database.'.format(
-                completed_trade.exchange, completed_trade.symbol, completed_trade.strategy_name
-            ))
+            logger.info(f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
 
     # async call
     threading.Thread(target=async_save).start()
@@ -117,9 +113,7 @@ def store_order_into_db(order: Order) -> None:
     def async_save() -> None:
         Order.insert(**d).execute()
         if jh.is_debugging():
-            logger.info('Stored the executed order record for {}-{} into database.'.format(
-                order.exchange, order.symbol
-            ))
+            logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
 
     # async call
     threading.Thread(target=async_save).start()
@@ -129,9 +123,8 @@ def store_daily_balance_into_db(daily_balance: dict) -> None:
     def async_save():
         DailyBalance.insert(**daily_balance).execute()
         if jh.is_debugging():
-            logger.info('Stored daily portfolio balance record into the database: {} => {}'.format(
-                daily_balance['asset'], jh.format_currency(round(daily_balance['balance'], 2))
-            ))
+            logger.info(f'Stored daily portfolio balance record into the database: {daily_balance["asset"]} => {jh.format_currency(round(daily_balance["balance"], 2))}'
+            )
 
     # async call
     threading.Thread(target=async_save).start()
@@ -154,9 +147,7 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
         Trade.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
-                'trade: {}-{}-{}: {}'.format(
-                    jh.timestamp_to_time(d['timestamp']), exchange, symbol, trade
-                ),
+                f'trade: {jh.timestamp_to_time(d["timestamp"])}-{exchange}-{symbol}: {trade}',
                 'green'
             )
         )
@@ -178,13 +169,7 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -
         Orderbook.insert(**d).on_conflict_ignore().execute()
         print(
             jh.color(
-                'orderbook: {}-{}-{}: [{}, {}], [{}, {}]'.format(
-                    jh.timestamp_to_time(d['timestamp']), exchange, symbol,
-                    # best ask
-                    orderbook[0][0][0], orderbook[0][0][1],
-                    # best bid
-                    orderbook[1][0][0], orderbook[1][0][1]
-                ),
+                f'orderbook: {jh.timestamp_to_time(d["timestamp"])}-{exchange}-{symbol}: [{orderbook[0][0][0]}, {orderbook[0][0][1]}], [{orderbook[1][0][0]}, {orderbook[1][0][1]}]',
                 'magenta'
             )
         )

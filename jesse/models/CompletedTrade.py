@@ -101,7 +101,7 @@ class CompletedTrade(peewee.Model):
 
     @property
     def fee(self) -> float:
-        trading_fee = jh.get_config('env.exchanges.{}.fee'.format(self.exchange))
+        trading_fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property

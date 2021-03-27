@@ -8,7 +8,7 @@ def run(dna: bool = False) -> None:
     arr = []
     if not dna:
         print(
-            jh.color('{}{}{}'.format('#' * 25, ' Trading Routes ', '#' * 25), 'blue')
+            jh.color(f"{'#' * 25} Trading Routes {'#' * 25}", 'blue')
         )
         arr.append(('exchange', 'symbol', 'timeframe', 'strategy name', 'DNA'))
     else:
@@ -36,7 +36,7 @@ def run(dna: bool = False) -> None:
     # extra_candles
     if not dna:
         print(
-            jh.color('{}{}{}'.format('#' * 25, ' Extra Candles ', '#' * 25), 'blue')
+            jh.color(f"{'#' * 25} Extra Candles {'#' * 25}", 'blue')
         )
         arr = [('exchange', 'symbol', 'timeframe')]
 

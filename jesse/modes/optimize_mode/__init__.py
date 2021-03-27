@@ -55,9 +55,7 @@ class Optimizer(Genetics):
         )
 
         if cpu_cores > cpu_count():
-            raise ValueError('Entered cpu cores number is more than available on this machine which is {}'.format(
-                cpu_count()
-            ))
+            raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
         elif cpu_cores == 0:
             self.cpu_cores = cpu_count()
         else:
@@ -128,8 +126,7 @@ class Optimizer(Genetics):
                 ratio_normalized = jh.normalize(ratio, -.5, 5)
             else:
                 raise ValueError(
-                    'The entered ratio configuration `{}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.'.format(
-                        ratio_config))
+                    f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.')
 
             if ratio < 0:
                 score = 0.0001

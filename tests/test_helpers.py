@@ -402,7 +402,7 @@ def test_prepare_qty():
 
 def test_python_version():
     import sys
-    assert jh.python_version() == float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
+    assert jh.python_version() == float(f'{sys.version_info[0]}.{sys.version_info[1]}')
 
 
 def test_quote_asset():

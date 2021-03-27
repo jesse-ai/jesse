@@ -11,8 +11,7 @@ def init() -> None:
     if jh.python_version() < 3.6:
         print(
             jh.color(
-                'Jesse has not beed tested with your Python version ({}), hence it may not work properly. Consider upgrading to >= 3.7'.format(
-                    jh.python_version()),
+                f'Jesse has not beed tested with your Python version ({jh.python_version()}), hence it may not work properly. Consider upgrading to >= 3.7',
                 'red'
             )
         )

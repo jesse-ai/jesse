@@ -10,27 +10,27 @@ def generate(name: str) -> None:
     :param name:
     :return:
     """
-    path = 'strategies/{}'.format(name)
+    path = f'strategies/{name}'
 
     # validation for name duplication
     exists = os.path.isdir(path)
     if exists:
-        print(jh.color('Strategy "{}" already exists.'.format(name), 'red'))
+        print(jh.color(f'Strategy "{name}" already exists.', 'red'))
         return
 
     # generate from ExampleStrategy
     dirname, filename = os.path.split(os.path.abspath(__file__))
 
-    shutil.copytree('{}/ExampleStrategy'.format(dirname), path)
+    shutil.copytree(f'{dirname}/ExampleStrategy', path)
 
     # replace 'ExampleStrategy' with the name of the new strategy
-    fin = open("{}/__init__.py".format(path), "rt")
+    fin = open(f"{path}/__init__.py", "rt")
     data = fin.read()
     data = data.replace('ExampleStrategy', name)
     fin.close()
-    fin = open("{}/__init__.py".format(path), "wt")
+    fin = open(f"{path}/__init__.py", "wt")
     fin.write(data)
     fin.close()
 
     # output the location of generated strategy directory
-    print(jh.color('Strategy created at: {}'.format(path), 'green'))
+    print(jh.color(f'Strategy created at: {path}', 'green'))
