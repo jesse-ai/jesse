@@ -670,7 +670,6 @@ def terminate_app() -> None:
 def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
-    all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
 
     dic = {
         timeframes.MINUTE_1: 1,
@@ -694,6 +693,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
     try:
         return dic[timeframe]
     except KeyError:
+        all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
         raise InvalidTimeframe(
             f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.')
 
