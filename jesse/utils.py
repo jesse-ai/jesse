@@ -7,6 +7,7 @@ import pandas as pd
 from talib import MA
 
 import jesse.helpers as jh
+from jesse.enums import timeframes
 
 
 def anchor_timeframe(timeframe: str) -> str:
@@ -17,7 +18,6 @@ def anchor_timeframe(timeframe: str) -> str:
     :param timeframe: str
     :return: str
     """
-    from jesse.enums import timeframes
 
     dic = {
         timeframes.MINUTE_1: timeframes.MINUTE_5,

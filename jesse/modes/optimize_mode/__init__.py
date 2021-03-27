@@ -11,7 +11,7 @@ import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 from jesse import exceptions
 from jesse.config import config
-from jesse.modes.backtest_mode import simulator
+from jesse.modes.backtest_mode import load_candles, simulator
 from jesse.routes import router
 from jesse.services import metrics as stats
 from jesse.services.validators import validate_routes
@@ -200,7 +200,6 @@ def get_training_and_testing_candles(start_date_str: str, finish_date_str: str) 
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 
     # Load candles (first try cache, then database)
-    from jesse.modes.backtest_mode import load_candles
     candles = load_candles(start_date_str, finish_date_str)
 
     # divide into training(85%) and testing(15%) sets

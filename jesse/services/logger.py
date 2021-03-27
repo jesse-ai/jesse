@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.services.notifier import notify, notify_urgently
-
+import logging
 
 def info(msg: str) -> None:
     from jesse.store import store
@@ -12,7 +12,6 @@ def info(msg: str) -> None:
 
     if jh.is_live():
         msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {str(msg)}"
-        import logging
         logging.info(msg)
 
 
@@ -29,5 +28,4 @@ def error(msg: str) -> None:
 
     if jh.is_live() or jh.is_optimizing():
         msg = f"[ERROR | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {str(msg)}"
-        import logging
         logging.error(msg)
