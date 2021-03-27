@@ -4,12 +4,20 @@ import os
 import random
 import string
 import sys
+import traceback
 import uuid
+from bisect import bisect_left
+from functools import reduce
+from pydoc import locate
 from typing import List, Tuple, Union, Any
 
 import arrow
 import click
 import numpy as np
+
+from jesse.config import config
+from jesse.enums import trade_types, sides, timeframes
+from jesse.exceptions import InvalidRoutes, InvalidTimeframe
 
 CACHED_CONFIG = dict()
 
@@ -20,7 +28,6 @@ def app_currency() -> str:
 
 
 def app_mode() -> str:
-    from jesse.config import config
     return config['app']['trading_mode']
 
 
@@ -41,7 +48,6 @@ def binary_search(arr: list, item) -> int:
 
     :return: int
     """
-    from bisect import bisect_left
 
     i = bisect_left(arr, item)
     if i != len(arr) and arr[i] == item:
@@ -150,7 +156,6 @@ def dump_exception() -> None:
     """
     a useful debugging helper
     """
-    import traceback
     print(traceback.format_exc())
     terminate_app()
 
@@ -263,8 +268,6 @@ def get_config(keys: str, default: Any = None) -> Any:
         if os.environ.get(keys.upper().replace(".", "_")) is not None:
             CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_"))
         else:
-            from functools import reduce
-            from jesse.config import config
             CACHED_CONFIG[keys] = reduce(lambda d, k: d.get(k, default) if isinstance(d, dict) else default,
                                          keys.split("."), config)
 
@@ -272,7 +275,6 @@ def get_config(keys: str, default: Any = None) -> Any:
 
 
 def get_strategy_class(strategy_name: str):
-    from pydoc import locate
 
     if is_unit_testing():
         return locate(f'jesse.strategies.{strategy_name}.{strategy_name}')
@@ -295,27 +297,22 @@ def insert_list(index: int, item, arr: list) -> list:
 
 
 def is_backtesting() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'backtest'
 
 
 def is_collecting_data() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'collect'
 
 
 def is_debuggable(debug_item) -> bool:
-    from jesse.config import config
     return is_debugging() and config['env']['logging'][debug_item]
 
 
 def is_debugging() -> bool:
-    from jesse.config import config
     return config['app']['debug_mode']
 
 
 def is_importing_candles() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'import-candles'
 
 
@@ -324,22 +321,18 @@ def is_live() -> bool:
 
 
 def is_livetrading() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
 
 
 def is_optimizing() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'optimize'
 
 
 def is_paper_trading() -> bool:
-    from jesse.config import config
     return config['app']['trading_mode'] == 'papertrade'
 
 
 def is_test_driving() -> bool:
-    from jesse.config import config
     return config['app']['is_test_driving']
 
 
@@ -363,7 +356,6 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 
 
 def max_timeframe(timeframes_list: list) -> str:
-    from jesse.enums import timeframes
 
     if timeframes.WEEK_1 in timeframes_list:
         return timeframes.WEEK_1
@@ -446,7 +438,6 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
 
 
 def opposite_side(s: str) -> str:
-    from jesse.enums import sides
 
     if s == sides.BUY:
         return sides.SELL
@@ -456,7 +447,6 @@ def opposite_side(s: str) -> str:
 
 
 def opposite_type(t: str) -> str:
-    from jesse.enums import trade_types
 
     if t == trade_types.LONG:
         return trade_types.SHORT
@@ -531,7 +521,6 @@ def quote_asset(symbol: str) -> str:
     try:
         return symbol.split('-')[1]
     except IndexError:
-        from jesse.exceptions import InvalidRoutes
         raise InvalidRoutes(f"The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{symbol}'")
 
 
@@ -623,7 +612,6 @@ def should_execute_silently() -> bool:
 
 
 def side_to_type(s: str) -> str:
-    from jesse.enums import trade_types, sides
 
     if s == sides.BUY:
         return trade_types.LONG
@@ -668,9 +656,6 @@ def terminate_app() -> None:
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
-
     dic = {
         timeframes.MINUTE_1: 1,
         timeframes.MINUTE_3: 3,
@@ -720,8 +705,6 @@ def today_to_timestamp() -> int:
 
 
 def type_to_side(t: str) -> str:
-    from jesse.enums import trade_types, sides
-
     if t == trade_types.LONG:
         return sides.BUY
     if t == trade_types.SHORT:
