@@ -8,7 +8,7 @@ def get_current_price(exchange: str, symbol: str) -> float:
 
 def get_position(exchange: str, symbol: str) -> Any:
     from jesse.store import store
-    key = '{}-{}'.format(exchange, symbol)
+    key = f'{exchange}-{symbol}'
     return store.positions.storage.get(key, None)
 
 

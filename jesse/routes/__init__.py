@@ -27,21 +27,20 @@ class RouterClass:
             # validate strategy
             strategy_name = r[3]
             if jh.is_unit_testing():
-                exists = jh.file_exists(sys.path[0] + '/jesse/strategies/{}/__init__.py'.format(strategy_name))
+                exists = jh.file_exists(f"{sys.path[0]}/jesse/strategies/{strategy_name}/__init__.py")
             else:
-                exists = jh.file_exists('strategies/{}/__init__.py'.format(strategy_name))
+                exists = jh.file_exists(f'strategies/{strategy_name}/__init__.py')
 
             if not exists:
                 raise exceptions.InvalidRoutes(
-                    'A strategy with the name of "{}" could not be found.'.format(r[3]))
+                    f'A strategy with the name of "{r[3]}" could not be found.')
 
             # validate timeframe
             route_timeframe = r[2]
             all_timeframes = [timeframe for timeframe in jh.class_iter(timeframes)]
             if route_timeframe not in all_timeframes:
                 raise exceptions.InvalidRoutes(
-                    'Timeframe "{}" is invalid. Supported timeframes are {}'.format(
-                        route_timeframe, ', '.join(all_timeframes))
+                    f'Timeframe "{route_timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}'
                 )
 
             self.routes.append(Route(*r))

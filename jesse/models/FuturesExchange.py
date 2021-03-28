@@ -69,7 +69,7 @@ class FuturesExchange(Exchange):
             if asset == self.settlement_currency:
                 continue
 
-            position = selectors.get_position(self.name, asset + "-" + self.settlement_currency)
+            position = selectors.get_position(self.name, f"{asset}-{self.settlement_currency}")
             if position is None:
                 continue
 
@@ -93,22 +93,13 @@ class FuturesExchange(Exchange):
         fee_amount = abs(amount) * self.fee_rate
         new_balance = self.assets[self.settlement_currency] - fee_amount
         logger.info(
-            'Charged {} as fee. Balance for {} on {} changed from {} to {}'.format(
-                round(fee_amount, 2), self.settlement_currency, self.name,
-                round(self.assets[self.settlement_currency], 2),
-                round(new_balance, 2),
-            )
+            f'Charged {round(fee_amount, 2)} as fee. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}'
         )
         self.assets[self.settlement_currency] = new_balance
 
     def add_realized_pnl(self, realized_pnl: float):
         new_balance = self.assets[self.settlement_currency] + realized_pnl
-        logger.info('Added realized PNL of {}. Balance for {} on {} changed from {} to {}'.format(
-            round(realized_pnl, 2),
-            self.settlement_currency, self.name,
-            round(self.assets[self.settlement_currency], 2),
-            round(new_balance, 2),
-        ))
+        logger.info(f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
     def on_order_submission(self, order: Order, skip_market_order=True):
@@ -121,9 +112,7 @@ class FuturesExchange(Exchange):
                 remaining_margin = self.available_margin()
                 if order_size > remaining_margin:
                     raise InsufficientMargin(
-                        'You cannot submit an order for ${} when your margin balance is ${}'.format(
-                            round(order_size), round(remaining_margin)
-                        ))
+                        f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')
 
         # skip market order at the time of submission because we don't have
         # the exact order.price. Instead, we call on_order_submission() one

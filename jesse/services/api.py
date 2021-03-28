@@ -15,7 +15,7 @@ class API:
         for e in jh.get_config('app.considering_exchanges'):
             if jh.is_live():
                 def initiate_ws(exchange_name: str) -> None:
-                    exchange_class = jh.get_config('app.live_drivers.{}'.format(exchange_name))
+                    exchange_class = jh.get_config(f'app.live_drivers.{exchange_name}')
                     try:
                         self.drivers[exchange_name] = exchange_class()
                     except TypeError:

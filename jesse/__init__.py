@@ -15,7 +15,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 if jh.python_version() < 3.7:
     print(
         jh.color(
-            'Jesse requires Python version above 3.7. Yours is {}'.format(jh.python_version()),
+            f'Jesse requires Python version above 3.7. Yours is {jh.python_version()}',
             'red'
         )
     )
@@ -107,58 +107,52 @@ def register_custom_exception_handler() -> None:
             exceptions.CandleNotFoundInDatabase
         ]:
             click.clear()
-            print('=' * 30 + ' EXCEPTION TRACEBACK:')
+            print(f"{'=' * 30} EXCEPTION TRACEBACK:")
             traceback.print_tb(exc_traceback, file=sys.stdout)
             print("=" * 73)
             print(
                 '\n',
                 jh.color('Uncaught Exception:', 'red'),
-                jh.color('{}: {}'.format(exc_type.__name__, exc_value), 'yellow')
+                jh.color(f'{exc_type.__name__}: {exc_value}', 'yellow')
             )
             return
 
         # send notifications if it's a live session
         if jh.is_live():
             jesse_logger.error(
-                '{}: {}'.format(exc_type.__name__, exc_value)
+                f'{exc_type.__name__}: {exc_value}'
             )
 
         if jh.is_live() or jh.is_collecting_data():
             logging.error("Uncaught Exception:", exc_info=(exc_type, exc_value, exc_traceback))
         else:
-            print('=' * 30 + ' EXCEPTION TRACEBACK:')
+            print(f"{'=' * 30} EXCEPTION TRACEBACK:")
             traceback.print_tb(exc_traceback, file=sys.stdout)
             print("=" * 73)
             print(
                 '\n',
                 jh.color('Uncaught Exception:', 'red'),
-                jh.color('{}: {}'.format(exc_type.__name__, exc_value), 'yellow')
+                jh.color(f'{exc_type.__name__}: {exc_value}', 'yellow')
             )
 
         if jh.is_paper_trading():
             print(
                 jh.color(
-                    'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                        'storage/logs/paper-trade.txt'
-                    ),
+                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/paper-trade.txt',
                     'red'
                 )
             )
         elif jh.is_livetrading():
             print(
                 jh.color(
-                    'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                        'storage/logs/live-trade.txt'
-                    ),
+                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/live-trade.txt',
                     'red'
                 )
             )
         elif jh.is_collecting_data():
             print(
                 jh.color(
-                    'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                        'storage/logs/collect.txt'
-                    ),
+                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/collect.txt',
                     'red'
                 )
             )
@@ -177,59 +171,53 @@ def register_custom_exception_handler() -> None:
                 exceptions.CandleNotFoundInDatabase
             ]:
                 click.clear()
-                print('=' * 30 + ' EXCEPTION TRACEBACK:')
+                print(f"{'=' * 30} EXCEPTION TRACEBACK:")
                 traceback.print_tb(args.exc_traceback, file=sys.stdout)
                 print("=" * 73)
                 print(
                     '\n',
                     jh.color('Uncaught Exception:', 'red'),
-                    jh.color('{}: {}'.format(args.exc_type.__name__, args.exc_value), 'yellow')
+                    jh.color(f'{args.exc_type.__name__}: {args.exc_value}', 'yellow')
                 )
                 return
 
             # send notifications if it's a live session
             if jh.is_live():
                 jesse_logger.error(
-                    '{}: {}'.format(args.exc_type.__name__, args.exc_value)
+                    f'{args.exc_type.__name__}: { args.exc_value}'
                 )
 
             if jh.is_live() or jh.is_collecting_data():
                 logging.error("Uncaught Exception:",
                               exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
             else:
-                print('=' * 30 + ' EXCEPTION TRACEBACK:')
+                print(f"{'=' * 30} EXCEPTION TRACEBACK:")
                 traceback.print_tb(args.exc_traceback, file=sys.stdout)
                 print("=" * 73)
                 print(
                     '\n',
                     jh.color('Uncaught Exception:', 'red'),
-                    jh.color('{}: {}'.format(args.exc_type.__name__, args.exc_value), 'yellow')
+                    jh.color(f'{args.exc_type.__name__}: {args.exc_value}', 'yellow')
                 )
 
             if jh.is_paper_trading():
                 print(
                     jh.color(
-                        'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                            'storage/logs/paper-trade.txt'
-                        ),
+                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/paper-trade.txt',
                         'red'
                     )
                 )
             elif jh.is_livetrading():
                 print(
                     jh.color(
-                        'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                            'storage/logs/live-trade.txt'
-                        ),
+                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/live-trade.txt',
                         'red'
                     )
                 )
             elif jh.is_collecting_data():
                 print(
                     jh.color(
-                        'An uncaught exception was raised. Check the log file at:\n{}'.format(
-                            'storage/logs/collect.txt'
-                        ),
+                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/collect.txt',
                         'red'
                     )
                 )

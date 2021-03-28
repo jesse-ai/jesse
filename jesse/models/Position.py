@@ -183,11 +183,7 @@ class Position:
         self.closed_at = jh.now_to_timestamp()
 
         if not jh.is_unit_testing():
-            info_text = 'CLOSED {} position: {}, {}, {}. PNL: ${}, Balance: ${}, entry: {}, exit: {}'.format(
-                trade_type, self.exchange_name, self.symbol, self.strategy.name,
-                round(estimated_profit, 2), jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2)),
-                entry, close_price
-            )
+            info_text = f'CLOSED {trade_type} position: {self.exchange_name}, {self.symbol}, {self.strategy.name}. PNL: ${round(estimated_profit, 2)}, Balance: ${jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2))}, entry: {entry}, exit: {close_price}'
 
             if jh.is_debuggable('position_closed'):
                 logger.info(info_text)
@@ -214,9 +210,7 @@ class Position:
         elif self.type == trade_types.SHORT:
             self.qty = sum_floats(self.qty, qty)
 
-        info_text = 'REDUCED position: {}, {}, {}, {}, ${}'.format(
-            self.exchange_name, self.symbol, self.type, self.qty, round(self.entry_price, 2)
-        )
+        info_text = f'REDUCED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
 
         if jh.is_debuggable('position_reduced'):
             logger.info(info_text)
@@ -242,9 +236,7 @@ class Position:
         elif self.type == trade_types.SHORT:
             self.qty = subtract_floats(self.qty, qty)
 
-        info_text = 'INCREASED position: {}, {}, {}, {}, ${}'.format(
-            self.exchange_name, self.symbol, self.type, self.qty, round(self.entry_price, 2)
-        )
+        info_text = f'INCREASED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
 
         if jh.is_debuggable('position_increased'):
             logger.info(info_text)
@@ -261,9 +253,7 @@ class Position:
         self.qty = qty
         self.opened_at = jh.now_to_timestamp()
 
-        info_text = 'OPENED {} position: {}, {}, {}, ${}'.format(
-            self.type, self.exchange_name, self.symbol, self.qty, round(self.entry_price, 2)
-        )
+        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}, { self.qty}, ${round(self.entry_price, 2)}'
 
         if jh.is_debuggable('position_opened'):
             logger.info(info_text)
@@ -299,15 +289,11 @@ class Position:
             if abs(qty) > abs(self.qty):
                 if order.is_reduce_only:
                     logger.info(
-                        'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {}, Position QTY: {}'.format(
-                            qty, self.qty
-                        ))
+                        f'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {qty}, Position QTY: {self.qty}')
                     self._close(price)
                 else:
                     logger.info(
-                        'Executed order is big enough to not close, but flip the position type. Order QTY: {}, Position QTY: {}'.format(
-                            qty, self.qty
-                        ))
+                        f'Executed order is big enough to not close, but flip the position type. Order QTY: {qty}, Position QTY: {self.qty}')
                     diff_qty = sum_floats(self.qty, qty)
                     self._close(price)
                     self._open(diff_qty, price)

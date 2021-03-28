@@ -26,12 +26,10 @@ def quantstats_tearsheet() -> None:
 
 	os.makedirs('./storage/full-reports', exist_ok=True)
 
-	file_path = 'storage/full-reports/{}-{}.html'.format(
-		modes[mode][0], str(arrow.utcnow())[0:19]
-	).replace(":", "-")
+	file_path = f'storage/full-reports/{modes[mode][0]}-{str(arrow.utcnow())[0:19]}.html'.replace(":", "-")
 
-	title = '{} → {}'.format(modes[mode][1], arrow.utcnow().strftime("%d %b, %Y %H:%M:%S"))
+	title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')}"
 
 	qs.reports.html(returns=returns_time_series, title=title, output=file_path)
 
-	print('\nFull report output saved at:\n{}'.format(file_path))
+	print(f'\nFull report output saved at:\n{file_path}')

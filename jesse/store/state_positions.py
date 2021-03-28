@@ -8,7 +8,7 @@ class PositionsState:
 
         for exchange in config['app']['trading_exchanges']:
             for symbol in config['app']['trading_symbols']:
-                key = '{}-{}'.format(exchange, symbol)
+                key = f'{exchange}-{symbol}'
                 self.storage[key] = Position(exchange, symbol)
 
     def count_open_positions(self) -> int:

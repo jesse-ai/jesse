@@ -11,7 +11,7 @@ import jesse.helpers as jh
 import jesse.services.required_candles as required_candles
 from jesse import exceptions
 from jesse.config import config
-from jesse.modes.backtest_mode import simulator
+from jesse.modes.backtest_mode import load_candles, simulator
 from jesse.routes import router
 from jesse.services import metrics as stats
 from jesse.services.validators import validate_routes
@@ -55,9 +55,7 @@ class Optimizer(Genetics):
         )
 
         if cpu_cores > cpu_count():
-            raise ValueError('Entered cpu cores number is more than available on this machine which is {}'.format(
-                cpu_count()
-            ))
+            raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
         elif cpu_cores == 0:
             self.cpu_cores = cpu_count()
         else:
@@ -128,8 +126,7 @@ class Optimizer(Genetics):
                 ratio_normalized = jh.normalize(ratio, -.5, 5)
             else:
                 raise ValueError(
-                    'The entered ratio configuration `{}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.'.format(
-                        ratio_config))
+                    f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino and omega.')
 
             if ratio < 0:
                 score = 0.0001
@@ -203,7 +200,6 @@ def get_training_and_testing_candles(start_date_str: str, finish_date_str: str) 
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 
     # Load candles (first try cache, then database)
-    from jesse.modes.backtest_mode import load_candles
     candles = load_candles(start_date_str, finish_date_str)
 
     # divide into training(85%) and testing(15%) sets

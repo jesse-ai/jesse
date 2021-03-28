@@ -28,7 +28,7 @@ class Bitfinex(CandleExchange):
             'limit': 5000,
         }
 
-        response = requests.get(self.endpoint + '/trade:1D:t{}/hist'.format(dashless_symbol), params=payload)
+        response = requests.get(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
 
         if response.status_code != 200:
             raise Exception(response.content)
@@ -38,7 +38,7 @@ class Bitfinex(CandleExchange):
         # wrong symbol entered
         if not len(data):
             raise exceptions.SymbolNotFound(
-                "No candle exists for {} in Bitfinex. You're probably misspelling the symbol name.".format(symbol)
+                f"No candle exists for {symbol} in Bitfinex. You're probably misspelling the symbol name."
             )
 
         first_timestamp = int(data[0][0])
@@ -61,7 +61,7 @@ class Bitfinex(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         response = requests.get(
-            self.endpoint + '/trade:1m:t{}/hist'.format(dashless_symbol),
+            f"{self.endpoint}/trade:1m:t{dashless_symbol}/hist",
             params=payload
         )
 

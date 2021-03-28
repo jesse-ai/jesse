@@ -30,4 +30,4 @@ def save_daily_portfolio_balance() -> None:
 
     total = sum(balances)
     store.app.daily_balance.append(total)
-    logger.info('Saved daily portfolio balance: {}'.format(round(total, 2)))
+    logger.info(f'Saved daily portfolio balance: {round(total, 2)}')

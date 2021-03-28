@@ -13,10 +13,7 @@ def generate_candle_from_one_minutes(timeframe: str,
 
     if not accept_forming_candles and len(candles) != jh.timeframe_to_one_minutes(timeframe):
         raise ValueError(
-            'Sent only {} candles but {} is required to create a "{}" candle.'.format(
-                len(candles), jh.timeframe_to_one_minutes(timeframe),
-                timeframe
-            )
+            f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
         )
 
     return np.array([
@@ -43,14 +40,10 @@ def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
         candle_form = click.style('====', bg='red')
 
     if is_bullish(candle):
-        candle_info = click.style(' {} | {} | {} | {} | {} | {} | {}'.format(
-            symbol, str(arrow.get(candle[0] / 1000))[:-9], candle[1], candle[2],
-            candle[3], candle[4], round(candle[5], 2)),
+        candle_info = click.style(f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}',
             fg='green')
     else:
-        candle_info = click.style(' {} | {} | {} | {} | {} | {} | {}'.format(
-            symbol, str(arrow.get(candle[0] / 1000))[:-9], candle[1], candle[2],
-            candle[3], candle[4], round(candle[5], 2)),
+        candle_info = click.style(f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}',
             fg='red')
 
     print(candle_form + candle_info)

@@ -45,7 +45,7 @@ class Coinbase(CandleExchange):
         }
 
         response = requests.get(
-            self.endpoint + '/{}/candles'.format(symbol),
+            f"{self.endpoint}/{symbol}/candles",
             params=payload
         )
 

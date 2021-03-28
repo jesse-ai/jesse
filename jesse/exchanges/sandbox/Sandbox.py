@@ -109,7 +109,7 @@ class Sandbox(Exchange):
             o.cancel()
 
         if not jh.is_unit_testing():
-            store.orders.storage['{}-{}'.format(self.name, symbol)].clear()
+            store.orders.storage[f'{self.name}-{symbol}'].clear()
 
     def cancel_order(self, symbol, order_id):
         """

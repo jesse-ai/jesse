@@ -22,9 +22,7 @@ class CandlesState:
             return self.storage[key]
         except KeyError:
             raise RouteNotFound(
-                "Bellow route is required but missing in your routes:\n('{}', '{}', '{}')".format(
-                    exchange, symbol, timeframe
-                )
+                f"Bellow route is required but missing in your routes:\n('{exchange}', '{symbol}', '{timeframe}')"
             )
 
     def init_storage(self, bucket_size: int = 1000) -> None:

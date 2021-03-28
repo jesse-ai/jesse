@@ -47,7 +47,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
     if not jh.should_execute_silently():
         # print candles table
-        key = '{}-{}'.format(config['app']['considering_candles'][0][0], config['app']['considering_candles'][0][1])
+        key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
         table.key_value(stats.candles(candles[key]['candles']), 'candles', alignments=('left', 'right'))
         print('\n')
 
@@ -90,7 +90,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
                 change.append(((last.close - first.close) / first.close) * 100.0)
 
             data = report.portfolio_metrics()
-            data.append(['Market Change', str(round(np.average(change), 2)) + "%"])
+            data.append(['Market Change', f"{str(round(np.average(change), 2))}%"])
             print('\n')
             table.key_value(data, 'Metrics', alignments=('left', 'right'))
             print('\n')
@@ -136,7 +136,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
         key = jh.key(exchange, symbol)
 
-        cache_key = '{}-{}-'.format(start_date_str, finish_date_str) + key
+        cache_key = f"{start_date_str}-{finish_date_str}-{key}"
         cached_value = cache.get_value(cache_key)
         # if cache exists
         if cached_value:
@@ -157,11 +157,9 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
             raise exceptions.CandleNotFoundInDatabase(
-                'Not enough candles for {}. Try running "jesse import-candles"'.format(symbol))
+                f'Not enough candles for {symbol}. Try running "jesse import-candles"')
         elif len(candles_tuple) != required_candles_count + 1:
-            raise exceptions.CandleNotFoundInDatabase('There are missing candles between {} => {}'.format(
-                start_date_str, finish_date_str
-            ))
+            raise exceptions.CandleNotFoundInDatabase(f'There are missing candles between {start_date_str} => {finish_date_str}')
 
         # cache it for near future calls
         cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
@@ -177,7 +175,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
 def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters=None) -> None:
     begin_time_track = time.time()
-    key = '{}-{}'.format(config['app']['considering_candles'][0][0], config['app']['considering_candles'][0][1])
+    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
     length = len(first_candles_set)
     # to preset the array size for performance
@@ -289,7 +287,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
 
         # print executed time for the backtest session
         finish_time_track = time.time()
-        print('Executed backtest simulation in: ', '{} seconds'.format(round(finish_time_track - begin_time_track, 2)))
+        print('Executed backtest simulation in: ', f'{round(finish_time_track - begin_time_track, 2)} seconds')
 
     for r in router.routes:
         r.strategy._terminate()

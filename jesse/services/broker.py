@@ -137,17 +137,11 @@ class Broker:
 
         if side == 'buy' and price < self.position.current_price:
             raise OrderNotAllowed(
-                'A buy start_profit({}) order must have a price higher than current_price({}).'.format(
-                    price,
-                    self.position.current_price
-                )
+                f'A buy start_profit({price}) order must have a price higher than current_price({self.position.current_price}).'
             )
         if side == 'sell' and price > self.position.current_price:
             raise OrderNotAllowed(
-                'A sell start_profit({}) order must have a price lower than current_price({}).'.format(
-                    price,
-                    self.position.current_price
-                )
+                f'A sell start_profit({price}) order must have a price lower than current_price({self.position.current_price}).'
             )
 
         return self.api.stop_order(
@@ -176,17 +170,11 @@ class Broker:
 
         if side == 'buy' and price < self.position.current_price:
             raise OrderNotAllowed(
-                'Cannot submit a buy stop at {} when current price is {}'.format(
-                    price,
-                    self.position.current_price
-                )
+                f'Cannot submit a buy stop at {price} when current price is {self.position.current_price}'
             )
         if side == 'sell' and price > self.position.current_price:
             raise OrderNotAllowed(
-                'Cannot submit a sell stop at {} when current price is {}.'.format(
-                    price,
-                    self.position.current_price
-                )
+                f'Cannot submit a sell stop at {price} when current price is {self.position.current_price}.'
             )
 
         return self.api.stop_order(

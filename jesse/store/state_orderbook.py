@@ -124,9 +124,7 @@ def _fix_array_len(arr: np.ndarray, target_len: int) -> np.ndarray:
     missing_len = target_len - len(arr)
 
     if missing_len < 0:
-        raise ValueError("len cannot be smaller than array's length. {} sent, while array has {} items".format(
-            target_len, len(arr)
-        ))
+        raise ValueError(f"len cannot be smaller than array's length. {target_len} sent, while array has {len(arr)} items")
 
     if not missing_len:
         return arr

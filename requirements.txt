@@ -2,9 +2,9 @@ arrow==1.0.3
 blinker==1.4
 click==7.1.2
 crypto-empyrical==1.0.4
-matplotlib==3.3.4
+matplotlib==3.4.0
 newtulipy==0.4.4
-numba==0.53.0
+numba==0.53.1
 numpy==1.20.1
 numpy_groupies==0.9.13
 pandas==1.2.3
@@ -13,9 +13,9 @@ psycopg2-binary==2.8.6
 pydash==4.9.3
 pytest==6.2.2
 requests==2.25.1
-scipy==1.6.1
+scipy==1.6.2
 TA-Lib==0.4.19
 tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==0.58.0
-quantstats==0.0.26
+quantstats==0.0.30

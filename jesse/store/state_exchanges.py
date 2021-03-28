@@ -18,9 +18,9 @@ class ExchangesState:
             elif exchange_type == 'futures':
                 self.storage[name] = FuturesExchange(
                     name, starting_assets, fee,
-                    settlement_currency=jh.get_config('env.exchanges.{}.settlement_currency'.format(name)),
-                    futures_leverage_mode=jh.get_config('env.exchanges.{}.futures_leverage_mode'.format(name)),
-                    futures_leverage=jh.get_config('env.exchanges.{}.futures_leverage'.format(name)),
+                    settlement_currency=jh.get_config(f'env.exchanges.{name}.settlement_currency'),
+                    futures_leverage_mode=jh.get_config(f'env.exchanges.{name}.futures_leverage_mode'),
+                    futures_leverage=jh.get_config(f'env.exchanges.{name}.futures_leverage'),
                 )
             else:
                 raise InvalidConfig(

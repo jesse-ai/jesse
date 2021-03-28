@@ -261,10 +261,8 @@ class Strategy(ABC):
             return arr
         except ValueError:
             raise exceptions.InvalidShape(
-                'The format of {} is invalid. \n'
-                'It must be (qty, price) or [(qty, price), (qty, price)] for multiple points; but {} was given'.format(
-                    name, arr
-                )
+                f'The format of {name} is invalid. \n'
+                f'It must be (qty, price) or [(qty, price), (qty, price)] for multiple points; but {arr} was given'
             )
 
     def _validate_stop_loss(self) -> None:
@@ -373,7 +371,7 @@ class Strategy(ABC):
         self.on_cancel()
 
         if not jh.is_unit_testing() and not jh.is_live():
-            store.orders.storage['{}-{}'.format(self.exchange, self.symbol)].clear()
+            store.orders.storage[f'{self.exchange}-{self.symbol}'].clear()
 
     def _reset(self) -> None:
         self.buy = None
@@ -587,7 +585,7 @@ class Strategy(ABC):
             self._is_initiated = True
 
         if jh.is_live() and jh.is_debugging():
-            logger.info('Executing  {}-{}-{}-{}'.format(self.name, self.exchange, self.symbol, self.timeframe))
+            logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # for caution to make sure testing on livetrade won't bleed your account
         if jh.is_test_driving() and store.completed_trades.count >= 2:
@@ -645,18 +643,12 @@ class Strategy(ABC):
                 if self.is_long:
                     if o[1] <= self.position.entry_price:
                         raise exceptions.InvalidStrategy(
-                            'take-profit({}) must be above entry-price({}) in a long position'.format(
-                                o[1],
-                                self.position.entry_price
-                            )
+                            f'take-profit({o[1]}) must be above entry-price({self.position.entry_price}) in a long position'
                         )
                 elif self.is_short:
                     if o[1] >= self.position.entry_price:
                         raise exceptions.InvalidStrategy(
-                            'take-profit({}) must be below entry-price({}) in a short position'.format(
-                                o[1],
-                                self.position.entry_price
-                            )
+                            f'take-profit({o[1]}) must be below entry-price({self.position.entry_price}) in a short position'
                         )
 
                 # submit take-profit
@@ -674,18 +666,12 @@ class Strategy(ABC):
                 if self.is_long:
                     if o[1] >= self.position.entry_price:
                         raise exceptions.InvalidStrategy(
-                            'stop-loss({}) must be below entry-price({}) in a long position'.format(
-                                o[1],
-                                self.position.entry_price
-                            )
+                            f'stop-loss({o[1]}) must be below entry-price({self.position.entry_price}) in a long position'
                         )
                 elif self.is_short:
                     if o[1] <= self.position.entry_price:
                         raise exceptions.InvalidStrategy(
-                            'stop-loss({}) must be above entry-price({}) in a short position'.format(
-                                o[1],
-                                self.position.entry_price
-                            )
+                            f'stop-loss({o[1]}) must be above entry-price({self.position.entry_price}) in a short position'
                         )
 
                 # submit stop-loss
@@ -864,11 +850,7 @@ class Strategy(ABC):
             store.app.total_open_trades += 1
             store.app.total_open_pl += self.position.pnl
             logger.info(
-                "Closed open {}-{} position at {} with PNL: {}({}%) because we reached the end of the backtest session.".format(
-                    self.exchange, self.symbol, self.position.current_price,
-                    round(self.position.pnl, 4),
-                    round(self.position.pnl_percentage, 2)
-                )
+                f"Closed open {self.exchange}-{self.symbol} position at {self.position.current_price} with PNL: {round(self.position.pnl, 4)}({round(self.position.pnl_percentage, 2)}%) because we reached the end of the backtest session."
             )
             # fake a closing (market) order so that the calculations would be correct
             self.broker.reduce_position_at(self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION)

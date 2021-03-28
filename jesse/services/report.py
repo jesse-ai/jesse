@@ -46,15 +46,11 @@ def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]
                 pos.strategy.name,
                 pos.symbol,
                 pos.leverage,
-                '' if pos.is_close else '{} ago'.format(
-                    jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)),
+                '' if pos.is_close else f'{jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)} ago',
                 pos.qty if abs(pos.qty) > 0 else None,
                 pos.entry_price,
                 pos.current_price,
-                '' if pos.is_close else '{} ({}%)'.format(
-                    jh.color(str(round(pos.pnl, 2)), pnl_color),
-                    jh.color(str(round(pos.pnl_percentage, 4)), pnl_color)
-                ),
+                '' if pos.is_close else f'{jh.color(str(round(pos.pnl, 2)), pnl_color)} ({jh.color(str(round(pos.pnl_percentage, 4)), pnl_color)}%)',
             ]
         )
     return array
@@ -126,7 +122,7 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
     arr = [
         ['started at', jh.timestamp_to_arrow(store.app.starting_time).humanize()],
         ['current time', jh.timestamp_to_time(jh.now_to_timestamp())[:19]],
-        ['errors/info', '{}/{}'.format(len(store.logs.errors), len(store.logs.info))],
+        ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
         ['active orders', store.orders.count_all_active_orders()],
         ['open positions', store.positions.count_open_positions()]
     ]
@@ -135,7 +131,7 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
     first_exchange = selectors.get_exchange(router.routes[0].exchange)
 
     if first_exchange.type == 'futures':
-        arr.append(['started/current balance', '{}/{}'.format(starting_balance, current_balance)])
+        arr.append(['started/current balance', f'{starting_balance}/{current_balance}'])
     else:
         # loop all trading exchanges
         for exchange in selectors.get_all_exchanges():
@@ -145,23 +141,15 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
                     current_price = selectors.get_current_price(router.routes[0].exchange, router.routes[0].symbol)
                     arr.append(
                         [
-                            '{}'.format(asset_name),
-                            '{}/{} ({} {})'.format(
-                                round(exchange.available_assets[asset_name], 5),
-                                round(asset_balance, 5),
-                                jh.format_currency(round(asset_balance * current_price, 2)),
-                                jh.quote_asset(router.routes[0].symbol)
-                            )
+                            f'{asset_name}',
+                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)} ({jh.format_currency(round(asset_balance * current_price, 2))} { jh.quote_asset(router.routes[0].symbol)})'
                         ]
                     )
                 else:
                     arr.append(
                         [
-                            '{}'.format(asset_name),
-                            '{}/{}'.format(
-                                round(exchange.available_assets[asset_name], 5),
-                                round(asset_balance, 5),
-                            )
+                            f'{asset_name}',
+                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)}'
                         ]
                     )
 
@@ -174,8 +162,8 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
         pnl = round(df['PNL'].sum(), 2)
         pnl_percentage = round((pnl / starting_balance) * 100, 2)
 
-        arr.append(['total/winning/losing trades', '{}/{}/{}'.format(total, len(winning_trades), len(losing_trades))])
-        arr.append(['PNL (%)', '${} ({}%)'.format(pnl, pnl_percentage)])
+        arr.append(['total/winning/losing trades', f'{total}/{len(winning_trades)}/{len(losing_trades)}'])
+        arr.append(['PNL (%)', f'${pnl} ({pnl_percentage}%)'])
 
     if config['app']['debug_mode']:
         arr.append(['debug mode', config['app']['debug_mode']])
@@ -192,24 +180,20 @@ def portfolio_metrics() -> List[
     metrics = [
         ['Total Closed Trades', data['total']],
         ['Total Net Profit',
-         '{} ({})'.format(jh.format_currency(round(data['net_profit'], 4)),
-                          str(round(data['net_profit_percentage'], 2)) + '%')],
+         f"{jh.format_currency(round(data['net_profit'], 4))} ({str(round(data['net_profit_percentage'], 2))}%)"],
         ['Starting => Finishing Balance',
-         '{} => {}'.format(jh.format_currency(round(data['starting_balance'], 2)),
-                           jh.format_currency(round(data['finishing_balance'], 2)))],
+         f"{jh.format_currency(round(data['starting_balance'], 2))} => {jh.format_currency(round(data['finishing_balance'], 2))}"],
         ['Total Open Trades', data['total_open_trades']],
         ['Open PL', jh.format_currency(round(data['open_pl'], 2))],
         ['Total Paid Fees', jh.format_currency(round(data['fee'], 2))],
-        ['Max Drawdown', '{}%'.format(round(data['max_drawdown'], 2))],
-        ['Annual Return', '{}%'.format(round(data['annual_return'], 2))],
+        ['Max Drawdown', f"{round(data['max_drawdown'], 2)}%"],
+        ['Annual Return', f"{round(data['annual_return'], 2)}%"],
         ['Expectancy',
-         '{} ({})'.format(jh.format_currency(round(data['expectancy'], 2)),
-                          str(round(data['expectancy_percentage'], 2)) + '%')],
-        ['Avg Win | Avg Loss', '{} | {}'.format(jh.format_currency(round(data['average_win'], 2)),
-                                                jh.format_currency(round(data['average_loss'], 2)))],
+         f"{jh.format_currency(round(data['expectancy'], 2))} ({str(round(data['expectancy_percentage'], 2))}%)"],
+        ['Avg Win | Avg Loss', f"{jh.format_currency(round(data['average_win'], 2))} | {jh.format_currency(round(data['average_loss'], 2))}"],
         ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
-        ['Percent Profitable', str(round(data['win_rate'] * 100)) + '%'],
-        ['Longs | Shorts', '{}% | {}%'.format(round(data['longs_percentage']), round(data['short_percentage']))],
+        ['Percent Profitable', f"{str(round(data['win_rate'] * 100))}%"],
+        ['Longs | Shorts', f"{round(data['longs_percentage'])}% | {round(data['short_percentage'])}%"],
         ['Avg Holding Time', jh.readable_duration(data['average_holding_period'], 3)],
         ['Winning Trades Avg Holding Time',
          np.nan if np.isnan(data['average_winning_holding_period']) else jh.readable_duration(
@@ -249,7 +233,7 @@ def info() -> List[List[Union[str, Any]]]:
     for w in store.logs.info[::-1][0:5]:
         array.append(
             [jh.timestamp_to_time(w['time'])[11:19],
-             (w['message'][:70] + '..') if len(w['message']) > 70 else w['message']])
+             f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']])
     return array
 
 
@@ -274,7 +258,7 @@ def errors() -> List[List[Union[str, Any]]]:
 
     for w in store.logs.errors[::-1][0:5]:
         array.append([jh.timestamp_to_time(w['time'])[11:19],
-                      (w['message'][:70] + '..') if len(w['message']) > 70 else w['message']])
+                      f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']])
     return array
 
 

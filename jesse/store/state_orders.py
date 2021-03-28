@@ -15,7 +15,7 @@ class OrdersState:
 
         for exchange in config['app']['trading_exchanges']:
             for symbol in config['app']['trading_symbols']:
-                key = '{}-{}'.format(exchange, symbol)
+                key = f'{exchange}-{symbol}'
                 self.storage[key] = []
 
     def reset(self) -> None:
@@ -23,12 +23,12 @@ class OrdersState:
             self.storage[key].clear()
 
     def add_order(self, order: Order) -> None:
-        key = '{}-{}'.format(order.exchange, order.symbol)
+        key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
 
     # getters
     def get_orders(self, exchange, symbol) -> List[Order]:
-        key = '{}-{}'.format(exchange, symbol)
+        key = f'{exchange}-{symbol}'
         return self.storage.get(key, [])
 
     def count_all_active_orders(self) -> int:
@@ -53,7 +53,7 @@ class OrdersState:
         return len(self.get_orders(exchange, symbol))
 
     def get_order_by_id(self, exchange: str, symbol: str, id: str, use_exchange_id: bool = False) -> Order:
-        key = '{}-{}'.format(exchange, symbol)
+        key = f'{exchange}-{symbol}'
 
         if use_exchange_id:
             return pydash.find(self.storage[key], lambda o: o.exchange_id == id)
