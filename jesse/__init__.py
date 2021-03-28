@@ -68,10 +68,6 @@ if is_jesse_project:
 
 
 def register_custom_exception_handler() -> None:
-    """
-
-    :return:
-    """
     import sys
     import threading
     import traceback
