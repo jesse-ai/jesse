@@ -27,6 +27,9 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     elif start_timestamp > today:
         raise ValueError("Future's date is not accepted. start_date must be a string a representing date BEFORE today.")
 
+    # We just call this to throw a exception in case of a symbol without dash
+    jh.quote_asset(symbol)
+
     click.clear()
     symbol = symbol.upper()
 
