@@ -667,6 +667,17 @@ def terminate_app() -> None:
     os._exit(1)
 
 
+def error(msg: str, force_print: bool = False) -> None:
+    # send notifications if it's a live session
+    if is_live():
+        from jesse.services import logger
+        logger.error(msg)
+        if force_print:
+            print(color(msg, 'red'))
+    else:
+        print(color(msg, 'red'))
+
+
 def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe
