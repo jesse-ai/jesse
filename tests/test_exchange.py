@@ -45,4 +45,11 @@ def test_wallet_balance_and_available_margin_for_futures_market():
     single_route_backtest('TestWalletBalance', is_futures_trading=True, leverage=2)
 
 
+def test_available_margin_for_futures_market():
+    """
+    Make sure that the reduce only orders are not affecting the available_margin causing it to go negative
+    """
+    single_route_backtest('TestFuturesExchangeAvailableMargin', is_futures_trading=True, leverage=2)
+
+
 # TODO: test_wallet_balance_and_available_margin_for_spot_market

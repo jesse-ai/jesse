@@ -169,6 +169,7 @@ def test_opening_and_closing_position_with_stop():
     # open position
     open_position_order = broker.start_profit_at('buy', 1, 60, order_roles.OPEN_POSITION)
     open_position_order.execute()
+    position.current_price = 60
     assert position.is_open is True
     assert position.entry_price == 60
     assert position.qty == 1
@@ -189,11 +190,13 @@ def test_opening_and_closing_position_with_stop():
 
     # execute stop order
     stop_loss_order.execute()
+    position.current_price = 40
     assert exchange.assets['USDT'] == 980
+
     assert exchange.wallet_balance() == 980
-    assert exchange.available_margin() == 900
+    assert exchange.available_margin() == 980
     take_profit_order.cancel()
-    assert exchange.available_margin() == 900 + 80
+    assert exchange.available_margin() == 980
     assert position.is_close is True
     assert position.entry_price is None
     assert position.exit_price == 40
