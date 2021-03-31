@@ -2,7 +2,7 @@ arrow==1.0.3
 blinker==1.4
 click==7.1.2
 crypto-empyrical==1.0.4
-matplotlib==3.4.0
+matplotlib==3.4.1
 newtulipy==0.4.4
 numba==0.53.1
 numpy==1.20.2
