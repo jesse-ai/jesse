@@ -16,7 +16,7 @@ class BinanceInverseFutures(CandleExchange):
 
     def get_starting_time(self, symbol):
         payload = {
-            'interval': '1d',
+            'interval': '1M',
             'symbol': encode_symbol(symbol),
             'limit': 1500,
         }
