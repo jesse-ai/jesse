@@ -476,3 +476,22 @@ if live_package_exists:
         # execute live session
         from jesse_live.live_mode import run
         run(dev)
+
+    @cli.command()
+    @click.option('--email', prompt='Email')
+    @click.option('--password', prompt='Password', hide_input=True)
+    def login(email, password) -> None:
+        """
+        (Initially) Logins to the website.
+        """
+        validate_cwd()
+
+        # set trading mode
+        from jesse.config import config
+        config['app']['trading_mode'] = 'login'
+
+        register_custom_exception_handler()
+
+        from jesse_live.auth import login
+
+        login(email, password)
