@@ -2,7 +2,7 @@ arrow==1.0.3
 blinker==1.4
 click==7.1.2
 crypto-empyrical==1.0.4
-matplotlib==3.4.0
+matplotlib==3.4.1
 newtulipy==0.4.4
 numba==0.53.1
 numpy==1.20.2
@@ -11,7 +11,7 @@ pandas==1.2.3
 peewee==3.14.4
 psycopg2-binary==2.8.6
 pydash==5.0.0
-pytest==6.2.2
+pytest==6.2.3
 requests==2.25.1
 scipy==1.6.2
 TA-Lib==0.4.19
