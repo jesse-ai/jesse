@@ -4,6 +4,7 @@ from typing import Dict, Union
 import arrow
 import click
 import numpy as np
+import pandas as pd
 
 import jesse.helpers as jh
 import jesse.services.metrics as stats
@@ -103,7 +104,32 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
             # QuantStats' report
             if full_reports:
-                quantstats.quantstats_tearsheet()
+
+              price_data = []
+
+              # load close candles for Buy and hold and calculate pct_change
+              for index, c in enumerate(config['app']['considering_candles']):
+                exchange, symbol = c[0], c[1]
+
+                # fetch from database
+                candles_tuple = Candle.select(
+                  Candle.timestamp, Candle.close
+                ).where(
+                  Candle.timestamp.between(jh.date_to_timestamp(start_date), jh.date_to_timestamp(finish_date) - 60000),
+                  Candle.exchange == exchange,
+                  Candle.symbol == symbol
+                ).order_by(Candle.timestamp.asc()).tuples()
+
+                candles = np.array(candles_tuple)
+
+                timestamps = candles[:, 0]
+                price_data.append(candles[:, 1])
+
+              price_data = np.transpose(price_data)
+              price_df = pd.DataFrame(price_data, index=pd.to_datetime(timestamps, unit="ms"), dtype=float).resample('D').mean()
+              price_pct_change = price_df.pct_change(1).fillna(0)
+              bh_daily_returns_all_routes = price_pct_change.mean(1)
+              quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
         else:
             print(jh.color('No trades were made.', 'yellow'))
 
