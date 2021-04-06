@@ -128,7 +128,6 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
               price_data = np.transpose(price_data)
               price_df = pd.DataFrame(price_data, index=pd.to_datetime(timestamps, unit="ms"), dtype=float).resample('D').mean()
               price_pct_change = price_df.pct_change(1).fillna(0)
-              print(price_pct_change)
               bh_daily_returns_all_routes = price_pct_change.mean(1)
               quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
         else:
