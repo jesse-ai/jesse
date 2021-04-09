@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import cache
 from time import sleep
 from typing import List
 
@@ -58,6 +59,7 @@ class Strategy(ABC):
         self.position: Position = None
         self.broker = None
 
+        self._cached_methods = {}
         self._cached_metrics = {}
 
     def _init_objects(self) -> None:
@@ -822,6 +824,7 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        self._clear_cached_methods()
 
         self._is_executing = False
         self.index += 1
@@ -872,6 +875,10 @@ class Strategy(ABC):
             [array[{"key": v, "value": v}]] -- an array of dictionary objects
         """
         return []
+
+    def _clear_cached_methods(self) -> None:
+        for m in self._cached_methods.values():
+            m.cache_clear()
 
     @property
     def current_candle(self) -> np.ndarray:
@@ -1191,3 +1198,13 @@ class Strategy(ABC):
             return self.position.exchange.futures_leverage
         else:
             raise ValueError('exchange type not supported!')
+
+
+def cached(method):
+    def decorated(self, *args, **kwargs):
+        cached_method = self._cached_methods.get(method)
+        if cached_method is None:
+            cached_method = cache(method)
+            self._cached_methods[method] = cached_method
+        return cached_method(self, *args, **kwargs)
+    return decorated
