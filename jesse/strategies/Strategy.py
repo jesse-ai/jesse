@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from time import sleep
 from typing import List
 
@@ -16,6 +17,15 @@ from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
 
+# Using functools.lru_cache
+def cached(method):
+    def decorated(self, *args, **kwargs):
+        cached_method = self._cached_methods.get(method)
+        if cached_method is None:
+            cached_method = lru_cache()(method)
+            self._cached_methods[method] = cached_method
+        return cached_method(self, *args, **kwargs)
+    return decorated
 
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
@@ -58,6 +68,7 @@ class Strategy(ABC):
         self.position: Position = None
         self.broker = None
 
+        self._cached_methods = {}
         self._cached_metrics = {}
 
     def _init_objects(self) -> None:
@@ -822,6 +833,7 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        self._clear_cached_methods()
 
         self._is_executing = False
         self.index += 1
@@ -873,7 +885,12 @@ class Strategy(ABC):
         """
         return []
 
+    def _clear_cached_methods(self) -> None:
+        for m in self._cached_methods.values():
+            m.cache_clear()
+
     @property
+    @cached
     def current_candle(self) -> np.ndarray:
         """
         Returns current trading candle
@@ -883,6 +900,7 @@ class Strategy(ABC):
         return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
+    @cached
     def open(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
@@ -893,6 +911,7 @@ class Strategy(ABC):
         return self.current_candle[1]
 
     @property
+    @cached
     def close(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
@@ -903,6 +922,7 @@ class Strategy(ABC):
         return self.current_candle[2]
 
     @property
+    @cached
     def price(self) -> float:
         """
         Same as self.close, except in livetrde, this is rounded as the exchanges require it.
@@ -913,6 +933,7 @@ class Strategy(ABC):
         return self.position.current_price
 
     @property
+    @cached
     def high(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
@@ -923,6 +944,7 @@ class Strategy(ABC):
         return self.current_candle[3]
 
     @property
+    @cached
     def low(self) -> float:
         """
         Returns the closing price of the current candle for this strategy.
@@ -933,6 +955,7 @@ class Strategy(ABC):
         return self.current_candle[4]
 
     @property
+    @cached
     def candles(self) -> np.ndarray:
         """
         Returns candles for current trading route
@@ -941,6 +964,7 @@ class Strategy(ABC):
         """
         return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
 
+    @cached
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
         Get candles by passing exchange, symbol, and timeframe
@@ -954,6 +978,7 @@ class Strategy(ABC):
         return store.candles.get_candles(exchange, symbol, timeframe)
 
     @property
+    @cached
     def orders(self) -> List[Order]:
         """
         Returns all the orders submitted by for this strategy. Just as a helper
@@ -965,6 +990,7 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
+    @cached
     def trades(self) -> List[CompletedTrade]:
         """
         Returns all the completed trades for this strategy.
@@ -986,26 +1012,31 @@ class Strategy(ABC):
             return self._cached_metrics[self.trades_count]
 
     @property
+    @cached
     def time(self) -> int:
         """returns the current time"""
         return store.app.time
 
     @property
+    @cached
     def balance(self) -> float:
         """alias for self.capital"""
         return self.capital
 
     @property
+    @cached
     def capital(self) -> float:
         """the current capital in the trading exchange"""
         return self.position.exchange.wallet_balance(self.symbol)
 
     @property
+    @cached
     def available_margin(self) -> float:
         """Current available margin considering leverage"""
         return self.position.exchange.available_margin(self.symbol)
 
     @property
+    @cached
     def fee_rate(self) -> float:
         return selectors.get_exchange(self.exchange).fee_rate
 
@@ -1111,22 +1142,27 @@ class Strategy(ABC):
             store_order_into_db(order)
 
     @property
+    @cached
     def is_long(self) -> bool:
         return self.position.type == 'long'
 
     @property
+    @cached
     def is_short(self) -> bool:
         return self.position.type == 'short'
 
     @property
+    @cached
     def is_open(self) -> bool:
         return self.position.is_open
 
     @property
+    @cached
     def is_close(self) -> bool:
         return self.position.is_close
 
     @property
+    @cached
     def average_stop_loss(self) -> float:
         if self._stop_loss is None:
             raise exceptions.InvalidStrategy('You cannot access self.average_stop_loss before setting self.stop_loss')
@@ -1135,6 +1171,7 @@ class Strategy(ABC):
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
+    @cached
     def average_take_profit(self) -> float:
         if self._take_profit is None:
             raise exceptions.InvalidStrategy(
@@ -1144,6 +1181,7 @@ class Strategy(ABC):
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
+    @cached
     def average_entry_price(self) -> float:
         if self.is_long:
             arr = self._buy
@@ -1175,15 +1213,18 @@ class Strategy(ABC):
         return store.vars
 
     @property
+    @cached
     def routes(self) -> List[Route]:
         from jesse.routes import router
         return router.routes
 
     @property
+    @cached
     def has_active_entry_orders(self) -> bool:
         return len(self._open_position_orders) > 0
 
     @property
+    @cached
     def leverage(self) -> int:
         if type(self.position.exchange) is SpotExchange:
             return 1

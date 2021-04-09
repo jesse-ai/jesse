@@ -1,1 +1,1 @@
-from .Strategy import Strategy
+from .Strategy import cached, Strategy
