@@ -1209,7 +1209,6 @@ class Strategy(ABC):
             self.stop_loss = self.position.qty, self.price
 
     @property
-    @cached
     def shared_vars(self) -> dict:
         return store.vars
 
