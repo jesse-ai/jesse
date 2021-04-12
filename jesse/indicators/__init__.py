@@ -62,6 +62,7 @@ from .kama import kama
 from .kaufmanstop import kaufmanstop
 from .keltner import keltner
 from .kst import kst
+from .kurtosis import kurtosis
 from .kvo import kvo
 from .linearreg import linearreg
 from .linearreg_angle import linearreg_angle
@@ -70,6 +71,8 @@ from .linearreg_slope import linearreg_slope
 from .lrsi import lrsi
 from .macd import macd
 from .macdext import macdext
+from .median_ad import median_ad
+from .mean_ad import mean_ad
 from .mama import mama
 from .marketfi import marketfi
 from .mass import mass
@@ -103,6 +106,7 @@ from .safezonestop import safezonestop
 from .sar import sar
 from .sarext import sarext
 from .sinwma import sinwma
+from .skew import skew
 from .sma import sma
 from .smma import smma
 from .srsi import srsi

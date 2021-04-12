@@ -802,6 +802,16 @@ def test_kst():
     assert len(seq.signal) == len(candles)
 
 
+def test_kurtosis():
+    candles = np.array(mama_candles)
+
+    single = ta.kurtosis(candles)
+    seq = ta.kurtosis(candles, sequential=True)
+
+    assert round(single, 2) == -0.22
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 def test_kvo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
@@ -911,6 +921,27 @@ def test_macdext():
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
 
+
+def test_median_ad():
+    candles = np.array(mama_candles)
+
+    single = ta.median_ad(candles)
+    seq = ta.median_ad(candles, sequential=True)
+
+    assert round(single, 2) == 6.86
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_mean_ad():
+    candles = np.array(mama_candles)
+
+    single = ta.mean_ad(candles)
+    seq = ta.mean_ad(candles, sequential=True)
+
+    assert round(single, 2) == 23.82
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_mama():
     candles = np.array(mama_candles)
@@ -1414,6 +1445,16 @@ def test_sinwma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
+def test_skew():
+    candles = np.array(mama_candles)
+
+    single = ta.skew(candles)
+    seq = ta.skew(candles, sequential=True)
+
+    assert round(single, 2) == -1.05
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_sma():
     close_prices = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29]
