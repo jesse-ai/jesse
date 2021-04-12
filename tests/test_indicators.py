@@ -1634,6 +1634,17 @@ def test_tsi():
     assert seq[-1] == single
 
 
+def test_ttm_trend():
+  # use the same candles as mama_candles
+  candles = np.array(mama_candles)
+
+  single = ta.ttm_trend(candles)
+  seq = ta.ttm_trend(candles, sequential=True)
+
+  assert single == False
+  assert len(seq) == len(candles)
+  assert seq[-1] == single
+
 def test_typprice():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

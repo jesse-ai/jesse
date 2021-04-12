@@ -120,6 +120,7 @@ from .trendflex import trendflex
 from .trima import trima
 from .trix import trix
 from .tsf import tsf
+from .ttm_trend import ttm_trend
 from .tsi import tsi
 from .typprice import typprice
 from .ultosc import ultosc
