@@ -440,6 +440,11 @@ if live_package_exists:
         from jesse.services.selectors import get_exchange
         live_config = locate('live-config.config')
 
+        # validate that the "live-config.py" file exists
+        if live_config is None:
+            jh.error('You\'re either missing the live-config.py file or haven\'t logged in. Run "jesse login" to fix it.', True)
+            jh.terminate_app()
+
         # inject live config
         init(config, live_config)
 
@@ -469,6 +474,11 @@ if live_package_exists:
         from jesse_live import init
         from jesse.services.selectors import get_exchange
         live_config = locate('live-config.config')
+
+        # validate that the "live-config.py" file exists
+        if live_config is None:
+            jh.error('You\'re either missing the live-config.py file or haven\'t logged in. Run "jesse login" to fix it.', True)
+            jh.terminate_app()
 
         # inject live config
         init(config, live_config)
