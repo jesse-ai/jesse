@@ -21,8 +21,8 @@ def notify_urgently(msg: str) -> None:
 
 
 def _telegram(msg: str) -> None:
-    token = jh.get_config('env.notifications.main_telegram_bot_token', '')
-    chat_IDs: list = jh.get_config('env.notifications.main_telegram_chat_IDs', [])
+    token = jh.get_config('env.notifications.general_notifier.telegram_bot_token', '')
+    chat_IDs: list = jh.get_config('env.notifications.general_notifier.telegram_chat_IDs', [])
 
     if not token or not len(chat_IDs) or not config['env']['notifications']['enable_notifications']:
         return
@@ -34,8 +34,8 @@ def _telegram(msg: str) -> None:
 
 
 def _telegram_errors_bot(msg: str) -> None:
-    token = jh.get_config('env.notifications.errors_telegram_bot_token', '')
-    chat_IDs: list = jh.get_config('env.notifications.errors_telegram_chat_IDs', [])
+    token = jh.get_config('env.notifications.error_notifier.telegram_bot_token', '')
+    chat_IDs: list = jh.get_config('env.notifications.error_notifier.telegram_chat_IDs', [])
 
     if not token or not len(chat_IDs) or not config['env']['notifications']['enable_notifications']:
         return
@@ -47,7 +47,7 @@ def _telegram_errors_bot(msg: str) -> None:
 
 
 def _discord(msg: str) -> None:
-    webhook_address = jh.get_config('env.notifications.main_discord_webhook', '')
+    webhook_address = jh.get_config('env.notifications.general_notifier.discord_webhook', '')
 
     if not webhook_address or not config['env']['notifications']['enable_notifications']:
         return
@@ -56,7 +56,7 @@ def _discord(msg: str) -> None:
 
 
 def _discord_errors(msg: str) -> None:
-    webhook_address = jh.get_config('env.notifications.errors_discord_webhook', '')
+    webhook_address = jh.get_config('env.notifications.error_notifier.discord_webhook', '')
 
     if not webhook_address or not config['env']['notifications']['enable_notifications']:
         return
