@@ -397,23 +397,23 @@ try:
 except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
-    @cli.command()
-    def collect() -> None:
-        """
-        fetches streamed market data such as tickers, trades, and orderbook from
-        the WS connection and stores them into the database for later research.
-        """
-        validate_cwd()
-
-        # set trading mode
-        from jesse.config import config
-        config['app']['trading_mode'] = 'collect'
-
-        register_custom_exception_handler()
-
-        from jesse_live.live.collect_mode import run
-
-        run()
+    # @cli.command()
+    # def collect() -> None:
+    #     """
+    #     fetches streamed market data such as tickers, trades, and orderbook from
+    #     the WS connection and stores them into the database for later research.
+    #     """
+    #     validate_cwd()
+    #
+    #     # set trading mode
+    #     from jesse.config import config
+    #     config['app']['trading_mode'] = 'collect'
+    #
+    #     register_custom_exception_handler()
+    #
+    #     from jesse_live.live.collect_mode import run
+    #
+    #     run()
 
 
     @cli.command()
