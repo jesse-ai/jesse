@@ -274,6 +274,9 @@ def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.nda
 def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
+def pct_change(series: np.ndarray) -> np.ndarray:
+    pct = np.diff(series) / series[:-1] * 100
+    return jh.same_length(series, pct)
 
 def dd(msg: str) -> None:
     """
