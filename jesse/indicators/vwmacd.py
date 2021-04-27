@@ -8,7 +8,7 @@ from jesse.helpers import slice_candles
 VWMACD = namedtuple('VWMACD', ['macd', 'signal', 'hist'])
 
 
-def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signalperiod: int = 9,
+def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9,
            sequential: bool = False) -> VWMACD:
     """
     VWMACD - Volume Weighted Moving Average Convergence/Divergence
@@ -26,7 +26,7 @@ def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, si
     vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slow_period) / talib.SMA(candles[:, 5], slow_period)
     vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fast_period) / talib.SMA(candles[:, 5], fast_period)
     vwmacd = vwma_fast - vwma_slow
-    signal = talib.EMA(vwmacd, signalperiod)
+    signal = talib.EMA(vwmacd, signal_period)
     hist = vwmacd - signal
 
     if sequential:
