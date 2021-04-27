@@ -1,5 +1,5 @@
-import multiprocessing
-import pickle
+import multiprocess
+import dill
 import sys
 from abc import ABC, abstractmethod
 from random import randint, choices, choice
@@ -8,8 +8,8 @@ from random import randint, choices, choice
 from typing import Dict, Union, Any, List
 
 if sys.platform == 'darwin':
-    multiprocessing.set_start_method('fork')
-from multiprocessing import Process, Manager
+    multiprocess.set_start_method('fork')
+from multiprocess import Process, Manager
 
 import click
 import numpy as np
