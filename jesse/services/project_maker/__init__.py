@@ -36,7 +36,7 @@ def generate(name: str) -> None:
     # reminder for subscribe and forum
     print(
         jh.color(
-            "\nDon't forget to subscribe for future updates at https://Jesse.Trade and make sure to check out the forum for support at https://forum.jesse.trade",
+            "\nDon't forget to subscribe for future updates at https://Jesse.Trade and make sure to check out the discord server for support at https://jesse.trade/discord",
             "blue"
         )
     )

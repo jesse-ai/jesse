@@ -1,4 +1,4 @@
-FROM python:3.9.0
+FROM python:3.9.4-slim
 ENV PYTHONUNBUFFERED 1
 
 RUN apt-get update \

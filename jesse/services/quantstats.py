@@ -2,7 +2,6 @@ import os
 from datetime import datetime, timedelta
 
 import arrow
-import numpy as np
 import pandas as pd
 import quantstats as qs
 
@@ -10,7 +9,7 @@ from jesse.config import config
 from jesse.store import store
 
 
-def quantstats_tearsheet(buy_and_hold_returns: np.ndarray) -> None:
+def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
     daily_returns = pd.Series(store.app.daily_balance).pct_change(1).values
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
@@ -31,6 +30,11 @@ def quantstats_tearsheet(buy_and_hold_returns: np.ndarray) -> None:
 
     title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')}"
 
-    qs.reports.html(returns=returns_time_series, benchmark=buy_and_hold_returns, title=title, output=file_path)
+    try:
+        qs.reports.html(returns=returns_time_series, benchmark=buy_and_hold_returns, title=title, output=file_path)
+    except IndexError:
+        qs.reports.html(returns=returns_time_series, title=title, output=file_path)
+    except:
+        raise
 
     print(f'\nFull report output saved at:\n{file_path}')
