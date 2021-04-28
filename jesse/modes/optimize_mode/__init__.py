@@ -1,6 +1,6 @@
 import os
 from math import log10
-from multiprocessing import cpu_count
+from multiprocess import cpu_count
 from typing import Dict, Any, Tuple, Union
 
 import arrow
