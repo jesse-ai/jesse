@@ -1045,14 +1045,14 @@ def test_minmax():
     seq = ta.minmax(candles, sequential=True)
 
     assert type(single).__name__ == 'EXTREMA'
-    assert round(seq.max[-6], 2) == 251.93
-    assert round(seq.min[-15], 2) == 210
+    assert round(seq.is_max[-6], 2) == 251.93
+    assert round(seq.is_min[-15], 2) == 210
     assert round(single.last_max, 2) == 251.93
     assert round(single.last_min, 2) == 210
 
     assert seq.last_max[-1] == single.last_max
     assert seq.last_min[-1] == single.last_min
-    assert len(seq.min) == len(candles)
+    assert len(seq.is_min) == len(candles)
 
 
 def test_mom():
