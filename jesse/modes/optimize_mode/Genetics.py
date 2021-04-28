@@ -393,14 +393,14 @@ class Genetics(ABC):
         }
 
         with open(self.temp_path, 'wb') as f:
-            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            dill.dump(data, f, protocol=dill.HIGHEST_PROTOCOL)
 
     def load_progress(self) -> None:
         """
         unpickles data to resume from previous optimizing session population
         """
         with open(self.temp_path, 'rb') as f:
-            data = pickle.load(f)
+            data = dill.load(f)
 
         self.population = data['population']
         self.iterations = data['iterations']
