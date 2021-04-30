@@ -16,6 +16,9 @@ class Exchange(ABC):
     # used for calculating final performance metrics
     starting_assets = {}
 
+    # some exchanges might require even further info
+    vars = {}
+
     def __init__(self, name: str, starting_assets: list, fee_rate: float, exchange_type: str):
         self.name = name
         self.type = exchange_type.lower()
