@@ -599,13 +599,30 @@ def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, 
         qty_round_precision = n + 1
         if qty_round_precision > 3:
             qty_round_precision = 3
-    rounded = np.round(roundable_qty, qty_round_precision)
+
+    # for qty rounding down is important to prevent InsufficenMargin
+    rounded = np.array([round_decimals_down(value, qty_round_precision) for value in roundable_qty])
 
     for index, q in enumerate(rounded):
         if q == 0.0:
             rounded[index] = 0.001
 
     return rounded
+
+
+def round_decimals_down(number: float, decimals: int = 2) -> float:
+    """
+    Returns a value rounded down to a specific number of decimal places.
+    """
+    if not isinstance(decimals, int):
+      raise TypeError("decimal places must be an integer")
+    elif decimals < 0:
+      raise ValueError("decimal places has to be 0 or more")
+    elif decimals == 0:
+      return math.floor(number)
+
+    factor = 10 ** decimals
+    return math.floor(number * factor) / factor
 
 
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
