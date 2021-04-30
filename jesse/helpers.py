@@ -103,10 +103,6 @@ def dashless_symbol(symbol: str) -> str:
     return symbol.replace("-", "")
 
 
-def dashy_symbol(symbol: str) -> str:
-    return f"{symbol[0:3]}-{symbol[3:]}"
-
-
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:

@@ -75,20 +75,11 @@ def test_convert_number():
 def test_dashless_symbol():
     assert jh.dashless_symbol('BTC-USD') == 'BTCUSD'
     assert jh.dashless_symbol('BTC-USDT') == 'BTCUSDT'
+    assert jh.dashless_symbol('1INCH-USDT') == '1INCHUSDT'
+    assert jh.dashless_symbol('SC-USDT') == 'SCUSDT'
 
     # make sure that it works even if it's already dashless
     assert jh.dashless_symbol('BTCUSDT') == 'BTCUSDT'
-
-
-def test_dashy_symbol():
-    assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
-    assert jh.dashy_symbol('BTCUSDT') == 'BTC-USDT'
-
-    assert jh.dashy_symbol('ETHUSD') == 'ETH-USD'
-    assert jh.dashy_symbol('ETHUSDT') == 'ETH-USDT'
-
-    assert jh.dashy_symbol('BTCEUR') == 'BTC-EUR'
-    assert jh.dashy_symbol('ETHBTC') == 'ETH-BTC'
 
 
 def test_date_diff_in_days():
