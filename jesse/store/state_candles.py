@@ -102,7 +102,7 @@ class CandlesState:
 
         price_precision = 0
         if jh.is_live():
-          price_precision = selectors.get_exchange(exchange).vars['precisions']['symbol']['price_precision']
+          price_precision = selectors.get_exchange(exchange).vars['precisions'][symbol]['price_precision']
 
         # update position.current_price
         p.current_price = jh.round_price_for_live_mode(candle[2], candle[2], price_precision)

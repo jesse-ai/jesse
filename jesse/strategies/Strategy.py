@@ -262,8 +262,8 @@ class Strategy(ABC):
                 # in livetrade mode, we'll need them rounded
                 price = arr[0][1]
 
-                price_precision = selectors.get_exchange(self.exchange).vars['precisions']['symbol']['price_precision']
-                qty_precision = selectors.get_exchange(self.exchange).vars['precisions']['symbol']['qty_precision']
+                price_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                qty_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
                 prices = jh.round_price_for_live_mode(price, arr[:, 1], price_precision)
                 qtys = jh.round_qty_for_live_mode(price, arr[:, 0], qty_precision)
