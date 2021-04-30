@@ -563,7 +563,7 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
-def round_price_for_live_mode(price: float, roundable_price: float) -> Union[float, np.ndarray]:
+def round_price_for_live_mode(price: float, roundable_price: float, precision: int = 0) -> Union[float, np.ndarray]:
     """
     Rounds price(s) based on exchange requirements
 
@@ -571,19 +571,23 @@ def round_price_for_live_mode(price: float, roundable_price: float) -> Union[flo
     :param roundable_price: float
     :return: float | nd.array
     """
-    n = int(math.log10(price))
 
-    if price < 1:
-        price_round_precision = abs(n - 4)
+    if precision == 0:
+        n = int(math.log10(price))
+
+        if price < 1:
+            price_round_precision = abs(n - 4)
+        else:
+            price_round_precision = 3 - n
+            if price_round_precision < 0:
+                price_round_precision = 0
     else:
-        price_round_precision = 3 - n
-        if price_round_precision < 0:
-            price_round_precision = 0
+        price_round_precision = precision
 
     return np.round(roundable_price, price_round_precision)
 
 
-def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, np.ndarray]:
+def round_qty_for_live_mode(price: float, roundable_qty: float, precision: int = 0) -> Union[float, np.ndarray]:
     """
     Rounds qty(s) based on exchange requirements
 
@@ -591,14 +595,18 @@ def round_qty_for_live_mode(price: float, roundable_qty: float) -> Union[float, 
     :param roundable_qty: float | nd.array
     :return: float | nd.array
     """
-    n = int(math.log10(price))
 
-    if price < 1:
-        qty_round_precision = 0
+    if precision == 0:
+        n = int(math.log10(price))
+
+        if price < 1:
+            qty_round_precision = 0
+        else:
+            qty_round_precision = n + 1
+            if qty_round_precision > 3:
+                qty_round_precision = 3
     else:
-        qty_round_precision = n + 1
-        if qty_round_precision > 3:
-            qty_round_precision = 3
+        qty_round_precision = precision
 
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = np.array([round_decimals_down(value, qty_round_precision) for value in roundable_qty])

@@ -250,8 +250,7 @@ class Strategy(ABC):
             self._take_profit = self.take_profit.copy()
             self._log_take_profit = self._take_profit.copy()
 
-    @staticmethod
-    def _convert_to_numpy_array(arr, name) -> np.ndarray:
+    def _convert_to_numpy_array(self, arr, name) -> np.ndarray:
         if type(arr) is np.ndarray:
             return arr
 
@@ -263,8 +262,11 @@ class Strategy(ABC):
                 # in livetrade mode, we'll need them rounded
                 price = arr[0][1]
 
-                prices = jh.round_price_for_live_mode(price, arr[:, 1])
-                qtys = jh.round_qty_for_live_mode(price, arr[:, 0])
+                price_precision = selectors.get_exchange(self.exchange).vars['precisions']['symbol']['price_precision']
+                qty_precision = selectors.get_exchange(self.exchange).vars['precisions']['symbol']['qty_precision']
+
+                prices = jh.round_price_for_live_mode(price, arr[:, 1], price_precision)
+                qtys = jh.round_qty_for_live_mode(price, arr[:, 0], qty_precision)
 
                 arr[:, 0] = qtys
                 arr[:, 1] = prices

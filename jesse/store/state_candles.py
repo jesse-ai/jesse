@@ -100,8 +100,12 @@ class CandlesState:
         if p is None:
             return
 
+        price_precision = 0
+        if jh.is_live():
+          price_precision = selectors.get_exchange(exchange).vars['precisions']['symbol']['price_precision']
+
         # update position.current_price
-        p.current_price = jh.round_price_for_live_mode(candle[2], candle[2])
+        p.current_price = jh.round_price_for_live_mode(candle[2], candle[2], price_precision)
 
     def generate_bigger_timeframes(self, candle: np.ndarray, exchange: str, symbol: str, with_execution: bool,
                                    is_forming_candle: bool) -> None:
