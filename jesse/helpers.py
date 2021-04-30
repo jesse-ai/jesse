@@ -340,7 +340,9 @@ def is_test_driving() -> bool:
 
 
 def is_unit_testing() -> bool:
-    return "pytest" in sys.modules
+    from jesse.config import config
+    # config['app']['is_unit_testing'] is only set in the live plugin unit tests
+    return "pytest" in sys.modules or config['app']['is_unit_testing']
 
 
 def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:

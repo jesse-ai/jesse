@@ -210,6 +210,9 @@ config = {
 
         # this would enable many console.log()s in the code, which are helpful for debugging.
         'debug_mode': False,
+
+        # this is only used for the live unit tests
+        'is_unit_testing': False,
     },
 }
 
