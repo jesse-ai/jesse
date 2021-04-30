@@ -202,10 +202,14 @@ def test_get_config(monkeypatch):
     assert jh.get_config('aaaaaaa', 2020) == 2020
     # assert when config does exist
     assert jh.get_config('env.logging.order_submission', 2020) is True
-    # assert env is taked
+    # assert env is took
     monkeypatch.setenv("ENV_DATABASES_POSTGRES_HOST", "db")
     assert jh.get_config('env.databases.postgres_host', 'default') == 'db'
     monkeypatch.delenv("ENV_DATABASES_POSTGRES_HOST")
+    # assert env is took with space
+    monkeypatch.setenv("ENV_EXCHANGES_BINANCE_FUTURES_SETTLEMENT_CURRENCY", 'BUSD')
+    assert jh.get_config('env.exchanges.Binance Futures.settlement_currency', 'USDT') == 'BUSD'
+    monkeypatch.delenv("ENV_EXCHANGES_BINANCE_FUTURES_SETTLEMENT_CURRENCY")
 
 
 def test_get_strategy_class():

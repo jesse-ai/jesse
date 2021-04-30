@@ -256,8 +256,8 @@ def get_config(keys: str, default: Any = None) -> Any:
         raise ValueError('keys string cannot be empty')
 
     if is_unit_testing() or not keys in CACHED_CONFIG:
-        if os.environ.get(keys.upper().replace(".", "_")) is not None:
-            CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_"))
+        if os.environ.get(keys.upper().replace(".", "_").replace(" ", "_")) is not None:
+            CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_").replace(" ", "_"))
         else:
             from functools import reduce
             from jesse.config import config
