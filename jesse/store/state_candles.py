@@ -101,7 +101,7 @@ class CandlesState:
             return
 
         price_precision = 0
-        if jh.is_live() or jh.is_paper_trading():
+        if jh.is_live():
           price_precision = selectors.get_exchange(exchange).vars['precisions'][symbol]['price_precision']
 
         # update position.current_price

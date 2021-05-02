@@ -84,7 +84,7 @@ class Strategy(ABC):
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if jh.is_live() or jh.is_paper_trading():
+        if jh.is_live():
             self.price_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             self.qty_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
@@ -266,7 +266,7 @@ class Strategy(ABC):
             # create numpy array from list
             arr = np.array(arr, dtype=float)
 
-            if jh.is_live() or jh.is_paper_trading():
+            if jh.is_live():
                 # in livetrade mode, we'll need them rounded
                 price = arr[0][1]
 
