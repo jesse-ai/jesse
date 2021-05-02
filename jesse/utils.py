@@ -159,7 +159,7 @@ def qty_to_size(qty: float, price: float) -> float:
     return qty * price
 
 
-def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, stop_loss_price: float,
+def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, stop_loss_price: float, precision: int = 8,
                 fee_rate: float = 0) -> float:
     """
     a risk management tool to quickly get the qty based on risk percentage
@@ -177,7 +177,7 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     if fee_rate != 0:
         size = size * (1 - fee_rate * 3)
 
-    return size_to_qty(size, entry_price, fee_rate=fee_rate)
+    return size_to_qty(size, entry_price, precision=precision, fee_rate=fee_rate)
 
 
 def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: float, entry_price: float) -> float:
@@ -199,7 +199,7 @@ def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: floa
     return min(temp_size, capital_size)
 
 
-def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0) -> float:
+def size_to_qty(position_size: float, entry_price: float, precision: int = 8, fee_rate: float = 0) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of %50 would return 2
@@ -216,7 +216,7 @@ def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fe
     if fee_rate != 0:
         position_size = position_size * (1 - fee_rate * 3)
 
-    return jh.floor_with_precision(position_size / entry_price, precision)
+    return jh.round_decimals_down(position_size / entry_price, precision)
 
 
 def subtract_floats(float1: float, float2: float) -> float:

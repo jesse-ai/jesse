@@ -71,6 +71,10 @@ class Strategy(ABC):
         self._cached_methods = {}
         self._cached_metrics = {}
 
+        # only available with live plugin
+        self.price_precision = None
+        self.qty_precision = None
+
     def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
@@ -79,6 +83,10 @@ class Strategy(ABC):
         """
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
+
+        if jh.is_live() or jh.is_paper_trading():
+            self.price_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+            self.qty_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
         if self.hp is None:
             if len(self.hyperparameters()) > 0:
@@ -258,7 +266,7 @@ class Strategy(ABC):
             # create numpy array from list
             arr = np.array(arr, dtype=float)
 
-            if jh.is_live():
+            if jh.is_live() or jh.is_paper_trading():
                 # in livetrade mode, we'll need them rounded
                 price = arr[0][1]
 

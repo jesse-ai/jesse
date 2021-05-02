@@ -100,7 +100,7 @@ def test_risk_to_qty():
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
     # when fee is included
-    assert utils.risk_to_qty(10000, 1, 100, 80, fee_rate=0.001) == 4.97
+    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.97
 
 
 def test_risk_to_size():
@@ -118,7 +118,7 @@ def test_risk_to_size():
 
 def test_size_to_qty():
     assert utils.size_to_qty(100, 50) == 2
-    assert utils.size_to_qty(100, 49) == 2.04
+    assert utils.size_to_qty(100, 49, precision=3) == 2.04
 
     with pytest.raises(TypeError):
         utils.size_to_qty(100, 'invalid_input')
