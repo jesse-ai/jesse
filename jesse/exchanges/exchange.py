@@ -29,3 +29,7 @@ class Exchange(ABC):
     @abstractmethod
     def get_exec_inst(self, flags):
         pass
+
+    @abstractmethod
+    def _get_precisions(self):
+        pass
