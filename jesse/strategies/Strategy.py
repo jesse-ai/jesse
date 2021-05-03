@@ -71,10 +71,6 @@ class Strategy(ABC):
         self._cached_methods = {}
         self._cached_metrics = {}
 
-        # only available with live plugin
-        self.price_precision = None
-        self.qty_precision = None
-
     def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
@@ -84,15 +80,25 @@ class Strategy(ABC):
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if jh.is_live():
-            self.price_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
-            self.qty_precision = selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
-
         if self.hp is None:
             if len(self.hyperparameters()) > 0:
                 self.hp = {}
                 for dna in self.hyperparameters():
                     self.hp[dna['name']] = dna['default']
+
+    @property
+    def _price_precision(self):
+        """
+        used when live trading because few exchanges require numbers to have a specific precision
+        """
+        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+
+    @property
+    def _qty_precision(self):
+        """
+        used when live trading because few exchanges require numbers to have a specific precision
+        """
+        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
     def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
