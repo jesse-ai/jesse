@@ -563,53 +563,27 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
-def round_price_for_live_mode(price: float, roundable_price: float, precision: int = 0) -> Union[float, np.ndarray]:
+def round_price_for_live_mode(price, precision: int) -> Union[float, np.ndarray]:
     """
     Rounds price(s) based on exchange requirements
 
     :param price: float
-    :param roundable_price: float
+    :param precision: int
     :return: float | nd.array
     """
-
-    if precision == 0:
-        n = int(math.log10(price))
-
-        if price < 1:
-            price_round_precision = abs(n - 4)
-        else:
-            price_round_precision = 3 - n
-            if price_round_precision < 0:
-                price_round_precision = 0
-    else:
-        price_round_precision = precision
-
-    return np.round(roundable_price, price_round_precision)
+    return np.round(price, precision)
 
 
-def round_qty_for_live_mode(price: float, roundable_qty: float, precision: int = 0) -> Union[float, np.ndarray]:
+def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float, np.ndarray]:
     """
     Rounds qty(s) based on exchange requirements
 
-    :param price: float
     :param roundable_qty: float | nd.array
+    :param precision: int
     :return: float | nd.array
     """
-
-    if precision == 0:
-        n = int(math.log10(price))
-
-        if price < 1:
-            qty_round_precision = 0
-        else:
-            qty_round_precision = n + 1
-            if qty_round_precision > 3:
-                qty_round_precision = 3
-    else:
-        qty_round_precision = precision
-
     # for qty rounding down is important to prevent InsufficenMargin
-    rounded = np.array([round_decimals_down(value, qty_round_precision) for value in roundable_qty])
+    rounded = round_decimals_down(roundable_qty, precision)
 
     for index, q in enumerate(rounded):
         if q == 0.0:
@@ -618,7 +592,7 @@ def round_qty_for_live_mode(price: float, roundable_qty: float, precision: int =
     return rounded
 
 
-def round_decimals_down(number: float, decimals: int = 2) -> float:
+def round_decimals_down(number: np.ndarray, decimals: int = 2) -> float:
     """
     Returns a value rounded down to a specific number of decimal places.
     """
@@ -627,10 +601,10 @@ def round_decimals_down(number: float, decimals: int = 2) -> float:
     elif decimals < 0:
       raise ValueError("decimal places has to be 0 or more")
     elif decimals == 0:
-      return math.floor(number)
+      return np.floor(number)
 
     factor = 10 ** decimals
-    return math.floor(number * factor) / factor
+    return np.floor(number * factor) / factor
 
 
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:

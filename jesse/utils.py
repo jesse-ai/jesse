@@ -199,11 +199,10 @@ def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: floa
     return min(temp_size, capital_size)
 
 
-def size_to_qty(position_size: float, entry_price: float, precision: int = 8, fee_rate: float = 0) -> float:
+def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of %50 would return 2
-
     :param position_size: float
     :param entry_price: float
     :param precision: int
@@ -216,7 +215,7 @@ def size_to_qty(position_size: float, entry_price: float, precision: int = 8, fe
     if fee_rate != 0:
         position_size = position_size * (1 - fee_rate * 3)
 
-    return jh.round_decimals_down(position_size / entry_price, precision)
+    return jh.floor_with_precision(position_size / entry_price, precision)
 
 
 def subtract_floats(float1: float, float2: float) -> float:
