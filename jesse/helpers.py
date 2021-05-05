@@ -587,7 +587,7 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
 
     for index, q in enumerate(rounded):
         if q == 0.0:
-            rounded[index] = 0.001
+            rounded[index] = 1 / 10 ** precision
 
     return rounded
 

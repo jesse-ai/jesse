@@ -434,6 +434,21 @@ def test_round_qty_for_live_mode():
         np.array([100.32, 100.42])
     )
 
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([0]), 1),
+        np.array([0.1])
+    )
+
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([0]), 2),
+        np.array([0.01])
+    )
+
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([0]), 3),
+        np.array([0.001])
+    )
+
 
 def test_round_decimals_down():
     assert jh.round_decimals_down(100.329, 2) == 100.32
