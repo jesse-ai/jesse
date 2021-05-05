@@ -1141,6 +1141,18 @@ def test_pattern_recognizion():
     assert res == 1
 
 
+def test_pfe():
+  # use the same candles as mama_candles
+  candles = np.array(mama_candles)
+
+  single = ta.pfe(candles)
+  seq = ta.pfe(candles, sequential=True)
+
+  assert round(single, 2) == -211.85
+  assert len(seq) == len(candles)
+  assert seq[-1] == single
+
+
 def test_pivot():
     candles = np.array(mama_candles)
     single = ta.pivot(candles, mode=0)
