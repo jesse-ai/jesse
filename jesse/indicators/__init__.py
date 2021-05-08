@@ -58,6 +58,7 @@ from .ht_trendmode import ht_trendmode
 from .ichimoku_cloud import ichimoku_cloud
 from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .itrend import itrend
+from .jma import jma
 from .kama import kama
 from .kaufmanstop import kaufmanstop
 from .keltner import keltner

@@ -745,6 +745,18 @@ def test_itrend():
     assert len(seq.it) == len(candles)
 
 
+def test_jma():
+    # use the same candles as dema_candles
+    candles = np.array(mama_candles)
+
+    single = ta.jma(candles)
+    seq = ta.jma(candles, sequential=True)
+
+    assert round(single, 2) == 156.72
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_kama():
     # use the same candles as dema_candles
     candles = np.array(dema_candles)
