@@ -20,6 +20,7 @@ from .cfo import cfo
 from .cg import cg
 from .cksp import cksp
 from .chande import chande
+from .chop import chop
 from .cmo import cmo
 from .correl import correl
 from .correlation_cycle import correlation_cycle

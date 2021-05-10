@@ -264,6 +264,18 @@ def test_chande():
     assert seq_short[-1] == single_short
 
 
+def test_chop():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.chop(candles)
+    seq = ta.chop(candles, sequential=True)
+
+    assert round(single, 2) == 28.82
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_cksp():
     candles = np.array(mama_candles)
 
