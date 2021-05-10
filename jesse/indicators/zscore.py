@@ -2,6 +2,7 @@ from typing import Union
 
 import numpy as np
 import talib
+from jesse.indicators.ma import ma
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import slice_candles
@@ -24,7 +25,7 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    means = talib.MA(source, timeperiod=period, matype=matype)
+    means = ma(source, period=period, matype=matype, sequential=True)
     sigmas = talib.STDDEV(source, timeperiod=period, nbdev=nbdev)
     zScores = (source - means) / sigmas
 

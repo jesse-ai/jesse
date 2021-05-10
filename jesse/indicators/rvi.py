@@ -2,6 +2,7 @@ from typing import Union
 
 import numpy as np
 import talib
+from jesse.indicators.ma import ma
 
 from jesse.helpers import get_candle_source, same_length
 from jesse.helpers import slice_candles
@@ -31,8 +32,8 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     up = np.nan_to_num(np.where(diff <= 0, 0, stdev))
     down = np.nan_to_num(np.where(diff > 0, 0, stdev))
 
-    up_avg = talib.MA(up, timeperiod=ma_len, matype=matype)
-    down_avg = talib.MA(down, timeperiod=ma_len, matype=matype)
+    up_avg = ma(up, period=ma_len, matype=matype, sequential=True)
+    down_avg = ma(down, period=ma_len, matype=matype, sequential=True)
 
     result = 100 * (up_avg / (up_avg + down_avg))
 

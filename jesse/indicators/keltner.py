@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
+from jesse.indicators.ma import ma
+
 from jesse.helpers import get_candle_source
 from jesse.helpers import slice_candles
 
@@ -27,7 +29,7 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    e = talib.MA(source, timeperiod=period, matype=matype)
+    e = ma(source, period=period, matype=matype, sequential=True)
     a = talib.ATR(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
     up = e + a * multiplier

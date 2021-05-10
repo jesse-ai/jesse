@@ -1,10 +1,10 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import slice_candles
+from jesse.indicators.ma import ma
 
 MACDEXT = namedtuple('MACDEXT', ['macd', 'signal', 'hist'])
 
@@ -30,9 +30,10 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_matype: int = 0, sl
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    macd, macdsignal, macdhist = talib.MACDEXT(source, fastperiod=fast_period, fastmatype=fast_matype,
-                                               slowperiod=slow_period, slowmatype=slow_matype,
-                                               signalperiod=signal_period, signalmatype=signal_matype)
+
+    macd = ma(source, period=fast_period, matype=fast_matype, sequential=True) - ma(source, period=slow_period, matype=slow_matype, sequential=True)
+    macdsignal = ma(macd, period=signal_period, matype=signal_matype, sequential=True)
+    macdhist = macd - macdsignal
 
     if sequential:
         return MACDEXT(macd, macdsignal, macdhist)

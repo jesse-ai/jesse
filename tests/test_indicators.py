@@ -923,6 +923,23 @@ def test_lrsi():
     assert seq[-1] == single
 
 
+def test_ma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.ma(candles, matype=9)
+    seq = ta.ma(candles, matype=9, sequential=True)
+
+    seq_average = ta.ma(seq, matype=9, sequential=True)
+
+    assert round(single, 2) == 166.99
+    assert round(seq[-2], 2) == 203.56
+    assert round(seq_average[-2], 2) == 212.12
+    assert len(seq) == len(candles)
+    assert len(seq_average) == len(candles)
+    assert seq[-1] == single
+
+
 def test_macd():
     candles = np.array(mama_candles)
 
