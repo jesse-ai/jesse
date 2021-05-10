@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import talib
+from jesse.indicators.ma import ma
 
 from jesse.helpers import slice_candles
 
@@ -25,16 +26,16 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
     """
     candles = slice_candles(candles, sequential)
 
-    k, d = talib.STOCH(
-        candles[:, 3],
-        candles[:, 4],
-        candles[:, 2],
-        fastk_period=fastk_period,
-        slowk_period=slowk_period,
-        slowk_matype=slowk_matype,
-        slowd_period=slowd_period,
-        slowd_matype=slowd_matype
-    )
+    candles_close = candles[:, 2]
+    candles_high = candles[:, 3]
+    candles_low = candles[:, 4]
+
+    hh = talib.MAX(candles_high, fastk_period)
+    ll = talib.MIN(candles_low, fastk_period)
+
+    stoch = 100 * (candles_close - ll) / (hh - ll)
+    k = ma(stoch, period=slowk_period, matype=slowk_matype, sequential=True)
+    d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
 
     if sequential:
         return Stochastic(k, d)

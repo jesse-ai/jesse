@@ -4,6 +4,7 @@ import numpy as np
 import talib
 
 from jesse.helpers import slice_candles
+from jesse.indicators.ma import ma
 
 StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
 
@@ -23,14 +24,15 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
     """
     candles = slice_candles(candles, sequential)
 
-    k, d = talib.STOCHF(
-        candles[:, 3],
-        candles[:, 4],
-        candles[:, 2],
-        fastk_period=fastk_period,
-        fastd_period=fastd_period,
-        fastd_matype=fastd_matype
-    )
+    candles_close = candles[:, 2]
+    candles_high = candles[:, 3]
+    candles_low = candles[:, 4]
+
+    hh = talib.MAX(candles_high, fastk_period)
+    ll = talib.MIN(candles_low, fastk_period)
+
+    k = 100 * (candles_close - ll) / (hh - ll)
+    d = ma(k, period=fastd_period, matype=fastd_matype, sequential=True)
 
     if sequential:
         return StochasticFast(k, d)
