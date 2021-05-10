@@ -123,6 +123,7 @@ from .stochf import stochf
 from .supersmoother import supersmoother
 from .supersmoother_3_pole import supersmoother_3_pole
 from .supertrend import supertrend
+from .swma import swma
 from .t3 import t3
 from .tema import tema
 from .trange import trange

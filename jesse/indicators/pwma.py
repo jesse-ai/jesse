@@ -12,7 +12,7 @@ from jesse.helpers import get_candle_source, slice_candles, same_length
 def pwma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
-    Fibonacci's Weighted Moving Average (FWMA)
+    Pascals Weighted Moving Average (PWMA)
 
     :param candles: np.ndarray
     :param period: int - default: 5

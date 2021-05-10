@@ -1660,6 +1660,18 @@ def test_supertrend():
     assert len(seq.changed) == len(candles)
 
 
+def test_swma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.swma(candles)
+    seq = ta.swma(candles, sequential=True)
+
+    assert round(single, 2) == 189.35
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_t3():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
