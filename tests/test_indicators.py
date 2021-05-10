@@ -1316,16 +1316,27 @@ def test_ppo():
 
 
 def test_pvi():
+  # use the same candles as mama_candles
+  candles = np.array(mama_candles)
+
+  single = ta.pvi(candles)
+  seq = ta.pvi(candles, sequential=True)
+
+
+  assert round(single, 0) == 661
+  assert len(seq) == len(candles)
+  assert seq[-1] == single
+
+def test_pwma():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)
 
-    single = ta.pvi(candles)
-    seq = ta.pvi(candles, sequential=True)
+    single = ta.pwma(candles)
+    seq = ta.pwma(candles, sequential=True)
 
-    assert round(single, 0) == 661
+    assert round(single, 2) == 193.82
     assert len(seq) == len(candles)
     assert seq[-1] == single
-
 
 def test_qstick():
     # use the same candles as mama_candles
