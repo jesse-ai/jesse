@@ -19,9 +19,12 @@ def trima(candles: np.ndarray, period: int = 30, source_type: str = "close", seq
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
-    source = get_candle_source(candles, source_type=source_type)
     res = talib.TRIMA(source, timeperiod=period)
 
     return res if sequential else res[-1]

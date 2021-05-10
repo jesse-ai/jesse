@@ -20,9 +20,12 @@ def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: st
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
-    source = get_candle_source(candles, source_type=source_type)
     res = talib.T3(source, timeperiod=period, vfactor=vfactor)
 
     return res if sequential else res[-1]

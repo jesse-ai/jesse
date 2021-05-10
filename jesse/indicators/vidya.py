@@ -21,9 +21,12 @@ def vidya(candles: np.ndarray, short_period: int = 2, long_period: int = 5, alph
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
-    source = get_candle_source(candles, source_type=source_type)
     res = ti.vidya(np.ascontiguousarray(source), short_period=short_period, long_period=long_period, alpha=alpha)
 
     return same_length(candles, res) if sequential else res[-1]

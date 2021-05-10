@@ -19,9 +19,14 @@ def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
 
-    source = get_candle_source(candles, source_type=source_type)
+    # Accept normal array too.
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
+
     fibs = fibonacci(n=period)
     swv = sliding_window_view(source, window_shape=period)
     res = np.average(swv, weights=fibs, axis=-1)

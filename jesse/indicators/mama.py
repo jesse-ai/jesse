@@ -22,9 +22,12 @@ def mama(candles: np.ndarray, fastlimit: float = 0.5, slowlimit: float = 0.05, s
 
     :return: MAMA(mama, fama)
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
-    source = get_candle_source(candles, source_type=source_type)
     mama, fama = talib.MAMA(source, fastlimit=fastlimit, slowlimit=slowlimit)
 
     if sequential:

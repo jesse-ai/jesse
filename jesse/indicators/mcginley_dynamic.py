@@ -19,9 +19,13 @@ def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, sour
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
 
-    source = get_candle_source(candles, source_type=source_type)
+    # Accept normal array too.
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
     mg = md_fast(source, k, period)
 

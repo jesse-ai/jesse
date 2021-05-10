@@ -13,9 +13,11 @@ def jma(candles: np.ndarray, length=7, phase=50, power=2, source_type='close', s
     Port of: https://tradingview.com/script/nZuBWW9j-Jurik-Moving-Average/
     """
 
-    candles = slice_candles(candles, sequential)
-
-    source = get_candle_source(candles, source_type=source_type)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
     phaseRatio = 0.5 if phase < -100 else (2.5 if phase > 100 else phase / 100 + 1.5)
     beta = 0.45 * (length - 1) / (0.45 * (length - 1) + 2)

@@ -19,9 +19,11 @@ def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close",
     :return: float | np.ndarray
     """
 
-    candles = slice_candles(candles, sequential)
-
-    source = get_candle_source(candles, source_type=source_type)
+    if len(candles.shape) == 1:
+      source = candles
+    else:
+      candles = slice_candles(candles, sequential)
+      source = get_candle_source(candles, source_type=source_type)
 
     hpf = high_pass_fast(source, period)
 
