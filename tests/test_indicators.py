@@ -264,6 +264,20 @@ def test_chande():
     assert seq_short[-1] == single_short
 
 
+def test_cksp():
+    candles = np.array(mama_candles)
+
+    single = ta.cksp(candles)
+    assert type(single).__name__ == 'CKSP'
+    assert round(single.long, 2) == 247.62
+    assert round(single.short, 2) == 127.89
+
+    seq = ta.cksp(candles, sequential=True)
+    assert seq.long[-1] == single.long
+    assert seq.short[-1] == single.short
+    assert len(seq.long) == len(candles)
+    assert len(seq.short) == len(candles)
+
 def test_cmo():
     # use the same candles as mama_candles
     candles = np.array(mama_candles)

@@ -18,6 +18,7 @@ from .cc import cc
 from .cci import cci
 from .cfo import cfo
 from .cg import cg
+from .cksp import cksp
 from .chande import chande
 from .cmo import cmo
 from .correl import correl
