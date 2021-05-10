@@ -5,7 +5,7 @@ import talib
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import slice_candles
-
+from jesse.indicators.ma import ma
 
 def stc(candles: np.ndarray, fast_period: int = 23, fast_matype: int = 1, slow_period: int = 50, slow_matype: int = 1,
         k_period: int = 10, d_period: int = 3,
@@ -30,8 +30,7 @@ def stc(candles: np.ndarray, fast_period: int = 23, fast_matype: int = 1, slow_p
 
     source = get_candle_source(candles, source_type=source_type)
 
-    macd, macdsignal, macdhist = talib.MACDEXT(source, fastperiod=fast_period, fastmatype=fast_matype,
-                                               slowperiod=slow_period, slowmatype=slow_matype)
+    macd = ma(source, period=fast_period, matype=fast_matype, sequential=True) - ma(source, period=slow_period, matype=slow_matype, sequential=True)
 
     stok = (macd - talib.MIN(macd, k_period)) / (talib.MAX(macd, k_period) - talib.MIN(macd, k_period)) * 100
 

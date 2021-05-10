@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-import talib
+from jesse.indicators.ma import ma
 
 from jesse.helpers import get_candle_source
 from jesse.helpers import slice_candles
@@ -24,6 +24,9 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matyp
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.PPO(source, fastperiod=fast_period, slowperiod=slow_period, matype=matype)
+
+    fast_ma = ma(source, period=fast_period, matype=matype, sequential=True)
+    slow_ma = ma(source, period=slow_period, matype=matype, sequential=True)
+    res = 100 * (fast_ma - slow_ma) / slow_ma
 
     return res if sequential else res[-1]
