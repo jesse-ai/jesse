@@ -22,7 +22,7 @@ class API:
                     if exchange_name not in SUPPORTED_EXCHANGES_NAMES:
                         exchange_names = ''
                         for se in SUPPORTED_EXCHANGES:
-                            exchange_names += '\n' + '"' + se['name'] + '"'
+                            exchange_names += f'\n "{se["name"]}"'
                         error_msg = f'Driver for "{exchange_name}" is not supported yet. Supported exchanges are: {exchange_names}'
                         jh.error(error_msg, force_print=True)
                         jh.terminate_app()
