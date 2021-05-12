@@ -60,7 +60,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         res = high_pass_2_pole(source, period, source_type=source_type,  sequential=True)
     elif matype == 19:
         from talib import HT_TRENDLINE
-        res = HT_TRENDLINE(source, period)
+        res = HT_TRENDLINE(source)
     elif matype == 20:
         from . import jma
         res = jma(source, period, source_type=source_type,  sequential=True)
@@ -74,8 +74,10 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         from . import smma
         res = smma(source, period, source_type=source_type,  sequential=True)
     elif matype == 24:
+        if len(candles.shape) == 1:
+          raise ValueError("vwma only works with normal candles.")
         from . import vwma
-        res = vwma(source, period, source_type=source_type,  sequential=True)
+        res = vwma(candles, period, source_type=source_type,  sequential=True)
     elif matype == 25:
         from . import pwma
         res = pwma(source, period, source_type=source_type,  sequential=True)
