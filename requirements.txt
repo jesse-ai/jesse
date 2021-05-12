@@ -5,7 +5,7 @@ crypto-empyrical==1.0.4
 matplotlib==3.4.2
 newtulipy==0.4.4
 numba==0.53.1
-numpy==1.20.2
+numpy==1.20.3
 numpy_groupies==0.9.13
 pandas==1.2.4
 peewee==3.14.4
