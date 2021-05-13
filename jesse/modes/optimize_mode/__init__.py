@@ -118,7 +118,7 @@ class Optimizer(Genetics):
             elif ratio_config == 'calmar':
                 ratio = training_data['calmar_ratio']
                 ratio_normalized = jh.normalize(ratio, -.5, 30)
-            elif ratio_config == 'sortiono':
+            elif ratio_config == 'sortino':
                 ratio = training_data['sortino_ratio']
                 ratio_normalized = jh.normalize(ratio, -.5, 15)
             elif ratio_config == 'omega':
