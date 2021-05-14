@@ -160,6 +160,23 @@ def test_beta():
     assert seq[-1] == single
 
 
+def test_bandpass():
+    candles = np.array(mama_candles)
+
+    bp = ta.bandpass(candles)
+    assert type(bp).__name__ == 'BandPass'
+    assert round(bp.bp, 2) == -7.56
+    assert round(bp.bp_normalized, 2) == -0.29
+    assert bp.signal == 1
+    assert round(bp.trigger, 2) == -0.27
+
+    seq_bp = ta.bandpass(candles, sequential=True)
+    assert seq_bp.bp[-1] == bp.bp
+    assert len(seq_bp.bp) == len(candles)
+    assert len(seq_bp.bp_normalized) == len(candles)
+    assert len(seq_bp.signal) == len(candles)
+    assert len(seq_bp.trigger) == len(candles)
+
 def test_bollinger_bands():
     candles = np.array(bollinger_bands_candles)
 
