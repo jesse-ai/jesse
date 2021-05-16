@@ -670,8 +670,12 @@ def error(msg: str, force_print: bool = False) -> None:
         from jesse.services import logger
         logger.error(msg)
         if force_print:
+            print('\n')
+            print(color('========== critical error =========='.upper(), 'red'))
             print(color(msg, 'red'))
     else:
+        print('\n')
+        print(color('========== critical error =========='.upper(), 'red'))
         print(color(msg, 'red'))
 
 
