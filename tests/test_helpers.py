@@ -393,7 +393,7 @@ def test_prepare_qty():
     assert jh.prepare_qty(10, 'sell') == -10
     assert jh.prepare_qty(-10, 'buy') == 10
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         jh.prepare_qty(-10, 'invalid_input')
 
 
@@ -535,3 +535,8 @@ def test_unique_list():
     ]
 
     assert jh.unique_list(a) == expected
+
+
+def test_closing_side():
+    assert jh.closing_side('Long') == 'sell'
+    assert jh.closing_side('Short') == 'buy'
