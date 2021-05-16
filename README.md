@@ -9,7 +9,6 @@
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
 [![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
 [![Docs](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
-[![Forum](https://img.shields.io/badge/Forum-Join%20us!-brightgreen)](https://forum.jesse.trade)
 [![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
 ---
 Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
@@ -82,9 +81,7 @@ And here are generated charts:
 This is the very initial release. There's way more. Subscribe to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
 
 ## Community
-We've created a [community](http://forum.jesse.trade/) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
-
-**[update]:**  We now have a [discord server](https://discord.gg/nztUFbMnF5) to discuss Jesse and trading in general. Make sure to join. 
+I created a [discord server](https://jesse.trade/discord) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
 
 ## How to contribute
 Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 
