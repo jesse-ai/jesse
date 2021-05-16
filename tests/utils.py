@@ -58,14 +58,15 @@ def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cros
     store.reset(True)
 
 
-def single_route_backtest(strategy_name: str, is_futures_trading=True, leverage=1):
+def single_route_backtest(strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross'):
     """
     used to simplify simple tests
     """
     set_up(
         [(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)],
         is_futures_trading=is_futures_trading,
-        leverage=leverage
+        leverage=leverage,
+        leverage_mode=leverage_mode
     )
     # dates are fake. just to pass required parameters
     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
