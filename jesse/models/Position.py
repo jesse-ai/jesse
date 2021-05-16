@@ -149,10 +149,47 @@ class Position:
         else:
             return self.exchange.futures_leverage_mode
 
+    @property
+    def liquidation_price(self):
+        if self.type == 'short':
+            return self.entry_price * (1 + self._initial_margin_rate - 0.004)
+        else:
+            return np.nan
+
+    @property
+    def _initial_margin_rate(self):
+        return 1 / self.leverage
+
+    @property
+    def bankruptcy_price(self):
+        if self.type == 'long':
+            return self.entry_price * (1 - self._initial_margin_rate)
+        elif self.type == 'short':
+            return self.entry_price * (1 + self._initial_margin_rate)
+        else:
+            return np.nan
+
+
+    #
+    # Bankruptcy
+    # Price = Entry
+    # Price × (1 - Initial Margin Rate *)
+    #
+    # For
+    # Sell / Short:
+    #
+    # Bankruptcy
+    # Price = Entry
+    # Price × (1 + Initial Margin Rate *)
+    #
+    # *Initial
+    # Margin
+    # Rate(IMR) = 1 / Leverage
+
+
     # - Margin Ratio
     # * Liquidation price
     # * mark price?!
-    # * ROE(PNL?)
     # * Maintenance futures
     # * futures balance
 

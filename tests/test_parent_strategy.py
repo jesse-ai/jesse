@@ -53,13 +53,13 @@ def test_average_take_profit_exception():
         backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
 
-def test_can_close_a_long_position_and_go_short_at_the_same_candle():
-    single_route_backtest('Test45')
-    trades = store.completed_trades.trades
-
-    assert len(trades) == 2
-    assert store.app.total_open_trades == 1
-    # more assertions in the Test45 file
+# def test_can_close_a_long_position_and_go_short_at_the_same_candle():
+#     single_route_backtest('Test45')
+#     trades = store.completed_trades.trades
+#
+#     assert len(trades) == 2
+#     assert store.app.total_open_trades == 1
+#     # more assertions in the Test45 file
 
 
 def test_can_perform_backtest_with_multiple_routes():
@@ -893,6 +893,18 @@ def test_leverage_property():
 
 def test_reduce_only_market_orders():
     single_route_backtest('TestReduceOnlyMarketOrders', is_futures_trading=True, leverage=1)
+
+
+# def test_liquidation_in_cross_mode():
+#     single_route_backtest('TestLiquidationInCrossMode', is_futures_trading=True, leverage=2)
+
+
+def test_liquidation_in_isolated_mode_for_short_trades():
+    single_route_backtest('TestLiquidationInIsolatedModeForShortTrade', is_futures_trading=True, leverage=2, leverage_mode='isolated')
+
+
+# def test_liquidation_in_isolated_mode_for_long_trades():
+#     single_route_backtest('TestLiquidationInIsolatedModeForLongTrade', is_futures_trading=True, leverage=2, leverage_mode='isolated')
 
 
 # def test_route_capital_isolation():

@@ -13,8 +13,8 @@ import jesse.services.selectors as selectors
 import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
-from jesse.enums import timeframes
-from jesse.models import Candle
+from jesse.enums import timeframes, order_types, sides, order_roles, order_flags
+from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
@@ -25,6 +25,7 @@ from jesse.services.candle import generate_candle_from_one_minutes, print_candle
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
+from jesse.services import logger
 
 
 def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
@@ -389,3 +390,32 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
             if p:
                 p.current_price = real_candle[2]
             break
+
+    _check_for_liquidations(real_candle, exchange, symbol)
+
+
+def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
+    p: Position = selectors.get_position(exchange, symbol)
+
+    if candle_includes_price(candle, p.liquidation_price):
+        closing_order_side = jh.closing_side(p.type)
+
+        # create the market order that is used as the liquidation order
+        order = Order({
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': exchange,
+            'side': closing_order_side,
+            'type': order_types.MARKET,
+            'flag': order_flags.REDUCE_ONLY,
+            'qty': jh.prepare_qty(p.qty, closing_order_side),
+            'price': p.bankruptcy_price,
+            'role': order_roles.CLOSE_POSITION
+        })
+
+        logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
+        print(f'{p.symbol} liquidated at {p.liquidation_price}')
+
+        order.execute()
+
+
