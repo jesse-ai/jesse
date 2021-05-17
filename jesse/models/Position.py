@@ -151,10 +151,22 @@ class Position:
 
     @property
     def liquidation_price(self):
-        if self.type == 'short':
-            return self.entry_price * (1 + self._initial_margin_rate - 0.004)
-        else:
+        if self.mode == 'isolated':
+            if self.type == 'long':
+                return self.entry_price * (1 - self._initial_margin_rate + 0.004)
+            elif self.type == 'short':
+                return self.entry_price * (1 + self._initial_margin_rate - 0.004)
+            else:
+                return np.nan
+
+        elif self.mode == 'cross':
             return np.nan
+
+        elif self.mode == 'spot':
+            return np.nan
+
+        else:
+            raise ValueError
 
     @property
     def _initial_margin_rate(self):
