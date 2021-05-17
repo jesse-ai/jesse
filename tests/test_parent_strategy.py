@@ -54,7 +54,8 @@ def test_average_take_profit_exception():
 
 
 def test_can_close_a_long_position_and_go_short_at_the_same_candle():
-    single_route_backtest('Test45')
+    single_route_backtest('Test45', is_futures_trading=True, leverage_mode='isolated')
+
     trades = store.completed_trades.trades
 
     assert len(trades) == 2
@@ -904,8 +905,11 @@ def test_liquidation_in_isolated_mode_for_short_trades():
     single_route_backtest('TestLiquidationInIsolatedModeForShortTrade', is_futures_trading=True, leverage=2, leverage_mode='isolated')
 
 
-# def test_liquidation_in_isolated_mode_for_long_trades():
-#     single_route_backtest('TestLiquidationInIsolatedModeForLongTrade', is_futures_trading=True, leverage=2, leverage_mode='isolated')
+def test_liquidation_in_isolated_mode_for_long_trades():
+    single_route_backtest(
+        'TestLiquidationInIsolatedModeForLongTrade', is_futures_trading=True, leverage=2,
+        leverage_mode='isolated', trend='down'
+    )
 
 
 # def test_route_capital_isolation():
