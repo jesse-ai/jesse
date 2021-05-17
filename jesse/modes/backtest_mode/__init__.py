@@ -397,6 +397,9 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
     p: Position = selectors.get_position(exchange, symbol)
 
+    if p.mode == 'spot':
+        return
+
     if candle_includes_price(candle, p.liquidation_price):
         closing_order_side = jh.closing_side(p.type)
 
