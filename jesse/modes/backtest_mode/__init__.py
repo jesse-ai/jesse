@@ -413,6 +413,8 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
             'role': order_roles.CLOSE_POSITION
         })
 
+        store.app.total_liquidations += 1
+
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
         print(f'{p.symbol} liquidated at {p.liquidation_price}')
 

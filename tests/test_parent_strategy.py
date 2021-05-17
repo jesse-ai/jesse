@@ -53,13 +53,14 @@ def test_average_take_profit_exception():
         backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
 
 
-# def test_can_close_a_long_position_and_go_short_at_the_same_candle():
-#     single_route_backtest('Test45')
-#     trades = store.completed_trades.trades
-#
-#     assert len(trades) == 2
-#     assert store.app.total_open_trades == 1
-#     # more assertions in the Test45 file
+def test_can_close_a_long_position_and_go_short_at_the_same_candle():
+    single_route_backtest('Test45')
+    trades = store.completed_trades.trades
+
+    assert len(trades) == 2
+    # the position should no longer stay open because it gets liquidated eventually
+    assert store.app.total_open_trades == 0
+    assert store.app.total_liquidations == 1
 
 
 def test_can_perform_backtest_with_multiple_routes():
