@@ -897,12 +897,11 @@ def test_reduce_only_market_orders():
     single_route_backtest('TestReduceOnlyMarketOrders', is_futures_trading=True, leverage=1)
 
 
-# def test_liquidation_in_cross_mode():
-#     single_route_backtest('TestLiquidationInCrossMode', is_futures_trading=True, leverage=2)
-
-
 def test_liquidation_in_isolated_mode_for_short_trades():
-    single_route_backtest('TestLiquidationInIsolatedModeForShortTrade', is_futures_trading=True, leverage=2, leverage_mode='isolated')
+    single_route_backtest(
+        'TestLiquidationInIsolatedModeForShortTrade', is_futures_trading=True, leverage=2,
+        leverage_mode='isolated'
+    )
 
 
 def test_liquidation_in_isolated_mode_for_long_trades():
@@ -910,6 +909,10 @@ def test_liquidation_in_isolated_mode_for_long_trades():
         'TestLiquidationInIsolatedModeForLongTrade', is_futures_trading=True, leverage=2,
         leverage_mode='isolated', trend='down'
     )
+
+
+# def test_liquidation_in_cross_mode():
+#     single_route_backtest('TestLiquidationInCrossMode', is_futures_trading=True, leverage=2)
 
 
 # def test_route_capital_isolation():
