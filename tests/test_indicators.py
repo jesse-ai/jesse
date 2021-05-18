@@ -772,6 +772,17 @@ def test_ichimoku_cloud_seq():
     assert len(seq.conversion_line) == len(candles)
 
 
+def test_ift_rsi():
+    # use the same candles as dema_candles
+    candles = np.array(mama_candles)
+
+    single = ta.ift_rsi(candles)
+    seq = ta.ift_rsi(candles, sequential=True)
+
+    assert round(single, 2) == 0.89
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 def test_itrend():
     candles = np.array(mama_candles)
     single = ta.itrend(candles)
