@@ -151,6 +151,10 @@ class Position:
 
     @property
     def liquidation_price(self):
+        """
+        The price at which the position gets liquidated. formulas are taken from:
+        https://help.bybit.com/hc/en-us/articles/900000181046-Liquidation-Price-USDT-Contract-
+        """
         if self.mode == 'isolated':
             if self.type == 'long':
                 return self.entry_price * (1 - self._initial_margin_rate + 0.004)
