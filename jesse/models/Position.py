@@ -155,6 +155,9 @@ class Position:
         The price at which the position gets liquidated. formulas are taken from:
         https://help.bybit.com/hc/en-us/articles/900000181046-Liquidation-Price-USDT-Contract-
         """
+        if self.is_close:
+            return np.nan
+
         if self.mode == 'isolated':
             if self.type == 'long':
                 return self.entry_price * (1 - self._initial_margin_rate + 0.004)
@@ -184,34 +187,6 @@ class Position:
             return self.entry_price * (1 + self._initial_margin_rate)
         else:
             return np.nan
-
-
-    #
-    # Bankruptcy
-    # Price = Entry
-    # Price × (1 - Initial Margin Rate *)
-    #
-    # For
-    # Sell / Short:
-    #
-    # Bankruptcy
-    # Price = Entry
-    # Price × (1 + Initial Margin Rate *)
-    #
-    # *Initial
-    # Margin
-    # Rate(IMR) = 1 / Leverage
-
-
-    # - Margin Ratio
-    # * Liquidation price
-    # * mark price?!
-    # * Maintenance futures
-    # * futures balance
-
-    # @property
-    # def futures_ratio(self):
-    #     return 0
 
     def _close(self, close_price: float) -> None:
         if self.is_open is False:
