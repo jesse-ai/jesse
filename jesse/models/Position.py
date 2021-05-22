@@ -19,8 +19,7 @@ class Position:
         self.qty = 0
         self.opened_at = None
         self.closed_at = None
-
-        # TODO: self._mark_price = None
+        self._mark_price = None
 
         if attributes is None:
             attributes = {}
@@ -34,10 +33,12 @@ class Position:
         for a in attributes:
             setattr(self, a, attributes[a])
 
-    # @property
-    # def mark_price(self):
-    #     # TODO: make sure that it is available only for live trading in futures markets
-    #     return self._mark_price
+    @property
+    def mark_price(self):
+        if not jh.is_livetrading():
+            return self.current_price
+
+        return self._mark_price
 
     @property
     def value(self) -> float:
