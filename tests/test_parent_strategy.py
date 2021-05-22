@@ -911,9 +911,12 @@ def test_liquidation_in_isolated_mode_for_long_trades():
     )
 
 
-# def test_liquidation_in_cross_mode():
-#     single_route_backtest('TestLiquidationInCrossMode', is_futures_trading=True, leverage=2)
-
+# TODO: implement liquidation in backtest mode for cross mode
+# def test_liquidation_in_cross_mode_for_short_trades():
+#     single_route_backtest(
+#         'TestLiquidationInCrossModeForShortTrade', is_futures_trading=True, leverage=10,
+#         leverage_mode='cross'
+#     )
 
 # def test_route_capital_isolation():
 #     set_up(
