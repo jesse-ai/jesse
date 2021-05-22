@@ -19,8 +19,7 @@ class Position:
         self.qty = 0
         self.opened_at = None
         self.closed_at = None
-
-        # TODO: self._mark_price = None
+        self._mark_price = None
 
         if attributes is None:
             attributes = {}
@@ -34,10 +33,12 @@ class Position:
         for a in attributes:
             setattr(self, a, attributes[a])
 
-    # @property
-    # def mark_price(self):
-    #     # TODO: make sure that it is available only for live trading in futures markets
-    #     return self._mark_price
+    @property
+    def mark_price(self):
+        if not jh.is_livetrading():
+            return self.current_price
+
+        return self._mark_price
 
     @property
     def value(self) -> float:
@@ -149,16 +150,44 @@ class Position:
         else:
             return self.exchange.futures_leverage_mode
 
-    # - Margin Ratio
-    # * Liquidation price
-    # * mark price?!
-    # * ROE(PNL?)
-    # * Maintenance futures
-    # * futures balance
+    @property
+    def liquidation_price(self):
+        """
+        The price at which the position gets liquidated. formulas are taken from:
+        https://help.bybit.com/hc/en-us/articles/900000181046-Liquidation-Price-USDT-Contract-
+        """
+        if self.is_close:
+            return np.nan
 
-    # @property
-    # def futures_ratio(self):
-    #     return 0
+        if self.mode == 'isolated':
+            if self.type == 'long':
+                return self.entry_price * (1 - self._initial_margin_rate + 0.004)
+            elif self.type == 'short':
+                return self.entry_price * (1 + self._initial_margin_rate - 0.004)
+            else:
+                return np.nan
+
+        elif self.mode == 'cross':
+            return np.nan
+
+        elif self.mode == 'spot':
+            return np.nan
+
+        else:
+            raise ValueError
+
+    @property
+    def _initial_margin_rate(self):
+        return 1 / self.leverage
+
+    @property
+    def bankruptcy_price(self):
+        if self.type == 'long':
+            return self.entry_price * (1 - self._initial_margin_rate)
+        elif self.type == 'short':
+            return self.entry_price * (1 + self._initial_margin_rate)
+        else:
+            return np.nan
 
     def _close(self, close_price: float) -> None:
         if self.is_open is False:

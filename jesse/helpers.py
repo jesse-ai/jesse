@@ -448,9 +448,10 @@ def opposite_side(s: str) -> str:
 
     if s == sides.BUY:
         return sides.SELL
-    if s == sides.SELL:
+    elif s == sides.SELL:
         return sides.BUY
-    raise ValueError('unsupported side')
+    else:
+        raise ValueError(f'{s} is not a valid input for side')
 
 
 def opposite_type(t: str) -> str:
@@ -514,11 +515,10 @@ def orderbook_trim_price(p: float, ascending: bool, unit: float) -> float:
 def prepare_qty(qty: float, side: str) -> float:
     if side.lower() in ('sell', 'short'):
         return -abs(qty)
-
-    if side.lower() in ('buy', 'long'):
+    elif side.lower() in ('buy', 'long'):
         return abs(qty)
-
-    raise TypeError()
+    else:
+        raise ValueError(f'{side} is not a valid input')
 
 
 def python_version() -> float:
@@ -750,3 +750,12 @@ def unique_list(arr) -> list:
     seen = set()
     seen_add = seen.add
     return [x for x in arr if not (x in seen or seen_add(x))]
+
+
+def closing_side(position_type: str) -> str:
+    if position_type.lower() == 'long':
+        return 'sell'
+    elif position_type.lower() == 'short':
+        return 'buy'
+    else:
+        raise ValueError(f'Value entered for position_type ({position_type}) is not valid')

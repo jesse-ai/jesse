@@ -33,6 +33,16 @@ def get_btc_candles():
     return candles
 
 
+def get_downtrend_candles():
+    candles = {}
+    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'BTC-USDT',
+        'candles': fake_range_candle_from_range_prices(range(100, 10, -1))
+    }
+    return candles
+
+
 def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
@@ -58,14 +68,25 @@ def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cros
     store.reset(True)
 
 
-def single_route_backtest(strategy_name: str, is_futures_trading=True, leverage=1):
+def single_route_backtest(
+        strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up'
+):
     """
     used to simplify simple tests
     """
     set_up(
         [(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)],
         is_futures_trading=is_futures_trading,
-        leverage=leverage
+        leverage=leverage,
+        leverage_mode=leverage_mode
     )
+
+    if trend == 'up':
+        candles = get_btc_candles()
+    elif trend == 'down':
+        candles = get_downtrend_candles()
+    else:
+        raise ValueError
+
     # dates are fake. just to pass required parameters
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+    backtest_mode.run('2019-04-01', '2019-04-02', candles)

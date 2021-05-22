@@ -13,11 +13,6 @@ low_price = min_price if randint(0, 1) else randint(min_price, min_price + 10)
 
 
 def fake_range_candle(count) -> np.ndarray:
-    """
-
-    :param count:
-    :return:
-    """
     fake_candle(reset=True)
     arr = np.zeros((count, 6))
     for i in range(count):
@@ -26,11 +21,6 @@ def fake_range_candle(count) -> np.ndarray:
 
 
 def fake_range_candle_from_range_prices(prices) -> np.ndarray:
-    """
-
-    :param prices:
-    :return:
-    """
     fake_candle(reset=True)
     global first_timestamp
     arr = []
@@ -56,12 +46,6 @@ def fake_range_candle_from_range_prices(prices) -> np.ndarray:
 
 
 def fake_candle(attributes=None, reset=False):
-    """
-
-    :param attributes:
-    :param reset:
-    :return:
-    """
     global first_timestamp
     global open_price
     global close_price
