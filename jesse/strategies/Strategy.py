@@ -1252,3 +1252,15 @@ class Strategy(ABC):
             return self.position.exchange.futures_leverage
         else:
             raise ValueError('exchange type not supported!')
+
+    @property
+    def mark_price(self):
+        return self.position.mark_price
+
+    @property
+    def funding_rate(self):
+        return self.position.funding_rate
+
+    @property
+    def next_funding_timestamp(self):
+        return self.position.next_funding_timestamp

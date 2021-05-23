@@ -20,6 +20,8 @@ class Position:
         self.opened_at = None
         self.closed_at = None
         self._mark_price = None
+        self._funding_rate = None
+        self._next_funding_timestamp = None
 
         if attributes is None:
             attributes = {}
@@ -35,10 +37,24 @@ class Position:
 
     @property
     def mark_price(self):
-        if not jh.is_livetrading():
+        if not jh.is_live():
             return self.current_price
 
         return self._mark_price
+
+    @property
+    def funding_rate(self):
+        if not jh.is_live():
+            return 0
+
+        return self._funding_rate
+
+    @property
+    def next_funding_timestamp(self):
+        if not jh.is_live():
+            return None
+
+        return self._next_funding_timestamp
 
     @property
     def value(self) -> float:

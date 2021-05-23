@@ -911,6 +911,11 @@ def test_liquidation_in_isolated_mode_for_long_trades():
     )
 
 
+def test_mark_price():
+    single_route_backtest(
+        'TestMarkPrice', is_futures_trading=True,
+    )
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(
