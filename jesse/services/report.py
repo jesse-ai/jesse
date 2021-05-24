@@ -52,7 +52,7 @@ def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]
                 pos.qty if abs(pos.qty) > 0 else None,
                 pos.entry_price,
                 pos.current_price,
-                '' if np.isnan(pos.liquidation_price) else pos.liquidation_price,
+                '' if (np.isnan(pos.liquidation_price) or pos.liquidation_price == 0) else pos.liquidation_price,
                 '' if pos.is_close else f'{jh.color(str(round(pos.pnl, 2)), pnl_color)} ({jh.color(str(round(pos.pnl_percentage, 4)), pnl_color)}%)',
             ]
         )
