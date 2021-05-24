@@ -1264,3 +1264,7 @@ class Strategy(ABC):
     @property
     def next_funding_timestamp(self):
         return self.position.next_funding_timestamp
+
+    @property
+    def liquidation_price(self):
+        return self.position.liquidation_price

@@ -22,6 +22,7 @@ class Position:
         self._mark_price = None
         self._funding_rate = None
         self._next_funding_timestamp = None
+        self._liquidation_price = None
 
         if attributes is None:
             attributes = {}
@@ -174,6 +175,9 @@ class Position:
         """
         if self.is_close:
             return np.nan
+
+        if jh.is_livetrading():
+            return self._liquidation_price
 
         if self.mode == 'isolated':
             if self.type == 'long':
