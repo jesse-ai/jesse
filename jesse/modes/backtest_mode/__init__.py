@@ -397,6 +397,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
     p: Position = selectors.get_position(exchange, symbol)
 
+    # for now, we only support the isolated mode:
     if p.mode != 'isolated':
         return
 
@@ -416,10 +417,11 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
             'role': order_roles.CLOSE_POSITION
         })
 
+        store.orders.add_order(order)
+
         store.app.total_liquidations += 1
 
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
-        print(f'{p.symbol} liquidated at {p.liquidation_price}')
 
         order.execute()
 
