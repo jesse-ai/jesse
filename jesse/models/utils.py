@@ -40,6 +40,7 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
 
 
 def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None:
+    return
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': ticker[0],
@@ -62,6 +63,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None
 
 
 def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
+    return
     d = {
         'id': completed_trade.id,
         'strategy_name': completed_trade.strategy_name,
@@ -91,6 +93,7 @@ def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
 
 
 def store_order_into_db(order: Order) -> None:
+    return
     d = {
         'id': order.id,
         'trade_id': order.trade_id,
@@ -120,6 +123,7 @@ def store_order_into_db(order: Order) -> None:
 
 
 def store_daily_balance_into_db(daily_balance: dict) -> None:
+    return
     def async_save():
         DailyBalance.insert(**daily_balance).execute()
         if jh.is_debugging():
@@ -131,6 +135,7 @@ def store_daily_balance_into_db(daily_balance: dict) -> None:
 
 
 def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
+    return
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': trade[0],
@@ -157,6 +162,7 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
 
 
 def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -> None:
+    return
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': jh.now_to_timestamp(),
