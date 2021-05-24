@@ -145,7 +145,7 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
                     arr.append(
                         [
                             f'{asset_name}',
-                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)} ({jh.format_currency(round(asset_balance * current_price, 2))} { jh.quote_asset(router.routes[0].symbol)})'
+                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)} ({jh.format_currency(round(asset_balance * current_price, 2))} {jh.quote_asset(router.routes[0].symbol)})'
                         ]
                     )
                 else:
@@ -193,7 +193,8 @@ def portfolio_metrics() -> List[
         ['Annual Return', f"{round(data['annual_return'], 2)}%"],
         ['Expectancy',
          f"{jh.format_currency(round(data['expectancy'], 2))} ({str(round(data['expectancy_percentage'], 2))}%)"],
-        ['Avg Win | Avg Loss', f"{jh.format_currency(round(data['average_win'], 2))} | {jh.format_currency(round(data['average_loss'], 2))}"],
+        ['Avg Win | Avg Loss',
+         f"{jh.format_currency(round(data['average_win'], 2))} | {jh.format_currency(round(data['average_loss'], 2))}"],
         ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
         ['Percent Profitable', f"{str(round(data['win_rate'] * 100))}%"],
         ['Longs | Shorts', f"{round(data['longs_percentage'])}% | {round(data['short_percentage'])}%"],
@@ -235,8 +236,10 @@ def info() -> List[List[Union[str, Any]]]:
 
     for w in store.logs.info[::-1][0:5]:
         array.append(
-            [jh.timestamp_to_time(w['time'])[11:19],
-             f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']])
+            [
+                jh.timestamp_to_time(w['time'])[11:19],
+                f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']
+            ])
     return array
 
 
