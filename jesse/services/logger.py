@@ -2,7 +2,9 @@ import jesse.helpers as jh
 from jesse.services.notifier import notify, notify_urgently
 import logging
 
+
 def info(msg: str) -> None:
+    msg = str(msg)
     from jesse.store import store
 
     store.logs.info.append({'time': jh.now_to_timestamp(), 'message': msg})
@@ -11,11 +13,12 @@ def info(msg: str) -> None:
         print(f'[{jh.timestamp_to_time(jh.now_to_timestamp())}]: {msg}')
 
     if jh.is_live():
-        msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {str(msg)}"
+        msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
         logging.info(msg)
 
 
 def error(msg: str) -> None:
+    msg = str(msg)
     from jesse.store import store
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True):
@@ -27,5 +30,5 @@ def error(msg: str) -> None:
     store.logs.errors.append({'time': jh.now_to_timestamp(), 'message': msg})
 
     if jh.is_live() or jh.is_optimizing():
-        msg = f"[ERROR | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {str(msg)}"
+        msg = f"[ERROR | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
         logging.error(msg)
