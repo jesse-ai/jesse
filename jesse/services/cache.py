@@ -2,6 +2,7 @@ import os
 import pickle
 from time import time
 from typing import Any
+from functools import lru_cache
 
 import jesse.helpers as jh
 
@@ -80,3 +81,15 @@ class Cache:
 
 
 cache = Cache("storage/temp/")
+
+
+# Using functools.lru_cache
+def cached(method):
+    def decorated(self, *args, **kwargs):
+        cached_method = self._cached_methods.get(method)
+        if cached_method is None:
+            cached_method = lru_cache()(method)
+            self._cached_methods[method] = cached_method
+        return cached_method(self, *args, **kwargs)
+
+    return decorated

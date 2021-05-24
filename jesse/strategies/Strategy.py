@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from functools import lru_cache
 from time import sleep
 from typing import List
 
@@ -16,16 +15,8 @@ from jesse.models.utils import store_completed_trade_into_db, store_order_into_d
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
+from jesse.services.cache import cached
 
-# Using functools.lru_cache
-def cached(method):
-    def decorated(self, *args, **kwargs):
-        cached_method = self._cached_methods.get(method)
-        if cached_method is None:
-            cached_method = lru_cache()(method)
-            self._cached_methods[method] = cached_method
-        return cached_method(self, *args, **kwargs)
-    return decorated
 
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
@@ -1021,7 +1012,9 @@ class Strategy(ABC):
         if self.trades_count in self._cached_metrics:
             return self._cached_metrics[self.trades_count]
         else:
-            self._cached_metrics[self.trades_count] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+            self._cached_metrics[self.trades_count] = metrics.trades(
+                store.completed_trades.trades, store.app.daily_balance
+            )
             return self._cached_metrics[self.trades_count]
 
     @property
