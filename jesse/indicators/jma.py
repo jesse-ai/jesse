@@ -6,7 +6,7 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def jma(candles: np.ndarray, length=7, phase=50, power=2, source_type='close', sequential=False) -> Union[
+def jma(candles: np.ndarray, length:int=7, phase:float=50, power:int=2, source_type:str='close', sequential:bool=False) -> Union[
   float, np.ndarray]:
     """
     Jurik Moving Average
