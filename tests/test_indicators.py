@@ -835,6 +835,23 @@ def test_kaufmanstop():
     assert seq[-1] == single
 
 
+def test_kdj():
+    candles = np.array(mama_candles)
+
+    kd = ta.kdj(candles)
+    k, d, j = kd
+    assert type(kd).__name__ == 'KDJ'
+    assert round(k, 1) == 13.3
+    assert round(d, 1) == 15.7
+    assert round(j, 1) == 8.6
+
+    seq_kd = ta.kdj(candles, sequential=True)
+    assert seq_kd.k[-1] == k
+    assert len(seq_kd.k) == len(candles)
+    assert len(seq_kd.d) == len(candles)
+    assert len(seq_kd.j) == len(candles)
+
+
 def test_kelner_channels():
     candles = np.array(keltner_channel_candles)
 

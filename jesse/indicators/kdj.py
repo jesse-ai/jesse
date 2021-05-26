@@ -8,13 +8,13 @@ from jesse.helpers import slice_candles
 
 KDJ = namedtuple('KDJ', ['k', 'd', 'j'])
 
-def kdj(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, slowk_matype: int = 0,
+def kdj(candles: np.ndarray, fastk_period: int = 9, slowk_period: int = 3, slowk_matype: int = 0,
           slowd_period: int = 3, slowd_matype: int = 0, sequential: bool = False) -> KDJ:
     """
     The KDJ Oscillator
 
     :param candles: np.ndarray
-    :param fastk_period: int - default=14
+    :param fastk_period: int - default=9
     :param slowk_period: int - default=3
     :param slowk_matype: int - default=0
     :param slowd_period: int - default=3
