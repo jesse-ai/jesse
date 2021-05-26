@@ -81,7 +81,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     elif matype == 25:
         from . import pwma
         res = pwma(source, period, source_type=source_type,  sequential=True)
-    elif matype == 25:
+    elif matype == 26:
         from . import swma
         res = swma(source, period, source_type=source_type,  sequential=True)
 
