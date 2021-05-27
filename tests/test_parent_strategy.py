@@ -916,6 +916,14 @@ def test_mark_price():
         'TestMarkPrice', is_futures_trading=True,
     )
 
+
+def test_log_method():
+    single_route_backtest('TestLogMethodInStrategyClass')
+
+    assert store.logs.info[1]['message'] == 'test info log'
+    assert store.logs.errors[0]['message'] == 'test error log'
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(

@@ -1240,3 +1240,13 @@ class Strategy(ABC):
     @property
     def liquidation_price(self):
         return self.position.liquidation_price
+
+    def log(self, msg, log_type='info'):
+        msg = str(msg)
+
+        if log_type == 'info':
+            logger.info(msg)
+        elif log_type == 'error':
+            logger.error(msg)
+        else:
+            raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
