@@ -65,6 +65,7 @@ from .itrend import itrend
 from .jma import jma
 from .kama import kama
 from .kaufmanstop import kaufmanstop
+from .kdj import kdj
 from .keltner import keltner
 from .kst import kst
 from .kurtosis import kurtosis
