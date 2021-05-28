@@ -3,7 +3,7 @@ blinker==1.4
 click==8.0.1
 crypto-empyrical==1.0.4
 matplotlib==3.4.2
-newtulipy==0.4.4
+newtulipy==0.4.5
 numba==0.53.1
 numpy==1.20.3
 numpy_groupies==0.9.13
