@@ -127,17 +127,6 @@ def numpy_candles_to_dataframe(candles: np.ndarray, name_date: str = "date", nam
                                name_high: str = "high",
                                name_low: str = "low", name_close: str = "close",
                                name_volume: str = "volume") -> pd.DataFrame:
-    """
-
-    :param candles:
-    :param name_date:
-    :param name_open:
-    :param name_high:
-    :param name_low:
-    :param name_close:
-    :param name_volume:
-    :return:
-    """
     columns = [name_date, name_open, name_close, name_high, name_low, name_volume]
     df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
     df[name_date] = pd.to_datetime(df.index, unit="ms")
@@ -273,9 +262,28 @@ def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.nda
 def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
+
 def pct_change(series: np.ndarray) -> np.ndarray:
     pct = np.diff(series) / series[:-1] * 100
     return jh.same_length(series, pct)
+
+
+def z_score(series: np.ndarray):
+    return (series - np.mean(series)) / np.std(series)
+
+
+def are_cointegrated(x, y, cutoff=0.05):
+    """
+    Uses unit-root test on residuals to test for cointegrated relationship
+    See Hamilton (1994) 19.2 for more details
+    H_0 is that there is no cointegration i.e. that the residuals have are unit root series (non-stationary)
+    We must observe significant p-value to convince ourselves that the series are cointegrated
+    """
+    from statsmodels.tsa.stattools import coint
+
+    p_value = coint(x, y)[1]
+    return p_value < cutoff
+
 
 def dd(msg: str) -> None:
     """
