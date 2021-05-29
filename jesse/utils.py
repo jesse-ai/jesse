@@ -256,7 +256,8 @@ def streaks(series: np.ndarray, use_diff=True) -> np.ndarray:
 
 
 def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.ndarray:
-    return MA(series, timeperiod=period, matype=matype)
+    from jesse.indicators.ma import ma
+    return ma(series, period=period, matype=matype, sequential=True)
 
 
 def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
