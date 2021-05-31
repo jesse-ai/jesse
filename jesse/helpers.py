@@ -406,6 +406,9 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
 
 
 def now() -> int:
+    """
+    Always returns the current time in milliseconds but rounds time in matter of seconds
+    """
     return now_to_timestamp()
 
 
