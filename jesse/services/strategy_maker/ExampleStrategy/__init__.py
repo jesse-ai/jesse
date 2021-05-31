@@ -1,4 +1,4 @@
-from jesse.strategies import Strategy, cached
+from jesse.strategies import Strategy
 import jesse.indicators as ta
 from jesse import utils
 
