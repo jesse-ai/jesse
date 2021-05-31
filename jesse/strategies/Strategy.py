@@ -901,7 +901,6 @@ class Strategy(ABC):
             m.cache_clear()
 
     @property
-    @cached
     def current_candle(self) -> np.ndarray:
         """
         Returns current trading candle
@@ -961,7 +960,6 @@ class Strategy(ABC):
         return self.current_candle[4]
 
     @property
-    @cached
     def candles(self) -> np.ndarray:
         """
         Returns candles for current trading route
@@ -970,7 +968,6 @@ class Strategy(ABC):
         """
         return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
 
-    @cached
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
         Get candles by passing exchange, symbol, and timeframe
@@ -1033,7 +1030,6 @@ class Strategy(ABC):
         return self.position.exchange.wallet_balance(self.symbol)
 
     @property
-    @cached
     def available_margin(self) -> float:
         """Current available margin considering leverage"""
         return self.position.exchange.available_margin(self.symbol)
