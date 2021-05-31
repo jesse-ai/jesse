@@ -46,8 +46,7 @@ class CandlesState:
             symbol: str,
             timeframe: str,
             with_execution: bool = True,
-            with_generation: bool = True,
-            is_forming_candle: bool = False
+            with_generation: bool = True
     ) -> None:
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
@@ -59,6 +58,12 @@ class CandlesState:
 
         if jh.is_live():
             self.update_position(exchange, symbol, candle)
+
+            # ignore new candle at the time of execution because it messes
+            # the count of candles without actually having an impact
+            if candle[0] >= jh.now():
+                return
+
         # initial
         if len(arr) == 0:
             arr.append(candle)
@@ -73,7 +78,7 @@ class CandlesState:
 
             # generate other timeframes
             if with_generation and timeframe == '1m':
-                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution, is_forming_candle)
+                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
         # if it's the last candle again, update
         elif candle[0] == arr[-1][0]:
@@ -85,7 +90,7 @@ class CandlesState:
 
             # regenerate other timeframes
             if with_generation and timeframe == '1m':
-                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution, is_forming_candle)
+                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
         # past candles will be ignored (dropped)
         elif candle[0] < arr[-1][0]:
@@ -108,8 +113,7 @@ class CandlesState:
         else:
             p.current_price = candle[2]
 
-    def generate_bigger_timeframes(self, candle: np.ndarray, exchange: str, symbol: str, with_execution: bool,
-                                   is_forming_candle: bool) -> None:
+    def generate_bigger_timeframes(self, candle: np.ndarray, exchange: str, symbol: str, with_execution: bool) -> None:
         if not jh.is_live():
             return
 
@@ -120,22 +124,16 @@ class CandlesState:
 
             last_candle = self.get_current_candle(exchange, symbol, timeframe)
             generate_from_count = int((candle[0] - last_candle[0]) / 60_000)
-            required_for_complete_candle = jh.timeframe_to_one_minutes(timeframe)
             short_candles = self.get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
-            if generate_from_count == (required_for_complete_candle - 1) and not is_forming_candle:
-                is_forming_candle = False
-            else:
-                is_forming_candle = True
 
             # update latest candle
             generated_candle = generate_candle_from_one_minutes(
                 timeframe,
                 short_candles,
-                True
+                accept_forming_candles=True
             )
 
-            self.add_candle(generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False,
-                            is_forming_candle=is_forming_candle)
+            self.add_candle(generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False)
 
     def simulate_order_execution(self, exchange: str, symbol: str, timeframe: str, new_candle: np.ndarray) -> None:
         previous_candle = self.get_current_candle(exchange, symbol, timeframe)
