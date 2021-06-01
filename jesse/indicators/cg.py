@@ -1,7 +1,10 @@
 from typing import Union
 
 import numpy as np
-from numba import njit
+try:
+    from numba import njit
+except ImportError:
+    njit = lambda a : a
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
