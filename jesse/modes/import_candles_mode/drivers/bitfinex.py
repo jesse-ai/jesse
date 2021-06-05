@@ -2,17 +2,21 @@ import requests
 
 import jesse.helpers as jh
 from jesse import exceptions
-from .interface import CandleExchange
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 class Bitfinex(CandleExchange):
     def __init__(self) -> None:
-        super().__init__('Bitfinex', 1440, 1)
-        self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
+        # import here instead of the top of the file to prevent possible the circular imports issue
+        from jesse.modes.import_candles_mode.drivers import Coinbase
 
-    def init_backup_exchange(self):
-        from .coinbase import Coinbase
-        self.backup_exchange = Coinbase()
+        super().__init__(
+            name='Bitfinex',
+            endpoint='https://api-pub.bitfinex.com/v2/candles',
+            count=1440,
+            sleep_time=1,
+            backup_exchange=Coinbase
+        )
 
     def get_starting_time(self, symbol: str):
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -41,6 +45,8 @@ class Bitfinex(CandleExchange):
                 f"No candle exists for {symbol} in Bitfinex. You're probably misspelling the symbol name."
             )
 
+        # since the first timestamp doesn't include all the 1m
+        # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
         second_timestamp = first_timestamp + 60_000 * 1440
 

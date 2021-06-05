@@ -7,11 +7,13 @@ from .interface import CandleExchange
 
 class Binance(CandleExchange):
     def __init__(self) -> None:
-        super().__init__('Binance', 1000, 0.5)
-        self.endpoint = 'https://www.binance.com/api/v1/klines'
-
-    def init_backup_exchange(self):
-        self.backup_exchange = None
+        super().__init__(
+            name='Binance',
+            endpoint='https://www.binance.com/api/v1/klines',
+            count=1000,
+            sleep_time=0.5,
+            backup_exchange=None
+        )
 
     def get_starting_time(self, symbol):
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -36,6 +38,9 @@ class Binance(CandleExchange):
             raise Exception(response.content)
 
         data = response.json()
+
+        # since the first timestamp doesn't include all the 1m
+        # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
         second_timestamp = first_timestamp + 60_000 * 1440
 

@@ -90,7 +90,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                     if temp_start_timestamp > first_existing_timestamp:
                         # see if there are candles for the same date for the backup exchange,
                         # if so, get those, if not, download from that exchange.
-                        driver.init_backup_exchange()
                         if driver.backup_exchange is not None:
                             candles = _get_candles_from_backup_exchange(
                                 exchange, driver.backup_exchange, symbol, temp_start_timestamp, temp_end_timestamp

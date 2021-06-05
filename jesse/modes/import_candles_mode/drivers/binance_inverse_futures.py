@@ -7,12 +7,16 @@ from .interface import CandleExchange
 
 class BinanceInverseFutures(CandleExchange):
     def __init__(self) -> None:
-        super().__init__('Binance Inverse Futures', 1000, 0.5)
-        self.endpoint = 'https://dapi.binance.com/dapi/v1/klines'
+        # import here instead of the top of the file to prevent possible the circular imports issue
+        from jesse.modes.import_candles_mode.drivers import Binance
 
-    def init_backup_exchange(self):
-        from .binance import Binance
-        self.backup_exchange = Binance()
+        super().__init__(
+            name='Binance Inverse Futures',
+            endpoint='https://dapi.binance.com/dapi/v1/klines',
+            count=1000,
+            sleep_time=0.5,
+            backup_exchange=Binance
+        )
 
     def get_starting_time(self, symbol):
         payload = {
@@ -35,6 +39,9 @@ class BinanceInverseFutures(CandleExchange):
             raise Exception(response.content)
 
         data = response.json()
+
+        # since the first timestamp doesn't include all the 1m
+        # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
         second_timestamp = first_timestamp + 60_000 * 1440
 
