@@ -4,7 +4,6 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
-from talib import MA
 
 import jesse.helpers as jh
 from jesse.enums import timeframes
@@ -264,16 +263,22 @@ def kelly_criterion(win_rate: float, ratio_avg_win_loss: float) -> float:
     return win_rate - ((1 - win_rate) / ratio_avg_win_loss)
 
 
-def pct_change(series: np.ndarray) -> np.ndarray:
-    pct = np.diff(series) / series[:-1] * 100
-    return jh.same_length(series, pct)
+def prices_to_returns(price_series: np.ndarray) -> np.ndarray:
+    """
+    converts a series of asset prices to returns.
+    """
+    pct = np.diff(price_series) / price_series[:-1] * 100
+    return jh.same_length(price_series, pct)
 
 
-def z_score(series: np.ndarray):
+def z_score(series: np.ndarray) -> np.ndarray:
+    """
+    A Z-score is a numerical measurement that describes a value's relationship to the mean of a group of values. Z-score is measured in terms of standard deviations from the mean
+    """
     return (series - np.mean(series)) / np.std(series)
 
 
-def are_cointegrated(x, y, cutoff=0.05):
+def are_cointegrated(price_returns_1: np.ndarray, price_returns_2: np.ndarray, cutoff=0.05) -> bool:
     """
     Uses unit-root test on residuals to test for cointegrated relationship
     See Hamilton (1994) 19.2 for more details
@@ -282,7 +287,7 @@ def are_cointegrated(x, y, cutoff=0.05):
     """
     from statsmodels.tsa.stattools import coint
 
-    p_value = coint(x, y)[1]
+    p_value = coint(price_returns_1, price_returns_2)[1]
     return p_value < cutoff
 
 
