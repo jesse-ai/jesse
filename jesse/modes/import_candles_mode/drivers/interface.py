@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class CandleExchange(ABC):
-    def __init__(self, name: str, endpoint: str, count: int, rate_limit_per_second: float, backup_exchange_class):
+    def __init__(self, name: str, count: int, rate_limit_per_second: float, backup_exchange_class):
         self.name = name
-        self.endpoint = endpoint
         self.count = count
         self.sleep_time = 1 / rate_limit_per_second
         self._backup_exchange_class = backup_exchange_class

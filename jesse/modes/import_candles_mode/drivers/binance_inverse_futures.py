@@ -12,11 +12,12 @@ class BinanceInverseFutures(CandleExchange):
 
         super().__init__(
             name='Binance Inverse Futures',
-            endpoint='https://dapi.binance.com/dapi/v1/klines',
             count=1000,
             rate_limit_per_second=2,
             backup_exchange_class=Binance
         )
+
+        self.endpoint = 'https://dapi.binance.com/dapi/v1/klines'
 
     def get_starting_time(self, symbol):
         payload = {

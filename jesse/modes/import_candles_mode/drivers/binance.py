@@ -9,11 +9,12 @@ class Binance(CandleExchange):
     def __init__(self) -> None:
         super().__init__(
             name='Binance',
-            endpoint='https://www.binance.com/api/v1/klines',
             count=1000,
             rate_limit_per_second=2,
             backup_exchange_class=None
         )
+
+        self.endpoint = 'https://www.binance.com/api/v1/klines'
 
     def get_starting_time(self, symbol):
         dashless_symbol = jh.dashless_symbol(symbol)

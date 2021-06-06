@@ -12,11 +12,12 @@ class BinanceFutures(CandleExchange):
 
         super().__init__(
             name='Binance Futures',
-            endpoint='https://fapi.binance.com/fapi/v1/klines',
             count=1000,
             rate_limit_per_second=2,
             backup_exchange_class=Binance
         )
+
+        self.endpoint = 'https://fapi.binance.com/fapi/v1/klines'
 
     def get_starting_time(self, symbol) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)

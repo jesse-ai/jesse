@@ -12,11 +12,12 @@ class Coinbase(CandleExchange):
 
         super().__init__(
             name='Coinbase',
-            endpoint='https://api.pro.coinbase.com/products',
             count=300,
             rate_limit_per_second=1.5,
             backup_exchange_class=Bitfinex
         )
+
+        self.endpoint = 'https://api.pro.coinbase.com/products'
 
     def get_starting_time(self, symbol: str):
         """

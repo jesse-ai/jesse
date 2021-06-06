@@ -12,11 +12,12 @@ class TestnetBinanceFutures(CandleExchange):
 
         super().__init__(
             name='Testnet Binance Futures',
-            endpoint='https://testnet.binancefuture.com/fapi/v1/klines',
             count=1000,
             rate_limit_per_second=2,
             backup_exchange_class=Binance
         )
+
+        self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 
     def get_starting_time(self, symbol):
         dashless_symbol = jh.dashless_symbol(symbol)

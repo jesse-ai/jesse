@@ -12,11 +12,12 @@ class Bitfinex(CandleExchange):
 
         super().__init__(
             name='Bitfinex',
-            endpoint='https://api-pub.bitfinex.com/v2/candles',
             count=1440,
             rate_limit_per_second=1,
             backup_exchange_class=Coinbase
         )
+
+        self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
 
     def get_starting_time(self, symbol: str):
         dashless_symbol = jh.dashless_symbol(symbol)
