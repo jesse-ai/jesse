@@ -25,8 +25,8 @@ def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]
         'type', 'strategy', 'symbol', 'leverage', 'opened at', 'qty', 'entry', 'current price', 'liq price', 'PNL (%)'
     ])
 
-    for p in store.positions.storage:
-        pos = store.positions.storage[p]
+    for r in router.routes:
+        pos = r.strategy.position
 
         if pos.pnl_percentage > 0:
             pnl_color = 'green'
