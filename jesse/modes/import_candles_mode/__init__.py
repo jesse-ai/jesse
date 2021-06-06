@@ -37,7 +37,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     start_date = arrow.get(start_timestamp / 1000)
     days_count = jh.date_diff_in_days(start_date, until_date)
     candles_count = days_count * 1440
-    exchange = exchange.title()
 
     try:
         driver: CandleExchange = drivers[exchange]()
