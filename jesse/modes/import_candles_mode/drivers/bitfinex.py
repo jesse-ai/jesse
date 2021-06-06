@@ -15,7 +15,7 @@ class Bitfinex(CandleExchange):
             endpoint='https://api-pub.bitfinex.com/v2/candles',
             count=1440,
             rate_limit_per_second=1,
-            backup_exchange=Coinbase
+            backup_exchange_class=Coinbase
         )
 
     def get_starting_time(self, symbol: str):

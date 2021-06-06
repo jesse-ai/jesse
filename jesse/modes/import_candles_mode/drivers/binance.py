@@ -12,7 +12,7 @@ class Binance(CandleExchange):
             endpoint='https://www.binance.com/api/v1/klines',
             count=1000,
             rate_limit_per_second=2,
-            backup_exchange=None
+            backup_exchange_class=None
         )
 
     def get_starting_time(self, symbol):

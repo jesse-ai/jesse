@@ -15,7 +15,7 @@ class BinanceFutures(CandleExchange):
             endpoint='https://fapi.binance.com/fapi/v1/klines',
             count=1000,
             rate_limit_per_second=2,
-            backup_exchange=Binance
+            backup_exchange_class=Binance
         )
 
     def get_starting_time(self, symbol) -> int:

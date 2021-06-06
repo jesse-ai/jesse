@@ -15,7 +15,7 @@ class Coinbase(CandleExchange):
             endpoint='https://api.pro.coinbase.com/products',
             count=300,
             rate_limit_per_second=1.5,
-            backup_exchange=Bitfinex
+            backup_exchange_class=Bitfinex
         )
 
     def get_starting_time(self, symbol: str):
