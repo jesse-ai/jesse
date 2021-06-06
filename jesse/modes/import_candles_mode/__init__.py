@@ -43,6 +43,8 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
         raise ValueError(f'{exchange} is not a supported exchange')
+    except TypeError:
+        raise FileNotFoundError('You are missing the "plugins.py" file')
 
     loop_length = int(candles_count / driver.count) + 1
     # ask for confirmation

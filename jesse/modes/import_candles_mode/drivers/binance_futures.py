@@ -8,7 +8,7 @@ from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 class BinanceFutures(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers import Binance
+        from jesse.modes.import_candles_mode.drivers.binance import Binance
 
         super().__init__(
             name='Binance Futures',
