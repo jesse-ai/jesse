@@ -14,7 +14,7 @@ class BinanceFutures(CandleExchange):
             name='Binance Futures',
             endpoint='https://fapi.binance.com/fapi/v1/klines',
             count=1000,
-            sleep_time=0.5,
+            rate_limit_per_second=2,
             backup_exchange=Binance
         )
 

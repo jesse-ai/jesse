@@ -14,7 +14,7 @@ class Bitfinex(CandleExchange):
             name='Bitfinex',
             endpoint='https://api-pub.bitfinex.com/v2/candles',
             count=1440,
-            sleep_time=1,
+            rate_limit_per_second=1,
             backup_exchange=Coinbase
         )
 

@@ -11,7 +11,7 @@ class Binance(CandleExchange):
             name='Binance',
             endpoint='https://www.binance.com/api/v1/klines',
             count=1000,
-            sleep_time=0.5,
+            rate_limit_per_second=2,
             backup_exchange=None
         )
 

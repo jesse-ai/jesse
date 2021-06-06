@@ -14,7 +14,7 @@ class Coinbase(CandleExchange):
             name='Coinbase',
             endpoint='https://api.pro.coinbase.com/products',
             count=300,
-            sleep_time=0.6,
+            rate_limit_per_second=1.5,
             backup_exchange=Bitfinex
         )
 

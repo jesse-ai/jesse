@@ -14,7 +14,7 @@ class TestnetBinanceFutures(CandleExchange):
             name='Testnet Binance Futures',
             endpoint='https://testnet.binancefuture.com/fapi/v1/klines',
             count=1000,
-            sleep_time=0.5,
+            rate_limit_per_second=2,
             backup_exchange=Binance
         )
 

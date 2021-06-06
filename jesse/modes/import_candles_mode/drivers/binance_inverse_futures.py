@@ -14,7 +14,7 @@ class BinanceInverseFutures(CandleExchange):
             name='Binance Inverse Futures',
             endpoint='https://dapi.binance.com/dapi/v1/klines',
             count=1000,
-            sleep_time=0.5,
+            rate_limit_per_second=2,
             backup_exchange=Binance
         )
 
