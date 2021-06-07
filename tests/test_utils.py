@@ -145,7 +145,7 @@ def test_subtract_floats():
     assert utils.subtract_floats(-1.123, -1.2) == 0.077
 
 
-def test_pct_change():
+def test_prices_to_returns():
     series = np.array([50, 10, 100, 25])
-    pct = utils.pct_change(series)
+    pct = utils.prices_to_returns(series)
     np.testing.assert_array_equal(pct, np.array([ np.nan, -80., 900., -75.]))
