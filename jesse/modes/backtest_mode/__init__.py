@@ -106,31 +106,33 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
             # QuantStats' report
             if full_reports:
 
-              price_data = []
+                price_data = []
 
-              # load close candles for Buy and hold and calculate pct_change
-              for index, c in enumerate(config['app']['considering_candles']):
-                exchange, symbol = c[0], c[1]
-                if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
-                    # fetch from database
-                  candles_tuple = Candle.select(
-                    Candle.timestamp, Candle.close
-                  ).where(
-                    Candle.timestamp.between(jh.date_to_timestamp(start_date), jh.date_to_timestamp(finish_date) - 60000),
-                    Candle.exchange == exchange,
-                    Candle.symbol == symbol
-                  ).order_by(Candle.timestamp.asc()).tuples()
+                # load close candles for Buy and hold and calculate pct_change
+                for index, c in enumerate(config['app']['considering_candles']):
+                    exchange, symbol = c[0], c[1]
+                    if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
+                        # fetch from database
+                        candles_tuple = Candle.select(
+                            Candle.timestamp, Candle.close
+                        ).where(
+                            Candle.timestamp.between(jh.date_to_timestamp(start_date),
+                                                     jh.date_to_timestamp(finish_date) - 60000),
+                            Candle.exchange == exchange,
+                            Candle.symbol == symbol
+                        ).order_by(Candle.timestamp.asc()).tuples()
 
-                  candles = np.array(candles_tuple)
+                        candles = np.array(candles_tuple)
 
-                  timestamps = candles[:, 0]
-                  price_data.append(candles[:, 1])
+                        timestamps = candles[:, 0]
+                        price_data.append(candles[:, 1])
 
-              price_data = np.transpose(price_data)
-              price_df = pd.DataFrame(price_data, index=pd.to_datetime(timestamps, unit="ms"), dtype=float).resample('D').mean()
-              price_pct_change = price_df.pct_change(1).fillna(0)
-              bh_daily_returns_all_routes = price_pct_change.mean(1)
-              quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
+                price_data = np.transpose(price_data)
+                price_df = pd.DataFrame(price_data, index=pd.to_datetime(timestamps, unit="ms"), dtype=float).resample(
+                    'D').mean()
+                price_pct_change = price_df.pct_change(1).fillna(0)
+                bh_daily_returns_all_routes = price_pct_change.mean(1)
+                quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
         else:
             print(jh.color('No trades were made.', 'yellow'))
 
@@ -186,7 +188,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
             raise exceptions.CandleNotFoundInDatabase(
                 f'Not enough candles for {symbol}. Try running "jesse import-candles"')
         elif len(candles_tuple) != required_candles_count + 1:
-            raise exceptions.CandleNotFoundInDatabase(f'There are missing candles between {start_date_str} => {finish_date_str}')
+            raise exceptions.CandleNotFoundInDatabase(
+                f'There are missing candles between {start_date_str} => {finish_date_str}')
 
         # cache it for near future calls
         cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
@@ -424,5 +427,3 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
 
         order.execute()
-
-
