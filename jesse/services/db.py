@@ -1,4 +1,5 @@
 from playhouse.postgres_ext import PostgresqlExtDatabase
+from typing import Dict, List
 
 import jesse.helpers as jh
 
@@ -19,3 +20,9 @@ if not jh.is_unit_testing():
     db.connect()
 else:
     db = None
+
+
+def store_candles(candles: List[Dict]) -> None:
+    from jesse.models import Candle
+
+    Candle.insert_many(candles).on_conflict_ignore().execute()

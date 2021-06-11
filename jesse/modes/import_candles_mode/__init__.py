@@ -12,6 +12,7 @@ from jesse.exceptions import CandleNotFoundInExchange
 from jesse.models import Candle
 from jesse.modes.import_candles_mode.drivers import drivers
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
+from jesse.services.db import store_candles
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False) -> None:
@@ -110,9 +111,9 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
                 # store in the database
                 if skip_confirmation:
-                    _insert_to_database(candles)
+                    store_candles(candles)
                 else:
-                    threading.Thread(target=_insert_to_database, args=[candles]).start()
+                    threading.Thread(target=store_candles, args=[candles]).start()
 
             # add as much as driver's count to the temp_start_time
             start_date = start_date.shift(minutes=driver.count)
@@ -196,7 +197,7 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
             # store in the database
-            _insert_to_database(candles)
+            store_candles(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=backup_driver.count)
@@ -291,5 +292,3 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
     return candles
 
 
-def _insert_to_database(candles: List[Dict[str, Union[str, Any]]]) -> None:
-    Candle.insert_many(candles).on_conflict_ignore().execute()
