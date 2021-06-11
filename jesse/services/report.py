@@ -251,7 +251,7 @@ def watch_list() -> Optional[Any]:
     strategy = router.routes[0].strategy
 
     # don't if the strategy hasn't been initiated yet
-    if not store.candles.is_initiated:
+    if not store.candles.are_all_initiated:
         return None
 
     watch_list_array = strategy.watch_list()

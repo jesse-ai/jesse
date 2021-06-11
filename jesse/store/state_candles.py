@@ -8,12 +8,19 @@ from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
 from jesse.models import store_candle_into_db
 from jesse.services.candle import generate_candle_from_one_minutes
+from jesse.services import logger
 
 
 class CandlesState:
     def __init__(self) -> None:
         self.storage = {}
-        self.is_initiated = False
+        self.are_all_initiated = False
+        self.initiated_pairs = {}
+
+    def mark_all_as_initiated(self):
+        for k in self.initiated_pairs:
+            self.initiated_pairs[k] = True
+        self.are_all_initiated = True
 
     def get_storage(self, exchange: str, symbol: str, timeframe: str):
         key = jh.key(exchange, symbol, timeframe)
@@ -46,7 +53,8 @@ class CandlesState:
             symbol: str,
             timeframe: str,
             with_execution: bool = True,
-            with_generation: bool = True
+            with_generation: bool = True,
+            with_skip: bool = True
     ) -> None:
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
@@ -57,6 +65,11 @@ class CandlesState:
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
 
         if jh.is_live():
+            # ignore if candle is still being initially imported
+            if with_skip and f'{exchange}-{symbol}' not in self.initiated_pairs:
+                # logger.info(f'SKIPPED {exchange}-{symbol}!')
+                return
+
             self.update_position(exchange, symbol, candle)
 
             # ignore new candle at the time of execution because it messes
@@ -154,7 +167,7 @@ class CandlesState:
     def batch_add_candle(self, candles: np.ndarray, exchange: str, symbol: str, timeframe: str,
                          with_generation: bool = True) -> None:
         for c in candles:
-            self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation)
+            self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation, with_skip=False)
 
     def forming_estimation(self, exchange: str, symbol: str, timeframe: str) -> tuple:
         long_key = jh.key(exchange, symbol, timeframe)
