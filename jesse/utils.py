@@ -300,3 +300,12 @@ def dd(msg: str) -> None:
     """
     print(msg)
     jh.terminate_app()
+
+
+def candlestick_chart(candles: np.ndarray):
+    """
+    Displays a candlestick chart from the numpy array
+    """
+    import mplfinance as mpf
+    df = numpy_candles_to_dataframe(candles)
+    mpf.plot(df, type='candle')
