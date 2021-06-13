@@ -2,17 +2,22 @@ import requests
 
 import jesse.helpers as jh
 from jesse import exceptions
-from .interface import CandleExchange
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 class Coinbase(CandleExchange):
     def __init__(self) -> None:
-        super().__init__('Coinbase', 300, 0.6)
-        self.endpoint = 'https://api.pro.coinbase.com/products'
+        # import here instead of the top of the file to prevent possible the circular imports issue
+        from jesse.modes.import_candles_mode.drivers.bitfinex import Bitfinex
 
-    def init_backup_exchange(self):
-        from .bitfinex import Bitfinex
-        self.backup_exchange = Bitfinex()
+        super().__init__(
+            name='Coinbase',
+            count=300,
+            rate_limit_per_second=1.5,
+            backup_exchange_class=Bitfinex
+        )
+
+        self.endpoint = 'https://api.pro.coinbase.com/products'
 
     def get_starting_time(self, symbol: str):
         """

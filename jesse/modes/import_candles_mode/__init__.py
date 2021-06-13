@@ -38,12 +38,13 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     start_date = arrow.get(start_timestamp / 1000)
     days_count = jh.date_diff_in_days(start_date, until_date)
     candles_count = days_count * 1440
-    exchange = exchange.title()
 
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
         raise ValueError(f'{exchange} is not a supported exchange')
+    except TypeError:
+        raise FileNotFoundError('You are missing the "plugins.py" file')
 
     loop_length = int(candles_count / driver.count) + 1
     # ask for confirmation
@@ -91,7 +92,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                     if temp_start_timestamp > first_existing_timestamp:
                         # see if there are candles for the same date for the backup exchange,
                         # if so, get those, if not, download from that exchange.
-                        driver.init_backup_exchange()
                         if driver.backup_exchange is not None:
                             candles = _get_candles_from_backup_exchange(
                                 exchange, driver.backup_exchange, symbol, temp_start_timestamp, temp_end_timestamp
