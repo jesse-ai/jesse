@@ -3,11 +3,23 @@ from jesse.services.notifier import notify, notify_urgently
 import logging
 
 
+# log id is also its index in the array which is helpful for pagination
+id_info = 0
+id_error = 0
+
+
 def info(msg: str) -> None:
+    global id_info
     msg = str(msg)
     from jesse.store import store
 
-    store.logs.info.append({'time': jh.now_to_timestamp(), 'message': msg})
+    store.logs.info.append({
+        'id': id_info,
+        'time': jh.now_to_timestamp(),
+        'message': msg
+    })
+
+    id_info += 1
 
     if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data():
         print(f'[{jh.timestamp_to_time(jh.now_to_timestamp())}]: {msg}')
@@ -18,6 +30,7 @@ def info(msg: str) -> None:
 
 
 def error(msg: str) -> None:
+    global id_error
     msg = str(msg)
     from jesse.store import store
 
@@ -27,7 +40,13 @@ def error(msg: str) -> None:
     if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data():
         print(jh.color(f'[{jh.timestamp_to_time(jh.now_to_timestamp())}]: {msg}', 'red'))
 
-    store.logs.errors.append({'time': jh.now_to_timestamp(), 'message': msg})
+    store.logs.errors.append({
+        'id': id_error,
+        'time': jh.now_to_timestamp(),
+        'message': msg
+    })
+
+    id_error += 1
 
     if jh.is_live() or jh.is_optimizing():
         msg = f"[ERROR | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
