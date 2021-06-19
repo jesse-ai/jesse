@@ -400,6 +400,9 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
     p: Position = selectors.get_position(exchange, symbol)
 
+    if not p:
+        return
+
     # for now, we only support the isolated mode:
     if p.mode != 'isolated':
         return
