@@ -1,28 +1,28 @@
+import asyncio
+import json
 import os
 import sys
-# Hide the "FutureWarning: pandas.util.testing is deprecated." caused by empyrical
 import warnings
 from pydoc import locate
-
 import click
 import pkg_resources
-
+from fastapi import BackgroundTasks
+from starlette.websockets import WebSocket
+from fastapi.responses import JSONResponse
+from jesse.services.redis import async_redis, async_publish, sync_publish
+from jesse.services.web import fastapi_app
+from jesse.services.failure import register_custom_exception_handler
+import uvicorn
+from asyncio import Queue
+from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
+from jesse.services import db
 
+
+# to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
-# Python version validation.
-if jh.python_version() < 3.7:
-    print(
-        jh.color(
-            f'Jesse requires Python version above 3.7. Yours is {jh.python_version()}',
-            'red'
-        )
-    )
-
 # fix directory issue
 sys.path.insert(0, os.getcwd())
-
 ls = os.listdir('.')
 is_jesse_project = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
 
@@ -67,162 +67,34 @@ if is_jesse_project:
     inject_local_routes()
 
 
-def register_custom_exception_handler() -> None:
-    import sys
-    import threading
-    import traceback
-    import logging
-    from jesse.services import logger as jesse_logger
-    import click
-    from jesse import exceptions
+@fastapi_app.get("/terminate-all")
+async def terminate_all():
+    from jesse.services.multiprocessing import process_manager
 
-    log_format = "%(message)s"
-    os.makedirs('storage/logs', exist_ok=True)
+    process_manager.flush()
+    return JSONResponse({'message': 'terminating all tasks...'})
 
-    if jh.is_livetrading():
-        logging.basicConfig(filename='storage/logs/live-trade.txt', level=logging.INFO,
-                            filemode='w', format=log_format)
-    elif jh.is_paper_trading():
-        logging.basicConfig(filename='storage/logs/paper-trade.txt', level=logging.INFO,
-                            filemode='w',
-                            format=log_format)
-    elif jh.is_collecting_data():
-        logging.basicConfig(filename='storage/logs/collect.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
-    elif jh.is_optimizing():
-        logging.basicConfig(filename='storage/logs/optimize.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
-    else:
-        logging.basicConfig(level=logging.INFO)
 
-    # main thread
-    def handle_exception(exc_type, exc_value, exc_traceback) -> None:
-        if issubclass(exc_type, KeyboardInterrupt):
-            sys.excepthook(exc_type, exc_value, exc_traceback)
-            return
+@fastapi_app.get("/shutdown")
+async def shutdown(background_tasks: BackgroundTasks):
+    background_tasks.add_task(jh.terminate_app)
+    return JSONResponse({'message': 'Shutting down...'})
 
-        # handle Breaking exceptions
-        if exc_type in [
-            exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
-            exceptions.CandleNotFoundInDatabase
-        ]:
-            click.clear()
-            print(f"{'=' * 30} EXCEPTION TRACEBACK:")
-            traceback.print_tb(exc_traceback, file=sys.stdout)
-            print("=" * 73)
-            print(
-                '\n',
-                jh.color('Uncaught Exception:', 'red'),
-                jh.color(f'{exc_type.__name__}: {exc_value}', 'yellow')
-            )
-            return
 
-        # send notifications if it's a live session
-        if jh.is_live():
-            jesse_logger.error(
-                f'{exc_type.__name__}: {exc_value}'
-            )
+@fastapi_app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    queue = Queue()
+    ch, = await async_redis.psubscribe('channel:*')
 
-        if jh.is_live() or jh.is_collecting_data():
-            logging.error("Uncaught Exception:", exc_info=(exc_type, exc_value, exc_traceback))
-        else:
-            print(f"{'=' * 30} EXCEPTION TRACEBACK:")
-            traceback.print_tb(exc_traceback, file=sys.stdout)
-            print("=" * 73)
-            print(
-                '\n',
-                jh.color('Uncaught Exception:', 'red'),
-                jh.color(f'{exc_type.__name__}: {exc_value}', 'yellow')
-            )
+    async def reader(channel):
+        async for ch, message in channel.iter():
+            await queue.put(message)
 
-        if jh.is_paper_trading():
-            print(
-                jh.color(
-                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/paper-trade.txt',
-                    'red'
-                )
-            )
-        elif jh.is_livetrading():
-            print(
-                jh.color(
-                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/live-trade.txt',
-                    'red'
-                )
-            )
-        elif jh.is_collecting_data():
-            print(
-                jh.color(
-                    'An uncaught exception was raised. Check the log file at:\nstorage/logs/collect.txt',
-                    'red'
-                )
-            )
+    asyncio.get_running_loop().create_task(reader(ch))
 
-    sys.excepthook = handle_exception
-
-    # other threads
-    if jh.python_version() >= 3.8:
-        def handle_thread_exception(args) -> None:
-            if args.exc_type == SystemExit:
-                return
-
-            # handle Breaking exceptions
-            if args.exc_type in [
-                exceptions.InvalidConfig, exceptions.RouteNotFound, exceptions.InvalidRoutes,
-                exceptions.CandleNotFoundInDatabase
-            ]:
-                click.clear()
-                print(f"{'=' * 30} EXCEPTION TRACEBACK:")
-                traceback.print_tb(args.exc_traceback, file=sys.stdout)
-                print("=" * 73)
-                print(
-                    '\n',
-                    jh.color('Uncaught Exception:', 'red'),
-                    jh.color(f'{args.exc_type.__name__}: {args.exc_value}', 'yellow')
-                )
-                return
-
-            # send notifications if it's a live session
-            if jh.is_live():
-                jesse_logger.error(
-                    f'{args.exc_type.__name__}: { args.exc_value}'
-                )
-
-            if jh.is_live() or jh.is_collecting_data():
-                logging.error("Uncaught Exception:",
-                              exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
-            else:
-                print(f"{'=' * 30} EXCEPTION TRACEBACK:")
-                traceback.print_tb(args.exc_traceback, file=sys.stdout)
-                print("=" * 73)
-                print(
-                    '\n',
-                    jh.color('Uncaught Exception:', 'red'),
-                    jh.color(f'{args.exc_type.__name__}: {args.exc_value}', 'yellow')
-                )
-
-            if jh.is_paper_trading():
-                print(
-                    jh.color(
-                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/paper-trade.txt',
-                        'red'
-                    )
-                )
-            elif jh.is_livetrading():
-                print(
-                    jh.color(
-                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/live-trade.txt',
-                        'red'
-                    )
-                )
-            elif jh.is_collecting_data():
-                print(
-                    jh.color(
-                        'An uncaught exception was raised. Check the log file at:\nstorage/logs/collect.txt',
-                        'red'
-                    )
-                )
-
-        threading.excepthook = handle_thread_exception
+    while True:
+        await websocket.send_json(json.loads(await queue.get()))
 
 
 # create a Click group
@@ -230,6 +102,12 @@ def register_custom_exception_handler() -> None:
 @click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli() -> None:
     pass
+
+
+@cli.command()
+def run() -> None:
+    validate_cwd()
+    uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
 
 
 @cli.command()
@@ -257,53 +135,32 @@ def import_candles(exchange: str, symbol: str, start_date: str, skip_confirmatio
     db.close_connection()
 
 
-@cli.command()
-@click.argument('start_date', required=True, type=str)
-@click.argument('finish_date', required=True, type=str)
-@click.option('--debug/--no-debug', default=False,
-              help='Displays logging messages instead of the progressbar. Used for debugging your strategy.')
-@click.option('--csv/--no-csv', default=False,
-              help='Outputs a CSV file of all executed trades on completion.')
-@click.option('--json/--no-json', default=False,
-              help='Outputs a JSON file of all executed trades on completion.')
-@click.option('--fee/--no-fee', default=True,
-              help='You can use "--no-fee" as a quick way to set trading fee to zero.')
-@click.option('--chart/--no-chart', default=False,
-              help='Generates charts of daily portfolio balance and assets price change. Useful for a visual comparision of your portfolio against the market.')
-@click.option('--tradingview/--no-tradingview', default=False,
-              help="Generates an output that can be copy-and-pasted into tradingview.com's pine-editor too see the trades in their charts.")
-@click.option('--full-reports/--no-full-reports', default=False,
-              help="Generates QuantStats' HTML output with metrics reports like Sharpe ratio, Win rate, Volatility, etc., and batch plotting for visualizing performance, drawdowns, rolling statistics, monthly returns, etc.")
-def backtest(start_date: str, finish_date: str, debug: bool, csv: bool, json: bool, fee: bool, chart: bool,
-             tradingview: bool, full_reports: bool) -> None:
-    """
-    backtest mode. Enter in "YYYY-MM-DD" "YYYY-MM-DD"
-    """
+@fastapi_app.get("/backtest")
+def backtest(
+        start_date: str,
+        finish_date: str,
+        debug_mode: bool,
+        export_csv: bool,
+        export_json: bool,
+        export_chart: bool,
+        export_tradingview: bool,
+        export_full_reports: bool
+) -> JSONResponse:
     validate_cwd()
 
-    from jesse.config import config
-    config['app']['trading_mode'] = 'backtest'
+    from jesse.modes.backtest_mode import run as run_backtest
 
-    register_custom_exception_handler()
+    process_manager.add_task(
+        run_backtest, debug_mode, start_date, finish_date, None, export_chart,
+        export_tradingview, export_full_reports, export_csv, export_json
+    )
 
-    from jesse.services import db
-    from jesse.modes import backtest_mode
-    from jesse.services.selectors import get_exchange
+    return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
 
-    # debug flag
-    config['app']['debug_mode'] = debug
 
-    # fee flag
-    if not fee:
-        for e in config['app']['trading_exchanges']:
-            config['env']['exchanges'][e]['fee'] = 0
-            get_exchange(e).fee = 0
-
-    backtest_mode.run(start_date, finish_date, chart=chart, tradingview=tradingview, csv=csv,
-                      json=json, full_reports=full_reports)
-
+@fastapi_app.on_event("shutdown")
+def shutdown_event():
     db.close_connection()
-
 
 @cli.command()
 @click.argument('start_date', required=True, type=str)
@@ -397,95 +254,8 @@ try:
 except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
-    # @cli.command()
-    # def collect() -> None:
-    #     """
-    #     fetches streamed market data such as tickers, trades, and orderbook from
-    #     the WS connection and stores them into the database for later research.
-    #     """
-    #     validate_cwd()
-    #
-    #     # set trading mode
-    #     from jesse.config import config
-    #     config['app']['trading_mode'] = 'collect'
-    #
-    #     register_custom_exception_handler()
-    #
-    #     from jesse_live.live.collect_mode import run
-    #
-    #     run()
+    from jesse_live.web_routes import paper, live
 
-
-    @cli.command()
-    @click.option('--testdrive/--no-testdrive', default=False)
-    @click.option('--debug/--no-debug', default=False)
-    @click.option('--dev/--no-dev', default=False)
-    def live(testdrive: bool, debug: bool, dev: bool) -> None:
-        """
-        trades in real-time on exchange with REAL money
-        """
-        validate_cwd()
-
-        # set trading mode
-        from jesse.config import config
-        config['app']['trading_mode'] = 'livetrade'
-        config['app']['is_test_driving'] = testdrive
-
-        register_custom_exception_handler()
-
-        # debug flag
-        config['app']['debug_mode'] = debug
-
-        from jesse_live import init
-        from jesse.services.selectors import get_exchange
-        live_config = locate('live-config.config')
-
-        # validate that the "live-config.py" file exists
-        if live_config is None:
-            jh.error('You\'re either missing the live-config.py file or haven\'t logged in. Run "jesse login" to fix it.', True)
-            jh.terminate_app()
-
-        # inject live config
-        init(config, live_config)
-
-        # execute live session
-        from jesse_live.live_mode import run
-        run(dev)
-
-
-    @cli.command()
-    @click.option('--debug/--no-debug', default=False)
-    @click.option('--dev/--no-dev', default=False)
-    def paper(debug: bool, dev: bool) -> None:
-        """
-        trades in real-time on exchange with PAPER money
-        """
-        validate_cwd()
-
-        # set trading mode
-        from jesse.config import config
-        config['app']['trading_mode'] = 'papertrade'
-
-        register_custom_exception_handler()
-
-        # debug flag
-        config['app']['debug_mode'] = debug
-
-        from jesse_live import init
-        from jesse.services.selectors import get_exchange
-        live_config = locate('live-config.config')
-
-        # validate that the "live-config.py" file exists
-        if live_config is None:
-            jh.error('You\'re either missing the live-config.py file or haven\'t logged in. Run "jesse login" to fix it.', True)
-            jh.terminate_app()
-
-        # inject live config
-        init(config, live_config)
-
-        # execute live session
-        from jesse_live.live_mode import run
-        run(dev)
 
     @cli.command()
     @click.option('--email', prompt='Email')

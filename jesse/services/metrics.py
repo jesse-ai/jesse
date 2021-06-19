@@ -8,9 +8,10 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def candles(candles_array: np.ndarray) -> List[List[str]]:
-    period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]),
-                                  jh.timestamp_to_arrow(candles_array[-1][0])) + 1
+def candles_info(candles_array: np.ndarray) -> dict:
+    period = jh.date_diff_in_days(
+        jh.timestamp_to_arrow(candles_array[0][0]),
+        jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
         duration = f'{period} days ({round(period / 365, 2)} years)'
@@ -19,26 +20,24 @@ def candles(candles_array: np.ndarray) -> List[List[str]]:
     else:
         duration = f'{period} days'
 
-    return [
-        ['period', duration],
-        ['starting-ending date', f'{jh.timestamp_to_time(candles_array[0][0])[:10]} => {jh.timestamp_to_time(candles_array[-1][0] + 60_000)[:10]}'],
-    ]
+    return {
+        'duration': duration,
+        'starting_time': candles_array[0][0],
+        'finishing_time': (candles_array[-1][0] + 60_000),
+    }
 
 
-def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
+def routes(routes_arr: list) -> dict:
     array = []
 
-    # header
-    array.append(['exchange', 'symbol', 'timeframe', 'strategy', 'DNA'])
-
-    for r in routes:
-        array.append([
-            r.exchange,
-            r.symbol,
-            r.timeframe,
-            r.strategy_name,
-            r.dna
-        ])
+    for r in routes_arr:
+        array.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'strategy_name': r.strategy_name,
+            'dna': r.dna
+        })
 
     return array
 
@@ -52,7 +51,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
     if len(trades_list) == 0:
-        return None
+        return {}
 
     df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
 

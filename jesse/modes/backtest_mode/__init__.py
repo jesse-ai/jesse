@@ -1,4 +1,5 @@
 import time
+from pprint import pprint
 from typing import Dict, Union
 
 import arrow
@@ -26,11 +27,21 @@ from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
+from jesse.services.failure import register_custom_exception_handler
+from jesse.services.redis import sync_publish
 
 
-def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
+def run(debug_mode, start_date: str, finish_date: str, candles: dict = None,
         chart: bool = False, tradingview: bool = False, full_reports: bool = False,
         csv: bool = False, json: bool = False) -> None:
+    from jesse.config import config
+    config['app']['trading_mode'] = 'backtest'
+
+    register_custom_exception_handler()
+
+    # debug flag
+    config['app']['debug_mode'] = debug_mode
+
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -48,18 +59,12 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
         click.clear()
 
     if not jh.should_execute_silently():
-        # print candles table
+        # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-        table.key_value(stats.candles(candles[key]['candles']), 'candles', alignments=('left', 'right'))
-        print('\n')
+        sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
 
-        # print routes table
-        table.multi_value(stats.routes(router.routes))
-        print('\n')
-
-        # print guidance for debugging candles
-        if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
-            print('     Symbol  |     timestamp    | open | close | high | low | volume')
+        # routes info
+        sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
     simulator(candles)
@@ -67,35 +72,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
     if not jh.should_execute_silently():
         # print trades metrics
         if store.completed_trades.count > 0:
-
-            change = []
-            # calcualte market change
-            for e in router.routes:
-                if e.strategy is None:
-                    return
-
-                first = Candle.select(
-                    Candle.close
-                ).where(
-                    Candle.timestamp == jh.date_to_timestamp(start_date),
-                    Candle.exchange == e.exchange,
-                    Candle.symbol == e.symbol
-                ).first()
-                last = Candle.select(
-                    Candle.close
-                ).where(
-                    Candle.timestamp == jh.date_to_timestamp(finish_date) - 60000,
-                    Candle.exchange == e.exchange,
-                    Candle.symbol == e.symbol
-                ).first()
-
-                change.append(((last.close - first.close) / first.close) * 100.0)
-
-            data = report.portfolio_metrics()
-            data.append(['Market Change', f"{str(round(np.average(change), 2))}%"])
-            print('\n')
-            table.key_value(data, 'Metrics', alignments=('left', 'right'))
-            print('\n')
+            sync_publish('metrics', report.portfolio_metrics())
 
             # save logs
             store_logs(json, tradingview, csv)
@@ -105,7 +82,6 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
             # QuantStats' report
             if full_reports:
-
                 price_data = []
 
                 # load close candles for Buy and hold and calculate pct_change
@@ -134,7 +110,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
                 bh_daily_returns_all_routes = price_pct_change.mean(1)
                 quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
         else:
-            print(jh.color('No trades were made.', 'yellow'))
+            sync_publish('metrics', 'No trades were executed')
 
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
@@ -289,8 +265,12 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
                                                  with_generation=False)
 
             # update progressbar
-            if not jh.is_debugging() and not jh.should_execute_silently() and i % 60 == 0:
+            if not jh.should_execute_silently() and i % 60 == 0:
                 progressbar.update(60)
+                sync_publish('progressbar', {
+                    'current': i / length * 100,
+                    'estimated_remaining_seconds': progressbar.eta
+                })
 
             # now that all new generated candles are ready, execute
             for r in router.routes:

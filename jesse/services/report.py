@@ -13,11 +13,31 @@ from jesse.services import metrics as stats
 from jesse.services import selectors
 from jesse.services.candle import is_bullish
 from jesse.store import store
+from jesse.models import Position
 
 warnings.filterwarnings("ignore")
 
 
-def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]]]:
+def positions() -> list:
+    arr = []
+
+    for r in router.routes:
+        p: Position = r.strategy.position
+        arr.append({
+            'strategy_name': p.strategy.name,
+            'symbol': p.symbol,
+            'leverage': p.leverage,
+            'opened_at': p.opened_at,
+            'qty': p.qty,
+            'entry': p.entry_price,
+            'current_price': p.current_price,
+            'liq_price': p.liquidation_price,
+            'pnl': p.pnl,
+            'pnl_perc': p.pnl_percentage
+        })
+
+    return arr
+
     array = []
 
     # headers
@@ -109,10 +129,8 @@ def candles() -> List[List[str]]:
     return array
 
 
-def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, int]], List[Union[
-    str, Dict[str, Union[str, int]], Dict[str, str], Dict[str, bool], Dict[str, Union[
-        Dict[str, Union[int, str, List[Dict[str, Union[str, int]]]]], Dict[
-            str, Union[float, str, int, List[Dict[str, Union[str, int]]]]]]], Dict[str, int]]]]]:
+def livetrade():
+    # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
     # sum up balance of all trading exchanges
     starting_balance = 0
     current_balance = 0
@@ -122,113 +140,37 @@ def livetrade() -> List[Union[List[Union[str, Any]], List[str], List[Union[str, 
     starting_balance = round(starting_balance, 2)
     current_balance = round(current_balance, 2)
 
-    arr = [
-        ['started at', jh.timestamp_to_arrow(store.app.starting_time).humanize()],
-        ['current time', jh.timestamp_to_time(jh.now_to_timestamp())[:19]],
-        ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
-        ['active orders', store.orders.count_all_active_orders()],
-        ['open positions', store.positions.count_open_positions()]
-    ]
-
-    # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
-    first_exchange = selectors.get_exchange(router.routes[0].exchange)
-
-    if first_exchange.type == 'futures':
-        arr.append(['started/current balance', f'{starting_balance}/{current_balance}'])
-    else:
-        # loop all trading exchanges
-        for exchange in selectors.get_all_exchanges():
-            # loop all assets
-            for asset_name, asset_balance in exchange.assets.items():
-                if asset_name == jh.base_asset(router.routes[0].symbol):
-                    current_price = selectors.get_current_price(router.routes[0].exchange, router.routes[0].symbol)
-                    arr.append(
-                        [
-                            f'{asset_name}',
-                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)} ({jh.format_currency(round(asset_balance * current_price, 2))} {jh.quote_asset(router.routes[0].symbol)})'
-                        ]
-                    )
-                else:
-                    arr.append(
-                        [
-                            f'{asset_name}',
-                            f'{round(exchange.available_assets[asset_name], 5)}/{round(asset_balance, 5)}'
-                        ]
-                    )
-
     # short trades summary
     if len(store.completed_trades.trades):
         df = pd.DataFrame.from_records([t.to_dict() for t in store.completed_trades.trades])
         total = len(df)
-        winning_trades = df.loc[df['PNL'] > 0]
-        losing_trades = df.loc[df['PNL'] < 0]
+        winning_trades = len(df.loc[df['PNL'] > 0])
+        losing_trades = len(df.loc[df['PNL'] < 0])
         pnl = round(df['PNL'].sum(), 2)
-        pnl_percentage = round((pnl / starting_balance) * 100, 2)
+        pnl_perc = round((pnl / starting_balance) * 100, 2)
+    else:
+        pnl, pnl_perc, total, winning_trades, losing_trades = 0, 0, 0, 0, 0
 
-        arr.append(['total/winning/losing trades', f'{total}/{len(winning_trades)}/{len(losing_trades)}'])
-        arr.append(['PNL (%)', f'${pnl} ({pnl_percentage}%)'])
+    return {
+        'started_at': store.app.starting_time,
+        'current_time': jh.now_to_timestamp(),
+        'started_balance': starting_balance,
+        'current_balance': current_balance,
+        'debug_mode': config['app']['debug_mode'],
+        'count_error_logs': len(store.logs.errors),
+        'count_info_logs': len(store.logs.info),
+        'count_active_orders': store.orders.count_all_active_orders(),
+        'open_positions': store.positions.count_open_positions(),
+        'pnl': pnl,
+        'pnl_perc': pnl_perc,
+        'count_trades': total,
+        'count_winning_trades': winning_trades,
+        'count_losing_trades': losing_trades,
+    }
 
-    if config['app']['debug_mode']:
-        arr.append(['debug mode', config['app']['debug_mode']])
 
-    if config['app']['is_test_driving']:
-        arr.append(['Test Drive', config['app']['is_test_driving']])
-    return arr
-
-
-def portfolio_metrics() -> List[
-    Union[Union[List[Union[str, Any]], List[str], List[Union[Union[str, float], Any]]], Any]]:
-    data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
-
-    metrics = [
-        ['Total Closed Trades', data['total']],
-        ['Total Net Profit',
-         f"{jh.format_currency(round(data['net_profit'], 4))} ({str(round(data['net_profit_percentage'], 2))}%)"],
-        ['Starting => Finishing Balance',
-         f"{jh.format_currency(round(data['starting_balance'], 2))} => {jh.format_currency(round(data['finishing_balance'], 2))}"],
-        ['Total Open Trades', data['total_open_trades']],
-        ['Open PL', jh.format_currency(round(data['open_pl'], 2))],
-        ['Total Paid Fees', jh.format_currency(round(data['fee'], 2))],
-        ['Max Drawdown', f"{round(data['max_drawdown'], 2)}%"],
-        ['Annual Return', f"{round(data['annual_return'], 2)}%"],
-        ['Expectancy',
-         f"{jh.format_currency(round(data['expectancy'], 2))} ({str(round(data['expectancy_percentage'], 2))}%)"],
-        ['Avg Win | Avg Loss',
-         f"{jh.format_currency(round(data['average_win'], 2))} | {jh.format_currency(round(data['average_loss'], 2))}"],
-        ['Ratio Avg Win / Avg Loss', round(data['ratio_avg_win_loss'], 2)],
-        ['Percent Profitable', f"{str(round(data['win_rate'] * 100))}%"],
-        ['Longs | Shorts', f"{round(data['longs_percentage'])}% | {round(data['short_percentage'])}%"],
-        ['Avg Holding Time', jh.readable_duration(data['average_holding_period'], 3)],
-        ['Winning Trades Avg Holding Time',
-         np.nan if np.isnan(data['average_winning_holding_period']) else jh.readable_duration(
-             data['average_winning_holding_period'], 3)],
-        ['Losing Trades Avg Holding Time',
-         np.nan if np.isnan(data['average_losing_holding_period']) else jh.readable_duration(
-             data['average_losing_holding_period'], 3)]
-    ]
-
-    if jh.get_config('env.metrics.sharpe_ratio', True):
-        metrics.append(['Sharpe Ratio', round(data['sharpe_ratio'], 2)])
-    if jh.get_config('env.metrics.calmar_ratio', False):
-        metrics.append(['Calmar Ratio', round(data['calmar_ratio'], 2)])
-    if jh.get_config('env.metrics.sortino_ratio', False):
-        metrics.append(['Sortino Ratio', round(data['sortino_ratio'], 2)])
-    if jh.get_config('env.metrics.omega_ratio', False):
-        metrics.append(['Omega Ratio', round(data['omega_ratio'], 2)])
-    if jh.get_config('env.metrics.winning_streak', False):
-        metrics.append(['Winning Streak', data['winning_streak']])
-    if jh.get_config('env.metrics.losing_streak', False):
-        metrics.append(['Losing Streak', data['losing_streak']])
-    if jh.get_config('env.metrics.largest_winning_trade', False):
-        metrics.append(['Largest Winning Trade', jh.format_currency(round(data['largest_winning_trade'], 2))])
-    if jh.get_config('env.metrics.largest_losing_trade', False):
-        metrics.append(['Largest Losing Trade', jh.format_currency(round(data['largest_losing_trade'], 2))])
-    if jh.get_config('env.metrics.total_winning_trades', False):
-        metrics.append(['Total Winning Trades', data['total_winning_trades']])
-    if jh.get_config('env.metrics.total_losing_trades', False):
-        metrics.append(['Total Losing Trades', data['total_losing_trades']])
-
-    return metrics
+def portfolio_metrics() -> dict:
+    return stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
 
 def info() -> List[List[Union[str, Any]]]:
@@ -268,11 +210,8 @@ def errors() -> List[List[Union[str, Any]]]:
     return array
 
 
-def orders() -> List[Union[List[str], List[Union[CharField, str, FloatField]]]]:
-    array = []
-
-    # headers
-    array.append(['symbol', 'side', 'type', 'qty', 'price', 'flag', 'status', 'created_at'])
+def orders():
+    arr = []
 
     route_orders = []
     for r in router.routes:
@@ -281,20 +220,22 @@ def orders() -> List[Union[List[str], List[Union[CharField, str, FloatField]]]]:
             route_orders.append(o)
 
     if not len(route_orders):
-        return None
+        return []
 
     route_orders.sort(key=lambda x: x.created_at, reverse=False)
 
     for o in route_orders[::-1][0:5]:
-        array.append([
-            o.symbol if o.is_active else jh.color(o.symbol, 'gray'),
-            jh.color(o.side, 'red') if o.side == 'sell' else jh.color(o.side, 'green'),
-            o.type if o.is_active else jh.color(o.type, 'gray'),
-            o.qty if o.is_active else jh.color(str(o.qty), 'gray'),
-            o.price if o.is_active else jh.color(str(o.price), 'gray'),
-            o.flag if o.is_active else jh.color(o.flag, 'gray'),
-            o.status if o.is_active else jh.color(o.status, 'gray'),
-            jh.timestamp_to_time(o.created_at)[:19] if o.is_active else jh.color(
-                jh.timestamp_to_time(o.created_at)[:19], 'gray'),
-        ])
-    return array
+        arr.append({
+            'symbol': o.symbol,
+            'side': o.side,
+            'type': o.type,
+            'qty': o.qty,
+            'price': o.price,
+            'flag': o.flag,
+            'status': o.status,
+            'created_at': o.created_at,
+            'canceled_at': o.canceled_at,
+            'executed_at': o.executed_at,
+        })
+
+    return arr
