@@ -7,7 +7,7 @@ from pydoc import locate
 import click
 import pkg_resources
 from fastapi import BackgroundTasks
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app
@@ -87,14 +87,28 @@ async def websocket_endpoint(websocket: WebSocket):
     queue = Queue()
     ch, = await async_redis.psubscribe('channel:*')
 
-    async def reader(channel):
+    async def echo(q):
+        while True:
+            await websocket.send_json(
+                json.loads(
+                    await q.get()
+                )
+            )
+
+    async def reader(channel, q):
         async for ch, message in channel.iter():
-            await queue.put(message)
+            await q.put(message)
 
-    asyncio.get_running_loop().create_task(reader(ch))
+    asyncio.get_running_loop().create_task(reader(ch, queue))
+    asyncio.get_running_loop().create_task(echo(queue))
 
-    while True:
-        await websocket.send_json(json.loads(await queue.get()))
+    try:
+        while True:
+            # just so WebSocketDisconnect would be raised on connection close
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await async_redis.punsubscribe('channel:*')
+        print('Websocket disconnected')
 
 
 # create a Click group
@@ -244,7 +258,6 @@ except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
     from jesse_live.web_routes import paper, live
-
 
     @cli.command()
     @click.option('--email', prompt='Email')
