@@ -67,7 +67,7 @@ if is_jesse_project:
     inject_local_routes()
 
 
-@fastapi_app.get("/terminate-all")
+@fastapi_app.post("/terminate-all")
 async def terminate_all():
     from jesse.services.multiprocessing import process_manager
 
@@ -75,7 +75,7 @@ async def terminate_all():
     return JSONResponse({'message': 'terminating all tasks...'})
 
 
-@fastapi_app.get("/shutdown")
+@fastapi_app.post("/shutdown")
 async def shutdown(background_tasks: BackgroundTasks):
     background_tasks.add_task(jh.terminate_app)
     return JSONResponse({'message': 'Shutting down...'})
@@ -123,7 +123,7 @@ def import_candles(exchange: str, symbol: str, start_date: str) -> JSONResponse:
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
-@fastapi_app.get("/backtest")
+@fastapi_app.post("/backtest")
 def backtest(
         start_date: str,
         finish_date: str,
@@ -149,6 +149,7 @@ def backtest(
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
     db.close_connection()
+
 
 @cli.command()
 @click.argument('start_date', required=True, type=str)
