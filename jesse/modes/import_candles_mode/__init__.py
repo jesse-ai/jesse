@@ -13,9 +13,16 @@ from jesse.models import Candle
 from jesse.modes.import_candles_mode.drivers import drivers
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.services.db import store_candles
+from jesse.config import config
+from jesse.services.failure import register_custom_exception_handler
+from jesse.services.redis import sync_publish
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False) -> None:
+    config['app']['trading_mode'] = 'import-candles'
+
+    register_custom_exception_handler()
+
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
@@ -53,7 +60,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             f'Importing {days_count} days candles from "{exchange}" for "{symbol}". Duplicates will be skipped. All good?', abort=True, default=True)
 
     with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
-        for _ in range(candles_count):
+        for i in range(candles_count):
             temp_start_timestamp = start_date.int_timestamp * 1000
             temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
 
@@ -119,6 +126,10 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             start_date = start_date.shift(minutes=driver.count)
 
             progressbar.update(1)
+            sync_publish('progressbar', {
+                'current': i / loop_length * 100,
+                'estimated_remaining_seconds': progressbar.eta
+            })
 
             # sleep so that the exchange won't get angry at us
             if not already_exists:

@@ -110,29 +110,17 @@ def run() -> None:
     uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
 
 
-@cli.command()
-@click.argument('exchange', required=True, type=str)
-@click.argument('symbol', required=True, type=str)
-@click.argument('start_date', required=True, type=str)
-@click.option('--skip-confirmation', is_flag=True,
-              help="Will prevent confirmation for skipping duplicates")
-def import_candles(exchange: str, symbol: str, start_date: str, skip_confirmation: bool) -> None:
-    """
-    imports historical candles from exchange
-    """
+@fastapi_app.post('/import-candles')
+def import_candles(exchange: str, symbol: str, start_date: str) -> JSONResponse:
     validate_cwd()
-    from jesse.config import config
-    config['app']['trading_mode'] = 'import-candles'
-
-    register_custom_exception_handler()
-
-    from jesse.services import db
 
     from jesse.modes import import_candles_mode
 
-    import_candles_mode.run(exchange, symbol, start_date, skip_confirmation)
+    process_manager.add_task(
+        import_candles_mode.run, exchange, symbol, start_date, True
+    )
 
-    db.close_connection()
+    return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
 @fastapi_app.get("/backtest")
