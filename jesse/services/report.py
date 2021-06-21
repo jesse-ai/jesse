@@ -24,6 +24,7 @@ def positions() -> list:
     for r in router.routes:
         p: Position = r.strategy.position
         arr.append({
+            'type': p.type,
             'strategy_name': p.strategy.name,
             'symbol': p.symbol,
             'leverage': p.leverage,
