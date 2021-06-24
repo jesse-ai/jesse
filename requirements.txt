@@ -4,7 +4,7 @@ click==8.0.1
 crypto-empyrical==1.0.4
 matplotlib==3.4.2
 newtulipy==0.4.6
-numpy==1.20.3
+numpy==1.21.0
 numpy_groupies==0.9.13
 pandas==1.2.4
 peewee==3.14.4
