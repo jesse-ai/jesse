@@ -10,14 +10,13 @@ from fastapi import BackgroundTasks
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app
+from jesse.services.web import fastapi_app, BacktestRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
 from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
 from jesse.services import db
-
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -138,23 +137,20 @@ def import_candles(exchange: str, symbol: str, start_date: str) -> JSONResponse:
 
 
 @fastapi_app.post("/backtest")
-def backtest(
-        start_date: str,
-        finish_date: str,
-        debug_mode: bool,
-        export_csv: bool,
-        export_json: bool,
-        export_chart: bool,
-        export_tradingview: bool,
-        export_full_reports: bool
-) -> JSONResponse:
+def backtest(request_json: BacktestRequestJson):
     validate_cwd()
 
     from jesse.modes.backtest_mode import run as run_backtest
 
     process_manager.add_task(
-        run_backtest, debug_mode, start_date, finish_date, None, export_chart,
-        export_tradingview, export_full_reports, export_csv, export_json
+        run_backtest, request_json.debug_mode,
+        request_json.start_date,
+        request_json.finish_date, None,
+        request_json.export_chart,
+        request_json.export_tradingview,
+        request_json.export_full_reports,
+        request_json.export_csv,
+        request_json.export_json
     )
 
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
@@ -258,6 +254,7 @@ except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
     from jesse_live.web_routes import paper, live
+
 
     @cli.command()
     @click.option('--email', prompt='Email')

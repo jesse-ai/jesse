@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 fastapi_app = FastAPI()
 
@@ -15,3 +16,13 @@ fastapi_app.add_middleware(
     allow_headers=["*"],
 )
 
+
+class BacktestRequestJson(BaseModel):
+    start_date: str
+    finish_date: str
+    debug_mode: bool
+    export_csv: bool
+    export_json: bool
+    export_chart: bool
+    export_tradingview: bool
+    export_full_reports: bool
