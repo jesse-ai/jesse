@@ -430,3 +430,5 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
 
         order.execute()
+
+        p.strategy.broker.cancel_all_orders()
