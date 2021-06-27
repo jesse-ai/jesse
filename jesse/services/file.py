@@ -9,7 +9,7 @@ from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
 
 
-def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False, study_name: str) -> None:
+def store_logs(study_name: str, export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
