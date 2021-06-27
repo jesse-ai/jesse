@@ -98,7 +98,13 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
             print('\n')
 
             # save logs
-            store_logs(json, tradingview, csv)
+            more = ""
+            routes_count = len(router.routes)
+            if routes_count > 1:
+               more = f"-and-{routes_count-1}-more"
+                
+            study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
+            store_logs(json, tradingview, csv, study_name)
 
             if chart:
                 charts.portfolio_vs_asset_returns()
@@ -132,7 +138,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
                     'D').mean()
                 price_pct_change = price_df.pct_change(1).fillna(0)
                 bh_daily_returns_all_routes = price_pct_change.mean(1)
-                quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
+                quantstats.quantstats_tearsheet(bh_daily_returns_all_routes, study_name)
         else:
             print(jh.color('No trades were made.', 'yellow'))
 
