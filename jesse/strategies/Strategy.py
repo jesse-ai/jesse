@@ -147,6 +147,8 @@ class Strategy(ABC):
             self._on_take_profit(order)
         elif role == order_roles.CLOSE_POSITION and order in self._stop_loss_orders:
             self._on_stop_loss(order)
+        elif role == order_roles.CLOSE_POSITION:
+            self._execute_cancel()
         elif role == order_roles.INCREASE_POSITION:
             self._on_increased_position(order)
         elif role == order_roles.REDUCE_POSITION:
