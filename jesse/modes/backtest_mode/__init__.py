@@ -104,7 +104,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
                more = f"-and-{routes_count-1}-more"
                 
             study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
-            store_logs(json, tradingview, csv, study_name)
+            store_logs(study_name, json, tradingview, csv)
 
             if chart:
                 charts.portfolio_vs_asset_returns()
