@@ -9,11 +9,11 @@ from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
 
 
-def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
+def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False, study_name: str) -> None:
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
-    study_name = f'{mode}-{now}'.replace(":", "-")
+    study_name = f'{mode}-{now}-{study_name}'.replace(":", "-")
     path = f'storage/json/{study_name}.json'
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
     for t in store.completed_trades.trades:
