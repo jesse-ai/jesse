@@ -48,7 +48,7 @@ class Genetics(ABC):
             self.options = options
 
         os.makedirs('./storage/temp/optimize', exist_ok=True)
-        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}.pickle"
+        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
 
         if fitness_goal > 1 or fitness_goal < 0:
             raise ValueError('fitness scores must be between 0 and 1')
@@ -415,7 +415,7 @@ class Genetics(ABC):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}"
+        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
 
         dnas_json = {'snapshot': []}
         for i in range(30):

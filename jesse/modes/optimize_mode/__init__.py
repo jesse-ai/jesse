@@ -23,7 +23,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 class Optimizer(Genetics):
     def __init__(self, training_candles, testing_candles, optimal_total: int, cpu_cores: int, csv: bool,
-                 json: bool) -> None:
+                 json: bool, start_date: str, finish_date: str) -> None:
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
 
@@ -50,7 +50,9 @@ class Optimizer(Genetics):
                 'timeframe': self.timeframe,
                 'strategy_hp': self.strategy_hp,
                 'csv': csv,
-                'json': json
+                'json': json,
+                'start_date': start_date,
+                'finish_date': finish_date,
             }
         )
 
@@ -187,7 +189,7 @@ def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cor
     # clear the screen
     click.clear()
 
-    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores, csv, json)
+    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date, finish_date)
 
     optimizer.run()
 
