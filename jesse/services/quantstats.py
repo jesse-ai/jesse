@@ -28,7 +28,7 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> No
 
     file_path = f'storage/full-reports/{modes[mode][0]}-{str(arrow.utcnow())[0:19]}-{study_name}.html'.replace(":", "-")
 
-    title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')}"
+    title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')} → {study_name}"
 
     try:
         qs.reports.html(returns=returns_time_series, trading_year_days=365, benchmark=buy_and_hold_returns, title=title, output=file_path)
