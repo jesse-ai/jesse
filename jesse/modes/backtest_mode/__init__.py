@@ -268,7 +268,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
             if not jh.should_execute_silently() and i % 60 == 0:
                 progressbar.update(60)
                 sync_publish('progressbar', {
-                    'current': i / length * 100,
+                    'current': round(i / length * 100, 1),
                     'estimated_remaining_seconds': progressbar.eta
                 })
 

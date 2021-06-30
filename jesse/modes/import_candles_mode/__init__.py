@@ -127,7 +127,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
             progressbar.update(1)
             sync_publish('progressbar', {
-                'current': i / loop_length * 100,
+                'current': round(i / loop_length * 100, 1),
                 'estimated_remaining_seconds': progressbar.eta
             })
 
