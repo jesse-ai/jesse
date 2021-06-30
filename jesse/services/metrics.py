@@ -83,7 +83,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
-    short_percentage = 100 - longs_percentage
+    shorts_percentage = 100 - longs_percentage
     fee = df['fee'].sum()
     net_profit = df['PNL'].sum()
     net_profit_percentage = (net_profit / starting_balance) * 100
@@ -124,7 +124,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
         'longs_count': np.nan if np.isnan(longs_count) else longs_count,
         'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,
-        'short_percentage': np.nan if np.isnan(short_percentage) else short_percentage,
+        'shorts_percentage': np.nan if np.isnan(shorts_percentage) else shorts_percentage,
         'shorts_count': np.nan if np.isnan(shorts_count) else shorts_count,
         'fee': np.nan if np.isnan(fee) else fee,
         'net_profit': np.nan if np.isnan(net_profit) else net_profit,
