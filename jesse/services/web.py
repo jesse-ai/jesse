@@ -18,6 +18,7 @@ fastapi_app.add_middleware(
 
 
 class BacktestRequestJson(BaseModel):
+    id: str
     start_date: str
     finish_date: str
     debug_mode: bool

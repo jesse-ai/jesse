@@ -88,14 +88,16 @@ async def websocket_endpoint(websocket: WebSocket):
 
     async def echo(q):
         while True:
+            msg = await q.get()
+            msg = json.loads(msg)
+            msg['id'] = process_manager.map[msg['id']]
             await websocket.send_json(
-                json.loads(
-                    await q.get()
-                )
+                msg
             )
 
     async def reader(channel, q):
         async for ch, message in channel.iter():
+            # modify id and set the one that the font-end knows
             await q.put(message)
 
     asyncio.get_running_loop().create_task(reader(ch, queue))
@@ -143,7 +145,9 @@ def backtest(request_json: BacktestRequestJson):
     from jesse.modes.backtest_mode import run as run_backtest
 
     process_manager.add_task(
-        run_backtest, request_json.debug_mode,
+        run_backtest,
+        request_json.id,
+        request_json.debug_mode,
         request_json.start_date,
         request_json.finish_date, None,
         request_json.export_chart,
