@@ -8,7 +8,8 @@
 
 [![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
 [![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
-[![Docs](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
+[![FAQ](https://img.shields.io/badge/FAQ-Find%20answers!-yellow)](https://jesse.trade/help)
+[![Chat](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
 [![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
 ---
 Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
