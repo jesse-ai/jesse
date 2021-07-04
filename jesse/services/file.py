@@ -33,7 +33,7 @@ def store_logs(study_name: str, export_json: bool = False, export_tradingview: b
 
     # store output for TradingView.com's pine-editor
     if export_tradingview:
-        tradingview_logs(study_name, mode, now)
+        tradingview_logs(study_name)
 
     # also write a CSV file
     if export_csv:

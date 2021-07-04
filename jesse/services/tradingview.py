@@ -4,8 +4,13 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def tradingview_logs(study_name: str = None, mode=None, now=None) -> None:
-    tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.2)\n'
+def tradingview_logs(study_name: str) -> None:
+    starting_balance = 0
+
+    for e in store.exchanges.storage:
+        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
+
+    tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital={starting_balance}, commission_type=strategy.commission.percent, commission_value=0.2)\n'
     for i, t in enumerate(store.completed_trades.trades[::-1][:]):
         tv_text += '\n'
         for j, o in enumerate(t.orders):
@@ -17,7 +22,7 @@ def tradingview_logs(study_name: str = None, mode=None, now=None) -> None:
             else:
                 tv_text += f'strategy.order("{i}", {1 if t.type == "long" else 0}, {abs(o.qty)}, {o.price}, when = {when})\n'
 
-    path = f'storage/trading-view-pine-editor/{mode}-{now}.txt'.replace(":", "-")
+    path = f'storage/trading-view-pine-editor/{study_name}.txt'
     os.makedirs('./storage/trading-view-pine-editor', exist_ok=True)
     with open(path, 'w+') as outfile:
         outfile.write(tv_text)
