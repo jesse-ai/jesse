@@ -107,7 +107,7 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
             store_logs(study_name, json, tradingview, csv)
 
             if chart:
-                charts.portfolio_vs_asset_returns()
+                charts.portfolio_vs_asset_returns(study_name)
 
             # QuantStats' report
             if full_reports:

@@ -13,7 +13,7 @@ from jesse.routes import router
 from jesse.store import store
 
 
-def portfolio_vs_asset_returns() -> None:
+def portfolio_vs_asset_returns(study_name: str) -> None:
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure
@@ -25,7 +25,7 @@ def portfolio_vs_asset_returns() -> None:
     date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
     plt.xlabel('date')
     plt.ylabel('balance')
-    plt.title('Portfolio Daily Return')
+    plt.title(f'Portfolio Daily Return - {study_name}')
     plt.plot(date_list, store.app.daily_balance)
 
     # price change%
@@ -126,10 +126,10 @@ def portfolio_vs_asset_returns() -> None:
         mode = 'LT'
     if mode == 'papertrade':
         mode = 'PT'
-
+    now = str(arrow.utcnow())[0:19]
     # make sure directories exist
     os.makedirs('./storage/charts', exist_ok=True)
-    file_path = f'storage/charts/{mode}-{str(arrow.utcnow())[0:19]}.png'.replace(":", "-")
+    file_path = f'storage/charts/{mode}-{now}-{study_name}.png'.replace(":", "-")
     plt.savefig(file_path)
 
     print(f'\nChart output saved at:\n{file_path}')
