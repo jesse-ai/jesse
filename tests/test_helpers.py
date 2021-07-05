@@ -8,9 +8,8 @@ import jesse.helpers as jh
 def test_app_currency():
     from jesse.routes import router
     from jesse.enums import exchanges, timeframes
-    router.set_routes([
-        (exchanges.BITFINEX, 'ETH-USD', timeframes.HOUR_3, 'Test19'),
-    ])
+    router.initiate(
+        [{'exchange': exchanges.BITFINEX, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'
 
 
@@ -28,8 +27,6 @@ def test_base_asset():
     assert jh.base_asset('BTC-USD') == 'BTC'
     assert jh.base_asset('DEFI-USDT') == 'DEFI'
     assert jh.base_asset('DEFI-USD') == 'DEFI'
-
-
 
 
 def test_binary_search():

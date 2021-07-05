@@ -18,7 +18,9 @@ class RouterClass:
         self.extra_candles = []
         self.market_data = []
 
-    def initiate(self, routes: list, extra_routes: list):
+    def initiate(self, routes: list, extra_routes: list = None):
+        if extra_routes is None:
+            extra_routes = []
         self.set_routes(routes)
         self.set_extra_candles(extra_routes)
         from jesse.store import store
@@ -47,7 +49,7 @@ class RouterClass:
         for r in routes:
             self.market_data.append(Route(*r))
 
-    def set_extra_candles(self, extra_candles) -> None:
+    def set_extra_candles(self, extra_candles: list) -> None:
         self.extra_candles = extra_candles
 
 
