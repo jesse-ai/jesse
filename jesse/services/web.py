@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +21,8 @@ fastapi_app.add_middleware(
 
 class BacktestRequestJson(BaseModel):
     id: str
+    routes: List[Dict[str, str]]
+    extra_routes: List[Dict[str, str]]
     start_date: str
     finish_date: str
     debug_mode: bool

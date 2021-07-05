@@ -1,6 +1,5 @@
 import time
-from pprint import pprint
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 import arrow
 import click
@@ -11,10 +10,9 @@ import jesse.helpers as jh
 import jesse.services.metrics as stats
 import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
-import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
-from jesse.enums import timeframes, order_types, sides, order_roles, order_flags
+from jesse.enums import timeframes, order_types, order_roles, order_flags
 from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
@@ -31,7 +29,7 @@ from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish
 
 
-def run(debug_mode, start_date: str, finish_date: str, candles: dict = None,
+def run(debug_mode, routes: List[Dict[str, str]], extra_routes: List[Dict[str, str]], start_date: str, finish_date: str, candles: dict = None,
         chart: bool = False, tradingview: bool = False, full_reports: bool = False,
         csv: bool = False, json: bool = False) -> None:
     from jesse.config import config
@@ -41,6 +39,9 @@ def run(debug_mode, start_date: str, finish_date: str, candles: dict = None,
 
     # debug flag
     config['app']['debug_mode'] = debug_mode
+
+    # set routes
+    router.initiate(routes, extra_routes)
 
     # clear the screen
     if not jh.should_execute_silently():

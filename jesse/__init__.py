@@ -63,7 +63,7 @@ def inject_local_routes() -> None:
 # inject local files
 if is_jesse_project:
     inject_local_config()
-    inject_local_routes()
+    # inject_local_routes()
 
 
 @fastapi_app.post("/terminate-all")
@@ -148,8 +148,11 @@ def backtest(request_json: BacktestRequestJson):
         run_backtest,
         request_json.id,
         request_json.debug_mode,
+        request_json.routes,
+        request_json.extra_routes,
         request_json.start_date,
-        request_json.finish_date, None,
+        request_json.finish_date,
+        None,
         request_json.export_chart,
         request_json.export_tradingview,
         request_json.export_full_reports,
