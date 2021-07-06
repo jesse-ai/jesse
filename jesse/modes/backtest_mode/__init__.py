@@ -81,6 +81,8 @@ def run(debug_mode, routes: List[Dict[str, str]], extra_routes: List[Dict[str, s
             if chart:
                 charts.portfolio_vs_asset_returns()
 
+            sync_publish('equity_curve', charts.equity_curve())
+
             # QuantStats' report
             if full_reports:
                 price_data = []
