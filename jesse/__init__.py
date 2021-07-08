@@ -10,7 +10,7 @@ from fastapi import BackgroundTasks
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson
+from jesse.services.web import fastapi_app, BacktestRequestJson, CandlesRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -125,14 +125,14 @@ def run() -> None:
     uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
 
 
-@fastapi_app.post('/import-candles')
-def import_candles(exchange: str, symbol: str, start_date: str) -> JSONResponse:
+@fastapi_app.post('/candles')
+def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     validate_cwd()
 
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, exchange, symbol, start_date, True
+        import_candles_mode.run, request_json.id, request_json.exchange, request_json.symbol, request_json.start_date, True
     )
 
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)

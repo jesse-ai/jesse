@@ -312,7 +312,7 @@ def is_debugging() -> bool:
 
 def is_importing_candles() -> bool:
     from jesse.config import config
-    return config['app']['trading_mode'] == 'import-candles'
+    return config['app']['trading_mode'] == 'candles'
 
 
 def is_live() -> bool:

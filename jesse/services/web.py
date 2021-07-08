@@ -31,3 +31,10 @@ class BacktestRequestJson(BaseModel):
     export_chart: bool
     export_tradingview: bool
     export_full_reports: bool
+
+
+class CandlesRequestJson(BaseModel):
+    id: str
+    exchange: str
+    symbol: str
+    start_date: str

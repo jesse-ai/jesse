@@ -18,7 +18,7 @@ from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish
 
 
-def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'import-candles') -> None:
+def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
     config['app']['trading_mode'] = mode
 
     register_custom_exception_handler()
