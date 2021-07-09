@@ -18,6 +18,10 @@ class ProcessManager:
         self.map[w.pid] = client_id
         print(w.pid, w.name)
 
+    def get_client_id(self, pid):
+        client_id: str = self.map[pid]
+        return client_id[client_id.index('-') + len('-'):]
+
     def flush(self):
         for w in self.workers:
             print(w.name, w.pid)

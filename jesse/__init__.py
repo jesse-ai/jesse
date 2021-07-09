@@ -90,7 +90,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             msg = await q.get()
             msg = json.loads(msg)
-            msg['id'] = process_manager.map[msg['id']]
+            msg['id'] = process_manager.get_client_id(msg['id'])
             await websocket.send_json(
                 msg
             )
@@ -132,7 +132,7 @@ def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, request_json.id, request_json.exchange, request_json.symbol, request_json.start_date, True
+        import_candles_mode.run, 'candles-' + str(request_json.id), request_json.exchange, request_json.symbol, request_json.start_date, True
     )
 
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
@@ -146,7 +146,7 @@ def backtest(request_json: BacktestRequestJson):
 
     process_manager.add_task(
         run_backtest,
-        request_json.id,
+        'backtest-' + str(request_json.id),
         request_json.debug_mode,
         request_json.routes,
         request_json.extra_routes,
