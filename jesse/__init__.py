@@ -138,6 +138,14 @@ def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
+@fastapi_app.delete("/candles")
+def cancel_backtest(request_json: CancelRequestJson):
+    process_manager.cancel_process('candles-' + request_json.id)
+
+    return JSONResponse({'message': f'Candles process with ID of {request_json.id} terminated.'}, status_code=200)
+
+
+
 @fastapi_app.post("/backtest")
 def backtest(request_json: BacktestRequestJson):
     validate_cwd()
