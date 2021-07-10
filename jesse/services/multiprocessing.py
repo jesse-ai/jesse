@@ -1,5 +1,25 @@
 from typing import List
-from multiprocessing import Process
+import multiprocessing as mp
+import traceback
+from jesse.services.redis import sync_publish
+
+
+class Process(mp.Process):
+    def __init__(self, *args, **kwargs):
+        mp.Process.__init__(self, *args, **kwargs)
+
+    def run(self):
+        try:
+            mp.Process.run(self)
+        except Exception as e:
+            sync_publish('exception', {
+                'error': str(e),
+                'traceback': str(traceback.format_exc())
+            })
+            print('\n')
+            # print(e)
+            print(traceback.format_exc())
+            print('\n')
 
 
 class ProcessManager:
