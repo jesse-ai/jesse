@@ -10,7 +10,7 @@ from fastapi import BackgroundTasks
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson, CandlesRequestJson
+from jesse.services.web import fastapi_app, BacktestRequestJson, CandlesRequestJson, CancelRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -161,6 +161,13 @@ def backtest(request_json: BacktestRequestJson):
     )
 
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
+
+
+@fastapi_app.delete("/backtest")
+def cancel_backtest(request_json: CancelRequestJson):
+    process_manager.cancel_process('backtest-' + request_json.id)
+
+    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} terminated.'}, status_code=200)
 
 
 @fastapi_app.on_event("shutdown")

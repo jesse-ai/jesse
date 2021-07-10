@@ -38,3 +38,7 @@ class CandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
     start_date: str
+
+
+class CancelRequestJson(BaseModel):
+    id: str
