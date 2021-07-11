@@ -309,3 +309,20 @@ def candlestick_chart(candles: np.ndarray):
     import mplfinance as mpf
     df = numpy_candles_to_dataframe(candles)
     mpf.plot(df, type='candle')
+
+def combinations_without_repeat(a: np.ndarray) -> np.ndarray:
+    """
+    Creates an array containing all combinations of the passed arrays individual values without repetitions. Useful for the optimization mode.
+    """
+    if a.ndim != 1:
+        raise ValueError("Array must be of 1 dimension.")
+    n = len(a)
+    out = np.empty((n, n - 1, 2), dtype=a.dtype)
+    out[:, :, 0] = np.broadcast_to(a[:, None], (n, n - 1))
+    out.shape = (n - 1, n, 2)
+    s = a.strides[0]
+    strided = np.lib.stride_tricks.as_strided
+    b = np.concatenate((a, a[:-1]))
+    out[:, :, 1] = strided(b[1:], shape=(n-1,n), strides=(s,s))
+    out.shape = (-1, 2)
+    return out
