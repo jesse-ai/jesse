@@ -190,7 +190,7 @@ def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: floa
 def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0) -> float:
     """
     converts position-size to quantity
-    example: requesting $100 at the entry_price of %50 would return 2
+    example: requesting $100 at the entry_price of $50 would return 2
     :param position_size: float
     :param entry_price: float
     :param precision: int
