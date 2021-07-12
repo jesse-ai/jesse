@@ -42,3 +42,16 @@ class CandlesRequestJson(BaseModel):
 
 class CancelRequestJson(BaseModel):
     id: str
+
+
+class LiveRequestJson(BaseModel):
+    id: str
+    routes: List[Dict[str, str]]
+    extra_routes: List[Dict[str, str]]
+    debug_mode: bool
+    paper_mode: bool
+
+
+class LiveCancelRequestJson(BaseModel):
+    id: str
+    paper_mode: bool
