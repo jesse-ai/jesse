@@ -132,7 +132,8 @@ def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, 'candles-' + str(request_json.id), request_json.exchange, request_json.symbol, request_json.start_date, True
+        import_candles_mode.run, 'candles-' + str(request_json.id), request_json.exchange, request_json.symbol,
+        request_json.start_date, True
     )
 
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
@@ -143,7 +144,6 @@ def cancel_backtest(request_json: CancelRequestJson):
     process_manager.cancel_process('candles-' + request_json.id)
 
     return JSONResponse({'message': f'Candles process with ID of {request_json.id} terminated.'}, status_code=200)
-
 
 
 @fastapi_app.post("/backtest")
@@ -275,7 +275,7 @@ try:
 except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
-    from jesse_live.web_routes import paper, live
+    from jesse_live.web_routes import live
 
 
     @cli.command()
