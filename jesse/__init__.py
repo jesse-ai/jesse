@@ -125,7 +125,7 @@ def run() -> None:
     uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
 
 
-@fastapi_app.post('/candles')
+@fastapi_app.post('/import-candles')
 def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     validate_cwd()
 
@@ -139,7 +139,7 @@ def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
-@fastapi_app.delete("/candles")
+@fastapi_app.delete("/import-candles")
 def cancel_backtest(request_json: CancelRequestJson):
     process_manager.cancel_process('candles-' + request_json.id)
 
