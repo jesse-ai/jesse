@@ -39,46 +39,6 @@ def positions() -> list:
 
     return arr
 
-    array = []
-
-    # headers
-    array.append([
-        'type', 'strategy', 'symbol', 'leverage', 'opened at', 'qty', 'entry', 'current price', 'liq price', 'PNL (%)'
-    ])
-
-    for r in router.routes:
-        pos = r.strategy.position
-
-        if pos.pnl_percentage > 0:
-            pnl_color = 'green'
-        elif pos.pnl_percentage < 0:
-            pnl_color = 'red'
-        else:
-            pnl_color = 'black'
-
-        if pos.type == 'long':
-            type_color = 'green'
-        elif pos.type == 'short':
-            type_color = 'red'
-        else:
-            type_color = 'black'
-
-        array.append(
-            [
-                jh.color(pos.type, type_color),
-                pos.strategy.name,
-                pos.symbol,
-                pos.leverage,
-                '' if pos.is_close else f'{jh.readable_duration((jh.now_to_timestamp() - pos.opened_at) / 1000, 3)} ago',
-                pos.qty if abs(pos.qty) > 0 else None,
-                pos.entry_price,
-                pos.current_price,
-                '' if (np.isnan(pos.liquidation_price) or pos.liquidation_price == 0) else pos.liquidation_price,
-                '' if pos.is_close else f'{jh.color(str(round(pos.pnl, 2)), pnl_color)} ({jh.color(str(round(pos.pnl_percentage, 4)), pnl_color)}%)',
-            ]
-        )
-    return array
-
 
 def candles() -> List[List[str]]:
     array = []
