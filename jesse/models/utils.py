@@ -28,12 +28,9 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
 
     def async_save() -> None:
         Candle.insert(**d).on_conflict_ignore().execute()
-        print(
-            jh.color(
-                f"candle: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}",
-                'blue'
-            )
-        )
+
+        if jh.is_debugging():
+            logger.info(f"Stored candle in database: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}")
 
     # async call
     threading.Thread(target=async_save).start()
