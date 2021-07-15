@@ -11,7 +11,9 @@ def alma(candles: np.ndarray, period: int = 9, sigma: float = 6.0, distribution_
     ALMA - Arnaud Legoux Moving Average
 
     :param candles: np.ndarray
-    :param period: int - default: 30
+    :param period: int - default: 9
+    :param sigma: float - default: 6.0
+    :param distribution_offset: float - default: 0.85
     :param source_type: str - default: "close"
     :param sequential: bool - default=False
 
