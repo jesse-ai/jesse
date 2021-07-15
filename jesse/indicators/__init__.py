@@ -38,6 +38,7 @@ from .donchian import donchian
 from .dpo import dpo
 from .dti import dti
 from .dx import dx
+from .edcf import edcf
 from .efi import efi
 from .ema import ema
 from .emd import emd

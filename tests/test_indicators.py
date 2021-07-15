@@ -504,7 +504,15 @@ def test_dx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_edcf():
+    candles = np.array(mama_candles)
+    single = ta.edcf(candles)
+    seq = ta.edcf(candles, sequential=True)
 
+    assert round(single, 2) == 197.49
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+185.39
 def test_efi():
     candles = np.array(mama_candles)
     single = ta.efi(candles)
@@ -1215,7 +1223,7 @@ def test_nma():
     single = ta.nma(candles)
     seq = ta.nma(candles, sequential=True)
 
-    assert round(single, 2) == 107.82
+    assert round(single, 2) == 185.39
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

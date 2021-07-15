@@ -98,5 +98,8 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     elif matype == 30:
         from . import nma
         res = nma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 31:
+        from . import edcf
+        res = edcf(source, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]
