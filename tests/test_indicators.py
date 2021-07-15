@@ -751,6 +751,14 @@ def test_ht_trendmode():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_hwma():
+    candles = np.array(mama_candles)
+    single = ta.hwma(candles)
+    seq = ta.hwma(candles, sequential=True)
+
+    assert round(single,2) == 159.8
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ichimoku_cloud():
     candles = np.array(ichimoku_candles)
