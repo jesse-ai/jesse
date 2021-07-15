@@ -38,8 +38,8 @@ def kst(candles: np.ndarray, sma_period1: int = 10, sma_period2: int = 10, sma_p
     aroc2 = talib.SMA(talib.ROC(source, timeperiod=roc_period2), sma_period2)
     aroc3 = talib.SMA(talib.ROC(source, timeperiod=roc_period3), sma_period3)
     aroc4 = talib.SMA(talib.ROC(source, timeperiod=roc_period4), sma_period4)
-    line = aroc1[len(aroc1) - len(aroc4):] + 2 * aroc2[len(aroc2) - len(aroc4):] + \
-           3 * aroc3[len(aroc3) - len(aroc4):] + 4 * aroc4
+    line = aroc1[aroc1.size - aroc4.size:] + 2 * aroc2[aroc2.size - aroc4.size:] + \
+           3 * aroc3[aroc3.size - aroc4.size:] + 4 * aroc4
     signal = talib.SMA(line, signal_period)
 
     if sequential:

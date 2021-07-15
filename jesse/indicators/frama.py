@@ -43,17 +43,17 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 def frame_fast(candles, n, SC, FC):
     w = np.log(2.0 / (SC + 1))
 
-    D = np.zeros(len(candles))
+    D = np.zeros(candles.size)
     D[:n] = np.NaN
 
-    alphas = np.zeros(len(candles))
+    alphas = np.zeros(candles.size)
     alphas[:n] = np.NaN
 
-    for i in range(n, len(candles)):
+    for i in range(n, candles.shape[0]):
         per = candles[i - n:i]
 
-        v1 = per[len(per) // 2:]
-        v2 = per[:len(per) // 2]
+        v1 = per[per.shape[0] // 2:]
+        v2 = per[:per.shape[0] // 2]
 
         N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
         N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)
@@ -79,10 +79,10 @@ def frame_fast(candles, n, SC, FC):
         else:
             alphas[i] = alpha_
 
-    frama = np.zeros(len(candles))
+    frama = np.zeros(candles.shape[0])
     frama[n - 1] = np.mean(candles[:, 2][:n])
     frama[:n - 1] = np.NaN
 
-    for i in range(n, len(frama)):
+    for i in range(n, frama.shape[0]):
         frama[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama[i - 1]
     return frama

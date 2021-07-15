@@ -23,7 +23,7 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
 
     :return: float | np.ndarray
     """
-    if not sequential and len(candles) > 240:
+    if not sequential and candles.shape[0] > 240:
         candles = candles[-240:]
         candles_compare = candles_compare[-240:]
 
