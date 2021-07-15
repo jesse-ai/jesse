@@ -40,8 +40,8 @@ def positions() -> list:
     return arr
 
 
-def candles() -> List[List[str]]:
-    array = []
+def candles() -> dict:
+    arr = {}
     candle_keys = []
 
     # add routes
@@ -63,31 +63,24 @@ def candles() -> List[List[str]]:
             'timeframe': e[2]
         })
 
-    # headers
-    array.append(['exchange-symbol-timeframe', 'timestamp', 'open', 'close', 'high', 'low'])
-
     for k in candle_keys:
         try:
-            current_candle = store.candles.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
-            green = is_bullish(current_candle)
-            bold = k['symbol'] in config['app']['trading_symbols'] and k['timeframe'] in config['app'][
-                'trading_timeframes']
+            c = store.candles.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
             key = jh.key(k['exchange'], k['symbol'], k['timeframe'])
-            array.append(
-                [
-                    jh.style(key, 'underline' if bold else None),
-                    jh.color(jh.timestamp_to_time(current_candle[0]), 'green' if green else 'red'),
-                    jh.color(str(current_candle[1]), 'green' if green else 'red'),
-                    jh.color(str(current_candle[2]), 'green' if green else 'red'),
-                    jh.color(str(current_candle[3]), 'green' if green else 'red'),
-                    jh.color(str(current_candle[4]), 'green' if green else 'red'),
-                ]
-            )
+            arr[key] = {
+                'time': int(c[0] / 1000),
+                'open': c[1],
+                'close': c[2],
+                'high': c[3],
+                'low': c[4],
+                'volume': c[5],
+            }
         except IndexError:
             return
         except Exception:
             raise
-    return array
+
+    return arr
 
 
 def livetrade():
@@ -117,7 +110,7 @@ def livetrade():
         'current_time': str(jh.now_to_timestamp()),
         'started_balance': str(starting_balance),
         'current_balance': str(current_balance),
-        'debug_mode': config['app']['debug_mode'],
+        'debug_mode': str(config['app']['debug_mode']),
         'count_error_logs': str(len(store.logs.errors)),
         'count_info_logs': str(len(store.logs.info)),
         'count_active_orders': str(store.orders.count_all_active_orders()),
