@@ -4,6 +4,7 @@ from .adosc import adosc
 from .adx import adx
 from .adxr import adxr
 from .alligator import alligator
+from .alma import alma
 from .ao import ao
 from .apo import apo
 from .aroon import aroon

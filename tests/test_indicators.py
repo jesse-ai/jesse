@@ -77,6 +77,14 @@ def test_alligator():
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
 
+def test_alma():
+    candles = np.array(mama_candles)
+    single = ta.alma(candles)
+    seq = ta.alma(candles, sequential=True)
+
+    assert round(single, 2) == 179.17
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ao():
     candles = np.array(mama_candles)
