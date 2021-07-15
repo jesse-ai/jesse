@@ -10,7 +10,8 @@ from fastapi import BackgroundTasks
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson, CandlesRequestJson, CancelRequestJson
+from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
+    GetCandlesRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -126,7 +127,7 @@ def run() -> None:
 
 
 @fastapi_app.post('/import-candles')
-def import_candles(request_json: CandlesRequestJson) -> JSONResponse:
+def import_candles(request_json: ImportCandlesRequestJson) -> JSONResponse:
     validate_cwd()
 
     from jesse.modes import import_candles_mode
@@ -276,6 +277,19 @@ except ModuleNotFoundError:
     live_package_exists = False
 if live_package_exists:
     from jesse_live.web_routes import live
+
+    @fastapi_app.post('/get-candles')
+    def get_candles(json_request: GetCandlesRequestJson) -> JSONResponse:
+        validate_cwd()
+
+        from jesse.modes.data_provider import get_candles
+
+        arr = get_candles(json_request.exchange, json_request.symbol, json_request.timeframe)
+
+        return JSONResponse({
+            'id': json_request.id,
+            'data': arr
+        }, status_code=200)
 
 
     @cli.command()

@@ -113,20 +113,20 @@ def livetrade():
         pnl, pnl_perc, total, winning_trades, losing_trades = 0, 0, 0, 0, 0
 
     return {
-        'started_at': store.app.starting_time,
-        'current_time': jh.now_to_timestamp(),
-        'started_balance': starting_balance,
-        'current_balance': current_balance,
+        'started_at': str(store.app.starting_time),
+        'current_time': str(jh.now_to_timestamp()),
+        'started_balance': str(starting_balance),
+        'current_balance': str(current_balance),
         'debug_mode': config['app']['debug_mode'],
-        'count_error_logs': len(store.logs.errors),
-        'count_info_logs': len(store.logs.info),
-        'count_active_orders': store.orders.count_all_active_orders(),
-        'open_positions': store.positions.count_open_positions(),
-        'pnl': pnl,
-        'pnl_perc': pnl_perc,
-        'count_trades': total,
-        'count_winning_trades': winning_trades,
-        'count_losing_trades': losing_trades,
+        'count_error_logs': str(len(store.logs.errors)),
+        'count_info_logs': str(len(store.logs.info)),
+        'count_active_orders': str(store.orders.count_all_active_orders()),
+        'open_positions': str(store.positions.count_open_positions()),
+        'pnl': str(pnl),
+        'pnl_perc': str(pnl_perc),
+        'count_trades': str(total),
+        'count_winning_trades': str(winning_trades),
+        'count_losing_trades': str(losing_trades),
     }
 
 

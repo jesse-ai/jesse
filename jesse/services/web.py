@@ -7,6 +7,7 @@ from pydantic import BaseModel
 fastapi_app = FastAPI()
 
 origins = [
+    "*",
     "http://localhost:8080",
 ]
 
@@ -33,7 +34,7 @@ class BacktestRequestJson(BaseModel):
     export_full_reports: bool
 
 
-class CandlesRequestJson(BaseModel):
+class ImportCandlesRequestJson(BaseModel):
     id: str
     exchange: str
     symbol: str
@@ -55,3 +56,10 @@ class LiveRequestJson(BaseModel):
 class LiveCancelRequestJson(BaseModel):
     id: str
     paper_mode: bool
+
+
+class GetCandlesRequestJson(BaseModel):
+    id: str
+    exchange: str
+    symbol: str
+    timeframe: str
