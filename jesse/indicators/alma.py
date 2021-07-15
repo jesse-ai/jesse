@@ -4,12 +4,6 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a: a
-
-
 def alma(candles: np.ndarray, period: int = 9, sigma: float = 6.0, distribution_offset: float = 0.85,
          source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
