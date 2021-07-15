@@ -94,6 +94,7 @@ from .minmax import minmax
 from .mom import mom
 from .msw import msw
 from .natr import natr
+from .nma import nma
 from .nvi import nvi
 from .obv import obv
 from .pattern_recognition import pattern_recognition

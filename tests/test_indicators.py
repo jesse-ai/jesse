@@ -1208,6 +1208,17 @@ def test_natr():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_nma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.nma(candles)
+    seq = ta.nma(candles, sequential=True)
+
+    assert round(single, 2) == 107.82
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 
 def test_nvi():
     # use the same candles as mama_candles

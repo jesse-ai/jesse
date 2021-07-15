@@ -95,5 +95,8 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         if len(candles.shape) == 1:
           raise ValueError("vwap only works with normal candles.")
         res = vwap(source, source_type=source_type,  sequential=True)
+    elif matype == 30:
+        from . import nma
+        res = nma(source, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]
