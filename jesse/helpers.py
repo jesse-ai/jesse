@@ -641,7 +641,7 @@ def string_after_character(string: str, character: str) -> str:
 
 def slice_candles(candles: np.ndarray, sequential: bool) -> np.ndarray:
     warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
+    if not sequential and candles.shape[0] > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
     return candles
 
