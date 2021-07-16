@@ -135,6 +135,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             if not already_exists:
                 time.sleep(driver.sleep_time)
 
+    sync_publish('alert', {
+        'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
+        'type': 'success'
+    })
+
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,
                                       end_timestamp: int) -> List[Dict[str, Union[str, Any]]]:
