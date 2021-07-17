@@ -1067,6 +1067,22 @@ def test_mean_ad():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_mab():
+    candles = np.array(bollinger_bands_candles)
+
+    bb = ta.mab(candles)
+    u, m, l = bb
+    assert type(bb).__name__ == 'MAB'
+    assert round(u, 1) == 142.8
+    assert round(m, 1) == 140.0
+    assert round(l, 1) == 130.1
+
+    seq = ta.mab(candles, sequential=True)
+    assert seq.upperband[-1] == u
+    assert len(seq.upperband) == len(candles)
+    assert len(seq.middleband) == len(candles)
+    assert len(seq.lowerband) == len(candles)
+
 def test_mama():
     candles = np.array(mama_candles)
 

@@ -79,6 +79,7 @@ from .linearreg_intercept import linearreg_intercept
 from .linearreg_slope import linearreg_slope
 from .lrsi import lrsi
 from .ma import ma
+from .mab import mab
 from .macd import macd
 from .macdext import macdext
 from .median_ad import median_ad
