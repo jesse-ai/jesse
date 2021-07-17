@@ -63,7 +63,7 @@ def rsx_fast(source, period):
 
     res = np.full_like(source, np.nan)
 
-    for i in range(period, len(source)):
+    for i in range(period, source.size):
         if f90 == 0:
             f90 = 1.0
             f0 = 0.0

@@ -4,6 +4,7 @@ from .adosc import adosc
 from .adx import adx
 from .adxr import adxr
 from .alligator import alligator
+from .alma import alma
 from .ao import ao
 from .apo import apo
 from .aroon import aroon
@@ -37,6 +38,7 @@ from .donchian import donchian
 from .dpo import dpo
 from .dti import dti
 from .dx import dx
+from .edcf import edcf
 from .efi import efi
 from .ema import ema
 from .emd import emd
@@ -58,6 +60,7 @@ from .ht_phasor import ht_phasor
 from .ht_sine import ht_sine
 from .ht_trendline import ht_trendline
 from .ht_trendmode import ht_trendmode
+from .hwma import hwma
 from .ichimoku_cloud import ichimoku_cloud
 from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .ift_rsi import ift_rsi
@@ -76,6 +79,7 @@ from .linearreg_intercept import linearreg_intercept
 from .linearreg_slope import linearreg_slope
 from .lrsi import lrsi
 from .ma import ma
+from .mab import mab
 from .macd import macd
 from .macdext import macdext
 from .median_ad import median_ad
@@ -92,6 +96,7 @@ from .minmax import minmax
 from .mom import mom
 from .msw import msw
 from .natr import natr
+from .nma import nma
 from .nvi import nvi
 from .obv import obv
 from .pattern_recognition import pattern_recognition

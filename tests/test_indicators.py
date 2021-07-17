@@ -77,6 +77,14 @@ def test_alligator():
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
 
+def test_alma():
+    candles = np.array(mama_candles)
+    single = ta.alma(candles)
+    seq = ta.alma(candles, sequential=True)
+
+    assert round(single, 2) == 179.17
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ao():
     candles = np.array(mama_candles)
@@ -496,7 +504,15 @@ def test_dx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_edcf():
+    candles = np.array(mama_candles)
+    single = ta.edcf(candles)
+    seq = ta.edcf(candles, sequential=True)
 
+    assert round(single, 2) == 197.49
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+185.39
 def test_efi():
     candles = np.array(mama_candles)
     single = ta.efi(candles)
@@ -743,6 +759,14 @@ def test_ht_trendmode():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_hwma():
+    candles = np.array(mama_candles)
+    single = ta.hwma(candles)
+    seq = ta.hwma(candles, sequential=True)
+
+    assert round(single,2) == 159.8
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ichimoku_cloud():
     candles = np.array(ichimoku_candles)
@@ -1043,6 +1067,22 @@ def test_mean_ad():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_mab():
+    candles = np.array(bollinger_bands_candles)
+
+    bb = ta.mab(candles)
+    u, m, l = bb
+    assert type(bb).__name__ == 'MAB'
+    assert round(u, 1) == 142.8
+    assert round(m, 1) == 140.0
+    assert round(l, 1) == 130.1
+
+    seq = ta.mab(candles, sequential=True)
+    assert seq.upperband[-1] == u
+    assert len(seq.upperband) == len(candles)
+    assert len(seq.middleband) == len(candles)
+    assert len(seq.lowerband) == len(candles)
+
 def test_mama():
     candles = np.array(mama_candles)
 
@@ -1189,6 +1229,17 @@ def test_natr():
     seq = ta.natr(candles, period=14, sequential=True)
 
     assert round(single, 2) == 22.55
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_nma():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.nma(candles)
+    seq = ta.nma(candles, sequential=True)
+
+    assert round(single, 2) == 185.39
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

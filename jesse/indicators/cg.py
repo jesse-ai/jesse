@@ -32,7 +32,7 @@ def cg(candles: np.ndarray, period: int = 10, source_type: str = "close", sequen
 @njit
 def go_fast(source, period):  # Function is compiled to machine code when called the first time
     res = np.full_like(source, fill_value=np.nan)
-    for i in range(0, len(source)):
+    for i in range(0, source.size):
         if i > period:
             num = 0
             denom = 0

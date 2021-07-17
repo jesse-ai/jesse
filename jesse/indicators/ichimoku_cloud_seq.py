@@ -27,7 +27,7 @@ def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, bas
     :return: IchimokuCloud
     """
 
-    if len(candles) < lagging_line_period + displacement:
+    if candles.shape[0] < lagging_line_period + displacement:
         raise ValueError("Too few candles available for lagging_line_period + displacement.")
 
     candles = slice_candles(candles, sequential)

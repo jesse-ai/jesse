@@ -44,13 +44,13 @@ def supertrend_fast(candles, atr, factor, period):
     lower_basic = (candles[:, 3] + candles[:, 4]) / 2 - (factor * atr)
     upper_band = upper_basic
     lower_band = lower_basic
-    super_trend = np.zeros(len(candles))
-    changed = np.zeros(len(candles))
+    super_trend = np.zeros(candles.size)
+    changed = np.zeros(candles.size)
 
     # calculate the bands:
     # in an UPTREND, lower band does not decrease
     # in a DOWNTREND, upper band does not increase
-    for i in range(period, len(candles)):
+    for i in range(period, candles.size):
         # if currently in DOWNTREND (i.e. price is below upper band)
         prevClose = candles[:, 2][i - 1]
         prevUpperBand = upper_band[i - 1]
@@ -73,7 +73,7 @@ def supertrend_fast(candles, atr, factor, period):
             super_trend[i - 1] = prevLowerBand
         prevSuperTrend = super_trend[i - 1]
 
-    for i in range(period, len(candles)):
+    for i in range(period, candles.size):
         prevClose = candles[:, 2][i - 1]
         prevUpperBand = upper_band[i - 1]
         currUpperBand = upper_band[i]
