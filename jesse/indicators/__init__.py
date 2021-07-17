@@ -137,6 +137,7 @@ from .tsf import tsf
 from .ttm_trend import ttm_trend
 from .tsi import tsi
 from .typprice import typprice
+from .ui import ui
 from .ultosc import ultosc
 from .var import var
 from .vi import vi

@@ -1832,6 +1832,16 @@ def test_typprice():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_ui():
+    # use the same candles as mama_candles
+    candles = np.array(mama_candles)
+
+    single = ta.ui(candles)
+    seq = ta.ui(candles, sequential=True)
+
+    assert round(single, 1) == 23.7
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_ultosc():
     # use the same candles as mama_candles
