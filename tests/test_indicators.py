@@ -1008,6 +1008,15 @@ def test_ma():
     assert len(seq_average) == len(candles)
     assert seq[-1] == single
 
+def test_maaq():
+    candles = np.array(test_candles_19)
+
+    single = ta.maaq(candles)
+    seq = ta.maaq(candles, sequential=True)
+
+    assert round(single, 2) == 205.95
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_macd():
     candles = np.array(test_candles_19)
@@ -1745,6 +1754,7 @@ def test_supertrend():
 
     single = ta.supertrend(candles, period=10, factor=3)
     seq = ta.supertrend(candles, period=10, factor=3, sequential=True)
+    print(seq)
 
     assert type(single).__name__ == 'SuperTrend'
     assert round(single.trend, 2) == 228.45
