@@ -67,6 +67,7 @@ from .ichimoku_cloud_seq import ichimoku_cloud_seq
 from .ift_rsi import ift_rsi
 from .itrend import itrend
 from .jma import jma
+from .jsa import jsa
 from .kama import kama
 from .kaufmanstop import kaufmanstop
 from .kdj import kdj

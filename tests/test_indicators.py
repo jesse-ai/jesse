@@ -854,6 +854,16 @@ def test_jma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_jsa():
+    # use the same candles as dema_candles
+    candles = np.array(test_candles_19)
+
+    single = ta.jsa(candles)
+    seq = ta.jsa(candles, sequential=True)
+
+    assert round(single, 2) == 172.26
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_kama():
     # use the same candles as dema_candles
