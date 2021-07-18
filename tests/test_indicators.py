@@ -77,6 +77,7 @@ def test_alligator():
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
 
+
 def test_alma():
     candles = np.array(test_candles_19)
     single = ta.alma(candles)
@@ -85,6 +86,7 @@ def test_alma():
     assert round(single, 2) == 179.17
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ao():
     candles = np.array(test_candles_19)
@@ -156,18 +158,6 @@ def test_avgprice():
     assert seq[-1] == single
 
 
-def test_beta():
-    # use the same candles as mama_candles
-    candles = np.array(test_candles_19)
-
-    single = ta.beta(candles)
-    seq = ta.beta(candles, sequential=True)
-
-    assert round(single, 2) == -0.31
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
 def test_bandpass():
     candles = np.array(test_candles_19)
 
@@ -184,6 +174,19 @@ def test_bandpass():
     assert len(seq_bp.bp_normalized) == len(candles)
     assert len(seq_bp.signal) == len(candles)
     assert len(seq_bp.trigger) == len(candles)
+
+
+def test_beta():
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
+
+    single = ta.beta(candles)
+    seq = ta.beta(candles, sequential=True)
+
+    assert round(single, 2) == -0.31
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 
 def test_bollinger_bands():
     candles = np.array(test_candles_11)
@@ -314,6 +317,7 @@ def test_cksp():
     assert seq.short[-1] == single.short
     assert len(seq.long) == len(candles)
     assert len(seq.short) == len(candles)
+
 
 def test_cmo():
     # use the same candles as mama_candles
@@ -504,6 +508,7 @@ def test_dx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_edcf():
     candles = np.array(test_candles_19)
     single = ta.edcf(candles)
@@ -512,7 +517,8 @@ def test_edcf():
     assert round(single, 2) == 197.49
     assert len(seq) == len(candles)
     assert seq[-1] == single
-185.39
+
+
 def test_efi():
     candles = np.array(test_candles_19)
     single = ta.efi(candles)
@@ -578,6 +584,7 @@ def test_er():
     assert len(seq) == len(candles)
     assert round(seq[-1], 2) == round(single, 2)
 
+
 def test_eri():
     candles = np.array(test_candles_19)
     single = ta.eri(candles)
@@ -590,6 +597,7 @@ def test_eri():
     assert seq.bull[-1] == single.bull
     assert len(seq.bull) == len(candles)
     assert len(seq.bear) == len(candles)
+
 
 def test_fisher():
     candles = np.array(test_candles_19)
@@ -759,14 +767,16 @@ def test_ht_trendmode():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_hwma():
     candles = np.array(test_candles_19)
     single = ta.hwma(candles)
     seq = ta.hwma(candles, sequential=True)
 
-    assert round(single,2) == 159.8
+    assert round(single, 2) == 159.8
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ichimoku_cloud():
     candles = np.array(test_candles_15)
@@ -806,6 +816,7 @@ def test_ift_rsi():
     assert round(single, 2) == 0.89
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_itrend():
     candles = np.array(test_candles_19)
@@ -919,6 +930,7 @@ def test_kurtosis():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_kvo():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
@@ -1008,6 +1020,7 @@ def test_ma():
     assert len(seq_average) == len(candles)
     assert seq[-1] == single
 
+
 def test_maaq():
     candles = np.array(test_candles_19)
 
@@ -1017,6 +1030,24 @@ def test_maaq():
     assert round(single, 2) == 205.95
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_mab():
+    candles = np.array(test_candles_11)
+
+    bb = ta.mab(candles)
+    u, m, l = bb
+    assert type(bb).__name__ == 'MAB'
+    assert round(u, 1) == 142.8
+    assert round(m, 1) == 140.0
+    assert round(l, 1) == 130.1
+
+    seq = ta.mab(candles, sequential=True)
+    assert seq.upperband[-1] == u
+    assert len(seq.upperband) == len(candles)
+    assert len(seq.middleband) == len(candles)
+    assert len(seq.lowerband) == len(candles)
+
 
 def test_macd():
     candles = np.array(test_candles_19)
@@ -1054,43 +1085,6 @@ def test_macdext():
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
 
-
-def test_median_ad():
-    candles = np.array(test_candles_19)
-
-    single = ta.median_ad(candles)
-    seq = ta.median_ad(candles, sequential=True)
-
-    assert round(single, 2) == 6.86
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_mean_ad():
-    candles = np.array(test_candles_19)
-
-    single = ta.mean_ad(candles)
-    seq = ta.mean_ad(candles, sequential=True)
-
-    assert round(single, 2) == 23.82
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-def test_mab():
-    candles = np.array(test_candles_11)
-
-    bb = ta.mab(candles)
-    u, m, l = bb
-    assert type(bb).__name__ == 'MAB'
-    assert round(u, 1) == 142.8
-    assert round(m, 1) == 140.0
-    assert round(l, 1) == 130.1
-
-    seq = ta.mab(candles, sequential=True)
-    assert seq.upperband[-1] == u
-    assert len(seq.upperband) == len(candles)
-    assert len(seq.middleband) == len(candles)
-    assert len(seq.lowerband) == len(candles)
 
 def test_mama():
     candles = np.array(test_candles_19)
@@ -1136,6 +1130,28 @@ def test_mcginley_dynamic():
     single = ta.mcginley_dynamic(candles)
     seq = ta.mcginley_dynamic(candles, sequential=True)
     assert round(single, 2) == 107.82
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_mean_ad():
+    candles = np.array(test_candles_19)
+
+    single = ta.mean_ad(candles)
+    seq = ta.mean_ad(candles, sequential=True)
+
+    assert round(single, 2) == 23.82
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_median_ad():
+    candles = np.array(test_candles_19)
+
+    single = ta.median_ad(candles)
+    seq = ta.median_ad(candles, sequential=True)
+
+    assert round(single, 2) == 6.86
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1229,6 +1245,7 @@ def test_msw():
     assert seq.sine[-1] == single.sine
     assert len(seq.sine) == len(candles)
 
+
 def test_mwdx():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
@@ -1240,6 +1257,7 @@ def test_mwdx():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_natr():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
@@ -1250,6 +1268,7 @@ def test_natr():
     assert round(single, 2) == 22.55
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_nma():
     # use the same candles as mama_candles
@@ -1312,15 +1331,15 @@ def test_pattern_recognizion():
 
 
 def test_pfe():
-  # use the same candles as mama_candles
-  candles = np.array(test_candles_19)
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
 
-  single = ta.pfe(candles)
-  seq = ta.pfe(candles, sequential=True)
+    single = ta.pfe(candles)
+    seq = ta.pfe(candles, sequential=True)
 
-  assert round(single, 2) == -211.85
-  assert len(seq) == len(candles)
-  assert seq[-1] == single
+    assert round(single, 2) == -211.85
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 
 def test_pivot():
@@ -1431,16 +1450,16 @@ def test_ppo():
 
 
 def test_pvi():
-  # use the same candles as mama_candles
-  candles = np.array(test_candles_19)
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
 
-  single = ta.pvi(candles)
-  seq = ta.pvi(candles, sequential=True)
+    single = ta.pvi(candles)
+    seq = ta.pvi(candles, sequential=True)
 
+    assert round(single, 0) == 661
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
-  assert round(single, 0) == 661
-  assert len(seq) == len(candles)
-  assert seq[-1] == single
 
 def test_pwma():
     # use the same candles as mama_candles
@@ -1452,6 +1471,7 @@ def test_pwma():
     assert round(single, 2) == 193.82
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_qstick():
     # use the same candles as mama_candles
@@ -1649,6 +1669,7 @@ def test_skew():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_sma():
     close_prices = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29]
     candles = fake_range_candle_from_range_prices(close_prices)
@@ -1672,6 +1693,16 @@ def test_smma():
     assert seq[-1] == single
 
 
+def test_sqwma():
+    candles = np.array(test_candles_19)
+    single = ta.sqwma(candles)
+    seq = ta.sqwma(candles, sequential=True)
+
+    assert round(single, 2) == 191.02
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
 def test_srsi():
     candles = np.array(test_candles_4)
     period = 14
@@ -1688,14 +1719,6 @@ def test_srsi():
     assert len(srsi.d) == len(candles)
     assert len(srsi.k) == len(candles)
 
-def test_sqwma():
-    candles = np.array(test_candles_19)
-    single = ta.sqwma(candles)
-    seq = ta.sqwma(candles, sequential=True)
-
-    assert round(single, 2) == 191.02
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
 
 def test_srwma():
     candles = np.array(test_candles_19)
@@ -1705,6 +1728,7 @@ def test_srwma():
     assert round(single, 2) == 205.38
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_stc():
     candles = np.array(test_candles_19)
@@ -1899,15 +1923,16 @@ def test_tsi():
 
 
 def test_ttm_trend():
-  # use the same candles as mama_candles
-  candles = np.array(test_candles_19)
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
 
-  single = ta.ttm_trend(candles)
-  seq = ta.ttm_trend(candles, sequential=True)
+    single = ta.ttm_trend(candles)
+    seq = ta.ttm_trend(candles, sequential=True)
 
-  assert single == False
-  assert len(seq) == len(candles)
-  assert seq[-1] == single
+    assert single == False
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
 
 def test_typprice():
     # use the same candles as mama_candles
@@ -1920,6 +1945,7 @@ def test_typprice():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_ui():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
@@ -1930,6 +1956,7 @@ def test_ui():
     assert round(single, 1) == 23.7
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_ultosc():
     # use the same candles as mama_candles
@@ -1977,6 +2004,7 @@ def test_vidya():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_vlma():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
@@ -1987,6 +2015,7 @@ def test_vlma():
     assert round(single, 2) == 208.1
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
 
 def test_vosc():
     # use the same candles as mama_candles
@@ -2034,6 +2063,16 @@ def test_vpt():
     seq = ta.vpt(candles, sequential=True)
 
     assert round(single, 2) == -1733928.99
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+
+def test_vpwma():
+    candles = np.array(test_candles_19)
+    single = ta.vpwma(candles)
+    seq = ta.vpwma(candles, sequential=True)
+
+    assert round(single, 2) == 206.52
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

@@ -11,8 +11,8 @@ from .aroon import aroon
 from .aroonosc import aroonosc
 from .atr import atr
 from .avgprice import avgprice
-from .beta import beta
 from .bandpass import bandpass
+from .beta import beta
 from .bollinger_bands import bollinger_bands
 from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop
@@ -20,9 +20,9 @@ from .cc import cc
 from .cci import cci
 from .cfo import cfo
 from .cg import cg
-from .cksp import cksp
 from .chande import chande
 from .chop import chop
+from .cksp import cksp
 from .cmo import cmo
 from .correl import correl
 from .correlation_cycle import correlation_cycle
@@ -83,12 +83,12 @@ from .maaq import maaq
 from .mab import mab
 from .macd import macd
 from .macdext import macdext
-from .median_ad import median_ad
-from .mean_ad import mean_ad
 from .mama import mama
 from .marketfi import marketfi
 from .mass import mass
 from .mcginley_dynamic import mcginley_dynamic
+from .mean_ad import mean_ad
+from .median_ad import median_ad
 from .medprice import medprice
 from .mfi import mfi
 from .midpoint import midpoint
@@ -125,8 +125,8 @@ from .sinwma import sinwma
 from .skew import skew
 from .sma import sma
 from .smma import smma
-from .srsi import srsi
 from .sqwma import sqwma
+from .srsi import srsi
 from .srwma import srwma
 from .stc import stc
 from .stddev import stddev
@@ -143,8 +143,8 @@ from .trendflex import trendflex
 from .trima import trima
 from .trix import trix
 from .tsf import tsf
-from .ttm_trend import ttm_trend
 from .tsi import tsi
+from .ttm_trend import ttm_trend
 from .typprice import typprice
 from .ui import ui
 from .ultosc import ultosc
@@ -156,6 +156,7 @@ from .vosc import vosc
 from .voss import voss
 from .vpci import vpci
 from .vpt import vpt
+from .vpwma import vpwma
 from .vwap import vwap
 from .vwma import vwma
 from .vwmacd import vwmacd
