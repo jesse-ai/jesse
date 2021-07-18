@@ -149,6 +149,7 @@ from .ultosc import ultosc
 from .var import var
 from .vi import vi
 from .vidya import vidya
+from .vlma import vlma
 from .vosc import vosc
 from .voss import voss
 from .vpci import vpci

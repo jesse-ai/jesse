@@ -1960,6 +1960,16 @@ def test_vidya():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_vlma():
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
+
+    single = ta.vlma(candles)
+    seq = ta.vlma(candles, sequential=True)
+
+    assert round(single, 2) == 208.1
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_vosc():
     # use the same candles as mama_candles
