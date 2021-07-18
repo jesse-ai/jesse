@@ -1464,6 +1464,20 @@ def test_pivot4():
     assert len(seq.s3) == len(candles)
     assert len(seq.s4) == len(candles)
 
+def test_pma():
+    candles = np.array(test_candles_19)
+
+    single = ta.pma(candles)
+    assert type(single).__name__ == 'PMA'
+    assert round(single.predict, 2) == 171.05
+    assert round(single.trigger, 2) == 190.91
+
+    seq = ta.pma(candles, sequential=True)
+    assert seq.predict[-1] == single.predict
+    assert seq.trigger[-1] == single.trigger
+    assert len(seq.predict) == len(candles)
+    assert len(seq.trigger) == len(candles)
+
 
 def test_ppo():
     # use the same candles as mama_candles
