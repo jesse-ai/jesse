@@ -1229,6 +1229,16 @@ def test_msw():
     assert seq.sine[-1] == single.sine
     assert len(seq.sine) == len(candles)
 
+def test_mwdx():
+    # use the same candles as mama_candles
+    candles = np.array(test_candles_19)
+
+    single = ta.mwdx(candles)
+    seq = ta.mwdx(candles, sequential=True)
+
+    assert round(single, 2) == 192.11
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_natr():
     # use the same candles as mama_candles

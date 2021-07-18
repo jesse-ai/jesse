@@ -96,6 +96,7 @@ from .midprice import midprice
 from .minmax import minmax
 from .mom import mom
 from .msw import msw
+from .mwdx import mwdx
 from .natr import natr
 from .nma import nma
 from .nvi import nvi
