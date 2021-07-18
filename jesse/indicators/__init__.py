@@ -44,6 +44,7 @@ from .efi import efi
 from .ema import ema
 from .emd import emd
 from .emv import emv
+from .epma import epma
 from .er import er
 from .eri import eri
 from .fisher import fisher

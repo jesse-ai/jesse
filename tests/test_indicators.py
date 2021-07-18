@@ -584,6 +584,15 @@ def test_emv():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_epma():
+    candles = np.array(test_candles_19)
+
+    single = ta.epma(candles)
+    seq = ta.epma(candles, sequential=True)
+
+    assert round(single, 2) == 175.31
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_er():
     candles = np.array(test_candles_19)
