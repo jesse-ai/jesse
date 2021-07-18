@@ -1688,6 +1688,23 @@ def test_srsi():
     assert len(srsi.d) == len(candles)
     assert len(srsi.k) == len(candles)
 
+def test_sqwma():
+    candles = np.array(test_candles_19)
+    single = ta.sqwma(candles)
+    seq = ta.sqwma(candles, sequential=True)
+
+    assert round(single, 2) == 191.02
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
+
+def test_srwma():
+    candles = np.array(test_candles_19)
+    single = ta.srwma(candles)
+    seq = ta.srwma(candles, sequential=True)
+
+    assert round(single, 2) == 205.38
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_stc():
     candles = np.array(test_candles_19)

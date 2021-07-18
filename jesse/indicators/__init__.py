@@ -126,6 +126,8 @@ from .skew import skew
 from .sma import sma
 from .smma import smma
 from .srsi import srsi
+from .sqwma import sqwma
+from .srwma import srwma
 from .stc import stc
 from .stddev import stddev
 from .stochastic import stoch
