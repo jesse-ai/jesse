@@ -101,5 +101,11 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     elif matype == 31:
         from . import edcf
         res = edcf(source, period, source_type=source_type,  sequential=True)
+    elif matype == 32:
+        from . import mwdx
+        res = mwdx(source, source_type=source_type,  sequential=True)
+    elif matype == 33:
+        from . import maaq
+        res = maaq(source, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]
