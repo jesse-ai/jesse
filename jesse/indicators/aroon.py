@@ -13,8 +13,8 @@ def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AR
     AROON - Aroon
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: AROON(down, up)
     """

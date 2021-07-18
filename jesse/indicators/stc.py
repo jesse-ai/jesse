@@ -22,7 +22,7 @@ def stc(candles: np.ndarray, fast_period: int = 23, fast_matype: int = 1, slow_p
     :param k_period: int - default: 10
     :param d_period: int - default: 3
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

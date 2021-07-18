@@ -14,7 +14,7 @@ def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXT
 
     :param candles: np.ndarray
     :param order: int - default = 3
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: EXTREMA(min, max, last_min, last_max)
     """

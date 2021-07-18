@@ -12,10 +12,10 @@ def ui(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: 
     Ulcer Index (UI)
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param scalar: float - default=100
+    :param period: int - default: 14
+    :param scalar: float - default: 100
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

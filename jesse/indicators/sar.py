@@ -14,7 +14,7 @@ def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, s
     :param candles: np.ndarray
     :param acceleration: float - default: 0.02
     :param maximum: float - default: 0.2
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

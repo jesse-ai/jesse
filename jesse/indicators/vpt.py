@@ -11,7 +11,7 @@ def vpt(candles: np.ndarray, source_type: str = "close", sequential: bool = Fals
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

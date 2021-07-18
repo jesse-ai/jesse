@@ -20,13 +20,13 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
     Damiani Volatmeter
 
     :param candles: np.ndarray
-    :param vis_atr: int - default=13
-    :param vis_std: int - default=20
-    :param sed_atr: int - default=40
-    :param sed_std: int - default=100
-    :param threshold: float - default=1.4
+    :param vis_atr: int - default: 13
+    :param vis_std: int - default: 20
+    :param sed_atr: int - default: 40
+    :param sed_std: int - default: 100
+    :param threshold: float - default: 1.4
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -15,11 +15,11 @@ def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1,
     Holt-Winter Moving Average
 
     :param candles: np.ndarray
-    :param na: float - default=0.2
-    :param nb: float - default=0.1
-    :param nc: float - default=0.1
+    :param na: float - default: 0.2
+    :param nb: float - default: 0.1
+    :param nc: float - default: 0.1
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

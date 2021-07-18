@@ -14,7 +14,7 @@ def pattern_recognition(candles: np.ndarray, pattern_type: str, penetration: int
     :param candles: np.ndarray
     :param penetration: int - default = 0
     :param pattern_type: str
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: int | np.ndarray
     """

@@ -16,11 +16,11 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
     Moving Average Adaptive Q
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param fast_period: int - default=2
-    :param slow_period: int - default=30
+    :param period: int - default: 14
+    :param fast_period: int - default: 2
+    :param slow_period: int - default: 30
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

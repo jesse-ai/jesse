@@ -12,7 +12,7 @@ def cvi(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union
 
     :param candles: np.ndarray
     :param period: int - default: 5
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

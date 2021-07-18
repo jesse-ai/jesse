@@ -11,8 +11,8 @@ def willr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Un
     WILLR - Williams' %R
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

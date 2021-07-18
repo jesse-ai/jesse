@@ -21,7 +21,7 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
     :param period: int - default: 20
     :param bandwidth: float - default: 0.3
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: BandPass(bp, bp_normalized, signal, trigger)
     """

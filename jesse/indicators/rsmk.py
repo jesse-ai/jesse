@@ -19,7 +19,7 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
     :param candles_compare: np.ndarray
     :param period: int - default: 3
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

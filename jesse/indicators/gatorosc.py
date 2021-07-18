@@ -15,7 +15,7 @@ def gatorosc(candles: np.ndarray, source_type: str = "close", sequential: bool =
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: GATOR(upper, lower, upper_change, lower_change)
     """

@@ -13,7 +13,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     :param candles: np.ndarray
     :param period: int - default: 30
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

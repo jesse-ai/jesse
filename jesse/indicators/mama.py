@@ -18,7 +18,7 @@ def mama(candles: np.ndarray, fastlimit: float = 0.5, slowlimit: float = 0.05, s
     :param fastlimit: float - default: 0.5
     :param slowlimit: float - default: 0.05
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: MAMA(mama, fama)
     """

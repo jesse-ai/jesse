@@ -13,7 +13,7 @@ def ht_dcperiod(candles: np.ndarray, source_type: str = "close", sequential: boo
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -20,7 +20,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
     :param period: int - default: 20
     :param threshold: int - default: 9
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: CC(real, imag)
     """

@@ -13,10 +13,10 @@ def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: b
     DTI by William Blau
 
     :param candles: np.ndarray
-    :param r: int - default=14
-    :param s: int - default=10
-    :param u: int - default=5
-    :param sequential: bool - default=False
+    :param r: int - default: 14
+    :param s: int - default: 10
+    :param u: int - default: 5
+    :param sequential: bool - default: False
 
     :return: float
     """

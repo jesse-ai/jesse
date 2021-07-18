@@ -18,7 +18,7 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
     :param window: int - default: 10
     :param FC: int - default: 1
     :param SC: int - default: 300
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return:  float | np.ndarray
     """

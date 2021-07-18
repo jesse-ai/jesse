@@ -11,7 +11,7 @@ def trange(candles: np.ndarray, sequential: bool = False) -> Union[float, np.nda
     TRANGE - True Range
 
     :param candles: np.ndarray
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

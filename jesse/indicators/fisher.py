@@ -14,7 +14,7 @@ def fisher(candles: np.ndarray, period: int = 9, sequential: bool = False) -> Fi
 
     :param candles: np.ndarray
     :param period: int - default: 9
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: FisherTransform(fisher, signal)
     """

@@ -12,10 +12,10 @@ def ultosc(candles: np.ndarray, timeperiod1: int = 7, timeperiod2: int = 14, tim
     ULTOSC - Ultimate Oscillator
 
     :param candles: np.ndarray
-    :param timeperiod1: int - default=7
-    :param timeperiod2: int - default=14
-    :param timeperiod3: int - default=28
-    :param sequential: bool - default=False
+    :param timeperiod1: int - default: 7
+    :param timeperiod2: int - default: 14
+    :param timeperiod3: int - default: 28
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

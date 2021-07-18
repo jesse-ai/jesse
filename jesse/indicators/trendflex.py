@@ -16,9 +16,9 @@ def trendflex(candles: np.ndarray, period: int = 20, source_type: str = "close",
     Trendflex indicator by John F. Ehlers
 
     :param candles: np.ndarray
-    :param period: int - default=20
+    :param period: int - default: 20
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -17,7 +17,7 @@ def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, ro
     :param roc_short_period: int - default: 11
     :param roc_long_period: int - default: 14
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

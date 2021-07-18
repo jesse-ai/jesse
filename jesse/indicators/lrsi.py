@@ -14,8 +14,8 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
     RSI Laguerre Filter
 
     :param candles: np.ndarray
-    :param alpha: float - default=0.2
-    :param sequential: bool - default=False
+    :param alpha: float - default: 0.2
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
