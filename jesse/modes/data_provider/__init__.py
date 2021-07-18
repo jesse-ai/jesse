@@ -9,7 +9,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     symbol = symbol.upper()
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
-    finish_date = jh.now()
+    finish_date = jh.now(force_fresh=True)
     start_date = finish_date - (210 * one_min_count * 60_000)
 
     # fetch from database

@@ -405,15 +405,15 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
     return x_new
 
 
-def now() -> int:
+def now(force_fresh=False) -> int:
     """
     Always returns the current time in milliseconds but rounds time in matter of seconds
     """
-    return now_to_timestamp()
+    return now_to_timestamp(force_fresh)
 
 
-def now_to_timestamp() -> int:
-    if not (is_live() or is_collecting_data() or is_importing_candles()):
+def now_to_timestamp(force_fresh=False) -> int:
+    if not force_fresh and (not (is_live() or is_collecting_data() or is_importing_candles())):
         from jesse.store import store
         return store.app.time
 
