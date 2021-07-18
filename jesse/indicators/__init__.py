@@ -27,6 +27,7 @@ from .cmo import cmo
 from .correl import correl
 from .correlation_cycle import correlation_cycle
 from .cvi import cvi
+from .cwma import cwma
 from .damiani_volatmeter import damiani_volatmeter
 from .dec_osc import dec_osc
 from .decycler import decycler

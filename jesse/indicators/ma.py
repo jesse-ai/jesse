@@ -116,5 +116,8 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     elif matype == 36:
         from . import vpwma
         res = vpwma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 37:
+        from . import cwma
+        res = cwma(source, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]

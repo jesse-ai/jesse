@@ -373,6 +373,15 @@ def test_cvi():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+def test_cwma():
+    candles = np.array(test_candles_19)
+
+    single = ta.cwma(candles)
+    seq = ta.cwma(candles, sequential=True)
+
+    assert round(single, 2) == 182.8
+    assert len(seq) == len(candles)
+    assert seq[-1] == single
 
 def test_damiani_volatmeter():
     candles = np.array(test_candles_19)
