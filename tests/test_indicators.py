@@ -2234,3 +2234,28 @@ def test_zscore():
     assert round(single, 1) == -3.2
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_wt():
+    candles = np.array(wavetrend_candles)
+    single = ta.wt(candles)
+    seq = ta.wt(candles, sequential=True)
+
+    assert type(single).__name__ == 'Wavetrend'
+    assert round(single.wt1, 2) == -27.25
+    assert round(single.wt2, 2) == -15.51
+    assert not single.wtCrossUp
+    assert single.wtCrossDown
+    assert single.wtCrossUp != single.wtCrossDown
+    assert not single.wtOversold
+    assert not single.wtOverbought
+    assert round(single.wtVwap, 2) == -11.74
+
+    assert seq.wt1[-1] == single.wt1
+    assert seq.wt2[-1] == single.wt2
+    assert seq.wtCrossUp[-1] is single.wtCrossUp
+    assert seq.wtCrossDown[-1] is single.wtCrossDown
+    assert seq.wtOversold[-1] is single.wtOversold
+    assert seq.wtOverbought[-1] is single.wtOverbought
+    assert seq.wtVwap[-1] == single.wtVwap
+    assert len(seq.wt1) == len(candles)

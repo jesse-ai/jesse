@@ -169,5 +169,6 @@ from .wclprice import wclprice
 from .wilders import wilders
 from .willr import willr
 from .wma import wma
+from .wt import wt
 from .zlema import zlema
 from .zscore import zscore
