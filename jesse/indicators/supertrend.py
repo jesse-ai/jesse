@@ -17,9 +17,9 @@ def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequent
     SuperTrend
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param factor: float - default=3
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param factor: float - default: 3
+    :param sequential: bool - default: False
 
     :return: SuperTrend(trend, changed)
     """

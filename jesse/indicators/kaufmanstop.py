@@ -13,10 +13,10 @@ def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, directio
     Perry Kaufman's Stops
 
     :param candles: np.ndarray
-    :param period: int - default=22
-    :param mult: float - default=2
-    :param direction: str - default=long
-    :param sequential: bool - default=False
+    :param period: int - default: 22
+    :param mult: float - default: 2
+    :param direction: str - default: long
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

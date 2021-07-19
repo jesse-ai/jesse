@@ -20,7 +20,7 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
     :param matype: int - default: 0
     :param nbdev: float - default: 1
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

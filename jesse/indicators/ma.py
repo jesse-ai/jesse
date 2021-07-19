@@ -13,7 +13,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     :param candles: np.ndarray
     :param period: int - default: 30
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -101,5 +101,29 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     elif matype == 31:
         from . import edcf
         res = edcf(source, period, source_type=source_type,  sequential=True)
+    elif matype == 32:
+        from . import mwdx
+        res = mwdx(source, source_type=source_type,  sequential=True)
+    elif matype == 33:
+        from . import maaq
+        res = maaq(source, period, source_type=source_type,  sequential=True)
+    elif matype == 34:
+        from . import srwma
+        res = srwma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 35:
+        from . import sqwma
+        res = sqwma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 36:
+        from . import vpwma
+        res = vpwma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 37:
+        from . import cwma
+        res = cwma(source, period, source_type=source_type,  sequential=True)
+    elif matype == 38:
+        from . import jsa
+        res = jsa(source, period, source_type=source_type,  sequential=True)
+    elif matype == 39:
+        from . import epma
+        res = epma(source, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]

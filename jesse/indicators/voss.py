@@ -17,11 +17,11 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
     Voss indicator by John F. Ehlers
 
     :param candles: np.ndarray
-    :param period: int - default=20
-    :param predict: int - default=3
-    :param bandwith: float - default=0.25
+    :param period: int - default: 20
+    :param predict: int - default: 3
+    :param bandwith: float - default: 0.25
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

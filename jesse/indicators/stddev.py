@@ -16,7 +16,7 @@ def stddev(candles: np.ndarray, period: int = 5, nbdev: float = 1, source_type: 
     :param period: int - default: 5
     :param nbdev: float - default: 1
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

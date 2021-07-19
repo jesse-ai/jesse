@@ -18,11 +18,11 @@ def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, bas
     Ichimoku Cloud
 
     :param candles: np.ndarray
-    :param conversion_line_period: int - default=9
-    :param base_line_period: int - default=26
-    :param lagging_line_period: int - default=52
-    :param displacement: - default=26
-    :param sequential: bool - default=False
+    :param conversion_line_period: int - default: 9
+    :param base_line_period: int - default: 26
+    :param lagging_line_period: int - default: 52
+    :param displacement: - default: 26
+    :param sequential: bool - default: False
 
     :return: IchimokuCloud
     """

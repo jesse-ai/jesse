@@ -13,7 +13,7 @@ def ht_trendmode(candles: np.ndarray, source_type: str = "close", sequential: bo
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: int | np.ndarray
     """

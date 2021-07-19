@@ -13,7 +13,7 @@ def ao(candles: np.ndarray, sequential: bool = False) -> AO:
     Awesome Oscillator
 
     :param candles: np.ndarray
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: AO(osc, change)
     """

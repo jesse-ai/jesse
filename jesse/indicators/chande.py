@@ -16,7 +16,7 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
     :param period: int - default: 22
     :param period: float - default: 3.0
     :param direction: str - default: "long"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

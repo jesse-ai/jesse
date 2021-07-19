@@ -16,7 +16,7 @@ def cksp(candles: np.ndarray, p: int = 10, x: float = 1.0,  q: int = 9, sequenti
     :param p: int - default: 10
     :param x: float - default: 1.0
     :param q: int - default: 9
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -20,7 +20,7 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
     :param k: int - default: 3
     :param d: int - default: 3
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: StochasticRSI(k, d)
     """

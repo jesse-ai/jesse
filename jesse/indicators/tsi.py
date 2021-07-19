@@ -16,7 +16,7 @@ def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, sour
     :param long_period: int - default: 25
     :param short_period: int - default: 13
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

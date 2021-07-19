@@ -16,17 +16,17 @@ def kst(candles: np.ndarray, sma_period1: int = 10, sma_period2: int = 10, sma_p
     Know Sure Thing (KST)
 
     :param candles: np.ndarray
-    :param sma_period1: int - default=10
-    :param sma_period2: int - default=10
-    :param sma_period3: int - default=10
-    :param sma_period4: int - default=15
-    :param roc_period1: int - default=10
-    :param roc_period2: int - default=15
-    :param roc_period3: int - default=20
-    :param roc_period4: int - default=30
-    :param signal_period: int - default=9
+    :param sma_period1: int - default: 10
+    :param sma_period2: int - default: 10
+    :param sma_period3: int - default: 10
+    :param sma_period4: int - default: 15
+    :param roc_period1: int - default: 10
+    :param roc_period2: int - default: 15
+    :param roc_period3: int - default: 20
+    :param roc_period4: int - default: 30
+    :param signal_period: int - default: 9
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: KST(line, signal)
     """

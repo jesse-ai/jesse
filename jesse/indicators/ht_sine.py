@@ -15,7 +15,7 @@ def ht_sine(candles: np.ndarray, source_type: str = "close", sequential: bool = 
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: SINEWAVE(sine, lead)
     """

@@ -24,7 +24,7 @@ def mab(candles: np.ndarray, fast_period: int = 10, slow_period: int = 50, devup
     :param fast_matype: int - default: 0
     :param slow_matype: int - default: 0
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: MAB(upperband, middleband, lowerband)
     """

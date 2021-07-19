@@ -15,9 +15,9 @@ def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close",
     (1 pole) high-pass filter indicator by John F. Ehlers
 
     :param candles: np.ndarray
-    :param period: int - default=48
+    :param period: int - default: 48
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

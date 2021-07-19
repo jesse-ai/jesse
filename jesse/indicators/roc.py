@@ -13,9 +13,9 @@ def roc(candles: np.ndarray, period: int = 10, source_type: str = "close", seque
     ROC - Rate of change : ((price/prevPrice)-1)*100
 
     :param candles: np.ndarray
-    :param period: int - default=10
+    :param period: int - default: 10
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

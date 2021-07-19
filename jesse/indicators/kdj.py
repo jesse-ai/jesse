@@ -14,12 +14,12 @@ def kdj(candles: np.ndarray, fastk_period: int = 9, slowk_period: int = 3, slowk
     The KDJ Oscillator
 
     :param candles: np.ndarray
-    :param fastk_period: int - default=9
-    :param slowk_period: int - default=3
-    :param slowk_matype: int - default=0
-    :param slowd_period: int - default=3
-    :param slowd_matype: int - default=0
-    :param sequential: bool - default=False
+    :param fastk_period: int - default: 9
+    :param slowk_period: int - default: 3
+    :param slowk_matype: int - default: 0
+    :param slowd_period: int - default: 3
+    :param slowd_matype: int - default: 0
+    :param sequential: bool - default: False
 
     :return: KDJ(k, d, j)
     """

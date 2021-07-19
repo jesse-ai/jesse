@@ -18,7 +18,7 @@ def itrend(candles: np.ndarray, alpha: float = 0.07, source_type: str = "hl2", s
     :param candles: np.ndarray
     :param alpha: float - default: 0.07
     :param source_type: str - default: "hl2"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: ITREND(signal, it, trigger)
     """

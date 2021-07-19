@@ -13,7 +13,7 @@ def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int 
 
     :param candles: np.ndarray
     :param period: int - default: 30
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

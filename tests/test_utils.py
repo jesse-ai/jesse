@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from jesse import utils
-from tests.data.test_candles_indicators import mama_candles
+from tests.data.test_candles_indicators import test_candles_19
 
 
 def test_anchor_timeframe():
@@ -20,7 +20,7 @@ def test_anchor_timeframe():
 
 
 def test_crossed():
-    candles = np.array(mama_candles)
+    candles = np.array(test_candles_19)
     cross_100 = utils.crossed(candles[:, 2], 100)
     assert cross_100 == False
     cross_120 = utils.crossed(candles[:, 2], 120)
@@ -67,7 +67,7 @@ def test_limit_stop_loss():
 
 
 def test_numpy_to_pandas():
-    candles = np.array(mama_candles)
+    candles = np.array(test_candles_19)
     columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
     df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
     df["Date"] = pd.to_datetime(df["Date"], unit="ms")
