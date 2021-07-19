@@ -16,8 +16,8 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
     Vortex Indicator (VI)
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: VI(plus, minus)
     """

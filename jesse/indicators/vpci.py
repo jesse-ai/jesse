@@ -15,7 +15,7 @@ def vpci(candles: np.ndarray, short_range: int = 5, long_range: int = 25, sequen
     :param candles: np.ndarray
     :param short_range: int - default: 5
     :param long_range: int - default: 25
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

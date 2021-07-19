@@ -17,7 +17,7 @@ def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str
     :param period: int - default: 13
     :param matype: int - default: 1
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -13,11 +13,11 @@ def safezonestop(candles: np.ndarray, period: int = 22, mult: float = 2.5, max_l
     Safezone Stops
 
     :param candles: np.ndarray
-    :param period: int - default=22
-    :param mult: float - default=2.5
-    :param max_lookback: int - default=3
-    :param direction: str - default=long
-    :param sequential: bool - default=False
+    :param period: int - default: 22
+    :param mult: float - default: 2.5
+    :param max_lookback: int - default: 3
+    :param direction: str - default: long
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

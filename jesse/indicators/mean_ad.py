@@ -13,7 +13,7 @@ def mean_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequ
     :param candles: np.ndarray
     :param period: int - default: 5
     :param source_type: str - default: "hl2"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

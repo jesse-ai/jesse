@@ -14,7 +14,7 @@ def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
     :param candles: np.ndarray
     :param period: int - default: 5
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

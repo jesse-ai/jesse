@@ -11,7 +11,7 @@ def typprice(candles: np.ndarray, sequential: bool = False) -> Union[float, np.n
     TYPPRICE - Typical Price
 
     :param candles: np.ndarray
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

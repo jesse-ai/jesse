@@ -15,7 +15,7 @@ def pfe(candles: np.ndarray, period: int = 10, smoothing: int = 5, source_type: 
     :param period: int - default: 10
     :param smoothing: int - default: 5
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

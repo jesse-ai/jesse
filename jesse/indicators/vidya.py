@@ -17,7 +17,7 @@ def vidya(candles: np.ndarray, short_period: int = 2, long_period: int = 5, alph
     :param long_period: int - default: 5
     :param alpha: float - default: 0.2
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

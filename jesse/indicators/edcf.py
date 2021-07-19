@@ -16,9 +16,9 @@ def edcf(candles: np.ndarray, period: int = 15, source_type: str = "hl2", sequen
     Ehlers Distance Coefficient Filter
 
     :param candles: np.ndarray
-    :param period: int - default=15
+    :param period: int - default: 15
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

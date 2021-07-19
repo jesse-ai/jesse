@@ -12,9 +12,9 @@ def dec_osc(candles: np.ndarray, hp_period: int = 125, k: float = 1, source_type
     Ehlers Decycler Oscillator
 
     :param candles: np.ndarray
-    :param hp_period: int - default=125
-    :param k: float - default=1
-    :param sequential: bool - default=False
+    :param hp_period: int - default: 125
+    :param k: float - default: 1
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

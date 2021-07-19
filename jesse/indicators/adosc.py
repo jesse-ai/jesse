@@ -14,7 +14,7 @@ def adosc(candles: np.ndarray, fast_period: int = 3, slow_period: int = 10, sequ
     :param candles: np.ndarray
     :param fast_period: int - default: 3
     :param slow_period: int - default: 10
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

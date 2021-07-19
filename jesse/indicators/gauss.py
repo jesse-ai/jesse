@@ -15,10 +15,10 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
     Gaussian Filter
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param poles: int - default=4
+    :param period: int - default: 14
+    :param poles: int - default: 4
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

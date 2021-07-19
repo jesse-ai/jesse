@@ -15,7 +15,7 @@ def tema(candles: np.ndarray, period: int = 9, source_type: str = "close", seque
     :param candles: np.ndarray
     :param period: int - default: 9
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -11,7 +11,7 @@ def emv(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarra
     EMV - Ease of Movement
 
     :param candles: np.ndarray
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

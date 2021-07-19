@@ -13,7 +13,7 @@ def acosc(candles: np.ndarray, sequential: bool = False) -> AC:
     Acceleration / Deceleration Oscillator (AC)
 
     :param candles: np.ndarray
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: AC(osc, change)
     """

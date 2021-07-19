@@ -15,7 +15,7 @@ def kama(candles: np.ndarray, period: int = 30, source_type: str = "close", sequ
     :param candles: np.ndarray
     :param period: int - default: 30
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -11,8 +11,8 @@ def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     ATR - Average True Range
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

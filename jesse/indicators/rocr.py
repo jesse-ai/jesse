@@ -13,9 +13,9 @@ def rocr(candles: np.ndarray, period: int = 10, source_type: str = "close", sequ
     ROCR - Rate of change ratio: (price/prevPrice)
 
     :param candles: np.ndarray
-    :param period: int - default=10
+    :param period: int - default: 10
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

@@ -18,7 +18,7 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     :param ma_len: int - default: 14
     :param matype: int - default: 1
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
     :return: float | np.ndarray
     """
     candles = slice_candles(candles, sequential)

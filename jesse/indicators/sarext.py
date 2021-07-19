@@ -22,7 +22,7 @@ def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float
     :param accelerationinitshort: float - default: 0
     :param accelerationshort: float - default: 0
     :param accelerationmaxshort: float - default: 0
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

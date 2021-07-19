@@ -15,10 +15,10 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
     Stochastic Fast
 
     :param candles: np.ndarray
-    :param fastk_period: int - default=5
-    :param fastd_period: int - default=3
-    :param fastd_matype: int - default=0
-    :param sequential: bool - default=False
+    :param fastk_period: int - default: 5
+    :param fastd_period: int - default: 3
+    :param fastd_matype: int - default: 0
+    :param sequential: bool - default: False
 
     :return: StochasticFast(k, d)
     """
