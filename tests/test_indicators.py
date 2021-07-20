@@ -1847,7 +1847,6 @@ def test_supertrend():
 
     single = ta.supertrend(candles, period=10, factor=3)
     seq = ta.supertrend(candles, period=10, factor=3, sequential=True)
-    print(seq)
 
     assert type(single).__name__ == 'SuperTrend'
     assert round(single.trend, 2) == 228.45

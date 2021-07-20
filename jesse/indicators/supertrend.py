@@ -15,12 +15,10 @@ SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequential: bool = False) -> SuperTrend:
     """
     SuperTrend
-
     :param candles: np.ndarray
-    :param period: int - default: 14
-    :param factor: float - default: 3
-    :param sequential: bool - default: False
-
+    :param period: int - default=14
+    :param factor: float - default=3
+    :param sequential: bool - default=False
     :return: SuperTrend(trend, changed)
     """
 
@@ -44,13 +42,13 @@ def supertrend_fast(candles, atr, factor, period):
     lower_basic = (candles[:, 3] + candles[:, 4]) / 2 - (factor * atr)
     upper_band = upper_basic
     lower_band = lower_basic
-    super_trend = np.zeros(candles.size)
-    changed = np.zeros(candles.size)
+    super_trend = np.zeros(len(candles))
+    changed = np.zeros(len(candles))
 
     # calculate the bands:
     # in an UPTREND, lower band does not decrease
     # in a DOWNTREND, upper band does not increase
-    for i in range(period, candles.size):
+    for i in range(period, len(candles)):
         # if currently in DOWNTREND (i.e. price is below upper band)
         prevClose = candles[:, 2][i - 1]
         prevUpperBand = upper_band[i - 1]
@@ -73,7 +71,7 @@ def supertrend_fast(candles, atr, factor, period):
             super_trend[i - 1] = prevLowerBand
         prevSuperTrend = super_trend[i - 1]
 
-    for i in range(period, candles.size):
+    for i in range(period, len(candles)):
         prevClose = candles[:, 2][i - 1]
         prevUpperBand = upper_band[i - 1]
         currUpperBand = upper_band[i]
