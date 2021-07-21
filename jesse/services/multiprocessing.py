@@ -16,7 +16,6 @@ class Process(mp.Process):
                 'error': f"{type(e).__name__}: {str(e)}",
                 'traceback': str(traceback.format_exc())
             })
-            print('\n')
             print(traceback.format_exc())
 
 
