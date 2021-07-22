@@ -1,15 +1,13 @@
 import os
 import jesse.helpers as jh
+from jesse.services import logger as jesse_logger
+import threading
+import traceback
+import logging
+from jesse.services.redis import sync_publish
 
 
 def register_custom_exception_handler() -> None:
-    import sys
-    import threading
-    import traceback
-    import logging
-    from jesse.services import logger as jesse_logger
-    from jesse.services.redis import sync_publish
-
     log_format = "%(message)s"
     os.makedirs('storage/logs', exist_ok=True)
 
@@ -54,20 +52,40 @@ def register_custom_exception_handler() -> None:
     # sys.excepthook = handle_exception
 
     # other threads
-    if jh.python_version() >= 3.8:
-        def handle_thread_exception(args) -> None:
-            if args.exc_type == SystemExit:
-                return
+    def handle_thread_exception(args) -> None:
+        print('\n')
+        print('other threads')
+        print('\n')
 
-            # send notifications if it's a live session
-            if jh.is_live():
-                jesse_logger.error(
-                    f'{args.exc_type.__name__}: {args.exc_value}'
-                )
+        if args.exc_type == SystemExit:
+            return
 
-            sync_publish('exception', {
-                'error': f"{args.exc_type.__name__}: {str(args.exc_value)}",
-                'traceback': str(traceback.format_exc())
-            })
+        # send notifications if it's a live session
+        if jh.is_live():
+            jesse_logger.error(
+                f'{args.exc_type.__name__}: {args.exc_value}'
+            )
 
-        threading.excepthook = handle_thread_exception
+        sync_publish('exception', {
+            'error': f"{args.exc_type.__name__}: {str(args.exc_value)}",
+            'traceback': str(traceback.format_exc())
+        })
+
+        print('Unhandled exception in the thread:')
+        print(traceback.format_exc())
+
+        terminate_session()
+
+    threading.excepthook = handle_thread_exception
+
+
+def terminate_session():
+    sync_publish('termination', {
+        'message': "Session terminated as the result of an uncaught exception",
+    })
+
+    jesse_logger.error(
+        f"Session terminated as the result of an uncaught exception"
+    )
+
+    jh.terminate_app()

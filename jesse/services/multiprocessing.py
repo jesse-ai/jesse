@@ -2,6 +2,7 @@ from typing import List
 import multiprocessing as mp
 import traceback
 from jesse.services.redis import sync_publish
+from jesse.services.failure import terminate_session
 
 
 class Process(mp.Process):
@@ -16,7 +17,9 @@ class Process(mp.Process):
                 'error': f"{type(e).__name__}: {str(e)}",
                 'traceback': str(traceback.format_exc())
             })
+            print('Unhandled exception in the process:')
             print(traceback.format_exc())
+            terminate_session()
 
 
 class ProcessManager:
