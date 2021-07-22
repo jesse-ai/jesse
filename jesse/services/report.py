@@ -111,6 +111,7 @@ def livetrade():
         'started_balance': str(starting_balance),
         'current_balance': str(current_balance),
         'debug_mode': str(config['app']['debug_mode']),
+        'paper_mode': str(jh.is_paper_trading()),
         'count_error_logs': str(len(store.logs.errors)),
         'count_info_logs': str(len(store.logs.info)),
         'count_active_orders': str(store.orders.count_all_active_orders()),
