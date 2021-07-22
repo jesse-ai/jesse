@@ -126,7 +126,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
     if finish_date > arrow.utcnow().int_timestamp * 1000:
-        raise ValueError("Can't load candle data from the future!")
+        raise ValueError("Can't load candle data from the future! The finish-date can be up to yesterday's date at most.")
 
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
@@ -165,7 +165,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
             raise exceptions.CandleNotFoundInDatabase(
-                f'Not enough candles for {symbol}. Try running "jesse import-candles"')
+                f'Not enough candles for {symbol}. You need to import candles.'
+            )
         elif len(candles_tuple) != required_candles_count + 1:
             raise exceptions.CandleNotFoundInDatabase(
                 f'There are missing candles between {start_date_str} => {finish_date_str}')
