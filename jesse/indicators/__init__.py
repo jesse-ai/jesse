@@ -62,6 +62,7 @@ from .ht_phasor import ht_phasor
 from .ht_sine import ht_sine
 from .ht_trendline import ht_trendline
 from .ht_trendmode import ht_trendmode
+from .hurst_exponent import hurst_exponent
 from .hwma import hwma
 from .ichimoku_cloud import ichimoku_cloud
 from .ichimoku_cloud_seq import ichimoku_cloud_seq
