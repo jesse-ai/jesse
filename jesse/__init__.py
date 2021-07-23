@@ -11,7 +11,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    GetCandlesRequestJson
+    GetCandlesRequestJson, AvailableExchangeDriversRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -124,6 +124,20 @@ def cli() -> None:
 def run() -> None:
     validate_cwd()
     uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
+
+
+@fastapi_app.post('/routes-info')
+def available_exchanges(json_request: AvailableExchangeDriversRequestJson) -> JSONResponse:
+    validate_cwd()
+
+    from jesse.modes import data_provider
+
+    arr = data_provider.available_routes_inputs(is_live=json_request.is_live)
+
+    return JSONResponse({
+        'id': json_request.id,
+        'data': arr
+    }, status_code=200)
 
 
 @fastapi_app.post('/import-candles')

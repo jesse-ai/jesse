@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import jesse.helpers as jh
 from jesse.models import Candle
@@ -46,3 +48,20 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             'volume': c[5],
         } for c in candles
     ]
+
+
+def available_routes_inputs(is_live=False) -> dict:
+    if is_live:
+        from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
+        exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
+    else:
+        from jesse.modes.import_candles_mode.drivers import drivers
+        exchanges = list(sorted(drivers.keys()))
+
+    strategies_path = os.getcwd() + "/strategies/"
+    strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
+
+    return {
+        'exchanges': exchanges,
+        'strategies': strategies
+    }

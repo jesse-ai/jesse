@@ -63,3 +63,8 @@ class GetCandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
     timeframe: str
+
+
+class AvailableExchangeDriversRequestJson(BaseModel):
+    id: str
+    is_live: bool
