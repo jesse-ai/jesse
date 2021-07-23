@@ -113,7 +113,8 @@ def run(debug_mode, routes: List[Dict[str, str]], extra_routes: List[Dict[str, s
                 bh_daily_returns_all_routes = price_pct_change.mean(1)
                 quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
         else:
-            sync_publish('metrics', 'No trades were executed')
+            sync_publish('equity_curve', None)
+            sync_publish('metrics', None)
 
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
