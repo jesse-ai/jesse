@@ -11,7 +11,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    GetCandlesRequestJson, AvailableExchangeDriversRequestJson
+    GetCandlesRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -24,14 +24,21 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # fix directory issue
 sys.path.insert(0, os.getcwd())
 ls = os.listdir('.')
-is_jesse_project = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
+IS_JESSE_PROJECT = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
+
+# variable to know if the live trade plugin is installed
+HAS_LIVE_TRADE_PLUGIN = True
+try:
+    import jesse_live
+except ModuleNotFoundError:
+    HAS_LIVE_TRADE_PLUGIN = False
 
 
 def validate_cwd() -> None:
     """
     make sure we're in a Jesse project
     """
-    if not is_jesse_project:
+    if not IS_JESSE_PROJECT:
         print(
             jh.color(
                 'Current directory is not a Jesse project. You must run commands from the root of a Jesse project.',
@@ -62,7 +69,7 @@ def inject_local_routes() -> None:
 
 
 # inject local files
-if is_jesse_project:
+if IS_JESSE_PROJECT:
     inject_local_config()
     # inject_local_routes()
 
@@ -127,16 +134,13 @@ def run() -> None:
 
 
 @fastapi_app.post('/routes-info')
-def available_exchanges(json_request: AvailableExchangeDriversRequestJson) -> JSONResponse:
+def available_exchanges() -> JSONResponse:
     validate_cwd()
 
     from jesse.modes import data_provider
 
-    arr = data_provider.available_routes_inputs(is_live=json_request.is_live)
-
     return JSONResponse({
-        'id': json_request.id,
-        'data': arr
+        'data': data_provider.available_routes_inputs(has_live=HAS_LIVE_TRADE_PLUGIN)
     }, status_code=200)
 
 
@@ -284,12 +288,7 @@ def routes(dna: bool) -> None:
     routes_mode.run(dna)
 
 
-live_package_exists = True
-try:
-    import jesse_live
-except ModuleNotFoundError:
-    live_package_exists = False
-if live_package_exists:
+if HAS_LIVE_TRADE_PLUGIN:
     from jesse_live.web_routes import live
 
     @fastapi_app.post('/get-candles')

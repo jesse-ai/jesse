@@ -50,18 +50,21 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     ]
 
 
-def available_routes_inputs(is_live=False) -> dict:
-    if is_live:
-        from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
-        exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
-    else:
-        from jesse.modes.import_candles_mode.drivers import drivers
-        exchanges = list(sorted(drivers.keys()))
+def available_routes_inputs(has_live=False) -> dict:
+    from jesse.modes.import_candles_mode.drivers import drivers
 
+    if has_live:
+        from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
+        live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
+    else:
+        live_exchanges = []
+
+    exchanges = list(sorted(drivers.keys()))
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
 
     return {
         'exchanges': exchanges,
+        'live_exchanges': live_exchanges,
         'strategies': strategies
     }
