@@ -8,8 +8,7 @@ class Test30(Strategy):
         if self.price == 20:
             self.buy = 1, self.price
 
-        # decrease position size
-        if self.price == 50:
+        elif self.price == 50:
             self.take_profit = 1, self.price
 
         # close position with take_profit

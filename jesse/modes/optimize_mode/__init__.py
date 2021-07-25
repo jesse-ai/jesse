@@ -110,9 +110,7 @@ class Optimizer(Genetics):
         if store.completed_trades.count > 5:
             training_data = stats.trades(store.completed_trades.trades, store.app.daily_balance)
             total_effect_rate = log10(training_data['total']) / log10(self.optimal_total)
-            if total_effect_rate > 1:
-                total_effect_rate = 1
-
+            total_effect_rate = min(total_effect_rate, 1)
             ratio_config = jh.get_config('env.optimization.ratio', 'sharpe')
             if ratio_config == 'sharpe':
                 ratio = training_data['sharpe_ratio']

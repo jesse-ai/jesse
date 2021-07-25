@@ -159,8 +159,7 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
     # try fetching from market now
     days_count = jh.date_diff_in_days(jh.timestamp_to_arrow(start_timestamp), jh.timestamp_to_arrow(end_timestamp))
     # make sure it's rounded up so that we import maybe more candles, but not less
-    if days_count < 1:
-        days_count = 1
+    days_count = max(days_count, 1)
     if type(days_count) is float and not days_count.is_integer():
         days_count = math.ceil(days_count)
     candles_count = days_count * 1440
@@ -237,9 +236,8 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         return total_candles
 
 
-def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> \
-        List[Dict[str, Union[str, Any]]]:
-    if len(temp_candles) == 0:
+def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> List[Dict[str, Union[str, Any]]]:
+    if not temp_candles:
         raise CandleNotFoundInExchange(
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
             'Try another start_date'
@@ -252,8 +250,7 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
     started = False
     loop_length = ((end_timestamp - start_timestamp) / 60000) + 1
 
-    i = 0
-    while i < loop_length:
+    for _ in range(loop_length):
         candle_for_timestamp = pydash.find(
             temp_candles, lambda c: c['timestamp'] == start_timestamp)
 
@@ -289,8 +286,6 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
             candles.append(candle_for_timestamp)
 
         start_timestamp += 60000
-        i += 1
-
     return candles
 
 

@@ -77,7 +77,7 @@ def color(msg_text: str, msg_color: str) -> str:
         return click.style(msg_text, fg='magenta')
     if msg_color == 'cyan':
         return click.style(msg_text, fg='cyan')
-    if msg_color in ['white', 'gray']:
+    if msg_color in {'white', 'gray'}:
         return click.style(msg_text, fg='white')
 
     raise ValueError('unsupported color')
@@ -94,9 +94,7 @@ def convert_number(old_max: float, old_min: float, new_max: float, new_min: floa
 
     old_range = (old_max - old_min)
     new_range = (new_max - new_min)
-    new_value = (((old_value - old_min) * new_range) / old_range) + new_min
-
-    return new_value
+    return (((old_value - old_min) * new_range) / old_range) + new_min
 
 
 def dashless_symbol(symbol: str) -> str:
@@ -255,7 +253,7 @@ def get_config(keys: str, default: Any = None) -> Any:
     if not str:
         raise ValueError('keys string cannot be empty')
 
-    if is_unit_testing() or not keys in CACHED_CONFIG:
+    if is_unit_testing() or keys not in CACHED_CONFIG:
         if os.environ.get(keys.upper().replace(".", "_").replace(" ", "_")) is not None:
             CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_").replace(" ", "_"))
         else:
@@ -401,8 +399,7 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
     """
     Rescaling data to have values between 0 and 1
     """
-    x_new = (x - x_min) / (x_max - x_min)
-    return x_new
+    return (x - x_min) / (x_max - x_min)
 
 
 def now() -> int:
@@ -424,9 +421,16 @@ def np_ffill(arr: np.ndarray, axis: int = 0) -> np.ndarray:
     idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
     idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
     np.maximum.accumulate(idx, axis=axis, out=idx)
-    slc = [np.arange(k)[tuple([slice(None) if dim == i else np.newaxis
-                               for dim in range(len(arr.shape))])]
-           for i, k in enumerate(arr.shape)]
+    slc = [
+        np.arange(k)[
+            tuple(
+                slice(None) if dim == i else np.newaxis
+                for dim in range(len(arr.shape))
+            )
+        ]
+        for i, k in enumerate(arr.shape)
+    ]
+
     slc[axis] = idx
     return arr[tuple(slc)]
 
@@ -472,10 +476,10 @@ def orderbook_insertion_index_search(arr, target: int, ascending: bool = True) -
     lower = 0
     upper = len(arr)
 
-    if ascending:
-        while lower < upper:
-            x = lower + (upper - lower) // 2
-            val = arr[x][0]
+    while lower < upper:
+        x = lower + (upper - lower) // 2
+        val = arr[x][0]
+        if ascending:
             if target == val:
                 return True, x
             elif target > val:
@@ -486,20 +490,16 @@ def orderbook_insertion_index_search(arr, target: int, ascending: bool = True) -
                 if lower == x:
                     return False, lower
                 upper = x
-    else:
-        while lower < upper:
-            x = lower + (upper - lower) // 2
-            val = arr[x][0]
-            if target == val:
-                return True, x
-            elif target < val:
-                if lower == x:
-                    return False, lower + 1
-                lower = x
-            elif target > val:
-                if lower == x:
-                    return False, lower
-                upper = x
+        elif target == val:
+            return True, x
+        elif target < val:
+            if lower == x:
+                return False, lower + 1
+            lower = x
+        elif target > val:
+            if lower == x:
+                return False, lower
+            upper = x
 
 
 def orderbook_trim_price(p: float, ascending: bool, unit: float) -> float:

@@ -29,10 +29,7 @@ class TestLiquidationInCrossModeForShortTrade(Strategy):
         return False
 
     def should_short(self) -> bool:
-        if self.price == 20:
-            return True
-
-        return False
+        return self.price == 20
 
     def go_long(self):
         pass

@@ -5,23 +5,22 @@ from jesse.store import store
 
 
 def save_daily_portfolio_balance() -> None:
-    balances = []
+    # # store daily_balance of assets into database
+    # if jh.is_livetrading():
+    #     for asset_key, asset_value in e.assets.items():
+    #         store_daily_balance_into_db({
+    #             'id': jh.generate_unique_id(),
+    #             'timestamp': jh.now(),
+    #             'identifier': jh.get_config('env.identifier', 'main'),
+    #             'exchange': e.name,
+    #             'asset': asset_key,
+    #             'balance': asset_value,
+    #         })
+    balances = [
+        e.assets[jh.app_currency()]
+        for key, e in store.exchanges.storage.items()
+    ]
 
-    # add exchange balances
-    for key, e in store.exchanges.storage.items():
-        balances.append(e.assets[jh.app_currency()])
-
-        # # store daily_balance of assets into database
-        # if jh.is_livetrading():
-        #     for asset_key, asset_value in e.assets.items():
-        #         store_daily_balance_into_db({
-        #             'id': jh.generate_unique_id(),
-        #             'timestamp': jh.now(),
-        #             'identifier': jh.get_config('env.identifier', 'main'),
-        #             'exchange': e.name,
-        #             'asset': asset_key,
-        #             'balance': asset_value,
-        #         })
 
     # add open position values
     for key, pos in store.positions.storage.items():

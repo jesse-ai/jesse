@@ -179,19 +179,16 @@ class Position:
         if jh.is_livetrading():
             return self._liquidation_price
 
-        if self.mode == 'isolated':
+        if self.mode in ['cross', 'spot']:
+            return np.nan
+
+        elif self.mode == 'isolated':
             if self.type == 'long':
                 return self.entry_price * (1 - self._initial_margin_rate + 0.004)
             elif self.type == 'short':
                 return self.entry_price * (1 + self._initial_margin_rate - 0.004)
             else:
                 return np.nan
-
-        elif self.mode == 'cross':
-            return np.nan
-
-        elif self.mode == 'spot':
-            return np.nan
 
         else:
             raise ValueError

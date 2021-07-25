@@ -31,9 +31,7 @@ class DynamicNumpyArray:
 
             if stop < 0:
                 stop = (self.index + 1) - abs(stop)
-            if stop > (self.index + 1):
-                stop = self.index + 1
-
+            stop = min(stop, self.index + 1)
             return self.array[start:stop]
         else:
             if i < 0:
@@ -64,11 +62,14 @@ class DynamicNumpyArray:
             self.array = np.concatenate((self.array, new_bucket), axis=0)
 
         # drop N% of the beginning values to free memory
-        if self.drop_at is not None:
-            if self.index != 0 and (self.index + 1) % self.drop_at == 0:
-                shift_num = int(self.drop_at / 2)
-                self.index -= shift_num
-                self.array = np_shift(self.array, -shift_num)
+        if (
+            self.drop_at is not None
+            and self.index != 0
+            and (self.index + 1) % self.drop_at == 0
+        ):
+            shift_num = int(self.drop_at / 2)
+            self.index -= shift_num
+            self.array = np_shift(self.array, -shift_num)
 
         self.array[self.index] = item
 

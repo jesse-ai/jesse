@@ -50,14 +50,15 @@ def voss_fast(source, period, predict, bandwith):
     s1 = 1 / g1 - np.sqrt(1 / (g1 * g1) - 1)
 
     for i in range(source.shape[0]):
-        if not (i <= period or i <= 5 or i <= order):
+        if i > period and i > 5 and i > order:
             filt[i] = 0.5 * (1 - s1) * (source[i] - source[i - 2]) + f1 * (1 + s1) * filt[i - 1] - s1 * filt[i - 2]
 
     for i in range(source.shape[0]):
         if not (i <= period or i <= 5 or i <= order):
-            sumc = 0
-            for count in range(order):
-                sumc = sumc + ((count + 1) / float(order)) * voss[i - (order - count)]
+            sumc = sum(
+                ((count + 1) / float(order)) * voss[i - (order - count)]
+                for count in range(order)
+            )
 
             voss[i] = ((3 + order) / 2) * filt[i] - sumc
     return voss, filt

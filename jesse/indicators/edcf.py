@@ -45,9 +45,9 @@ def edcf_fast(source, period):
         for i in range(period):
             distance = 0.0
             for lb in range(1, period):
-                distance = distance + np.power(source[j - i] - source[j - i - lb], 2)
-            num = num + (distance * source[j - i])
-            coefSum = coefSum + distance
+                distance += np.power(source[j - i] - source[j - i - lb], 2)
+            num += distance * source[j - i]
+            coefSum += distance
         newseries[j] = num / coefSum if coefSum != 0 else 0
 
     return newseries

@@ -55,6 +55,4 @@ def numpy_ewma(data, window):
     pw0 = (1 - alpha) ** (n - 1)
     mult = data * pw0 * scale_arr
     cumsums = mult.cumsum()
-    out = cumsums * scale_arr[::-1] / weights.cumsum()
-
-    return out
+    return cumsums * scale_arr[::-1] / weights.cumsum()

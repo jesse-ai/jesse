@@ -114,13 +114,14 @@ class FuturesExchange(Exchange):
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
-        if order.type != order_types.MARKET or skip_market_order:
-            if not order.is_reduce_only:
-                order_size = abs(order.qty * order.price)
-                remaining_margin = self.available_margin()
-                if order_size > remaining_margin:
-                    raise InsufficientMargin(
-                        f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')
+        if (
+            order.type != order_types.MARKET or skip_market_order
+        ) and not order.is_reduce_only:
+            order_size = abs(order.qty * order.price)
+            remaining_margin = self.available_margin()
+            if order_size > remaining_margin:
+                raise InsufficientMargin(
+                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')
 
         # skip market order at the time of submission because we don't have
         # the exact order.price. Instead, we call on_order_submission() one

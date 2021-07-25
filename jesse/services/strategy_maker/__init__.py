@@ -23,14 +23,10 @@ def generate(name: str) -> None:
 
     shutil.copytree(f'{dirname}/ExampleStrategy', path)
 
-    # replace 'ExampleStrategy' with the name of the new strategy
-    fin = open(f"{path}/__init__.py", "rt")
-    data = fin.read()
-    data = data.replace('ExampleStrategy', name)
-    fin.close()
-    fin = open(f"{path}/__init__.py", "wt")
-    fin.write(data)
-    fin.close()
-
+    with open(f"{path}/__init__.py", "rt") as fin:
+        data = fin.read()
+        data = data.replace('ExampleStrategy', name)
+    with open(f"{path}/__init__.py", "wt") as fin:
+        fin.write(data)
     # output the location of generated strategy directory
     print(jh.color(f'Strategy created at: {path}', 'green'))

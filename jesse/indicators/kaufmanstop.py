@@ -27,9 +27,5 @@ def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, directio
 
     hl_diff = talib.SMA(high - low, period)
 
-    if direction == "long":
-        res = hl_diff * mult - low
-    else:
-        res = hl_diff * mult + high
-
+    res = hl_diff * mult - low if direction == "long" else hl_diff * mult + high
     return res if sequential else res[-1]

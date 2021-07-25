@@ -185,7 +185,7 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -
 
 
 def fetch_candles_from_db(exchange: str, symbol: str, start_date: int, finish_date: int) -> tuple:
-    candles_tuple = tuple(
+    return tuple(
         Candle.select(
             Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
             Candle.volume
@@ -195,5 +195,3 @@ def fetch_candles_from_db(exchange: str, symbol: str, start_date: int, finish_da
             Candle.symbol == symbol
         ).order_by(Candle.timestamp.asc()).tuples()
     )
-
-    return candles_tuple

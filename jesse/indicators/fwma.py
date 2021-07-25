@@ -43,7 +43,7 @@ def fibonacci(n: int = 2) -> np.ndarray:
 
     result = np.array([a])
 
-    for i in range(0, n):
+    for _ in range(n):
         a, b = b, a + b
         result = np.append(result, a)
 

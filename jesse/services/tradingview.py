@@ -5,10 +5,11 @@ from jesse.store import store
 
 
 def tradingview_logs(study_name: str) -> None:
-    starting_balance = 0
+    starting_balance = sum(
+        store.exchanges.storage[e].starting_assets[jh.app_currency()]
+        for e in store.exchanges.storage
+    )
 
-    for e in store.exchanges.storage:
-        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
 
     tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital={starting_balance}, commission_type=strategy.commission.percent, commission_value=0.2)\n'
     for i, t in enumerate(store.completed_trades.trades[::-1][:]):

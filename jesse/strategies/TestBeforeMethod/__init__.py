@@ -7,7 +7,7 @@ class TestBeforeMethod(Strategy):
         if self.index == 0:
             assert self.vars['counter'] == 10
 
-        if self.index == 2:
+        elif self.index == 2:
             assert self.vars['counter'] == 100
 
         return False
@@ -28,5 +28,5 @@ class TestBeforeMethod(Strategy):
         if self.index == 0:
             self.vars['counter'] = 10
 
-        if self.index == 2:
+        elif self.index == 2:
             self.vars['counter'] = 100

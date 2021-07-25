@@ -71,11 +71,10 @@ class Strategy(ABC):
         self.position = selectors.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if self.hp is None:
-            if len(self.hyperparameters()) > 0:
-                self.hp = {}
-                for dna in self.hyperparameters():
-                    self.hp[dna['name']] = dna['default']
+        if self.hp is None and len(self.hyperparameters()) > 0:
+            self.hp = {}
+            for dna in self.hyperparameters():
+                self.hp[dna['name']] = dna['default']
 
     @property
     def _price_precision(self):
@@ -592,11 +591,13 @@ class Strategy(ABC):
             raise
 
         # validations: stop-loss and take-profit should not be the same
-        if self.position.is_open:
-            if (self.stop_loss is not None and self.take_profit is not None) and np.array_equal(self.stop_loss,
-                                                                                                self.take_profit):
-                raise exceptions.InvalidStrategy(
-                    'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
+        if (
+            self.position.is_open
+            and (self.stop_loss is not None and self.take_profit is not None)
+            and np.array_equal(self.stop_loss, self.take_profit)
+        ):
+            raise exceptions.InvalidStrategy(
+                'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
 
     def update_position(self):
         pass
@@ -1006,13 +1007,11 @@ class Strategy(ABC):
         """
         Returns all the metrics of the strategy.
         """
-        if self.trades_count in self._cached_metrics:
-            return self._cached_metrics[self.trades_count]
-        else:
+        if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
                 store.completed_trades.trades, store.app.daily_balance
             )
-            return self._cached_metrics[self.trades_count]
+        return self._cached_metrics[self.trades_count]
 
     @property
     def time(self) -> int:

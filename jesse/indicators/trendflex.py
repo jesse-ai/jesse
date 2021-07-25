@@ -47,11 +47,11 @@ def trendflex_fast(ssf, period):
     sums = np.full_like(ssf, 0)
 
     for i in range(ssf.shape[0]):
-        if not (i < period):
+        if i >= period:
             sum = 0
             for t in range(1, period + 1):
                 sum = sum + ssf[i] - ssf[i - t]
-            sum = sum / period
+            sum /= period
             sums[i] = sum
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
