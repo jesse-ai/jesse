@@ -1,4 +1,3 @@
-
 from typing import Union
 from functools import reduce
 from operator import mul

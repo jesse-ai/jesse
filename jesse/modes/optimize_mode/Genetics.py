@@ -29,7 +29,7 @@ from pandas import json_normalize
 
 class Genetics(ABC):
     def __init__(self, iterations: int, population_size: int, solution_len: int,
-                 charset: str = '()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
+                 charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
                  fitness_goal: float = 1,
                  options: Dict[str, Union[bool, Any]] = None) -> None:
         self.started_index = 0

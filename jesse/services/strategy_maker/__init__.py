@@ -23,7 +23,7 @@ def generate(name: str) -> None:
 
     shutil.copytree(f'{dirname}/ExampleStrategy', path)
 
-    with open(f"{path}/__init__.py", "rt") as fin:
+    with open(f"{path}/__init__.py") as fin:
         data = fin.read()
         data = data.replace('ExampleStrategy', name)
     with open(f"{path}/__init__.py", "wt") as fin:

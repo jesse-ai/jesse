@@ -1,4 +1,3 @@
-
 from typing import Union
 from math import floor
 import numpy as np
