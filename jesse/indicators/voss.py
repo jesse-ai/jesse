@@ -55,10 +55,8 @@ def voss_fast(source, period, predict, bandwith):
 
     for i in range(source.shape[0]):
         if not (i <= period or i <= 5 or i <= order):
-            sumc = sum(
-                ((count + 1) / float(order)) * voss[i - (order - count)]
-                for count in range(order)
-            )
-
+            sumc = 0
+            for count in range(order):
+                sumc = sumc + ((count + 1) / float(order)) * voss[i - (order - count)]
             voss[i] = ((3 + order) / 2) * filt[i] - sumc
     return voss, filt
