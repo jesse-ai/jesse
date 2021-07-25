@@ -46,7 +46,7 @@ jobs:
            ${{ runner.os }}-pip-
       - name: Install ta-lib
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then
+          if [[ "$RUNNER_OS" = "macOS" ]]; then
             brew install ta-lib
           fi
           if [ "$RUNNER_OS" = "Linux" ]; then
