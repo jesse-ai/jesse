@@ -673,13 +673,15 @@ def error(msg: str, force_print: bool = False) -> None:
         from jesse.services import logger
         logger.error(msg)
         if force_print:
-            print('\n')
-            print(color('========== critical error =========='.upper(), 'red'))
-            print(color(msg, 'red'))
+            _print_error(msg)
     else:
-        print('\n')
-        print(color('========== critical error =========='.upper(), 'red'))
-        print(color(msg, 'red'))
+        _print_error(msg)
+
+
+def _print_error(msg):
+    print('\n')
+    print(color('========== critical error =========='.upper(), 'red'))
+    print(color(msg, 'red'))
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
