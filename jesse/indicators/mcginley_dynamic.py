@@ -18,6 +18,7 @@ def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, sour
     :param candles: np.ndarray
     :param period: int - default: 10
     :param k: float - default: 0.6
+    :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
     :return: float | np.ndarray

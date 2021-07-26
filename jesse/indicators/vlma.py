@@ -62,7 +62,7 @@ def vlma_fast(source, a, b, c, d, min_period, max_period):
     period = np.zeros_like(source)
     for i in range(1, source.shape[0]):
         nz_period = period[i - 1] if period[i - 1] != 0 else max_period
-        period[i] = nz_period + 1 if source[i] >= b[i] and source[i] <= c[i] else nz_period - 1 if source[i] < a[i] or source[i] > d[i] else nz_period
+        period[i] = nz_period + 1 if b[i] <= source[i] <= c[i] else nz_period - 1 if source[i] < a[i] or source[i] > d[i] else nz_period
         period[i] = max(min(period[i], max_period), min_period)
         sc = 2 / (period[i] + 1)
         newseries[i] = (source[i] * sc) + ((1 - sc) * newseries[i - 1])

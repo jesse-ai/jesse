@@ -25,11 +25,11 @@ def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, si
 
     vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slow_period) / talib.SMA(candles[:, 5], slow_period)
     vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fast_period) / talib.SMA(candles[:, 5], fast_period)
-    vwmacd = vwma_fast - vwma_slow
-    signal = talib.EMA(vwmacd, signal_period)
-    hist = vwmacd - signal
+    vwmacd_val = vwma_fast - vwma_slow
+    signal = talib.EMA(vwmacd_val, signal_period)
+    hist = vwmacd_val - signal
 
     if sequential:
-        return VWMACD(vwmacd, signal, hist)
+        return VWMACD(vwmacd_val, signal, hist)
     else:
-        return VWMACD(vwmacd[-1], signal[-1], hist[-1])
+        return VWMACD(vwmacd_val[-1], signal[-1], hist[-1])

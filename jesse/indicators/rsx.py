@@ -16,6 +16,7 @@ def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
    
     :param candles: np.ndarray
     :param period: int - default: 14
+    :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
     :return: float | np.ndarray
@@ -33,7 +34,7 @@ def rsx_fast(source, period):
     # variables
     f0 = 0
     f8 = 0
-    f10 = 0
+    # f10 = 0
     f18 = 0
     f20 = 0
     f28 = 0
@@ -51,15 +52,15 @@ def rsx_fast(source, period):
     f88 = 0
     f90 = 0
 
-    v4 = 0
-    v8 = 0
-    v10 = 0
+    # v4 = 0
+    # v8 = 0
+    # v10 = 0
     v14 = 0
-    v18 = 0
+    # v18 = 0
     v20 = 0
 
-    vC = 0
-    v1C = 0
+    # vC = 0
+    # v1C = 0
 
     res = np.full_like(source, np.nan)
 

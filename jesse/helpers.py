@@ -537,7 +537,7 @@ def quote_asset(symbol: str) -> str:
 
 
 def random_str(num_characters: int = 8) -> str:
-    return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
+    return ''.join(random.choice(string.ascii_letters) for _ in range(num_characters))
 
 
 def readable_duration(seconds: int, granularity: int = 2) -> str:
@@ -632,9 +632,9 @@ def side_to_type(s: str) -> str:
     raise ValueError
 
 
-def string_after_character(string: str, character: str) -> str:
+def string_after_character(s: str, character: str) -> str:
     try:
-        return string.split(character, 1)[1]
+        return s.split(character, 1)[1]
     except IndexError:
         return None
 

@@ -33,7 +33,7 @@ def alma(candles: np.ndarray, period: int = 9, sigma: float = 6.0, distribution_
     wtds = np.exp(-(np.arange(period) - m) ** 2 / dss)
     pnp_array3D = strided_axis0(source, len(wtds))
     res = np.zeros(source.shape)
-    res[period - 1:] = np.tensordot(pnp_array3D, wtds, axes=((1), (0)))[:]
+    res[period - 1:] = np.tensordot(pnp_array3D, wtds, axes=(1, 0))[:]
     res /= wtds.sum()
     res[res == 0] = np.nan
 

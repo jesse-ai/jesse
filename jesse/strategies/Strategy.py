@@ -358,7 +358,7 @@ class Strategy(ABC):
                                               "]\n"
                 )
 
-            if passed == False:
+            if not passed:
                 logger.info(f.__name__)
                 self._reset()
                 return False

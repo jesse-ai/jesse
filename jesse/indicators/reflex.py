@@ -47,11 +47,11 @@ def reflex_fast(ssf, period):
     for i in range(ssf.shape[0]):
         if i >= period:
             slope = (ssf[i - period] - ssf[i]) / period
-            sum = 0
+            my_sum = 0
             for t in range(1, period + 1):
-                sum = sum + (ssf[i] + t * slope) - ssf[i - t]
-            sum /= period
-            sums[i] = sum
+                my_sum = my_sum + (ssf[i] + t * slope) - ssf[i - t]
+            my_sum /= period
+            sums[i] = my_sum
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] > 0:

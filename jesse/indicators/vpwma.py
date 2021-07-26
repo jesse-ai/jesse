@@ -40,11 +40,11 @@ def vpwma(candles: np.ndarray, period: int = 14, power: float = 0.382, source_ty
 def vpwma_fast(source, period, power):
     newseries = np.copy(source)
     for j in range(period + 1, source.shape[0]):
-        sum = 0.0
+        my_sum = 0.0
         weightSum = 0.0
         for i in range(period - 1):
             weight = np.power(period - i, power)
-            sum += (source[j - i] * weight)
+            my_sum += (source[j - i] * weight)
             weightSum += weight
-        newseries[j] = sum / weightSum
+        newseries[j] = my_sum / weightSum
     return newseries

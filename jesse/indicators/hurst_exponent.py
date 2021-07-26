@@ -80,7 +80,7 @@ def hurst_rs(x, min_chunksize, max_chunksize, num_chunksize, out):
     Hurst, H. E. (1951). Long term storage capacity of reservoirs. ASCE
     Transactions, 116(776), 770-808.
     Alessio, E., Carbone, A., Castelli, G. et al. Eur. Phys. J. B (2002) 27:
-    197. http://dx.doi.org/10.1140/epjb/e20020150
+    197. https://dx.doi.org/10.1140/epjb/e20020150
     """
     N = len(x)
     max_chunksize += 1
@@ -149,7 +149,7 @@ def hurst_dma(prices, min_chunksize=8, max_chunksize=200, num_chunksize=5):
     References
     ----------
     Alessio, E., Carbone, A., Castelli, G. et al. Eur. Phys. J. B (2002) 27:
-    197. http://dx.doi.org/10.1140/epjb/e20020150
+    197. https://dx.doi.org/10.1140/epjb/e20020150
 
     """
     max_chunksize += 1

@@ -17,7 +17,11 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
 
     :param candles: np.ndarray
     :param candles_compare: np.ndarray
+    :param lookback: int - default: 90
     :param period: int - default: 3
+    :param signal_period: int - default: 20
+    :param matype: int - default: 1
+    :param signal_matype: int - default: 1
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 

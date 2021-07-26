@@ -28,9 +28,9 @@ def mama(candles: np.ndarray, fastlimit: float = 0.5, slowlimit: float = 0.05, s
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    mama, fama = talib.MAMA(source, fastlimit=fastlimit, slowlimit=slowlimit)
+    mama_val, fama = talib.MAMA(source, fastlimit=fastlimit, slowlimit=slowlimit)
 
     if sequential:
-        return MAMA(mama, fama)
+        return MAMA(mama_val, fama)
     else:
-        return MAMA(mama[-1], fama[-1])
+        return MAMA(mama_val[-1], fama[-1])

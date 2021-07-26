@@ -17,11 +17,11 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_matype: int = 0, sl
 
     :param candles: np.ndarray
     :param fast_period: int - default: 12
-    :param fastmatype: int - default: 0
+    :param fast_matype: int - default: 0
     :param slow_period: int - default: 26
-    :param slowmatype: int - default: 0
+    :param slow_matype: int - default: 0
     :param signal_period: int - default: 9
-    :param signalmatype: int - default: 0
+    :param signal_matype: int - default: 0
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 

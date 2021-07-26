@@ -42,11 +42,12 @@ def anchor_timeframe(timeframe: str) -> str:
 def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], direction: str = None,
             sequential: bool = False) -> bool:
     """
-    Helper for detecion of crosses
+    Helper for detection of crosses
 
     :param series1: np.ndarray
     :param series2: float, int, np.array
     :param direction: str - default: None - above or below
+    :param sequential: bool - default: False
 
     :return: bool
     """
@@ -151,6 +152,7 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     :param risk_per_capital:
     :param entry_price:
     :param stop_loss_price:
+    :param precision:
     :param fee_rate:
     :return: float
     """
@@ -305,6 +307,7 @@ def candlestick_chart(candles: np.ndarray):
     import mplfinance as mpf
     df = numpy_candles_to_dataframe(candles)
     mpf.plot(df, type='candle')
+
 
 def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
     """

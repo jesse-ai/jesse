@@ -28,7 +28,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
 
     source = get_candle_source(candles, source_type=source_type)
 
-    realPart, imagPart, angle = go_fast(source, period, threshold)
+    realPart, imagPart, angle = go_fast(source, period)
 
     priorAngle = np_shift(angle, 1, fill_value=np.nan)
     angle = np.where(np.logical_and(priorAngle > angle, priorAngle - angle < 270.0), priorAngle, angle)
@@ -43,7 +43,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
 
 
 @njit
-def go_fast(source, period, threshold):  # Function is compiled to machine code when called the first time
+def go_fast(source, period):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
     PIx2 = 4.0 * np.arcsin(1.0)
     period = max(2, period)

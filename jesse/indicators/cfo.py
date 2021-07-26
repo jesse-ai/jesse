@@ -15,6 +15,7 @@ def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type:
 
     :param candles: np.ndarray
     :param period: int - default: 14
+    :param scalar: float - default: 100
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
@@ -24,10 +25,10 @@ def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type:
 
     source = get_candle_source(candles, source_type=source_type)
 
-    cfo = scalar * (source - talib.LINEARREG(source, timeperiod=period))
-    cfo /= source
+    res = scalar * (source - talib.LINEARREG(source, timeperiod=period))
+    res /= source
 
     if sequential:
-        return cfo
+        return res
     else:
-        return None if np.isnan(cfo[-1]) else cfo[-1]
+        return None if np.isnan(res[-1]) else res[-1]

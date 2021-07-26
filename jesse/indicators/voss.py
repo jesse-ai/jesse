@@ -29,12 +29,12 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    voss, filt = voss_fast(source, period, predict, bandwith)
+    voss_val, filt = voss_fast(source, period, predict, bandwith)
 
     if sequential:
-        return VossFilter(voss, filt)
+        return VossFilter(voss_val, filt)
     else:
-        return VossFilter(voss[-1], filt[-1])
+        return VossFilter(voss_val[-1], filt[-1])
 
 
 @njit

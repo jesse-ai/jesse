@@ -14,7 +14,7 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
 
     :param candles: np.ndarray
     :param period: int - default: 22
-    :param period: float - default: 3.0
+    :param mult: float - default: 3.0
     :param direction: str - default: "long"
     :param sequential: bool - default: False
 
@@ -40,10 +40,10 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
     return result if sequential else result[-1]
 
 
-def filter1d_same(a: np.ndarray, W: int, type: str, fillna=np.nan):
+def filter1d_same(a: np.ndarray, W: int, max_or_min: str, fillna=np.nan):
     out_dtype = np.full(0, fillna).dtype
     hW = (W - 1) // 2  # Half window size
-    if type == 'max':
+    if max_or_min == 'max':
         out = maximum_filter1d(a, size=W, origin=hW)
     else:
         out = minimum_filter1d(a, size=W, origin=hW)

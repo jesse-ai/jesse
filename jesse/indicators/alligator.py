@@ -39,7 +39,7 @@ def numpy_ewma(data: np.ndarray, window: int):
     :return:
     """
     alpha = 1 / window
-    scale = 1 / (1 - alpha)
+    # scale = 1 / (1 - alpha)
     n = data.shape[0]
     scale_arr = (1 - alpha) ** (-1 * np.arange(n))
     weights = (1 - alpha) ** np.arange(n)

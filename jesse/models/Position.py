@@ -269,7 +269,7 @@ class Position:
             raise OpenPositionError('position must be already open in order to increase its size')
 
         qty = abs(qty)
-        size = qty * price
+        # size = qty * price
 
         # if self.exchange:
         #     self.exchange.decrease_futures_balance(size)

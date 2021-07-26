@@ -16,9 +16,9 @@ def stc(candles: np.ndarray, fast_period: int = 23, fast_matype: int = 1, slow_p
 
     :param candles: np.ndarray
     :param fast_period: int - default: 23
-    :param fastmatype: int - default: 1
+    :param fast_matype: int - default: 1
     :param slow_period: int - default: 50
-    :param slowmatype: int - default: 1
+    :param slow_matype: int - default: 1
     :param k_period: int - default: 10
     :param d_period: int - default: 3
     :param source_type: str - default: "close"
