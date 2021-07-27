@@ -17,7 +17,8 @@ import uvicorn
 from asyncio import Queue
 from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
-from jesse.services import db
+from pprint import pprint
+
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -171,6 +172,8 @@ def backtest(request_json: BacktestRequestJson):
 
     from jesse.modes.backtest_mode import run as run_backtest
 
+    # pprint(request_json.config)
+
     process_manager.add_task(
         run_backtest,
         'backtest-' + str(request_json.id),
@@ -199,6 +202,7 @@ def cancel_backtest(request_json: CancelRequestJson):
 
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
+    from jesse.services import db
     db.close_connection()
 
 

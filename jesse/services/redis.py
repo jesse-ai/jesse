@@ -5,14 +5,21 @@ import asyncio
 import jesse.helpers as jh
 from jesse.libs.custom_json import NpEncoder
 import os
+from jesse.services.env import ENV_VALUES
 
 
 async def init_redis():
-    return await aioredis.create_redis_pool('redis://localhost')
+    return await aioredis.create_redis_pool(
+        address=(ENV_VALUES['REDIS_HOST'], ENV_VALUES['REDIS_PORT']),
+        password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+    )
 
 
 async_redis = asyncio.run(init_redis())
-sync_redis = sync_redis_lib.Redis(host='localhost', port=6379, db=0)
+sync_redis = sync_redis_lib.Redis(
+    host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=0,
+    password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+)
 
 
 def sync_publish(event: str, msg):

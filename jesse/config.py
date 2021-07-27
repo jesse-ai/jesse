@@ -1,14 +1,6 @@
 config = {
     # these values are related to the user's environment
     'env': {
-        'databases': {
-            'postgres_host': '127.0.0.1',
-            'postgres_name': 'jesse_db',
-            'postgres_port': 5432,
-            'postgres_username': 'jesse_user',
-            'postgres_password': 'password',
-        },
-
         'caching': {
             'driver': 'pickle'
         },
@@ -216,11 +208,10 @@ config = {
     },
 }
 
-backup_config = config.copy()
-
 
 def set_config(c) -> None:
     global config
+
     config['env'] = c
     # add sandbox because it isn't in the local config file
     config['env']['exchanges']['Sandbox'] = {
@@ -240,3 +231,6 @@ def set_config(c) -> None:
 def reset_config() -> None:
     global config
     config = backup_config.copy()
+
+
+backup_config = config.copy()
