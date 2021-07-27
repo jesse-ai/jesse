@@ -58,21 +58,9 @@ def inject_local_config() -> None:
     set_config(local_config)
 
 
-def inject_local_routes() -> None:
-    """
-    injects routes from local routes folder
-    """
-    local_router = locate('routes')
-    from jesse.routes import router
-
-    router.set_routes(local_router.routes)
-    router.set_extra_candles(local_router.extra_candles)
-
-
 # inject local files
 if IS_JESSE_PROJECT:
     inject_local_config()
-    # inject_local_routes()
 
 
 @fastapi_app.post("/terminate-all")
@@ -172,7 +160,7 @@ def backtest(request_json: BacktestRequestJson):
 
     from jesse.modes.backtest_mode import run as run_backtest
 
-    # pprint(request_json.config)
+    pprint(request_json.config)
 
     process_manager.add_task(
         run_backtest,
