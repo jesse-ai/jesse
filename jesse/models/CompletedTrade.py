@@ -42,9 +42,7 @@ class CompletedTrade(peewee.Model):
             setattr(self, a, attributes[a])
 
     def toJSON(self) -> dict:
-        orders = []
-        for o in self.orders:
-            orders.append(o.__dict__)
+        orders = [o.__dict__ for o in self.orders]
         return {
             "id": self.id,
             "strategy_name": self.strategy_name,

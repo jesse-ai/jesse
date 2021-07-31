@@ -30,11 +30,11 @@ def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
     if jh.should_execute_silently():
         return
 
-    if is_bullish(candle) and is_partial is True:
+    if is_bullish(candle) and is_partial:
         candle_form = click.style('  ==', fg='green')
-    elif is_bullish(candle) and is_partial is False:
+    elif is_bullish(candle) and not is_partial:
         candle_form = click.style('====', bg='green')
-    elif is_bearish(candle) and is_partial is True:
+    elif is_bearish(candle) and is_partial:
         candle_form = click.style('  ==', fg='red')
     else:
         candle_form = click.style('====', bg='red')

@@ -57,10 +57,7 @@ class Coinbase(CandleExchange):
         self._handle_errors(response)
 
         data = response.json()
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -70,9 +67,7 @@ class Coinbase(CandleExchange):
                 'high': float(d[2]),
                 'low': float(d[1]),
                 'volume': float(d[5])
-            })
-
-        return candles
+            } for d in data]
 
     @staticmethod
     def _handle_errors(response):

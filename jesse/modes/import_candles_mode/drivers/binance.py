@@ -43,9 +43,7 @@ class Binance(CandleExchange):
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
-        second_timestamp = first_timestamp + 60_000 * 1440
-
-        return second_timestamp
+        return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol, start_timestamp):
         """
@@ -76,10 +74,7 @@ class Binance(CandleExchange):
         if response.status_code == 400:
             raise ValueError(response.json()['msg'])
 
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -89,6 +84,4 @@ class Binance(CandleExchange):
                 'high': float(d[2]),
                 'low': float(d[3]),
                 'volume': float(d[5])
-            })
-
-        return candles
+            } for d in data]

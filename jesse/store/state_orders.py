@@ -43,11 +43,7 @@ class OrdersState:
     def count_active_orders(self, exchange: str, symbol: str) -> int:
         orders = self.get_orders(exchange, symbol)
 
-        c = 0
-        for o in orders:
-            if o.is_active:
-                c += 1
-        return c
+        return sum(bool(o.is_active) for o in orders)
 
     def count(self, exchange: str, symbol: str) -> int:
         return len(self.get_orders(exchange, symbol))

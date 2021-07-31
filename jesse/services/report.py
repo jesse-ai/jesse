@@ -18,12 +18,21 @@ warnings.filterwarnings("ignore")
 
 
 def positions() -> List[Union[List[str], List[Union[Union[str, int, None], Any]]]]:
-    array = []
+    array = [
+        [
+            'type',
+            'strategy',
+            'symbol',
+            'leverage',
+            'opened at',
+            'qty',
+            'entry',
+            'current price',
+            'liq price',
+            'PNL (%)',
+        ]
+    ]
 
-    # headers
-    array.append([
-        'type', 'strategy', 'symbol', 'leverage', 'opened at', 'qty', 'entry', 'current price', 'liq price', 'PNL (%)'
-    ])
 
     for r in router.routes:
         pos = r.strategy.position
@@ -232,15 +241,15 @@ def portfolio_metrics() -> List[
 
 
 def info() -> List[List[Union[str, Any]]]:
-    array = []
-
-    for w in store.logs.info[::-1][0:5]:
-        array.append(
-            [
-                jh.timestamp_to_time(w['time'])[11:19],
-                f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']
-            ])
-    return array
+    return [
+        [
+            jh.timestamp_to_time(w['time'])[11:19],
+            f"{w['message'][:70]}.."
+            if len(w['message']) > 70
+            else w['message'],
+        ]
+        for w in store.logs.info[::-1][0:5]
+    ]
 
 
 def watch_list() -> Optional[Any]:
@@ -260,19 +269,31 @@ def watch_list() -> Optional[Any]:
 
 
 def errors() -> List[List[Union[str, Any]]]:
-    array = []
-
-    for w in store.logs.errors[::-1][0:5]:
-        array.append([jh.timestamp_to_time(w['time'])[11:19],
-                      f"{w['message'][:70]}.." if len(w['message']) > 70 else w['message']])
-    return array
+    return [
+        [
+            jh.timestamp_to_time(w['time'])[11:19],
+            f"{w['message'][:70]}.."
+            if len(w['message']) > 70
+            else w['message'],
+        ]
+        for w in store.logs.errors[::-1][0:5]
+    ]
 
 
 def orders() -> List[Union[List[str], List[Union[CharField, str, FloatField]]]]:
-    array = []
+    array = [
+        [
+            'symbol',
+            'side',
+            'type',
+            'qty',
+            'price',
+            'flag',
+            'status',
+            'created_at',
+        ]
+    ]
 
-    # headers
-    array.append(['symbol', 'side', 'type', 'qty', 'price', 'flag', 'status', 'created_at'])
 
     route_orders = []
     for r in router.routes:

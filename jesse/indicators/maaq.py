@@ -7,7 +7,7 @@ try:
 except ImportError:
     njit = lambda a : a
 
-from jesse.helpers import get_candle_source, slice_candles, same_length, np_shift
+from jesse.helpers import get_candle_source, slice_candles, np_shift
 
 
 def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[

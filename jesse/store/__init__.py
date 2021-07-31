@@ -32,10 +32,11 @@ def install_routes() -> None:
 
         exchange = r.exchange
         symbol = r.symbol
-        count = 0
-        for ro in router.routes:
-            if ro.exchange == exchange and ro.symbol == symbol:
-                count += 1
+        count = sum(
+            ro.exchange == exchange and ro.symbol == symbol
+            for ro in router.routes
+        )
+
         if count != 1:
             raise InvalidRoutes(
                 'each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse.trade/docs/routes.html#trading-multiple-routes')

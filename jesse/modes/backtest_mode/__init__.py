@@ -13,7 +13,7 @@ import jesse.services.selectors as selectors
 import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
-from jesse.enums import timeframes, order_types, sides, order_roles, order_flags
+from jesse.enums import timeframes, order_types, order_roles, order_flags
 from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
@@ -285,7 +285,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
                         continue
 
                     count = jh.timeframe_to_one_minutes(timeframe)
-                    until = count - ((i + 1) % count)
+                    # until = count - ((i + 1) % count)
 
                     if (i + 1) % count == 0:
                         generated_candle = generate_candle_from_one_minutes(

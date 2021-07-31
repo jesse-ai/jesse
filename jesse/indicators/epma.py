@@ -17,6 +17,7 @@ def epma(candles: np.ndarray, period: int = 11, offset: int = 4, source_type: st
 
     :param candles: np.ndarray
     :param period: int - default: 14
+    :param offset: int - default: 4
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
@@ -39,11 +40,11 @@ def epma(candles: np.ndarray, period: int = 11, offset: int = 4, source_type: st
 def epma_fast(source, period, offset):
     newseries = np.copy(source)
     for j in range(period + offset + 1 , source.shape[0]):
-        sum = 0.0
+        my_sum = 0.0
         weightSum = 0.0
         for i in range(period - 1):
             weight = period - i - offset
-            sum += (source[j - i] * weight)
+            my_sum += (source[j - i] * weight)
             weightSum += weight
-        newseries[j] = 1 / weightSum * sum
+        newseries[j] = 1 / weightSum * my_sum
     return newseries

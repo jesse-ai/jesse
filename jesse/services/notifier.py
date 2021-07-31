@@ -27,9 +27,9 @@ def _telegram(msg: str) -> None:
     if not token or not len(chat_IDs) or not config['env']['notifications']['enable_notifications']:
         return
 
-    for id in chat_IDs:
+    for _id in chat_IDs:
         requests.get(
-            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={id}&parse_mode=Markdown&text={msg}'
+            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={_id}&parse_mode=Markdown&text={msg}'
         )
 
 
@@ -40,9 +40,9 @@ def _telegram_errors_bot(msg: str) -> None:
     if not token or not len(chat_IDs) or not config['env']['notifications']['enable_notifications']:
         return
 
-    for id in chat_IDs:
+    for _id in chat_IDs:
         requests.get(
-            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={id}&parse_mode=Markdown&text={msg}'
+            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={_id}&parse_mode=Markdown&text={msg}'
         )
 
 

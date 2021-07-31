@@ -42,11 +42,12 @@ def anchor_timeframe(timeframe: str) -> str:
 def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], direction: str = None,
             sequential: bool = False) -> bool:
     """
-    Helper for detecion of crosses
+    Helper for detection of crosses
 
     :param series1: np.ndarray
     :param series2: float, int, np.array
     :param direction: str - default: None - above or below
+    :param sequential: bool - default: False
 
     :return: bool
     """
@@ -66,15 +67,10 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
             cross_below = np.logical_and(series1 < series2, series1_shifted >= series2_shifted)
 
         if direction is None:
-            cross_any = np.logical_or(cross_above, cross_below)
-            return cross_any
+            return np.logical_or(cross_above, cross_below)
 
-        if direction == "above":
-            return cross_above
-        else:
-            return cross_below
     else:
-        if not type(series2) is np.ndarray:
+        if type(series2) is not np.ndarray:
             series2 = np.array([series2, series2])
 
         if direction is None or direction == "above":
@@ -85,10 +81,10 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
         if direction is None:
             return cross_above or cross_below
 
-        if direction == "above":
-            return cross_above
-        else:
-            return cross_below
+    if direction == "above":
+        return cross_above
+    else:
+        return cross_below
 
 
 def estimate_risk(entry_price: float, stop_price: float) -> float:
@@ -156,6 +152,7 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     :param risk_per_capital:
     :param entry_price:
     :param stop_loss_price:
+    :param precision:
     :param fee_rate:
     :return: float
     """
@@ -201,7 +198,7 @@ def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fe
         raise TypeError()
 
     if fee_rate != 0:
-        position_size = position_size * (1 - fee_rate * 3)
+        position_size *= 1 - fee_rate * 3
 
     return jh.floor_with_precision(position_size / entry_price, precision)
 
@@ -250,8 +247,9 @@ def streaks(series: np.ndarray, use_diff=True) -> np.ndarray:
     streak = np.where(series >= 0, pos - np.maximum.accumulate(np.where(series <= 0, pos, 0)),
                       -neg + np.maximum.accumulate(np.where(series >= 0, neg, 0)))
 
-    res = np.concatenate((np.full((series.shape[0] - streak.shape[0]), np.nan), streak))
-    return res
+    return np.concatenate(
+        (np.full((series.shape[0] - streak.shape[0]), np.nan), streak)
+    )
 
 
 def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.ndarray:
@@ -309,6 +307,7 @@ def candlestick_chart(candles: np.ndarray):
     import mplfinance as mpf
     df = numpy_candles_to_dataframe(candles)
     mpf.plot(df, type='candle')
+
 
 def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
     """

@@ -26,10 +26,7 @@ def candles(candles_array: np.ndarray) -> List[List[str]]:
 
 
 def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
-    array = []
-
-    # header
-    array.append(['exchange', 'symbol', 'timeframe', 'strategy', 'DNA'])
+    array = [['exchange', 'symbol', 'timeframe', 'strategy', 'DNA']]
 
     for r in routes:
         array.append([
@@ -51,7 +48,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
-    if len(trades_list) == 0:
+    if not trades_list:
         return None
 
     df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
@@ -72,7 +69,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     losing_streak = 0 if s_min > 0 else abs(s_min)
 
     s_max = current_streak.max()
-    winning_streak = 0 if s_max < 0 else s_max
+    winning_streak = max(s_max, 0)
 
     largest_losing_trade = df['PNL'].min()
     largest_winning_trade = df['PNL'].max()

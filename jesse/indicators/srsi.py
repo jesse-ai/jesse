@@ -15,7 +15,7 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
     Stochastic RSI
 
     :param candles: np.ndarray
-    :param period_rsi: int - default: 14 - RSI Length
+    :param period: int - default: 14 - RSI Length
     :param period_stoch: int - default: 14 - Stochastic Length
     :param k: int - default: 3
     :param d: int - default: 3

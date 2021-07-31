@@ -54,7 +54,7 @@ def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std,
     vol = np.full_like(source, 0)
     t = np.full_like(source, 0)
     for i in range(source.shape[0]):
-        if not (i < sed_std):
+        if i >= sed_std:
             vol[i] = atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
             anti_thres = np.std(source[i - vis_std:i]) / np.std(source[i - sed_std:i])
             t[i] = threshold - anti_thres

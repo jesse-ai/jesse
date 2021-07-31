@@ -233,14 +233,12 @@ class CandlesState:
         short_count = len(self.get_storage(exchange, symbol, '1m'))
 
         # complete candle
-        if dif == 0:
-            if long_count == 0:
-                return np.zeros((0, 6))
-            else:
-                return self.storage[long_key][-1]
-        # generate forming
-        else:
+        if dif != 0:
             return generate_candle_from_one_minutes(
                 timeframe, self.storage[short_key][short_count - dif:short_count],
                 True
             )
+        if long_count == 0:
+            return np.zeros((0, 6))
+        else:
+            return self.storage[long_key][-1]
