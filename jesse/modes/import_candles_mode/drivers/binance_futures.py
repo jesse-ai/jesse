@@ -23,7 +23,7 @@ class BinanceFutures(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1d',
+            'interval': '3d',
             'symbol': dashless_symbol,
             'limit': 1500,
         }
