@@ -2267,5 +2267,4 @@ def test_wt():
     assert seq.wtCrossDown[-1] is single.wtCrossDown
     assert seq.wtOversold[-1] is single.wtOversold
     assert seq.wtOverbought[-1] is single.wtOverbought
-    assert seq.wtVwap[-1] == single.wtVwap
     assert len(seq.wt1) == len(candles)
