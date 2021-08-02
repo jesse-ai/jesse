@@ -22,7 +22,7 @@ class Binance(CandleExchange):
         payload = {
             'interval': '3d',
             'symbol': dashless_symbol,
-            'limit': 1500,
+            'limit': 1000,
         }
 
         response = requests.get(self.endpoint, params=payload)
