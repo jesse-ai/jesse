@@ -2259,7 +2259,6 @@ def test_wt():
     assert not single.wtOversold
     assert not single.wtOverbought
     assert round(single.wtVwap, 2) == -11.74
-    assert single.wtVwap == single.wt1 - single.wt2
 
     assert seq.wt1[-1] == single.wt1
     assert seq.wt2[-1] == single.wt2
