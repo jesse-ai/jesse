@@ -903,7 +903,7 @@ def test_kaufmanstop():
     single = ta.kaufmanstop(candles)
     seq = ta.kaufmanstop(candles, sequential=True)
 
-    assert round(single, 0) == -57
+    assert round(single, 0) == 57
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
