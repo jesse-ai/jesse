@@ -79,7 +79,7 @@ def test_can_perform_backtest_with_multiple_routes():
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     for r in router.routes:
         s: Strategy = r.strategy
@@ -144,7 +144,7 @@ def test_forming_candles():
         'candles': test_candles_0
     }
 
-    backtest_mode.run(False, routes, extra_routes, '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, extra_routes, '2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
     assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)) == math.ceil(1382 / 5)
@@ -182,7 +182,7 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 2
 
@@ -231,7 +231,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
     assert len(store.completed_trades.trades) == 2
 
     t1: CompletedTrade = store.completed_trades.trades[0]
@@ -302,7 +302,7 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
         'candles': generated_candles
     }
 
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 1
     t1: CompletedTrade = store.completed_trades.trades[0]
@@ -361,7 +361,7 @@ def test_multiple_routes_can_communicate_with_each_other():
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 1
 
@@ -595,7 +595,7 @@ def test_should_buy_and_execute_buy():
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     for r in router.routes:
         s: Strategy = r.strategy
@@ -641,7 +641,7 @@ def test_should_sell_and_execute_sell():
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     for r in router.routes:
         s: Strategy = r.strategy
@@ -759,7 +759,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     t1: CompletedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'

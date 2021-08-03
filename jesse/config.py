@@ -135,20 +135,6 @@ config = {
             },
         },
 
-        # changes the metrics output of the backtest
-        'metrics': {
-            'sharpe_ratio': True,
-            'calmar_ratio': False,
-            'sortino_ratio': False,
-            'omega_ratio': False,
-            'winning_streak': False,
-            'losing_streak': False,
-            'largest_losing_trade': False,
-            'largest_winning_trade': False,
-            'total_winning_trades': False,
-            'total_losing_trades': False,
-        },
-
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # Optimize mode
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -212,20 +198,44 @@ config = {
 def set_config(c) -> None:
     global config
 
-    config['env'] = c
-    # add sandbox because it isn't in the local config file
-    config['env']['exchanges']['Sandbox'] = {
-        'type': 'spot',
-        # used only in futures trading
-        'settlement_currency': 'USDT',
-        'fee': 0,
-        'futures_leverage_mode': 'cross',
-        'futures_leverage': 1,
-        'assets': [
-            {'asset': 'USDT', 'balance': 10_000},
-            {'asset': 'BTC', 'balance': 0},
-        ],
-    }
+    if 'logging' in c:
+        config['env']['logging'] = c['logging']
+
+    if 'warm_up_candles' in c:
+        config['env']['data']['warmup_candles_num'] = int(c['warm_up_candles'])
+
+    if 'optimization' in c:
+        config['env']['optimization'] = c['optimization']
+
+    if 'exchanges' in c:
+        for e in c['exchanges']:
+            config['env']['exchanges'][e['name']] = {
+                'fee': float(e['fee']),
+                'type': 'futures',
+                # used only in futures trading
+                'settlement_currency': 'USDT',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': e['futures_leverage_mode'],
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': int(e['futures_leverage']),
+                'assets': [
+                    {'asset': 'USDT', 'balance': float(e['balance'])},
+                ],
+            }
+
+    # # add sandbox because it isn't in the local config file but it is needed since we might have replaced it
+    # config['env']['exchanges']['Sandbox'] = {
+    #     'type': 'spot',
+    #     # used only in futures trading
+    #     'settlement_currency': 'USDT',
+    #     'fee': 0,
+    #     'futures_leverage_mode': 'cross',
+    #     'futures_leverage': 1,
+    #     'assets': [
+    #         {'asset': 'USDT', 'balance': 10_000},
+    #         {'asset': 'BTC', 'balance': 0},
+    #     ],
+    # }
 
 
 def reset_config() -> None:

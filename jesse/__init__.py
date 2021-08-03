@@ -17,7 +17,6 @@ import uvicorn
 from asyncio import Queue
 from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
-from pprint import pprint
 
 
 # to silent stupid pandas warnings
@@ -47,20 +46,6 @@ def validate_cwd() -> None:
             )
         )
         os._exit(1)
-
-
-def inject_local_config() -> None:
-    """
-    injects config from local config file
-    """
-    local_config = locate('config.config')
-    from jesse.config import set_config
-    set_config(local_config)
-
-
-# inject local files
-if IS_JESSE_PROJECT:
-    inject_local_config()
 
 
 @fastapi_app.post("/terminate-all")
@@ -160,12 +145,11 @@ def backtest(request_json: BacktestRequestJson):
 
     from jesse.modes.backtest_mode import run as run_backtest
 
-    pprint(request_json.config)
-
     process_manager.add_task(
         run_backtest,
         'backtest-' + str(request_json.id),
         request_json.debug_mode,
+        request_json.config,
         request_json.routes,
         request_json.extra_routes,
         request_json.start_date,

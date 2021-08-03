@@ -29,16 +29,30 @@ from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish
 
 
-def run(debug_mode, routes: List[Dict[str, str]], extra_routes: List[Dict[str, str]], start_date: str, finish_date: str, candles: dict = None,
-        chart: bool = False, tradingview: bool = False, full_reports: bool = False,
-        csv: bool = False, json: bool = False) -> None:
-    from jesse.config import config
+def run(
+        debug_mode,
+        user_config: dict,
+        routes: List[Dict[str, str]],
+        extra_routes: List[Dict[str, str]],
+        start_date: str,
+        finish_date: str,
+        candles: dict = None,
+        chart: bool = False,
+        tradingview: bool = False,
+        full_reports: bool = False,
+        csv: bool = False,
+        json: bool = False
+) -> None:
+    from jesse.config import config, set_config
     config['app']['trading_mode'] = 'backtest'
 
     register_custom_exception_handler()
 
     # debug flag
     config['app']['debug_mode'] = debug_mode
+
+    # inject config
+    set_config(user_config)
 
     # set routes
     router.initiate(routes, extra_routes)
