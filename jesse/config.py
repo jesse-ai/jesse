@@ -223,6 +223,12 @@ def set_config(c) -> None:
                 ],
             }
 
+    if 'notifications' in c:
+        config['env']['notifications'] = c['notifications']
+
+    # TODO: must become a config value later when we go after multi account support?
+    config['env']['identifier'] = 'main'
+
     # # add sandbox because it isn't in the local config file but it is needed since we might have replaced it
     # config['env']['exchanges']['Sandbox'] = {
     #     'type': 'spot',

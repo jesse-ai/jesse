@@ -33,7 +33,8 @@ def error(msg: str) -> None:
     from jesse.store import store
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True):
-        notify_urgently(f"ERROR at \"{jh.get_config('env.identifier')}\" account:\n{msg}")
+        # notify_urgently(f"ERROR at \"{jh.get_config('env.identifier')}\" account:\n{msg}")
+        notify_urgently(f"ERROR:\n{msg}")
         notify(f'ERROR:\n{msg}')
     if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data() or jh.is_live():
         sync_publish('error_log', {

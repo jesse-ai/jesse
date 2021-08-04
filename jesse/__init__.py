@@ -3,7 +3,6 @@ import json
 import os
 import sys
 import warnings
-from pydoc import locate
 import click
 import pkg_resources
 from fastapi import BackgroundTasks
