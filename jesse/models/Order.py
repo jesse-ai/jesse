@@ -4,6 +4,7 @@ from playhouse.postgres_ext import *
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
+from jesse import sync_publish
 from jesse.config import config
 from jesse.enums import order_statuses, order_flags
 from jesse.services.db import db
@@ -49,7 +50,7 @@ class Order(Model):
         if self.created_at is None:
             self.created_at = jh.now_to_timestamp()
 
-        if jh.is_live() and config['env']['notifications']['events']['submitted_orders']:
+        if jh.is_live():
             self.notify_submission()
         if jh.is_debuggable('order_submission'):
             logger.info(
@@ -61,9 +62,12 @@ class Order(Model):
         e.on_order_submission(self)
 
     def notify_submission(self) -> None:
-        notify(
-            f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
-        )
+        sync_publish('order', self.to_dict)
+
+        if config['env']['notifications']['events']['submitted_orders']:
+            notify(
+                f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
+            )
 
     @property
     def is_canceled(self) -> bool:
@@ -104,6 +108,22 @@ class Order(Model):
     def is_close(self) -> bool:
         return self.flag == order_flags.CLOSE
 
+    @property
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'side': self.side,
+            'type': self.type,
+            'qty': self.qty,
+            'price': self.price,
+            'flag': self.flag,
+            'status': self.status,
+            'created_at': self.created_at,
+            'canceled_at': self.canceled_at,
+            'executed_at': self.executed_at,
+        }
+
     def cancel(self) -> None:
         if self.is_canceled or self.is_executed:
             return
@@ -115,10 +135,13 @@ class Order(Model):
             logger.info(
                 f'CANCELED order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
             )
-        if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
-            notify(
-                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-            )
+        if jh.is_live():
+            sync_publish('order', self.to_dict)
+
+            if config['env']['notifications']['events']['cancelled_orders']:
+                notify(
+                    f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
+                )
 
         # handle exchange balance
         e = selectors.get_exchange(self.exchange)
@@ -137,10 +160,13 @@ class Order(Model):
                 f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
             )
         # notify
-        if jh.is_live() and config['env']['notifications']['events']['executed_orders']:
-            notify(
-                f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-            )
+        if jh.is_live():
+            sync_publish('order', self.to_dict)
+
+            if config['env']['notifications']['events']['executed_orders']:
+                notify(
+                    f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
+                )
 
         p = selectors.get_position(self.exchange, self.symbol)
 

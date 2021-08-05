@@ -181,6 +181,7 @@ def orders():
 
     for o in route_orders[::-1][0:5]:
         arr.append({
+            'id': o.id,
             'symbol': o.symbol,
             'side': o.side,
             'type': o.type,
