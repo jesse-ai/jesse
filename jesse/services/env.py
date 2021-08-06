@@ -21,3 +21,6 @@ if jh.is_unit_testing():
 # validation for existence of .env file
 if len(list(ENV_VALUES.keys())) == 0:
     raise FileNotFoundError('.env file is missing from within your local project. You can create one by running "cp .env.example .env"')
+
+if not jh.is_unit_testing() and ENV_VALUES['PASSWORD'] == '':
+    raise EnvironmentError('You forgot to set the PASSWORD in your .env file')

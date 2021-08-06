@@ -65,3 +65,7 @@ class GetCandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
     timeframe: str
+
+
+class LoginRequestJson(BaseModel):
+    password: str

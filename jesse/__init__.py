@@ -3,14 +3,19 @@ import json
 import os
 import sys
 import warnings
+from typing import Optional
+
 import click
 import pkg_resources
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Cookie, Query, Header
+from starlette import status
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+
+from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    GetCandlesRequestJson
+    GetCandlesRequestJson, LoginRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -48,7 +53,10 @@ def validate_cwd() -> None:
 
 
 @fastapi_app.post("/terminate-all")
-async def terminate_all():
+async def terminate_all(authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     from jesse.services.multiprocessing import process_manager
 
     process_manager.flush()
@@ -56,14 +64,26 @@ async def terminate_all():
 
 
 @fastapi_app.post("/shutdown")
-async def shutdown(background_tasks: BackgroundTasks):
+async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     background_tasks.add_task(jh.terminate_app)
     return JSONResponse({'message': 'Shutting down...'})
 
 
+@fastapi_app.post("/auth")
+def auth(json_request: LoginRequestJson):
+    return authenticator.password_to_token(json_request.password)
+
+
 @fastapi_app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
+    if not authenticator.is_valid_token(token):
+        return
+
     await websocket.accept()
+
     queue = Queue()
     ch, = await async_redis.psubscribe('channel:*')
 
@@ -107,7 +127,10 @@ def run() -> None:
 
 
 @fastapi_app.post('/routes-info')
-def available_exchanges() -> JSONResponse:
+def available_exchanges(authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     validate_cwd()
 
     from jesse.modes import data_provider
@@ -118,8 +141,11 @@ def available_exchanges() -> JSONResponse:
 
 
 @fastapi_app.post('/import-candles')
-def import_candles(request_json: ImportCandlesRequestJson) -> JSONResponse:
+def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
     validate_cwd()
+
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
 
     from jesse.modes import import_candles_mode
 
@@ -132,14 +158,20 @@ def import_candles(request_json: ImportCandlesRequestJson) -> JSONResponse:
 
 
 @fastapi_app.delete("/import-candles")
-def cancel_backtest(request_json: CancelRequestJson):
+def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     process_manager.cancel_process('candles-' + request_json.id)
 
     return JSONResponse({'message': f'Candles process with ID of {request_json.id} terminated.'}, status_code=200)
 
 
 @fastapi_app.post("/backtest")
-def backtest(request_json: BacktestRequestJson):
+def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     validate_cwd()
 
     from jesse.modes.backtest_mode import run as run_backtest
@@ -165,7 +197,10 @@ def backtest(request_json: BacktestRequestJson):
 
 
 @fastapi_app.delete("/backtest")
-def cancel_backtest(request_json: CancelRequestJson):
+def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
     process_manager.cancel_process('backtest-' + request_json.id)
 
     return JSONResponse({'message': f'Backtest process with ID of {request_json.id} terminated.'}, status_code=200)
@@ -267,7 +302,10 @@ if HAS_LIVE_TRADE_PLUGIN:
     from jesse_live.web_routes import live
 
     @fastapi_app.post('/get-candles')
-    def get_candles(json_request: GetCandlesRequestJson) -> JSONResponse:
+    def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
         validate_cwd()
 
         from jesse.modes.data_provider import get_candles
