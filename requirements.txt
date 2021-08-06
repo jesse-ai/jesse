@@ -18,6 +18,6 @@ statsmodels==0.12.2
 TA-Lib==0.4.21
 tabulate==0.8.9
 timeloop==1.0.2
-websocket-client==1.1.0
+websocket-client==1.1.1
 quantstats==0.0.34
 
