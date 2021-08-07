@@ -7,15 +7,14 @@ from typing import Optional
 
 import click
 import pkg_resources
-from fastapi import BackgroundTasks, Cookie, Query, Header
-from starlette import status
+from fastapi import BackgroundTasks, Query, Header
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    GetCandlesRequestJson, LoginRequestJson
+    LoginRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -299,24 +298,7 @@ def routes(dna: bool) -> None:
 
 
 if HAS_LIVE_TRADE_PLUGIN:
-    from jesse_live.web_routes import live
-
-    @fastapi_app.post('/get-candles')
-    def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        validate_cwd()
-
-        from jesse.modes.data_provider import get_candles
-
-        arr = get_candles(json_request.exchange, json_request.symbol, json_request.timeframe)
-
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
-
+    from jesse_live.web_routes import live, get_candles
 
     @cli.command()
     @click.option('--email', prompt='Email')
