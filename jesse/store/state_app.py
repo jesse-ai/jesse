@@ -1,4 +1,5 @@
 import arrow
+import jesse.helpers as jh
 
 
 class AppState:
@@ -11,6 +12,4 @@ class AppState:
     total_open_pl = 0
     total_liquidations = 0
 
-    # log id is also its index in the array which is helpful for pagination
-    id_info = 0
-    id_error = 0
+    session_id = ''

@@ -6,6 +6,7 @@ import jesse.helpers as jh
 from jesse.models.Candle import Candle
 from jesse.models.CompletedTrade import CompletedTrade
 from jesse.models.DailyBalance import DailyBalance
+from jesse.models.Log import Log
 from jesse.models.Order import Order
 from jesse.models.Orderbook import Orderbook
 from jesse.models.Ticker import Ticker
@@ -31,6 +32,34 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
 
         if jh.is_debugging():
             logger.info(f"Stored candle in database: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}")
+
+    # async call
+    threading.Thread(target=async_save).start()
+
+
+def store_log_into_db(log: dict, log_type: str) -> None:
+    from jesse.store import store
+
+    if log_type == 'info':
+        log_type = 1
+    elif log_type == 'error':
+        log_type = 2
+    else:
+        raise ValueError(f"Unsupported log_type value: {log_type}")
+
+    d = {
+        'id': log['id'],
+        'timestamp': log['timestamp'],
+        'message': log['message'],
+        'session_id': store.app.session_id,
+        'type': log_type
+    }
+
+    def async_save() -> None:
+        Log.insert(**d).execute()
+
+        # TODO: remove
+        print(f"Stored log in database: {jh.timestamp_to_time(d['timestamp'])}-{log['id']}: {log['message']}")
 
     # async call
     threading.Thread(target=async_save).start()
