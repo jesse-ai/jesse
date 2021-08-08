@@ -67,5 +67,11 @@ class GetCandlesRequestJson(BaseModel):
     timeframe: str
 
 
+class GetLogsRequestJson(BaseModel):
+    id: str
+    session_id: str
+    type: str
+
+
 class LoginRequestJson(BaseModel):
     password: str

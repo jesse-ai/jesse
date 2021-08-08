@@ -58,9 +58,6 @@ def store_log_into_db(log: dict, log_type: str) -> None:
     def async_save() -> None:
         Log.insert(**d).execute()
 
-        # TODO: remove
-        print(f"Stored log in database: {jh.timestamp_to_time(d['timestamp'])}-{log['id']}: {log['message']}")
-
     # async call
     threading.Thread(target=async_save).start()
 

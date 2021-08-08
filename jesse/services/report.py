@@ -106,6 +106,7 @@ def livetrade():
         pnl, pnl_perc, total, winning_trades, losing_trades = 0, 0, 0, 0, 0
 
     return {
+        'session_id': store.app.session_id,
         'started_at': str(store.app.starting_time),
         'current_time': str(jh.now_to_timestamp()),
         'started_balance': str(starting_balance),
