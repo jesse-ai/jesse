@@ -298,7 +298,7 @@ def routes(dna: bool) -> None:
 
 
 if HAS_LIVE_TRADE_PLUGIN:
-    from jesse_live.web_routes import live, get_candles, get_logs
+    from jesse_live.web_routes import live, get_candles, get_logs, get_orders
 
     @cli.command()
     @click.option('--email', prompt='Email')

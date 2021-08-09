@@ -73,5 +73,10 @@ class GetLogsRequestJson(BaseModel):
     type: str
 
 
+class GetOrdersRequestJson(BaseModel):
+    id: str
+    session_id: str
+
+
 class LoginRequestJson(BaseModel):
     password: str
