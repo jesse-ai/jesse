@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 
 try:
@@ -11,8 +9,7 @@ except ImportError:
 from jesse.helpers import get_candle_source, slice_candles
 from scipy import signal
 
-def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: int = 200, num_chunksize:int=5, method:int=1, source_type: str = "close") -> Union[
-    float, np.ndarray]:
+def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: int = 200, num_chunksize:int=5, method:int=1, source_type: str = "close") -> float:
     """
     Hurst Exponent
 
@@ -23,7 +20,7 @@ def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: i
     :param method: int - default: 1 - 0: RS | 1: DMA | 2: DSOD
     :param source_type: str - default: "close"
 
-    :return: float | np.ndarray
+    :return: float
     """
 
     if len(candles.shape) == 1:
