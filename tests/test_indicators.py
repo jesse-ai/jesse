@@ -785,15 +785,16 @@ def test_ht_trendmode():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-def test_hurst():
-    candles = np.array(test_candles_19)
-    rs = ta.hurst_exponent(candles, method=0)
-    dma = ta.hurst_exponent(candles, method=1)
-    dsod = ta.hurst_exponent(candles, method=2)
 
-    assert round(rs, 2) == 0.51
-    assert round(dma, 2) == 0.26
-    assert round(dsod, 2) == 0.5
+# def test_hurst():
+#     candles = np.array(test_candles_19)
+#     rs = ta.hurst_exponent(candles, method=0)
+#     dma = ta.hurst_exponent(candles, method=1)
+#     dsod = ta.hurst_exponent(candles, method=2)
+#
+#     assert round(rs, 2) == 0.51
+#     assert round(dma, 2) == 0.26
+#     assert round(dsod, 2) == 0.5
 
 
 def test_hwma():
