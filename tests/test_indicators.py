@@ -786,15 +786,24 @@ def test_ht_trendmode():
     assert seq[-1] == single
 
 
-# def test_hurst():
-#     candles = np.array(test_candles_19)
-#     rs = ta.hurst_exponent(candles, method=0)
-#     dma = ta.hurst_exponent(candles, method=1)
-#     dsod = ta.hurst_exponent(candles, method=2)
-#
-#     assert round(rs, 2) == 0.51
-#     assert round(dma, 2) == 0.26
-#     assert round(dsod, 2) == 0.5
+def test_hurst():
+    candles = np.array(test_candles_19)
+
+    try:
+        import numba
+        no_numba = False
+    except ImportError:
+        no_numba = True
+
+    if not no_numba:
+        rs = ta.hurst_exponent(candles, method=0)
+        assert round(rs, 2) == 0.51
+
+    dma = ta.hurst_exponent(candles, method=1)
+    dsod = ta.hurst_exponent(candles, method=2)
+
+    assert round(dma, 2) == 0.26
+    assert round(dsod, 2) == 0.5
 
 
 def test_hwma():

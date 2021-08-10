@@ -1,9 +1,12 @@
-import numpy as np
-import talib as ta
-from jesse.helpers import get_candle_source
 from collections import namedtuple
 
-wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', 'wtOversold', 'wtOverbought', 'wtVwap'])
+import numpy as np
+import talib as ta
+
+from jesse.helpers import get_candle_source, slice_candles
+
+Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', 'wtOversold', 'wtOverbought', 'wtVwap'])
+
 
 # Wavetrend indicator ported from:  https://www.tradingview.com/script/Msm4SjwI-VuManChu-Cipher-B-Divergences/
 #                                   https://www.tradingview.com/script/2KE8wTuF-Indicator-WaveTrend-Oscillator-WT/
@@ -15,15 +18,28 @@ wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', '
 
 
 def wt(candles: np.ndarray,
-             wtchannellen: int = 9,
-             wtaveragelen: int = 12,
-             wtmalen: int = 3,
-             oblevel: int = 53,
-             oslevel: int = -53,
-             source_type="hlc3",
-             sequential=False) -> wavetrend:
-    if not sequential and len(candles) > 240:
-        candles = candles[-240:]
+       wtchannellen: int = 9,
+       wtaveragelen: int = 12,
+       wtmalen: int = 3,
+       oblevel: int = 53,
+       oslevel: int = -53,
+       source_type: str = "hlc3",
+       sequential: bool = False) -> Wavetrend:
+    """
+    Wavetrend indicator
+
+    :param candles: np.ndarray
+    :param wtchannellen:  int - default: 9
+    :param wtaveragelen: int - default: 12
+    :param wtmalen: int - default: 3
+    :param oblevel: int - default: 53
+    :param oslevel: int - default: -53
+    :param source_type: str - default: "hlc3"
+    :param sequential: bool - default: False
+
+    :return: Wavetrend
+    """
+    candles = slice_candles(candles, sequential)
 
     src = get_candle_source(candles, source_type=source_type)
 
@@ -41,6 +57,6 @@ def wt(candles: np.ndarray,
     wtCrossDown = wt2 - wt1 >= 0
 
     if sequential:
-        return wavetrend(wt1, wt2, wtCrossUp, wtCrossDown, wtOversold, wtOverbought, wtVwap)
+        return Wavetrend(wt1, wt2, wtCrossUp, wtCrossDown, wtOversold, wtOverbought, wtVwap)
     else:
-        return wavetrend(wt1[-1], wt2[-1], wtCrossUp[-1], wtCrossDown[-1], wtOversold[-1], wtOverbought[-1], wtVwap[-1])
+        return Wavetrend(wt1[-1], wt2[-1], wtCrossUp[-1], wtCrossDown[-1], wtOversold[-1], wtOverbought[-1], wtVwap[-1])
