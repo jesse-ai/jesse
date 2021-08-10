@@ -16,7 +16,7 @@ def mwdx(candles: np.ndarray, factor: float = 0.2, source_type: str = "close", s
     MWDX Average
 
     :param candles: np.ndarray
-    :param factor: float - default: 14
+    :param factor: float - default: 0.2
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
