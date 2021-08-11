@@ -71,8 +71,8 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     s_max = current_streak.max()
     winning_streak = max(s_max, 0)
 
-    largest_losing_trade = df['PNL'].min()
-    largest_winning_trade = df['PNL'].max()
+    largest_losing_trade = 0 if total_losing_trades == 0 else losing_trades.min()
+    largest_winning_trade = 0 if total_winning_trades == 0 else winning_trades.max()
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     max_R = df['R'].max()
