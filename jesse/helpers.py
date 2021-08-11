@@ -762,3 +762,26 @@ def closing_side(position_type: str) -> str:
         return 'buy'
     else:
         raise ValueError(f'Value entered for position_type ({position_type}) is not valid')
+
+
+def merge_dicts(d1: dict, d2: dict) -> dict:
+    """
+    Merges nested dictionaries
+
+    :param d1: dict
+    :param d2: dict
+    :return: dict
+    """
+    def inner(dict1, dict2):
+        for k in set(dict1.keys()).union(dict2.keys()):
+            if k in dict1 and k in dict2:
+                if isinstance(dict1[k], dict) and isinstance(dict2[k], dict):
+                    yield k, dict(merge_dicts(dict1[k], dict2[k]))
+                else:
+                    yield k, dict2[k]
+            elif k in dict1:
+                yield k, dict1[k]
+            else:
+                yield k, dict2[k]
+
+    return dict(inner(d1, d2))

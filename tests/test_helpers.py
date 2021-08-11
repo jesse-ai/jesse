@@ -537,3 +537,24 @@ def test_unique_list():
 def test_closing_side():
     assert jh.closing_side('Long') == 'sell'
     assert jh.closing_side('Short') == 'buy'
+
+
+def test_merge_dicts():
+    client = {
+        'extra': {
+            'name': 'Saleh',
+            'new_key': 12
+        },
+        'age': 28
+    }
+
+    server = {
+        'extra': {
+            'name': 'Ocean',
+            'water': 100
+        },
+    }
+
+    expected_result = {'age': 28, 'extra': {'name': 'Ocean', 'water': 100, 'new_key': 12}}
+
+    assert expected_result == jh.merge_dicts(client, server)
