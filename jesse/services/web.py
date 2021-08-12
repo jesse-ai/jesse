@@ -78,5 +78,9 @@ class GetOrdersRequestJson(BaseModel):
     session_id: str
 
 
+class ConfigRequestJson(BaseModel):
+    current_config: dict
+
+
 class LoginRequestJson(BaseModel):
     password: str

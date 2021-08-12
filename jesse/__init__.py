@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson
+    LoginRequestJson, ConfigRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -74,6 +74,30 @@ async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[st
 @fastapi_app.post("/auth")
 def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
+
+
+@fastapi_app.post("/get-config")
+def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes.data_provider import get_config as gc
+
+    return JSONResponse({
+        'data': gc(json_request.current_config)
+    }, status_code=200)
+
+
+@fastapi_app.post("/update-config")
+def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes.data_provider import update_config as uc
+
+    uc(json_request.current_config)
+
+    return JSONResponse({'message': 'Updated configurations successfully'}, status_code=200)
 
 
 @fastapi_app.websocket("/ws")

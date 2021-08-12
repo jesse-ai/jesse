@@ -1,8 +1,10 @@
+import json
 import os
 
 import numpy as np
 import jesse.helpers as jh
 from jesse.models import Candle
+from jesse.models.Option import Option
 from jesse.services.candle import generate_candle_from_one_minutes
 
 
@@ -68,3 +70,41 @@ def available_routes_inputs(has_live=False) -> dict:
         'live_exchanges': live_exchanges,
         'strategies': strategies
     }
+
+
+def get_config(client_config: dict) -> dict:
+    o = Option.get_or_none(Option.type == 'config')
+
+    # if not found, that means it's the first time. Store in the DB and
+    # then return what was sent from the client side without changing it
+    if o is None:
+        o = Option({
+            'id': jh.generate_unique_id(),
+            'updated_at': jh.now(),
+            'type': 'config',
+            'json': json.dumps(client_config)
+        })
+        o.save(force_insert=True)
+
+        data = client_config
+    else:
+        # merge it with client's config (because it could include new keys added),
+        # update it in the database, and then return it
+        data = jh.merge_dicts(client_config, json.loads(o.json))
+        o.json = json.dumps(data)
+        o.updated_at = jh.now()
+        o.save()
+
+    return {
+        'data': data
+    }
+
+
+def update_config(client_config: dict):
+    # at this point there must already be one option record for "config" existing, so:
+    o = Option.get_or_none(Option.type == 'config')
+
+    o.json = json.dumps(client_config)
+    o.updated_at = jh.now()
+
+    o.save()
