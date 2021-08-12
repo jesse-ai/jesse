@@ -42,6 +42,8 @@ def test_metrics_for_trades_without_fee():
     assert stats['gross_loss'] == 0
     assert stats['gross_profit'] == 50
     assert stats['open_pl'] == 0
+    assert stats['largest_losing_trade'] == 0
+    assert stats['largest_winning_trade'] == 50
 
     # ignore metrics that are dependant on daily_returns because the testing candle set is not for multiple dais
 
