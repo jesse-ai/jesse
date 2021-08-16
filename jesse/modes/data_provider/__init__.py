@@ -52,8 +52,9 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     ]
 
 
-def available_routes_inputs(has_live=False) -> dict:
+def get_general_info(has_live=False) -> dict:
     from jesse.modes.import_candles_mode.drivers import drivers
+    from jesse.services.auth import get_access_token
 
     if has_live:
         from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
@@ -64,11 +65,14 @@ def available_routes_inputs(has_live=False) -> dict:
     exchanges = list(sorted(drivers.keys()))
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
+    is_logged_in_to_jesse_trade = False if get_access_token() is None else True
 
     return {
         'exchanges': exchanges,
         'live_exchanges': live_exchanges,
-        'strategies': strategies
+        'strategies': strategies,
+        'has_live_plugin_installed': has_live,
+        'is_logged_in_to_jesse_trade': is_logged_in_to_jesse_trade
     }
 
 

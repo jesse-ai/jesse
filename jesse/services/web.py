@@ -84,3 +84,8 @@ class ConfigRequestJson(BaseModel):
 
 class LoginRequestJson(BaseModel):
     password: str
+
+
+class LoginJesseTradeRequestJson(BaseModel):
+    email: str
+    password: str

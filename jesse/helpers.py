@@ -785,3 +785,19 @@ def merge_dicts(d1: dict, d2: dict) -> dict:
                 yield k, dict2[k]
 
     return dict(inner(d1, d2))
+
+
+def computer_name():
+    import platform
+    return platform.node()
+
+
+def validate_response(response):
+    if response.status_code != 200:
+        err_msg = f"[{response.status_code}]: {response.json()['message']}\nPlease contact us at support@jesse.trade if this is unexpected."
+
+        if response.status_code in [401, 403]:
+            error(err_msg, force_print=True)
+            terminate_app()
+        else:
+            raise ConnectionError(err_msg)

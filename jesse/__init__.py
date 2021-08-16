@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson, ConfigRequestJson
+    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -149,18 +149,17 @@ def run() -> None:
     uvicorn.run(fastapi_app, host="127.0.0.1", port=8000, log_level="info")
 
 
-@fastapi_app.post('/routes-info')
-def available_exchanges(authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.post('/general-info')
+def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    validate_cwd()
-
     from jesse.modes import data_provider
 
-    return JSONResponse({
-        'data': data_provider.available_routes_inputs(has_live=HAS_LIVE_TRADE_PLUGIN)
-    }, status_code=200)
+    return JSONResponse(
+        data_provider.get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN),
+        status_code=200
+    )
 
 
 @fastapi_app.post('/import-candles')
@@ -321,24 +320,26 @@ def routes(dna: bool) -> None:
     routes_mode.run(dna)
 
 
+@fastapi_app.post("/login-jesse-trade")
+def login_jesse_trade(json_request: LoginJesseTradeRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import auth
+
+    return auth.login_to_jesse_trade(json_request.email, json_request.password)
+
+
+@fastapi_app.post("/logout-jesse-trade")
+def logout_jesse_trade(authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import auth
+
+    return auth.logout_from_jesse_trade()
+
+
 if HAS_LIVE_TRADE_PLUGIN:
+    # load live trade related functions from the live trade plugin
     from jesse_live.web_routes import live, get_candles, get_logs, get_orders
-
-    @cli.command()
-    @click.option('--email', prompt='Email')
-    @click.option('--password', prompt='Password', hide_input=True)
-    def login(email, password) -> None:
-        """
-        (Initially) Logins to the website.
-        """
-        validate_cwd()
-
-        # set trading mode
-        from jesse.config import config
-        config['app']['trading_mode'] = 'login'
-
-        register_custom_exception_handler()
-
-        from jesse_live.auth import login
-
-        login(email, password)
