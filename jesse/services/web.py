@@ -89,3 +89,9 @@ class LoginRequestJson(BaseModel):
 class LoginJesseTradeRequestJson(BaseModel):
     email: str
     password: str
+
+
+class NewStrategyRequestJson(BaseModel):
+    name: str
+
+

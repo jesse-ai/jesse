@@ -1,22 +1,18 @@
 import os
 import shutil
+from starlette.responses import JSONResponse
 
-import jesse.helpers as jh
 
-
-def generate(name: str) -> None:
-    """
-
-    :param name:
-    :return:
-    """
+def generate(name: str) -> JSONResponse:
     path = f'strategies/{name}'
 
     # validation for name duplication
     exists = os.path.isdir(path)
     if exists:
-        print(jh.color(f'Strategy "{name}" already exists.', 'red'))
-        return
+        return JSONResponse({
+            'status': 'error',
+            'message': f'Strategy "{name}" already exists.'
+        })
 
     # generate from ExampleStrategy
     dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -32,5 +28,8 @@ def generate(name: str) -> None:
     fin.write(data)
     fin.close()
 
-    # output the location of generated strategy directory
-    print(jh.color(f'Strategy created at: {path}', 'green'))
+    # return the location of generated strategy directory
+    return JSONResponse({
+        'status': 'success',
+        'message': path
+    })

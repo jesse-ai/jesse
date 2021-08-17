@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson
+    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -74,6 +74,15 @@ async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[st
 @fastapi_app.post("/auth")
 def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
+
+
+@fastapi_app.post("/make-strategy")
+def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_maker
+    return strategy_maker.generate(json_request.name)
 
 
 @fastapi_app.post("/get-config")
@@ -264,24 +273,6 @@ def optimize(start_date: str, finish_date: str, optimal_total: int, cpu: int, de
     from jesse.modes.optimize_mode import optimize_mode
 
     optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
-
-
-@cli.command()
-@click.argument('name', required=True, type=str)
-def make_strategy(name: str) -> None:
-    """
-    generates a new strategy folder from jesse/strategies/ExampleStrategy
-    """
-    validate_cwd()
-    from jesse.config import config
-
-    config['app']['trading_mode'] = 'make-strategy'
-
-    register_custom_exception_handler()
-
-    from jesse.services import strategy_maker
-
-    strategy_maker.generate(name)
 
 
 @cli.command()
