@@ -27,7 +27,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # fix directory issue
 sys.path.insert(0, os.getcwd())
 ls = os.listdir('.')
-IS_JESSE_PROJECT = 'strategies' in ls and 'config.py' in ls and 'storage' in ls and 'routes.py' in ls
+IS_JESSE_PROJECT = 'strategies' in ls and 'storage' in ls
+
 
 # variable to know if the live trade plugin is installed
 HAS_LIVE_TRADE_PLUGIN = True

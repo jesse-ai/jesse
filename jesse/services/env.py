@@ -1,6 +1,6 @@
 from dotenv import load_dotenv, dotenv_values
 import jesse.helpers as jh
-
+import os
 
 # load env
 load_dotenv()
@@ -20,7 +20,17 @@ if jh.is_unit_testing():
 
 # validation for existence of .env file
 if len(list(ENV_VALUES.keys())) == 0:
-    raise FileNotFoundError('.env file is missing from within your local project. You can create one by running "cp .env.example .env"')
+    jh.error(
+        '.env file is missing from within your local project. '
+        'This usually happens when you\'re in the wrong directory. '
+        '\n\nIf you haven\'t created a Jesse project yet, do that by running: \n'
+        'jesse make-project {name}\n'
+        'And then go into that project, and run the same command.',
+        force_print=True
+    )
+    os._exit(1)
+    jh.terminate_app()
+    # raise FileNotFoundError('.env file is missing from within your local project. This usually happens when you\'re in the wrong directory. You can create one by running "cp .env.example .env"')
 
 if not jh.is_unit_testing() and ENV_VALUES['PASSWORD'] == '':
     raise EnvironmentError('You forgot to set the PASSWORD in your .env file')
