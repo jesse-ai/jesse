@@ -95,3 +95,5 @@ class NewStrategyRequestJson(BaseModel):
     name: str
 
 
+class FeedbackRequestJson(BaseModel):
+    description: str
