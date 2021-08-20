@@ -14,7 +14,8 @@ from fastapi.responses import JSONResponse
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson
+    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
+    ReportExceptionRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -93,6 +94,15 @@ def make_strategy(json_request: FeedbackRequestJson, authorization: Optional[str
 
     from jesse.services import jesse_trade
     return jesse_trade.feedback(json_request.description)
+
+
+@fastapi_app.post("/report-exception")
+def report_exception(json_request: ReportExceptionRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import jesse_trade
+    return jesse_trade.report_exception(json_request.description, json_request.traceback)
 
 
 @fastapi_app.post("/get-config")

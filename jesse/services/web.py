@@ -97,3 +97,8 @@ class NewStrategyRequestJson(BaseModel):
 
 class FeedbackRequestJson(BaseModel):
     description: str
+
+
+class ReportExceptionRequestJson(BaseModel):
+    description: str
+    traceback: str
