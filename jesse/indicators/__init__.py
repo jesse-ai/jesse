@@ -114,6 +114,7 @@ from .pvi import pvi
 from .pwma import pwma
 from .qstick import qstick
 from .reflex import reflex
+from .rma import rma
 from .roc import roc
 from .rocp import rocp
 from .rocr import rocr
