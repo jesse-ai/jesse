@@ -46,6 +46,9 @@ def run(
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'backtest'
 
+    # first, create and set session_id
+    store.app.set_session_id()
+
     register_custom_exception_handler()
 
     # debug flag

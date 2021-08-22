@@ -9,25 +9,28 @@ from jesse.services.redis import sync_publish
 
 def register_custom_exception_handler() -> None:
     log_format = "%(message)s"
-    os.makedirs('storage/logs', exist_ok=True)
+    os.makedirs('storage/logs/live-mode', exist_ok=True)
+    os.makedirs('storage/logs/backtest-mode', exist_ok=True)
+    os.makedirs('storage/logs/optimize-mode', exist_ok=True)
+    os.makedirs('storage/logs/collect-mode', exist_ok=True)
 
-    if jh.is_livetrading():
-        logging.basicConfig(filename='storage/logs/live-trade.txt', level=logging.INFO,
-                            filemode='w', format=log_format)
-    elif jh.is_paper_trading():
-        logging.basicConfig(filename='storage/logs/paper-trade.txt', level=logging.INFO,
+    session_id = jh.get_session_id()
+
+    if jh.is_live():
+        logging.basicConfig(filename=f'storage/logs/live-mode/{session_id}.txt', level=logging.INFO,
                             filemode='w', format=log_format)
     elif jh.is_collecting_data():
-        logging.basicConfig(filename='storage/logs/collect.txt', level=logging.INFO, filemode='w',
+        logging.basicConfig(filename=f'storage/logs/collect-mode/{session_id}.txt', level=logging.INFO, filemode='w',
                             format=log_format)
     elif jh.is_optimizing():
-        logging.basicConfig(filename='storage/logs/optimize.txt', level=logging.INFO, filemode='w',
+        logging.basicConfig(filename=f'storage/logs/optimize-mode/{session_id}.txt', level=logging.INFO, filemode='w',
                             format=log_format)
     elif jh.is_backtesting():
-        logging.basicConfig(filename='storage/logs/backtest.txt', level=logging.INFO, filemode='w',
+        logging.basicConfig(filename=f'storage/logs/backtest-mode/{session_id}.txt', level=logging.INFO, filemode='w',
                             format=log_format)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(filename=f'storage/logs/etc.txt', level=logging.INFO, filemode='w',
+                            format=log_format)
 
     # other threads
     def handle_thread_exception(args) -> None:

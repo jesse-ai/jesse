@@ -16,10 +16,14 @@ from jesse.services.db import store_candles
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish
+from jesse.store import store
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
     config['app']['trading_mode'] = mode
+
+    # first, create and set session_id
+    store.app.set_session_id()
 
     register_custom_exception_handler()
 

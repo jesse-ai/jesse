@@ -801,3 +801,8 @@ def validate_response(response):
             terminate_app()
         else:
             raise ConnectionError(err_msg)
+
+
+def get_session_id():
+    from jesse.store import store
+    return store.app.session_id

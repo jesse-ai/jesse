@@ -13,3 +13,10 @@ class AppState:
     total_liquidations = 0
 
     session_id = ''
+
+    def set_session_id(self) -> None:
+        """
+        Generated and sets session_id. Used to prevent overriding of the session_id
+        """
+        if self.session_id == '':
+            self.session_id = jh.generate_unique_id()
