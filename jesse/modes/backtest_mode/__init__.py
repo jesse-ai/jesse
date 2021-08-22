@@ -46,11 +46,6 @@ def run(
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'backtest'
 
-    # first, create and set session_id
-    store.app.set_session_id()
-
-    register_custom_exception_handler()
-
     # debug flag
     config['app']['debug_mode'] = debug_mode
 
@@ -59,6 +54,10 @@ def run(
 
     # set routes
     router.initiate(routes, extra_routes)
+
+    store.app.set_session_id()
+
+    register_custom_exception_handler()
 
     # clear the screen
     if not jh.should_execute_silently():
@@ -75,6 +74,11 @@ def run(
         print('loading candles...')
         candles = load_candles(start_date, finish_date)
         click.clear()
+
+    sync_publish('general_info', {
+        'session_id': jh.get_session_id(),
+        'debug_mode': str(config['app']['debug_mode']),
+    })
 
     if not jh.should_execute_silently():
         # candles info
