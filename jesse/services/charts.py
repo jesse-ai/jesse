@@ -146,7 +146,5 @@ def portfolio_vs_asset_returns() -> None:
 
     # make sure directories exist
     os.makedirs('./storage/charts', exist_ok=True)
-    file_path = f'storage/charts/{mode}-{str(arrow.utcnow())[0:19]}.png'.replace(":", "-")
+    file_path = f'storage/charts/{jh.get_session_id()}.png'.replace(":", "-")
     plt.savefig(file_path)
-
-    print(f'\nChart output saved at:\n{file_path}')

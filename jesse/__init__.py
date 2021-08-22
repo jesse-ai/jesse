@@ -4,13 +4,11 @@ import os
 import sys
 import warnings
 from typing import Optional
-
 import click
 import pkg_resources
 from fastapi import BackgroundTasks, Query, Header
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
@@ -245,6 +243,16 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
     )
 
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
+
+
+@fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
+def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import data_provider
+
+    return data_provider.download_file(mode, file_type, session_id)
 
 
 @fastapi_app.delete("/backtest")

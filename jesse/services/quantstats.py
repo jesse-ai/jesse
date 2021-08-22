@@ -7,6 +7,7 @@ import quantstats as qs
 
 from jesse.config import config
 from jesse.store import store
+import jesse.helpers as jh
 
 
 def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
@@ -26,7 +27,7 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
 
     os.makedirs('./storage/full-reports', exist_ok=True)
 
-    file_path = f'storage/full-reports/{modes[mode][0]}-{str(arrow.utcnow())[0:19]}.html'.replace(":", "-")
+    file_path = f'storage/full-reports/{jh.get_session_id()}.html'.replace(":", "-")
 
     title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')}"
 
@@ -36,5 +37,3 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
         qs.reports.html(returns=returns_time_series, trading_year_days=365, title=title, output=file_path)
     except:
         raise
-
-    print(f'\nFull report output saved at:\n{file_path}')

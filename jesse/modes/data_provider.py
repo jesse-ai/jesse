@@ -6,6 +6,8 @@ import jesse.helpers as jh
 from jesse.models import Candle
 from jesse.models.Option import Option
 from jesse.services.candle import generate_candle_from_one_minutes
+from starlette.responses import FileResponse
+from fastapi.responses import JSONResponse
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -112,3 +114,26 @@ def update_config(client_config: dict):
     o.updated_at = jh.now()
 
     o.save()
+
+
+def download_file(mode: str, file_type: str, session_id: str):
+    if mode == 'backtest' and file_type == 'log':
+        path = f'storage/logs/backtest-mode/{session_id}.txt'
+        filename = f'backtest-{session_id}.txt'
+    elif mode == 'backtest' and file_type == 'chart':
+        path = f'storage/charts/{session_id}.png'
+        filename = f'backtest-{session_id}.png'
+    elif mode == 'backtest' and file_type == 'csv':
+        path = f'storage/csv/{session_id}.csv'
+        filename = f'backtest-{session_id}.csv'
+    elif mode == 'backtest' and file_type == 'json':
+        path = f'storage/json/{session_id}.json'
+        filename = f'backtest-{session_id}.json'
+    elif mode == 'backtest' and file_type == 'full-reports':
+        path = f'storage/full-reports/{session_id}.html'
+        filename = f'backtest-{session_id}.html'
+    elif mode == 'backtest' and file_type == 'tradingview':
+        path = f'storage/trading-view-pine-editor/{session_id}.txt'
+        filename = f'backtest-{session_id}.txt'
+
+    return FileResponse(path=path, filename=filename, media_type='application/octet-stream')

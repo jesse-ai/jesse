@@ -7,13 +7,14 @@ import arrow
 from jesse.config import config
 from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
+import jesse.helpers as jh
 
 
 def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
-    study_name = f'{mode}-{now}'.replace(":", "-")
+    study_name = jh.get_session_id()
     path = f'storage/json/{study_name}.json'
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
     for t in store.completed_trades.trades:
@@ -28,8 +29,6 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
                 raise TypeError
 
             json.dump(trades_json, outfile, default=set_default)
-
-        print(f'\nJSON output saved at: \n{path}')
 
     # store output for TradingView.com's pine-editor
     if export_tradingview:
@@ -49,5 +48,3 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
                     wr.writerow(t.keys())
 
                 wr.writerow(t.values())
-
-        print(f'\nCSV output saved at: \n{path}')
