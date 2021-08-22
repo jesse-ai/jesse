@@ -16,13 +16,15 @@ def register_custom_exception_handler() -> None:
                             filemode='w', format=log_format)
     elif jh.is_paper_trading():
         logging.basicConfig(filename='storage/logs/paper-trade.txt', level=logging.INFO,
-                            filemode='w',
-                            format=log_format)
+                            filemode='w', format=log_format)
     elif jh.is_collecting_data():
         logging.basicConfig(filename='storage/logs/collect.txt', level=logging.INFO, filemode='w',
                             format=log_format)
     elif jh.is_optimizing():
         logging.basicConfig(filename='storage/logs/optimize.txt', level=logging.INFO, filemode='w',
+                            format=log_format)
+    elif jh.is_backtesting():
+        logging.basicConfig(filename='storage/logs/backtest.txt', level=logging.INFO, filemode='w',
                             format=log_format)
     else:
         logging.basicConfig(level=logging.INFO)

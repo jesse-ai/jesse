@@ -18,13 +18,14 @@ def info(msg: str) -> None:
 
     store.logs.info.append(log_dict)
 
-    if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data() or jh.is_live():
+    if jh.is_collecting_data() or jh.is_live():
         sync_publish('info_log', log_dict)
 
-    if jh.is_live():
+    if jh.is_live() or (jh.is_backtesting() and jh.is_debugging()):
         msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
         logging.info(msg)
 
+    if jh.is_live():
         store_log_into_db(log_dict, 'info')
 
 
