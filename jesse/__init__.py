@@ -8,7 +8,8 @@ import click
 import pkg_resources
 from fastapi import BackgroundTasks, Query, Header
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
@@ -49,6 +50,16 @@ def validate_cwd() -> None:
             )
         )
         os._exit(1)
+
+
+# print(os.path.dirname(jesse))
+JESSE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
+# load homepage
+@fastapi_app.get("/")
+async def index():
+    return FileResponse(f"{JESSE_DIR}/static/index.html")
 
 
 @fastapi_app.post("/terminate-all")
@@ -362,3 +373,7 @@ def logout_jesse_trade(authorization: Optional[str] = Header(None)):
 if HAS_LIVE_TRADE_PLUGIN:
     # load live trade related functions from the live trade plugin
     from jesse_live.web_routes import live, get_candles, get_logs, get_orders
+
+
+# Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
+fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
