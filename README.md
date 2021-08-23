@@ -1,93 +1,8 @@
-# Jesse
-[![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
-[![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
-[![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
-[![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
+# Jesse (dashboard branch)
 
----
+Here's a quick guide on how to set up and run the dashboard branch until it is officially released.
 
-[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
-[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
-[![Docs](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
-[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
----
-Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
-
-## Why Jesse?
-In short, Jesse is more accurate than other solutions, and way more simple. 
-In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months. 
-
-[Here](https://docs.jesse.trade/docs/) you can read more about why Jesse's features. 
-
-## Getting Started
-Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
-documentation is short yet very informative. 
-
-## Example Backtest Results
-
-Check out Jesse's [blog](https://jesse.trade/blog) for tutorials that go through example strategies step by step. 
-
-Here's an example output for a backtest simulation just to get you excited:
-```
- CANDLES              |
-----------------------+--------------------------
- period               |   1792 days (4.91 years)
- starting-ending date | 2016-01-01 => 2020-11-27
-
-
- exchange   | symbol   | timeframe   | strategy         | DNA
-------------+----------+-------------+------------------+-------
- Bitfinex   | BTC-USD   | 6h          | TrendFollowing05 |
-
-
-Executing simulation...  [####################################]  100%
-Executed backtest simulation in:  135.85 seconds
-
-
- METRICS                         |
----------------------------------+------------------------------------
- Total Closed Trades             |                                221
- Total Net Profit                |            1,699,245.56 (1699.25%)
- Starting => Finishing Balance   |            100,000 => 1,799,245.56
- Total Open Trades               |                                  0
- Open PL                         |                                  0
- Total Paid Fees                 |                         331,480.93
- Max Drawdown                    |                            -22.42%
- Annual Return                   |                             80.09%
- Expectancy                      |                   7,688.89 (7.69%)
- Avg Win | Avg Loss              |                 31,021.9 | 8,951.7
- Ratio Avg Win / Avg Loss        |                               3.47
- Percent Profitable              |                                42%
- Longs | Shorts                  |                          60% | 40%
- Avg Holding Time                | 3.0 days, 22.0 hours, 50.0 minutes
- Winning Trades Avg Holding Time |  6.0 days, 14.0 hours, 9.0 minutes
- Losing Trades Avg Holding Time  |   2.0 days, 1.0 hour, 41.0 minutes
- Sharpe Ratio                    |                               1.88
- Calmar Ratio                    |                               3.57
- Sortino Ratio                   |                               3.51
- Omega Ratio                     |                               1.49
- Winning Streak                  |                                  5
- Losing Streak                   |                                 10
- Largest Winning Trade           |                         205,575.89
- Largest Losing Trade            |                         -50,827.92
- Total Winning Trades            |                                 92
- Total Losing Trades             |                                129
-```
-
-And here are generated charts:
-![chart-example](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/chart-example.png)
-
-## What's next?
-This is the very initial release. There's way more. Subscribe to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
-
-## Community
-I created a [discord server](https://jesse.trade/discord) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
-
-## How to contribute
-Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 
-
-First, you need to install Jesse from the repository instead of PyPi:
-
+First, you need to set up Jesse from the source code if you haven't already:
 ```sh
 # first, make sure that the PyPi version is not installed
 pip uninstall jesse
@@ -98,12 +13,80 @@ cd jesse
 pip install -e .
 ```
 
-Now every change you make to the code will be affected immediately.
-
-After every change, make sure your changes did not break any functionality by running tests:
-```
-pytest
+Then you need to switch to the `dashboard` branch:
+```sh
+git checkout dashboard
 ```
 
-## Disclaimer
-This software is for educational purposes only. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS. Do not risk money which you are afraid to lose. There might be bugs in the code - this software DOES NOT come with ANY warranty.
+Now go to your Jesse project (where you used to run backtest command, etc) and first create a `.env` file with the below configuration:
+
+```
+PASSWORD=test
+
+POSTGRES_HOST=127.0.0.1
+POSTGRES_NAME=jesse_db
+POSTGRES_PORT=5432
+POSTGRES_USERNAME=jesse_user
+POSTGRES_PASSWORD=password
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# Live Trade Only                                                                 # 
+# =============================================================================== #
+# Below values don't concern you if you haven't installed the live trade plugin   #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+# For all notifications
+GENERAL_TELEGRAM_BOT_TOKEN=
+GENERAL_TELEGRAM_BOT_CHAT_ID=
+GENERAL_DISCORD_WEBHOOK=
+
+# For error notifications only
+ERROR_TELEGRAM_BOT_TOKEN=
+ERROR_TELEGRAM_BOT_CHAT_ID=
+ERROR_DISCORD_WEBHOOK=
+
+# Testnet Binance Futures: 
+# http://testnet.binancefuture.com
+TESTNET_BINANCE_FUTURES_API_KEY=
+TESTNET_BINANCE_FUTURES_API_SECRET=
+
+# Binance Futures: 
+# https://www.binance.com/en/futures/btcusdt
+BINANCE_FUTURES_API_KEY=
+BINANCE_FUTURES_API_SECRET=
+```
+
+Of course, you should change the values to your config, especially don't forget to change the password as you need it for logging in. You no longer need `routes.py` and `config.py`, or even `live-config.py` files in your Jesse project. 
+
+## New Requirements
+First, install Redis which is a requirement for this application. I will add guides for different environments but for now, you should be able to find guides on the net. On a mac, it's as easy as running `brew install redis`. 
+
+Then you need to install few pip packages as well. A quick way to install them all is by running:
+```sh
+pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/dashboard/requirements.txt
+```
+
+## Start the application
+
+To get the party started, (inside your Jesse project) run the application by:
+```
+jesse run
+```
+
+And it will print a local URL for you to open in your browser such as:
+```
+INFO:     Started server process [66103]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+```
+
+So go ahead and open (in my case) `http://127.0.0.1:8000` in your browser of choice. 
+
+## Live Trade Plugin
+I will update this guide soon to include steps for installing the beta version of the live trade plugin compatible with this version of the framework.  
