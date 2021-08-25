@@ -23,7 +23,11 @@ def generate(name: str) -> None:
     # generate from ExampleStrategy
     dirname, filename = os.path.split(os.path.abspath(__file__))
 
+    # copy the whole project
     shutil.copytree(f'{dirname}/project_template', path)
+
+    # make a copy of the env file from the example file
+    shutil.copy(f'{dirname}/project_template/.env.example', f'{path}/.env')
 
     # output the location of generated strategy directory
     print(
