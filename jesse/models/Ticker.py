@@ -33,6 +33,6 @@ class Ticker(peewee.Model):
             setattr(self, a, attributes[a])
 
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():\
     # create the table
     Ticker.create_table()

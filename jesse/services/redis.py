@@ -15,11 +15,14 @@ async def init_redis():
     )
 
 
-async_redis = asyncio.run(init_redis())
-sync_redis = sync_redis_lib.Redis(
-    host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=0,
-    password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
-)
+async_redis = None
+sync_redis = None
+if jh.is_jesse_project():
+    async_redis = asyncio.run(init_redis())
+    sync_redis = sync_redis_lib.Redis(
+        host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=0,
+        password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+    )
 
 
 def sync_publish(event: str, msg):

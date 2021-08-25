@@ -4,7 +4,7 @@ from typing import Dict, List
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():
     # connect to the database
     db = PostgresqlExtDatabase(
         ENV_VALUES['POSTGRES_NAME'],

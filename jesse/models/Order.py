@@ -191,6 +191,6 @@ class Order(Model):
         e.on_order_execution(self)
 
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():
     # create the table
     Order.create_table()

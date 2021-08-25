@@ -166,6 +166,6 @@ class CompletedTrade(peewee.Model):
         return (self.closed_at - self.opened_at) / 1000
 
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():
     # create the table
     CompletedTrade.create_table()

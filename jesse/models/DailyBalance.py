@@ -29,6 +29,6 @@ class DailyBalance(peewee.Model):
             setattr(self, a, attributes[a])
 
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():
     # create the table
     DailyBalance.create_table()

@@ -34,6 +34,6 @@ class Candle(peewee.Model):
             setattr(self, a, attributes[a])
 
 
-if not jh.is_unit_testing():
+if not jh.is_unit_testing() and jh.is_jesse_project():
     # create the table
     Candle.create_table()
