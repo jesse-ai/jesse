@@ -24,10 +24,6 @@ import jesse.helpers as jh
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-# fix directory issue
-sys.path.insert(0, os.getcwd())
-ls = os.listdir('.')
-IS_JESSE_PROJECT = 'strategies' in ls and 'storage' in ls
 
 
 # variable to know if the live trade plugin is installed
@@ -42,7 +38,7 @@ def validate_cwd() -> None:
     """
     make sure we're in a Jesse project
     """
-    if not IS_JESSE_PROJECT:
+    if not jh.is_jesse_project():
         print(
             jh.color(
                 'Current directory is not a Jesse project. You must run commands from the root of a Jesse project.',

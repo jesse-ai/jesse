@@ -806,3 +806,8 @@ def validate_response(response):
 def get_session_id():
     from jesse.store import store
     return store.app.session_id
+
+
+def is_jesse_project():
+    ls = os.listdir('.')
+    return 'strategies' in ls and 'storage' in ls
