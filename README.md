@@ -21,7 +21,7 @@ git checkout dashboard
 Now go to your Jesse project (where you used to run backtest command, etc) and first create a `.env` file with the below configuration:
 
 ```
-PASSWORD=test
+PASSWORD=password
 
 POSTGRES_HOST=127.0.0.1
 POSTGRES_NAME=jesse_db
@@ -89,4 +89,14 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 So go ahead and open (in my case) `http://127.0.0.1:8000` in your browser of choice. 
 
 ## Live Trade Plugin
-I will update this guide soon to include steps for installing the beta version of the live trade plugin compatible with this version of the framework.  
+To install the beta version of the live trade plugin, first, make sure to uninstall the previous one:
+```
+pip uninstall jesse-live
+```
+
+Now you need to change your account on Jesse.Trade as a beta user. You'll find it at your [profile](https://jesse.trade/user/profile) page:
+
+![user profile beta](https://raw.githubusercontent.com/jesse-ai/storage/master/singles/user-profile-beta.jpg)
+
+Now you can see the latest beta version on the [releases](http://jesse.trade/releases) page. Download and install it as always. 
+
