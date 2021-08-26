@@ -100,3 +100,5 @@ Now you need to change your account on Jesse.Trade as a beta user. You'll find i
 
 Now you can see the latest beta version on the [releases](http://jesse.trade/releases) page. Download and install it as always. 
 
+## Disclaimer
+**This is version is the beta version of an early-access plugin! That means you should NOT use it in production yet! If done otherwise, you and only your are responsible.**
