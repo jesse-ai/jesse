@@ -16,6 +16,7 @@ from .beta import beta
 from .bollinger_bands import bollinger_bands
 from .bollinger_bands_width import bollinger_bands_width
 from .bop import bop
+from .cae import cae
 from .cc import cc
 from .cci import cci
 from .cfo import cfo

@@ -228,6 +228,18 @@ def test_bop():
     assert seq[-1] == single
 
 
+def test_cae():
+    candles = np.array(wavetrend_candles)
+    close = candles[:, 4]
+
+    single = ta.cae(close)
+    seq = ta.cae(close, sequential=True)
+
+    assert round(single, 2) == 42.74
+    assert len(seq) == len(candles) - 1  # number of the differences between consecutive elements of an array is n-1
+    assert seq[-1] == single
+
+
 def test_cc():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
