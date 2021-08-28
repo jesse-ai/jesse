@@ -37,7 +37,7 @@ def rma(candles: np.ndarray, length: int = 14, source_type="close", sequential=F
     return res if sequential else res[-1]
 
 
-@njit(nopython=True)
+@njit
 def rma_fast(source, _length):
     alpha = 1 / _length
     newseries = np.copy(source)
