@@ -2,8 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles, same_length
 from jesse.indicators.ma import ma
 
 MACDEXT = namedtuple('MACDEXT', ['macd', 'signal', 'hist'])
@@ -32,7 +31,9 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_matype: int = 0, sl
     source = get_candle_source(candles, source_type=source_type)
 
     macd = ma(source, period=fast_period, matype=fast_matype, sequential=True) - ma(source, period=slow_period, matype=slow_matype, sequential=True)
-    macdsignal = ma(macd, period=signal_period, matype=signal_matype, sequential=True)
+    macd_without_nan = macd[~np.isnan(macd)]
+    macdsignal = ma(macd_without_nan, period=signal_period, matype=signal_matype, sequential=True)
+    macdsignal = same_length(source, macdsignal)
     macdhist = macd - macdsignal
 
     if sequential:
