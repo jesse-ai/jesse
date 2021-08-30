@@ -42,6 +42,44 @@ config = {
                 ],
             },
 
+            'Bybit Perpetual': {
+                'fee': 0.00075,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USDT',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10_000},
+                ],
+            },
+
+            'Testnet Bybit Perpetual': {
+                'fee': 0.00075,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USDT',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                'assets': [
+                    {'asset': 'USDT', 'balance': 10_000},
+                ],
+            },
+
             # https://www.bitfinex.com
             'Bitfinex': {
                 'fee': 0.002,
