@@ -6,7 +6,7 @@ try:
 except ImportError:
     njit = lambda a : a
 
-from jesse.helpers import get_candle_source, slice_candles
+from jesse.helpers import get_candle_source, slice_candles, same_length
 
 
 def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1, source_type: str = "close", sequential: bool = False) -> Union[
@@ -33,7 +33,9 @@ def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1,
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    res = hwma_fast(source, na, nb, nc)
+    source_without_nan = source[~np.isnan(source)]
+    res = hwma_fast(source_without_nan, na, nb, nc)
+    res = same_length(candles, res)
 
     return res if sequential else res[-1]
 
