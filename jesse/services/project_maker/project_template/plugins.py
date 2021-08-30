@@ -4,6 +4,9 @@ from jesse.modes.import_candles_mode.drivers.binance_inverse_futures import Bina
 from jesse.modes.import_candles_mode.drivers.bitfinex import Bitfinex
 from jesse.modes.import_candles_mode.drivers.coinbase import Coinbase
 from jesse.modes.import_candles_mode.drivers.testnet_binance_futures import TestnetBinanceFutures
+from jesse.modes.import_candles_mode.drivers.bybit_perpetual import BybitPerpetual
+from jesse.modes.import_candles_mode.drivers.testnet_bybit_perpetual import TestnetBybitPerpetual
+
 
 import_candles_drivers = {
     'Binance': Binance,
@@ -12,4 +15,6 @@ import_candles_drivers = {
     'Testnet Binance Futures': TestnetBinanceFutures,
     'Bitfinex': Bitfinex,
     'Coinbase': Coinbase,
+    'Bybit Perpetual': BybitPerpetual,
+    'Testnet Bybit Perpetual': TestnetBybitPerpetual,
 }
