@@ -7,7 +7,7 @@ try:
 except ImportError:
     njit = lambda a : a
 
-from jesse.helpers import get_candle_source, slice_candles, np_shift
+from jesse.helpers import get_candle_source, slice_candles, np_shift, same_length
 
 
 def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[
@@ -32,6 +32,8 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
+    source = source[~np.isnan(source)]
+
     diff = np.abs(source - np_shift(source, 1, np.nan))
     signal = np.abs(source - np_shift(source, period, np.nan))
     noise = talib.SUM(diff, period)
@@ -44,6 +46,7 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
     temp = np.power((ratio * fastSc) + slowSc, 2)
 
     res = maaq_fast(source, temp, period)
+    res = same_length(candles, res)
 
     return res if sequential else res[-1]
 
