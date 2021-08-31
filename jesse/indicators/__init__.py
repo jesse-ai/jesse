@@ -114,7 +114,8 @@ from .pvi import pvi
 from .pwma import pwma
 from .qstick import qstick
 from .reflex import reflex
-from .rma import rma
+# TODO: needs to consider cases without numba
+# from .rma import rma
 from .roc import roc
 from .rocp import rocp
 from .rocr import rocr
