@@ -8,7 +8,8 @@ from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
 from jesse.models import store_candle_into_db
 from jesse.services.candle import generate_candle_from_one_minutes
-from jesse.services import logger
+from timeloop import Timeloop
+from datetime import timedelta
 
 
 class CandlesState:
@@ -16,6 +17,39 @@ class CandlesState:
         self.storage = {}
         self.are_all_initiated = False
         self.initiated_pairs = {}
+
+    def generate_new_candles_loop(self):
+        """
+        to prevent the issue of missing candles when no volume is traded on the live exchange
+        """
+        t = Timeloop()
+
+        @t.job(interval=timedelta(seconds=1))
+        def time_loop_per_second():
+            # make sure all candles are already initiated
+            if not self.are_all_initiated:
+                return
+
+            # only at first second on each minute
+            if jh.now() % 60_000 != 1000:
+                return
+
+            for c in config['app']['considering_candles']:
+                exchange, symbol = c[0], c[1]
+                current_candle = self.get_current_candle(exchange, symbol, '1m')
+                if jh.now() > current_candle[0] + 60_000:
+                    new_candle = current_candle.copy()
+                    new_candle[0] = current_candle[0] + 60_000
+                    # new candle's open, close, high, and low all equal to previous candle's close
+                    new_candle[1] = current_candle[2]
+                    new_candle[2] = current_candle[2]
+                    new_candle[3] = current_candle[2]
+                    new_candle[4] = current_candle[2]
+                    # set volume to 0
+                    new_candle[5] = 0
+                    self.add_candle(new_candle, exchange, symbol, '1m')
+
+        t.start()
 
     def mark_all_as_initiated(self):
         for k in self.initiated_pairs:
