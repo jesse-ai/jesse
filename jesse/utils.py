@@ -331,6 +331,8 @@ def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str
     # Deconstruct
     coeff = pywt.wavedec(raw, wavelet, mode=mode)
     # Mean absolute deviation of a signal
+    max_level = pywt.dwt_max_level(len(raw), wavelet)
+    level = min(level, max_level)
     madev = np.mean(np.absolute(coeff[-level] - np.mean(coeff[-level])))
     # The hardcored factor is explained here: https://en.wikipedia.org/wiki/Median_absolute_deviation
     sigma = (1 / 0.67449) * madev * smoothing_factor
