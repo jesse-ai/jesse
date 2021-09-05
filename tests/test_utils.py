@@ -148,28 +148,37 @@ def test_subtract_floats():
 def test_prices_to_returns():
     series = np.array([50, 10, 100, 25])
     pct = utils.prices_to_returns(series)
-    np.testing.assert_array_equal(pct, np.array([ np.nan, -80., 900., -75.]))
+    np.testing.assert_array_equal(pct, np.array([np.nan, -80., 900., -75.]))
+
 
 def test_combinations_without_repeat():
     a = np.array([4, 2, 9, 1, 3])
     b = utils.combinations_without_repeat(a)
     np.testing.assert_array_equal(b, np.array([[4, 2],
-       [4, 9],
-       [4, 1],
-       [4, 3],
-       [2, 4],
-       [2, 9],
-       [2, 1],
-       [2, 3],
-       [9, 4],
-       [9, 2],
-       [9, 1],
-       [9, 3],
-       [1, 4],
-       [1, 2],
-       [1, 9],
-       [1, 3],
-       [3, 4],
-       [3, 2],
-       [3, 9],
-       [3, 1]]))
+                                               [4, 9],
+                                               [4, 1],
+                                               [4, 3],
+                                               [2, 4],
+                                               [2, 9],
+                                               [2, 1],
+                                               [2, 3],
+                                               [9, 4],
+                                               [9, 2],
+                                               [9, 1],
+                                               [9, 3],
+                                               [1, 4],
+                                               [1, 2],
+                                               [1, 9],
+                                               [1, 3],
+                                               [3, 4],
+                                               [3, 2],
+                                               [3, 9],
+                                               [3, 1]]))
+
+
+def test_wavelet_denoising():
+    candles = np.array(test_candles_19)
+    denoised = utils.wavelet_denoising(candles[:, 2], wavelet="sym4", level=1, mode='symmetric', smoothing_factor=2)
+    assert len(candles) == len(denoised)
+    print(candles[:, 2])
+    print(denoised)
