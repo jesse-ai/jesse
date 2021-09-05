@@ -180,5 +180,3 @@ def test_wavelet_denoising():
     candles = np.array(test_candles_19)
     denoised = utils.wavelet_denoising(candles[:, 2], wavelet="sym4", level=1, mode='symmetric', smoothing_factor=2)
     assert len(candles) == len(denoised)
-    print(candles[:, 2])
-    print(denoised)
