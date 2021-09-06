@@ -80,6 +80,26 @@ config = {
                 ],
             },
 
+            # https://ftx.com/markets/future
+            'FTX Futures': {
+                'fee': 0.0006,
+
+                # backtest mode only: accepted are 'spot' and 'futures'
+                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
+                'type': 'futures',
+
+                # futures mode only
+                'settlement_currency': 'USD',
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': 'cross',
+                # 1x, 2x, 10x, 20x, etc. Enter as integers
+                'futures_leverage': 1,
+
+                'assets': [
+                    {'asset': 'USD', 'balance': 10_000},
+                ],
+            },
+
             # https://www.bitfinex.com
             'Bitfinex': {
                 'fee': 0.002,
