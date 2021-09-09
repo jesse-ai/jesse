@@ -6,7 +6,7 @@ import string
 import sys
 import uuid
 from typing import List, Tuple, Union, Any
-
+from pprint import pprint
 import arrow
 import click
 import numpy as np
@@ -764,3 +764,33 @@ def closing_side(position_type: str) -> str:
         return 'buy'
     else:
         raise ValueError(f'Value entered for position_type ({position_type}) is not valid')
+
+
+def dd(item, pretty=False):
+    """
+    Dump and Die but pretty: used for debugging when developing Jesse
+    """
+    print(
+        color('\n========= Debugging Value =========='.upper(), 'yellow')
+    )
+
+    if pretty:
+        pprint(item)
+    else:
+        print(item)
+
+    print(
+        color('====================================\n', 'yellow')
+    )
+
+    terminate_app()
+
+
+def float_or_none(item):
+    """
+    Return the float of the value if it's not None
+    """
+    if item is None:
+        return None
+    else:
+        return float(item)
