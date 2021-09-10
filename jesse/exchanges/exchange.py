@@ -31,5 +31,5 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    def _get_precisions(self):
+    def _fetch_precisions(self):
         pass

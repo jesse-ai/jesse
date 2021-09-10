@@ -81,5 +81,5 @@ class Sandbox(Exchange):
             return flags[0]
         return None
 
-    def _get_precisions(self):
+    def _fetch_precisions(self):
         pass

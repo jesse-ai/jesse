@@ -584,8 +584,8 @@ class Strategy(ABC):
                         )
         except TypeError:
             raise exceptions.InvalidStrategy(
-                'Something odd is going on with your strategy. '
-                'Try running it with "--debug" to see what was going on near the end, and fix it.'
+                'Something odd is going on within your strategy causing a TypeError exception. '
+                'Try running it with "--debug" in a backtest to see what was going on near the end, and fix it.'
             )
         except:
             raise
@@ -603,7 +603,9 @@ class Strategy(ABC):
         pass
 
     def _check(self) -> None:
-        """Based on the newly updated info, check if we should take action or not"""
+        """
+        Based on the newly updated info, check if we should take action or not
+        """
         if not self._is_initiated:
             self._is_initiated = True
 
@@ -710,7 +712,7 @@ class Strategy(ABC):
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_open_position(self, order: Order):
+    def on_open_position(self, order):
         """
         What should happen after the open position order has been executed
         """
@@ -726,7 +728,7 @@ class Strategy(ABC):
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_stop_loss(self, order: Order):
+    def on_stop_loss(self, order):
         """
         What should happen after the stop-loss order has been executed
         """
@@ -742,7 +744,7 @@ class Strategy(ABC):
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_take_profit(self, order: Order):
+    def on_take_profit(self, order):
         """
         What should happen after the take-profit order is executed.
         """
@@ -759,7 +761,7 @@ class Strategy(ABC):
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_increased_position(self, order: Order):
+    def on_increased_position(self, order):
         """
         What should happen after the order (if any) increasing the
         size of the position is executed. Overwrite it if needed.
@@ -781,7 +783,7 @@ class Strategy(ABC):
 
         self._detect_and_handle_entry_and_exit_modifications()
 
-    def on_reduced_position(self, order: Order):
+    def on_reduced_position(self, order):
         """
         What should happen after the order (if any) reducing the size of the position is executed.
         """
