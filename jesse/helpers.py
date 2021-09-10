@@ -766,9 +766,17 @@ def closing_side(position_type: str) -> str:
         raise ValueError(f'Value entered for position_type ({position_type}) is not valid')
 
 
-def dd(item, pretty=False):
+def dd(item, pretty=True):
     """
     Dump and Die but pretty: used for debugging when developing Jesse
+    """
+    dump(item, pretty)
+    terminate_app()
+
+
+def dump(item, pretty=True):
+    """
+    Dump object in pretty format: used for debugging when developing Jesse
     """
     print(
         color('\n========= Debugging Value =========='.upper(), 'yellow')
@@ -782,8 +790,6 @@ def dd(item, pretty=False):
     print(
         color('====================================\n', 'yellow')
     )
-
-    terminate_app()
 
 
 def float_or_none(item):
