@@ -320,7 +320,7 @@ def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
 
 
 def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str = 'symmetric',
-                      smoothing_factor: float = 0) -> np.ndarray:
+                      smoothing_factor: float = 0, threshold_mode: str = 'hard') -> np.ndarray:
     """
     deconstructs, thresholds then reconstructs
     higher thresholds = less detailed reconstruction
@@ -337,7 +337,7 @@ def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str
     # The hardcored factor is explained here: https://en.wikipedia.org/wiki/Median_absolute_deviation
     sigma = (1 / 0.67449) * madev * smoothing_factor
     threshold = sigma * np.sqrt(2 * np.log(len(raw)))
-    coeff[1:] = (pywt.threshold(i, value=threshold, mode='hard') for i in coeff[1:])
+    coeff[1:] = (pywt.threshold(i, value=threshold, mode=threshold_mode) for i in coeff[1:])
     signal = pywt.waverec(coeff, wavelet, mode=mode)
     if len(signal) > len(raw):
         signal = np.delete(signal, -1)
