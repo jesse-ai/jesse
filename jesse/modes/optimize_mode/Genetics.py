@@ -77,8 +77,12 @@ class Genetics(ABC):
 
                     def get_fitness(dna: str, dna_bucket: list) -> None:
                         try:
-                            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
-                            dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            # check if the DNA is already in the list
+                            if not any(dna_tuple[0] == dna for dna_tuple in dna_bucket):
+                                fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+                                dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            else:
+                                raise ValueError("Double DNA.")
                         except Exception as e:
                             proc = os.getpid()
                             logger.error(f'process failed - ID: {str(proc)}')
