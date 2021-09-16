@@ -77,8 +77,12 @@ class Genetics(ABC):
 
                     def get_fitness(dna: str, dna_bucket: list) -> None:
                         try:
-                            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
-                            dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            # check if the DNA is already in the list
+                            if all(dna_tuple[0] != dna for dna_tuple in dna_bucket):
+                                fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+                                dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            else:
+                                raise ValueError(f"Initial Population: Double DNA: {dna}")
                         except Exception as e:
                             proc = os.getpid()
                             logger.error(f'process failed - ID: {str(proc)}')
@@ -161,7 +165,14 @@ class Genetics(ABC):
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
         dna = f"{baby['dna'][:replace_at]}{replace_with}{baby['dna'][replace_at + 1:]}"
-        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+
+        try:
+            # check if already exists and then return it
+            return next(item for item in self.population if item["dna"] == dna)
+        except StopIteration:
+            # not found - so run the backtest
+            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+
         return {
             'dna': dna,
             'fitness': fitness_score,
@@ -178,8 +189,12 @@ class Genetics(ABC):
             for i in range(self.solution_len)
         )
 
-
-        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+        try:
+            # check if already exists and then return it
+            return next(item for item in self.population if item["dna"] == dna)
+        except StopIteration:
+            # not found - so run the backtest
+            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
 
         return {
             'dna': dna,
