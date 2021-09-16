@@ -800,3 +800,13 @@ def float_or_none(item):
         return None
     else:
         return float(item)
+
+
+def str_or_none(item):
+    """
+    Return the str of the value if it's not None
+    """
+    if item is None:
+        return None
+    else:
+        return str(item)
