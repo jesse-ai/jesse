@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.27.0'
+VERSION = '0.27.1'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
 REQUIRED_PACKAGES = [
