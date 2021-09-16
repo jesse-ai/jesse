@@ -55,6 +55,7 @@ class Strategy(ABC):
 
         self._is_executing = False
         self._is_initiated = False
+        self._is_handling_updated_order = False
 
         self.position: Position = None
         self.broker = None
@@ -128,6 +129,9 @@ class Strategy(ABC):
         Arguments:
             order {Order} -- the executed order object
         """
+        # in live-mode, sometimes order-update effects and new execution has overlaps, so:
+        self._is_handling_updated_order = True
+
         role = order.role
 
         if role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
@@ -150,6 +154,8 @@ class Strategy(ABC):
             self._on_increased_position(order)
         elif role == order_roles.REDUCE_POSITION:
             self._on_reduced_position(order)
+
+        self._is_handling_updated_order = False
 
     def filters(self) -> list:
         return []
@@ -188,18 +194,17 @@ class Strategy(ABC):
         for o in self._buy:
             # STOP order
             if o[1] > self.price:
-                self._open_position_orders.append(
-                    self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
-                )
+                submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
             # LIMIT order
             elif o[1] < self.price:
-                self._open_position_orders.append(
-                    self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
-                )
+                submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
             # MARKET order
-            elif o[1] == self.price:
+            else:
+                submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+
+            if submitted_order:
                 self._open_position_orders.append(
-                    self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                    submitted_order
                 )
 
     def _prepare_buy(self, make_copies: bool = True) -> None:
@@ -325,19 +330,16 @@ class Strategy(ABC):
         for o in self._sell:
             # STOP order
             if o[1] < self.price:
-                self._open_position_orders.append(
-                    self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
-                )
+                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
             # LIMIT order
             elif o[1] > self.price:
-                self._open_position_orders.append(
-                    self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-                )
+                submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
             # MARKET order
-            elif o[1] == self.price:
-                self._open_position_orders.append(
-                    self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
-                )
+            else:
+                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+
+            if submitted_order:
+                self._open_position_orders.append(submitted_order)
 
     def _execute_filters(self) -> bool:
         for f in self.filters():
@@ -473,19 +475,16 @@ class Strategy(ABC):
                     for o in self._buy:
                         # STOP order
                         if o[1] > self.price:
-                            self._open_position_orders.append(
-                                self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
-                            )
+                            submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
                         # LIMIT order
                         elif o[1] < self.price:
-                            self._open_position_orders.append(
-                                self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
-                            )
+                            submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
                         # MARKET order
-                        elif o[1] == self.price:
-                            self._open_position_orders.append(
-                                self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
-                            )
+                        else:
+                            submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+
+                        if submitted_order:
+                            self._open_position_orders.append(submitted_order)
 
             elif self.is_short:
                 # prepare format
@@ -506,19 +505,16 @@ class Strategy(ABC):
                     for o in self._sell:
                         # STOP order
                         if o[1] < self.price:
-                            self._open_position_orders.append(
-                                self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
-                            )
+                            submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
                         # LIMIT order
                         elif o[1] > self.price:
-                            self._open_position_orders.append(
-                                self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-                            )
+                            submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
                         # MARKET order
-                        elif o[1] == self.price:
-                            self._open_position_orders.append(
-                                self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
-                            )
+                        else:
+                            submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+
+                        if submitted_order:
+                            self._open_position_orders.append(submitted_order)
 
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
@@ -541,15 +537,14 @@ class Strategy(ABC):
                             (abs(s.qty), s.price)
                         )
                     for o in self._take_profit:
-                        self._log_take_profit.append(o)
-
-                        self._take_profit_orders.append(
-                            self.broker.reduce_position_at(
-                                o[0],
-                                o[1],
-                                order_roles.CLOSE_POSITION
-                            )
+                        submitted_order = self.broker.reduce_position_at(
+                            o[0],
+                            o[1],
+                            order_roles.CLOSE_POSITION
                         )
+                        if submitted_order:
+                            self._log_take_profit.append(o)
+                            self._take_profit_orders.append(submitted_order)
 
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
@@ -573,15 +568,14 @@ class Strategy(ABC):
                             (abs(s.qty), s.price)
                         )
                     for o in self._stop_loss:
-                        self._log_stop_loss.append(o)
-
-                        self._stop_loss_orders.append(
-                            self.broker.reduce_position_at(
-                                o[0],
-                                o[1],
-                                order_roles.CLOSE_POSITION
-                            )
+                        submitted_order = self.broker.reduce_position_at(
+                            o[0],
+                            o[1],
+                            order_roles.CLOSE_POSITION
                         )
+                        if submitted_order:
+                            self._log_stop_loss.append(o)
+                            self._stop_loss_orders.append(submitted_order)
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
@@ -608,6 +602,13 @@ class Strategy(ABC):
         """
         if not self._is_initiated:
             self._is_initiated = True
+
+        if self._is_handling_updated_order:
+            logger.info(
+                "Stopped strategy execution at this time because of we're still handling the result "
+                "of an order update. Trying again in 3 seconds..."
+            )
+            sleep(3)
 
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
@@ -677,13 +678,13 @@ class Strategy(ABC):
                         )
 
                 # submit take-profit
-                self._take_profit_orders.append(
-                    self.broker.reduce_position_at(
-                        o[0],
-                        o[1],
-                        order_roles.CLOSE_POSITION
-                    )
+                submitted_order = self.broker.reduce_position_at(
+                    o[0],
+                    o[1],
+                    order_roles.CLOSE_POSITION
                 )
+                if submitted_order:
+                    self._take_profit_orders.append(submitted_order)
 
         if self.stop_loss is not None:
             for o in self._stop_loss:
@@ -700,13 +701,13 @@ class Strategy(ABC):
                         )
 
                 # submit stop-loss
-                self._stop_loss_orders.append(
-                    self.broker.stop_loss_at(
-                        o[0],
-                        o[1],
-                        order_roles.CLOSE_POSITION
-                    )
+                submitted_order = self.broker.stop_loss_at(
+                    o[0],
+                    o[1],
+                    order_roles.CLOSE_POSITION
                 )
+                if submitted_order:
+                    self._stop_loss_orders.append(submitted_order)
 
         self._open_position_orders = []
         self.on_open_position(order)
@@ -879,7 +880,9 @@ class Strategy(ABC):
                 f"Closed open {self.exchange}-{self.symbol} position at {self.position.current_price} with PNL: {round(self.position.pnl, 4)}({round(self.position.pnl_percentage, 2)}%) because we reached the end of the backtest session."
             )
             # fake a closing (market) order so that the calculations would be correct
-            self.broker.reduce_position_at(self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION)
+            self.broker.reduce_position_at(
+                self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION
+            )
             return
 
         if self._open_position_orders:

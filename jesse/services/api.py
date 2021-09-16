@@ -1,4 +1,5 @@
 import threading
+from typing import Union
 
 import jesse.helpers as jh
 from jesse.models import Order
@@ -34,16 +35,39 @@ class API:
                 from jesse.exchanges import Sandbox
                 self.drivers[e] = Sandbox(e)
 
-    def market_order(self, exchange: str, symbol: str, qty: float, current_price: float, side: str, role: str,
-                     flags: str) -> Order:
+    def market_order(
+        self,
+        exchange: str,
+        symbol: str,
+        qty: float,
+        current_price: float,
+        side: str,
+        role: str,
+        flags: str
+    ) -> Union[Order, None]:
         return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags)
 
-    def limit_order(self, exchange: str, symbol: str, qty: float, price: float, side: str, role: str,
-                    flags: str) -> Order:
+    def limit_order(
+        self,
+        exchange: str,
+        symbol: str,
+        qty: float,
+        price: float,
+        side: str,
+        role: str,
+        flags: str
+    ) -> Union[Order, None]:
         return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags)
 
-    def stop_order(self, exchange: str, symbol: str, qty: float, price: float, side: str, role: str,
-                   flags: str) -> Order:
+    def stop_order(
+        self, exchange: str,
+        symbol: str,
+        qty: float,
+        price: float,
+        side: str,
+        role: str,
+        flags: str
+    ) -> Union[Order, None]:
         return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags)
 
     def cancel_all_orders(self, exchange: str, symbol: str) -> bool:

@@ -26,6 +26,12 @@ class OrdersState:
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
 
+    def remove_order(self, order: Order) -> None:
+        key = f'{order.exchange}-{order.symbol}'
+        self.storage[key] = [
+            o for o in self.storage[key] if o.id != order.id
+        ]
+
     # getters
     def get_orders(self, exchange, symbol) -> List[Order]:
         key = f'{exchange}-{symbol}'

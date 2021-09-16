@@ -104,6 +104,24 @@ class Order(Model):
     def is_close(self) -> bool:
         return self.flag == order_flags.CLOSE
 
+    @property
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'exchange_id': self.exchange_id,
+            # 'session_id': self.session_id,
+            'symbol': self.symbol,
+            'side': self.side,
+            'type': self.type,
+            'qty': self.qty,
+            'price': self.price,
+            'flag': self.flag,
+            'status': self.status,
+            'created_at': self.created_at,
+            'canceled_at': self.canceled_at,
+            'executed_at': self.executed_at,
+        }
+
     def cancel(self) -> None:
         if self.is_canceled or self.is_executed:
             return
