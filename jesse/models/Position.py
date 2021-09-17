@@ -114,7 +114,7 @@ class Position:
         return base_cost
 
     @property
-    def leverage(self) -> Union[int, np.nan]:
+    def leverage(self) -> Union[int, np.float64]:
         if self.exchange.type == 'spot':
             return 1
 
@@ -170,7 +170,7 @@ class Position:
             return self.exchange.futures_leverage_mode
 
     @property
-    def liquidation_price(self) -> Union[float, np.nan]:
+    def liquidation_price(self) -> Union[float, np.float64]:
         """
         The price at which the position gets liquidated. formulas are taken from:
         https://help.bybit.com/hc/en-us/articles/900000181046-Liquidation-Price-USDT-Contract-
@@ -200,7 +200,7 @@ class Position:
         return 1 / self.leverage
 
     @property
-    def bankruptcy_price(self) -> Union[float, np.nan]:
+    def bankruptcy_price(self) -> Union[float, np.float64]:
         if self.type == 'long':
             return self.entry_price * (1 - self._initial_margin_rate)
         elif self.type == 'short':

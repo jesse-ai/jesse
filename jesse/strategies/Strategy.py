@@ -15,7 +15,7 @@ from jesse.models.utils import store_completed_trade_into_db, store_order_into_d
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
-
+from jesse.services.cache import cached
 
 class Strategy(ABC):
     """The parent strategy class which every strategy must extend"""
