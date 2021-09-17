@@ -105,7 +105,7 @@ class Order(Model):
         return self.flag == order_flags.CLOSE
 
     @property
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'exchange_id': self.exchange_id,
