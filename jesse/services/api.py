@@ -43,7 +43,7 @@ class API:
         current_price: float,
         side: str,
         role: str,
-        flags: str
+        flags: list
     ) -> Union[Order, None]:
         return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags)
 
@@ -55,7 +55,7 @@ class API:
         price: float,
         side: str,
         role: str,
-        flags: str
+        flags: list
     ) -> Union[Order, None]:
         return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags)
 
@@ -66,7 +66,7 @@ class API:
         price: float,
         side: str,
         role: str,
-        flags: str
+        flags: list
     ) -> Union[Order, None]:
         return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags)
 

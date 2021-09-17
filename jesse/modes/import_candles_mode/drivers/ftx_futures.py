@@ -18,7 +18,7 @@ class FTXFutures(CandleExchange):
             backup_exchange_class=Bitfinex
         )
 
-    def get_starting_time(self, symbol):
+    def get_starting_time(self, symbol: str) -> int:
         formatted_symbol = symbol.replace('USD', 'PERP')
 
         end_timestamp = jh.now()
@@ -46,7 +46,7 @@ class FTXFutures(CandleExchange):
 
         return second_timestamp
 
-    def fetch(self, symbol, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp: int) -> list:
         end_timestamp = start_timestamp + (self.count - 1) * 60000
 
         payload = {
@@ -82,7 +82,7 @@ class FTXFutures(CandleExchange):
 
         return candles
 
-    def _handle_errors(self, response):
+    def _handle_errors(self, response) -> None:
         # Exchange In Maintenance
         if response.status_code == 502:
             raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')

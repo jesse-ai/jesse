@@ -58,10 +58,10 @@ class FuturesExchange(Exchange):
 
         self.settlement_currency = settlement_currency.upper()
 
-    def wallet_balance(self, symbol=''):
+    def wallet_balance(self, symbol: str = '') -> float:
         return self.assets[self.settlement_currency]
 
-    def available_margin(self, symbol=''):
+    def available_margin(self, symbol: str = '') -> float:
         # a temp which gets added to per each asset (remember that all future assets use the same currency for settlement)
         temp_credits = self.assets[self.settlement_currency]
 
@@ -96,7 +96,7 @@ class FuturesExchange(Exchange):
         # count in the leverage
         return temp_credits * self.futures_leverage
 
-    def charge_fee(self, amount):
+    def charge_fee(self, amount: float) -> None:
         fee_amount = abs(amount) * self.fee_rate
         new_balance = self.assets[self.settlement_currency] - fee_amount
         logger.info(
@@ -104,18 +104,18 @@ class FuturesExchange(Exchange):
         )
         self.assets[self.settlement_currency] = new_balance
 
-    def add_realized_pnl(self, realized_pnl: float):
+    def add_realized_pnl(self, realized_pnl: float) -> None:
         new_balance = self.assets[self.settlement_currency] + realized_pnl
         logger.info(
             f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
-    def on_order_submission(self, order: Order, skip_market_order=True):
+    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
         if (
-            order.type != order_types.MARKET or skip_market_order
+                order.type != order_types.MARKET or skip_market_order
         ) and not order.is_reduce_only:
             order_size = abs(order.qty * order.price)
             remaining_margin = self.available_margin()
@@ -137,7 +137,7 @@ class FuturesExchange(Exchange):
             else:
                 self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
 
-    def on_order_execution(self, order: Order):
+    def on_order_execution(self, order: Order) -> None:
         base_asset = jh.base_asset(order.symbol)
 
         if order.type == order_types.MARKET:
@@ -157,7 +157,7 @@ class FuturesExchange(Exchange):
                         self.sell_orders[base_asset][index] = np.array([0, 0])
                         break
 
-    def on_order_cancellation(self, order: Order):
+    def on_order_cancellation(self, order: Order) -> None:
         base_asset = jh.base_asset(order.symbol)
 
         self.available_assets[base_asset] -= order.qty

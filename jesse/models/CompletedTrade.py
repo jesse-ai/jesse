@@ -32,7 +32,7 @@ class CompletedTrade(peewee.Model):
         database = db
         indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:

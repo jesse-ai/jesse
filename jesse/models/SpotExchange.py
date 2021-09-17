@@ -7,10 +7,10 @@ from .Exchange import Exchange
 
 
 class SpotExchange(Exchange):
-    def add_realized_pnl(self, realized_pnl: float):
+    def add_realized_pnl(self, realized_pnl: float) -> None:
         pass
 
-    def charge_fee(self, amount):
+    def charge_fee(self, amount: float) -> None:
         pass
 
     # current holding assets
@@ -24,19 +24,18 @@ class SpotExchange(Exchange):
         from jesse.routes import router
         # check if base assets are configured
         for route in router.routes:
-          base_asset = jh.base_asset(route.symbol)
-          if base_asset not in self.available_assets:
-            raise InvalidConfig(
-              f"Jesse needs to know the balance of your base asset for spot mode. Please add {base_asset} to your exchanges assets config.")
+            base_asset = jh.base_asset(route.symbol)
+            if base_asset not in self.available_assets:
+                raise InvalidConfig(
+                    f"Jesse needs to know the balance of your base asset for spot mode. Please add {base_asset} to your exchanges assets config.")
 
-
-    def wallet_balance(self, symbol=''):
+    def wallet_balance(self, symbol: str = '') -> float:
         if symbol == '':
             raise ValueError
         quote_asset = jh.quote_asset(symbol)
         return self.assets[quote_asset]
 
-    def available_margin(self, symbol=''):
+    def available_margin(self, symbol: str = '') -> float:
         return self.wallet_balance(symbol)
 
     def on_order_submission(self, order: Order, skip_market_order=True):
@@ -82,7 +81,7 @@ class SpotExchange(Exchange):
                 f'Available balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
             )
 
-    def on_order_execution(self, order: Order):
+    def on_order_execution(self, order: Order) -> None:
         base_asset = jh.base_asset(order.symbol)
         quote_asset = jh.quote_asset(order.symbol)
 
@@ -109,7 +108,7 @@ class SpotExchange(Exchange):
         temp_new_quote_asset = self.assets[quote_asset]
         if jh.is_debuggable('balance_update') and temp_old_quote_asset != temp_new_quote_asset:
             logger.info(
-                f'Balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_asset, 2)} to { round(temp_new_quote_asset, 2)}'
+                f'Balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_asset, 2)} to {round(temp_new_quote_asset, 2)}'
             )
         temp_new_quote_available_asset = self.available_assets[quote_asset]
         if jh.is_debuggable('balance_update') and temp_old_quote_available_asset != temp_new_quote_available_asset:
@@ -128,7 +127,7 @@ class SpotExchange(Exchange):
                 f'Balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
             )
 
-    def on_order_cancellation(self, order: Order):
+    def on_order_cancellation(self, order: Order) -> None:
         base_asset = jh.base_asset(order.symbol)
         quote_asset = jh.quote_asset(order.symbol)
 

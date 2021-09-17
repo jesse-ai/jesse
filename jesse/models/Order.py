@@ -37,7 +37,7 @@ class Order(Model):
         database = db
         indexes = ((('exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -62,7 +62,7 @@ class Order(Model):
 
     def notify_submission(self) -> None:
         notify(
-            f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
+            f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
         )
 
     @property
@@ -105,7 +105,7 @@ class Order(Model):
         return self.flag == order_flags.CLOSE
 
     @property
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'exchange_id': self.exchange_id,
@@ -131,7 +131,7 @@ class Order(Model):
 
         if jh.is_debuggable('order_cancellation'):
             logger.info(
-                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
+                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
             )
         if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
             notify(

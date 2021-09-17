@@ -3,7 +3,7 @@ import requests
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-
+from typing import Union
 
 class TestnetBinanceFutures(CandleExchange):
     def __init__(self) -> None:
@@ -19,7 +19,7 @@ class TestnetBinanceFutures(CandleExchange):
 
         self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 
-    def get_starting_time(self, symbol):
+    def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
@@ -48,7 +48,7 @@ class TestnetBinanceFutures(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
         end_timestamp = start_timestamp + (self.count - 1) * 60000
 
         dashless_symbol = jh.dashless_symbol(symbol)

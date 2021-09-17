@@ -7,7 +7,7 @@ from jesse.models import Order
 first_timestamp = 1552309186171
 
 
-def fake_order(attributes=None):
+def fake_order(attributes: dict = None) -> Order:
     """
 
     :param attributes:

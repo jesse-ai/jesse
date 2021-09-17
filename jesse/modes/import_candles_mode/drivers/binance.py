@@ -16,7 +16,7 @@ class Binance(CandleExchange):
 
         self.endpoint = 'https://www.binance.com/api/v1/klines'
 
-    def get_starting_time(self, symbol):
+    def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
@@ -45,7 +45,7 @@ class Binance(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp: int) -> list:
         """
         note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
         note2: like Bitfinex, start_time includes the candle and so does the end_time.
