@@ -78,14 +78,14 @@ class Strategy(ABC):
                 self.hp[dna['name']] = dna['default']
 
     @property
-    def _price_precision(self):
+    def _price_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
         return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
 
     @property
-    def _qty_precision(self):
+    def _qty_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
