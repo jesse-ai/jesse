@@ -165,6 +165,11 @@ class CandlesState:
         if jh.now() > current_candle[0] + 60_000:
             new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
             self.add_candle(new_candle, exchange, symbol, '1m')
+        # if jh.now() > current_candle[0] + 60_000:
+        #     while jh.now() > current_candle[0] + 60_000:
+        #         new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
+        #         self.add_candle(new_candle, exchange, symbol, '1m')
+        #         current_candle = self.get_current_candle(exchange, symbol, '1m')
 
         # update position's current price
         self.update_position(exchange, symbol, trade['price'])
