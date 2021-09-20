@@ -490,7 +490,7 @@ if live_package_exists:
     @cli.command()
     @click.option('--email', prompt='Email')
     @click.option('--password', prompt='Password', hide_input=True)
-    def login(email, password) -> None:
+    def login(email: str, password: str) -> None:
         """
         (Initially) Logins to the website.
         """

@@ -343,7 +343,7 @@ def is_unit_testing() -> bool:
     return "pytest" in sys.modules or config['app']['is_unit_testing']
 
 
-def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
+def is_valid_uuid(uuid_to_test:str, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_to_test, version=version)
     except ValueError:
@@ -678,7 +678,7 @@ def error(msg: str, force_print: bool = False) -> None:
         _print_error(msg)
 
 
-def _print_error(msg):
+def _print_error(msg: str) -> None:
     print('\n')
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))

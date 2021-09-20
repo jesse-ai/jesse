@@ -1,4 +1,5 @@
 from random import randint
+from typing import Union
 
 import numpy as np
 
@@ -12,7 +13,7 @@ min_price = min(open_price, close_price)
 low_price = min_price if randint(0, 1) else randint(min_price, min_price + 10)
 
 
-def fake_range_candle(count) -> np.ndarray:
+def fake_range_candle(count: int) -> np.ndarray:
     fake_candle(reset=True)
     arr = np.zeros((count, 6))
     for i in range(count):
@@ -20,7 +21,7 @@ def fake_range_candle(count) -> np.ndarray:
     return arr
 
 
-def fake_range_candle_from_range_prices(prices) -> np.ndarray:
+def fake_range_candle_from_range_prices(prices: Union[list, range]) -> np.ndarray:
     fake_candle(reset=True)
     global first_timestamp
     arr = []
@@ -45,7 +46,7 @@ def fake_range_candle_from_range_prices(prices) -> np.ndarray:
     return np.array(arr)
 
 
-def fake_candle(attributes=None, reset=False):
+def fake_candle(attributes: dict = None, reset: bool = False) -> np.ndarray:
     global first_timestamp
     global open_price
     global close_price

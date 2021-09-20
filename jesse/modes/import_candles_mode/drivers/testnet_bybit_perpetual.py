@@ -3,7 +3,7 @@ import requests
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-
+from typing import Union
 
 class TestnetBybitPerpetual(CandleExchange):
     def __init__(self) -> None:
@@ -19,7 +19,7 @@ class TestnetBybitPerpetual(CandleExchange):
 
         self.endpoint = 'https://api-testnet.bybit.com/public/linear/kline'
 
-    def get_starting_time(self, symbol) -> int:
+    def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
@@ -49,7 +49,7 @@ class TestnetBybitPerpetual(CandleExchange):
         first_timestamp = int(data[1]['open_time']) * 1000
         return first_timestamp
 
-    def fetch(self, symbol, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {

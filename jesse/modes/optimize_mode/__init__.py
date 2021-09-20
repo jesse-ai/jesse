@@ -22,7 +22,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles, testing_candles, optimal_total: int, cpu_cores: int, csv: bool,
+    def __init__(self, training_candles: ndarray, testing_candles: ndarray, optimal_total: int, cpu_cores: int, csv: bool,
                  json: bool, start_date: str, finish_date: str) -> None:
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')

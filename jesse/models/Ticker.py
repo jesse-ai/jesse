@@ -23,7 +23,7 @@ class Ticker(peewee.Model):
         database = db
         indexes = ((('timestamp', 'exchange', 'symbol'), True),)
 
-    def __init__(self, attributes=None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:

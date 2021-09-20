@@ -18,7 +18,7 @@ class CandlesState:
         self.are_all_initiated = False
         self.initiated_pairs = {}
 
-    def generate_new_candles_loop(self):
+    def generate_new_candles_loop(self) -> None:
         """
         to prevent the issue of missing candles when no volume is traded on the live exchange
         """
@@ -56,12 +56,12 @@ class CandlesState:
         new_candle[5] = 0
         return new_candle
 
-    def mark_all_as_initiated(self):
+    def mark_all_as_initiated(self) -> None:
         for k in self.initiated_pairs:
             self.initiated_pairs[k] = True
         self.are_all_initiated = True
 
-    def get_storage(self, exchange: str, symbol: str, timeframe: str):
+    def get_storage(self, exchange: str, symbol: str, timeframe: str) -> DynamicNumpyArray:
         key = jh.key(exchange, symbol, timeframe)
 
         try:
@@ -147,7 +147,7 @@ class CandlesState:
         elif candle[0] < arr[-1][0]:
             return
 
-    def add_candle_from_trade(self, trade, exchange: str, symbol: str):
+    def add_candle_from_trade(self, trade, exchange: str, symbol: str) -> None:
         """
         In few exchanges, there's no candle stream over the WS, for
         those we have to use cases the trades stream

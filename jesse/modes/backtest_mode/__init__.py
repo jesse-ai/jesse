@@ -18,6 +18,7 @@ from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
+from jesse.services import logger
 from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.cache import cache
@@ -25,7 +26,6 @@ from jesse.services.candle import generate_candle_from_one_minutes, print_candle
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
-from jesse.services import logger
 
 
 def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
@@ -101,8 +101,8 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
             more = ""
             routes_count = len(router.routes)
             if routes_count > 1:
-               more = f"-and-{routes_count-1}-more"
-                
+                more = f"-and-{routes_count - 1}-more"
+
             study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
             store_logs(study_name, json, tradingview, csv)
 
@@ -209,7 +209,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters=None) -> None:
+def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters: dict = None) -> None:
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']

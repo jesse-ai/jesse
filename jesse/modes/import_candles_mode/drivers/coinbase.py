@@ -19,7 +19,7 @@ class Coinbase(CandleExchange):
 
         self.endpoint = 'https://api.pro.coinbase.com/products'
 
-    def get_starting_time(self, symbol: str):
+    def get_starting_time(self, symbol: str) -> int:
         """
         Because Coinbase's API sucks and does not make this take easy for us,
         we do it manually for as much symbol as we can!
@@ -36,7 +36,7 @@ class Coinbase(CandleExchange):
 
         return None
 
-    def fetch(self, symbol: str, start_timestamp: int):
+    def fetch(self, symbol: str, start_timestamp: int) -> list:
         """
         note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
         note2: like Bitfinex, start_time includes the candle and so does the end_time.
@@ -70,7 +70,7 @@ class Coinbase(CandleExchange):
             } for d in data]
 
     @staticmethod
-    def _handle_errors(response):
+    def _handle_errors(response) -> None:
         # Exchange In Maintenance
         if response.status_code == 502:
             raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')

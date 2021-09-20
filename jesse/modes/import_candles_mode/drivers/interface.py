@@ -20,7 +20,7 @@ class CandleExchange(ABC):
         return self._backup_exchange
 
     @abstractmethod
-    def fetch(self, symbol: str, start_timestamp: int):
+    def fetch(self, symbol: str, start_timestamp: int) -> list:
         pass
 
     @abstractmethod

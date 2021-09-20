@@ -32,29 +32,29 @@ class Exchange(ABC):
         self.fee_rate = fee_rate
 
     @abstractmethod
-    def wallet_balance(self, symbol=''):
+    def wallet_balance(self, symbol: str = '') -> float:
         pass
 
     @abstractmethod
-    def available_margin(self, symbol=''):
+    def available_margin(self, symbol: str = '') -> float:
         pass
 
     @abstractmethod
-    def on_order_submission(self, order: Order, skip_market_order=True):
+    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
         pass
 
     @abstractmethod
-    def on_order_execution(self, order: Order):
+    def on_order_execution(self, order: Order) -> None:
         pass
 
     @abstractmethod
-    def on_order_cancellation(self, order: Order):
+    def on_order_cancellation(self, order: Order) -> None:
         pass
 
     @abstractmethod
-    def add_realized_pnl(self, realized_pnl: float):
+    def add_realized_pnl(self, realized_pnl: float) -> None:
         pass
 
     @abstractmethod
-    def charge_fee(self, amount):
+    def charge_fee(self, amount: float) -> None:
         pass

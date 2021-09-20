@@ -18,10 +18,10 @@ class DynamicNumpyArray:
         self.shape = shape
         self.drop_at = drop_at
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.array[:self.index + 1])
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.index + 1
 
     def __getitem__(self, i):
@@ -43,7 +43,7 @@ class DynamicNumpyArray:
 
             return self.array[i]
 
-    def __setitem__(self, i, item):
+    def __setitem__(self, i, item) -> None:
         if i < 0:
             i = (self.index + 1) - abs(i)
 
@@ -53,7 +53,7 @@ class DynamicNumpyArray:
 
         self.array[i] = item
 
-    def append(self, item: np.ndarray):
+    def append(self, item: np.ndarray) -> None:
         self.index += 1
 
         # expand if the arr is almost full
@@ -80,7 +80,7 @@ class DynamicNumpyArray:
 
         return self.array[self.index]
 
-    def get_past_item(self, past_index):
+    def get_past_item(self, past_index) -> np.ndarray:
         # validation
         if self.index == -1:
             raise IndexError('list assignment index out of range')
@@ -90,7 +90,7 @@ class DynamicNumpyArray:
 
         return self.array[self.index - past_index]
 
-    def flush(self):
+    def flush(self) -> None:
         self.index = -1
         self.array = np.zeros(self.shape)
         self.bucket_size = self.shape[0]
