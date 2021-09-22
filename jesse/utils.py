@@ -317,3 +317,28 @@ def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
     if n <= 1:
         raise ValueError("n must be >= 2")
     return np.array(list(permutations(a, n)))
+
+
+def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str = 'symmetric',
+                      smoothing_factor: float = 0, threshold_mode: str = 'hard') -> np.ndarray:
+    """
+    deconstructs, thresholds then reconstructs
+    higher thresholds = less detailed reconstruction
+
+    Only consider haar, db, sym, coif wavelet basis functions, as these are relatively suitable for financial data
+    """
+    import pywt
+    # Deconstruct
+    coeff = pywt.wavedec(raw, wavelet, mode=mode)
+    # Mean absolute deviation of a signal
+    max_level = pywt.dwt_max_level(len(raw), wavelet)
+    level = min(level, max_level)
+    madev = np.mean(np.absolute(coeff[-level] - np.mean(coeff[-level])))
+    # The hardcored factor is explained here: https://en.wikipedia.org/wiki/Median_absolute_deviation
+    sigma = (1 / 0.67449) * madev * smoothing_factor
+    threshold = sigma * np.sqrt(2 * np.log(len(raw)))
+    coeff[1:] = (pywt.threshold(i, value=threshold, mode=threshold_mode) for i in coeff[1:])
+    signal = pywt.waverec(coeff, wavelet, mode=mode)
+    if len(signal) > len(raw):
+        signal = np.delete(signal, -1)
+    return signal
