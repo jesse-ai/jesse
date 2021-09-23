@@ -18,7 +18,7 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
     :param window: int - default: 10
     :param FC: int - default: 1
     :param SC: int - default: 300
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return:  float | np.ndarray
     """
@@ -31,29 +31,29 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         print("FRAMA n must be even. Adding one")
         n += 1
 
-    frama = frame_fast(candles, n, SC, FC)
+    res = frame_fast(candles, n, SC, FC)
 
     if sequential:
-        return frama
+        return res
     else:
-        return frama[-1]
+        return res[-1]
 
 
 @njit
 def frame_fast(candles, n, SC, FC):
     w = np.log(2.0 / (SC + 1))
 
-    D = np.zeros(len(candles))
+    D = np.zeros(candles.size)
     D[:n] = np.NaN
 
-    alphas = np.zeros(len(candles))
+    alphas = np.zeros(candles.size)
     alphas[:n] = np.NaN
 
-    for i in range(n, len(candles)):
+    for i in range(n, candles.shape[0]):
         per = candles[i - n:i]
 
-        v1 = per[len(per) // 2:]
-        v2 = per[:len(per) // 2]
+        v1 = per[per.shape[0] // 2:]
+        v2 = per[:per.shape[0] // 2]
 
         N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
         N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)
@@ -79,10 +79,10 @@ def frame_fast(candles, n, SC, FC):
         else:
             alphas[i] = alpha_
 
-    frama = np.zeros(len(candles))
-    frama[n - 1] = np.mean(candles[:, 2][:n])
-    frama[:n - 1] = np.NaN
+    frama_val = np.zeros(candles.shape[0])
+    frama_val[n - 1] = np.mean(candles[:, 2][:n])
+    frama_val[:n - 1] = np.NaN
 
-    for i in range(n, len(frama)):
-        frama[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama[i - 1]
-    return frama
+    for i in range(n, frama_val.shape[0]):
+        frama_val[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama_val[i - 1]
+    return frama_val

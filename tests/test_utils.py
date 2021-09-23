@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from jesse import utils
-from tests.data.test_candles_indicators import mama_candles
+from tests.data.test_candles_indicators import test_candles_19
 
 
 def test_anchor_timeframe():
@@ -20,7 +20,7 @@ def test_anchor_timeframe():
 
 
 def test_crossed():
-    candles = np.array(mama_candles)
+    candles = np.array(test_candles_19)
     cross_100 = utils.crossed(candles[:, 2], 100)
     assert cross_100 == False
     cross_120 = utils.crossed(candles[:, 2], 120)
@@ -67,7 +67,7 @@ def test_limit_stop_loss():
 
 
 def test_numpy_to_pandas():
-    candles = np.array(mama_candles)
+    candles = np.array(test_candles_19)
     columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
     df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
     df["Date"] = pd.to_datetime(df["Date"], unit="ms")
@@ -148,4 +148,35 @@ def test_subtract_floats():
 def test_prices_to_returns():
     series = np.array([50, 10, 100, 25])
     pct = utils.prices_to_returns(series)
-    np.testing.assert_array_equal(pct, np.array([ np.nan, -80., 900., -75.]))
+    np.testing.assert_array_equal(pct, np.array([np.nan, -80., 900., -75.]))
+
+
+def test_combinations_without_repeat():
+    a = np.array([4, 2, 9, 1, 3])
+    b = utils.combinations_without_repeat(a)
+    np.testing.assert_array_equal(b, np.array([[4, 2],
+                                               [4, 9],
+                                               [4, 1],
+                                               [4, 3],
+                                               [2, 4],
+                                               [2, 9],
+                                               [2, 1],
+                                               [2, 3],
+                                               [9, 4],
+                                               [9, 2],
+                                               [9, 1],
+                                               [9, 3],
+                                               [1, 4],
+                                               [1, 2],
+                                               [1, 9],
+                                               [1, 3],
+                                               [3, 4],
+                                               [3, 2],
+                                               [3, 9],
+                                               [3, 1]]))
+
+
+def test_wavelet_denoising():
+    candles = np.array(test_candles_19)
+    denoised = utils.wavelet_denoising(candles[:, 2], wavelet="sym4", level=1, mode='symmetric', smoothing_factor=2)
+    assert len(candles) == len(denoised)

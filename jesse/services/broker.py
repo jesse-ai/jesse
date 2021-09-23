@@ -1,3 +1,5 @@
+from typing import Union
+
 import jesse.helpers as jh
 from jesse.enums import sides, order_flags
 from jesse.exceptions import OrderNotAllowed, InvalidStrategy
@@ -19,7 +21,7 @@ class Broker:
         if qty == 0:
             raise InvalidStrategy('qty cannot be 0')
 
-    def sell_at_market(self, qty: float, role: str = None) -> Order:
+    def sell_at_market(self, qty: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -31,7 +33,7 @@ class Broker:
             role, []
         )
 
-    def sell_at(self, qty: float, price: float, role: str = None) -> Order:
+    def sell_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -47,7 +49,7 @@ class Broker:
             []
         )
 
-    def buy_at_market(self, qty: float, role: str = None) -> Order:
+    def buy_at_market(self, qty: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -60,7 +62,7 @@ class Broker:
             []
         )
 
-    def buy_at(self, qty: float, price: float, role: str = None) -> Order:
+    def buy_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -76,7 +78,7 @@ class Broker:
             []
         )
 
-    def reduce_position_at(self, qty: float, price: float, role: str = None) -> Order:
+    def reduce_position_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -88,7 +90,7 @@ class Broker:
         # validation
         if self.position.is_close:
             raise OrderNotAllowed(
-                'Cannot submit a reduce_position order when there is not open position'
+                'Cannot submit a reduce_position order when there is no open position'
             )
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
@@ -129,7 +131,7 @@ class Broker:
         else:
             raise OrderNotAllowed("This order doesn't seem to be for reducing the position.")
 
-    def start_profit_at(self, side: str, qty: float, price: float, role: str = None) -> Order:
+    def start_profit_at(self, side: str, qty: float, price: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -154,13 +156,13 @@ class Broker:
             []
         )
 
-    def stop_loss_at(self, qty: float, price: float, role: str = None) -> Order:
+    def stop_loss_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
         self._validate_qty(qty)
 
         # validation
         if self.position.is_close:
             raise OrderNotAllowed(
-                'Cannot submit a (reduce_only) stop_loss order when there is not open position'
+                'Cannot submit a (reduce_only) stop_loss order when there is no open position'
             )
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))

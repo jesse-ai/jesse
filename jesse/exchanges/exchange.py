@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-
+from typing import Union
+from jesse.models import Order
 
 class Exchange(ABC):
     """
@@ -7,29 +8,29 @@ class Exchange(ABC):
     """
 
     @abstractmethod
-    def market_order(self, symbol, qty, current_price, side, role, flags):
+    def market_order(self, symbol: str, qty: float, current_price: float, side: str, role: str, flags: list) -> Order:
         pass
 
     @abstractmethod
-    def limit_order(self, symbol, qty, price, side, role, flags):
+    def limit_order(self, symbol: str, qty: float, price: float, side: str, role: str, flags: list) -> Order:
         pass
 
     @abstractmethod
-    def stop_order(self, symbol, qty, price, side, role, flags):
+    def stop_order(self, symbol: str, qty: float, price: float, side: str, role: str, flags: list) -> Order:
         pass
 
     @abstractmethod
-    def cancel_all_orders(self, symbol):
+    def cancel_all_orders(self, symbol: str) -> None:
         pass
 
     @abstractmethod
-    def cancel_order(self, symbol, order_id):
+    def cancel_order(self, symbol: str, order_id: str) -> None:
         pass
 
     @abstractmethod
-    def get_exec_inst(self, flags):
+    def get_exec_inst(self, flags: list) -> Union[str, None]:
         pass
 
     @abstractmethod
-    def _get_precisions(self):
+    def _fetch_precisions(self) -> None:
         pass

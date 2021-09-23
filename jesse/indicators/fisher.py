@@ -14,16 +14,16 @@ def fisher(candles: np.ndarray, period: int = 9, sequential: bool = False) -> Fi
 
     :param candles: np.ndarray
     :param period: int - default: 9
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: FisherTransform(fisher, signal)
     """
     candles = slice_candles(candles, sequential)
 
-    fisher, fisher_signal = ti.fisher(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
-                                      period=period)
+    fisher_val, fisher_signal = ti.fisher(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
+                                          period=period)
 
     if sequential:
-        return FisherTransform(same_length(candles, fisher), same_length(candles, fisher_signal))
+        return FisherTransform(same_length(candles, fisher_val), same_length(candles, fisher_signal))
     else:
-        return FisherTransform(fisher[-1], fisher_signal[-1])
+        return FisherTransform(fisher_val[-1], fisher_signal[-1])

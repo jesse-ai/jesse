@@ -15,7 +15,7 @@ def kurtosis(candles: np.ndarray, period: int = 5, source_type: str = "hl2", seq
     :param candles: np.ndarray
     :param period: int - default: 5
     :param source_type: str - default: "hl2"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -23,7 +23,7 @@ def kurtosis(candles: np.ndarray, period: int = 5, source_type: str = "hl2", seq
 
     source = get_candle_source(candles, source_type=source_type)
     swv = sliding_window_view(source, window_shape=period)
-    kurtosis = stats.kurtosis(swv, axis=-1)
-    res = same_length(source, kurtosis)
+    kurtosis_val = stats.kurtosis(swv, axis=-1)
+    res = same_length(source, kurtosis_val)
 
     return res if sequential else res[-1]

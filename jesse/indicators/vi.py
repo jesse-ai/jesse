@@ -16,8 +16,8 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
     Vortex Indicator (VI)
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: VI(plus, minus)
     """
@@ -37,21 +37,21 @@ def vi_fast(candles, period):
     candles_high = candles[:, 3]
     candles_low = candles[:, 4]
 
-    tr = np.zeros(len(candles_high))
-    vp = np.zeros(len(candles_high))
-    vm = np.zeros(len(candles_high))
-    trd = np.zeros(len(candles_high))
-    vpd = np.zeros(len(candles_high))
-    vmd = np.zeros(len(candles_high))
+    tr = np.zeros(candles_high.size)
+    vp = np.zeros(candles_high.size)
+    vm = np.zeros(candles_high.size)
+    trd = np.zeros(candles_high.size)
+    vpd = np.zeros(candles_high.size)
+    vmd = np.zeros(candles_high.size)
     tr[0] = candles_high[0] - candles_low[0]
-    for i in range(1, len(candles_high)):
+    for i in range(1, candles_high.size):
         hl = candles_high[i] - candles_low[i]
         hpc = np.fabs(candles_high[i] - candles_close[i - 1])
         lpc = np.fabs(candles_low[i] - candles_close[i - 1])
         tr[i] = np.amax(np.array([hl, hpc, lpc]))
         vp[i] = np.fabs(candles_high[i] - candles_low[i - 1])
         vm[i] = np.fabs(candles_low[i] - candles_high[i - 1])
-    for j in range(len(candles_high) - period + 1):
+    for j in range(candles_high.size - period + 1):
         trd[period - 1 + j] = np.sum(tr[j:j + period])
         vpd[period - 1 + j] = np.sum(vp[j:j + period])
         vmd[period - 1 + j] = np.sum(vm[j:j + period])

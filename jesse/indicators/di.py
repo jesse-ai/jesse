@@ -13,8 +13,8 @@ def di(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DI:
     DI - Directional Indicator
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: DI(plus, minus)
     """

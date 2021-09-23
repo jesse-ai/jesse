@@ -2,8 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles, same_length
 from jesse.indicators.ma import ma
 
 MACDEXT = namedtuple('MACDEXT', ['macd', 'signal', 'hist'])
@@ -17,11 +16,11 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_matype: int = 0, sl
 
     :param candles: np.ndarray
     :param fast_period: int - default: 12
-    :param fastmatype: int - default: 0
+    :param fast_matype: int - default: 0
     :param slow_period: int - default: 26
-    :param slowmatype: int - default: 0
+    :param slow_matype: int - default: 0
     :param signal_period: int - default: 9
-    :param signalmatype: int - default: 0
+    :param signal_matype: int - default: 0
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
@@ -29,10 +28,23 @@ def macdext(candles: np.ndarray, fast_period: int = 12, fast_matype: int = 0, sl
     """
     candles = slice_candles(candles, sequential)
 
-    source = get_candle_source(candles, source_type=source_type)
+    if fast_matype == 29 or slow_matype == 29 or signal_matype == 29:
+        raise ValueError("VWAP not supported in macdext.")
 
-    macd = ma(source, period=fast_period, matype=fast_matype, sequential=True) - ma(source, period=slow_period, matype=slow_matype, sequential=True)
-    macdsignal = ma(macd, period=signal_period, matype=signal_matype, sequential=True)
+    ma_fast = ma(candles, period=fast_period, matype=fast_matype, source_type=source_type, sequential=True)
+    ma_slow = ma(candles, period=slow_period, matype=slow_matype,  source_type=source_type, sequential=True)
+    macd = ma_fast - ma_slow
+
+    if signal_matype == 24:
+        # volume needed.
+        candles[:, 2] = macd
+        candles_without_nan = candles[~np.isnan(candles).any(axis=1)]
+        macdsignal = ma(candles_without_nan, period=signal_period, matype=signal_matype, source_type="close", sequential=True)
+    else:
+        macd_without_nan = macd[~np.isnan(macd)]
+        macdsignal = ma(macd_without_nan, period=signal_period, matype=signal_matype, sequential=True)
+
+    macdsignal = same_length(candles, macdsignal)
     macdhist = macd - macdsignal
 
     if sequential:

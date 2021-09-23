@@ -12,8 +12,9 @@ def decycler(candles: np.ndarray, hp_period: int = 125, source_type: str = "clos
     Ehlers Simple Decycler
 
     :param candles: np.ndarray
-    :param hp_period: int - default=125
-    :param sequential: bool - default=False
+    :param hp_period: int - default: 125
+    :param source_type: str - default: "close"
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

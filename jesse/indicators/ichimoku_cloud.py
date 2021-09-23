@@ -11,17 +11,17 @@ def ichimoku_cloud(candles: np.ndarray, conversion_line_period: int = 9, base_li
     Ichimoku Cloud
 
     :param candles: np.ndarray
-    :param conversion_line_period: int - default=9
-    :param base_line_period: int - default=26
-    :param lagging_line_period: int - default=52
-    :param displacement: - default=26
+    :param conversion_line_period: int - default: 9
+    :param base_line_period: int - default: 26
+    :param lagging_line_period: int - default: 52
+    :param displacement: - default: 26
 
     :return: IchimokuCloud(conversion_line, base_line, span_a, span_b)
     """
-    if len(candles) < 80:
+    if candles.shape[0] < 80:
         return IchimokuCloud(np.nan, np.nan, np.nan, np.nan)
 
-    if len(candles) > 80:
+    if candles.shape[0] > 80:
         candles = candles[-80:]
 
     # earlier

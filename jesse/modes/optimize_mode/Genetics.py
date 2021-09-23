@@ -29,7 +29,7 @@ from pandas import json_normalize
 
 class Genetics(ABC):
     def __init__(self, iterations: int, population_size: int, solution_len: int,
-                 charset: str = '()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
+                 charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
                  fitness_goal: float = 1,
                  options: Dict[str, Union[bool, Any]] = None) -> None:
         self.started_index = 0
@@ -42,21 +42,18 @@ class Genetics(ABC):
         self.fitness_goal = fitness_goal
         self.cpu_cores = 0
 
-        if options is None:
-            self.options = {}
-        else:
-            self.options = options
-
+        self.options = {} if options is None else options
         os.makedirs('./storage/temp/optimize', exist_ok=True)
-        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}.pickle"
+        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
 
         if fitness_goal > 1 or fitness_goal < 0:
             raise ValueError('fitness scores must be between 0 and 1')
 
         # if temp file exists, load data to resume previous session
-        if jh.file_exists(self.temp_path):
-            if click.confirm('Previous session detected. Do you want to resume?', default=True):
-                self.load_progress()
+        if jh.file_exists(self.temp_path) and click.confirm(
+            'Previous session detected. Do you want to resume?', default=True
+        ):
+            self.load_progress()
 
     @abstractmethod
     def fitness(self, dna: str) -> tuple:
@@ -80,8 +77,12 @@ class Genetics(ABC):
 
                     def get_fitness(dna: str, dna_bucket: list) -> None:
                         try:
-                            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
-                            dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            # check if the DNA is already in the list
+                            if all(dna_tuple[0] != dna for dna_tuple in dna_bucket):
+                                fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+                                dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
+                            else:
+                                raise ValueError(f"Initial Population: Double DNA: {dna}")
                         except Exception as e:
                             proc = os.getpid()
                             logger.error(f'process failed - ID: {str(proc)}')
@@ -164,7 +165,14 @@ class Genetics(ABC):
         replace_at = randint(0, self.solution_len - 1)
         replace_with = choice(self.charset)
         dna = f"{baby['dna'][:replace_at]}{replace_with}{baby['dna'][replace_at + 1:]}"
-        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+
+        try:
+            # check if already exists and then return it
+            return next(item for item in self.population if item["dna"] == dna)
+        except StopIteration:
+            # not found - so run the backtest
+            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+
         return {
             'dna': dna,
             'fitness': fitness_score,
@@ -176,15 +184,17 @@ class Genetics(ABC):
         mommy = self.select_person()
         daddy = self.select_person()
 
-        dna = ''
+        dna = ''.join(
+            daddy['dna'][i] if i % 2 == 0 else mommy['dna'][i]
+            for i in range(self.solution_len)
+        )
 
-        for i in range(self.solution_len):
-            if i % 2 == 0:
-                dna += daddy['dna'][i]
-            else:
-                dna += mommy['dna'][i]
-
-        fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+        try:
+            # check if already exists and then return it
+            return next(item for item in self.population if item["dna"] == dna)
+        except StopIteration:
+            # not found - so run the backtest
+            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
 
         return {
             'dna': dna,
@@ -196,10 +206,7 @@ class Genetics(ABC):
     def select_person(self) -> Dict[str, Union[str, Any]]:
         # len(self.population) instead of self.population_size because some DNAs might not have been created due errors
         random_index = np.random.choice(len(self.population), int(len(self.population) / 100), replace=False)
-        chosen_ones = []
-
-        for r in random_index:
-            chosen_ones.append(self.population[r])
+        chosen_ones = [self.population[r] for r in random_index]
 
         return pydash.max_by(chosen_ones, 'fitness')
 
@@ -415,7 +422,7 @@ class Genetics(ABC):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}"
+        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
 
         dnas_json = {'snapshot': []}
         for i in range(30):
@@ -465,7 +472,6 @@ class Genetics(ABC):
                     snapshots = {"snapshots": []}
                     snapshots["snapshots"].append(dnas_json['snapshot'])
                     json.dump(snapshots, file, ensure_ascii=False)
-                    file.write('\n')
                 else:
                     # file exists - append
                     file.seek(0)
@@ -473,4 +479,4 @@ class Genetics(ABC):
                     data["snapshots"].append(dnas_json['snapshot'])
                     file.seek(0)
                     json.dump(data, file, ensure_ascii=False)
-                    file.write('\n')
+                file.write('\n')

@@ -14,8 +14,8 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
     RSI Laguerre Filter
 
     :param candles: np.ndarray
-    :param alpha: float - default=0.2
-    :param sequential: bool - default=False
+    :param alpha: float - default: 0.2
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -64,9 +64,5 @@ def lrsi_fast(alpha, candles):
         else:
             cd = cd + l3[i] - l2[i]
 
-        if cu + cd == 0:
-            rsi[i] = 0
-        else:
-            rsi[i] = cu / (cu + cd)
-
+        rsi[i] = 0 if cu + cd == 0 else cu / (cu + cd)
     return rsi

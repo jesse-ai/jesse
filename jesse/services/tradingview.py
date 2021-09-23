@@ -4,8 +4,14 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def tradingview_logs(study_name: str = None, mode=None, now=None) -> None:
-    tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.2)\n'
+def tradingview_logs(study_name: str) -> None:
+    starting_balance = sum(
+        store.exchanges.storage[e].starting_assets[jh.app_currency()]
+        for e in store.exchanges.storage
+    )
+
+
+    tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital={starting_balance}, commission_type=strategy.commission.percent, commission_value=0.2)\n'
     for i, t in enumerate(store.completed_trades.trades[::-1][:]):
         tv_text += '\n'
         for j, o in enumerate(t.orders):

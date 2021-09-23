@@ -17,6 +17,7 @@ from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
+from jesse.services import logger
 from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.cache import cache
@@ -97,10 +98,16 @@ def run(
             sync_publish('metrics', report.portfolio_metrics())
 
             # save logs
-            store_logs(json, tradingview, csv)
+            more = ""
+            routes_count = len(router.routes)
+            if routes_count > 1:
+                more = f"-and-{routes_count - 1}-more"
+
+            study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
+            store_logs(study_name, json, tradingview, csv)
 
             if chart:
-                charts.portfolio_vs_asset_returns()
+                charts.portfolio_vs_asset_returns(study_name)
 
             sync_publish('equity_curve', charts.equity_curve())
 
@@ -132,7 +139,7 @@ def run(
                     'D').mean()
                 price_pct_change = price_df.pct_change(1).fillna(0)
                 bh_daily_returns_all_routes = price_pct_change.mean(1)
-                quantstats.quantstats_tearsheet(bh_daily_returns_all_routes)
+                quantstats.quantstats_tearsheet(bh_daily_returns_all_routes, study_name)
         else:
             sync_publish('equity_curve', None)
             sync_publish('metrics', None)
@@ -205,7 +212,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters=None) -> None:
+def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters: dict = None) -> None:
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
@@ -281,7 +288,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
                         continue
 
                     count = jh.timeframe_to_one_minutes(timeframe)
-                    until = count - ((i + 1) % count)
+                    # until = count - ((i + 1) % count)
 
                     if (i + 1) % count == 0:
                         generated_candle = generate_candle_from_one_minutes(
@@ -405,6 +412,9 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
 def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
     p: Position = selectors.get_position(exchange, symbol)
+
+    if not p:
+        return
 
     # for now, we only support the isolated mode:
     if p.mode != 'isolated':

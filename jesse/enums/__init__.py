@@ -13,6 +13,7 @@ class order_statuses:
     CANCELED = 'CANCELED'
     EXECUTED = 'EXECUTED'
     QUEUED = 'QUEUED'
+    LIQUIDATED = 'LIQUIDATED'
 
 
 class timeframes:

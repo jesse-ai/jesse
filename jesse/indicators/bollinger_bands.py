@@ -24,7 +24,7 @@ def bollinger_bands(candles: np.ndarray, period: int = 20, devup: float = 2, dev
     :param matype: int - default: 0
     :param devtype: int - default: 0
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: BollingerBands(upperband, middleband, lowerband)
     """

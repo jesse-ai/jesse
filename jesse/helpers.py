@@ -6,7 +6,7 @@ import string
 import sys
 import uuid
 from typing import List, Tuple, Union, Any
-
+from pprint import pprint
 import arrow
 import click
 import numpy as np
@@ -77,7 +77,7 @@ def color(msg_text: str, msg_color: str) -> str:
         return click.style(msg_text, fg='magenta')
     if msg_color == 'cyan':
         return click.style(msg_text, fg='cyan')
-    if msg_color in ['white', 'gray']:
+    if msg_color in {'white', 'gray'}:
         return click.style(msg_text, fg='white')
 
     raise ValueError('unsupported color')
@@ -94,9 +94,7 @@ def convert_number(old_max: float, old_min: float, new_max: float, new_min: floa
 
     old_range = (old_max - old_min)
     new_range = (new_max - new_min)
-    new_value = (((old_value - old_min) * new_range) / old_range) + new_min
-
-    return new_value
+    return (((old_value - old_min) * new_range) / old_range) + new_min
 
 
 def dashless_symbol(symbol: str) -> str:
@@ -255,7 +253,7 @@ def get_config(keys: str, default: Any = None) -> Any:
     if not str:
         raise ValueError('keys string cannot be empty')
 
-    if is_unit_testing() or not keys in CACHED_CONFIG:
+    if is_unit_testing() or keys not in CACHED_CONFIG:
         if os.environ.get(keys.upper().replace(".", "_").replace(" ", "_")) is not None:
             CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_").replace(" ", "_"))
         else:
@@ -345,7 +343,7 @@ def is_unit_testing() -> bool:
     return "pytest" in sys.modules or config['app']['is_unit_testing']
 
 
-def is_valid_uuid(uuid_to_test, version: int = 4) -> bool:
+def is_valid_uuid(uuid_to_test:str, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_to_test, version=version)
     except ValueError:
@@ -401,8 +399,7 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
     """
     Rescaling data to have values between 0 and 1
     """
-    x_new = (x - x_min) / (x_max - x_min)
-    return x_new
+    return (x - x_min) / (x_max - x_min)
 
 
 def now(force_fresh=False) -> int:
@@ -424,9 +421,16 @@ def np_ffill(arr: np.ndarray, axis: int = 0) -> np.ndarray:
     idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
     idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
     np.maximum.accumulate(idx, axis=axis, out=idx)
-    slc = [np.arange(k)[tuple([slice(None) if dim == i else np.newaxis
-                               for dim in range(len(arr.shape))])]
-           for i, k in enumerate(arr.shape)]
+    slc = [
+        np.arange(k)[
+            tuple(
+                slice(None) if dim == i else np.newaxis
+                for dim in range(len(arr.shape))
+            )
+        ]
+        for i, k in enumerate(arr.shape)
+    ]
+
     slc[axis] = idx
     return arr[tuple(slc)]
 
@@ -472,10 +476,10 @@ def orderbook_insertion_index_search(arr, target: int, ascending: bool = True) -
     lower = 0
     upper = len(arr)
 
-    if ascending:
-        while lower < upper:
-            x = lower + (upper - lower) // 2
-            val = arr[x][0]
+    while lower < upper:
+        x = lower + (upper - lower) // 2
+        val = arr[x][0]
+        if ascending:
             if target == val:
                 return True, x
             elif target > val:
@@ -486,20 +490,16 @@ def orderbook_insertion_index_search(arr, target: int, ascending: bool = True) -
                 if lower == x:
                     return False, lower
                 upper = x
-    else:
-        while lower < upper:
-            x = lower + (upper - lower) // 2
-            val = arr[x][0]
-            if target == val:
-                return True, x
-            elif target < val:
-                if lower == x:
-                    return False, lower + 1
-                lower = x
-            elif target > val:
-                if lower == x:
-                    return False, lower
-                upper = x
+        elif target == val:
+            return True, x
+        elif target < val:
+            if lower == x:
+                return False, lower + 1
+            lower = x
+        elif target > val:
+            if lower == x:
+                return False, lower
+            upper = x
 
 
 def orderbook_trim_price(p: float, ascending: bool, unit: float) -> float:
@@ -537,7 +537,7 @@ def quote_asset(symbol: str) -> str:
 
 
 def random_str(num_characters: int = 8) -> str:
-    return ''.join(random.choice(string.ascii_letters) for i in range(num_characters))
+    return ''.join(random.choice(string.ascii_letters) for _ in range(num_characters))
 
 
 def readable_duration(seconds: int, granularity: int = 2) -> str:
@@ -632,16 +632,16 @@ def side_to_type(s: str) -> str:
     raise ValueError
 
 
-def string_after_character(string: str, character: str) -> str:
+def string_after_character(s: str, character: str) -> str:
     try:
-        return string.split(character, 1)[1]
+        return s.split(character, 1)[1]
     except IndexError:
         return None
 
 
 def slice_candles(candles: np.ndarray, sequential: bool) -> np.ndarray:
     warmup_candles_num = get_config('env.data.warmup_candles_num', 240)
-    if not sequential and len(candles) > warmup_candles_num:
+    if not sequential and candles.shape[0] > warmup_candles_num:
         candles = candles[-warmup_candles_num:]
     return candles
 
@@ -673,13 +673,15 @@ def error(msg: str, force_print: bool = False) -> None:
         from jesse.services import logger
         logger.error(msg)
         if force_print:
-            print('\n')
-            print(color('========== critical error =========='.upper(), 'red'))
-            print(color(msg, 'red'))
+            _print_error(msg)
     else:
-        print('\n')
-        print(color('========== critical error =========='.upper(), 'red'))
-        print(color(msg, 'red'))
+        _print_error(msg)
+
+
+def _print_error(msg: str) -> None:
+    print('\n')
+    print(color('========== critical error =========='.upper(), 'red'))
+    print(color(msg, 'red'))
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
@@ -811,3 +813,49 @@ def get_session_id():
 def is_jesse_project():
     ls = os.listdir('.')
     return 'strategies' in ls and 'storage' in ls
+
+
+def dd(item, pretty=True):
+    """
+    Dump and Die but pretty: used for debugging when developing Jesse
+    """
+    dump(item, pretty)
+    terminate_app()
+
+
+def dump(item, pretty=True):
+    """
+    Dump object in pretty format: used for debugging when developing Jesse
+    """
+    print(
+        color('\n========= Debugging Value =========='.upper(), 'yellow')
+    )
+
+    if pretty:
+        pprint(item)
+    else:
+        print(item)
+
+    print(
+        color('====================================\n', 'yellow')
+    )
+
+
+def float_or_none(item):
+    """
+    Return the float of the value if it's not None
+    """
+    if item is None:
+        return None
+    else:
+        return float(item)
+
+
+def str_or_none(item):
+    """
+    Return the str of the value if it's not None
+    """
+    if item is None:
+        return None
+    else:
+        return str(item)

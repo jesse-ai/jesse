@@ -19,8 +19,9 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
     :param period: int - default: 14
     :param matype: int - default: 0
     :param nbdev: float - default: 1
+    :param devtype: int - default: 0
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

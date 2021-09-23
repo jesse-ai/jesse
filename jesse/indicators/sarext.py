@@ -15,14 +15,14 @@ def sarext(candles: np.ndarray, start_value: float = 0, offset_on_reverse: float
 
     :param candles: np.ndarray
     :param start_value: float - default: 0
-    :param offsetonreverse: float - default: 0
-    :param accelerationinitlong: float - default: 0
-    :param accelerationlong: float - default: 0
-    :param accelerationmaxlong: float - default: 0
-    :param accelerationinitshort: float - default: 0
-    :param accelerationshort: float - default: 0
-    :param accelerationmaxshort: float - default: 0
-    :param sequential: bool - default=False
+    :param offset_on_reverse: float - default: 0
+    :param acceleration_init_long: float - default: 0
+    :param acceleration_long: float - default: 0
+    :param acceleration_max_long: float - default: 0
+    :param acceleration_init_short: float - default: 0
+    :param acceleration_short: float - default: 0
+    :param acceleration_max_short: float - default: 0
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

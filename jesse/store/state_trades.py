@@ -22,9 +22,10 @@ class TradesState:
 
     def add_trade(self, trade: np.ndarray, exchange: str, symbol: str) -> None:
         key = jh.key(exchange, symbol)
-        if not len(self.temp_storage[key]) or trade[0] - self.temp_storage[key][0][0] < 1000:
-            self.temp_storage[key].append(trade)
-        else:
+        if (
+            len(self.temp_storage[key])
+            and trade[0] - self.temp_storage[key][0][0] >= 1000
+        ):
             arr = self.temp_storage[key]
             buy_arr = np.array(list(filter(lambda x: x[3] == 1, arr)))
             sell_arr = np.array(list(filter(lambda x: x[3] == 0, arr)))
@@ -50,7 +51,7 @@ class TradesState:
                 self.storage[key].append(generated)
 
             self.temp_storage[key].flush()
-            self.temp_storage[key].append(trade)
+        self.temp_storage[key].append(trade)
 
     def get_trades(self, exchange: str, symbol: str) -> List[Trade]:
         key = jh.key(exchange, symbol)

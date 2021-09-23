@@ -27,10 +27,10 @@ def macd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, sign
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    macd, macdsignal, macdhist = talib.MACD(source, fastperiod=fast_period, slowperiod=slow_period,
-                                            signalperiod=signal_period)
+    macd_val, macdsignal, macdhist = talib.MACD(source, fastperiod=fast_period, slowperiod=slow_period,
+                                                signalperiod=signal_period)
 
     if sequential:
-        return MACD(macd, macdsignal, macdhist)
+        return MACD(macd_val, macdsignal, macdhist)
     else:
-        return MACD(macd[-1], macdsignal[-1], macdhist[-1])
+        return MACD(macd_val[-1], macdsignal[-1], macdhist[-1])

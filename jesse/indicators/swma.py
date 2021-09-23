@@ -1,4 +1,3 @@
-
 from typing import Union
 from math import floor
 import numpy as np
@@ -15,7 +14,7 @@ def swma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
     :param candles: np.ndarray
     :param period: int - default: 5
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -49,17 +48,16 @@ def symmetric_triangle(n: int = None) -> np.ndarray:
 
     if n > 2:
         if n % 2 == 0:
-            front = [i + 1 for i in range(0, floor(n / 2))]
+            front = [i + 1 for i in range(floor(n / 2))]
             triangle = front + front[::-1]
         else:
-            front = [i + 1 for i in range(0, floor(0.5 * (n + 1)))]
+            front = [i + 1 for i in range(floor(0.5 * (n + 1)))]
             triangle = front.copy()
             front.pop()
             triangle += front[::-1]
 
 
     triangle_sum = np.sum(triangle)
-    triangle_weights = triangle / triangle_sum
-    return triangle_weights
+    return triangle / triangle_sum
 
 

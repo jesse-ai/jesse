@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source, slice_candles
+from jesse.helpers import slice_candles
 
 
 def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int = 1, sequential: bool = False) -> Union[
@@ -13,7 +13,9 @@ def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int 
 
     :param candles: np.ndarray
     :param period: int - default: 30
-    :param sequential: bool - default=False
+    :param scalar: float - default: 100
+    :param drift: int - default: 1
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

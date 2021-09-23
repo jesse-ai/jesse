@@ -10,7 +10,7 @@ from jesse.store import store
 import jesse.helpers as jh
 
 
-def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
+def store_logs(study_name: str = '', export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
     mode = config['app']['trading_mode']
 
     now = str(arrow.utcnow())[0:19]
@@ -32,7 +32,7 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
 
     # store output for TradingView.com's pine-editor
     if export_tradingview:
-        tradingview_logs(study_name, mode, now)
+        tradingview_logs(study_name)
 
     # also write a CSV file
     if export_csv:

@@ -41,7 +41,7 @@ def portfolio_vs_asset_returns() -> None:
     date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
     plt.xlabel('date')
     plt.ylabel('balance')
-    plt.title('Portfolio Daily Return')
+    plt.title(f'Portfolio Daily Return - {study_name}')
     plt.plot(date_list, store.app.daily_balance)
 
     # price change%
@@ -143,7 +143,7 @@ def portfolio_vs_asset_returns() -> None:
         mode = 'LT'
     if mode == 'papertrade':
         mode = 'PT'
-
+    now = str(arrow.utcnow())[0:19]
     # make sure directories exist
     os.makedirs('./storage/charts', exist_ok=True)
     file_path = f'storage/charts/{jh.get_session_id()}.png'.replace(":", "-")

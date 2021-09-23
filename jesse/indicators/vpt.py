@@ -11,14 +11,14 @@ def vpt(candles: np.ndarray, source_type: str = "close", sequential: bool = Fals
 
     :param candles: np.ndarray
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    vpt = (candles[:, 5] * ((source - np_shift(source, 1, fill_value=np.nan)) / np_shift(source, 1, fill_value=np.nan)))
-    res = np_shift(vpt, 1, fill_value=np.nan) + vpt
+    vpt_val = (candles[:, 5] * ((source - np_shift(source, 1, fill_value=np.nan)) / np_shift(source, 1, fill_value=np.nan)))
+    res = np_shift(vpt_val, 1, fill_value=np.nan) + vpt_val
 
     return res if sequential else res[-1]

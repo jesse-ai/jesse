@@ -17,7 +17,7 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matyp
     :param slow_period: int - default: 26
     :param matype: int - default: 0
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

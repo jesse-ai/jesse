@@ -1,4 +1,3 @@
-
 from typing import Union
 from functools import reduce
 from operator import mul
@@ -17,7 +16,7 @@ def pwma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
     :param candles: np.ndarray
     :param period: int - default: 5
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -45,11 +44,9 @@ def pascals_triangle(n: int = None) -> np.ndarray:
     n = int(np.fabs(n)) if n is not None else 0
 
     # Calculation
-    triangle = np.array([combination(n=n, r=i) for i in range(0, n + 1)])
+    triangle = np.array([combination(n=n, r=i) for i in range(n + 1)])
     triangle_sum = np.sum(triangle)
-    triangle_weights = triangle / triangle_sum
-
-    return triangle_weights
+    return triangle / triangle_sum
 
 
 def combination(n, r) -> int:

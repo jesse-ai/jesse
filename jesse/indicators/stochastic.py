@@ -15,12 +15,12 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
     The Stochastic Oscillator
 
     :param candles: np.ndarray
-    :param fastk_period: int - default=14
-    :param slowk_period: int - default=3
-    :param slowk_matype: int - default=0
-    :param slowd_period: int - default=3
-    :param slowd_matype: int - default=0
-    :param sequential: bool - default=False
+    :param fastk_period: int - default: 14
+    :param slowk_period: int - default: 3
+    :param slowk_matype: int - default: 0
+    :param slowd_period: int - default: 3
+    :param slowd_matype: int - default: 0
+    :param sequential: bool - default: False
 
     :return: Stochastic(k, d)
     """
@@ -33,8 +33,8 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
     hh = talib.MAX(candles_high, fastk_period)
     ll = talib.MIN(candles_low, fastk_period)
 
-    stoch = 100 * (candles_close - ll) / (hh - ll)
-    k = ma(stoch, period=slowk_period, matype=slowk_matype, sequential=True)
+    stoch_val = 100 * (candles_close - ll) / (hh - ll)
+    k = ma(stoch_val, period=slowk_period, matype=slowk_matype, sequential=True)
     d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
 
     if sequential:

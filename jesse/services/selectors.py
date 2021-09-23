@@ -41,10 +41,14 @@ def get_strategy(exchange: str, symbol: str) -> Any:
 
 def get_route(exchange: str, symbol: str) -> Optional[Any]:
     from jesse.routes import router
-    r = next(
-        (r for r in router.routes if r.exchange == exchange and r.symbol == symbol),
-        None)
-    return r
+    return next(
+        (
+            r
+            for r in router.routes
+            if r.exchange == exchange and r.symbol == symbol
+        ),
+        None,
+    )
 
 
 def get_all_trading_routes() -> List[Any]:

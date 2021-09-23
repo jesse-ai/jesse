@@ -1,18 +1,8 @@
 from tabulate import tabulate
+from typing import Union
 
-
-def key_value(data, title, alignments=None, uppercase_title=True) -> None:
-    """
-
-    :param data:
-    :param title:
-    :param alignments:
-    :param uppercase_title:
-    """
-    table = []
-
-    for d in data:
-        table.append(d)
+def key_value(data, title: str, alignments: Union[list, tuple] = None, uppercase_title: bool = True) -> None:
+    table = [d for d in data]
 
     if alignments is None:
         print(tabulate(table, headers=[title.upper() if uppercase_title else title, ''], tablefmt="presto"))
@@ -21,7 +11,7 @@ def key_value(data, title, alignments=None, uppercase_title=True) -> None:
                        colalign=alignments))
 
 
-def multi_value(data, with_headers=True, alignments=None) -> None:
+def multi_value(data, with_headers: bool = True, alignments: Union[list, tuple] = None) -> None:
     """
 
     :param data:

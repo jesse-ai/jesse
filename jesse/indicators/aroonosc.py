@@ -11,8 +11,8 @@ def aroonosc(candles: np.ndarray, period: int = 14, sequential: bool = False) ->
     AROONOSC - Aroon Oscillator
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

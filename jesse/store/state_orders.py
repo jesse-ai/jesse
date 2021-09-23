@@ -26,6 +26,12 @@ class OrdersState:
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
 
+    def remove_order(self, order: Order) -> None:
+        key = f'{order.exchange}-{order.symbol}'
+        self.storage[key] = [
+            o for o in self.storage[key] if o.id != order.id
+        ]
+
     # getters
     def get_orders(self, exchange, symbol) -> List[Order]:
         key = f'{exchange}-{symbol}'
@@ -43,11 +49,7 @@ class OrdersState:
     def count_active_orders(self, exchange: str, symbol: str) -> int:
         orders = self.get_orders(exchange, symbol)
 
-        c = 0
-        for o in orders:
-            if o.is_active:
-                c += 1
-        return c
+        return sum(bool(o.is_active) for o in orders)
 
     def count(self, exchange: str, symbol: str) -> int:
         return len(self.get_orders(exchange, symbol))

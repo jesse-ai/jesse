@@ -18,10 +18,6 @@ class InvalidStrategy(Exception):
     pass
 
 
-class Breaker(Exception):
-    pass
-
-
 class CandleNotFoundInDatabase(Exception):
     pass
 
@@ -31,10 +27,6 @@ class CandleNotFoundInExchange(Exception):
 
 
 class SymbolNotFound(Exception):
-    pass
-
-
-class MaximumDecimal(Exception):
     pass
 
 
@@ -51,6 +43,10 @@ class ExchangeInMaintenance(Exception):
 
 
 class ExchangeNotResponding(Exception):
+    pass
+
+
+class ExchangeRejectedOrder(Exception):
     pass
 
 

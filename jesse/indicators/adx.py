@@ -11,8 +11,8 @@ def adx(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     ADX - Average Directional Movement Index
 
     :param candles: np.ndarray
-    :param period: int - default=14
-    :param sequential: bool - default=False
+    :param period: int - default: 14
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """

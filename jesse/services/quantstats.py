@@ -10,7 +10,7 @@ from jesse.store import store
 import jesse.helpers as jh
 
 
-def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
+def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> None:
     daily_returns = pd.Series(store.app.daily_balance).pct_change(1).values
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
@@ -29,7 +29,7 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series) -> None:
 
     file_path = f'storage/full-reports/{jh.get_session_id()}.html'.replace(":", "-")
 
-    title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')}"
+    title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')} → {study_name}"
 
     try:
         qs.reports.html(returns=returns_time_series, trading_year_days=365, benchmark=buy_and_hold_returns, title=title, output=file_path)

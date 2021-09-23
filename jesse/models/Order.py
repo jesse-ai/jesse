@@ -39,7 +39,7 @@ class Order(Model):
         database = db
         indexes = ((('exchange', 'symbol'), False),)
 
-    def __init__(self, attributes=None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -119,6 +119,7 @@ class Order(Model):
         return {
             'id': self.id,
             'session_id': self.session_id,
+            'exchange_id': self.exchange_id,
             'symbol': self.symbol,
             'side': self.side,
             'type': self.type,
@@ -143,7 +144,7 @@ class Order(Model):
 
         if jh.is_debuggable('order_cancellation'):
             logger.info(
-                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
+                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
             )
         if jh.is_live():
             sync_publish('order', self.to_dict)

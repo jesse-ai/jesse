@@ -20,7 +20,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
 
     import jesse.helpers as jh
     from jesse.models import Candle
-    from jesse.exceptions import Breaker
+    from jesse.exceptions import CandleNotFoundInDatabase
     from jesse.services.candle import generate_candle_from_one_minutes
 
     start_date = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
@@ -47,7 +47,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
 
     # validate that there are enough candles for selected period
     if len(candles) == 0 or candles[-1][0] != finish_date or candles[0][0] != start_date:
-        raise Breaker(f'Not enough candles for {symbol}. Try running "jesse import-candles"')
+        raise CandleNotFoundInDatabase(f'Not enough candles for {symbol}. Try running "jesse import-candles"')
 
     if timeframe == '1m':
         return candles

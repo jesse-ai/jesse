@@ -14,7 +14,7 @@ def donchian(candles: np.ndarray, period: int = 20, sequential: bool = False) ->
 
     :param candles: np.ndarray
     :param period: int - default: 20
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: DonchianChannel(upperband, middleband, lowerband)
     """

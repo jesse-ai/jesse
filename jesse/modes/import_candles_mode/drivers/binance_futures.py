@@ -3,7 +3,7 @@ import requests
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-
+from typing import Union
 
 class BinanceFutures(CandleExchange):
     def __init__(self) -> None:
@@ -19,7 +19,7 @@ class BinanceFutures(CandleExchange):
 
         self.endpoint = 'https://fapi.binance.com/fapi/v1/klines'
 
-    def get_starting_time(self, symbol) -> int:
+    def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
@@ -46,11 +46,9 @@ class BinanceFutures(CandleExchange):
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
-        second_timestamp = first_timestamp + 60_000 * 1440
+        return first_timestamp + 60_000 * 1440
 
-        return second_timestamp
-
-    def fetch(self, symbol, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp:int) -> Union[list, None]:
         """
         note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
         note2: like Bitfinex, start_time includes the candle and so does the end_time.
@@ -81,10 +79,7 @@ class BinanceFutures(CandleExchange):
             return
 
         data = response.json()
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -94,6 +89,4 @@ class BinanceFutures(CandleExchange):
                 'high': float(d[2]),
                 'low': float(d[3]),
                 'volume': float(d[5])
-            })
-
-        return candles
+            } for d in data]

@@ -16,9 +16,9 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
     Reflex indicator by John F. Ehlers
 
     :param candles: np.ndarray
-    :param period: int - default=20
+    :param period: int - default: 20
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -45,13 +45,13 @@ def reflex_fast(ssf, period):
     ms = np.full_like(ssf, 0)
     sums = np.full_like(ssf, 0)
     for i in range(ssf.shape[0]):
-        if not (i < period):
+        if i >= period:
             slope = (ssf[i - period] - ssf[i]) / period
-            sum = 0
+            my_sum = 0
             for t in range(1, period + 1):
-                sum = sum + (ssf[i] + t * slope) - ssf[i - t]
-            sum = sum / period
-            sums[i] = sum
+                my_sum = my_sum + (ssf[i] + t * slope) - ssf[i - t]
+            my_sum /= period
+            sums[i] = my_sum
 
             ms[i] = 0.04 * sums[i] * sums[i] + 0.96 * ms[i - 1]
             if ms[i] > 0:

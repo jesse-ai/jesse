@@ -30,10 +30,7 @@ def init() -> None:
 
 
 def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
-    arr = []
-
-    for c in candles:
-        arr.append({
+    arr = [{
             'id': jh.generate_unique_id(),
             'symbol': symbol,
             'exchange': exchange,
@@ -43,6 +40,6 @@ def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
             'high': c[3],
             'low': c[4],
             'volume': c[5]
-        })
+        } for c in candles]
 
     store_candles_from_list(arr)

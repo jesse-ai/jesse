@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 
 import jesse.helpers as jh
@@ -11,7 +13,7 @@ from jesse.utils import sum_floats, subtract_floats
 
 
 class Position:
-    def __init__(self, exchange_name: str, symbol: str, attributes=None) -> None:
+    def __init__(self, exchange_name: str, symbol: str, attributes: dict = None) -> None:
         self.id = jh.generate_unique_id()
         self.entry_price = None
         self.exit_price = None
@@ -37,21 +39,21 @@ class Position:
             setattr(self, a, attributes[a])
 
     @property
-    def mark_price(self):
+    def mark_price(self) -> float:
         if not jh.is_live():
             return self.current_price
 
         return self._mark_price
 
     @property
-    def funding_rate(self):
+    def funding_rate(self) -> float:
         if not jh.is_live():
             return 0
 
         return self._funding_rate
 
     @property
-    def next_funding_timestamp(self):
+    def next_funding_timestamp(self) -> Union[int, None]:
         if not jh.is_live():
             return None
 
@@ -112,7 +114,7 @@ class Position:
         return base_cost
 
     @property
-    def leverage(self):
+    def leverage(self) -> Union[int, np.float64]:
         if self.exchange.type == 'spot':
             return 1
 
@@ -168,7 +170,7 @@ class Position:
             return self.exchange.futures_leverage_mode
 
     @property
-    def liquidation_price(self):
+    def liquidation_price(self) -> Union[float, np.float64]:
         """
         The price at which the position gets liquidated. formulas are taken from:
         https://help.bybit.com/hc/en-us/articles/900000181046-Liquidation-Price-USDT-Contract-
@@ -179,7 +181,10 @@ class Position:
         if jh.is_livetrading():
             return self._liquidation_price
 
-        if self.mode == 'isolated':
+        if self.mode in ['cross', 'spot']:
+            return np.nan
+
+        elif self.mode == 'isolated':
             if self.type == 'long':
                 return self.entry_price * (1 - self._initial_margin_rate + 0.004)
             elif self.type == 'short':
@@ -187,21 +192,15 @@ class Position:
             else:
                 return np.nan
 
-        elif self.mode == 'cross':
-            return np.nan
-
-        elif self.mode == 'spot':
-            return np.nan
-
         else:
             raise ValueError
 
     @property
-    def _initial_margin_rate(self):
+    def _initial_margin_rate(self) -> float:
         return 1 / self.leverage
 
     @property
-    def bankruptcy_price(self):
+    def bankruptcy_price(self) -> Union[float, np.float64]:
         if self.type == 'long':
             return self.entry_price * (1 - self._initial_margin_rate)
         elif self.type == 'short':
@@ -272,7 +271,7 @@ class Position:
             raise OpenPositionError('position must be already open in order to increase its size')
 
         qty = abs(qty)
-        size = qty * price
+        # size = qty * price
 
         # if self.exchange:
         #     self.exchange.decrease_futures_balance(size)
@@ -302,7 +301,7 @@ class Position:
         self.qty = qty
         self.opened_at = jh.now_to_timestamp()
 
-        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}, { self.qty}, ${round(self.entry_price, 2)}'
+        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}, {self.qty}, ${round(self.entry_price, 2)}'
 
         if jh.is_debuggable('position_opened'):
             logger.info(info_text)

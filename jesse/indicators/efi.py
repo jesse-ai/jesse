@@ -18,7 +18,7 @@ def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", seque
     :param candles: np.ndarray
     :param period: int - default: 13
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -36,7 +36,7 @@ def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", seque
 
 @njit
 def efi_fast(source, volume):
-    dif = np.zeros(len(source) - 1)
-    for i in range(1, len(source)):
+    dif = np.zeros(source.size - 1)
+    for i in range(1, source.size):
         dif[i - 1] = (source[i] - source[i - 1]) * volume[i]
     return dif

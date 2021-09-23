@@ -19,7 +19,7 @@ class Bitfinex(CandleExchange):
 
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
 
-    def get_starting_time(self, symbol: str):
+    def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         # hard-code few common symbols
@@ -49,11 +49,9 @@ class Bitfinex(CandleExchange):
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
-        second_timestamp = first_timestamp + 60_000 * 1440
+        return first_timestamp + 60_000 * 1440
 
-        return second_timestamp
-
-    def fetch(self, symbol: str, start_timestamp):
+    def fetch(self, symbol: str, start_timestamp: int) -> list:
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
         # instead of limit. Therefore, we use limit number to calculate the end_timestamp
         end_timestamp = start_timestamp + (self.count - 1) * 60000
@@ -73,10 +71,7 @@ class Bitfinex(CandleExchange):
         )
 
         data = response.json()
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -86,6 +81,4 @@ class Bitfinex(CandleExchange):
                 'high': d[3],
                 'low': d[4],
                 'volume': d[5]
-            })
-
-        return candles
+            } for d in data]

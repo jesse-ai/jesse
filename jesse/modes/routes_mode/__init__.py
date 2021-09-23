@@ -29,9 +29,8 @@ def run(dna: bool = False) -> None:
     if not dna:
         table.multi_value(arr)
         print('\n')
-    else:
-        if not translated_DNAs_count:
-            print('No DNA string found.')
+    elif not translated_DNAs_count:
+        print('No DNA string found.')
 
     # extra_candles
     if not dna:

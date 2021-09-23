@@ -20,13 +20,13 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
     Damiani Volatmeter
 
     :param candles: np.ndarray
-    :param vis_atr: int - default=13
-    :param vis_std: int - default=20
-    :param sed_atr: int - default=40
-    :param sed_std: int - default=100
-    :param threshold: float - default=1.4
+    :param vis_atr: int - default: 13
+    :param vis_std: int - default: 20
+    :param sed_atr: int - default: 40
+    :param sed_std: int - default: 100
+    :param threshold: float - default: 1.4
     :param source_type: str - default: "close"
-    :param sequential: bool - default=False
+    :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
@@ -54,7 +54,7 @@ def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std,
     vol = np.full_like(source, 0)
     t = np.full_like(source, 0)
     for i in range(source.shape[0]):
-        if not (i < sed_std):
+        if i >= sed_std:
             vol[i] = atrvis[i] / atrsed[i] + lag_s * (vol[i - 1] - vol[i - 3])
             anti_thres = np.std(source[i - vis_std:i]) / np.std(source[i - sed_std:i])
             t[i] = threshold - anti_thres
