@@ -72,6 +72,7 @@ def install_routes() -> None:
 
     config['app']['considering_candles'] = tuple(considering_candles)
     config['app']['considering_exchanges'] = tuple(considering_exchanges)
+
     config['app']['considering_symbols'] = tuple(considering_symbols)
     config['app']['considering_timeframes'] = tuple(considering_timeframes)
     config['app']['trading_exchanges'] = tuple(trading_exchanges)

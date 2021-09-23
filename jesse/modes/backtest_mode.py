@@ -80,7 +80,7 @@ def run(
             'session_id': jh.get_session_id(),
             'debug_mode': str(config['app']['debug_mode']),
         })
-        
+
         # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
         sync_publish('candles_info', stats.candles_info(candles[key]['candles']))

@@ -21,7 +21,6 @@ def save_daily_portfolio_balance() -> None:
         for key, e in store.exchanges.storage.items()
     ]
 
-
     # add open position values
     for key, pos in store.positions.storage.items():
         if pos.is_open:

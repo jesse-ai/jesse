@@ -1,14 +1,13 @@
 import asyncio
 import json
 import os
-import sys
 import warnings
 from typing import Optional
 import click
 import pkg_resources
 from fastapi import BackgroundTasks, Query, Header
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
