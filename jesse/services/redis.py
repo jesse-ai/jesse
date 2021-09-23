@@ -26,6 +26,9 @@ if jh.is_jesse_project():
 
 
 def sync_publish(event: str, msg):
+    if jh.is_unit_testing():
+        raise EnvironmentError('sync_publish() should be called during testing. There must be something wrong')
+
     sync_redis.publish(
         'channel:1', json.dumps({
             'id': os.getpid(),
