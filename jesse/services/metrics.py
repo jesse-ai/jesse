@@ -6,7 +6,7 @@ import pandas as pd
 
 import jesse.helpers as jh
 from jesse.store import store
-
+from jesse.routes import router
 
 def candles(candles_array: np.ndarray) -> List[List[str]]:
     period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]),
@@ -52,6 +52,41 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         return None
 
     df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
+
+    daily_returns = pd.Series(daily_balance).pct_change(1).values
+    max_drawdown = crypto_empyrical.max_drawdown(daily_returns) * 100
+    annual_return = crypto_empyrical.annual_return(daily_returns) * 100
+    sharpe_ratio = crypto_empyrical.sharpe_ratio(daily_returns)
+    calmar_ratio = crypto_empyrical.calmar_ratio(daily_returns)
+    sortino_ratio = crypto_empyrical.sortino_ratio(daily_returns)
+    omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
+    total_open_trades = store.app.total_open_trades
+    open_pl = store.app.total_open_pl
+
+    metrics = {
+        'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
+        'max_drawdown': max_drawdown,
+        'annual_return': annual_return,
+        'sharpe_ratio': sharpe_ratio,
+        'calmar_ratio': calmar_ratio,
+        'sortino_ratio': sortino_ratio,
+        'omega_ratio': omega_ratio,
+        'total_open_trades': total_open_trades,
+        'open_pl': open_pl,
+    }
+
+    trade_metrics = calculate_metrics_from_df(df, starting_balance)
+    metrics.update(trade_metrics)
+
+
+    if jh.get_config('env.metrics.per_route_metrics', False) and len(router.routes) > 1:
+        grouped = df.groupby(df.symbol)
+        for name, group in grouped:
+            metrics[name] = calculate_metrics_from_df(group, starting_balance)
+
+    return metrics
+
+def calculate_metrics_from_df(df: pd.DataFrame, starting_balance: float) -> dict:
 
     total_completed = len(df)
     winning_trades = df.loc[df['PNL'] > 0]
@@ -99,22 +134,11 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     gross_profit = winning_trades['PNL'].sum()
     gross_loss = losing_trades['PNL'].sum()
 
-    daily_returns = pd.Series(daily_balance).pct_change(1).values
-    max_drawdown = crypto_empyrical.max_drawdown(daily_returns) * 100
-    annual_return = crypto_empyrical.annual_return(daily_returns) * 100
-    sharpe_ratio = crypto_empyrical.sharpe_ratio(daily_returns)
-    calmar_ratio = crypto_empyrical.calmar_ratio(daily_returns)
-    sortino_ratio = crypto_empyrical.sortino_ratio(daily_returns)
-    omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
-    total_open_trades = store.app.total_open_trades
-    open_pl = store.app.total_open_pl
-
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
         'total_winning_trades': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
         'total_losing_trades': np.nan if np.isnan(total_losing_trades) else total_losing_trades,
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
-        'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
         'max_R': np.nan if np.isnan(max_R) else max_R,
         'min_R': np.nan if np.isnan(min_R) else min_R,
@@ -138,14 +162,6 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'average_losing_holding_period': average_losing_holding_period,
         'gross_profit': gross_profit,
         'gross_loss': gross_loss,
-        'max_drawdown': max_drawdown,
-        'annual_return': annual_return,
-        'sharpe_ratio': sharpe_ratio,
-        'calmar_ratio': calmar_ratio,
-        'sortino_ratio': sortino_ratio,
-        'omega_ratio': omega_ratio,
-        'total_open_trades': total_open_trades,
-        'open_pl': open_pl,
         'winning_streak': winning_streak,
         'losing_streak': losing_streak,
         'largest_losing_trade': largest_losing_trade,

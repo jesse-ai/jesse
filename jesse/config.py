@@ -213,6 +213,7 @@ config = {
             'largest_winning_trade': False,
             'total_winning_trades': False,
             'total_losing_trades': False,
+            'per_route_metrics': False,
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
