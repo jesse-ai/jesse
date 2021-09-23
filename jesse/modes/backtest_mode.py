@@ -17,7 +17,6 @@ from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
-from jesse.services import logger
 from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.cache import cache
@@ -76,12 +75,12 @@ def run(
         candles = load_candles(start_date, finish_date)
         click.clear()
 
-    sync_publish('general_info', {
-        'session_id': jh.get_session_id(),
-        'debug_mode': str(config['app']['debug_mode']),
-    })
-
     if not jh.should_execute_silently():
+        sync_publish('general_info', {
+            'session_id': jh.get_session_id(),
+            'debug_mode': str(config['app']['debug_mode']),
+        })
+        
         # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
         sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
