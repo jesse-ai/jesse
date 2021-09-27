@@ -217,6 +217,14 @@ class CandlesState:
             generate_from_count = int((candle[0] - last_candle[0]) / 60_000)
             short_candles = self.get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
 
+            if len(short_candles) == 0:
+                raise ValueError(
+                    f'No candles were passed. More info:'
+                    f'\nexchange:{exchange}, symbol:{symbol}, timeframe:{timeframe}, generate_from_count:{generate_from_count}'
+                    f'\nlast_candle\'s timestamp: {last_candle[0]}'
+                    f'\ncurrent timestamp: {jh.now()}'
+                )
+
             # update latest candle
             generated_candle = generate_candle_from_one_minutes(
                 timeframe,
