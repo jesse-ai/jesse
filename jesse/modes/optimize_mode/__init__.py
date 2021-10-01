@@ -126,7 +126,7 @@ class Optimizer(Genetics):
                 ratio_normalized = jh.normalize(ratio, -.5, 5)
             elif ratio_config == 'serenity':
                 ratio = training_data['serenity_index']
-                ratio_normalized = jh.normalize(ratio, -.5, 5)
+                ratio_normalized = jh.normalize(ratio, -.5, 15)
             else:
                 raise ValueError(
                     f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity and omega.')
