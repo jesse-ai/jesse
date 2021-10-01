@@ -215,6 +215,8 @@ def portfolio_metrics() -> List[
              data['average_losing_holding_period'], 3)]
     ]
 
+    metrics.append(['Serenity Index', data['serenity_index']])
+
     if jh.get_config('env.metrics.sharpe_ratio', True):
         metrics.append(['Sharpe Ratio', round(data['sharpe_ratio'], 2)])
     if jh.get_config('env.metrics.calmar_ratio', False):
