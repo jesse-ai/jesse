@@ -197,6 +197,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'calmar_ratio': quantstats_metrics['Calmar'],
         'sortino_ratio': quantstats_metrics['Sortino'],
         'omega_ratio': omega_ratio,
+        'serenity_index': quantstats_metrics['Serenity Index'],
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
         'winning_streak': winning_streak,
