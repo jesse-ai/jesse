@@ -7,7 +7,6 @@ REQUIRED_PACKAGES = [
     'arrow',
     'blinker',
     'Click',
-    'crypto_empyrical',
     'matplotlib',
     'newtulipy',
     'numpy',
