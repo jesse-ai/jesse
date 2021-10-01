@@ -157,7 +157,6 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     returns_time_series = pd.Series(daily_returns, index=pd.to_datetime(list(date_list)))
 
     quantstats_metrics = reports.metrics(returns_time_series, display=False, mode='full', trading_year_days=365).to_dict()['Strategy']
-    print(quantstats_metrics)
     omega_ratio = calculate_omega_ratio(daily_returns)
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
