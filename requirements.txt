@@ -12,6 +12,7 @@ psycopg2-binary==2.9.1
 pydash==5.0.2
 pytest==6.2.5
 PyWavelets==1.1.1
+quantstats==0.0.37
 requests==2.26.0
 scipy==1.7.1
 statsmodels==0.12.2
@@ -19,5 +20,3 @@ TA-Lib==0.4.21
 tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==1.2.1
-quantstats==0.0.36
-

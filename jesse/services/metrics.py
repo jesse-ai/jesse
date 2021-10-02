@@ -27,56 +27,6 @@ def candles(candles_array: np.ndarray) -> List[List[str]]:
     ]
 
 
-# Temporary code - until Quantstats adds omega ratio.
-def calculate_omega_ratio(returns, risk_free=0.0, required_return=0.0,
-                          annualization=365):
-    """Determines the Omega ratio of a strategy.
-    Parameters
-    ----------
-    returns : pd.Series or np.ndarray
-        Daily returns of the strategy, noncumulative.
-        - See full explanation in :func:`~empyrical.stats.cum_returns`.
-    risk_free : int, float
-        Constant risk-free return throughout the period
-    required_return : float, optional
-        Minimum acceptance return of the investor. Threshold over which to
-        consider positive vs negative returns. It will be converted to a
-        value appropriate for the period of the returns. E.g. An annual minimum
-        acceptable return of 100 will translate to a minimum acceptable
-        return of 0.018.
-    annualization : int, optional
-        Factor used to convert the required_return into a daily
-        value. Enter 1 if no time period conversion is necessary.
-    Returns
-    -------
-    omega_ratio : float
-    Note
-    -----
-    See https://en.wikipedia.org/wiki/Omega_ratio for more details.
-    """
-
-    if len(returns) < 2:
-        return np.nan
-
-    if annualization == 1:
-        return_threshold = required_return
-    elif required_return <= -1:
-        return np.nan
-    else:
-        return_threshold = (1 + required_return) ** \
-                           (1. / annualization) - 1
-
-    returns_less_thresh = returns - risk_free - return_threshold
-
-    numer = sum(returns_less_thresh[returns_less_thresh > 0.0])
-    denom = -1.0 * sum(returns_less_thresh[returns_less_thresh < 0.0])
-
-    if denom > 0.0:
-        return numer / denom
-    else:
-        return np.nan
-
-
 def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
     array = [['exchange', 'symbol', 'timeframe', 'strategy', 'DNA']]
 
@@ -156,8 +106,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     daily_returns = pd.Series(daily_balance).pct_change(1).values
     returns_time_series = pd.Series(daily_returns, index=pd.to_datetime(list(date_list)))
 
-    quantstats_metrics = reports.metrics(returns_time_series, display=False, mode='full', trading_year_days=365).to_dict()['Strategy']
-    omega_ratio = calculate_omega_ratio(daily_returns)
+    quantstats_metrics = reports.metrics(returns_time_series, display=False, mode='full', periods_per_year=365).to_dict()['Strategy']
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
@@ -191,11 +140,11 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'gross_profit': gross_profit,
         'gross_loss': gross_loss,
         'max_drawdown': quantstats_metrics['Max Drawdown '] * 100,
-        'annual_return': quantstats_metrics['CAGR%'] * 100,
+        'annual_return': quantstats_metrics['CAGR﹪'] * 100,
         'sharpe_ratio': quantstats_metrics['Sharpe'],
         'calmar_ratio': quantstats_metrics['Calmar'],
         'sortino_ratio': quantstats_metrics['Sortino'],
-        'omega_ratio': omega_ratio,
+        'omega_ratio': quantstats_metrics['Omega (0﹪)'],
         'serenity_index': quantstats_metrics['Serenity Index'],
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
