@@ -110,6 +110,8 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
+    print(quantstats_metrics['Max Drawdown '] == '')
+
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
         'total_winning_trades': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
@@ -139,7 +141,7 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'average_losing_holding_period': average_losing_holding_period,
         'gross_profit': gross_profit,
         'gross_loss': gross_loss,
-        'max_drawdown': quantstats_metrics['Max Drawdown '] * 100,
+        'max_drawdown': np.nan if quantstats_metrics['Max Drawdown '] == '' else quantstats_metrics['Max Drawdown '] * 100,
         'annual_return': quantstats_metrics['CAGR﹪'] * 100,
         'sharpe_ratio': quantstats_metrics['Sharpe'],
         'calmar_ratio': quantstats_metrics['Calmar'],
