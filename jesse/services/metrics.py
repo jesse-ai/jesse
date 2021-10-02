@@ -110,8 +110,6 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
-    print(quantstats_metrics['Max Drawdown '] == '')
-
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
         'total_winning_trades': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
