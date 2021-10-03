@@ -109,13 +109,22 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
-    max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
-    annual_return = stats.cagr(daily_return).values[0] * 100
-    sharpe_ratio = stats.sharpe(daily_return, periods=365).values[0]
-    calmar_ratio = stats.calmar(daily_return).values[0]
-    sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
-    omega_ratio = stats.omega(daily_return, periods=365)
-    serenity_index = stats.serenity_index(daily_return).values[0]
+    if len(daily_return) < 2:
+        max_drawdown = np.nan
+        annual_return = np.nan
+        sharpe_ratio = np.nan
+        calmar_ratio = np.nan
+        sortino_ratio = np.nan
+        omega_ratio = np.nan
+        serenity_index = np.nan
+    else:
+        max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
+        annual_return = stats.cagr(daily_return).values[0] * 100
+        sharpe_ratio = stats.sharpe(daily_return, periods=365).values[0]
+        calmar_ratio = stats.calmar(daily_return).values[0]
+        sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
+        omega_ratio = stats.omega(daily_return, periods=365)
+        serenity_index = stats.serenity_index(daily_return).values[0]
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
