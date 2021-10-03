@@ -3,7 +3,7 @@ from typing import List, Any, Union
 
 import numpy as np
 import pandas as pd
-from quantstats import reports
+from quantstats import stats
 
 import jesse.helpers as jh
 from jesse.store import store
@@ -103,12 +103,19 @@ def trades(trades_list: list, daily_balance: list) -> dict:
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
-    daily_returns = pd.Series(daily_balance).pct_change(1).values
-    returns_time_series = pd.Series(daily_returns, index=pd.to_datetime(list(date_list)))
 
-    quantstats_metrics = reports.metrics(returns_time_series, display=False, mode='full', periods_per_year=365).to_dict()['Strategy']
+    daily_return = pd.DataFrame(daily_balance, index=pd.to_datetime(list(date_list))).pct_change(1)
+
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
+
+    max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
+    annual_return = stats.cagr(daily_return).values[0] * 100
+    sharpe_ratio = stats.sharpe(daily_return, periods=365).values[0]
+    calmar_ratio = stats.calmar(daily_return).values[0]
+    sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
+    omega_ratio = stats.omega(daily_return, periods=365)
+    serenity_index = stats.serenity_index(daily_return).values[0]
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
@@ -139,13 +146,13 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'average_losing_holding_period': average_losing_holding_period,
         'gross_profit': gross_profit,
         'gross_loss': gross_loss,
-        'max_drawdown': np.nan if quantstats_metrics['Max Drawdown '] == '' else quantstats_metrics['Max Drawdown '] * 100,
-        'annual_return': quantstats_metrics['CAGR﹪'] * 100,
-        'sharpe_ratio': quantstats_metrics['Sharpe'],
-        'calmar_ratio': quantstats_metrics['Calmar'],
-        'sortino_ratio': quantstats_metrics['Sortino'],
-        'omega_ratio': quantstats_metrics['Omega (0﹪)'],
-        'serenity_index': quantstats_metrics['Serenity Index'],
+        'max_drawdown': np.nan if np.isnan(max_drawdown) else max_drawdown,
+        'annual_return': np.nan if np.isnan(annual_return) else annual_return,
+        'sharpe_ratio': np.nan if np.isnan(sharpe_ratio) else sharpe_ratio,
+        'calmar_ratio': np.nan if np.isnan(calmar_ratio) else calmar_ratio,
+        'sortino_ratio': np.nan if np.isnan(sortino_ratio) else sortino_ratio,
+        'omega_ratio': np.nan if np.isnan(omega_ratio) else omega_ratio,
+        'serenity_index': np.nan if np.isnan(serenity_index) else serenity_index,
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
         'winning_streak': winning_streak,
