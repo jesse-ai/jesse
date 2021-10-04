@@ -117,6 +117,8 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         sortino_ratio = np.nan
         omega_ratio = np.nan
         serenity_index = np.nan
+        smart_sharpe = np.nan
+        smart_sortino = np.nan
     else:
         max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
         annual_return = stats.cagr(daily_return).values[0] * 100
@@ -125,6 +127,8 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
         omega_ratio = stats.omega(daily_return, periods=365)
         serenity_index = stats.serenity_index(daily_return).values[0]
+        smart_sharpe = stats.smart_sharpe(daily_return, periods=365).values[0]
+        smart_sortino = stats.smart_sortino(daily_return, periods=365).values[0]
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
@@ -162,6 +166,8 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'sortino_ratio': np.nan if np.isnan(sortino_ratio) else sortino_ratio,
         'omega_ratio': np.nan if np.isnan(omega_ratio) else omega_ratio,
         'serenity_index': np.nan if np.isnan(serenity_index) else serenity_index,
+        'smart_sharpe': np.nan if np.isnan(smart_sharpe) else smart_sharpe,
+        'smart_sortino': np.nan if np.isnan(smart_sortino) else smart_sortino,
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
         'winning_streak': winning_streak,
