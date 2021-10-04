@@ -127,9 +127,15 @@ class Optimizer(Genetics):
             elif ratio_config == 'serenity':
                 ratio = training_data['serenity_index']
                 ratio_normalized = jh.normalize(ratio, -.5, 15)
+            elif ratio_config == 'smart sharpe':
+                ratio = training_data['smart_sharpe']
+                ratio_normalized = jh.normalize(ratio, -.5, 5)
+            elif ratio_config == 'smart sortino':
+                ratio = training_data['smart_sortino']
+                ratio_normalized = jh.normalize(ratio, -.5, 15)
             else:
                 raise ValueError(
-                    f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity and omega.')
+                    f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
 
             if ratio < 0:
                 score = 0.0001
