@@ -42,7 +42,7 @@ def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
     return array
 
 
-def trades(trades_list: list, daily_balance: list) -> dict:
+def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
     starting_balance = 0
     current_balance = 0
 
@@ -127,8 +127,10 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
         omega_ratio = stats.omega(daily_return, periods=365)
         serenity_index = stats.serenity_index(daily_return).values[0]
-        smart_sharpe = stats.smart_sharpe(daily_return, periods=365).values[0]
-        smart_sortino = stats.smart_sortino(daily_return, periods=365).values[0]
+        # As those calculations are slow they are only done for the final report and not at self.metrics in the strategy.
+        if final:
+            smart_sharpe = stats.smart_sharpe(daily_return, periods=365).values[0]
+            smart_sortino = stats.smart_sortino(daily_return, periods=365).values[0]
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
