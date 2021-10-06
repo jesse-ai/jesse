@@ -215,7 +215,18 @@ class CandlesState:
 
             last_candle = self.get_current_candle(exchange, symbol, timeframe)
             generate_from_count = int((candle[0] - last_candle[0]) / 60_000)
+            number_of_candles = len(self.get_candles(exchange, symbol, '1m'))
             short_candles = self.get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
+
+            if generate_from_count < 0:
+                current_1m = self.get_current_candle(exchange, symbol, '1m')
+                raise ValueError(
+                    f'generate_from_count cannot be negative! '
+                    f'generate_from_count:{generate_from_count}, candle[0]:{candle[0]}, '
+                    f'last_candle[0]:{last_candle[0]}, current_1m:{current_1m[0]}, number_of_candles:{number_of_candles}')
+            else:
+                from jesse.services import logger
+                logger.info(f'generate_from_count: {generate_from_count}')
 
             if len(short_candles) == 0:
                 raise ValueError(
