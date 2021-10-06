@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+# also change in version.py
 VERSION = '0.27.4'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
