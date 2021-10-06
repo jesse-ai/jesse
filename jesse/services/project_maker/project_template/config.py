@@ -205,7 +205,7 @@ config = {
     # Below configurations are related to the optimize mode
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     'optimization': {
-        # sharpe, calmar, sortino, omega
+        # sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
         'ratio': 'sharpe',
     },
 

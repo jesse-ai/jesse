@@ -1015,7 +1015,7 @@ class Strategy(ABC):
         """
         if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
-                store.completed_trades.trades, store.app.daily_balance
+                store.completed_trades.trades, store.app.daily_balance, final=False
             )
         return self._cached_metrics[self.trades_count]
 
