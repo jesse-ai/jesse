@@ -1180,7 +1180,8 @@ class Strategy(ABC):
     def liquidation_price(self) -> float:
         return self.position.liquidation_price
 
-    def log(self, msg: str, log_type: str = 'info') -> None:
+    @staticmethod
+    def log(msg: str, log_type: str = 'info') -> None:
         msg = str(msg)
 
         if log_type == 'info':
