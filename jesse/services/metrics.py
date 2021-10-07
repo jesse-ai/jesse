@@ -77,9 +77,6 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
     largest_winning_trade = 0 if total_winning_trades == 0 else winning_trades['PNL'].max()
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
-    max_R = df['R'].max()
-    min_R = df['R'].min()
-    mean_R = df['R'].mean()
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
@@ -140,9 +137,6 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
         'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
-        'max_R': np.nan if np.isnan(max_R) else max_R,
-        'min_R': np.nan if np.isnan(min_R) else min_R,
-        'mean_R': np.nan if np.isnan(mean_R) else mean_R,
         'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
         'longs_count': np.nan if np.isnan(longs_count) else longs_count,
         'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,

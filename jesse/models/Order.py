@@ -32,6 +32,7 @@ class Order(Model):
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
     role = CharField(null=True)
+    submitted_via = None
 
     class Meta:
         database = db

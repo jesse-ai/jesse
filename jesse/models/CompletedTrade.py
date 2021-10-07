@@ -51,15 +51,9 @@ class CompletedTrade(peewee.Model):
             "type": self.type,
             "entry_price": self.entry_price,
             "exit_price": self.exit_price,
-            "take_profit_at": self.take_profit_at,
-            "stop_loss_at": self.stop_loss_at,
             "qty": self.qty,
             "fee": self.fee,
-            "reward": self.reward,
             "size": self.size,
-            "risk": self.risk,
-            "risk_percentage": self.risk_percentage,
-            "R": self.r,
             "PNL": self.pnl,
             "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
@@ -79,19 +73,13 @@ class CompletedTrade(peewee.Model):
             'type': self.type,
             'entry_price': self.entry_price,
             'exit_price': self.exit_price,
-            'take_profit_at': self.take_profit_at,
-            'stop_loss_at': self.stop_loss_at,
             'qty': self.qty,
             'opened_at': self.opened_at,
             'closed_at': self.closed_at,
             'entry_candle_timestamp': self.entry_candle_timestamp,
             'exit_candle_timestamp': self.exit_candle_timestamp,
             "fee": self.fee,
-            "reward": self.reward,
             "size": self.size,
-            "risk": self.risk,
-            "risk_percentage": self.risk_percentage,
-            "R": self.r,
             "PNL": self.pnl,
             "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
@@ -103,29 +91,8 @@ class CompletedTrade(peewee.Model):
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
-    def reward(self) -> float:
-        return abs(self.take_profit_at - self.entry_price) * self.qty
-
-    @property
     def size(self) -> float:
         return self.qty * self.entry_price
-
-    @property
-    def risk(self) -> float:
-        return abs(self.stop_loss_at - self.entry_price) * self.qty
-
-    @property
-    def risk_percentage(self) -> float:
-        return round((self.risk / self.size) * 100, 2)
-
-    @property
-    def risk_reward_ratio(self) -> float:
-        return self.reward / self.risk
-
-    @property
-    def r(self) -> float:
-        """alias for risk_reward_ratio"""
-        return self.risk_reward_ratio
 
     @property
     def pnl(self) -> float:
