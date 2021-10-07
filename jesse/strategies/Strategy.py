@@ -46,7 +46,7 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self._open_position_orders = []
+        self._open_position_orders = {}
         self._close_position_orders = {}
 
         self.trade: CompletedTrade = None
@@ -198,9 +198,7 @@ class Strategy(ABC):
                 submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
 
             if submitted_order:
-                self._open_position_orders.append(
-                    submitted_order
-                )
+                self._open_position_orders[submitted_order.id] = submitted_order
 
     def _prepare_buy(self, make_copies: bool = True) -> None:
         if type(self.buy) is np.ndarray:
@@ -332,7 +330,7 @@ class Strategy(ABC):
                 submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
 
             if submitted_order:
-                self._open_position_orders.append(submitted_order)
+                self._open_position_orders[submitted_order.id] = submitted_order
 
     def _execute_filters(self) -> bool:
         for f in self.filters():
@@ -399,8 +397,8 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self._open_position_orders = []
-        self._close_position_orders = {}
+        self._open_position_orders.clear()
+        self._close_position_orders.clear()
 
         self.increased_count = 0
         self.reduced_count = 0
@@ -456,12 +454,12 @@ class Strategy(ABC):
                     self._buy = self.buy.copy()
 
                     # cancel orders
-                    for o in self._open_position_orders:
+                    for k in list(self._open_position_orders.keys()):
+                        o: Order = self._open_position_orders[k]
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
+                            del self._open_position_orders[k]
 
-                    # clean orders array but leave executed ones
-                    self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
                     for o in self._buy:
                         # STOP order
                         if o[1] > self.price:
@@ -475,7 +473,7 @@ class Strategy(ABC):
                             submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
 
                         if submitted_order:
-                            self._open_position_orders.append(submitted_order)
+                            self._open_position_orders[submitted_order.id] = submitted_order
 
             elif self.is_short:
                 # prepare format
@@ -486,12 +484,11 @@ class Strategy(ABC):
                     self._sell = self.sell.copy()
 
                     # cancel orders
-                    for o in self._open_position_orders:
+                    for k in list(self._open_position_orders.keys()):
+                        o: Order = self._open_position_orders[k]
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-
-                    # clean orders array but leave executed ones
-                    self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
+                            del self._open_position_orders[k]
 
                     for o in self._sell:
                         # STOP order
@@ -506,7 +503,7 @@ class Strategy(ABC):
                             submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
 
                         if submitted_order:
-                            self._open_position_orders.append(submitted_order)
+                            self._open_position_orders[submitted_order.id] = submitted_order
 
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
@@ -600,7 +597,7 @@ class Strategy(ABC):
             logger.info('Maximum allowed trades in test-drive mode is reached')
             return
 
-        if self._open_position_orders != [] and self.is_close and self.should_cancel():
+        if self._open_position_orders and self.is_close and self.should_cancel():
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -627,7 +624,7 @@ class Strategy(ABC):
         if jh.is_backtesting() or jh.is_unit_testing():
             store.orders.execute_pending_market_orders()
 
-        if self.position.is_close and self._open_position_orders == []:
+        if self.position.is_close and not self._open_position_orders:
             should_short = self.should_short()
             should_long = self.should_long()
             # validation
@@ -693,7 +690,7 @@ class Strategy(ABC):
                     submitted_order.submitted_via = 'stop-loss'
                     self._close_position_orders[submitted_order.id] = submitted_order
 
-        self._open_position_orders = []
+        self._open_position_orders.clear()
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -722,7 +719,7 @@ class Strategy(ABC):
     def _on_increased_position(self, order: Order) -> None:
         self.increased_count += 1
 
-        self._open_position_orders = []
+        self._open_position_orders.clear()
 
         self._broadcast('route-increased-position')
 
@@ -744,7 +741,7 @@ class Strategy(ABC):
         """
         self.reduced_count += 1
 
-        self._open_position_orders = []
+        self._open_position_orders.clear()
 
         self._broadcast('route-reduced-position')
 
