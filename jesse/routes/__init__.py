@@ -27,7 +27,14 @@ class RouterClass:
             # validate strategy
             strategy_name = r[3]
             if jh.is_unit_testing():
-                exists = jh.file_exists(f"{sys.path[0]}/jesse/strategies/{strategy_name}/__init__.py")
+                path = sys.path[0]
+                # live plugin
+                if path.endswith('jesse-live'):
+                    strategies_dir = f'{sys.path[0]}/tests/strategies'
+                # main framework
+                else:
+                    strategies_dir = f'{sys.path[0]}/jesse/strategies'
+                exists = jh.file_exists(f"{strategies_dir}/{strategy_name}/__init__.py")
             else:
                 exists = jh.file_exists(f'strategies/{strategy_name}/__init__.py')
 

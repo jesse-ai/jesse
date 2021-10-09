@@ -871,39 +871,6 @@ def test_using_market_order_for_low_price_difference():
     single_route_backtest('TestMarketOrderForLowPriceDifference')
 
 
-def test_partially_executed_orders_1():
-    single_route_backtest('TestPartiallyExecutedOrders1')
-    assert len(store.completed_trades.trades) == 1
-    t: CompletedTrade = store.completed_trades.trades[0]
-    assert len(t.orders) == 2
-    assert t.qty == 1
-
-
-def test_partially_executed_orders_2():
-    single_route_backtest('TestPartiallyExecutedOrders2')
-
-    assert len(store.completed_trades.trades) == 1
-    t: CompletedTrade = store.completed_trades.trades[0]
-    assert len(t.orders) == 3
-
-    o0: Order = t.orders[0]
-    o1: Order = t.orders[1]
-    o2: Order = t.orders[2]
-    assert o0.role == order_roles.OPEN_POSITION
-    assert o0.status == 'EXECUTED'
-
-    assert o1.role == order_roles.REDUCE_POSITION
-    assert o1.qty == -1
-    assert o1.status == 'EXECUTED'
-
-    assert o2.role == order_roles.CLOSE_POSITION
-    assert o2.status == 'EXECUTED'
-    assert o2.qty == -1
-
-    assert t.qty == 2
-    assert t.exit_price == 20
-
-
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(

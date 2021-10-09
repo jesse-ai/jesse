@@ -269,7 +269,15 @@ def get_strategy_class(strategy_name: str):
     from pydoc import locate
 
     if is_unit_testing():
-        return locate(f'jesse.strategies.{strategy_name}.{strategy_name}')
+        path = sys.path[0]
+        # live plugin
+        if path.endswith('jesse-live'):
+            strategy_dir = f'tests.strategies.{strategy_name}.{strategy_name}'
+        # main framework
+        else:
+            strategy_dir = f'jesse.strategies.{strategy_name}.{strategy_name}'
+
+        return locate(strategy_dir)
     else:
         return locate(f'strategies.{strategy_name}.{strategy_name}')
 
