@@ -191,15 +191,17 @@ class Strategy(ABC):
             return
 
         for o in self._buy:
+            # MARKET order
+            if abs(o[1] - self.price) < 0.0001:
+                submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
             # STOP order
-            if o[1] > self.price:
+            elif o[1] > self.price:
                 submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
             # LIMIT order
             elif o[1] < self.price:
                 submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
-            # MARKET order
             else:
-                submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
             if submitted_order:
                 self._open_position_orders.append(
@@ -327,15 +329,17 @@ class Strategy(ABC):
             return
 
         for o in self._sell:
+            # MARKET order
+            if abs(o[1] - self.price) < 0.0001:
+                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
             # STOP order
-            if o[1] < self.price:
+            elif o[1] < self.price:
                 submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
             # LIMIT order
             elif o[1] > self.price:
                 submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-            # MARKET order
             else:
-                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
             if submitted_order:
                 self._open_position_orders.append(submitted_order)
@@ -472,16 +476,18 @@ class Strategy(ABC):
                     # clean orders array but leave executed ones
                     self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
                     for o in self._buy:
+                        # MARKET order
+                        if abs(o[1] - self.price) < 0.0001:
+                            submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
                         # STOP order
-                        if o[1] > self.price:
+                        elif o[1] > self.price:
                             submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1],
                                                                           order_roles.OPEN_POSITION)
                         # LIMIT order
                         elif o[1] < self.price:
                             submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
-                        # MARKET order
                         else:
-                            submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                            raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
                         if submitted_order:
                             self._open_position_orders.append(submitted_order)
@@ -503,16 +509,18 @@ class Strategy(ABC):
                     self._open_position_orders = [o for o in self._open_position_orders if o.is_executed]
 
                     for o in self._sell:
+                        # MARKET order
+                        if abs(o[1] - self.price) < 0.0001:
+                            submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
                         # STOP order
-                        if o[1] < self.price:
+                        elif o[1] < self.price:
                             submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1],
                                                                           order_roles.OPEN_POSITION)
                         # LIMIT order
                         elif o[1] > self.price:
                             submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-                        # MARKET order
                         else:
-                            submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+                            raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
                         if submitted_order:
                             self._open_position_orders.append(submitted_order)
@@ -577,11 +585,11 @@ class Strategy(ABC):
                         if submitted_order:
                             self._log_stop_loss.append(o)
                             self._stop_loss_orders.append(submitted_order)
-        except TypeError:
-            raise exceptions.InvalidStrategy(
-                'Something odd is going on within your strategy causing a TypeError exception. '
-                'Try running it with "--debug" in a backtest to see what was going on near the end, and fix it.'
-            )
+        # except TypeError:
+        #     raise exceptions.InvalidStrategy(
+        #         'Something odd is going on within your strategy causing a TypeError exception. '
+        #         'Try running it with "--debug" in a backtest to see what was going on near the end, and fix it.'
+        #     )
         except:
             raise
 

@@ -924,6 +924,10 @@ def test_log_method():
     assert store.logs.errors[0]['message'] == 'test error log'
 
 
+def test_using_market_order_for_low_price_difference():
+    single_route_backtest('TestMarketOrderForLowPriceDifference')
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(
