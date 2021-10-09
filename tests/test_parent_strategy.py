@@ -36,7 +36,6 @@ def test_average_take_profit_and_average_stop_loss():
     assert t1.type == 'long'
     assert t1.entry_price == 1
     assert t1.exit_price == 3.5
-    assert t1.take_profit_at == 3.5
     assert t1.qty == 2
 
     t2: CompletedTrade = store.completed_trades.trades[1]
@@ -167,8 +166,6 @@ def test_increasing_position_size_after_opening():
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 10) / 2
     assert t1.exit_price == 15
-    assert t1.take_profit_at == 15
-    assert t1.stop_loss_at == 5
     assert t1.qty == 2
     assert t1.fee == 0
 
@@ -194,8 +191,6 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.35
-    assert t1.take_profit_at == 131.29
-    assert t1.stop_loss_at == 128.35
     assert t1.qty == 10.204
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
@@ -208,8 +203,6 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 126.58
-    assert t2.take_profit_at == 126.58
-    assert t2.stop_loss_at == 129.52
     assert t2.qty == 10
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
@@ -240,8 +233,6 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t1.type == 'long'
     assert t1.entry_price == 129.33
     assert t1.exit_price == 128.35
-    assert t1.take_profit_at == 131.29
-    assert t1.stop_loss_at == 128.35
     assert t1.qty == 10.204
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
@@ -254,8 +245,6 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t2.type == 'short'
     assert t2.entry_price == 128.05
     assert t2.exit_price == 126.58
-    assert t2.take_profit_at == 126.58
-    assert t2.stop_loss_at == 129.52
     assert t2.qty == 10
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
@@ -279,14 +268,10 @@ def test_liquidate():
     assert t1.type == 'long'
     assert t1.entry_price == 1
     assert t1.exit_price == 11
-    assert t1.take_profit_at == 11
-    assert np.isnan(t1.stop_loss_at)
 
     assert t2.type == 'short'
     assert t2.entry_price == 21
     assert t2.exit_price == 41
-    assert t2.stop_loss_at == 41
-    assert np.isnan(t2.take_profit_at)
 
 
 def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop_loss():
@@ -313,8 +298,6 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (4 * 2 + 6) / 3
-    assert t1.take_profit_at == 13
-    assert t1.stop_loss_at == (4 * 2 + 6) / 3
     assert t1.qty == 1.5
     assert t1.fee == 0
 
@@ -331,8 +314,6 @@ def test_modifying_take_profit_after_opening_position():
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 16
-    assert t1.take_profit_at == 16
-    assert t1.stop_loss_at == 5
     assert t1.qty == 1.5
     assert t1.fee == 0
 
@@ -349,8 +330,6 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (16 * 2 + 11) / 3
-    assert t1.take_profit_at == (16 * 2 + 11) / 3
-    assert t1.stop_loss_at == 5
     assert t1.qty == 1.5
     assert t1.fee == 0
 
@@ -425,8 +404,6 @@ def test_on_reduced_position():
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 13
-    assert t1.take_profit_at == 13
-    assert t1.stop_loss_at == 5
     assert t1.qty == 2
     assert t1.fee == 0
 
@@ -445,9 +422,7 @@ def test_on_route_canceled():
     assert t1.type == 'long'
     assert t1.entry_price == 101
     assert t1.exit_price == 120
-    assert t1.take_profit_at == 120
     assert t1.qty == 1
-    assert np.isnan(t1.stop_loss_at)
 
 
 def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars():
@@ -469,17 +444,13 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     assert t1.type == 'long'
     assert t1.entry_price == 121
     assert t1.exit_price == 131
-    assert t1.take_profit_at == 131
     assert t1.qty == 1
-    assert np.isnan(t1.stop_loss_at)
 
     assert t2.symbol == 'BTC-USDT'
     assert t2.type == 'short'
     assert t2.entry_price == 151
     assert t2.exit_price == 161
-    assert t2.stop_loss_at == 161
     assert t2.qty == 1
-    assert np.isnan(t2.take_profit_at)
 
     assert t3.symbol == 'ETH-USDT'
     assert t3.type == 'long'
@@ -487,9 +458,7 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     assert t3.entry_price == 15
     # (50 + 70) / 2
     assert t3.exit_price == 60
-    assert t3.take_profit_at == 60
     assert t3.qty == 2
-    assert np.isnan(t3.stop_loss_at)
 
 
 def test_on_route_open_position():
@@ -507,17 +476,13 @@ def test_on_route_open_position():
     assert t1.type == 'long'
     assert t1.entry_price == 101
     assert t1.exit_price == 110
-    assert t1.take_profit_at == 110
     assert t1.qty == 1
-    assert np.isnan(t1.stop_loss_at)
 
     assert t2.symbol == 'ETH-USDT'
     assert t2.type == 'long'
     assert t2.entry_price == 10
     assert t2.exit_price == 20
-    assert t2.take_profit_at == 20
     assert t2.qty == 1
-    assert np.isnan(t2.stop_loss_at)
 
 
 def test_on_route_stop_loss():
@@ -535,17 +500,13 @@ def test_on_route_stop_loss():
     assert t2.type == 'long'
     assert t2.entry_price == 101
     assert t2.exit_price == 120
-    assert t2.take_profit_at == 120
     assert t2.qty == 1
-    assert np.isnan(t2.stop_loss_at)
 
     assert t1.symbol == 'ETH-USDT'
     assert t1.type == 'short'
     assert t1.entry_price == 10
     assert t1.exit_price == 20
-    assert t1.stop_loss_at == 20
     assert t1.qty == 1
-    assert np.isnan(t1.take_profit_at)
 
 
 def test_on_route_take_profit():
@@ -563,17 +524,13 @@ def test_on_route_take_profit():
     assert t2.type == 'long'
     assert t2.entry_price == 101
     assert t2.exit_price == 120
-    assert t2.take_profit_at == 120
     assert t2.qty == 1
-    assert np.isnan(t2.stop_loss_at)
 
     assert t1.symbol == 'ETH-USDT'
     assert t1.type == 'long'
     assert t1.entry_price == 10
     assert t1.exit_price == 20
-    assert t1.take_profit_at == 20
     assert t1.qty == 1
-    assert np.isnan(t1.stop_loss_at)
 
 
 def test_opening_position_in_multiple_points():
@@ -588,8 +545,6 @@ def test_opening_position_in_multiple_points():
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 9 + 11) / 3
     assert t1.exit_price == 15
-    assert t1.take_profit_at == 15
-    assert t1.stop_loss_at == 5
     assert t1.qty == 1.5
     assert t1.fee == 0
 
@@ -606,8 +561,6 @@ def test_reducing_position_size_after_opening():
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 10) / 2
-    assert t1.take_profit_at == (15 + 10) / 2
-    assert t1.stop_loss_at == 5
     assert t1.qty == 2
     assert t1.fee == 0
 
@@ -626,9 +579,7 @@ def test_shared_vars():
     assert t1.type == 'long'
     assert t1.entry_price == 11
     assert t1.exit_price == 21
-    assert t1.take_profit_at == 21
     assert t1.qty == 1
-    assert np.isnan(t1.stop_loss_at)
 
 
 def test_should_buy_and_execute_buy():
@@ -726,8 +677,6 @@ def test_stop_loss_at_multiple_points():
     assert t1.type == 'short'
     assert t1.entry_price == 3
     assert t1.exit_price == (6 + 5 + 4) / 3
-    assert t1.take_profit_at == 1
-    assert t1.stop_loss_at == (6 + 5 + 4) / 3
     assert t1.qty == 1.5
     assert t1.fee == 0
 
@@ -779,8 +728,6 @@ def test_taking_profit_at_multiple_points():
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 13 + 11) / 3
-    assert t1.take_profit_at == (15 + 13 + 11) / 3
-    assert t1.stop_loss_at == 5
     assert t1.qty == 1.5
     assert t1.fee == 0
     assert t1.holding_period == 8 * 60
@@ -837,8 +784,6 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.98
-    assert t1.take_profit_at == 131.29
-    assert t1.stop_loss_at == 128.98
     assert t1.qty == 10.204
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
@@ -851,8 +796,6 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 127.66
-    assert t2.take_profit_at == 127.66
-    assert t2.stop_loss_at == 129.52
     assert t2.qty == 10
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
@@ -962,5 +905,3 @@ def test_using_market_order_for_low_price_difference():
 #     assert len(store.completed_trades.trades) == 1
 #     assert t.qty == 1.5
 #     assert t.entry_price == 5.123
-#     assert t.take_profit_at == 10.12
-#     assert t.stop_loss_at == 1.123

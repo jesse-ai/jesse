@@ -1,5 +1,4 @@
 import jesse.helpers as jh
-from jesse.models import Order
 from jesse.strategies import Strategy
 
 
@@ -21,7 +20,7 @@ class TestCompletedTradeAfterExitingTrade(Strategy):
     def should_cancel(self):
         return False
 
-    def on_take_profit(self, order: Order):
+    def on_close_position(self, order):
         assert self.trades_count == 1
 
         trade = self.trades[0]
@@ -34,8 +33,6 @@ class TestCompletedTradeAfterExitingTrade(Strategy):
         assert trade.timeframe == '1m'
         assert trade.entry_price == 10
         assert trade.exit_price == 12
-        assert trade.take_profit_at == 12
-        assert trade.stop_loss_at == 5
         assert trade.qty == 10
         assert trade.opened_at == 1552309906171.0
         assert trade.closed_at == 1552310026171.0
