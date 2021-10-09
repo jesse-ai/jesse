@@ -148,3 +148,5 @@ cython_debug/
 /.vagrant
 testing-*.py
 /storage/full-reports/*.html
+
+jesse-project-example/

@@ -115,37 +115,56 @@ class CandlesState:
             if candle[0] >= jh.now():
                 return
 
-        # initial
-        if len(arr) == 0:
-            arr.append(candle)
+        if len(candle.shape) == 1:
+            # initial
+            if len(arr) == 0:
+                arr.append(candle)
 
-        # if it's new, add
-        elif candle[0] > arr[-1][0]:
-            # in paper mode, check to see if the new candle causes any active orders to be executed
-            if with_execution and jh.is_paper_trading():
-                self.simulate_order_execution(exchange, symbol, timeframe, candle)
+            # if it's new, add
+            elif candle[0] > arr[-1][0]:
+                # in paper mode, check to see if the new candle causes any active orders to be executed
+                if with_execution and jh.is_paper_trading():
+                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
 
-            arr.append(candle)
+                arr.append(candle)
 
-            # generate other timeframes
-            if with_generation and timeframe == '1m':
-                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+                # generate other timeframes
+                if with_generation and timeframe == '1m':
+                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
-        # if it's the last candle again, update
-        elif candle[0] == arr[-1][0]:
-            # in paper mode, check to see if the new candle causes any active orders to get executed
-            if with_execution and jh.is_paper_trading():
-                self.simulate_order_execution(exchange, symbol, timeframe, candle)
+            # if it's the last candle again, update
+            elif candle[0] == arr[-1][0]:
+                # in paper mode, check to see if the new candle causes any active orders to get executed
+                if with_execution and jh.is_paper_trading():
+                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
 
-            arr[-1] = candle
+                arr[-1] = candle
 
-            # regenerate other timeframes
-            if with_generation and timeframe == '1m':
-                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+                # regenerate other timeframes
+                if with_generation and timeframe == '1m':
+                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
-        # past candles will be ignored (dropped)
-        elif candle[0] < arr[-1][0]:
-            return
+            # past candles will be ignored (dropped)
+            elif candle[0] < arr[-1][0]:
+                return
+        elif len(candle.shape) == 2:
+            # this is an array of candles
+            if len(arr) == 0:
+                arr.append_multiple(candle)
+
+            # if it's new, add
+            elif candle[-1][0] > arr[-1][0]:
+                # in paper mode, check to see if the new candle causes any active orders to be executed
+                if with_execution and jh.is_paper_trading():
+                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
+
+                arr.append_multiple(candle)
+
+                # generate other timeframes
+                if with_generation and timeframe == '1m':
+                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+            else:
+                raise ValueError('Try to insert list of candles into memory, but some already exist..')
 
     def add_candle_from_trade(self, trade, exchange: str, symbol: str) -> None:
         """

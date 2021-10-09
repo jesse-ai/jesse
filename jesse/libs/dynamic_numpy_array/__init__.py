@@ -73,6 +73,21 @@ class DynamicNumpyArray:
 
         self.array[self.index] = item
 
+    def append_multiple(self,  items: np.ndarray) -> None:
+
+        self.index += 1
+
+        # expand if the arr is almost full
+        while self.index != 0 and len(items) > len(self.array) - self.index:
+            new_bucket = np.zeros(self.shape)
+            self.array = np.concatenate((self.array, new_bucket), axis=0)
+
+        # drop N% of the beginning values to free memory
+        # todo: imlemeant drop_at
+
+        self.array[self.index: self.index + len(items)] = items
+        self.index += len(items) - 1
+
     def get_last_item(self):
         # validation
         if self.index == -1:
