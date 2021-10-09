@@ -417,6 +417,10 @@ def now_to_timestamp() -> int:
     return arrow.utcnow().int_timestamp * 1000
 
 
+def current_1m_candle_timestamp():
+    return arrow.utcnow().floor('minute').int_timestamp * 1000
+
+
 def np_ffill(arr: np.ndarray, axis: int = 0) -> np.ndarray:
     idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
     idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
