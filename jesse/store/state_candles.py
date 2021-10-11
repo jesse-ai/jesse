@@ -230,9 +230,6 @@ class CandlesState:
                     f'generate_from_count cannot be negative! '
                     f'generate_from_count:{generate_from_count}, candle[0]:{candle[0]}, '
                     f'last_candle[0]:{last_candle[0]}, current_1m:{current_1m[0]}, number_of_candles:{number_of_candles}')
-            else:
-                from jesse.services import logger
-                logger.info(f'generate_from_count: {generate_from_count}')
 
             if len(short_candles) == 0:
                 raise ValueError(
