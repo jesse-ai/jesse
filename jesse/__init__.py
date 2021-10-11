@@ -117,7 +117,7 @@ def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = H
     from jesse.modes.data_provider import get_config as gc
 
     return JSONResponse({
-        'data': gc(json_request.current_config)
+        'data': gc(json_request.current_config, has_live=HAS_LIVE_TRADE_PLUGIN)
     }, status_code=200)
 
 

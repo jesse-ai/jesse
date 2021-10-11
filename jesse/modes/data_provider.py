@@ -78,7 +78,7 @@ def get_general_info(has_live=False) -> dict:
     }
 
 
-def get_config(client_config: dict) -> dict:
+def get_config(client_config: dict, has_live=False) -> dict:
     o = Option.get_or_none(Option.type == 'config')
 
     # if not found, that means it's the first time. Store in the DB and
@@ -97,7 +97,21 @@ def get_config(client_config: dict) -> dict:
         # merge it with client's config (because it could include new keys added),
         # update it in the database, and then return it
         data = jh.merge_dicts(client_config, json.loads(o.json))
-        o.json = json.dumps(data)
+
+        # make sure the list of BACKTEST exchanges is up to date
+        from jesse.modes.import_candles_mode.drivers import drivers
+        for k in list(data['backtest']['exchanges'].keys()):
+            if k not in drivers:
+                del data['backtest']['exchanges'][k]
+
+        # make sure the list of LIVE exchanges is up to date
+        if has_live:
+            from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
+            live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
+            for k in list(data['live']['exchanges'].keys()):
+                if k not in live_exchanges:
+                    del data['live']['exchanges'][k]
+
         o.updated_at = jh.now()
         o.save()
 

@@ -266,7 +266,7 @@ def set_config(c) -> None:
         config['env']['optimization'] = c['optimization']
 
     if 'exchanges' in c:
-        for e in c['exchanges']:
+        for key, e in c['exchanges'].items():
             config['env']['exchanges'][e['name']] = {
                 'fee': float(e['fee']),
                 'type': 'futures',
