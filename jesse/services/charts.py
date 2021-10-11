@@ -29,7 +29,7 @@ def equity_curve() -> list:
     return arr
 
 
-def portfolio_vs_asset_returns() -> None:
+def portfolio_vs_asset_returns(study_name: str) -> None:
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure
