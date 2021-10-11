@@ -96,8 +96,6 @@ def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
         'timeframe': completed_trade.timeframe,
         'entry_price': completed_trade.entry_price,
         'exit_price': completed_trade.exit_price,
-        'take_profit_at': completed_trade.take_profit_at,
-        'stop_loss_at': completed_trade.stop_loss_at,
         'qty': completed_trade.qty,
         'opened_at': completed_trade.opened_at,
         'closed_at': completed_trade.closed_at,

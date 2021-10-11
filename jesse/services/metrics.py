@@ -1,8 +1,9 @@
+from datetime import datetime, timedelta
 from typing import List, Any, Union
 
-import crypto_empyrical
 import numpy as np
 import pandas as pd
+from quantstats import stats
 
 import jesse.helpers as jh
 from jesse.store import store
@@ -42,7 +43,7 @@ def routes(routes_arr: list) -> dict:
     return array
 
 
-def trades(trades_list: list, daily_balance: list) -> dict:
+def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
     starting_balance = 0
     current_balance = 0
 
@@ -77,9 +78,6 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     largest_winning_trade = 0 if total_winning_trades == 0 else winning_trades['PNL'].max()
 
     win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
-    max_R = df['R'].max()
-    min_R = df['R'].min()
-    mean_R = df['R'].mean()
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
@@ -101,15 +99,37 @@ def trades(trades_list: list, daily_balance: list) -> dict:
     gross_profit = winning_trades['PNL'].sum()
     gross_loss = losing_trades['PNL'].sum()
 
-    daily_returns = pd.Series(daily_balance).pct_change(1).values
-    max_drawdown = crypto_empyrical.max_drawdown(daily_returns) * 100
-    annual_return = crypto_empyrical.annual_return(daily_returns) * 100
-    sharpe_ratio = crypto_empyrical.sharpe_ratio(daily_returns)
-    calmar_ratio = crypto_empyrical.calmar_ratio(daily_returns)
-    sortino_ratio = crypto_empyrical.sortino_ratio(daily_returns)
-    omega_ratio = crypto_empyrical.omega_ratio(daily_returns)
+    start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
+    date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
+
+    daily_return = pd.DataFrame(daily_balance, index=pd.to_datetime(list(date_list))).pct_change(1)
+
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
+
+
+    max_drawdown = np.nan
+    annual_return = np.nan
+    sharpe_ratio = np.nan
+    calmar_ratio = np.nan
+    sortino_ratio = np.nan
+    omega_ratio = np.nan
+    serenity_index = np.nan
+    smart_sharpe = np.nan
+    smart_sortino = np.nan
+
+    if len(daily_return) > 2:
+        max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
+        annual_return = stats.cagr(daily_return).values[0] * 100
+        sharpe_ratio = stats.sharpe(daily_return, periods=365).values[0]
+        calmar_ratio = stats.calmar(daily_return).values[0]
+        sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
+        omega_ratio = stats.omega(daily_return, periods=365)
+        serenity_index = stats.serenity_index(daily_return).values[0]
+        # As those calculations are slow they are only done for the final report and not at self.metrics in the strategy.
+        if final:
+            smart_sharpe = stats.smart_sharpe(daily_return, periods=365).values[0]
+            smart_sortino = stats.smart_sortino(daily_return, periods=365).values[0]
 
     return {
         'total': np.nan if np.isnan(total_completed) else total_completed,
@@ -118,9 +138,6 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
         'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
-        'max_R': np.nan if np.isnan(max_R) else max_R,
-        'min_R': np.nan if np.isnan(min_R) else min_R,
-        'mean_R': np.nan if np.isnan(mean_R) else mean_R,
         'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
         'longs_count': np.nan if np.isnan(longs_count) else longs_count,
         'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,
@@ -140,12 +157,15 @@ def trades(trades_list: list, daily_balance: list) -> dict:
         'average_losing_holding_period': average_losing_holding_period,
         'gross_profit': gross_profit,
         'gross_loss': gross_loss,
-        'max_drawdown': max_drawdown,
-        'annual_return': annual_return,
-        'sharpe_ratio': sharpe_ratio,
-        'calmar_ratio': calmar_ratio,
-        'sortino_ratio': sortino_ratio,
-        'omega_ratio': omega_ratio,
+        'max_drawdown': np.nan if np.isnan(max_drawdown) else max_drawdown,
+        'annual_return': np.nan if np.isnan(annual_return) else annual_return,
+        'sharpe_ratio': np.nan if np.isnan(sharpe_ratio) else sharpe_ratio,
+        'calmar_ratio': np.nan if np.isnan(calmar_ratio) else calmar_ratio,
+        'sortino_ratio': np.nan if np.isnan(sortino_ratio) else sortino_ratio,
+        'omega_ratio': np.nan if np.isnan(omega_ratio) else omega_ratio,
+        'serenity_index': np.nan if np.isnan(serenity_index) else serenity_index,
+        'smart_sharpe': np.nan if np.isnan(smart_sharpe) else smart_sharpe,
+        'smart_sortino': np.nan if np.isnan(smart_sortino) else smart_sortino,
         'total_open_trades': total_open_trades,
         'open_pl': open_pl,
         'winning_streak': winning_streak,

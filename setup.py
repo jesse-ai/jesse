@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.27.3'
+# also change in version.py
+VERSION = '0.27.10'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
 REQUIRED_PACKAGES = [
     'arrow',
     'blinker',
     'Click',
-    'crypto_empyrical',
     'matplotlib',
     'newtulipy',
     'numpy',

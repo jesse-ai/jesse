@@ -21,7 +21,7 @@ class TestMetrics1(Strategy):
     def should_cancel(self):
         return False
 
-    def on_take_profit(self, order):
+    def on_close_position(self, order):
         assert self.metrics['total'] == 1
         assert self.metrics['starting_balance'] == 10000
         assert self.metrics['finishing_balance'] == 10050
