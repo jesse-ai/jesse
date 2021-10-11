@@ -40,7 +40,7 @@ class CandlesState:
                 current_candle = self.get_current_candle(exchange, symbol, '1m')
 
                 # TODO: debugging
-                if current_candle[0] == 60_000:
+                if current_candle[0] <= 60_000:
                     logger.error(
                         '[REPORT TO Saleh for debugging please!] current_candle[0] is being zero but got fixed. more info:\n '
                         f'current_candle: {current_candle[0]}, {current_candle[1]}, {current_candle[2]}, {current_candle[3]}, {current_candle[4]}, {current_candle[5]}'
