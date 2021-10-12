@@ -1,6 +1,6 @@
 arrow==1.2.0
 blinker==1.4
-click==8.0.2
+click==8.0.3
 matplotlib==3.4.3
 mplfinance==0.12.7a17
 newtulipy==0.4.6
