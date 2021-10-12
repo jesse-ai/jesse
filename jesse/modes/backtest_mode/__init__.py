@@ -208,9 +208,11 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
     return candles
 
+
 def simulator(*args, **kwargs) -> None:
     yakir_simulator(*args, **kwargs)
     # original_simulator(*args, **kwargs)
+
 
 def original_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters: dict = None) -> None:
     begin_time_track = time.time()
@@ -288,7 +290,6 @@ def original_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hy
                         continue
 
                     count = jh.timeframe_to_one_minutes(timeframe)
-                    # until = count - ((i + 1) % count)
 
                     if (i + 1) % count == 0:
                         generated_candle = generate_candle_from_one_minutes(
@@ -346,6 +347,77 @@ def yakir_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyper
     store.app.time = first_candles_set[0][0]
 
     # initiate strategies
+    min_timeframe = _initialized_strategies(hyperparameters)
+
+    # add initial balance
+    save_daily_portfolio_balance()
+
+    with click.progressbar(length=length, label='Executing simulation...') as progressbar:
+        i = min_timeframe_remainder = skip = min_timeframe
+        # i is the i'th candle, which means that the first candle is i=1 etc..
+
+        while i <= length:
+            # update time
+            store.app.time = first_candles_set[i - 1][0] + 60_000
+
+            # add candles
+            for j in candles:
+
+                short_candles = candles[j]['candles'][i - skip: i]
+                # remove previous_short_candle fix
+                exchange = candles[j]['exchange']
+                symbol = candles[j]['symbol']
+
+                store.candles.add_candle(short_candles, exchange, symbol, '1m', with_execution=False,
+                                         with_generation=False)
+
+                # print short candle
+                if jh.is_debuggable('shorter_period_candles'):
+                    print_candle(short_candles[-1], True, symbol)
+
+                current_temp_candle = generate_candle_from_one_minutes('',
+                                                                       short_candles,
+                                                                       accept_forming_candles=True)
+
+                # in this new prices update there might be an order that needs to be executed
+                _simulate_price_change_effect(current_temp_candle, exchange, symbol)
+
+                # generate and add candles for bigger timeframes
+                for timeframe in config['app']['considering_timeframes']:
+                    # for 1m, no work is needed
+                    if timeframe == '1m':
+                        continue
+
+                    count = jh.timeframe_to_one_minutes(timeframe)
+
+                    if i % count == 0:
+                        generated_candle = generate_candle_from_one_minutes(
+                            timeframe,
+                            candles[j]['candles'][i - count:i])
+                        store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
+                                                 with_generation=False)
+
+            # update progressbar
+            if not jh.is_debugging() and not jh.should_execute_silently():
+                progressbar.update(skip)
+
+            # now that all new generated candles are ready, execute
+            _execute_candles(i)
+
+            if i % 1440 == 0:
+                save_daily_portfolio_balance()
+            # todo: make this method return the next candle
+            skip = _skip_n_candles(candles, min_timeframe_remainder, i)
+            if skip < min_timeframe_remainder:
+                min_timeframe_remainder -= skip
+            elif skip == min_timeframe_remainder:
+                min_timeframe_remainder = min_timeframe
+            i += skip
+
+    _finish_simulation(begin_time_track)
+
+
+def _initialized_strategies(hyperparameters: dict = None):
     min_timeframe = jh.timeframe_to_one_minutes(timeframes.WEEK_1)
     for r in router.routes:
         StrategyClass = jh.get_strategy_class(r.strategy_name)
@@ -354,11 +426,10 @@ def yakir_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyper
             r.strategy = StrategyClass()
         except TypeError:
             raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file."
-                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+                "Looks like the structure of your strategy directory is incorrect. "
+                "Make sure to include the strategy INSIDE the __init__.py file.\n"
+                "If you need working examples, check out: https://github.com/jesse-ai/example-strategies"
             )
-        except:
-            raise
 
         r.strategy.name = r.strategy_name
         r.strategy.exchange = r.exchange
@@ -383,70 +454,24 @@ def yakir_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyper
     for e in router.extra_candles:
         min_timeframe = min(min_timeframe, jh.timeframe_to_one_minutes(e[2]))
 
-    # add initial balance
-    save_daily_portfolio_balance()
+    return min_timeframe
 
-    with click.progressbar(length=length, label='Executing simulation...') as progressbar:
-        i = min_timeframe
-        while i <= length:
-            # update time
-            store.app.time = first_candles_set[i - 1][0] + 60_000
 
-            # add candles
-            for j in candles:
+def _execute_candles(i: int):
+    for r in router.routes:
+        count = jh.timeframe_to_one_minutes(r.timeframe)
+        if i % count == 0:
+            # print candle
+            if jh.is_debuggable('trading_candles'):
+                print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
+                             r.symbol)
+            r.strategy._execute()
 
-                short_candles = candles[j]['candles'][i - min_timeframe: i]
-                # remove previous_short_candle fix
-                exchange = candles[j]['exchange']
-                symbol = candles[j]['symbol']
+    # now check to see if there's any MARKET orders waiting to be executed
+    store.orders.execute_pending_market_orders()
 
-                store.candles.add_candle(short_candles, exchange, symbol, '1m', with_execution=False,
-                                         with_generation=False)
 
-                # print short candle
-                if jh.is_debuggable('shorter_period_candles'):
-                    print_candle(short_candles[-1], True, symbol)
-
-                _simulate_price_change_effect(short_candles[-1], exchange, symbol)
-
-                # generate and add candles for bigger timeframes
-                for timeframe in config['app']['considering_timeframes']:
-                    # for 1m, no work is needed
-                    if timeframe == '1m':
-                        continue
-
-                    count = jh.timeframe_to_one_minutes(timeframe)
-                    # until = count - ((i + 1) % count)
-
-                    if i % count == 0 and i > 0:
-                        generated_candle = generate_candle_from_one_minutes(
-                            timeframe,
-                            candles[j]['candles'][i - count:i])
-                        store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
-                                                 with_generation=False)
-
-            # update progressbar
-            if not jh.is_debugging() and not jh.should_execute_silently() and i % 60 == 0:
-                progressbar.update(60)
-
-            # now that all new generated candles are ready, execute
-            for r in router.routes:
-                count = jh.timeframe_to_one_minutes(r.timeframe)
-                # 1m timeframe
-                if i % count == 0 and i > 0:
-                    # print candle
-                    if jh.is_debuggable('trading_candles'):
-                        print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
-                                     r.symbol)
-                    r.strategy._execute()
-
-            # now check to see if there's any MARKET orders waiting to be executed
-            store.orders.execute_pending_market_orders()
-
-            if i != 0 and i % 1440 == 0:
-                save_daily_portfolio_balance()
-            i += min_timeframe
-
+def _finish_simulation(begin_time_track: float):
     if not jh.should_execute_silently():
         if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
             print('\n')
@@ -479,6 +504,49 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
         candle[3] = max(previous_candle[2], candle[3])
 
     return candle
+
+
+def _skip_n_candles(candles, max_skip: int, i: int) -> int:
+    """
+    calculate how many 1 minute candles can be skipped by checking if the next candles
+    will execute limit and stop orders
+
+    Use binary search to find an interval that only 1 or 0 orders execution is needed
+    :param candles: np.ndarray - array of the whole 1 minute candles
+    :max_skip: int - the interval that not matter if there is an order to be updated or not.
+    :i: int - the current candle that should be executed
+
+    :return: int - the size of the candles in minutes needs to skip
+    """
+    while True:
+        orders_counter = 0
+        for r in router.routes:
+            if store.orders.count_active_orders(r.exchange, r.symbol) < 2:
+                continue
+
+            orders = store.orders.get_orders(r.exchange, r.symbol)
+            future_candles = candles[f'{r.exchange}-{r.symbol}']['candles']
+            if i >= len(future_candles):
+                # if there is a problem with i or with the candles it will raise somewhere else
+                # for now it still satisfy the condition that no more than 2 orders will be execute in the next candle
+                break
+
+            current_temp_candle = generate_candle_from_one_minutes('',
+                                                                   future_candles[i:i+max_skip],
+                                                                   accept_forming_candles=True)
+
+            for order in orders:
+                if order.is_active and candle_includes_price(current_temp_candle, order.price):
+                    orders_counter += 1
+
+        if orders_counter < 2 or max_skip == 1:
+            # no more than 2 orders that can interfere each other in this candle.
+            # or the candle is 1 minute candle, so I cant reduce it to smaller interval :/
+            break
+
+        max_skip //= 2
+
+    return max_skip
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
