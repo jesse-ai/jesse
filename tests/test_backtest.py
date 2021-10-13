@@ -128,3 +128,66 @@ def test_backtesting_three_routes():
 
         # assert that the strategy has been initiated
         assert r.strategy is not None
+
+
+def test_backtesting_three_routes_and_three_extra_candles():
+    reset_config()
+    router.set_routes([
+        (exchanges.SANDBOX, 'BTC-USDT', timeframes.HOUR_4, 'Test19'),
+        (exchanges.SANDBOX, 'ETH-USDT', timeframes.HOUR_2, 'Test19'),
+        (exchanges.SANDBOX, 'XRP-USDT', timeframes.MINUTE_45, 'Test19'),
+    ])
+
+    router.set_extra_candles([
+        (exchanges.SANDBOX, 'BTC-USDT', timeframes.HOUR_3),
+        (exchanges.SANDBOX, 'ETH-USDT', timeframes.HOUR_6),
+        (exchanges.SANDBOX, 'XRP-USDT', timeframes.HOUR_8),
+    ])
+    config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
+    store.reset(True)
+    candles = {}
+    routes = router.routes
+    for r in routes:
+        key = jh.key(r.exchange, r.symbol)
+        candles[key] = {
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'candles': fake_range_candle(60 * 24)
+        }
+
+        # assert that strategy hasn't been initiated before running backtest_mode()
+        assert r.strategy is None
+
+    # run backtest (dates are fake just to pass)
+    backtest_mode.run('2019-03-11', '2019-03-12', candles)
+
+    # there must be three positions present with the updated current_price
+    assert len(store.positions.storage) == 3
+
+    # test if all this candles are considered in the simulation
+    for timeframe in ['1m', '45m', '2h', '3h', '4h', '6h', '8h']:
+        assert timeframe in config['app']['considering_timeframes']
+
+    for r in routes:
+        # all timeframes should be in all routes
+
+        one_min_candles = len(store.candles.get_candles(r.exchange, r.symbol, '1m'))
+        first_timestamp = store.candles.get_candles(r.exchange, r.symbol, '1m')[0][0]
+        last_timestamp = store.candles.get_candles(r.exchange, r.symbol, '1m')[-1][0]
+        assert one_min_candles == 60 * 24
+        for timeframe in config['app']['considering_timeframes']:
+            candles = store.candles.get_candles(r.exchange, r.symbol, timeframe)
+            minutes = jh.timeframe_to_one_minutes(timeframe)
+            assert len(candles) == one_min_candles // minutes
+            for i, candle in enumerate(candles):
+                assert candle[0] == first_timestamp + (60_000 * i * minutes)
+            assert last_timestamp + 60_000 == candles[-1][0] + (60_000 * minutes)
+
+        # assert positions
+        p = selectors.get_position(r.exchange, r.symbol)
+        assert p.is_close is True
+        last_candle = store.candles.get_candles(r.exchange, r.symbol, '1m')[-1]
+        assert p.current_price == last_candle[2]
+
+        # assert that the strategy has been initiated
+        assert r.strategy is not None
