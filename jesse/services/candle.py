@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import arrow
 import click
 import numpy as np
@@ -14,6 +16,14 @@ def generate_candle_from_one_minutes(timeframe: str,
     if not accept_forming_candles and len(candles) != jh.timeframe_to_one_minutes(timeframe):
         raise ValueError(
             f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
+        )
+
+    # if there are gaps between 1 minute candles it cant be right to form a new candle from it.
+    if candles[-1][0] - candles[0][0] != (len(candles) - 1) * 60_000:
+        raise ValueError(
+            f'There are gaps between he candles, first minute: {datetime.fromtimestamp(candles[0][0] / 1000)},'
+            f' last minute {datetime.fromtimestamp(candles[-1][0] / 1000)}.'
+            f' {(candles[-1][0] - candles[0][0]) / 60_000 + 1} candles needed but only {len(candles)} were given.'
         )
 
     return np.array([
