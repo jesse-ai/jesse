@@ -102,6 +102,39 @@ class CandlesState:
             with_generation: bool = True,
             with_skip: bool = True
     ) -> None:
+
+        # add only 1 candle
+        if len(candle.shape) == 1:
+            self._add_one_candle(
+                candle,
+                exchange,
+                symbol,
+                timeframe,
+                with_execution,
+                with_generation,
+                with_skip)
+
+        # add only multiple candles
+        elif len(candle.shape) == 2:
+
+            self._add_multiple_candles(
+                candle,
+                exchange,
+                symbol,
+                timeframe,
+                with_execution,
+                with_generation,
+                )
+
+    def _add_one_candle(self,
+                        candle: np.ndarray,
+                        exchange: str,
+                        symbol: str,
+                        timeframe: str,
+                        with_execution: bool = True,
+                        with_generation: bool = True,
+                        with_skip: bool = True):
+        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
         if jh.is_collecting_data():
             # make sure it's a complete (and not a forming) candle
             if jh.now_to_timestamp() >= (candle[0] + 60000):
@@ -112,8 +145,6 @@ class CandlesState:
             if jh.is_debugging():
                 logger.error("DEBUGGING-VALUE: please report to Saleh: candle[0] is zero")
             return
-
-        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
 
         if jh.is_live():
             # ignore if candle is still being initially imported
@@ -127,56 +158,64 @@ class CandlesState:
             if candle[0] >= jh.now():
                 return
 
-        if len(candle.shape) == 1:
-            # initial
-            if len(arr) == 0:
-                arr.append(candle)
+        # initial
+        if len(arr) == 0:
+            arr.append(candle)
 
-            # if it's new, add
-            elif candle[0] > arr[-1][0]:
-                # in paper mode, check to see if the new candle causes any active orders to be executed
-                if with_execution and jh.is_paper_trading():
-                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
+        # if it's new, add
+        elif candle[0] > arr[-1][0]:
+            # in paper mode, check to see if the new candle causes any active orders to be executed
+            if with_execution and jh.is_paper_trading():
+                self.simulate_order_execution(exchange, symbol, timeframe, candle)
 
-                arr.append(candle)
+            arr.append(candle)
 
-                # generate other timeframes
-                if with_generation and timeframe == '1m':
-                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+            # generate other timeframes
+            if with_generation and timeframe == '1m':
+                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
-            # if it's the last candle again, update
-            elif candle[0] == arr[-1][0]:
-                # in paper mode, check to see if the new candle causes any active orders to get executed
-                if with_execution and jh.is_paper_trading():
-                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
+        # if it's the last candle again, update
+        elif candle[0] == arr[-1][0]:
+            # in paper mode, check to see if the new candle causes any active orders to get executed
+            if with_execution and jh.is_paper_trading():
+                self.simulate_order_execution(exchange, symbol, timeframe, candle)
 
-                arr[-1] = candle
+            arr[-1] = candle
 
-                # regenerate other timeframes
-                if with_generation and timeframe == '1m':
-                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+            # regenerate other timeframes
+            if with_generation and timeframe == '1m':
+                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
-            # past candles will be ignored (dropped)
-            elif candle[0] < arr[-1][0]:
-                return
-        elif len(candle.shape) == 2:
-            # this is an array of candles
-            if len(arr) == 0:
-                arr.append_multiple(candle)
+        # past candles will be ignored (dropped)
+        elif candle[0] < arr[-1][0]:
+            return
 
-            # if it's new, add
-            elif candle[-1][0] > arr[-1][0]:
-                # in paper mode, check to see if the new candle causes any active orders to be executed
-                if with_execution and jh.is_paper_trading():
-                    self.simulate_order_execution(exchange, symbol, timeframe, candle)
+    def _add_multiple_candles(self,
+                              candle: np.ndarray,
+                              exchange: str,
+                              symbol: str,
+                              timeframe: str,
+                              with_execution: bool = True,
+                              with_generation: bool = True):
 
-                arr.append_multiple(candle)
+        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
+        # this is an array of candles
+        if len(arr) == 0:
+            arr.append_multiple(candle)
 
-                # generate other timeframes
-                if with_generation and timeframe == '1m':
-                    self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
-            else:
-                raise ValueError('Try to insert list of candles into memory, but some already exist..')
+        # if it's new, add
+        elif candle[-1][0] > arr[-1][0]:
+            # in paper mode, check to see if the new candle causes any active orders to be executed
+            if with_execution and jh.is_paper_trading():
+                self.simulate_order_execution(exchange, symbol, timeframe, candle)
+
+            arr.append_multiple(candle)
+
+            # generate other timeframes
+            if with_generation and timeframe == '1m':
+                self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
+        else:
+            raise ValueError('Try to insert list of candles into memory, but some already exist..')
 
     def add_candle_from_trade(self, trade, exchange: str, symbol: str) -> None:
         """
@@ -287,7 +326,8 @@ class CandlesState:
     def batch_add_candle(self, candles: np.ndarray, exchange: str, symbol: str, timeframe: str,
                          with_generation: bool = True) -> None:
         for c in candles:
-            self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation, with_skip=False)
+            self.add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation,
+                            with_skip=False)
 
     def forming_estimation(self, exchange: str, symbol: str, timeframe: str) -> tuple:
         long_key = jh.key(exchange, symbol, timeframe)
