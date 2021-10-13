@@ -42,10 +42,8 @@ def test_can_handle_multiple_entry_orders_too_close_to_each_other():
     t: CompletedTrade = store.completed_trades.trades[0]
 
     assert t.type == 'long'
-    assert t.stop_loss_at == 0.4
     assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4
     assert t.exit_price == 3
-    assert t.take_profit_at == 3
     # 4 entry + 1 exit
     assert len(t.orders) == 5
     # last order is closing order
@@ -67,10 +65,8 @@ def test_conflicting_orders():
     t: CompletedTrade = store.completed_trades.trades[0]
 
     assert t.type == 'long'
-    assert t.stop_loss_at == 1.0
     assert t.entry_price == (1.1 + 1.11) / 2
     assert t.exit_price == (1.2 + 1.3) / 2
-    assert t.take_profit_at == (1.2 + 1.3) / 2
 
 
 def test_conflicting_orders_2():
@@ -85,13 +81,9 @@ def test_conflicting_orders_2():
     t: CompletedTrade = store.completed_trades.trades[0]
 
     assert t.entry_price == 2.5
-    assert t.take_profit_at == 2.6
-    assert t.stop_loss_at == 2.4
     assert t.exit_price == 2.6
 
 
-
-#
 # def test_can_handle_not_correctly_sorted_multiple_orders():
 #     set_up([
 #         (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test35'),
@@ -104,7 +96,5 @@ def test_conflicting_orders_2():
 #     t: CompletedTrade = store.completed_trades.trades[0]
 #
 #     assert t.type == 'long'
-#     assert t.stop_loss_at == 0.4
 #     assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4
 #     assert t.exit_price == 3
-#     assert t.take_profit_at == 3

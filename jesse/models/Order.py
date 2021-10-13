@@ -5,9 +5,9 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse.config import config
-from jesse.enums import order_statuses, order_flags
 from jesse.services.db import db
 from jesse.services.notifier import notify
+from jesse.enums import order_statuses, order_flags
 
 
 class Order(Model):
@@ -32,6 +32,7 @@ class Order(Model):
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
     role = CharField(null=True)
+    submitted_via = None
 
     class Meta:
         database = db
@@ -122,43 +123,45 @@ class Order(Model):
             'executed_at': self.executed_at,
         }
 
-    def cancel(self) -> None:
+    def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return
 
         self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
 
-        if jh.is_debuggable('order_cancellation'):
-            logger.info(
-                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
-            )
-        if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
-            notify(
-                f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-            )
+        if not silent:
+            if jh.is_debuggable('order_cancellation'):
+                logger.info(
+                    f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
+                )
+            if jh.is_live() and config['env']['notifications']['events']['cancelled_orders']:
+                notify(
+                    f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
+                )
 
         # handle exchange balance
         e = selectors.get_exchange(self.exchange)
         e.on_order_cancellation(self)
 
-    def execute(self) -> None:
+    def execute(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return
 
         self.executed_at = jh.now_to_timestamp()
         self.status = order_statuses.EXECUTED
 
-        # log
-        if jh.is_debuggable('order_execution'):
-            logger.info(
-                f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
-            )
-        # notify
-        if jh.is_live() and config['env']['notifications']['events']['executed_orders']:
-            notify(
-                f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-            )
+        if not silent:
+            # log
+            if jh.is_debuggable('order_execution'):
+                logger.info(
+                    f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
+                )
+            # notify
+            if jh.is_live() and config['env']['notifications']['events']['executed_orders']:
+                notify(
+                    f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
+                )
 
         p = selectors.get_position(self.exchange, self.symbol)
 

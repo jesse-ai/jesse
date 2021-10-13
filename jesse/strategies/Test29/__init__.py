@@ -3,10 +3,6 @@ from jesse.strategies import Strategy
 
 # test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 1 - BTC-USD
 class Test29(Strategy):
-    """
-
-    """
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -28,28 +24,16 @@ class Test29(Strategy):
         self.stop_loss = 1, self.price + 10
 
     def on_route_increased_position(self, strategy):
-        """
-
-        :param strategy:
-        """
         # setting it to True means we'll open a position on NEXT candle
         self.vars['should_long'] = True
 
     def on_route_reduced_position(self, strategy):
-        """
-
-        :param strategy:
-        """
         # setting it to True means we'll open a position on NEXT candle
         self.vars['should_short'] = True
 
     def should_cancel(self):
         return False
 
-    def on_take_profit(self, order):
-        self.vars['should_long'] = False
-        self.vars['should_short'] = False
-
-    def on_stop_loss(self, order):
+    def on_close_position(self, order):
         self.vars['should_long'] = False
         self.vars['should_short'] = False

@@ -10,6 +10,7 @@ from jesse.models import store_candle_into_db
 from jesse.services.candle import generate_candle_from_one_minutes
 from timeloop import Timeloop
 from datetime import timedelta
+from jesse.services import logger
 
 
 class CandlesState:
@@ -37,6 +38,11 @@ class CandlesState:
             for c in config['app']['considering_candles']:
                 exchange, symbol = c[0], c[1]
                 current_candle = self.get_current_candle(exchange, symbol, '1m')
+
+                # fix for for a bug
+                if current_candle[0] <= 60_000:
+                    continue
+
                 if jh.now() > current_candle[0] + 60_000:
                     new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
                     self.add_candle(new_candle, exchange, symbol, '1m')
@@ -47,6 +53,7 @@ class CandlesState:
     def _generate_empty_candle_from_previous_candle(previous_candle: np.ndarray) -> np.ndarray:
         new_candle = previous_candle.copy()
         new_candle[0] = previous_candle[0] + 60_000
+
         # new candle's open, close, high, and low all equal to previous candle's close
         new_candle[1] = previous_candle[2]
         new_candle[2] = previous_candle[2]
@@ -99,6 +106,11 @@ class CandlesState:
             # make sure it's a complete (and not a forming) candle
             if jh.now_to_timestamp() >= (candle[0] + 60000):
                 store_candle_into_db(exchange, symbol, candle)
+            return
+
+        if candle[0] == 0:
+            if jh.is_debugging():
+                logger.error("DEBUGGING-VALUE: please report to Saleh: candle[0] is zero")
             return
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
@@ -184,11 +196,6 @@ class CandlesState:
         if jh.now() > current_candle[0] + 60_000:
             new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
             self.add_candle(new_candle, exchange, symbol, '1m')
-        # if jh.now() > current_candle[0] + 60_000:
-        #     while jh.now() > current_candle[0] + 60_000:
-        #         new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
-        #         self.add_candle(new_candle, exchange, symbol, '1m')
-        #         current_candle = self.get_current_candle(exchange, symbol, '1m')
 
         # update position's current price
         self.update_position(exchange, symbol, trade['price'])
@@ -243,9 +250,6 @@ class CandlesState:
                     f'generate_from_count cannot be negative! '
                     f'generate_from_count:{generate_from_count}, candle[0]:{candle[0]}, '
                     f'last_candle[0]:{last_candle[0]}, current_1m:{current_1m[0]}, number_of_candles:{number_of_candles}')
-            else:
-                from jesse.services import logger
-                logger.info(f'generate_from_count: {generate_from_count}')
 
             if len(short_candles) == 0:
                 raise ValueError(

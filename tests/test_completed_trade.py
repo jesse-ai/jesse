@@ -144,7 +144,6 @@ def test_r():
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
-    assert trade.risk_reward_ratio == 2
 
 
 def test_risk_percentage():
@@ -163,7 +162,6 @@ def test_risk_percentage():
         'opened_at': jh.now_to_timestamp(),
         'closed_at': jh.now_to_timestamp()
     })
-    assert trade.risk_percentage == round((((10 - 5) / 1) * 10), 2)
 
 
 def test_trade_size():
