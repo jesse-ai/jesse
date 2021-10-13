@@ -406,7 +406,7 @@ def yakir_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyper
 
             if i % 1440 == 0:
                 save_daily_portfolio_balance()
-            # todo: make this method return the next candle
+
             skip = _skip_n_candles(candles, min_timeframe_remainder, i)
             if skip < min_timeframe_remainder:
                 min_timeframe_remainder -= skip
@@ -418,7 +418,6 @@ def yakir_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyper
 
 
 def _initialized_strategies(hyperparameters: dict = None):
-    min_timeframe = jh.timeframe_to_one_minutes(timeframes.WEEK_1)
     for r in router.routes:
         StrategyClass = jh.get_strategy_class(r.strategy_name)
 
@@ -435,7 +434,6 @@ def _initialized_strategies(hyperparameters: dict = None):
         r.strategy.exchange = r.exchange
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
-        min_timeframe = min(min_timeframe, jh.timeframe_to_one_minutes(r.timeframe))
         # inject hyper parameters (used for optimize_mode)
         # convert DNS string into hyperparameters
         if r.dna and hyperparameters is None:
@@ -451,10 +449,14 @@ def _initialized_strategies(hyperparameters: dict = None):
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
-    for e in router.extra_candles:
-        min_timeframe = min(min_timeframe, jh.timeframe_to_one_minutes(e[2]))
+    # search for minimum timeframe for skips
+    consider_timeframes = [jh.timeframe_to_one_minutes(timeframe) for timeframe in config['app']['considering_timeframes'] if timeframe != '1m']
 
-    return min_timeframe
+    # for cases where only 1m is used in this simulation
+    if not consider_timeframes:
+        return 1
+    # take the greatest common divisor for that purpose
+    return np.gcd.reduce(consider_timeframes)
 
 
 def _execute_candles(i: int):
