@@ -92,7 +92,7 @@ def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[
 
 
 @fastapi_app.post("/feedback")
-def make_strategy(json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def feedback(json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -122,7 +122,7 @@ def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = H
 
 
 @fastapi_app.post("/update-config")
-def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+def update_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -213,7 +213,7 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
 
 @fastapi_app.delete("/import-candles")
-def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
