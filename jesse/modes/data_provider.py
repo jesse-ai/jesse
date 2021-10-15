@@ -127,6 +127,7 @@ def update_config(client_config: dict):
     # at this point there must already be one option record for "config" existing, so:
     o = Option.get_or_none(Option.type == 'config')
 
+    o.json = json.dumps(client_config)
     o.updated_at = jh.now()
 
     o.save()
