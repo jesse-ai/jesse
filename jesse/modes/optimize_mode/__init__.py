@@ -1,7 +1,7 @@
 import os
 from math import log10
 from multiprocessing import cpu_count
-from typing import Dict, Any, Tuple, Union
+from typing import Dict, Any, Tuple, Union, List
 
 import arrow
 import click
@@ -17,12 +17,14 @@ from jesse.services import metrics as stats
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from .Genetics import Genetics
+from jesse.services.failure import register_custom_exception_handler
 
 os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 class Optimizer(Genetics):
-    def __init__(self, training_candles: ndarray, testing_candles: ndarray, optimal_total: int, cpu_cores: int, csv: bool,
+    def __init__(self, training_candles: ndarray, testing_candles: ndarray, optimal_total: int, cpu_cores: int,
+                 csv: bool,
                  json: bool, start_date: str, finish_date: str) -> None:
         if len(router.routes) != 1:
             raise NotImplementedError('optimize_mode mode only supports one route at the moment')
@@ -181,13 +183,42 @@ class Optimizer(Genetics):
         return score, training_log, testing_log
 
 
-def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cores: int, csv: bool, json: bool) -> None:
+def run(
+        debug_mode,
+        user_config: dict,
+        routes: List[Dict[str, str]],
+        extra_routes: List[Dict[str, str]],
+        start_date: str,
+        finish_date: str,
+        optimal_total: int,
+        cpu_cores: int,
+        csv: bool,
+        json: bool
+) -> None:
+    from jesse.config import config, set_config
+    config['app']['trading_mode'] = 'optimize'
+
+    # debug flag
+    config['app']['debug_mode'] = debug_mode
+
+    # inject config
+    set_config(user_config)
+
+    # set routes
+    router.initiate(routes, extra_routes)
+
+    store.app.set_session_id()
+
+    register_custom_exception_handler()
+
     # clear the screen
-    click.clear()
-    print('loading candles...')
+    if not jh.should_execute_silently():
+        click.clear()
 
     # validate routes
     validate_routes(router)
+
+    print('loading candles...')
 
     # load historical candles and divide them into training
     # and testing candles (15% for test, 85% for training)
@@ -196,11 +227,10 @@ def optimize_mode(start_date: str, finish_date: str, optimal_total: int, cpu_cor
     # clear the screen
     click.clear()
 
-    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date, finish_date)
+    optimizer = Optimizer(training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date,
+                          finish_date)
 
     optimizer.run()
-
-    # TODO: store hyper parameters into each strategies folder per each Exchange-symbol-timeframe
 
 
 def get_training_and_testing_candles(start_date_str: str, finish_date_str: str) -> Tuple[

@@ -35,6 +35,18 @@ class BacktestRequestJson(BaseModel):
     export_full_reports: bool
 
 
+class OptimizationRequestJson(BaseModel):
+    id: str
+    routes: List[Dict[str, str]]
+    extra_routes: List[Dict[str, str]]
+    config: dict
+    start_date: str
+    finish_date: str
+    debug_mode: bool
+    export_csv: bool
+    export_json: bool
+
+
 class ImportCandlesRequestJson(BaseModel):
     id: str
     exchange: str

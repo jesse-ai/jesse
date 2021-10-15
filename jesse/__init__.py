@@ -13,7 +13,7 @@ from jesse.services import auth as authenticator
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
-    ReportExceptionRequestJson
+    ReportExceptionRequestJson, OptimizationRequestJson
 from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
@@ -251,6 +251,40 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
 
 
+@fastapi_app.post("/optimization")
+def optimization(request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    tunes the hyper-parameters of your strategy
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    validate_cwd()
+
+    from jesse.modes.optimize_mode import run as run_optimization
+
+    process_manager.add_task(
+        run_optimization,
+        'optimization-' + str(request_json.id),
+        request_json.debug_mode,
+        request_json.config,
+        request_json.routes,
+        request_json.extra_routes,
+        request_json.start_date,
+        request_json.finish_date,
+        # TODO: fix
+        5,
+        # TODO: fix
+        0,
+        request_json.export_csv,
+        request_json.export_json
+    )
+
+    # optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
+
+    return JSONResponse({'message': 'Started optimization...'}, status_code=202)
+
+
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
     if not authenticator.is_valid_token(token):
@@ -275,38 +309,6 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
 def shutdown_event():
     from jesse.services import db
     db.close_connection()
-
-
-@cli.command()
-@click.argument('start_date', required=True, type=str)
-@click.argument('finish_date', required=True, type=str)
-@click.argument('optimal_total', required=True, type=int)
-@click.option(
-    '--cpu', default=0, show_default=True,
-    help='The number of CPU cores that Jesse is allowed to use. If set to 0, it will use as many as is available on your machine.')
-@click.option(
-    '--debug/--no-debug', default=False,
-    help='Displays detailed logs about the genetics algorithm. Use it if you are interested int he genetics algorithm.'
-)
-@click.option('--csv/--no-csv', default=False, help='Outputs a CSV file of all DNAs on completion.')
-@click.option('--json/--no-json', default=False, help='Outputs a JSON file of all DNAs on completion.')
-def optimize(start_date: str, finish_date: str, optimal_total: int, cpu: int, debug: bool, csv: bool,
-             json: bool) -> None:
-    """
-    tunes the hyper-parameters of your strategy
-    """
-    validate_cwd()
-    from jesse.config import config
-    config['app']['trading_mode'] = 'optimize'
-
-    register_custom_exception_handler()
-
-    # debug flag
-    config['app']['debug_mode'] = debug
-
-    from jesse.modes.optimize_mode import optimize_mode
-
-    optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
 
 
 @cli.command()
