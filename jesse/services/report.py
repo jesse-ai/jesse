@@ -105,6 +105,15 @@ def livetrade():
     else:
         pnl, pnl_perc, total, winning_trades, losing_trades = 0, 0, 0, 0, 0
 
+    routes = [
+        {
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'strategy': r.strategy_name
+        } for r in router.routes
+    ]
+
     return {
         'session_id': store.app.session_id,
         'started_at': str(store.app.starting_time),
@@ -122,6 +131,7 @@ def livetrade():
         'count_trades': str(total),
         'count_winning_trades': str(winning_trades),
         'count_losing_trades': str(losing_trades),
+        'routes': routes
     }
 
 

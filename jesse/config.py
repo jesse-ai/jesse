@@ -1,3 +1,6 @@
+import jesse.helpers as jh
+
+
 config = {
     # these values are related to the user's environment
     'env': {
@@ -271,7 +274,8 @@ def set_config(c) -> None:
                 'fee': float(e['fee']),
                 'type': 'futures',
                 # used only in futures trading
-                'settlement_currency': 'USDT',
+                # 'settlement_currency': 'USDT',
+                'settlement_currency': jh.get_settlement_currency_from_exchange(e['name']),
                 # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': e['futures_leverage_mode'],
                 # 1x, 2x, 10x, 50x, etc. Enter as integers

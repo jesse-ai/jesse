@@ -8,26 +8,21 @@ from jesse.models.Option import Option
 from jesse.services.candle import generate_candle_from_one_minutes
 from starlette.responses import FileResponse
 from fastapi.responses import JSONResponse
+from jesse.models.utils import fetch_candles_from_db
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
-    exchange = exchange.title()
     symbol = symbol.upper()
+    num_candles = 210
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
-    start_date = finish_date - (210 * one_min_count * 60_000)
+    start_date = finish_date - (num_candles * one_min_count * 60_000)
 
     # fetch from database
-    candles_tuple = Candle.select(
-        Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-        Candle.volume
-    ).where(
-        Candle.timestamp.between(start_date, finish_date),
-        Candle.exchange == exchange,
-        Candle.symbol == symbol).order_by(Candle.timestamp.asc()).tuples()
-
-    candles = np.array(tuple(candles_tuple))
+    candles = np.array(
+        fetch_candles_from_db(exchange, symbol, start_date, finish_date)
+    )
 
     if timeframe != '1m':
         generated_candles = []
@@ -42,7 +37,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
                 )
         candles = generated_candles
 
-    return [
+    candles_arr = [
         {
             'time': int(c[0] / 1000),
             'open': c[1],
@@ -52,6 +47,8 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             'volume': c[5],
         } for c in candles
     ]
+
+    return candles_arr
 
 
 def get_general_info(has_live=False) -> dict:
@@ -112,6 +109,12 @@ def get_config(client_config: dict, has_live=False) -> dict:
                 if k not in live_exchanges:
                     del data['live']['exchanges'][k]
 
+        # fix the settlement_currency of exchanges
+        for k, e in data['live']['exchanges'].items():
+            e['settlement_currency'] = jh.get_settlement_currency_from_exchange(e['name'])
+        for k, e in data['backtest']['exchanges'].items():
+            e['settlement_currency'] = jh.get_settlement_currency_from_exchange(e['name'])
+
         o.updated_at = jh.now()
         o.save()
 
@@ -124,7 +127,6 @@ def update_config(client_config: dict):
     # at this point there must already be one option record for "config" existing, so:
     o = Option.get_or_none(Option.type == 'config')
 
-    o.json = json.dumps(client_config)
     o.updated_at = jh.now()
 
     o.save()
