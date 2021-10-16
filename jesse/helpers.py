@@ -218,7 +218,7 @@ def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.nda
      :param source_type: string
      :return: np.ndarray
      """
-
+    # if len(candles.shape) == 2:
     if source_type == "close":
         return candles[:, 2]
     elif source_type == "high":
@@ -237,6 +237,25 @@ def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.nda
         return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
     else:
         raise ValueError('type string not recognised')
+    # elif len(candles.shape) == 1:
+    #     if source_type == "close":
+    #         return candles[2]
+    #     elif source_type == "high":
+    #         return candles[3]
+    #     elif source_type == "low":
+    #         return candles[4]
+    #     elif source_type == "open":
+    #         return candles[1]
+    #     elif source_type == "volume":
+    #         return candles[5]
+    #     elif source_type == "hl2":
+    #         return (candles[3] + candles[4]) / 2
+    #     elif source_type == "hlc3":
+    #         return (candles[3] + candles[4] + candles[2]) / 3
+    #     elif source_type == "ohlc4":
+    #         return (candles[1] + candles[3] + candles[4] + candles[2]) / 4
+    #     else:
+    #         raise ValueError('type string not recognised')
 
 
 def get_config(keys: str, default: Any = None) -> Any:
@@ -359,11 +378,14 @@ def is_valid_uuid(uuid_to_test:str, version: int = 4) -> bool:
     return str(uuid_obj) == uuid_to_test
 
 
-def key(exchange: str, symbol: str, timeframe: str = None):
+def key_(exchange: str, symbol: str, timeframe: str = None):
     if timeframe is None:
         return f'{exchange}-{symbol}'
 
     return f'{exchange}-{symbol}-{timeframe}'
+
+def key(*args, **kwargs):
+    return "-".join(map(str,args + tuple(kwargs.values())))
 
 
 def max_timeframe(timeframes_list: list) -> str:
