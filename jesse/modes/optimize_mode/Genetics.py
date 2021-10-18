@@ -7,6 +7,8 @@ from random import randint, choices, choice
 # for macOS only
 from typing import Dict, Union, Any, List
 
+from jesse import sync_publish
+
 if sys.platform == 'darwin':
     multiprocessing.set_start_method('fork')
 from multiprocessing import Process, Manager
@@ -66,10 +68,10 @@ class Genetics(ABC):
         """
         generates the initial population
         """
-        loop_length = int(self.population_size / self.cpu_cores)
+        length = int(self.population_size / self.cpu_cores)
 
-        with click.progressbar(length=loop_length, label='Generating initial population...') as progressbar:
-            for i in range(loop_length):
+        with click.progressbar(length=length, label='Generating initial population...') as progressbar:
+            for i in range(length):
                 people = []
                 with Manager() as manager:
                     dna_bucket = manager.list([])
@@ -129,6 +131,10 @@ class Genetics(ABC):
                 # update dashboard
                 click.clear()
                 progressbar.update(1)
+                sync_publish('progressbar', {
+                    'current': round(i / length * 100, 1),
+                    'estimated_remaining_seconds': progressbar.eta
+                })
                 print('\n')
 
                 table_items = [
@@ -150,6 +156,19 @@ class Genetics(ABC):
 
                 table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
 
+                general_info = {
+                    'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+                    'index': f'{len(self.population)}/{self.population_size}',
+                    'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
+                    'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
+                }
+                if jh.is_debugging():
+                    general_info['population_size'] = self.population_size
+                    general_info['iterations'] = self.iterations
+                    general_info['solution_length'] = self.solution_len
+
+                sync_publish('general_info', general_info)
+
                 # errors
                 if jh.is_debugging() and len(report.errors()):
                     print('\n')
@@ -157,7 +176,10 @@ class Genetics(ABC):
 
                 for p in people:
                     self.population.append(p)
-
+            sync_publish('progressbar', {
+                'current': 100,
+                'estimated_remaining_seconds': 0
+            })
         # sort the population
         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
 
