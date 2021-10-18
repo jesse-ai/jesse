@@ -240,7 +240,7 @@ class Genetics(ABC):
         if self.started_index == 0:
             self.generate_initial_population()
             if len(self.population) < 0.5 * self.population_size:
-                raise ValueError('Too many errors: less then half of the planned population size could be generated.')
+                raise ValueError('Too many errors: less than half of the expected population size could be generated.')
 
             # if even our best individual is too weak, then we better not continue
             if self.population[0]['fitness'] == 0.0001:
