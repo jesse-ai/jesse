@@ -27,6 +27,7 @@ import traceback
 import os
 import json
 from pandas import json_normalize
+from jesse import exceptions
 
 
 class Genetics(ABC):
@@ -53,7 +54,7 @@ class Genetics(ABC):
 
         # if temp file exists, load data to resume previous session
         if jh.file_exists(self.temp_path) and click.confirm(
-            'Previous session detected. Do you want to resume?', default=True
+                'Previous session detected. Do you want to resume?', default=True
         ):
             self.load_progress()
 
@@ -141,7 +142,8 @@ class Genetics(ABC):
                     ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
                     ['Index', f'{len(self.population)}/{self.population_size}'],
                     ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
-                    ['Trading Route', f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}'],
+                    ['Trading Route',
+                     f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}'],
                     # TODO: add generated DNAs?
                     # ['-'*10, '-'*10],
                     # ['DNA', people[0]['dna']],
@@ -240,13 +242,13 @@ class Genetics(ABC):
         if self.started_index == 0:
             self.generate_initial_population()
             if len(self.population) < 0.5 * self.population_size:
-                raise ValueError('Too many errors: less than half of the expected population size could be generated.')
+                raise ValueError('Too many errors! less than half of the expected population size could be generated.')
 
             # if even our best individual is too weak, then we better not continue
             if self.population[0]['fitness'] == 0.0001:
-                print(jh.color('Cannot continue because no individual with the minimum fitness-score was found. '
-                               'Your strategy seems to be flawed or maybe it requires modifications. ', 'yellow'))
-                jh.terminate_app()
+                raise exceptions.InvalidStrategy(
+                    'Cannot continue because no individual with the minimum fitness-score was found. '
+                    'Your strategy seems to be flawed or maybe it requires modifications. ')
 
         loop_length = int(self.iterations / self.cpu_cores)
 
@@ -306,7 +308,8 @@ class Genetics(ABC):
                         ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
                         ['Index/Total', f'{(i + 1) * self.cpu_cores}/{self.iterations}'],
                         ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
-                        ['Route', f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}']
+                        ['Route',
+                         f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}']
                     ]
                     if jh.is_debugging():
                         table_items.insert(
@@ -444,7 +447,7 @@ class Genetics(ABC):
         """
         stores a snapshot of the fittest population members into a file.
         """
-        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
 
         dnas_json = {'snapshot': []}
         for i in range(30):
