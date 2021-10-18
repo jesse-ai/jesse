@@ -18,12 +18,10 @@ class ExchangesState:
                 self.storage[name] = SpotExchange(name, starting_assets, fee)
             elif exchange_type == 'futures':
                 settlement_currency = jh.get_config(f'env.exchanges.{name}.settlement_currency')
-                jh.dump({'starting_assets': starting_assets})
                 # dirty fix to get the settlement_currency right for none-USDT pairs
                 settlement_asset_dict = pydash.find(starting_assets, lambda asset: asset['asset'] == settlement_currency)
                 if settlement_asset_dict is None:
                     starting_assets[0]['asset'] = settlement_currency
-                jh.dump({'starting_assets': starting_assets})
                 self.storage[name] = FuturesExchange(
                     name, starting_assets, fee,
                     settlement_currency=settlement_currency,
