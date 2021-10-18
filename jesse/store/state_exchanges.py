@@ -17,10 +17,10 @@ class ExchangesState:
                 self.storage[name] = SpotExchange(name, starting_assets, fee)
             elif exchange_type == 'futures':
                 settlement_currency = jh.get_config(f'env.exchanges.{name}.settlement_currency')
-                starting_assets.append({
-                    'asset': settlement_currency,
-                    'balance': 0
-                })
+                # dirty fix to get the settlement_currency right for none-USDT pairs
+                for a in starting_assets:
+                    if a['asset'] != settlement_currency:
+                        a['asset'] = settlement_currency
                 self.storage[name] = FuturesExchange(
                     name, starting_assets, fee,
                     settlement_currency=settlement_currency,
