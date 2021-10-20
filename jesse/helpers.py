@@ -822,6 +822,10 @@ def get_session_id():
     return store.app.session_id
 
 
+def get_pid():
+    return os.getpid()
+
+
 def is_jesse_project():
     ls = os.listdir('.')
     return 'strategies' in ls and 'storage' in ls
@@ -863,14 +867,14 @@ def float_or_none(item):
         return float(item)
 
 
-def str_or_none(item):
+def str_or_none(item, encoding='utf-8'):
     """
     Return the str of the value if it's not None
     """
     if item is None:
         return None
     else:
-        return str(item)
+        return str(item, encoding)
 
 
 def get_settlement_currency_from_exchange(exchange: str):

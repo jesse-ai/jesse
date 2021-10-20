@@ -1,3 +1,5 @@
+import os
+
 import arrow
 import numpy as np
 import pytest
@@ -558,3 +560,8 @@ def test_merge_dicts():
     expected_result = {'age': 28, 'extra': {'name': 'Ocean', 'water': 100, 'new_key': 12}}
 
     assert expected_result == jh.merge_dicts(client, server)
+
+
+def test_get_pid():
+    assert os.getpid() == jh.get_pid()
+
