@@ -1,11 +1,13 @@
 import math
 import threading
 import time
+from datetime import timedelta
 from typing import Dict, List, Any, Union
 
 import arrow
 import click
 import pydash
+from timeloop import Timeloop
 
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
@@ -15,8 +17,9 @@ from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.services.db import store_candles
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish
+from jesse.services.redis import sync_publish, process_status
 from jesse.store import store
+from jesse import exceptions
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
@@ -26,6 +29,16 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     store.app.set_session_id()
 
     register_custom_exception_handler()
+
+    # at every second, we check to see if it's time to execute stuff
+    status_checker = Timeloop()
+
+    @status_checker.job(interval=timedelta(seconds=1))
+    def handle_time():
+        if process_status() != 'started':
+            raise exceptions.Termination
+
+    status_checker.start()
 
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
@@ -141,10 +154,15 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             if not already_exists:
                 time.sleep(driver.sleep_time)
 
-    sync_publish('alert', {
-        'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
-        'type': 'success'
-    })
+    if not skip_confirmation:
+        sync_publish('alert', {
+            'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
+            'type': 'success'
+        })
+
+        # close database connection
+        from jesse.services.db import close_connection
+        close_connection()
 
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,

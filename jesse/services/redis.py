@@ -46,3 +46,16 @@ async def async_publish(event: str, msg):
             'data': msg
         }, ignore_nan=True, cls=NpEncoder)
     )
+
+
+def process_status(pid=None) -> str:
+    if pid is None:
+        pid = jh.get_pid()
+
+    key = f'process-status:{pid}'
+
+    res: str = jh.str_or_none(sync_redis.get(key))
+    if res is None:
+        raise ValueError(f'No value exists in Redis for process ID of: {pid}')
+
+    return jh.string_after_character(res, ':')

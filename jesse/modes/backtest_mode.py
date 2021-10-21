@@ -26,7 +26,9 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish
+from jesse.services.redis import sync_publish, process_status
+from timeloop import Timeloop
+from datetime import timedelta
 
 
 def run(
@@ -43,6 +45,16 @@ def run(
         csv: bool = False,
         json: bool = False
 ) -> None:
+    # at every second, we check to see if it's time to execute stuff
+    status_checker = Timeloop()
+
+    @status_checker.job(interval=timedelta(seconds=1))
+    def handle_time():
+        if process_status() != 'started':
+            raise exceptions.Termination
+
+    status_checker.start()
+
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'backtest'
 
@@ -143,6 +155,10 @@ def run(
             sync_publish('equity_curve', None)
             sync_publish('metrics', None)
 
+    # close database connection
+    from jesse.services.db import close_connection
+    close_connection()
+
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
     start_date = jh.date_to_timestamp(start_date_str)
@@ -154,7 +170,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
     if finish_date > arrow.utcnow().int_timestamp * 1000:
-        raise ValueError("Can't load candle data from the future! The finish-date can be up to yesterday's date at most.")
+        raise ValueError(
+            "Can't load candle data from the future! The finish-date can be up to yesterday's date at most.")
 
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
