@@ -219,7 +219,7 @@ def cancel_import_candles(request_json: CancelRequestJson, authorization: Option
 
     process_manager.cancel_process('candles-' + request_json.id)
 
-    return JSONResponse({'message': f'Candles process with ID of {request_json.id} terminated.'}, status_code=200)
+    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'}, status_code=202)
 
 
 @fastapi_app.post("/backtest")
@@ -252,10 +252,7 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
 
 
 @fastapi_app.post("/optimization")
-def optimization(request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)):
-    """
-    tunes the hyper-parameters of your strategy
-    """
+async def optimization(request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -265,7 +262,7 @@ def optimization(request_json: OptimizationRequestJson, authorization: Optional[
 
     process_manager.add_task(
         run_optimization,
-        'optimization-' + str(request_json.id),
+        'optimize-' + str(request_json.id),
         request_json.debug_mode,
         request_json.config,
         request_json.routes,
@@ -275,7 +272,7 @@ def optimization(request_json: OptimizationRequestJson, authorization: Optional[
         # TODO: fix
         5,
         # TODO: fix
-        0,
+        2,
         request_json.export_csv,
         request_json.export_json
     )
@@ -283,6 +280,16 @@ def optimization(request_json: OptimizationRequestJson, authorization: Optional[
     # optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
 
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)
+
+
+@fastapi_app.delete("/optimization")
+def cancel_optimization(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    process_manager.cancel_process('optimize-' + request_json.id)
+
+    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'}, status_code=202)
 
 
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
@@ -302,7 +309,7 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
 
     process_manager.cancel_process('backtest-' + request_json.id)
 
-    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} terminated.'}, status_code=200)
+    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'}, status_code=202)
 
 
 @fastapi_app.on_event("shutdown")

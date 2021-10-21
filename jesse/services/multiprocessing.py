@@ -19,7 +19,6 @@ class Process(mp.Process):
         try:
             mp.Process.run(self)
         except Exception as e:
-            jh.dump('called process')
 
             if type(e).__name__ == 'Termination':
                 sync_publish('termination', {})

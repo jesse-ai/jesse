@@ -101,7 +101,7 @@ def run(
         sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
-    simulator(candles)
+    simulator(candles, run_silently=jh.should_execute_silently())
 
     if not jh.should_execute_silently():
         # print trades metrics
@@ -228,7 +228,9 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters: dict = None) -> None:
+def simulator(
+        candles: dict, run_silently: bool, hyperparameters: dict = None
+) -> None:
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
@@ -314,7 +316,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
                                                  with_generation=False)
 
             # update progressbar
-            if not jh.should_execute_silently() and i % 60 == 0:
+            if not run_silently and i % 60 == 0:
                 progressbar.update(60)
                 sync_publish('progressbar', {
                     'current': round(i / length * 100, 1),
@@ -340,7 +342,7 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
             if i != 0 and i % 1440 == 0:
                 save_daily_portfolio_balance()
 
-    if not jh.should_execute_silently():
+    if not run_silently:
         if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
             print('\n')
 

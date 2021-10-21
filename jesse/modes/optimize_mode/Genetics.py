@@ -1,25 +1,15 @@
-import multiprocessing
 import pickle
-import sys
-from abc import ABC, abstractmethod
+from abc import ABC
 from random import randint, choices, choice
-
-# for macOS only
 from typing import Dict, Union, Any, List
-
 from jesse import sync_publish
-
-if sys.platform == 'darwin':
-    multiprocessing.set_start_method('fork')
+from jesse.services.redis import process_status
 from multiprocessing import Process, Manager
-
 import click
 import numpy as np
 import pydash
-
 import jesse.helpers as jh
 from jesse.services import table
-from jesse.routes import router
 import jesse.services.logger as logger
 from jesse.store import store
 import jesse.services.report as report
@@ -28,22 +18,59 @@ import os
 import json
 from pandas import json_normalize
 from jesse import exceptions
+from .fitness import get_and_add_fitness_to_the_bucket, get_fitness
+from jesse.routes import router
+from numpy import ndarray
+from multiprocessing import cpu_count
 
 
-class Genetics(ABC):
-    def __init__(self, iterations: int, population_size: int, solution_len: int,
-                 charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
-                 fitness_goal: float = 1,
-                 options: Dict[str, Union[bool, Any]] = None) -> None:
+class Optimizer(ABC):
+    def __init__(
+            self,
+            training_candles: ndarray, testing_candles: ndarray, optimal_total: int, cpu_cores: int,
+            csv: bool,
+            json: bool, start_date: str, finish_date: str,
+            charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
+            fitness_goal: float = 1,
+    ) -> None:
+        if len(router.routes) != 1:
+            raise NotImplementedError('optimize_mode mode only supports one route at the moment')
+
+        self.strategy_name = router.routes[0].strategy_name
+        self.exchange = router.routes[0].exchange
+        self.symbol = router.routes[0].symbol
+        self.timeframe = router.routes[0].timeframe
+        StrategyClass = jh.get_strategy_class(self.strategy_name)
+        self.strategy_hp = StrategyClass.hyperparameters(None)
+        solution_len = len(self.strategy_hp)
+
+        if solution_len == 0:
+            raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyperparameters() method.')
+
         self.started_index = 0
         self.start_time = jh.now_to_timestamp()
         self.population = []
-        self.iterations = iterations
-        self.population_size = population_size
+        self.iterations = 2000 * solution_len
+        self.population_size = solution_len * 100
         self.solution_len = solution_len
         self.charset = charset
         self.fitness_goal = fitness_goal
         self.cpu_cores = 0
+        self.optimal_total = optimal_total
+        self.training_candles = training_candles
+        self.testing_candles = testing_candles
+
+        options = {
+            'strategy_name': self.strategy_name,
+            'exchange': self.exchange,
+            'symbol': self.symbol,
+            'timeframe': self.timeframe,
+            'strategy_hp': self.strategy_hp,
+            'csv': csv,
+            'json': json,
+            'start_date': start_date,
+            'finish_date': finish_date,
+        }
 
         self.options = {} if options is None else options
         os.makedirs('./storage/temp/optimize', exist_ok=True)
@@ -58,12 +85,12 @@ class Genetics(ABC):
         ):
             self.load_progress()
 
-    @abstractmethod
-    def fitness(self, dna: str) -> tuple:
-        """
-        calculates and returns the fitness score the the DNA
-        """
-        pass
+        if cpu_cores > cpu_count():
+            raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
+        elif cpu_cores == 0:
+            self.cpu_cores = cpu_count()
+        else:
+            self.cpu_cores = cpu_cores
 
     def generate_initial_population(self) -> None:
         """
@@ -78,24 +105,21 @@ class Genetics(ABC):
                     dna_bucket = manager.list([])
                     workers = []
 
-                    def get_fitness(dna: str, dna_bucket: list) -> None:
-                        try:
-                            # check if the DNA is already in the list
-                            if all(dna_tuple[0] != dna for dna_tuple in dna_bucket):
-                                fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
-                                dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
-                            else:
-                                raise ValueError(f"Initial Population: Double DNA: {dna}")
-                        except Exception as e:
-                            proc = os.getpid()
-                            logger.error(f'process failed - ID: {str(proc)}')
-                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-                            raise e
-
                     try:
                         for _ in range(self.cpu_cores):
+                            # check for termination event once per second
+                            if process_status() != 'started':
+                                raise exceptions.Termination
+
                             dna = ''.join(choices(self.charset, k=self.solution_len))
-                            w = Process(target=get_fitness, args=(dna, dna_bucket))
+                            w = Process(
+                                target=get_and_add_fitness_to_the_bucket,
+                                args=(
+                                    dna_bucket, router.formatted_routes, router.formatted_extra_routes,
+                                    self.strategy_hp, dna, self.training_candles, self.testing_candles,
+                                    self.optimal_total
+                                )
+                            )
                             w.start()
                             workers.append(w)
 
@@ -104,20 +128,8 @@ class Genetics(ABC):
                             w.join()
                             if w.exitcode > 0:
                                 logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
-                    except KeyboardInterrupt:
-                        print(
-                            jh.color('Terminating session...', 'red')
-                        )
-
-                        # terminate all workers
-                        for w in workers:
-                            w.terminate()
-
-                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-                        manager.shutdown()
-
-                        # now we can terminate the main session safely
-                        jh.terminate_app()
+                    except exceptions.Termination:
+                        self._handle_termination(manager, workers)
                     except:
                         raise
 
@@ -195,7 +207,9 @@ class Genetics(ABC):
             return next(item for item in self.population if item["dna"] == dna)
         except StopIteration:
             # not found - so run the backtest
-            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+            fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+                self.strategy_hp, dna, self.training_candles, self.testing_candles, self.optimal_total
+            )
 
         return {
             'dna': dna,
@@ -218,7 +232,9 @@ class Genetics(ABC):
             return next(item for item in self.population if item["dna"] == dna)
         except StopIteration:
             # not found - so run the backtest
-            fitness_score, fitness_log_training, fitness_log_testing = self.fitness(dna)
+            fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+                self.strategy_hp, dna, self.training_candles, self.testing_candles, self.optimal_total
+            )
 
         return {
             'dna': dna,
@@ -274,6 +290,10 @@ class Genetics(ABC):
 
                     try:
                         for _ in range(self.cpu_cores):
+                            # check for termination event once per second
+                            if process_status() != 'started':
+                                raise exceptions.Termination
+
                             w = Process(target=get_baby, args=[people])
                             w.start()
                             workers.append(w)
@@ -282,20 +302,8 @@ class Genetics(ABC):
                             w.join()
                             if w.exitcode > 0:
                                 logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
-                    except KeyboardInterrupt:
-                        print(
-                            jh.color('Terminating session...', 'red')
-                        )
-
-                        # terminate all workers
-                        for w in workers:
-                            w.terminate()
-
-                        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-                        manager.shutdown()
-
-                        # now we can terminate the main session safely
-                        jh.terminate_app()
+                    except exceptions.Termination:
+                        self._handle_termination(manager, workers)
                     except:
                         raise
 
@@ -303,7 +311,7 @@ class Genetics(ABC):
                     click.clear()
                     progressbar.update(1)
                     print('\n')
-
+                    from jesse.routes import router
                     table_items = [
                         ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
                         ['Index/Total', f'{(i + 1) * self.cpu_cores}/{self.iterations}'],
@@ -346,8 +354,7 @@ class Genetics(ABC):
                     for j in range(number_of_ind_to_show):
                         log = f"win-rate: {self.population[j]['training_log']['win-rate']}%, total: {self.population[j]['training_log']['total']}, PNL: {self.population[j]['training_log']['PNL']}% || win-rate: {self.population[j]['testing_log']['win-rate']}%, total: {self.population[j]['testing_log']['total']}, PNL: {self.population[j]['testing_log']['PNL']}%"
                         if self.population[j]['testing_log']['PNL'] is not None and self.population[j]['training_log'][
-                            'PNL'] > 0 and self.population[j]['testing_log'][
-                            'PNL'] > 0:
+                            'PNL'] > 0 and self.population[j]['testing_log']['PNL'] > 0:
                             log = jh.style(log, 'bold')
                         if jh.is_debugging():
                             fittest_list.append(
@@ -505,3 +512,19 @@ class Genetics(ABC):
                     file.seek(0)
                     json.dump(data, file, ensure_ascii=False)
                 file.write('\n')
+
+    @staticmethod
+    def _handle_termination(manager, workers):
+        print(
+            jh.color('Terminating session...', 'red')
+        )
+
+        # terminate all workers
+        for w in workers:
+            w.terminate()
+
+        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+        manager.shutdown()
+
+        # now we can terminate the main session safely
+        jh.terminate_app()

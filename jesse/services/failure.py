@@ -37,7 +37,6 @@ def register_custom_exception_handler() -> None:
         if args.exc_type == SystemExit:
             return
 
-        jh.dump('called thread?')
         if args.exc_type.__name__ == 'Termination':
             sync_publish('termination', {})
             jh.terminate_app()
