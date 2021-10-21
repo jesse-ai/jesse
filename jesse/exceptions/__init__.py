@@ -68,3 +68,7 @@ class NegativeBalance(Exception):
 
 class InsufficientMargin(Exception):
     pass
+
+
+class Termination(Exception):
+    pass
