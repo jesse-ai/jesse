@@ -53,7 +53,7 @@ def run(
 
     # load historical candles and divide them into training
     # and testing periods (15% for test, 85% for training)
-    training_candles, testing_candles = get_training_and_testing_candles(start_date, finish_date)
+    training_candles, testing_candles = _get_training_and_testing_candles(start_date, finish_date)
 
     # clear the screen
     click.clear()
@@ -62,10 +62,11 @@ def run(
         training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date, finish_date
     )
 
+    # start the process
     optimizer.run()
 
 
-def get_training_and_testing_candles(start_date_str: str, finish_date_str: str) -> tuple:
+def _get_training_and_testing_candles(start_date_str: str, finish_date_str: str) -> tuple:
     start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD')) - 60000
 

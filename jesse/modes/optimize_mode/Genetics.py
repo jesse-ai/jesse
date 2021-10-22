@@ -27,9 +27,11 @@ from multiprocessing import cpu_count
 class Optimizer(ABC):
     def __init__(
             self,
-            training_candles: ndarray, testing_candles: ndarray, optimal_total: int, cpu_cores: int,
+            training_candles: ndarray, testing_candles: ndarray,
+            optimal_total: int, cpu_cores: int,
             csv: bool,
-            json: bool, start_date: str, finish_date: str,
+            json: bool,
+            start_date: str, finish_date: str,
             charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
             fitness_goal: float = 1,
     ) -> None:
