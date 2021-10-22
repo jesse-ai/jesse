@@ -5,11 +5,14 @@ import random
 import string
 import sys
 import uuid
-from typing import List, Tuple, Union, Any
-from pprint import pprint
 import arrow
 import click
 import numpy as np
+
+from pprint import pprint
+from jesse.enums import timeframes
+from typing import List, Tuple, Union, Any
+from jesse.exceptions import InvalidTimeframe
 
 CACHED_CONFIG = dict()
 
@@ -218,44 +221,44 @@ def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.nda
      :param source_type: string
      :return: np.ndarray
      """
-    # if len(candles.shape) == 2:
-    if source_type == "close":
-        return candles[:, 2]
-    elif source_type == "high":
-        return candles[:, 3]
-    elif source_type == "low":
-        return candles[:, 4]
-    elif source_type == "open":
-        return candles[:, 1]
-    elif source_type == "volume":
-        return candles[:, 5]
-    elif source_type == "hl2":
-        return (candles[:, 3] + candles[:, 4]) / 2
-    elif source_type == "hlc3":
-        return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
-    elif source_type == "ohlc4":
-        return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
-    else:
-        raise ValueError('type string not recognised')
-    # elif len(candles.shape) == 1:
-    #     if source_type == "close":
-    #         return candles[2]
-    #     elif source_type == "high":
-    #         return candles[3]
-    #     elif source_type == "low":
-    #         return candles[4]
-    #     elif source_type == "open":
-    #         return candles[1]
-    #     elif source_type == "volume":
-    #         return candles[5]
-    #     elif source_type == "hl2":
-    #         return (candles[3] + candles[4]) / 2
-    #     elif source_type == "hlc3":
-    #         return (candles[3] + candles[4] + candles[2]) / 3
-    #     elif source_type == "ohlc4":
-    #         return (candles[1] + candles[3] + candles[4] + candles[2]) / 4
-    #     else:
-    #         raise ValueError('type string not recognised')
+    if len(candles.shape) == 2:
+        if source_type == "close":
+            return candles[:, 2]
+        elif source_type == "high":
+            return candles[:, 3]
+        elif source_type == "low":
+            return candles[:, 4]
+        elif source_type == "open":
+            return candles[:, 1]
+        elif source_type == "volume":
+            return candles[:, 5]
+        elif source_type == "hl2":
+            return (candles[:, 3] + candles[:, 4]) / 2
+        elif source_type == "hlc3":
+            return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
+        elif source_type == "ohlc4":
+            return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
+        else:
+            raise ValueError('type string not recognised')
+    elif len(candles.shape) == 1:
+        if source_type == "close":
+            return candles[2]
+        elif source_type == "high":
+            return candles[3]
+        elif source_type == "low":
+            return candles[4]
+        elif source_type == "open":
+            return candles[1]
+        elif source_type == "volume":
+            return candles[5]
+        elif source_type == "hl2":
+            return (candles[3] + candles[4]) / 2
+        elif source_type == "hlc3":
+            return (candles[3] + candles[4] + candles[2]) / 3
+        elif source_type == "ohlc4":
+            return (candles[1] + candles[3] + candles[4] + candles[2]) / 4
+        else:
+            raise ValueError('type string not recognised')
 
 
 def get_config(keys: str, default: Any = None) -> Any:
@@ -383,6 +386,7 @@ def key_(exchange: str, symbol: str, timeframe: str = None):
         return f'{exchange}-{symbol}'
 
     return f'{exchange}-{symbol}-{timeframe}'
+
 
 def key(*args, **kwargs):
     return "-".join(map(str,args + tuple(kwargs.values())))
@@ -717,12 +721,7 @@ def _print_error(msg: str) -> None:
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
 
-
-def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
-
-    dic = {
+_timeframe_to_one_minutes_dic = {
         timeframes.MINUTE_1: 1,
         timeframes.MINUTE_3: 3,
         timeframes.MINUTE_5: 5,
@@ -730,19 +729,21 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         timeframes.MINUTE_30: 30,
         timeframes.MINUTE_45: 45,
         timeframes.HOUR_1: 60,
-        timeframes.HOUR_2: 60 * 2,
-        timeframes.HOUR_3: 60 * 3,
-        timeframes.HOUR_4: 60 * 4,
-        timeframes.HOUR_6: 60 * 6,
-        timeframes.HOUR_8: 60 * 8,
-        timeframes.HOUR_12: 60 * 12,
-        timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
+        timeframes.HOUR_2: 120,
+        timeframes.HOUR_3: 180,
+        timeframes.HOUR_4: 240,
+        timeframes.HOUR_6: 360,
+        timeframes.HOUR_8: 480,
+        timeframes.HOUR_12: 720,
+        timeframes.DAY_1: 1440,
+        timeframes.DAY_3: 4320,
+        timeframes.WEEK_1: 10080,
     }
 
+
+def timeframe_to_one_minutes(timeframe: str) -> int:
     try:
-        return dic[timeframe]
+        return _timeframe_to_one_minutes_dic[timeframe]
     except KeyError:
         all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
         raise InvalidTimeframe(

@@ -1,3 +1,4 @@
+import datetime
 import csv
 import json
 import os
@@ -46,11 +47,14 @@ def store_logs(study_name: str = '', export_json: bool = False, export_tradingvi
         with open(path, 'w', newline='') as outfile:
             wr = csv.writer(outfile, quoting=csv.QUOTE_ALL)
 
-            for i, t in enumerate(trades_json['trades']):
-                if i == 0:
-                    # header of CSV file
-                    wr.writerow(t.keys())
-
+            # header of CSV file
+            wr.writerow(trades_json['trades'][0].keys())
+            for t in trades_json['trades']:
+                t['holding_period'] = datetime.timedelta(seconds=t['holding_period'])
+                t['opened_at'] = datetime.datetime.fromtimestamp(t['opened_at']/1000)
+                t['closed_at'] = datetime.datetime.fromtimestamp(t['closed_at']/1000)
+                t['entry_candle_timestamp'] = datetime.datetime.fromtimestamp(t['entry_candle_timestamp']/1000)
+                t['exit_candle_timestamp'] = datetime.datetime.fromtimestamp(t['exit_candle_timestamp']/1000)
                 wr.writerow(t.values())
 
         print(f'\nCSV output saved at: \n{path}')
