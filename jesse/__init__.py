@@ -269,10 +269,8 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.extra_routes,
         request_json.start_date,
         request_json.finish_date,
-        # TODO: fix
-        5,
-        # TODO: fix
-        2,
+        request_json.optimal_total,
+        request_json.cpu_cores,
         request_json.export_csv,
         request_json.export_json
     )

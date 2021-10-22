@@ -42,6 +42,8 @@ class OptimizationRequestJson(BaseModel):
     config: dict
     start_date: str
     finish_date: str
+    optimal_total: int
+    cpu_cores: int
     debug_mode: bool
     export_csv: bool
     export_json: bool
