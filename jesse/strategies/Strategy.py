@@ -685,7 +685,7 @@ class Strategy(ABC):
                         )
 
                 # submit stop-loss
-                submitted_order: Order = self.broker.stop_loss_at(
+                submitted_order: Order = self.broker.reduce_position_at(
                     o[0],
                     o[1],
                     order_roles.CLOSE_POSITION
