@@ -95,7 +95,7 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
-        if price == self.position.current_price:
+        if abs(price - self.position.current_price) < 0.0001:
             return self.api.market_order(
                 self.exchange,
                 self.symbol,
