@@ -380,6 +380,8 @@ def skip_simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperp
                                                                        short_candles,
                                                                        accept_forming_candles=True)
 
+                if i - skip > 0:
+                    current_temp_candle = _get_fixed_jumped_candle(candles[j]['candles'][i - skip - 1], current_temp_candle)
                 # in this new prices update there might be an order that needs to be executed
                 _simulate_price_change_effect(current_temp_candle, exchange, symbol)
 
@@ -501,11 +503,10 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
+    candle[1] = previous_candle[2]
     if previous_candle[2] < candle[1]:
-        candle[1] = previous_candle[2]
         candle[4] = min(previous_candle[2], candle[4])
-    elif previous_candle[2] > candle[1]:
-        candle[1] = previous_candle[2]
+    else:
         candle[3] = max(previous_candle[2], candle[3])
 
     return candle
