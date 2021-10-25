@@ -49,6 +49,9 @@ async def async_publish(event: str, msg):
 
 
 def process_status(pid=None) -> str:
+    if jh.is_unit_testing():
+        raise EnvironmentError('process_status() is not meant to be called in unit tests')
+
     if pid is None:
         pid = jh.get_pid()
 

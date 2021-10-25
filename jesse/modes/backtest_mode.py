@@ -45,15 +45,14 @@ def run(
         csv: bool = False,
         json: bool = False
 ) -> None:
-    # at every second, we check to see if it's time to execute stuff
-    status_checker = Timeloop()
-
-    @status_checker.job(interval=timedelta(seconds=1))
-    def handle_time():
-        if process_status() != 'started':
-            raise exceptions.Termination
-
-    status_checker.start()
+    if not jh.is_unit_testing():
+        # at every second, we check to see if it's time to execute stuff
+        status_checker = Timeloop()
+        @status_checker.job(interval=timedelta(seconds=1))
+        def handle_time():
+            if process_status() != 'started':
+                raise exceptions.Termination
+        status_checker.start()
 
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'backtest'
