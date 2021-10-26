@@ -81,6 +81,9 @@ class Optimizer(ABC):
         if fitness_goal > 1 or fitness_goal < 0:
             raise ValueError('fitness scores must be between 0 and 1')
 
+        if not optimal_total > 0:
+            raise ValueError('optimal_total must be bigger than 0')
+
         # if temp file exists, load data to resume previous session
         if jh.file_exists(self.temp_path) and click.confirm(
                 'Previous session detected. Do you want to resume?', default=True

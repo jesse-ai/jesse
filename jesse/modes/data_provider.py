@@ -71,7 +71,8 @@ def get_general_info(has_live=False) -> dict:
         'live_exchanges': live_exchanges,
         'strategies': strategies,
         'has_live_plugin_installed': has_live,
-        'is_logged_in_to_jesse_trade': is_logged_in_to_jesse_trade
+        'is_logged_in_to_jesse_trade': is_logged_in_to_jesse_trade,
+        'cpu_cores': jh.cpu_cores_count()
     }
 
 

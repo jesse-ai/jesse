@@ -22,7 +22,6 @@ def run(
         start_date: str,
         finish_date: str,
         optimal_total: int,
-        cpu_cores: int,
         csv: bool,
         json: bool
 ) -> None:
@@ -31,6 +30,8 @@ def run(
 
     # debug flag
     config['app']['debug_mode'] = debug_mode
+
+    cpu_cores = int(user_config['cpu_cores'])
 
     # inject config
     set_config(user_config)

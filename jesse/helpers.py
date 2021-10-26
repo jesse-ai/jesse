@@ -882,3 +882,8 @@ def get_settlement_currency_from_exchange(exchange: str):
         return 'USD'
     else:
         return 'USDT'
+
+
+def cpu_cores_count():
+    from multiprocessing import cpu_count
+    return cpu_count()
