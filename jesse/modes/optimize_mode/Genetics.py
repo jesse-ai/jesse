@@ -117,7 +117,7 @@ class Optimizer(ABC):
                             w = Process(
                                 target=get_and_add_fitness_to_the_bucket,
                                 args=(
-                                    dna_bucket, router.formatted_routes, router.formatted_extra_routes,
+                                    dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
                                     self.strategy_hp, dna, self.training_candles, self.testing_candles,
                                     self.optimal_total
                                 )

@@ -256,20 +256,26 @@ config = {
 }
 
 
-def set_config(c) -> None:
+def set_config(conf: dict) -> None:
     global config
 
-    if 'logging' in c:
-        config['env']['logging'] = c['logging']
+    # optimization mode only
+    if jh.is_optimizing():
+        # ratio
+        config['env']['optimization']['ratio'] = conf['ratio']
+        # exchange info (only one because the optimize mode supports only one trading route at the moment)
+        config['env']['optimization']['exchange'] = conf['exchange']
+        # warm_up_candles
+        config['env']['optimization']['warmup_candles_num'] = int(conf['warm_up_candles'])
 
-    if 'warm_up_candles' in c:
-        config['env']['data']['warmup_candles_num'] = int(c['warm_up_candles'])
-
-    if 'optimization' in c:
-        config['env']['optimization'] = c['optimization']
-
-    if 'exchanges' in c:
-        for key, e in c['exchanges'].items():
+    # backtest and live
+    if jh.is_backtesting() or jh.is_live():
+        # warm_up_candles
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
+        # logs
+        config['env']['logging'] = conf['logging']
+        # exchanges
+        for key, e in conf['exchanges'].items():
             config['env']['exchanges'][e['name']] = {
                 'fee': float(e['fee']),
                 'type': 'futures',
@@ -285,8 +291,9 @@ def set_config(c) -> None:
                 ],
             }
 
-    if 'notifications' in c:
-        config['env']['notifications'] = c['notifications']
+    # live mode only
+    if jh.is_live():
+        config['env']['notifications'] = conf['notifications']
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'

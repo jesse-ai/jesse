@@ -6,23 +6,23 @@ import traceback
 import os
 
 
-def _formatted_inputs_for_isolated_backtest():
-    # TODO: make config dynamically
+def _formatted_inputs_for_isolated_backtest(user_config, routes):
     formatted_config = {
-        'starting_balance': 5_000,
-        'fee': 0.001,
-        'futures_leverage': 3,
-        'futures_leverage_mode': 'cross',
-        'exchange': 'Binance',
-        'settlement_currency': 'USDT',
-        'warm_up_candles': 100
+        'starting_balance': user_config['exchange']['balance'],
+        'fee': user_config['exchange']['fee'],
+        'futures_leverage': user_config['exchange']['futures_leverage'],
+        'futures_leverage_mode': user_config['exchange']['futures_leverage_mode'],
+        'exchange': routes[0]['exchange'],
+        'settlement_currency': jh.quote_asset(routes[0]['symbol']),
+        'warm_up_candles': user_config['warmup_candles_num']
     }
 
     return formatted_config
 
 
 def get_fitness(
-        routes: list, extra_routes: list, strategy_hp, dna: str, training_candles, testing_candles, optimal_total
+        optimization_config: dict, routes: list, extra_routes: list, strategy_hp, dna: str, training_candles,
+        testing_candles, optimal_total
 ) -> tuple:
     """
     Notice that this function is likely to be executed inside workers, hence its inputs must
@@ -32,7 +32,7 @@ def get_fitness(
 
     # run backtest simulation
     training_data_metrics = isolated_backtest(
-        _formatted_inputs_for_isolated_backtest(),
+        _formatted_inputs_for_isolated_backtest(optimization_config, routes),
         routes,
         extra_routes,
         training_candles,
@@ -108,7 +108,8 @@ def get_fitness(
 
 
 def get_and_add_fitness_to_the_bucket(
-        dna_bucket, routes: list, extra_routes: list, strategy_hp, dna, training_candles, testing_candles, optimal_total
+        dna_bucket, optimization_config, routes: list, extra_routes: list, strategy_hp, dna, training_candles,
+        testing_candles, optimal_total
 ) -> None:
     """
     Calculates the fitness ands adds the result into the dna_bucket (which is the object passed among workers)
@@ -117,7 +118,8 @@ def get_and_add_fitness_to_the_bucket(
         # check if the DNA is already in the list
         if all(dna_tuple[0] != dna for dna_tuple in dna_bucket):
             fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
-                routes, extra_routes, strategy_hp, dna, training_candles, testing_candles, optimal_total
+                optimization_config, routes, extra_routes, strategy_hp, dna, training_candles, testing_candles,
+                optimal_total
             )
             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
         else:
