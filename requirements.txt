@@ -7,7 +7,7 @@ newtulipy==0.4.6
 numpy==1.21.3
 numpy_groupies==0.9.14
 pandas==1.3.4
-peewee==3.14.4
+peewee==3.14.7
 psycopg2-binary==2.9.1
 pydash==5.1.0
 pytest==6.2.5
