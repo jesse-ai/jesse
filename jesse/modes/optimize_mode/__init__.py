@@ -7,7 +7,7 @@ import jesse.helpers as jh
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
 from jesse.store import store
-from .Genetics import Optimizer
+from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
 
