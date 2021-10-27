@@ -22,6 +22,7 @@ from .fitness import get_and_add_fitness_to_the_bucket, get_fitness
 from jesse.routes import router
 from numpy import ndarray
 from multiprocessing import cpu_count
+from jesse.services.progressbar import Progressbar
 
 
 class Optimizer(ABC):
@@ -103,102 +104,102 @@ class Optimizer(ABC):
         """
         length = int(self.population_size / self.cpu_cores)
 
-        with click.progressbar(length=length, label='Generating initial population...') as progressbar:
-            for i in range(length):
-                people = []
-                with Manager() as manager:
-                    dna_bucket = manager.list([])
-                    workers = []
+        progressbar = Progressbar(length)
+        for i in range(length):
+            people = []
+            with Manager() as manager:
+                dna_bucket = manager.list([])
+                workers = []
 
-                    try:
-                        for _ in range(self.cpu_cores):
-                            # check for termination event once per second
-                            if process_status() != 'started':
-                                raise exceptions.Termination
+                try:
+                    for _ in range(self.cpu_cores):
+                        # check for termination event once per second
+                        if process_status() != 'started':
+                            raise exceptions.Termination
 
-                            dna = ''.join(choices(self.charset, k=self.solution_len))
-                            w = Process(
-                                target=get_and_add_fitness_to_the_bucket,
-                                args=(
-                                    dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
-                                    self.strategy_hp, dna, self.training_candles, self.testing_candles,
-                                    self.optimal_total
-                                )
+                        dna = ''.join(choices(self.charset, k=self.solution_len))
+                        w = Process(
+                            target=get_and_add_fitness_to_the_bucket,
+                            args=(
+                                dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
+                                self.strategy_hp, dna, self.training_candles, self.testing_candles,
+                                self.optimal_total
                             )
-                            w.start()
-                            workers.append(w)
+                        )
+                        w.start()
+                        workers.append(w)
 
-                        # join workers
-                        for w in workers:
-                            w.join()
-                            if w.exitcode > 0:
-                                logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
-                    except exceptions.Termination:
-                        self._handle_termination(manager, workers)
-                    except:
-                        raise
+                    # join workers
+                    for w in workers:
+                        w.join()
+                        if w.exitcode > 0:
+                            logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
+                except exceptions.Termination:
+                    self._handle_termination(manager, workers)
+                except:
+                    raise
 
-                    for d in dna_bucket:
-                        people.append({
-                            'dna': d[0],
-                            'fitness': d[1],
-                            'training_log': d[2],
-                            'testing_log': d[3]
-                        })
+                for d in dna_bucket:
+                    people.append({
+                        'dna': d[0],
+                        'fitness': d[1],
+                        'training_log': d[2],
+                        'testing_log': d[3]
+                    })
 
-                # update dashboard
-                click.clear()
-                progressbar.update(1)
-                sync_publish('progressbar', {
-                    'current': round(i / length * 100, 1),
-                    'estimated_remaining_seconds': progressbar.eta
-                })
-                print('\n')
-
-                table_items = [
-                    ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
-                    ['Index', f'{len(self.population)}/{self.population_size}'],
-                    ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
-                    ['Trading Route',
-                     f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}'],
-                    # TODO: add generated DNAs?
-                    # ['-'*10, '-'*10],
-                    # ['DNA', people[0]['dna']],
-                    # ['fitness', round(people[0]['fitness'], 6)],
-                    # ['training|testing logs', people[0]['log']],
-                ]
-                if jh.is_debugging():
-                    table_items.insert(3, ['Population Size', self.population_size])
-                    table_items.insert(3, ['Iterations', self.iterations])
-                    table_items.insert(3, ['Solution Length', self.solution_len])
-                    table_items.insert(3, ['-' * 10, '-' * 10])
-
-                table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
-
-                general_info = {
-                    'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                    'index': f'{len(self.population)}/{self.population_size}',
-                    'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
-                    'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
-                }
-                if jh.is_debugging():
-                    general_info['population_size'] = self.population_size
-                    general_info['iterations'] = self.iterations
-                    general_info['solution_length'] = self.solution_len
-
-                sync_publish('general_info', general_info)
-
-                # errors
-                if jh.is_debugging() and len(report.errors()):
-                    print('\n')
-                    table.key_value(report.errors(), 'Error Logs')
-
-                for p in people:
-                    self.population.append(p)
+            # update dashboard
+            click.clear()
+            progressbar.update()
             sync_publish('progressbar', {
-                'current': 100,
-                'estimated_remaining_seconds': 0
+                'current': progressbar.current,
+                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
             })
+            print('\n')
+
+            table_items = [
+                ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
+                ['Index', f'{len(self.population)}/{self.population_size}'],
+                ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
+                ['Trading Route',
+                 f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}'],
+                # TODO: add generated DNAs?
+                # ['-'*10, '-'*10],
+                # ['DNA', people[0]['dna']],
+                # ['fitness', round(people[0]['fitness'], 6)],
+                # ['training|testing logs', people[0]['log']],
+            ]
+            if jh.is_debugging():
+                table_items.insert(3, ['Population Size', self.population_size])
+                table_items.insert(3, ['Iterations', self.iterations])
+                table_items.insert(3, ['Solution Length', self.solution_len])
+                table_items.insert(3, ['-' * 10, '-' * 10])
+
+            table.key_value(table_items, 'Optimize Mode', alignments=('left', 'right'))
+
+            general_info = {
+                'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+                'index': f'{len(self.population)}/{self.population_size}',
+                'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
+                'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
+            }
+            if jh.is_debugging():
+                general_info['population_size'] = self.population_size
+                general_info['iterations'] = self.iterations
+                general_info['solution_length'] = self.solution_len
+
+            sync_publish('general_info', general_info)
+
+            # errors
+            if jh.is_debugging() and len(report.errors()):
+                print('\n')
+                table.key_value(report.errors(), 'Error Logs')
+
+            for p in people:
+                self.population.append(p)
+        sync_publish('progressbar', {
+            'current': 100,
+            'estimated_remaining_seconds': 0
+        })
         # sort the population
         self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
 
@@ -274,145 +275,145 @@ class Optimizer(ABC):
         loop_length = int(self.iterations / self.cpu_cores)
 
         i = self.started_index
-        with click.progressbar(length=loop_length, label='Evolving...') as progressbar:
-            while i < loop_length:
-                with Manager() as manager:
-                    people = manager.list([])
-                    workers = []
+        progressbar = Progressbar(loop_length)
+        while i < loop_length:
+            with Manager() as manager:
+                people = manager.list([])
+                workers = []
 
-                    def get_baby(people: List) -> None:
-                        try:
-                            # let's make a baby together LOL
-                            baby = self.make_love()
-                            # let's mutate baby's genes, who knows, maybe we create a x-man or something
-                            baby = self.mutate(baby)
-                            people.append(baby)
-                        except Exception as e:
-                            proc = os.getpid()
-                            logger.error(f'process failed - ID: {str(proc)}')
-                            logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-                            raise e
-
+                def get_baby(people: List) -> None:
                     try:
-                        for _ in range(self.cpu_cores):
-                            # check for termination event once per second
-                            if process_status() != 'started':
-                                raise exceptions.Termination
+                        # let's make a baby together LOL
+                        baby = self.make_love()
+                        # let's mutate baby's genes, who knows, maybe we create a x-man or something
+                        baby = self.mutate(baby)
+                        people.append(baby)
+                    except Exception as e:
+                        proc = os.getpid()
+                        logger.error(f'process failed - ID: {str(proc)}')
+                        logger.error("".join(traceback.TracebackException.from_exception(e).format()))
+                        raise e
 
-                            w = Process(target=get_baby, args=[people])
-                            w.start()
-                            workers.append(w)
+                try:
+                    for _ in range(self.cpu_cores):
+                        # check for termination event once per second
+                        if process_status() != 'started':
+                            raise exceptions.Termination
 
-                        for w in workers:
-                            w.join()
-                            if w.exitcode > 0:
-                                logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
-                    except exceptions.Termination:
-                        self._handle_termination(manager, workers)
-                    except:
-                        raise
+                        w = Process(target=get_baby, args=[people])
+                        w.start()
+                        workers.append(w)
 
-                    # update dashboard
-                    click.clear()
-                    progressbar.update(1)
+                    for w in workers:
+                        w.join()
+                        if w.exitcode > 0:
+                            logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
+                except exceptions.Termination:
+                    self._handle_termination(manager, workers)
+                except:
+                    raise
+
+                # update dashboard
+                click.clear()
+                progressbar.update()
+                print('\n')
+                from jesse.routes import router
+                table_items = [
+                    ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
+                    ['Index/Total', f'{(i + 1) * self.cpu_cores}/{self.iterations}'],
+                    ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
+                    ['Route',
+                     f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}']
+                ]
+                if jh.is_debugging():
+                    table_items.insert(
+                        3,
+                        ['Population Size, Solution Length',
+                         f'{self.population_size}, {self.solution_len}']
+                    )
+
+                table.key_value(table_items, 'info', alignments=('left', 'right'))
+
+                # errors
+                if jh.is_debugging() and len(report.errors()):
                     print('\n')
-                    from jesse.routes import router
-                    table_items = [
-                        ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
-                        ['Index/Total', f'{(i + 1) * self.cpu_cores}/{self.iterations}'],
-                        ['errors/info', f'{len(store.logs.errors)}/{len(store.logs.info)}'],
-                        ['Route',
-                         f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}']
-                    ]
+                    table.key_value(report.errors(), 'Error Logs')
+
+                print('\n')
+                print('Best DNA candidates:')
+                print('\n')
+
+                # print fittest individuals
+                if jh.is_debugging():
+                    fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
+                else:
+                    fittest_list = [['Rank', 'DNA', 'Training log || Testing log'], ]
+                if self.population_size > 50:
+                    number_of_ind_to_show = 15
+                elif self.population_size > 20:
+                    number_of_ind_to_show = 10
+                elif self.population_size > 9:
+                    number_of_ind_to_show = 9
+                else:
+                    raise ValueError('self.population_size cannot be less than 10')
+
+                for j in range(number_of_ind_to_show):
+                    log = f"win-rate: {self.population[j]['training_log']['win-rate']}%, total: {self.population[j]['training_log']['total']}, PNL: {self.population[j]['training_log']['PNL']}% || win-rate: {self.population[j]['testing_log']['win-rate']}%, total: {self.population[j]['testing_log']['total']}, PNL: {self.population[j]['testing_log']['PNL']}%"
+                    if self.population[j]['testing_log']['PNL'] is not None and self.population[j]['training_log'][
+                        'PNL'] > 0 and self.population[j]['testing_log']['PNL'] > 0:
+                        log = jh.style(log, 'bold')
                     if jh.is_debugging():
-                        table_items.insert(
-                            3,
-                            ['Population Size, Solution Length',
-                             f'{self.population_size}, {self.solution_len}']
+                        fittest_list.append(
+                            [
+                                j + 1,
+                                self.population[j]['dna'],
+                                self.population[j]['fitness'],
+                                log
+                            ],
+                        )
+                    else:
+                        fittest_list.append(
+                            [
+                                j + 1,
+                                self.population[j]['dna'],
+                                log
+                            ],
                         )
 
-                    table.key_value(table_items, 'info', alignments=('left', 'right'))
+                if jh.is_debugging():
+                    table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'right', 'left'))
+                else:
+                    table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'left'))
 
-                    # errors
-                    if jh.is_debugging() and len(report.errors()):
+                # one person has to die and be replaced with the newborn baby
+                for baby in people:
+                    random_index = randint(1, len(self.population) - 1)  # never kill our best perforemr
+                    try:
+                        self.population[random_index] = baby
+                    except IndexError:
+                        print('=============')
+                        print(f'self.population_size: {self.population_size}')
+                        print(f'self.population length: {len(self.population)}')
+                        jh.terminate_app()
+
+                    self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
+
+                    # reaching the fitness goal could also end the process
+                    if baby['fitness'] >= self.fitness_goal:
+                        progressbar.update(self.iterations - i)
                         print('\n')
-                        table.key_value(report.errors(), 'Error Logs')
+                        print(f'fitness goal reached after iteration {i}')
+                        return baby
 
-                    print('\n')
-                    print('Best DNA candidates:')
-                    print('\n')
+                # save progress after every n iterations
+                if i != 0 and int(i * self.cpu_cores) % 50 == 0:
+                    self.save_progress(i)
 
-                    # print fittest individuals
-                    if jh.is_debugging():
-                        fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
-                    else:
-                        fittest_list = [['Rank', 'DNA', 'Training log || Testing log'], ]
-                    if self.population_size > 50:
-                        number_of_ind_to_show = 15
-                    elif self.population_size > 20:
-                        number_of_ind_to_show = 10
-                    elif self.population_size > 9:
-                        number_of_ind_to_show = 9
-                    else:
-                        raise ValueError('self.population_size cannot be less than 10')
+                # store a take_snapshot of the fittest individuals of the population
+                if i != 0 and i % int(100 / self.cpu_cores) == 0:
+                    self.take_snapshot(i * self.cpu_cores)
 
-                    for j in range(number_of_ind_to_show):
-                        log = f"win-rate: {self.population[j]['training_log']['win-rate']}%, total: {self.population[j]['training_log']['total']}, PNL: {self.population[j]['training_log']['PNL']}% || win-rate: {self.population[j]['testing_log']['win-rate']}%, total: {self.population[j]['testing_log']['total']}, PNL: {self.population[j]['testing_log']['PNL']}%"
-                        if self.population[j]['testing_log']['PNL'] is not None and self.population[j]['training_log'][
-                            'PNL'] > 0 and self.population[j]['testing_log']['PNL'] > 0:
-                            log = jh.style(log, 'bold')
-                        if jh.is_debugging():
-                            fittest_list.append(
-                                [
-                                    j + 1,
-                                    self.population[j]['dna'],
-                                    self.population[j]['fitness'],
-                                    log
-                                ],
-                            )
-                        else:
-                            fittest_list.append(
-                                [
-                                    j + 1,
-                                    self.population[j]['dna'],
-                                    log
-                                ],
-                            )
-
-                    if jh.is_debugging():
-                        table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'right', 'left'))
-                    else:
-                        table.multi_value(fittest_list, with_headers=True, alignments=('left', 'left', 'left'))
-
-                    # one person has to die and be replaced with the newborn baby
-                    for baby in people:
-                        random_index = randint(1, len(self.population) - 1)  # never kill our best perforemr
-                        try:
-                            self.population[random_index] = baby
-                        except IndexError:
-                            print('=============')
-                            print(f'self.population_size: {self.population_size}')
-                            print(f'self.population length: {len(self.population)}')
-                            jh.terminate_app()
-
-                        self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
-
-                        # reaching the fitness goal could also end the process
-                        if baby['fitness'] >= self.fitness_goal:
-                            progressbar.update(self.iterations - i)
-                            print('\n')
-                            print(f'fitness goal reached after iteration {i}')
-                            return baby
-
-                    # save progress after every n iterations
-                    if i != 0 and int(i * self.cpu_cores) % 50 == 0:
-                        self.save_progress(i)
-
-                    # store a take_snapshot of the fittest individuals of the population
-                    if i != 0 and i % int(100 / self.cpu_cores) == 0:
-                        self.take_snapshot(i * self.cpu_cores)
-
-                    i += 1
+                i += 1
 
         print('\n\n')
         print(f'Finished {self.iterations} iterations.')
