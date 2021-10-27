@@ -29,6 +29,7 @@ from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish, process_status
 from timeloop import Timeloop
 from datetime import timedelta
+from jesse.services.progressbar import Progressbar
 
 
 def run(
@@ -82,7 +83,6 @@ def run(
 
     # load historical candles
     if candles is None:
-        print('loading candles...')
         candles = load_candles(start_date, finish_date)
         click.clear()
 
@@ -275,71 +275,71 @@ def simulator(
     # add initial balance
     save_daily_portfolio_balance()
 
-    with click.progressbar(length=length, label='Executing simulation...') as progressbar:
-        for i in range(length):
-            # update time
-            store.app.time = first_candles_set[i][0] + 60_000
+    progressbar = Progressbar(length, step=60)
+    for i in range(length):
+        # update time
+        store.app.time = first_candles_set[i][0] + 60_000
 
-            # add candles
-            for j in candles:
-                short_candle = candles[j]['candles'][i]
-                if i != 0:
-                    previous_short_candle = candles[j]['candles'][i - 1]
-                    short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
-                exchange = candles[j]['exchange']
-                symbol = candles[j]['symbol']
+        # add candles
+        for j in candles:
+            short_candle = candles[j]['candles'][i]
+            if i != 0:
+                previous_short_candle = candles[j]['candles'][i - 1]
+                short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+            exchange = candles[j]['exchange']
+            symbol = candles[j]['symbol']
 
-                store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
-                                         with_generation=False)
+            store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                                     with_generation=False)
 
-                # print short candle
-                if jh.is_debuggable('shorter_period_candles'):
-                    print_candle(short_candle, True, symbol)
+            # print short candle
+            if jh.is_debuggable('shorter_period_candles'):
+                print_candle(short_candle, True, symbol)
 
-                _simulate_price_change_effect(short_candle, exchange, symbol)
+            _simulate_price_change_effect(short_candle, exchange, symbol)
 
-                # generate and add candles for bigger timeframes
-                for timeframe in config['app']['considering_timeframes']:
-                    # for 1m, no work is needed
-                    if timeframe == '1m':
-                        continue
+            # generate and add candles for bigger timeframes
+            for timeframe in config['app']['considering_timeframes']:
+                # for 1m, no work is needed
+                if timeframe == '1m':
+                    continue
 
-                    count = jh.timeframe_to_one_minutes(timeframe)
-                    # until = count - ((i + 1) % count)
+                count = jh.timeframe_to_one_minutes(timeframe)
+                # until = count - ((i + 1) % count)
 
-                    if (i + 1) % count == 0:
-                        generated_candle = generate_candle_from_one_minutes(
-                            timeframe,
-                            candles[j]['candles'][(i - (count - 1)):(i + 1)])
-                        store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
-                                                 with_generation=False)
+                if (i + 1) % count == 0:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles[j]['candles'][(i - (count - 1)):(i + 1)])
+                    store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
+                                             with_generation=False)
 
-            # update progressbar
-            if not run_silently and i % 60 == 0:
-                progressbar.update(60)
-                sync_publish('progressbar', {
-                    'current': round(i / length * 100, 1),
-                    'estimated_remaining_seconds': progressbar.eta
-                })
+        # update progressbar
+        if not run_silently and i % 60 == 0:
+            progressbar.update()
+            sync_publish('progressbar', {
+                'current': progressbar.current,
+                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+            })
 
-            # now that all new generated candles are ready, execute
-            for r in router.routes:
-                count = jh.timeframe_to_one_minutes(r.timeframe)
-                # 1m timeframe
-                if r.timeframe == timeframes.MINUTE_1:
-                    r.strategy._execute()
-                elif (i + 1) % count == 0:
-                    # print candle
-                    if jh.is_debuggable('trading_candles'):
-                        print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
-                                     r.symbol)
-                    r.strategy._execute()
+        # now that all new generated candles are ready, execute
+        for r in router.routes:
+            count = jh.timeframe_to_one_minutes(r.timeframe)
+            # 1m timeframe
+            if r.timeframe == timeframes.MINUTE_1:
+                r.strategy._execute()
+            elif (i + 1) % count == 0:
+                # print candle
+                if jh.is_debuggable('trading_candles'):
+                    print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
+                                 r.symbol)
+                r.strategy._execute()
 
-            # now check to see if there's any MARKET orders waiting to be executed
-            store.orders.execute_pending_market_orders()
+        # now check to see if there's any MARKET orders waiting to be executed
+        store.orders.execute_pending_market_orders()
 
-            if i != 0 and i % 1440 == 0:
-                save_daily_portfolio_balance()
+        if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
 
     if not run_silently:
         if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
