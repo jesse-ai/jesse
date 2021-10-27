@@ -20,6 +20,7 @@ from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish, process_status
 from jesse.store import store
 from jesse import exceptions
+from jesse.services.progressbar import Progressbar
 
 
 def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
@@ -76,93 +77,92 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
         click.confirm(
             f'Importing {days_count} days candles from "{exchange}" for "{symbol}". Duplicates will be skipped. All good?', abort=True, default=True)
 
-    with click.progressbar(length=loop_length, label='Importing candles...') as progressbar:
-        for i in range(candles_count):
-            temp_start_timestamp = start_date.int_timestamp * 1000
-            temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
+    progressbar = Progressbar(loop_length)
+    for i in range(candles_count):
+        temp_start_timestamp = start_date.int_timestamp * 1000
+        temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
 
-            # to make sure it won't try to import candles from the future! LOL
-            if temp_start_timestamp > jh.now_to_timestamp():
-                break
+        # to make sure it won't try to import candles from the future! LOL
+        if temp_start_timestamp > jh.now_to_timestamp():
+            break
 
-            # prevent duplicates calls to boost performance
-            count = Candle.select().where(
-                Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp),
-                Candle.symbol == symbol,
-                Candle.exchange == exchange
-            ).count()
-            already_exists = count == driver.count
+        # prevent duplicates calls to boost performance
+        count = Candle.select().where(
+            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp),
+            Candle.symbol == symbol,
+            Candle.exchange == exchange
+        ).count()
+        already_exists = count == driver.count
 
-            if not already_exists:
-                # it's today's candles if temp_end_timestamp < now
-                if temp_end_timestamp > jh.now_to_timestamp():
-                    temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
+        if not already_exists:
+            # it's today's candles if temp_end_timestamp < now
+            if temp_end_timestamp > jh.now_to_timestamp():
+                temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
-                # fetch from market
-                candles = driver.fetch(symbol, temp_start_timestamp)
+            # fetch from market
+            candles = driver.fetch(symbol, temp_start_timestamp)
 
-                # check if candles have been returned and check those returned start with the right timestamp.
-                # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
-                if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
-                    click.clear()
-                    first_existing_timestamp = driver.get_starting_time(symbol)
+            # check if candles have been returned and check those returned start with the right timestamp.
+            # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
+            if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
+                click.clear()
+                first_existing_timestamp = driver.get_starting_time(symbol)
 
-                    # if driver can't provide accurate get_starting_time()
-                    if first_existing_timestamp is None:
-                        raise CandleNotFoundInExchange(
-                            f'No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n'
-                            'Try another start_date'
+                # if driver can't provide accurate get_starting_time()
+                if first_existing_timestamp is None:
+                    raise CandleNotFoundInExchange(
+                        f'No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n'
+                        'Try another start_date'
+                    )
+
+                # handle when there's missing candles during the period
+                if temp_start_timestamp > first_existing_timestamp:
+                    # see if there are candles for the same date for the backup exchange,
+                    # if so, get those, if not, download from that exchange.
+                    if driver.backup_exchange is not None:
+                        candles = _get_candles_from_backup_exchange(
+                            exchange, driver.backup_exchange, symbol, temp_start_timestamp, temp_end_timestamp
                         )
 
-                    # handle when there's missing candles during the period
-                    if temp_start_timestamp > first_existing_timestamp:
-                        # see if there are candles for the same date for the backup exchange,
-                        # if so, get those, if not, download from that exchange.
-                        if driver.backup_exchange is not None:
-                            candles = _get_candles_from_backup_exchange(
-                                exchange, driver.backup_exchange, symbol, temp_start_timestamp, temp_end_timestamp
-                            )
-
-                    else:
-                        if not skip_confirmation:
-                            print(jh.color(f'No candle exists in the market for {jh.timestamp_to_time(temp_start_timestamp)[:10]}\n', 'yellow'))
-                            click.confirm(
-                                f'First present candle is since {jh.timestamp_to_time(first_existing_timestamp)[:10]}. Would you like to continue?', abort=True, default=True)
-
-                        run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
-                        return
-
-                # fill absent candles (if there's any)
-                candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
-
-                # store in the database
-                if skip_confirmation:
-                    store_candles(candles)
                 else:
-                    threading.Thread(target=store_candles, args=[candles]).start()
+                    if not skip_confirmation:
+                        print(jh.color(f'No candle exists in the market for {jh.timestamp_to_time(temp_start_timestamp)[:10]}\n', 'yellow'))
+                        click.confirm(
+                            f'First present candle is since {jh.timestamp_to_time(first_existing_timestamp)[:10]}. Would you like to continue?', abort=True, default=True)
 
-            # add as much as driver's count to the temp_start_time
-            start_date = start_date.shift(minutes=driver.count)
+                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
+                    return
 
-            progressbar.update(1)
-            sync_publish('progressbar', {
-                'current': round(i / loop_length * 100, 1),
-                'estimated_remaining_seconds': progressbar.eta
-            })
+            # fill absent candles (if there's any)
+            candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
-            # sleep so that the exchange won't get angry at us
-            if not already_exists:
-                time.sleep(driver.sleep_time)
+            # store in the database
+            if skip_confirmation:
+                store_candles(candles)
+            else:
+                threading.Thread(target=store_candles, args=[candles]).start()
 
-    if not skip_confirmation:
-        sync_publish('alert', {
-            'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
-            'type': 'success'
+        # add as much as driver's count to the temp_start_time
+        start_date = start_date.shift(minutes=driver.count)
+
+        progressbar.update()
+        sync_publish('progressbar', {
+            'current': progressbar.current,
+            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
         })
 
-        # close database connection
-        from jesse.services.db import close_connection
-        close_connection()
+        # sleep so that the exchange won't get angry at us
+        if not already_exists:
+            time.sleep(driver.sleep_time)
+
+    sync_publish('alert', {
+        'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
+        'type': 'success'
+    })
+
+    # close database connection
+    from jesse.services.db import close_connection
+    close_connection()
 
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,
