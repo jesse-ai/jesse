@@ -62,6 +62,7 @@ class Optimizer(ABC):
         self.optimal_total = optimal_total
         self.training_candles = training_candles
         self.testing_candles = testing_candles
+        self.average_execution_seconds = 0
 
         options = {
             'strategy_name': self.strategy_name,
@@ -150,6 +151,7 @@ class Optimizer(ABC):
             # update dashboard
             click.clear()
             progressbar.update()
+            self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
             sync_publish('progressbar', {
                 'current': progressbar.current,
                 'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
@@ -181,6 +183,7 @@ class Optimizer(ABC):
                 'index': f'{len(self.population)}/{self.population_size}',
                 'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
                 'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
+                'average_execution_seconds': self.average_execution_seconds
             }
             if jh.is_debugging():
                 general_info['population_size'] = self.population_size
@@ -316,6 +319,7 @@ class Optimizer(ABC):
                 # update dashboard
                 click.clear()
                 progressbar.update()
+                self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
                 print('\n')
                 from jesse.routes import router
                 table_items = [
@@ -401,6 +405,7 @@ class Optimizer(ABC):
                     # reaching the fitness goal could also end the process
                     if baby['fitness'] >= self.fitness_goal:
                         progressbar.update(self.iterations - i)
+                        self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
                         print('\n')
                         print(f'fitness goal reached after iteration {i}')
                         return baby
