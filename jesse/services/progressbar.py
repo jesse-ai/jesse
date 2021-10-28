@@ -33,7 +33,7 @@ class Progressbar:
         return round(self.index / self.length * 100, 1)
 
     @property
-    def average_execution_time(self):
+    def average_execution_seconds(self):
         return self._execution_times[:].mean()
 
     @property
@@ -46,7 +46,7 @@ class Progressbar:
     def estimated_remaining_seconds(self):
         if self.is_finished:
             return 0
-        return self.average_execution_time * self.remaining_index / self.step
+        return self.average_execution_seconds * self.remaining_index / self.step
 
     def finish(self):
         self.is_finished = True
