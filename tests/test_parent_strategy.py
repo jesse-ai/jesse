@@ -1,5 +1,4 @@
 import math
-from pprint import pprint
 
 import numpy as np
 import pytest
@@ -18,7 +17,7 @@ from jesse.store import store
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
-from .utils import get_btc_candles, get_btc_and_eth_candles, set_up, single_route_backtest, two_routes_backtest
+from .utils import set_up, single_route_backtest, two_routes_backtest
 
 
 def test_average_stop_loss_exception():
