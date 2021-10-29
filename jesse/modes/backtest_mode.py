@@ -62,7 +62,8 @@ def run(
     config['app']['debug_mode'] = debug_mode
 
     # inject config
-    set_config(user_config)
+    if not jh.is_unit_testing():
+        set_config(user_config)
 
     # set routes
     router.initiate(routes, extra_routes)
