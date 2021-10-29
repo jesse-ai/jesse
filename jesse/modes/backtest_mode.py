@@ -342,9 +342,6 @@ def simulator(
             save_daily_portfolio_balance()
 
     if not run_silently:
-        if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
-            print('\n')
-
         # print executed time for the backtest session
         finish_time_track = time.time()
         sync_publish('alert', {
