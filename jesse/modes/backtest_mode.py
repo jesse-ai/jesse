@@ -347,7 +347,10 @@ def simulator(
 
         # print executed time for the backtest session
         finish_time_track = time.time()
-        print('Executed backtest simulation in: ', f'{round(finish_time_track - begin_time_track, 2)} seconds')
+        sync_publish('alert', {
+            'message': f'Successfully executed backtest simulation in: {round(finish_time_track - begin_time_track, 2)} seconds',
+            'type': 'success'
+        })
 
     for r in router.routes:
         r.strategy._terminate()
