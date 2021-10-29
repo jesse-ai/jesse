@@ -4,7 +4,7 @@ import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
 
 
-if jh.is_unit_testing():
+if not jh.is_jesse_project() or jh.is_unit_testing():
     db = None
 
     def close_connection() -> None:
