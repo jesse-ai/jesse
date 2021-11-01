@@ -1,9 +1,14 @@
+"""
+For the multiprocessing to work property, it's best to pass around pure functions into workers instead
+of methods of a class. Below functions have been designed with that in mind.
+"""
 from math import log10
 import jesse.helpers as jh
 from jesse.research import backtest as isolated_backtest
 from jesse.services import logger
 import traceback
 import os
+from random import randint, choice
 
 
 def _formatted_inputs_for_isolated_backtest(user_config, routes):
@@ -87,7 +92,7 @@ def get_fitness(
 
         # run backtest simulation
         testing_data_metrics = isolated_backtest(
-            _formatted_inputs_for_isolated_backtest(),
+            _formatted_inputs_for_isolated_backtest(optimization_config, routes),
             routes,
             extra_routes,
             testing_candles,
@@ -128,4 +133,69 @@ def get_and_add_fitness_to_the_bucket(
         proc = os.getpid()
         logger.error(f'process failed - ID: {str(proc)}')
         logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-        raise e
+        # raise e
+
+
+def make_love(
+    mommy, daddy, solution_len,
+    optimization_config, routes, extra_routes, strategy_hp, training_candles, testing_candles, optimal_total
+) -> dict:
+    dna = ''.join(
+        daddy['dna'][i] if i % 2 == 0 else mommy['dna'][i] for i in range(solution_len)
+    )
+
+    # not found - so run the backtest
+    fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+        optimization_config, routes, extra_routes, strategy_hp, dna, training_candles, testing_candles, optimal_total
+    )
+
+    return {
+        'dna': dna,
+        'fitness': fitness_score,
+        'training_log': fitness_log_training,
+        'testing_log': fitness_log_testing
+    }
+
+
+def mutate(
+        baby, solution_len, charset,
+        optimization_config, routes, extra_routes, strategy_hp, training_candles, testing_candles, optimal_total
+) -> dict:
+    replace_at = randint(0, solution_len - 1)
+    replace_with = choice(charset)
+    dna = f"{baby['dna'][:replace_at]}{replace_with}{baby['dna'][replace_at + 1:]}"
+
+    # not found - so run the backtest
+    fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+        optimization_config, routes, extra_routes, strategy_hp, dna, training_candles, testing_candles, optimal_total
+    )
+
+    return {
+        'dna': dna,
+        'fitness': fitness_score,
+        'training_log': fitness_log_training,
+        'testing_log': fitness_log_testing
+    }
+
+
+def create_baby(
+    people_bucket: list, mommy, daddy, solution_len, charset,
+    optimization_config, routes, extra_routes, strategy_hp, training_candles, testing_candles, optimal_total
+) -> None:
+    try:
+        # let's make a baby together 👀
+        baby = make_love(
+            mommy, daddy, solution_len,
+            optimization_config, routes, extra_routes, strategy_hp, training_candles, testing_candles, optimal_total
+        )
+        # let's mutate baby's genes, who knows, maybe we create a x-man or something
+        baby = mutate(
+            baby, solution_len, charset,
+            optimization_config, routes, extra_routes, strategy_hp, training_candles, testing_candles, optimal_total
+        )
+        people_bucket.append(baby)
+    except Exception as e:
+        proc = os.getpid()
+        logger.error(f'process failed - ID: {str(proc)}')
+        logger.error("".join(traceback.TracebackException.from_exception(e).format()))
+        # raise e
