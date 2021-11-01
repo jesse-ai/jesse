@@ -112,7 +112,7 @@ def get_and_add_fitness_to_the_bucket(
         testing_candles, optimal_total
 ) -> None:
     """
-    Calculates the fitness ands adds the result into the dna_bucket (which is the object passed among workers)
+    Calculates the fitness and adds the result into the dna_bucket (which is the object passed among workers)
     """
     try:
         # check if the DNA is already in the list

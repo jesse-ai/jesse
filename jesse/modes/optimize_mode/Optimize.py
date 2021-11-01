@@ -156,7 +156,6 @@ class Optimizer(ABC):
                 'current': progressbar.current,
                 'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
             })
-            print('\n')
 
             table_items = [
                 ['Started at', jh.timestamp_to_arrow(self.start_time).humanize()],
@@ -194,7 +193,6 @@ class Optimizer(ABC):
 
             # errors
             if jh.is_debugging() and len(report.errors()):
-                print('\n')
                 table.key_value(report.errors(), 'Error Logs')
 
             for p in people:
@@ -217,6 +215,7 @@ class Optimizer(ABC):
         except StopIteration:
             # not found - so run the backtest
             fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+                jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
                 self.strategy_hp, dna, self.training_candles, self.testing_candles, self.optimal_total
             )
 
@@ -242,6 +241,7 @@ class Optimizer(ABC):
         except StopIteration:
             # not found - so run the backtest
             fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
+                jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
                 self.strategy_hp, dna, self.training_candles, self.testing_candles, self.optimal_total
             )
 
@@ -263,9 +263,9 @@ class Optimizer(ABC):
         """
         the main method, that runs the evolutionary algorithm
         """
-        # generate the population if starting
         if self.started_index == 0:
             self.generate_initial_population()
+
             if len(self.population) < 0.5 * self.population_size:
                 raise ValueError('Too many errors! less than half of the expected population size could be generated.')
 
@@ -320,7 +320,6 @@ class Optimizer(ABC):
                 click.clear()
                 progressbar.update()
                 self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
-                print('\n')
                 from jesse.routes import router
                 table_items = [
                     ['Started At', jh.timestamp_to_arrow(self.start_time).humanize()],
@@ -340,12 +339,9 @@ class Optimizer(ABC):
 
                 # errors
                 if jh.is_debugging() and len(report.errors()):
-                    print('\n')
                     table.key_value(report.errors(), 'Error Logs')
 
-                print('\n')
                 print('Best DNA candidates:')
-                print('\n')
 
                 # print fittest individuals
                 if jh.is_debugging():
@@ -447,7 +443,7 @@ class Optimizer(ABC):
 
     def load_progress(self) -> None:
         """
-        unpickles data to resume from previous optimizing session population
+        Unpickles data to resume from previous optimizing session population
         """
         with open(self.temp_path, 'rb') as f:
             data = pickle.load(f)
@@ -526,9 +522,7 @@ class Optimizer(ABC):
 
     @staticmethod
     def _handle_termination(manager, workers):
-        print(
-            jh.color('Terminating session...', 'red')
-        )
+        logger.info('Terminating session...')
 
         # terminate all workers
         for w in workers:
@@ -538,4 +532,4 @@ class Optimizer(ABC):
         manager.shutdown()
 
         # now we can terminate the main session safely
-        jh.terminate_app()
+        raise exceptions.Termination
