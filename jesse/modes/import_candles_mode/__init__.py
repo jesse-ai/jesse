@@ -125,11 +125,13 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                         )
 
                 else:
-                    if not skip_confirmation:
-                        print(jh.color(f'No candle exists in the market for {jh.timestamp_to_time(temp_start_timestamp)[:10]}\n', 'yellow'))
-                        click.confirm(
-                            f'First present candle is since {jh.timestamp_to_time(first_existing_timestamp)[:10]}. Would you like to continue?', abort=True, default=True)
-
+                    temp_start_time = jh.timestamp_to_time(temp_start_timestamp)[:10]
+                    temp_existing_time = jh.timestamp_to_time(first_existing_timestamp)[:10]
+                    sync_publish('alert', {
+                        'message': f'No candle exists in the market for {temp_start_time}. So '
+                                   f'Jesse is importing since the first existing date which is {temp_existing_time}',
+                        'type': 'success'
+                    })
                     run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
                     return
 
