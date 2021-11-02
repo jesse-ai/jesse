@@ -331,14 +331,12 @@ def make_project(name: str) -> None:
     project_maker.generate(name)
 
 @cli.command()
-@click.argument('table_name', required=False, type=str)
-def migrate(table_name: str) -> None:
+def migrate() -> None:
     """
     generates a new strategy folder from jesse/strategies/ExampleStrategy
     """
     from jesse.services.migrator import run
-
-    run(table_name)
+    run()
 
 
 @cli.command()

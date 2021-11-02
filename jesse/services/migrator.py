@@ -1,34 +1,18 @@
 from jesse.services.db import db
 from playhouse.migrate import *
 
-def run(table_name: str):
+
+def run():
     migrator = PostgresqlMigrator(db)
 
-    if table_name == 'candle':
-        migrate_candle(migrator)
-    elif table_name == 'completedtrade':
-        migrate_completed_trade(migrator)
-    elif table_name == 'dailybalance':
-        migrate_daily_balance(migrator)
-    elif table_name == 'log':
-        migrate_log(migrator)
-    elif table_name == 'order':
-        migrate_order(migrator)
-    elif table_name == 'orderbook':
-        migrate_orderbook(migrator)
-    elif table_name == 'ticker':
-        migrate_ticker(migrator)
-    elif table_name == 'trade':
-        migrate_trade(migrator)
-    else:
-        migrate_candle(migrator)
-        migrate_completed_trade(migrator)
-        migrate_daily_balance(migrator)
-        migrate_log(migrator)
-        migrate_order(migrator)
-        migrate_orderbook(migrator)
-        migrate_ticker(migrator)
-        migrate_trade(migrator)
+    migrate_candle(migrator)
+    migrate_completed_trade(migrator)
+    migrate_daily_balance(migrator)
+    migrate_log(migrator)
+    migrate_order(migrator)
+    migrate_orderbook(migrator)
+    migrate_ticker(migrator)
+    migrate_trade(migrator)
 
 
 def migrate_candle(migrator):
@@ -45,9 +29,9 @@ def migrate_candle(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('candle', key, value)
+                migrator.add_column('candle', key, value)
             )
             print(f'{key} field successfully added to candle table.')
         else:
@@ -68,9 +52,9 @@ def migrate_completed_trade(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('completedtrade', key, value)
+                migrator.add_column('completedtrade', key, value)
             )
             print(f'{key} field successfully added to completedtrade table.')
         else:
@@ -91,9 +75,9 @@ def migrate_daily_balance(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('dailybalance', key, value)
+                migrator.add_column('dailybalance', key, value)
             )
             print(f'{key} field successfully added to dailybalance table.')
         else:
@@ -114,9 +98,9 @@ def migrate_log(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('log', key, value)
+                migrator.add_column('log', key, value)
             )
             print(f'{key} field successfully added to log table.')
         else:
@@ -137,9 +121,9 @@ def migrate_order(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('order', key, value)
+                migrator.add_column('order', key, value)
             )
             print(f'{key} field successfully added to order table.')
         else:
@@ -160,9 +144,9 @@ def migrate_orderbook(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('orderbook', key, value)
+                migrator.add_column('orderbook', key, value)
             )
             print(f'{key} field successfully added to orderbook table.')
         else:
@@ -183,9 +167,9 @@ def migrate_ticker(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('ticker', key, value)
+                migrator.add_column('ticker', key, value)
             )
             print(f'{key} field successfully added to ticker table.')
         else:
@@ -206,9 +190,9 @@ def migrate_trade(migrator):
                 item_exist = True
                 break
 
-        if item_exist:
+        if not item_exist:
             migrate(
-                migrator.drop_column('trade', key, value)
+                migrator.add_column('trade', key, value)
             )
             print(f'{key} field successfully added to trade table.')
         else:
