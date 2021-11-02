@@ -82,11 +82,11 @@ class Optimizer(ABC):
         if not optimal_total > 0:
             raise ValueError('optimal_total must be bigger than 0')
 
-        # if temp file exists, load data to resume previous session
-        if jh.file_exists(self.temp_path) and click.confirm(
-                'Previous session detected. Do you want to resume?', default=True
-        ):
-            self.load_progress()
+        # # if temp file exists, load data to resume previous session
+        # if jh.file_exists(self.temp_path) and click.confirm(
+        #         'Previous session detected. Do you want to resume?', default=True
+        # ):
+        #     self.load_progress()
 
         if cpu_cores > cpu_count():
             raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
@@ -304,102 +304,102 @@ class Optimizer(ABC):
     def run(self) -> list:
         return self.evolve()
 
-    def save_progress(self, iterations_index: int) -> None:
-        """
-        pickles data so we can later resume optimizing
-        """
-        data = {
-            'population': self.population,
-            'iterations': self.iterations,
-            'iterations_index': iterations_index,
-            'population_size': self.population_size,
-            'solution_len': self.solution_len,
-            'charset': self.charset,
-            'fitness_goal': self.fitness_goal,
-            'options': self.options,
-        }
+    # def save_progress(self, iterations_index: int) -> None:
+    #     """
+    #     pickles data so we can later resume optimizing
+    #     """
+    #     data = {
+    #         'population': self.population,
+    #         'iterations': self.iterations,
+    #         'iterations_index': iterations_index,
+    #         'population_size': self.population_size,
+    #         'solution_len': self.solution_len,
+    #         'charset': self.charset,
+    #         'fitness_goal': self.fitness_goal,
+    #         'options': self.options,
+    #     }
+    #
+    #     with open(self.temp_path, 'wb') as f:
+    #         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-        with open(self.temp_path, 'wb') as f:
-            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # def load_progress(self) -> None:
+    #     """
+    #     Unpickles data to resume from previous optimizing session population
+    #     """
+    #     with open(self.temp_path, 'rb') as f:
+    #         data = pickle.load(f)
+    #
+    #     self.population = data['population']
+    #     self.iterations = data['iterations']
+    #     self.started_index = data['iterations_index']
+    #     self.population_size = data['population_size']
+    #     self.solution_len = data['solution_len']
+    #     self.charset = data['charset']
+    #     self.fitness_goal = data['fitness_goal']
+    #     self.options = data['options']
 
-    def load_progress(self) -> None:
-        """
-        Unpickles data to resume from previous optimizing session population
-        """
-        with open(self.temp_path, 'rb') as f:
-            data = pickle.load(f)
-
-        self.population = data['population']
-        self.iterations = data['iterations']
-        self.started_index = data['iterations_index']
-        self.population_size = data['population_size']
-        self.solution_len = data['solution_len']
-        self.charset = data['charset']
-        self.fitness_goal = data['fitness_goal']
-        self.options = data['options']
-
-    def take_snapshot(self, index: int) -> None:
-        """
-        stores a snapshot of the fittest population members into a file.
-        """
-        study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
-
-        dna_json = {'snapshot': []}
-        for i in range(30):
-            dna_json['snapshot'].append(
-                {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-                 'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
-                 'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
-
-        path = f'./storage/genetics/{study_name}.txt'
-        os.makedirs('./storage/genetics', exist_ok=True)
-        txt = ''
-        with open(path, 'a', encoding="utf-8") as f:
-            txt += '\n\n'
-            txt += f'# iteration {index}'
-            txt += '\n'
-
-            for i in range(30):
-                log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
-
-                txt += '\n'
-                txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
-
-            f.write(txt)
-
-        if self.options['csv']:
-            path = f'storage/genetics/csv/{study_name}.csv'
-            os.makedirs('./storage/genetics/csv', exist_ok=True)
-            exists = os.path.exists(path)
-
-            df = json_normalize(dna_json['snapshot'])
-
-            with open(path, 'a', newline='', encoding="utf-8") as outfile:
-                if not exists:
-                    # header of CSV file
-                    df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-
-                df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-
-        if self.options['json']:
-            path = f'storage/genetics/json/{study_name}.json'
-            os.makedirs('./storage/genetics/json', exist_ok=True)
-            exists = os.path.exists(path)
-
-            mode = 'r+' if exists else 'w'
-            with open(path, mode, encoding="utf-8") as file:
-                if not exists:
-                    snapshots = {"snapshots": []}
-                    snapshots["snapshots"].append(dna_json['snapshot'])
-                    json.dump(snapshots, file, ensure_ascii=False)
-                else:
-                    # file exists - append
-                    file.seek(0)
-                    data = json.load(file)
-                    data["snapshots"].append(dna_json['snapshot'])
-                    file.seek(0)
-                    json.dump(data, file, ensure_ascii=False)
-                file.write('\n')
+    # def take_snapshot(self, index: int) -> None:
+    #     """
+    #     stores a snapshot of the fittest population members into a file.
+    #     """
+    #     study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+    #
+    #     dna_json = {'snapshot': []}
+    #     for i in range(30):
+    #         dna_json['snapshot'].append(
+    #             {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
+    #              'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
+    #              'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
+    #
+    #     path = f'./storage/genetics/{study_name}.txt'
+    #     os.makedirs('./storage/genetics', exist_ok=True)
+    #     txt = ''
+    #     with open(path, 'a', encoding="utf-8") as f:
+    #         txt += '\n\n'
+    #         txt += f'# iteration {index}'
+    #         txt += '\n'
+    #
+    #         for i in range(30):
+    #             log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
+    #
+    #             txt += '\n'
+    #             txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
+    #
+    #         f.write(txt)
+    #
+    #     if self.options['csv']:
+    #         path = f'storage/genetics/csv/{study_name}.csv'
+    #         os.makedirs('./storage/genetics/csv', exist_ok=True)
+    #         exists = os.path.exists(path)
+    #
+    #         df = json_normalize(dna_json['snapshot'])
+    #
+    #         with open(path, 'a', newline='', encoding="utf-8") as outfile:
+    #             if not exists:
+    #                 # header of CSV file
+    #                 df.to_csv(outfile, header=True, index=False, encoding='utf-8')
+    #
+    #             df.to_csv(outfile, header=False, index=False, encoding='utf-8')
+    #
+    #     if self.options['json']:
+    #         path = f'storage/genetics/json/{study_name}.json'
+    #         os.makedirs('./storage/genetics/json', exist_ok=True)
+    #         exists = os.path.exists(path)
+    #
+    #         mode = 'r+' if exists else 'w'
+    #         with open(path, mode, encoding="utf-8") as file:
+    #             if not exists:
+    #                 snapshots = {"snapshots": []}
+    #                 snapshots["snapshots"].append(dna_json['snapshot'])
+    #                 json.dump(snapshots, file, ensure_ascii=False)
+    #             else:
+    #                 # file exists - append
+    #                 file.seek(0)
+    #                 data = json.load(file)
+    #                 data["snapshots"].append(dna_json['snapshot'])
+    #                 file.seek(0)
+    #                 json.dump(data, file, ensure_ascii=False)
+    #             file.write('\n')
 
     @staticmethod
     def _handle_termination(manager, workers):
