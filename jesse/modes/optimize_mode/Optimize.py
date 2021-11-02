@@ -252,8 +252,6 @@ class Optimizer(ABC):
                     general_info['solution_length'] = self.solution_len
                 sync_publish('general_info', general_info)
 
-                # print fittest individuals
-                fittest_list = [['Rank', 'DNA', 'Fitness', 'Training log || Testing log'], ]
                 if self.population_size > 50:
                     number_of_ind_to_show = 15
                 elif self.population_size > 20:
@@ -283,8 +281,10 @@ class Optimizer(ABC):
                     # reaching the fitness goal could also end the process
                     if baby['fitness'] >= self.fitness_goal:
                         self.update_progressbar(progressbar, finished=True)
-                        print('\n')
-                        print(f'fitness goal reached after iteration {i}')
+                        sync_publish('alert', {
+                            'message': f'Fitness goal reached after iteration {i}',
+                            'type': 'success'
+                        })
                         return baby
 
                 # TODO: bring back progress resumption
@@ -299,8 +299,10 @@ class Optimizer(ABC):
 
                 i += 1
 
-        print('\n\n')
-        print(f'Finished {self.iterations} iterations.')
+        sync_publish('alert', {
+            'message': f'Finished {self.iterations} iterations.',
+            'type': 'success'
+        })
         return self.population
 
     def run(self) -> list:
