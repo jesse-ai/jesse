@@ -259,13 +259,18 @@ class Optimizer(ABC):
 
                 best_candidates = []
                 for j in range(number_of_ind_to_show):
-                    log = f"win-rate: {self.population[j]['training_log']['win-rate']}%, total: {self.population[j]['training_log']['total']}, PNL: {self.population[j]['training_log']['PNL']}% || win-rate: {self.population[j]['testing_log']['win-rate']}%, total: {self.population[j]['testing_log']['total']}, PNL: {self.population[j]['testing_log']['PNL']}%"
                     best_candidates.append({
                         'rank': j + 1,
                         'dna': self.population[j]['dna'],
-                        'fitness': self.population[j]['fitness'],
-                        'log': log,
+                        'fitness': round(self.population[j]['fitness'], 4),
+                        'training_win_rate': self.population[j]['training_log']['win-rate'],
+                        'training_total_trades': self.population[j]['training_log']['total'],
+                        'training_pnl': self.population[j]['training_log']['PNL'],
+                        'testing_win_rate': self.population[j]['testing_log']['win-rate'],
+                        'testing_total_trades': self.population[j]['testing_log']['total'],
+                        'testing_pnl': self.population[j]['testing_log']['PNL'],
                     })
+                sync_publish('best_candidates', best_candidates)
 
                 # one person has to die and be replaced with the newborn baby
                 for baby in people_bucket:
