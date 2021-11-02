@@ -301,7 +301,8 @@ class Optimizer(ABC):
                 i += 1
 
         sync_publish('alert', {
-            'message': f'Finished {self.iterations} iterations.',
+            'message': f"Finished {self.iterations} iterations. Check your best DNA candidates, "
+                       f"if you don't like any of them, try modifying your strategy.",
             'type': 'success'
         })
         return self.population
