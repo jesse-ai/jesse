@@ -39,8 +39,8 @@ class Optimizer(ABC):
         self.exchange = router.routes[0].exchange
         self.symbol = router.routes[0].symbol
         self.timeframe = router.routes[0].timeframe
-        StrategyClass = jh.get_strategy_class(self.strategy_name)
-        self.strategy_hp = StrategyClass.hyperparameters(None)
+        strategy_class = jh.get_strategy_class(self.strategy_name)
+        self.strategy_hp = strategy_class.hyperparameters(None)
         solution_len = len(self.strategy_hp)
 
         if solution_len == 0:
@@ -133,8 +133,6 @@ class Optimizer(ABC):
                             logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
                 except exceptions.Termination:
                     self._handle_termination(manager, workers)
-                except:
-                    raise
 
                 for d in dna_bucket:
                     people.append({
@@ -232,8 +230,6 @@ class Optimizer(ABC):
                             logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
                 except exceptions.Termination:
                     self._handle_termination(manager, workers)
-                except:
-                    raise
 
                 # update dashboard
                 click.clear()
@@ -348,9 +344,9 @@ class Optimizer(ABC):
         """
         study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
 
-        dnas_json = {'snapshot': []}
+        dna_json = {'snapshot': []}
         for i in range(30):
-            dnas_json['snapshot'].append(
+            dna_json['snapshot'].append(
                 {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
                  'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
                  'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
@@ -376,7 +372,7 @@ class Optimizer(ABC):
             os.makedirs('./storage/genetics/csv', exist_ok=True)
             exists = os.path.exists(path)
 
-            df = json_normalize(dnas_json['snapshot'])
+            df = json_normalize(dna_json['snapshot'])
 
             with open(path, 'a', newline='', encoding="utf-8") as outfile:
                 if not exists:
@@ -394,13 +390,13 @@ class Optimizer(ABC):
             with open(path, mode, encoding="utf-8") as file:
                 if not exists:
                     snapshots = {"snapshots": []}
-                    snapshots["snapshots"].append(dnas_json['snapshot'])
+                    snapshots["snapshots"].append(dna_json['snapshot'])
                     json.dump(snapshots, file, ensure_ascii=False)
                 else:
                     # file exists - append
                     file.seek(0)
                     data = json.load(file)
-                    data["snapshots"].append(dnas_json['snapshot'])
+                    data["snapshots"].append(dna_json['snapshot'])
                     file.seek(0)
                     json.dump(data, file, ensure_ascii=False)
                 file.write('\n')
