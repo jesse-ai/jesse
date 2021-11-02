@@ -1,4 +1,4 @@
-import pickle
+# import pickle
 from abc import ABC
 from random import randint, choices
 from jesse import sync_publish
@@ -11,8 +11,8 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.store import store
 import os
-import json
-from pandas import json_normalize
+# import json
+# from pandas import json_normalize
 from jesse import exceptions
 from jesse.modes.optimize_mode.fitness import get_and_add_fitness_to_the_bucket, create_baby
 from jesse.routes import router
@@ -304,6 +304,33 @@ class Optimizer(ABC):
     def run(self) -> list:
         return self.evolve()
 
+
+    @staticmethod
+    def _handle_termination(manager, workers):
+        logger.info('Terminating session...')
+
+        # terminate all workers
+        for w in workers:
+            w.terminate()
+
+        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
+        manager.shutdown()
+
+        # now we can terminate the main session safely
+        raise exceptions.Termination
+
+    def update_progressbar(self, progressbar, finished=False):
+        if finished:
+            progressbar.finish()
+        else:
+            progressbar.update()
+        self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
+        sync_publish('progressbar', {
+            'current': progressbar.current,
+            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+        })
+
+
     # def save_progress(self, iterations_index: int) -> None:
     #     """
     #     pickles data so we can later resume optimizing
@@ -400,28 +427,3 @@ class Optimizer(ABC):
     #                 file.seek(0)
     #                 json.dump(data, file, ensure_ascii=False)
     #             file.write('\n')
-
-    @staticmethod
-    def _handle_termination(manager, workers):
-        logger.info('Terminating session...')
-
-        # terminate all workers
-        for w in workers:
-            w.terminate()
-
-        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-        manager.shutdown()
-
-        # now we can terminate the main session safely
-        raise exceptions.Termination
-
-    def update_progressbar(self, progressbar, finished=False):
-        if finished:
-            progressbar.finish()
-        else:
-            progressbar.update()
-        self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
-        sync_publish('progressbar', {
-            'current': progressbar.current,
-            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-        })
