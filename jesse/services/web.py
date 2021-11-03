@@ -115,3 +115,7 @@ class FeedbackRequestJson(BaseModel):
 class ReportExceptionRequestJson(BaseModel):
     description: str
     traceback: str
+    mode: str
+    attach_logs: bool
+    session_id: str
+

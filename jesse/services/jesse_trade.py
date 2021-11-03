@@ -22,14 +22,26 @@ def feedback(description: str) -> JSONResponse:
     }, status_code=200)
 
 
-def report_exception(description: str, traceback: str) -> JSONResponse:
+def report_exception(description: str, traceback: str, mode: str, attach_logs: bool, session_id: str) -> JSONResponse:
     access_token = get_access_token()
 
+    # get log file using mode and session_id
+    if mode == 'backtest':
+        path = f'storage/logs/backtest-mode/{session_id}.txt'
+    else:
+        raise ValueError('Invalid mode')
+
+    params = {
+        'description': description,
+        'traceback': traceback,
+    }
+
+    files = {'file': open(path, 'rb')} if attach_logs else None
+
     res = requests.post(
-        'https://jesse.trade/api/exception', {
-            'description': description,
-            'traceback': traceback
-        },
+        'https://jesse.trade/api/exception',
+        data=params,
+        files=files,
         headers={'Authorization': f'Bearer {access_token}'}
     )
 
