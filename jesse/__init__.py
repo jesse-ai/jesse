@@ -20,7 +20,6 @@ from asyncio import Queue
 from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
 
-
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -330,6 +329,14 @@ def make_project(name: str) -> None:
     from jesse.services import project_maker
 
     project_maker.generate(name)
+
+@cli.command()
+def migrate() -> None:
+    """
+    generates a new strategy folder from jesse/strategies/ExampleStrategy
+    """
+    from jesse.services.migrator import run
+    run()
 
 
 @cli.command()
