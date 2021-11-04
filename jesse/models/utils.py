@@ -3,11 +3,9 @@ import threading
 import numpy as np
 
 import jesse.helpers as jh
-from jesse.models.Candle import Candle
 from jesse.models.CompletedTrade import CompletedTrade
 from jesse.models.DailyBalance import DailyBalance
 from jesse.models.Log import Log
-from jesse.models.Order import Order
 from jesse.models.Orderbook import Orderbook
 from jesse.models.Ticker import Ticker
 from jesse.models.Trade import Trade
@@ -15,6 +13,8 @@ from jesse.services import logger
 
 
 def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None:
+    from jesse.models.Candle import Candle
+
     d = {
         'id': jh.generate_unique_id(),
         'symbol': symbol,
@@ -113,8 +113,10 @@ def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
     threading.Thread(target=async_save).start()
 
 
-def store_order_into_db(order: Order) -> None:
+def store_order_into_db(order) -> None:
     return
+    from jesse.models.Order import Order
+
     d = {
         'id': order.id,
         'trade_id': order.trade_id,
@@ -206,6 +208,8 @@ def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -
 
 
 def fetch_candles_from_db(exchange: str, symbol: str, start_date: int, finish_date: int) -> tuple:
+    from jesse.models.Candle import Candle
+
     return tuple(
         Candle.select(
             Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
