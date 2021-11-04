@@ -1,13 +1,11 @@
 import json
 import os
-
 import numpy as np
+
+from fastapi.responses import FileResponse
 import jesse.helpers as jh
-from jesse.models import Candle
 from jesse.models.Option import Option
 from jesse.services.candle import generate_candle_from_one_minutes
-from starlette.responses import FileResponse
-from fastapi.responses import JSONResponse
 from jesse.models.utils import fetch_candles_from_db
 
 
@@ -153,5 +151,7 @@ def download_file(mode: str, file_type: str, session_id: str):
     elif mode == 'backtest' and file_type == 'tradingview':
         path = f'storage/trading-view-pine-editor/{session_id}.txt'
         filename = f'backtest-{session_id}.txt'
+    else:
+        raise Exception(f'Unknown file type: {file_type} or mode: {mode}')
 
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
