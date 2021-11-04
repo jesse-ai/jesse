@@ -109,7 +109,7 @@ def migrate_log(migrator):
 
 def migrate_order(migrator):
     fields = {
-        #     add new fields of order table here
+        'session_id': UUIDField(index=True, null=True)
     }
 
     order_column = db.get_columns('order')
