@@ -1,8 +1,8 @@
 import arrow
 import numpy as np
-import logging
 
 import jesse.helpers as jh
+from jesse.services import logger
 
 
 def generate_candle_from_one_minutes(timeframe: str,
@@ -28,7 +28,7 @@ def generate_candle_from_one_minutes(timeframe: str,
 
 def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
     """
-    Ever since the new GUI dashboard, this function should broadcast instead of actually printing
+    Ever since the new GUI dashboard, this function should log instead of actually printing
 
     :param candle: np.ndarray
     :param is_partial: bool
@@ -42,7 +42,7 @@ def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
     msg = candle_form + candle_info
 
     # store it in the log file
-    logging.info(msg)
+    logger.info(msg)
 
 
 def is_bullish(candle: np.ndarray) -> bool:
