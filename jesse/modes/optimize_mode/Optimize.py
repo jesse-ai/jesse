@@ -1,6 +1,10 @@
 # import pickle
 from abc import ABC
+from datetime import timedelta
 from random import randint, choices
+
+from timeloop import Timeloop
+
 from jesse import sync_publish
 from jesse.services.redis import process_status
 from multiprocessing import Process, Manager
@@ -60,6 +64,14 @@ class Optimizer(ABC):
         self.testing_candles = testing_candles
         self.average_execution_seconds = 0
 
+        # check for termination event once per second
+        tl_0 = Timeloop()
+        @tl_0.job(interval=timedelta(seconds=1))
+        def check_for_termination():
+            if process_status() != 'started':
+                raise exceptions.Termination
+        tl_0.start()
+
         options = {
             'strategy_name': self.strategy_name,
             'exchange': self.exchange,
@@ -110,10 +122,6 @@ class Optimizer(ABC):
 
                 try:
                     for _ in range(self.cpu_cores):
-                        # check for termination event once per second
-                        if process_status() != 'started':
-                            raise exceptions.Termination
-
                         dna = ''.join(choices(self.charset, k=self.solution_len))
                         w = Process(
                             target=get_and_add_fitness_to_the_bucket,
@@ -205,10 +213,6 @@ class Optimizer(ABC):
 
                 try:
                     for _ in range(self.cpu_cores):
-                        # check for termination event once per second
-                        if process_status() != 'started':
-                            raise exceptions.Termination
-
                         mommy = self.select_person()
                         daddy = self.select_person()
                         w = Process(
