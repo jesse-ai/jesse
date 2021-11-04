@@ -14,10 +14,8 @@ from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
     ReportExceptionRequestJson, OptimizationRequestJson
-from jesse.services.failure import register_custom_exception_handler
 import uvicorn
 from asyncio import Queue
-from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
 
 # to silent stupid pandas warnings
@@ -136,6 +134,8 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
 
 @fastapi_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
+    from jesse.services.multiprocessing import process_manager
+
     if not authenticator.is_valid_token(token):
         return
 
@@ -198,6 +198,8 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
 @fastapi_app.post('/import-candles')
 def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    from jesse.services.multiprocessing import process_manager
+
     validate_cwd()
 
     if not authenticator.is_valid_token(authorization):
@@ -215,6 +217,8 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
 @fastapi_app.delete("/import-candles")
 def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+    from jesse.services.multiprocessing import process_manager
+
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -225,6 +229,8 @@ def cancel_import_candles(request_json: CancelRequestJson, authorization: Option
 
 @fastapi_app.post("/backtest")
 def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
+    from jesse.services.multiprocessing import process_manager
+
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -257,6 +263,8 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
+    from jesse.services.multiprocessing import process_manager
+
     validate_cwd()
 
     from jesse.modes.optimize_mode import run as run_optimization
@@ -285,6 +293,8 @@ def cancel_optimization(request_json: CancelRequestJson, authorization: Optional
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
+    from jesse.services.multiprocessing import process_manager
+
     process_manager.cancel_process('optimize-' + request_json.id)
 
     return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'}, status_code=202)
@@ -305,6 +315,8 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
+    from jesse.services.multiprocessing import process_manager
+
     process_manager.cancel_process('backtest-' + request_json.id)
 
     return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'}, status_code=202)
@@ -323,6 +335,7 @@ def make_project(name: str) -> None:
     generates a new strategy folder from jesse/strategies/ExampleStrategy
     """
     from jesse.config import config
+    from jesse.services.failure import register_custom_exception_handler
 
     config['app']['trading_mode'] = 'make-project'
 
@@ -350,6 +363,7 @@ def routes(dna: bool) -> None:
     """
     validate_cwd()
     from jesse.config import config
+    from jesse.services.failure import register_custom_exception_handler
 
     config['app']['trading_mode'] = 'routes'
 
