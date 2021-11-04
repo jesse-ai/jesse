@@ -193,6 +193,11 @@ def file_exists(path: str) -> bool:
     return os.path.isfile(path)
 
 
+def make_directory(path: str) -> None:
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def floor_with_precision(num: float, precision: int = 0) -> float:
     temp = 10 ** precision
     return math.floor(num * temp) / temp
