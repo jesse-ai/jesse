@@ -1,36 +1,31 @@
-import os
 import jesse.helpers as jh
 from jesse.services import logger as jesse_logger
 import threading
 import traceback
-import logging
 from jesse.services.redis import sync_publish
 
 
 def register_custom_exception_handler() -> None:
-    log_format = "%(message)s"
-    os.makedirs('storage/logs/live-mode', exist_ok=True)
-    os.makedirs('storage/logs/backtest-mode', exist_ok=True)
-    os.makedirs('storage/logs/optimize-mode', exist_ok=True)
-    os.makedirs('storage/logs/collect-mode', exist_ok=True)
+    # log_format = "%(message)s"
+    # session_id = jh.get_session_id()
 
-    session_id = jh.get_session_id()
-
-    if jh.is_live():
-        logging.basicConfig(filename=f'storage/logs/live-mode/{session_id}.txt', level=logging.INFO,
-                            filemode='w', format=log_format)
-    elif jh.is_collecting_data():
-        logging.basicConfig(filename=f'storage/logs/collect-mode/{session_id}.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
-    elif jh.is_optimizing():
-        logging.basicConfig(filename=f'storage/logs/optimize-mode/{session_id}.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
-    elif jh.is_backtesting():
-        logging.basicConfig(filename=f'storage/logs/backtest-mode/{session_id}.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
-    else:
-        logging.basicConfig(filename=f'storage/logs/etc.txt', level=logging.INFO, filemode='w',
-                            format=log_format)
+    # jh.make_directory('storage/logs/live-mode')
+    # jh.make_directory('storage/logs/backtest-mode')
+    # jh.make_directory('storage/logs/optimize-mode')
+    # jh.make_directory('storage/logs/collect-mode')
+    #
+    # if jh.is_live():
+    #     filename = f'storage/logs/live-mode/{jh.now(True)}--{session_id}.txt'
+    # elif jh.is_collecting_data():
+    #     filename = f'storage/logs/collect-mode/{jh.now(True)}--{session_id}.txt'
+    # elif jh.is_optimizing():
+    #     filename = f'storage/logs/optimize-mode/{jh.now(True)}--{session_id}.txt'
+    # elif jh.is_backtesting():
+    #     filename = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
+    # else:
+    #     filename = f'storage/logs/etc.txt'
+    #
+    # logging.basicConfig(filename=filename, level=logging.INFO, filemode='w', format=log_format)
 
     # other threads
     def handle_thread_exception(args) -> None:
