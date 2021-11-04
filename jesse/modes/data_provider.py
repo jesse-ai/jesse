@@ -4,12 +4,12 @@ import numpy as np
 
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
-from jesse.models.Option import Option
-from jesse.services.candle import generate_candle_from_one_minutes
-from jesse.models.utils import fetch_candles_from_db
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
+    from jesse.services.candle import generate_candle_from_one_minutes
+    from jesse.models.utils import fetch_candles_from_db
+
     symbol = symbol.upper()
     num_candles = 210
 
@@ -75,6 +75,8 @@ def get_general_info(has_live=False) -> dict:
 
 
 def get_config(client_config: dict, has_live=False) -> dict:
+    from jesse.models.Option import Option
+
     o = Option.get_or_none(Option.type == 'config')
 
     # if not found, that means it's the first time. Store in the DB and
@@ -123,6 +125,8 @@ def get_config(client_config: dict, has_live=False) -> dict:
 
 
 def update_config(client_config: dict):
+    from jesse.models.Option import Option
+
     # at this point there must already be one option record for "config" existing, so:
     o = Option.get_or_none(Option.type == 'config')
 

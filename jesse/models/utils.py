@@ -1,14 +1,7 @@
 import threading
-
 import numpy as np
 
 import jesse.helpers as jh
-from jesse.models.CompletedTrade import CompletedTrade
-from jesse.models.DailyBalance import DailyBalance
-from jesse.models.Log import Log
-from jesse.models.Orderbook import Orderbook
-from jesse.models.Ticker import Ticker
-from jesse.models.Trade import Trade
 from jesse.services import logger
 
 
@@ -39,6 +32,7 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
 
 def store_log_into_db(log: dict, log_type: str) -> None:
     from jesse.store import store
+    from jesse.models.Log import Log
 
     if log_type == 'info':
         log_type = 1
@@ -64,6 +58,8 @@ def store_log_into_db(log: dict, log_type: str) -> None:
 
 def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None:
     return
+    from jesse.models.Ticker import Ticker
+
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': ticker[0],
@@ -85,8 +81,10 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None
     threading.Thread(target=async_save).start()
 
 
-def store_completed_trade_into_db(completed_trade: CompletedTrade) -> None:
+def store_completed_trade_into_db(completed_trade) -> None:
     return
+    from jesse.models.CompletedTrade import CompletedTrade
+
     d = {
         'id': completed_trade.id,
         'strategy_name': completed_trade.strategy_name,
@@ -147,6 +145,8 @@ def store_order_into_db(order) -> None:
 
 def store_daily_balance_into_db(daily_balance: dict) -> None:
     return
+    from jesse.models.DailyBalance import DailyBalance
+
     def async_save():
         DailyBalance.insert(**daily_balance).execute()
         if jh.is_debugging():
@@ -159,6 +159,8 @@ def store_daily_balance_into_db(daily_balance: dict) -> None:
 
 def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
     return
+    from jesse.models.Trade import Trade
+
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': trade[0],
@@ -186,6 +188,8 @@ def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
 
 def store_orderbook_into_db(exchange: str, symbol: str, orderbook: np.ndarray) -> None:
     return
+    from jesse.models.Orderbook import Orderbook
+
     d = {
         'id': jh.generate_unique_id(),
         'timestamp': jh.now_to_timestamp(),
