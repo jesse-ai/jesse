@@ -31,12 +31,12 @@ def report_exception(description: str, traceback: str, mode: str, attach_logs: b
     else:
         raise ValueError('Invalid mode')
 
+    files = {'log_file': open(path, 'rb')} if attach_logs else None
+
     params = {
         'description': description,
         'traceback': traceback,
     }
-
-    files = {'file': open(path, 'rb')} if attach_logs else None
 
     res = requests.post(
         'https://jesse.trade/api/exception',
