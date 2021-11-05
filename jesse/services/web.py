@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -117,5 +117,5 @@ class ReportExceptionRequestJson(BaseModel):
     traceback: str
     mode: str
     attach_logs: bool
-    session_id: str
+    session_id: Optional[str] = None
 

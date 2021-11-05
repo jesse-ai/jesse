@@ -26,19 +26,22 @@ def feedback(description: str) -> JSONResponse:
 def report_exception(description: str, traceback: str, mode: str, attach_logs: bool, session_id: str) -> JSONResponse:
     access_token = get_access_token()
 
-    path_exchange_log = None
-    if mode == 'backtest':
-        path_log = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
-    elif mode == 'live':
-        path_log = f'storage/logs/live-trade/{jh.now(True)}--{session_id}.txt'
-        path_exchange_log = f'storage/logs/exchange-streams.txt'
-    else:
-        raise ValueError('Invalid mode')
+    if attach_logs and session_id:
+        path_exchange_log = None
+        if mode == 'backtest':
+            path_log = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
+        elif mode == 'live':
+            path_log = f'storage/logs/live-trade/{jh.now(True)}--{session_id}.txt'
+            path_exchange_log = f'storage/logs/exchange-streams.txt'
+        else:
+            raise ValueError('Invalid mode')
 
-    # attach exchange_log if there's any
-    files = {'log_file': open(path_log, 'rb')} if attach_logs else None
-    if path_exchange_log and jh.file_exists(path_exchange_log):
-        files['exchange_log'] = open(path_exchange_log, 'rb')
+        # attach exchange_log if there's any
+        files = {'log_file': open(path_log, 'rb')}
+        if path_exchange_log and jh.file_exists(path_exchange_log):
+            files['exchange_log'] = open(path_exchange_log, 'rb')
+    else:
+        files = None
 
     params = {
         'description': description,
