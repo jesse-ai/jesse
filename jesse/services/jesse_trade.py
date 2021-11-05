@@ -1,6 +1,7 @@
 import requests
-from starlette.responses import JSONResponse
+from fastapi.responses import JSONResponse
 from jesse.services.auth import get_access_token
+import jesse.helpers as jh
 
 
 def feedback(description: str) -> JSONResponse:
@@ -25,19 +26,24 @@ def feedback(description: str) -> JSONResponse:
 def report_exception(description: str, traceback: str, mode: str, attach_logs: bool, session_id: str) -> JSONResponse:
     access_token = get_access_token()
 
-    # get log file using mode and session_id
+    path_exchange_log = None
     if mode == 'backtest':
-        path = f'storage/logs/backtest-mode/{session_id}.txt'
+        path_log = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
+    elif mode == 'live':
+        path_log = f'storage/logs/live-trade/{jh.now(True)}--{session_id}.txt'
+        path_exchange_log = f'storage/logs/exchange-streams.txt'
     else:
         raise ValueError('Invalid mode')
 
-    files = {'log_file': open(path, 'rb')} if attach_logs else None
+    # attach exchange_log if there's any
+    files = {'log_file': open(path_log, 'rb')} if attach_logs else None
+    if path_exchange_log and jh.file_exists(path_exchange_log):
+        files['exchange_log'] = open(path_exchange_log, 'rb')
 
     params = {
         'description': description,
         'traceback': traceback,
     }
-
     res = requests.post(
         'https://jesse.trade/api/exception',
         data=params,
