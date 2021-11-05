@@ -29,9 +29,9 @@ def report_exception(description: str, traceback: str, mode: str, attach_logs: b
     if attach_logs and session_id:
         path_exchange_log = None
         if mode == 'backtest':
-            path_log = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
+            path_log = f'storage/logs/backtest-mode/{session_id}.txt'
         elif mode == 'live':
-            path_log = f'storage/logs/live-trade/{jh.now(True)}--{session_id}.txt'
+            path_log = f'storage/logs/live-trade/{session_id}.txt'
             path_exchange_log = f'storage/logs/exchange-streams.txt'
         else:
             raise ValueError('Invalid mode')

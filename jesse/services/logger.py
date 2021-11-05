@@ -16,13 +16,13 @@ def _init_main_logger():
     jh.make_directory('storage/logs/collect-mode')
 
     if jh.is_live():
-        filename = f'storage/logs/live-mode/{jh.now(True)}--{session_id}.txt'
+        filename = f'storage/logs/live-mode/{session_id}.txt'
     elif jh.is_collecting_data():
-        filename = f'storage/logs/collect-mode/{jh.now(True)}--{session_id}.txt'
+        filename = f'storage/logs/collect-mode/{session_id}.txt'
     elif jh.is_optimizing():
-        filename = f'storage/logs/optimize-mode/{jh.now(True)}--{session_id}.txt'
+        filename = f'storage/logs/optimize-mode/{session_id}.txt'
     elif jh.is_backtesting():
-        filename = f'storage/logs/backtest-mode/{jh.now(True)}--{session_id}.txt'
+        filename = f'storage/logs/backtest-mode/{session_id}.txt'
     else:
         filename = f'storage/logs/etc.txt'
 
