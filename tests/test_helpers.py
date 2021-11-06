@@ -565,3 +565,7 @@ def test_merge_dicts():
 def test_get_pid():
     assert os.getpid() == jh.get_pid()
 
+
+def test_convert_to_env_name():
+    assert jh.convert_to_env_name('Testnet Binance Futures') == 'TESTNET_BINANCE_FUTURES'
+    assert jh.convert_to_env_name('Testnet Binance') == 'TESTNET_BINANCE'

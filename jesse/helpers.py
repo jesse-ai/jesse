@@ -892,3 +892,8 @@ def get_settlement_currency_from_exchange(exchange: str):
 def cpu_cores_count():
     from multiprocessing import cpu_count
     return cpu_count()
+
+
+# a function that converts name to env_name. Example: 'Testnet Binance Futures' into 'TESTNET_BINANCE_FUTURES'
+def convert_to_env_name(name: str) -> str:
+    return name.replace(' ', '_').upper()
