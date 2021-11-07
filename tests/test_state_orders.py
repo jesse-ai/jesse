@@ -51,7 +51,7 @@ def test_state_order_get_order_by_id():
 
     # return None if does not exist
     assert store.orders.get_order_by_id(exchanges.SANDBOX, 'ETH-USD',
-                                        o0.id) == None
+                                        o0.id) is None
 
     store.orders.add_order(o1)
     store.orders.add_order(o2)
