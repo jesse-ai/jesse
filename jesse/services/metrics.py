@@ -28,19 +28,14 @@ def candles_info(candles_array: np.ndarray) -> dict:
     }
 
 
-def routes(routes_arr: list) -> dict:
-    array = []
-
-    for r in routes_arr:
-        array.append({
+def routes(routes_arr: list) -> list:
+    return [{
             'exchange': r.exchange,
             'symbol': r.symbol,
             'timeframe': r.timeframe,
             'strategy_name': r.strategy_name,
             'dna': r.dna
-        })
-
-    return array
+        } for r in routes_arr]
 
 
 def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
