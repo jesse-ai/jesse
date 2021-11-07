@@ -46,8 +46,7 @@ class BybitPerpetual(CandleExchange):
 
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
-        first_timestamp = int(data[1]['open_time']) * 1000
-        return first_timestamp
+        return int(data[1]['open_time']) * 1000
 
     def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
         dashless_symbol = jh.dashless_symbol(symbol)
