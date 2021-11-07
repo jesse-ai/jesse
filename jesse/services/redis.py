@@ -11,7 +11,7 @@ from jesse.services.env import ENV_VALUES
 async def init_redis():
     return await aioredis.create_redis_pool(
         address=(ENV_VALUES['REDIS_HOST'], ENV_VALUES['REDIS_PORT']),
-        password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+        password=ENV_VALUES['REDIS_PASSWORD'] or None,
     )
 
 
