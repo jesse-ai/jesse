@@ -23,12 +23,7 @@ def migrate_candle(migrator):
     candle_column = db.get_columns('candle')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in candle_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in candle_column)
         if not item_exist:
             migrate(
                 migrator.add_column('candle', key, value)
@@ -46,12 +41,7 @@ def migrate_completed_trade(migrator):
     completedtrade_column = db.get_columns('completedtrade')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in completedtrade_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in completedtrade_column)
         if not item_exist:
             migrate(
                 migrator.add_column('completedtrade', key, value)
@@ -69,12 +59,7 @@ def migrate_daily_balance(migrator):
     dailybalance_column = db.get_columns('dailybalance')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in dailybalance_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in dailybalance_column)
         if not item_exist:
             migrate(
                 migrator.add_column('dailybalance', key, value)
@@ -92,12 +77,7 @@ def migrate_log(migrator):
     log_column = db.get_columns('log')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in log_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in log_column)
         if not item_exist:
             migrate(
                 migrator.add_column('log', key, value)
@@ -115,12 +95,7 @@ def migrate_order(migrator):
     order_column = db.get_columns('order')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in order_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in order_column)
         if not item_exist:
             migrate(
                 migrator.add_column('order', key, value)
@@ -138,12 +113,7 @@ def migrate_orderbook(migrator):
     orderbook_column = db.get_columns('orderbook')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in orderbook_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in orderbook_column)
         if not item_exist:
             migrate(
                 migrator.add_column('orderbook', key, value)
@@ -161,12 +131,7 @@ def migrate_ticker(migrator):
     ticker_column = db.get_columns('ticker')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in ticker_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in ticker_column)
         if not item_exist:
             migrate(
                 migrator.add_column('ticker', key, value)
@@ -184,12 +149,7 @@ def migrate_trade(migrator):
     trade_column = db.get_columns('trade')
 
     for key, value in fields.items():
-        item_exist = False
-        for item in trade_column:
-            if key == item.name:
-                item_exist = True
-                break
-
+        item_exist = any(key == item.name for item in trade_column)
         if not item_exist:
             migrate(
                 migrator.add_column('trade', key, value)
