@@ -231,7 +231,7 @@ class Optimizer(ABC):
                     for w in workers:
                         w.join()
                         if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
+                            logger.error(f'a process exited with exitcode: {w.exitcode}')
                 except exceptions.Termination:
                     self._handle_termination(manager, workers)
 
@@ -261,9 +261,7 @@ class Optimizer(ABC):
                 else:
                     raise ValueError('self.population_size cannot be less than 10')
 
-                best_candidates = []
-                for j in range(number_of_ind_to_show):
-                    best_candidates.append({
+                best_candidates = [{
                         'rank': j + 1,
                         'dna': self.population[j]['dna'],
                         'fitness': round(self.population[j]['fitness'], 4),
@@ -273,7 +271,7 @@ class Optimizer(ABC):
                         'testing_win_rate': self.population[j]['testing_log']['win-rate'],
                         'testing_total_trades': self.population[j]['testing_log']['total'],
                         'testing_pnl': self.population[j]['testing_log']['PNL'],
-                    })
+                    } for j in range(number_of_ind_to_show)]
                 sync_publish('best_candidates', best_candidates)
 
                 # one person has to die and be replaced with the newborn baby
