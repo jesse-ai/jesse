@@ -180,8 +180,6 @@ def errors() -> List[List[Union[str, Any]]]:
 
 
 def orders():
-    arr = []
-
     route_orders = []
     for r in router.routes:
         r_orders = store.orders.get_orders(r.exchange, r.symbol)
@@ -193,8 +191,7 @@ def orders():
 
     route_orders.sort(key=lambda x: x.created_at, reverse=False)
 
-    for o in route_orders[::-1][0:5]:
-        arr.append({
+    return [{
             'id': o.id,
             'symbol': o.symbol,
             'side': o.side,
@@ -206,6 +203,4 @@ def orders():
             'created_at': o.created_at,
             'canceled_at': o.canceled_at,
             'executed_at': o.executed_at,
-        })
-
-    return arr
+        } for o in route_orders[::-1][0:5]]
