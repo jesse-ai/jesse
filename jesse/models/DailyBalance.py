@@ -25,8 +25,8 @@ class DailyBalance(peewee.Model):
         if attributes is None:
             attributes = {}
 
-        for a in attributes:
-            setattr(self, a, attributes[a])
+        for a, value in attributes.items():
+            setattr(self, a, value)
 
 
 if not jh.is_unit_testing():

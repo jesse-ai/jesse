@@ -38,8 +38,8 @@ class CompletedTrade(peewee.Model):
         if attributes is None:
             attributes = {}
 
-        for a in attributes:
-            setattr(self, a, attributes[a])
+        for a, value in attributes.items():
+            setattr(self, a, value)
 
     def toJSON(self) -> dict:
         orders = [o.__dict__ for o in self.orders]
