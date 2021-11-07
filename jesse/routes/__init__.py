@@ -24,12 +24,15 @@ class RouterClass:
         Example:
         [{'exchange': 'Binance', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
         """
-        arr = []
-        for r in self.routes:
-            arr.append({
-                'exchange': r.exchange, 'symbol': r.symbol, 'timeframe': r.timeframe, 'strategy': r.strategy_name
-            })
-        return arr
+        return [
+            {
+                'exchange': r.exchange,
+                'symbol': r.symbol,
+                'timeframe': r.timeframe,
+                'strategy': r.strategy_name,
+            }
+            for r in self.routes
+        ]
 
     @property
     def formatted_extra_routes(self) -> list:
@@ -37,12 +40,9 @@ class RouterClass:
         Example:
         [{'exchange': 'Binance', 'symbol': 'BTC-USD', 'timeframe': '3m'}]
         """
-        arr = []
-        for r in self.routes:
-            arr.append({
+        return [{
                 'exchange': r.exchange, 'symbol': r.symbol, 'timeframe': r.timeframe
-            })
-        return arr
+            } for r in self.routes]
 
     def initiate(self, routes: list, extra_routes: list = None):
         if extra_routes is None:
