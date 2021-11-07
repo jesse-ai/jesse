@@ -814,11 +814,10 @@ def validate_response(response):
     if response.status_code != 200:
         err_msg = f"[{response.status_code}]: {response.json()['message']}\nPlease contact us at support@jesse.trade if this is unexpected."
 
-        if response.status_code in [401, 403]:
-            error(err_msg, force_print=True)
-            terminate_app()
-        else:
+        if response.status_code not in [401, 403]:
             raise ConnectionError(err_msg)
+        error(err_msg, force_print=True)
+        terminate_app()
 
 
 def get_session_id():
