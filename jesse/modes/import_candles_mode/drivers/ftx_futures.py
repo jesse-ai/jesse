@@ -64,10 +64,7 @@ class FTXFutures(CandleExchange):
         self._handle_errors(response)
 
         data = response.json()['result']
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -77,9 +74,7 @@ class FTXFutures(CandleExchange):
                 'high': float(d['high']),
                 'low': float(d['low']),
                 'volume': float(d['volume'])
-            })
-
-        return candles
+            } for d in data]
 
     def _handle_errors(self, response) -> None:
         # Exchange In Maintenance
