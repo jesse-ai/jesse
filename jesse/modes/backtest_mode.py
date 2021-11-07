@@ -191,13 +191,10 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
         cache_key = f"{start_date_str}-{finish_date_str}-{key}"
         cached_value = cache.get_value(cache_key)
-        # if cache exists
-        if cached_value:
-            candles_tuple = cached_value
+        # if cache exists use cache_value
         # not cached, get and cache for later calls in the next 5 minutes
-        else:
-            # fetch from database
-            candles_tuple = Candle.select(
+        # fetch from database
+        candles_tuple = cached_value or Candle.select(
                 Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
                 Candle.volume
             ).where(
@@ -205,7 +202,6 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
                 Candle.exchange == exchange,
                 Candle.symbol == symbol
             ).order_by(Candle.timestamp.asc()).tuples()
-
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
