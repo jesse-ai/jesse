@@ -193,6 +193,5 @@ def create_baby(
         people_bucket.append(baby)
     except Exception as e:
         proc = os.getpid()
-        logger.error(f'process failed - ID: {str(proc)}')
+        logger.error(f'process failed - ID: {proc}')
         logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-        # raise e
