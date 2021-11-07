@@ -881,7 +881,7 @@ def str_or_none(item, encoding='utf-8'):
 
 
 def get_settlement_currency_from_exchange(exchange: str):
-    if exchange in ['FTX Futures', 'Bitfinex', 'Coinbase']:
+    if exchange in {'FTX Futures', 'Bitfinex', 'Coinbase'}:
         return 'USD'
     else:
         return 'USDT'
