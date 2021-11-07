@@ -26,23 +26,23 @@ def get_btc_and_eth_candles():
 
 
 def get_btc_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
+    return {
+        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': exchanges.SANDBOX,
+            'symbol': 'BTC-USDT',
+            'candles': fake_range_candle_from_range_prices(range(1, 100)),
+        }
     }
-    return candles
 
 
 def get_downtrend_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(100, 10, -1))
+    return {
+        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': exchanges.SANDBOX,
+            'symbol': 'BTC-USDT',
+            'candles': fake_range_candle_from_range_prices(range(100, 10, -1)),
+        }
     }
-    return candles
 
 
 def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
