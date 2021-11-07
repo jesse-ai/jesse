@@ -46,7 +46,7 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
         starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
-    if len(trades_list) == 0:
+    if not trades_list:
         return {'total': 0}
 
     df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
