@@ -32,7 +32,7 @@ def report_exception(description: str, traceback: str, mode: str, attach_logs: b
             path_log = f'storage/logs/backtest-mode/{session_id}.txt'
         elif mode == 'live':
             path_log = f'storage/logs/live-mode/{session_id}.txt'
-            path_exchange_log = f'storage/logs/exchange-streams.txt'
+            path_exchange_log = 'storage/logs/exchange-streams.txt'
         else:
             raise ValueError('Invalid mode')
 
