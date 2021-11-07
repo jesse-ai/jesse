@@ -24,7 +24,7 @@ def _init_main_logger():
     elif jh.is_backtesting():
         filename = f'storage/logs/backtest-mode/{session_id}.txt'
     else:
-        filename = f'storage/logs/etc.txt'
+        filename = 'storage/logs/etc.txt'
 
     new_logger = logging.getLogger(jh.app_mode())
     new_logger.setLevel(logging.INFO)
