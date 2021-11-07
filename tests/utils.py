@@ -9,12 +9,14 @@ from jesse.config import config
 
 
 def get_btc_and_eth_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(101, 200))
+    candles = {
+        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': exchanges.SANDBOX,
+            'symbol': 'BTC-USDT',
+            'candles': fake_range_candle_from_range_prices(range(101, 200)),
+        }
     }
+
     candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
         'exchange': exchanges.SANDBOX,
         'symbol': 'ETH-USDT',
