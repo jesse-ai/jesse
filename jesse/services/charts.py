@@ -18,15 +18,10 @@ def equity_curve() -> list:
     date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
     daily_balance = store.app.daily_balance
 
-    arr = []
-
-    for date, balance in zip(date_list, daily_balance):
-        arr.append({
+    return [{
             'timestamp': date.timestamp() * 1000,
             'balance': balance
-        })
-
-    return arr
+        } for date, balance in zip(date_list, daily_balance)]
 
 
 def portfolio_vs_asset_returns(study_name: str) -> None:
