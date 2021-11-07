@@ -24,10 +24,14 @@ class Process(mp.Process):
                 sync_publish('termination', {})
                 jh.terminate_app()
             else:
-                sync_publish('exception', {
-                    'error': f"{type(e).__name__}: {str(e)}",
-                    'traceback': str(traceback.format_exc())
-                })
+                sync_publish(
+                    'exception',
+                    {
+                        'error': f'{type(e).__name__}: {e}',
+                        'traceback': str(traceback.format_exc()),
+                    },
+                )
+
                 print('Unhandled exception in the process:')
                 print(traceback.format_exc())
 
