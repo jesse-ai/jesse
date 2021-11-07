@@ -114,7 +114,7 @@ class Optimizer(ABC):
         length = int(self.population_size / self.cpu_cores)
 
         progressbar = Progressbar(length)
-        for i in range(length):
+        for _ in range(length):
             people = []
             with Manager() as manager:
                 dna_bucket = manager.list([])
@@ -138,7 +138,7 @@ class Optimizer(ABC):
                     for w in workers:
                         w.join()
                         if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {str(w.exitcode)}')
+                            logger.error(f'a process exited with exitcode: {w.exitcode}')
                 except exceptions.Termination:
                     self._handle_termination(manager, workers)
 
