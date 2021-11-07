@@ -129,9 +129,8 @@ def get_and_add_fitness_to_the_bucket(
             raise ValueError(f"Initial Population: Double DNA: {dna}")
     except Exception as e:
         proc = os.getpid()
-        logger.error(f'process failed - ID: {str(proc)}')
+        logger.error(f'process failed - ID: {proc}')
         logger.error("".join(traceback.TracebackException.from_exception(e).format()))
-        # raise e
 
 
 def make_love(
