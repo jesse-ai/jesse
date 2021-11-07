@@ -11,13 +11,13 @@ from tests.utils import single_route_backtest
 
 
 def get_btc_candles():
-    candles = {}
-    candles[jh.key(exchanges.SANDBOX, 'BTC-USDT')] = {
-        'exchange': exchanges.SANDBOX,
-        'symbol': 'BTC-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
+    return {
+        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': exchanges.SANDBOX,
+            'symbol': 'BTC-USDT',
+            'candles': fake_range_candle_from_range_prices(range(1, 100)),
+        }
     }
-    return candles
 
 
 def set_up(routes, is_futures_trading=True):
