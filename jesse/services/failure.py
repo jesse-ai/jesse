@@ -35,8 +35,6 @@ def terminate_session():
         'message': "Session terminated as the result of an uncaught exception",
     })
 
-    jesse_logger.error(
-        f"Session terminated as the result of an uncaught exception"
-    )
+    jesse_logger.error('Session terminated as the result of an uncaught exception')
 
     jh.terminate_app()
