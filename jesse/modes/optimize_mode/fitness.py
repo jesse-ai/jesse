@@ -12,7 +12,7 @@ from random import randint, choice
 
 
 def _formatted_inputs_for_isolated_backtest(user_config, routes):
-    formatted_config = {
+    return {
         'starting_balance': user_config['exchange']['balance'],
         'fee': user_config['exchange']['fee'],
         'futures_leverage': user_config['exchange']['futures_leverage'],
@@ -21,8 +21,6 @@ def _formatted_inputs_for_isolated_backtest(user_config, routes):
         'settlement_currency': jh.quote_asset(routes[0]['symbol']),
         'warm_up_candles': user_config['warmup_candles_num']
     }
-
-    return formatted_config
 
 
 def get_fitness(
