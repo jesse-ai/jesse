@@ -16,6 +16,7 @@ from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
 from jesse.services.cache import cached
+from jesse.services import notifier
 
 
 class Strategy(ABC):
@@ -1187,7 +1188,14 @@ class Strategy(ABC):
 
         if log_type == 'info':
             logger.info(msg)
+
+            if jh.is_live():
+                notifier.notify(msg)
         elif log_type == 'error':
             logger.error(msg)
+
+            if jh.is_live():
+                notifier.notify(msg)
+                notifier.notify_urgently(msg)
         else:
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
