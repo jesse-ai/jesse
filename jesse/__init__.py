@@ -345,10 +345,11 @@ def make_project(name: str) -> None:
 
     project_maker.generate(name)
 
+
 @cli.command()
 def migrate() -> None:
     """
-    generates a new strategy folder from jesse/strategies/ExampleStrategy
+    Runs the database migrations to make sure no columns are missing
     """
     from jesse.services.migrator import run
     run()
