@@ -77,7 +77,6 @@ def register_custom_exception_handler() -> None:
     from jesse import exceptions
 
     log_format = "%(message)s"
-    os.makedirs('storage/logs', exist_ok=True)
 
     if jh.is_livetrading():
         logging.basicConfig(filename='storage/logs/live-trade.txt', level=logging.INFO,
