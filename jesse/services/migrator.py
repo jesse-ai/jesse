@@ -84,7 +84,9 @@ def _migrate_log(migrator):
 
 def _migrate_order(migrator):
     fields = {
-        'session_id': UUIDField(index=True, null=True)
+        'trade_id': UUIDField(index=True, null=True),
+        'session_id': UUIDField(index=True, null=True),
+        'exchange_id': CharField(null=True)
     }
 
     order_columns = db.get_columns('order')
