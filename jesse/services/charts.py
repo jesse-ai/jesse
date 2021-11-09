@@ -19,9 +19,9 @@ def equity_curve() -> list:
     daily_balance = store.app.daily_balance
 
     return [{
-            'timestamp': date.timestamp() * 1000,
-            'balance': balance
-        } for date, balance in zip(date_list, daily_balance)]
+        'timestamp': date.timestamp(),
+        'balance': balance
+    } for date, balance in zip(date_list, daily_balance)]
 
 
 def portfolio_vs_asset_returns(study_name: str) -> None:
