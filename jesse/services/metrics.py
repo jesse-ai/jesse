@@ -99,9 +99,9 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
     gross_loss = losing_trades['PNL'].sum()
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
+    date_list = pd.date_range(start=start_date, periods=len(daily_balance))
 
-    daily_return = pd.DataFrame(daily_balance, index=pd.to_datetime(list(date_list))).pct_change(1)
+    daily_return = pd.DataFrame(daily_balance, index=date_list).pct_change(1)
 
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
