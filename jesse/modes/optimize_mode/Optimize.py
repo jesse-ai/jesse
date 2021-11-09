@@ -143,7 +143,6 @@ class Optimizer(ABC):
                     self._handle_termination(manager, workers)
 
                 for d in dna_bucket:
-                    jh.dump(d[0])
                     people.append({
                         'dna': d[0],
                         'fitness': d[1],
