@@ -345,33 +345,14 @@ def make_project(name: str) -> None:
 
     project_maker.generate(name)
 
+
 @cli.command()
 def migrate() -> None:
     """
-    generates a new strategy folder from jesse/strategies/ExampleStrategy
+    Runs the database migrations to make sure no columns are missing
     """
     from jesse.services.migrator import run
     run()
-
-
-@cli.command()
-@click.option('--dna/--no-dna', default=False,
-              help='Translates DNA into parameters. Used in optimize mode only')
-def routes(dna: bool) -> None:
-    """
-    lists all routes
-    """
-    validate_cwd()
-    from jesse.config import config
-    from jesse.services.failure import register_custom_exception_handler
-
-    config['app']['trading_mode'] = 'routes'
-
-    register_custom_exception_handler()
-
-    from jesse.modes import routes_mode
-
-    routes_mode.run(dna)
 
 
 @fastapi_app.post("/login-jesse-trade")

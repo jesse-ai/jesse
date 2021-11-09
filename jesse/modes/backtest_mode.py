@@ -254,10 +254,10 @@ def simulator(
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
 
-        # inject hyper parameters (used for optimize_mode)
-        # convert DNS string into hyperparameters
-        if r.dna and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.dna)
+        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
+        # first convert DNS string into hyperparameters
+        if len(r.strategy.dna()) > 0 and hyperparameters is None:
+            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.strategy.dna())
 
         # inject hyperparameters sent within the optimize mode
         if hyperparameters is not None:

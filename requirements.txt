@@ -20,7 +20,6 @@ TA-Lib==0.4.21
 tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==1.2.1
-quantstats==0.0.34
 simplejson===3.17.2
 aioredis==1.3.1
 redis==3.5.3

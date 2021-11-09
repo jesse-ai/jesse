@@ -34,7 +34,6 @@ def routes(routes_arr: list) -> list:
             'symbol': r.symbol,
             'timeframe': r.timeframe,
             'strategy_name': r.strategy_name,
-            'dna': r.dna
         } for r in routes_arr]
 
 

@@ -148,3 +148,4 @@ cython_debug/
 /.vagrant
 testing-*.py
 /storage/full-reports/*.html
+/storage/logs/*

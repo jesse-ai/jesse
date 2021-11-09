@@ -800,6 +800,14 @@ def test_using_market_order_for_low_price_difference():
     single_route_backtest('TestMarketOrderForLowPriceDifference')
 
 
+def test_dna_method():
+    single_route_backtest('TestDnaMethod')
+
+
+def test_default_hyperparameters():
+    single_route_backtest('TestDefaultHyperparameters')
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(
