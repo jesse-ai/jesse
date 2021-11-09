@@ -13,9 +13,10 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> No
     daily_returns = pd.Series(store.app.daily_balance).pct_change(1).values
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
 
-    returns_time_series = pd.Series(daily_returns, index=pd.to_datetime(list(date_list)))
+    date_index = pd.date_range(start=start_date, periods=len(store.app.daily_balance))
+
+    returns_time_series = pd.Series(daily_returns, index=date_index)
 
     mode = config['app']['trading_mode']
     modes = {
