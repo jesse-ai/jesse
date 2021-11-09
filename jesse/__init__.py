@@ -355,26 +355,6 @@ def migrate() -> None:
     run()
 
 
-@cli.command()
-@click.option('--dna/--no-dna', default=False,
-              help='Translates DNA into parameters. Used in optimize mode only')
-def routes(dna: bool) -> None:
-    """
-    lists all routes
-    """
-    validate_cwd()
-    from jesse.config import config
-    from jesse.services.failure import register_custom_exception_handler
-
-    config['app']['trading_mode'] = 'routes'
-
-    register_custom_exception_handler()
-
-    from jesse.modes import routes_mode
-
-    routes_mode.run(dna)
-
-
 @fastapi_app.post("/login-jesse-trade")
 def login_jesse_trade(json_request: LoginJesseTradeRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):

@@ -160,6 +160,9 @@ class Strategy(ABC):
     def hyperparameters(self) -> list:
         return []
 
+    def dna(self) -> str:
+        return ''
+
     def _execute_long(self) -> None:
         self.go_long()
 
