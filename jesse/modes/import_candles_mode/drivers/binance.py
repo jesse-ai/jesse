@@ -20,9 +20,9 @@ class Binance(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1d',
+            'interval': '3d',
             'symbol': dashless_symbol,
-            'limit': 1500,
+            'limit': 1000,
         }
 
         response = requests.get(self.endpoint, params=payload)
