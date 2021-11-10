@@ -32,7 +32,7 @@ def _init_main_logger():
     LOGGERS[jh.app_mode()] = new_logger
 
 
-def _create_disposable_logger(name):
+def create_disposable_logger(name):
     log_file = f"storage/logs/{name}.txt"
     os.makedirs('storage/logs', exist_ok=True)
     new_logger = logging.getLogger(name)
@@ -108,6 +108,6 @@ def log_exchange_message(exchange, message):
     message = f'[{formatted_time} - {exchange}]: ' + message
 
     if 'exchange-streams' not in LOGGERS:
-        _create_disposable_logger('exchange-streams')
+        create_disposable_logger('exchange-streams')
 
     LOGGERS['exchange-streams'].info(message)
