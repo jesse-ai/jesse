@@ -56,9 +56,9 @@ def _log(migrator):
 
 def _order(migrator):
     fields = [
-        {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': 'allow_null'},
         {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': 'add'},
-        {'name': 'exchanged_id', 'type': CharField(null=True), 'action': 'add'}
+        {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': 'allow_null'},
+        {'name': 'exchange_id', 'type': CharField(null=True), 'action': 'allow_null'},
     ]
 
     order_columns = db.get_columns('order')
