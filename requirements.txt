@@ -11,7 +11,7 @@ peewee==3.14.8
 psycopg2-binary==2.9.1
 pydash==5.1.0
 pytest==6.2.5
-PyWavelets==1.1.1
+PyWavelets==1.2.0
 quantstats==0.0.45
 requests==2.26.0
 scipy==1.7.2
