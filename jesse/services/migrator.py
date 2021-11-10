@@ -57,7 +57,7 @@ def _log(migrator):
 def _order(migrator):
     fields = [
         {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': 'allow_null'},
-        {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': 'allow_null'},
+        {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': 'add'},
         {'name': 'exchanged_id', 'type': CharField(null=True), 'action': 'add'}
     ]
 
@@ -96,38 +96,38 @@ def _migrate(migrator, fields, columns, table):
 
         if column_name_exist:
             if field['action'] == 'add':
-                print(f"{field['name']} field already exists on {table} the table.")
+                print(f"'{field['name']}' field already exists on '{table}' the table.")
             elif field['action'] == 'drop':
                 migrate(
                     migrator.drop_column(table, field['name'])
                 )
-                print(f"Successfully dropped {field['name']} field from {table} the table.")
+                print(f"Successfully dropped '{field['name']}' field from '{table}' the table.")
             elif field['action'] == 'rename':
                 migrate(
                     migrator.rename_column(table, field['name'], field['new_name'])
                 )
-                print(f"{field['name']} field successfully changed to {field['new_name']} in the {table} table.")
+                print(f"'{field['name']}' field successfully changed to {field['new_name']} in the '{table}' table.")
             elif field['action'] == 'modify_type':
                 migrate(
                     migrator.alter_column_type(table, field['name'], field['type'])
                 )
-                print(f"{field['name']} field's type was successfully changed to {field['type']} in the {table} table.")
+                print(f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
             elif field['action'] == 'allow_null':
                 migrate(
                     migrator.drop_not_null(table, field['name'])
                 )
-                print(f"{field['name']} field successfully updated to accept nullable values in the {table} table.")
+                print(f"'{field['name']}' field successfully updated to accept nullable values in the '{table}' table.")
             elif field['action'] == 'deny_null':
                 migrate(
                     migrator.add_not_null(table, field['name'])
                 )
-                print(f"{field['name']} field successfully updated to accept to reject nullable values in the {table} table.")
+                print(f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
         # if column name doesn't not already exist
         else:
             if field['action'] == 'add':
                 migrate(
                     migrator.add_column(table, field['name'], field['type'])
                 )
-                print(f"{field['name']} field successfully added to {table} table.")
+                print(f"'{field['name']}' field successfully added to '{table}' table.")
             else:
-                print(f"{field['name']} field does not exist in {table} table.")
+                print(f"'{field['name']}' field does not exist in '{table}' table.")
