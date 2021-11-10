@@ -877,6 +877,9 @@ def str_or_none(item, encoding='utf-8'):
     if item is None:
         return None
     else:
+        # return item if it's str, if not, decode it using encoding
+        if isinstance(item, str):
+            return item
         return str(item, encoding)
 
 
