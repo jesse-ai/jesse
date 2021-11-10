@@ -1,4 +1,3 @@
-import numpy as np
 from playhouse.postgres_ext import *
 
 import jesse.helpers as jh
@@ -21,14 +20,13 @@ class Order(Model):
     exchange_id = CharField(null=True)
     # some exchanges might require even further info
     vars = JSONField(default={})
-
     symbol = CharField()
     exchange = CharField()
     side = CharField()
     type = CharField()
     flag = CharField(null=True)
     qty = FloatField()
-    price = FloatField(default=np.nan)
+    price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
@@ -60,21 +58,26 @@ class Order(Model):
         if jh.is_live():
             self.notify_submission()
         if jh.is_debuggable('order_submission') or jh.is_live():
-            logger.info(
-                f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
-            )
+            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
+            logger.info(txt)
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
 
-    def notify_submission(self) -> None:
+    def broadcast(self) -> None:
         sync_publish('order', self.to_dict)
 
+    def notify_submission(self) -> None:
+        self.broadcast()
+
         if config['env']['notifications']['events']['submitted_orders']:
-            notify(
-                f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, { self.qty}, ${round(self.price, 2)}'
-            )
+            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
+            notify(txt)
 
     @property
     def is_canceled(self) -> bool:
@@ -144,16 +147,15 @@ class Order(Model):
             self.save()
 
         if not silent:
+            txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
             if jh.is_debuggable('order_cancellation') or jh.is_live():
-                logger.info(
-                    f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
-                )
+                logger.info(txt)
             if jh.is_live():
-                sync_publish('order', self.to_dict)
+                self.broadcast()
                 if config['env']['notifications']['events']['cancelled_orders']:
-                    notify(
-                        f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-                    )
+                    notify(txt)
 
         # handle exchange balance
         e = selectors.get_exchange(self.exchange)
@@ -170,18 +172,17 @@ class Order(Model):
             self.save()
 
         if not silent:
+            txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
             # log
             if jh.is_debuggable('order_execution') or jh.is_live():
-                logger.info(
-                    f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, ${round(self.price, 2)}'
-                )
+                logger.info(txt)
             # notify
             if jh.is_live():
-                sync_publish('order', self.to_dict)
+                self.broadcast()
                 if config['env']['notifications']['events']['executed_orders']:
-                    notify(
-                        f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}, {round(self.price, 2)}'
-                    )
+                    notify(txt)
 
         p = selectors.get_position(self.exchange, self.symbol)
 
