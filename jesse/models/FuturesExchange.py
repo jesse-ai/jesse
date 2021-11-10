@@ -114,9 +114,7 @@ class FuturesExchange(Exchange):
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
-        if (
-                order.type != order_types.MARKET or skip_market_order
-        ) and not order.is_reduce_only:
+        if (order.type != order_types.MARKET or skip_market_order) and not order.is_reduce_only:
             order_size = abs(order.qty * order.price)
             remaining_margin = self.available_margin()
             if order_size > remaining_margin:
