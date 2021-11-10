@@ -4,57 +4,57 @@ from playhouse.migrate import *
 
 def run():
     """
-    Run migrations per each table and adds new fields in case they have not been added yet.
-    note of migrator functions
-    action type: add, drop, rename, change_data_type, change_nullable, change_not_nullable
-    if actions type is rename, you must add new field with 'old_name' key.
-    to make column to not nullable, you must clean all null value of columns
+    Runs migrations per each table and adds new fields in case they have not been added yet.
+
+    Accepted action types: add, drop, rename, change_data_type, change_nullable, change_not_nullable
+    If actions type is rename, you must add new field with 'old_name' key.
+    To make column to not nullable, you must clean all null value of columns.
     """
     migrator = PostgresqlMigrator(db)
 
-    _migrate_candle(migrator)
-    _migrate_completed_trade(migrator)
-    _migrate_daily_balance(migrator)
-    _migrate_log(migrator)
-    _migrate_order(migrator)
-    _migrate_orderbook(migrator)
-    _migrate_ticker(migrator)
-    _migrate_trade(migrator)
+    _candle(migrator)
+    _completed_trade(migrator)
+    _daily_balance(migrator)
+    _log(migrator)
+    _order(migrator)
+    _orderbook(migrator)
+    _ticker(migrator)
+    _trade(migrator)
 
 
-def _migrate_candle(migrator):
-    fields = {}
+def _candle(migrator):
+    fields = []
 
     candle_columns = db.get_columns('candle')
 
-    _check_tables(migrator, fields, candle_columns, 'candle')
+    _migrate(migrator, fields, candle_columns, 'candle')
 
 
-def _migrate_completed_trade(migrator):
-    fields = {}
+def _completed_trade(migrator):
+    fields = []
 
     completedtrade_columns = db.get_columns('completedtrade')
 
-    _check_tables(migrator, fields, completedtrade_columns, 'completedtrade')
+    _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
 
 
-def _migrate_daily_balance(migrator):
-    fields = {}
+def _daily_balance(migrator):
+    fields = []
 
     dailybalance_columns = db.get_columns('dailybalance')
 
-    _check_tables(migrator, fields, dailybalance_columns, 'dailybalance')
+    _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
 
 
-def _migrate_log(migrator):
-    fields = {}
+def _log(migrator):
+    fields = []
 
     log_columns = db.get_columns('log')
 
-    _check_tables(migrator, fields, log_columns, 'log')
+    _migrate(migrator, fields, log_columns, 'log')
 
 
-def _migrate_order(migrator):
+def _order(migrator):
     fields = [
         {'name': 'trade_id', 'data_type': UUIDField(index=True, null=True), 'action': 'add'},
         {'name': 'session_id', 'data_type': UUIDField(index=True, null=True), 'action': 'add'},
@@ -63,34 +63,34 @@ def _migrate_order(migrator):
 
     order_columns = db.get_columns('order')
 
-    _check_tables(migrator, fields, order_columns, 'order')
+    _migrate(migrator, fields, order_columns, 'order')
 
 
-def _migrate_orderbook(migrator):
-    fields = {}
+def _orderbook(migrator):
+    fields = []
 
     orderbook_columns = db.get_columns('orderbook')
 
-    _check_tables(migrator, fields, orderbook_columns, 'orderbook')
+    _migrate(migrator, fields, orderbook_columns, 'orderbook')
 
 
-def _migrate_ticker(migrator):
-    fields = {}
+def _ticker(migrator):
+    fields = []
 
     ticker_columns = db.get_columns('ticker')
 
-    _check_tables(migrator, fields, ticker_columns, 'ticker')
+    _migrate(migrator, fields, ticker_columns, 'ticker')
 
 
-def _migrate_trade(migrator):
-    fields = {}
+def _trade(migrator):
+    fields = []
 
     trade_columns = db.get_columns('trade')
 
-    _check_tables(migrator, fields, trade_columns, 'trade')
+    _migrate(migrator, fields, trade_columns, 'trade')
 
 
-def _check_tables(migrator, fields, columns, table):
+def _migrate(migrator, fields, columns, table):
     for field in fields:
         item_exist = any(field['name'] == item.name for item in columns)
 
