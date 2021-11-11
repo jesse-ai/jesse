@@ -104,16 +104,11 @@ def run(
     simulator(candles, run_silently=jh.should_execute_silently())
 
     if not jh.should_execute_silently():
-        # print trades metrics
         if store.completed_trades.count > 0:
             sync_publish('metrics', report.portfolio_metrics())
 
-            # save logs
-            more = ""
             routes_count = len(router.routes)
-            if routes_count > 1:
-                more = f"-and-{routes_count - 1}-more"
-
+            more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
             study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
             store_logs(study_name, json, tradingview, csv)
 
@@ -125,7 +120,6 @@ def run(
             # QuantStats' report
             if full_reports:
                 price_data = []
-
                 # load close candles for Buy and hold and calculate pct_change
                 for index, c in enumerate(config['app']['considering_candles']):
                     exchange, symbol = c[0], c[1]

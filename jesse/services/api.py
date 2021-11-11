@@ -3,6 +3,7 @@ from typing import Union
 
 import jesse.helpers as jh
 from jesse.models import Order
+from jesse.services import logger
 
 
 class API:
@@ -51,6 +52,9 @@ class API:
         role: str,
         flags: list
     ) -> Union[Order, None]:
+        if exchange not in self.drivers:
+            logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
+            return None
         return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags)
 
     def limit_order(
@@ -63,6 +67,9 @@ class API:
         role: str,
         flags: list
     ) -> Union[Order, None]:
+        if exchange not in self.drivers:
+            logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
+            return None
         return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags)
 
     def stop_order(
@@ -74,12 +81,21 @@ class API:
         role: str,
         flags: list
     ) -> Union[Order, None]:
+        if exchange not in self.drivers:
+            logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
+            return None
         return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags)
 
     def cancel_all_orders(self, exchange: str, symbol: str) -> bool:
+        if exchange not in self.drivers:
+            logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
+            return False
         return self.drivers[exchange].cancel_all_orders(symbol)
 
     def cancel_order(self, exchange: str, symbol: str, order_id: str) -> bool:
+        if exchange not in self.drivers:
+            logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
+            return False
         return self.drivers[exchange].cancel_order(symbol, order_id)
 
 
