@@ -457,9 +457,9 @@ class Genetics(ABC):
             with open(path, 'a', newline='', encoding="utf-8") as outfile:
                 if not exists:
                     # header of CSV file
-                    df.to_csv(outfile, header=True, index=False, encoding='utf-8')
+                    df.to_csv(outfile, header=True, index=False, encoding='utf-8', sep ='\t')
 
-                df.to_csv(outfile, header=False, index=False, encoding='utf-8')
+                df.to_csv(outfile, header=False, index=False, encoding='utf-8', sep ='\t')
 
         if self.options['json']:
             path = f'storage/genetics/json/{study_name}.json'
