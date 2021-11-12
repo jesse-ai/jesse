@@ -373,10 +373,6 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 def max_timeframe(timeframes_list: list) -> str:
     from jesse.enums import timeframes
 
-    if timeframes.WEEK_1 in timeframes_list:
-        return timeframes.WEEK_1
-    if timeframes.DAY_3 in timeframes_list:
-        return timeframes.DAY_3
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
     if timeframes.HOUR_12 in timeframes_list:
@@ -719,8 +715,6 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         timeframes.HOUR_8: 60 * 8,
         timeframes.HOUR_12: 60 * 12,
         timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
     }
 
     try:
