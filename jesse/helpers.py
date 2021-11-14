@@ -531,8 +531,8 @@ def prepare_qty(qty: float, side: str) -> float:
         raise ValueError(f'{side} is not a valid input')
 
 
-def python_version() -> float:
-    return float(f'{sys.version_info[0]}.{sys.version_info[1]}')
+def python_version() -> tuple:
+    return sys.version_info[:2]
 
 
 def quote_asset(symbol: str) -> str:

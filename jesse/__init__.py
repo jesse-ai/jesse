@@ -12,7 +12,7 @@ import jesse.helpers as jh
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Python version validation.
-if jh.python_version() < 3.7:
+if jh.python_version() < (3,7):
     print(
         jh.color(
             f'Jesse requires Python version above 3.7. Yours is {jh.python_version()}',
@@ -159,7 +159,7 @@ def register_custom_exception_handler() -> None:
     sys.excepthook = handle_exception
 
     # other threads
-    if jh.python_version() >= 3.8:
+    if jh.python_version() >= (3,8):
         def handle_thread_exception(args) -> None:
             if args.exc_type == SystemExit:
                 return
