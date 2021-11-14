@@ -28,7 +28,7 @@ jobs:
         #  path: ~/Library/Caches/pip
         #- os: windows-latest
         #  path: ~\AppData\Local\pip\Cache
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, 3.10]
         
 
     steps:
