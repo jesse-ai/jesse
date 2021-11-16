@@ -25,6 +25,8 @@ def generate(name: str) -> None:
 
     shutil.copytree(f'{dirname}/project_template', path)
 
+    os.makedirs(f'{path}/storage/logs', exist_ok=True)
+
     # output the location of generated strategy directory
     print(
         jh.color(
