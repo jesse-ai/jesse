@@ -366,8 +366,6 @@ def make_project(name: str) -> None:
 
     config['app']['trading_mode'] = 'make-project'
 
-    register_custom_exception_handler()
-
     from jesse.services import project_maker
 
     project_maker.generate(name)
