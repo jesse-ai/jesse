@@ -336,8 +336,8 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
 
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
-    from jesse.services import db
-    db.close_connection()
+    from jesse.services.db import database
+    database.close_connection()
 
 
 @cli.command()
