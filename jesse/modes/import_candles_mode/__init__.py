@@ -31,6 +31,10 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
     register_custom_exception_handler()
 
+    # close database connection
+    from jesse.services.db import database
+    database.open_connection()
+
     # at every second, we check to see if it's time to execute stuff
     status_checker = Timeloop()
 

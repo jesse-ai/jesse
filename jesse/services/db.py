@@ -22,20 +22,23 @@ class Database:
         if not jh.is_jesse_project() or jh.is_unit_testing():
             return
 
-        keepalive_kwargs = {
-            "keepalives": 1,
-            "keepalives_idle": 60,
-            "keepalives_interval": 10,
-            "keepalives_count": 5
-        }
+        if not self.db.is_closed():
+            return
+
+        # keepalive_kwargs = {
+        #     "keepalives": 1,
+        #     "keepalives_idle": 60,
+        #     "keepalives_interval": 10,
+        #     "keepalives_count": 5
+        # }
 
         self.db = PostgresqlExtDatabase(
             ENV_VALUES['POSTGRES_NAME'],
             user=ENV_VALUES['POSTGRES_USERNAME'],
             password=ENV_VALUES['POSTGRES_PASSWORD'],
             host=ENV_VALUES['POSTGRES_HOST'],
-            port=int(ENV_VALUES['POSTGRES_PORT']),
-            **keepalive_kwargs
+            port=int(ENV_VALUES['POSTGRES_PORT'])
+            # **keepalive_kwargs
         )
 
         # connect to the database
