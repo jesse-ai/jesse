@@ -13,10 +13,7 @@ def register_custom_exception_handler() -> None:
 
         if args.exc_type.__name__ == 'Termination':
             sync_publish('termination', {})
-            # jh.terminate_app()
-            # close the database
-            from jesse.services.db import database
-            database.close_connection()
+            jh.terminate_app()
         else:
             # send notifications if it's a live session
             if jh.is_live():
