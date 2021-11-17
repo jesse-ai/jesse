@@ -180,7 +180,12 @@ def cli() -> None:
 @cli.command()
 def run() -> None:
     validate_cwd()
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
+
+    # run all the db migrations
+    from jesse.services.migrator import run as run_migrations
+    run_migrations()
+
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=9000, log_level="info")
 
 
 @fastapi_app.post('/general-info')
@@ -190,8 +195,15 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
     from jesse.modes import data_provider
 
+    try:
+        data = data_provider.get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
+    except Exception as e:
+        return JSONResponse({
+            'error': str(e)
+        }, status_code=500)
+
     return JSONResponse(
-        data_provider.get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN),
+        data,
         status_code=200
     )
 

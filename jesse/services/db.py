@@ -4,16 +4,24 @@ import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
 
 
-if not jh.is_jesse_project() or jh.is_unit_testing():
-    db = None
+def store_candles(candles: List[Dict]) -> None:
+    from jesse.models import Candle
+    Candle.insert_many(candles).on_conflict_ignore().execute()
 
-    def close_connection() -> None:
-        """
-        Do nothing
-        """
-        pass
-else:
-    if jh.is_jesse_project():
+
+# refactor above code into a class
+class Database:
+    def __init__(self):
+        self.db: PostgresqlExtDatabase = None
+
+    def close_connection(self) -> None:
+        if self.db:
+            self.db.close()
+
+    def open_connection(self) -> None:
+        if not jh.is_jesse_project() or jh.is_unit_testing():
+            return
+
         keepalive_kwargs = {
             "keepalives": 1,
             "keepalives_idle": 60,
@@ -21,8 +29,7 @@ else:
             "keepalives_count": 5
         }
 
-        # connect to the database
-        db = PostgresqlExtDatabase(
+        self.db = PostgresqlExtDatabase(
             ENV_VALUES['POSTGRES_NAME'],
             user=ENV_VALUES['POSTGRES_USERNAME'],
             password=ENV_VALUES['POSTGRES_PASSWORD'],
@@ -31,15 +38,8 @@ else:
             **keepalive_kwargs
         )
 
-        def close_connection() -> None:
-            db.close()
-    
-
-        # connect
-        db.connect()
+        # connect to the database
+        self.db.connect()
 
 
-def store_candles(candles: List[Dict]) -> None:
-    from jesse.models import Candle
-
-    Candle.insert_many(candles).on_conflict_ignore().execute()
+database = Database()

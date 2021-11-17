@@ -150,8 +150,8 @@ def run(
             sync_publish('metrics', None)
 
     # close database connection
-    from jesse.services.db import close_connection
-    close_connection()
+    from jesse.services.db import database
+    database.close_connection()
 
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:

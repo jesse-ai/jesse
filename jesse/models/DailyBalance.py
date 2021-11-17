@@ -1,8 +1,5 @@
 import peewee
 
-import jesse.helpers as jh
-from jesse.services.db import db
-
 
 class DailyBalance(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
@@ -13,7 +10,9 @@ class DailyBalance(peewee.Model):
     balance = peewee.FloatField()
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = (
             (('identifier', 'exchange', 'timestamp', 'asset'), True),
             (('identifier', 'exchange'), False),
@@ -27,8 +26,3 @@ class DailyBalance(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
-
-
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
-    DailyBalance.create_table()

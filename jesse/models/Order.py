@@ -5,7 +5,6 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import sync_publish
 from jesse.config import config
-from jesse.services.db import db
 from jesse.services.notifier import notify
 from jesse.enums import order_statuses, order_flags
 
@@ -35,7 +34,9 @@ class Order(Model):
     submitted_via = None
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('exchange', 'symbol'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -192,8 +193,3 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
-
-
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
-    Order.create_table()

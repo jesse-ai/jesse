@@ -1,8 +1,5 @@
 import peewee
 
-import jesse.helpers as jh
-from jesse.services.db import db
-
 
 class Option(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
@@ -11,7 +8,9 @@ class Option(peewee.Model):
     json = peewee.TextField()
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
 
     def __init__(self, attributes=None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
@@ -21,8 +20,3 @@ class Option(peewee.Model):
 
         for a in attributes:
             setattr(self, a, attributes[a])
-
-
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
-    Option.create_table()

@@ -43,6 +43,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
 
 
 def get_general_info(has_live=False) -> dict:
+
     from jesse.modes.import_candles_mode.drivers import drivers
     from jesse.services.auth import get_access_token
 
@@ -56,6 +57,7 @@ def get_general_info(has_live=False) -> dict:
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
     is_logged_in_to_jesse_trade = get_access_token() is not None
+
 
     return {
         'exchanges': exchanges,
