@@ -7,6 +7,9 @@ import jesse.helpers as jh
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
+    from jesse.services.db import database
+    database.open_connection()
+
     from jesse.services.candle import generate_candle_from_one_minutes
     from jesse.models.utils import fetch_candles_from_db
 
@@ -30,6 +33,8 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
                     ) for i in range(len(candles)) if (i + 1) % one_min_count == 0]
         candles = generated_candles
 
+    database.close_connection()
+    
     return [
         {
             'time': int(c[0] / 1000),
@@ -70,6 +75,9 @@ def get_general_info(has_live=False) -> dict:
 
 
 def get_config(client_config: dict, has_live=False) -> dict:
+    from jesse.services.db import database
+    database.open_connection()
+
     from jesse.models.Option import Option
 
     o = Option.get_or_none(Option.type == 'config')
@@ -114,12 +122,17 @@ def get_config(client_config: dict, has_live=False) -> dict:
         o.updated_at = jh.now()
         o.save()
 
+    database.close_connection()
+
     return {
         'data': data
     }
 
 
 def update_config(client_config: dict):
+    from jesse.services.db import database
+    database.open_connection()
+
     from jesse.models.Option import Option
 
     # at this point there must already be one option record for "config" existing, so:
@@ -129,6 +142,8 @@ def update_config(client_config: dict):
     o.updated_at = jh.now()
 
     o.save()
+
+    database.close_connection()
 
 
 def download_file(mode: str, file_type: str, session_id: str):
