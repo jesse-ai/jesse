@@ -22,10 +22,10 @@ class Process(mp.Process):
 
             if type(e).__name__ == 'Termination':
                 sync_publish('termination', {})
-                # jh.terminate_app()
-                # close the database
-                from jesse.services.db import database
-                database.close_connection()
+                jh.terminate_app()
+                # # close the database
+                # from jesse.services.db import database
+                # database.close_connection()
             else:
                 sync_publish(
                     'exception',
