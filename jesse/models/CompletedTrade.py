@@ -3,7 +3,6 @@ import peewee
 
 import jesse.helpers as jh
 from jesse.config import config
-from jesse.services.db import db
 
 
 class CompletedTrade(peewee.Model):
@@ -29,7 +28,9 @@ class CompletedTrade(peewee.Model):
     orders = []
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -129,8 +130,3 @@ class CompletedTrade(peewee.Model):
     def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
         return (self.closed_at - self.opened_at) / 1000
-
-
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
-    CompletedTrade.create_table()

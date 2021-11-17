@@ -1,4 +1,4 @@
-# Jesse (dashboard branch)
+# Jesse beta (GUI dashboard)
 
 Here's a quick guide on how to set up and run the dashboard branch until it is officially released.
 
@@ -13,15 +13,19 @@ cd jesse
 pip install -e .
 ```
 
-Then you need to switch to the `dashboard` branch:
+Then you need to switch to the `beta` branch:
 ```sh
-git checkout dashboard
+git checkout beta
 ```
 
 Now go to your Jesse project (where you used to run backtest command, etc) and first create a `.env` file with the below configuration:
 
+```sh
+nano .env
 ```
-PASSWORD=password
+
+```
+PASSWORD=test
 
 POSTGRES_HOST=127.0.0.1
 POSTGRES_NAME=jesse_db
@@ -59,16 +63,38 @@ TESTNET_BINANCE_FUTURES_API_SECRET=
 # https://www.binance.com/en/futures/btcusdt
 BINANCE_FUTURES_API_KEY=
 BINANCE_FUTURES_API_SECRET=
+
+# FTX Futures: 
+# https://ftx.com/markets/future
+FTX_FUTURES_API_KEY=
+FTX_FUTURES_API_SECRET=
+# leave empty if it's the main account and not a subaccount
+FTX_FUTURES_SUBACCOUNT_NAME=
 ```
 
-Of course, you should change the values to your config, especially don't forget to change the password as you need it for logging in. You no longer need `routes.py` and `config.py`, or even `live-config.py` files in your Jesse project. 
+Of course, you should change the values to your config if you're not using the default values. Also, don't forget to change the `PASSWORD` as you need it for logging in. You no longer need `routes.py` and `config.py`, or even `live-config.py` files in your Jesse project. You can delete them if you want.
 
 ## New Requirements
-First, install Redis which is a requirement for this application. I will add guides for different environments but for now, you should be able to find guides on the net. On a mac, it's as easy as running `brew install redis`. 
+First, install Redis which is a requirement for this application. I will add guides for different environments but for now, you should be able to find guides on the net. On a mac, it's as easy as running `brew install redis`. On Ubuntu 20.04:
+
+```sh
+sudo apt update -y
+sudo apt install redis-server -y
+# The supervised directive is set to no by default. So let's edit it:
+sudo nano /etc/redis/redis.conf
+# Find the line that says `supervised no` and change it to `supervised systemd`
+sudo systemctl restart redis.service
+```
 
 Then you need to install few pip packages as well. A quick way to install them all is by running:
 ```sh
-pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/dashboard/requirements.txt
+pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/beta/requirements.txt
+```
+
+## Database migration
+It is important to migrate the database before running the application. I created a simple Jesse command that will do it for you:
+```sh
+jesse migrate
 ```
 
 ## Start the application
@@ -83,10 +109,11 @@ And it will print a local URL for you to open in your browser such as:
 INFO:     Started server process [66103]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ```
 
-So go ahead and open (in my case) `http://127.0.0.1:8000` in your browser of choice. 
+So go ahead and open (in my case) `http://127.0.0.1:8000` in your browser of choice. If you are running on a server, you can use the IP address of the server instead of 
+`127.0.0.1`. So for example if the IP address of your server is `1.2.3.4` the URL would be `http://1.2.3.4:8000`. I will soon add instructions on how to secure the remote server that is running the application.
 
 ## Live Trade Plugin
 To install the beta version of the live trade plugin, first, make sure to uninstall the previous one:

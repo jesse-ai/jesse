@@ -1,8 +1,5 @@
 import peewee
 
-import jesse.helpers as jh
-from jesse.services.db import db
-
 
 class Candle(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
@@ -19,7 +16,9 @@ class Candle(peewee.Model):
     is_partial = True
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = (
             (('timestamp', 'exchange', 'symbol'), True),
         )
@@ -32,8 +31,3 @@ class Candle(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
-
-
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
-    Candle.create_table()

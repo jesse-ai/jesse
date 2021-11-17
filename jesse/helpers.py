@@ -673,8 +673,8 @@ def style(msg_text: str, msg_style: str) -> str:
 
 def terminate_app() -> None:
     # close the database
-    from jesse.services.db import close_connection
-    close_connection()
+    from jesse.services.db import database
+    database.close_connection()
     # disconnect python from the OS
     os._exit(1)
 
