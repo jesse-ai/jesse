@@ -17,12 +17,14 @@ class Database:
     def close_connection(self) -> None:
         if self.db:
             self.db.close()
+            self.db = None
 
     def open_connection(self) -> None:
         if not jh.is_jesse_project() or jh.is_unit_testing():
             return
 
-        if not self.db.is_closed():
+        # if it's not None, then we already have a connection
+        if self.db is not None:
             return
 
         # keepalive_kwargs = {
