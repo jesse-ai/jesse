@@ -68,7 +68,9 @@ def backtest(
     store.candles.init_storage(5000)
 
     # divide candles into warm_up_candles and trading_candles and then inject warm_up_candles
-    warm_up_num = config['warm_up_candles']
+
+    max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
+    warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
     trading_candles = candles
     if warm_up_num != 0:
         for c in jesse_config['app']['considering_candles']:

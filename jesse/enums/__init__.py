@@ -32,8 +32,6 @@ class timeframes:
     HOUR_8 = '8h'
     HOUR_12 = '12h'
     DAY_1 = '1D'
-    DAY_3 = '3D'
-    WEEK_1 = '1W'
 
 
 class colors:
