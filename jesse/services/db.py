@@ -27,20 +27,21 @@ class Database:
         if self.db is not None:
             return
 
-        # keepalive_kwargs = {
-        #     "keepalives": 1,
-        #     "keepalives_idle": 60,
-        #     "keepalives_interval": 10,
-        #     "keepalives_count": 5
-        # }
+        options = {
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+            "sslmode": "disable"
+        }
 
         self.db = PostgresqlExtDatabase(
             ENV_VALUES['POSTGRES_NAME'],
             user=ENV_VALUES['POSTGRES_USERNAME'],
             password=ENV_VALUES['POSTGRES_PASSWORD'],
             host=ENV_VALUES['POSTGRES_HOST'],
-            port=int(ENV_VALUES['POSTGRES_PORT'])
-            # **keepalive_kwargs
+            port=int(ENV_VALUES['POSTGRES_PORT']),
+            **options
         )
 
         # connect to the database
