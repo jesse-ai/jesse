@@ -91,12 +91,6 @@ Then you need to install few pip packages as well. A quick way to install them a
 pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/beta/requirements.txt
 ```
 
-## Database migration
-It is important to migrate the database before running the application. I created a simple Jesse command that will do it for you:
-```sh
-jesse migrate
-```
-
 ## Start the application
 
 To get the party started, (inside your Jesse project) run the application by:
