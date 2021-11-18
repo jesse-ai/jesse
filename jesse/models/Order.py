@@ -7,6 +7,11 @@ from jesse import sync_publish
 from jesse.config import config
 from jesse.services.notifier import notify
 from jesse.enums import order_statuses, order_flags
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Order(Model):
@@ -193,3 +198,8 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+
+# if database is open, create the table
+if database.is_open():
+    Order.create_table()

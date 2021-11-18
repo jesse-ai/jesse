@@ -1,4 +1,9 @@
 import peewee
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class DailyBalance(peewee.Model):
@@ -26,3 +31,8 @@ class DailyBalance(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
+
+
+# if database is open, create the table
+if database.is_open():
+    DailyBalance.create_table()

@@ -7,13 +7,7 @@ import jesse.helpers as jh
 from datetime import timedelta
 
 # set multiprocessing process type to spawn
-jh.dump(
-    mp.get_start_method()
-)
 mp.set_start_method('spawn', force=True)
-jh.dump(
-    mp.get_start_method()
-)
 
 
 class Process(mp.Process):

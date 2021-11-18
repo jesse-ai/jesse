@@ -1,4 +1,9 @@
 import peewee
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Candle(peewee.Model):
@@ -31,3 +36,8 @@ class Candle(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
+
+
+# if database is open, create the table
+if database.is_open():
+    Candle.create_table()

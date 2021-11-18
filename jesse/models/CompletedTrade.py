@@ -3,6 +3,11 @@ import peewee
 
 import jesse.helpers as jh
 from jesse.config import config
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class CompletedTrade(peewee.Model):
@@ -130,3 +135,8 @@ class CompletedTrade(peewee.Model):
     def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
         return (self.closed_at - self.opened_at) / 1000
+
+
+# if database is open, create the table
+if database.is_open():
+    CompletedTrade.create_table()
