@@ -440,7 +440,7 @@ class Genetics(ABC):
             txt += '\n'
 
             for i in range(30):
-                log = f"win_rate: {round(self.population[j]['training_log']['win_rate'], 2) if self.population[j]['training_log']['win_rate'] else None}, total: {self.population[j]['training_log']['total']}, net_profit_percentage: {round(self.population[j]['training_log']['net_profit_percentage'], 2) if self.population[j]['training_log']['net_profit_percentage'] else None}% || win_rate: {round(self.population[j]['testing_log']['win_rate'], 2) if self.population[j]['testing_log']['win_rate'] else None}, total: {self.population[j]['testing_log']['total']}, net_profit_percentage: {round(self.population[j]['testing_log']['net_profit_percentage'], 2) if self.population[j]['testing_log']['net_profit_percentage'] else None}%"
+                log = f"win_rate: {round(self.population[i]['training_log']['win_rate'], 2) if self.population[i]['training_log']['win_rate'] else None}, total: {self.population[i]['training_log']['total']}, net_profit_percentage: {round(self.population[i]['training_log']['net_profit_percentage'], 2) if self.population[i]['training_log']['net_profit_percentage'] else None}% || win_rate: {round(self.population[i]['testing_log']['win_rate'], 2) if self.population[i]['testing_log']['win_rate'] else None}, total: {self.population[i]['testing_log']['total']}, net_profit_percentage: {round(self.population[i]['testing_log']['net_profit_percentage'], 2) if self.population[i]['testing_log']['net_profit_percentage'] else None}%"
 
                 txt += '\n'
                 txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
