@@ -1,4 +1,9 @@
 import peewee
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Option(peewee.Model):
@@ -20,3 +25,8 @@ class Option(peewee.Model):
 
         for a in attributes:
             setattr(self, a, attributes[a])
+
+
+# if database is open, create the table
+if database.is_open():
+    Option.create_table()

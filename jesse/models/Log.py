@@ -1,4 +1,9 @@
 import peewee
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Log(peewee.Model):
@@ -21,3 +26,8 @@ class Log(peewee.Model):
 
         for a in attributes:
             setattr(self, a, attributes[a])
+
+
+# if database is open, create the table
+if database.is_open():
+    Log.create_table()
