@@ -133,7 +133,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                     temp_existing_time = jh.timestamp_to_time(first_existing_timestamp)[:10]
                     sync_publish('alert', {
                         'message': f'No candle exists in the market for {temp_start_time}. So '
-                                   f'Jesse is importing since the first existing date which is {temp_existing_time}',
+                                   f'Jesse started importing since the first existing date which is {temp_existing_time}',
                         'type': 'success'
                     })
                     run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
