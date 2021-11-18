@@ -6,9 +6,14 @@ from jesse.services.failure import terminate_session
 import jesse.helpers as jh
 from datetime import timedelta
 
-
 # set multiprocessing process type to spawn
-mp.set_start_method('spawn')
+jh.dump(
+    mp.get_start_method()
+)
+mp.set_start_method('spawn', force=True)
+jh.dump(
+    mp.get_start_method()
+)
 
 
 class Process(mp.Process):
