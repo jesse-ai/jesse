@@ -7,15 +7,16 @@ import quantstats as qs
 
 from jesse.config import config
 from jesse.store import store
+import jesse.helpers as jh
 
 
 def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> None:
     daily_returns = pd.Series(store.app.daily_balance).pct_change(1).values
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
+    date_index = pd.date_range(start=start_date, periods=len(store.app.daily_balance))
 
-    returns_time_series = pd.Series(daily_returns, index=pd.to_datetime(list(date_list)))
+    returns_time_series = pd.Series(daily_returns, index=date_index)
 
     mode = config['app']['trading_mode']
     modes = {
@@ -26,7 +27,7 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> No
 
     os.makedirs('./storage/full-reports', exist_ok=True)
 
-    file_path = f'storage/full-reports/{modes[mode][0]}-{str(arrow.utcnow())[0:19]}-{study_name}.html'.replace(":", "-")
+    file_path = f'storage/full-reports/{jh.get_session_id()}.html'.replace(":", "-")
 
     title = f"{modes[mode][1]} → {arrow.utcnow().strftime('%d %b, %Y %H:%M:%S')} → {study_name}"
 
@@ -36,5 +37,3 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> No
         qs.reports.html(returns=returns_time_series, periods_per_year=365, title=title, output=file_path)
     except:
         raise
-
-    print(f'\nFull report output saved at:\n{file_path}')

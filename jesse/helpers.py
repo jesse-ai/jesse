@@ -5,6 +5,8 @@ import random
 import string
 import sys
 import uuid
+from typing import List, Tuple, Union, Any
+from pprint import pprint
 import arrow
 import click
 import numpy as np
@@ -196,6 +198,11 @@ def file_exists(path: str) -> bool:
     return os.path.isfile(path)
 
 
+def make_directory(path: str) -> None:
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def floor_with_precision(num: float, precision: int = 0) -> float:
     temp = 10 ** precision
     return math.floor(num * temp) / temp
@@ -290,18 +297,17 @@ def get_config(keys: str, default: Any = None) -> Any:
 def get_strategy_class(strategy_name: str):
     from pydoc import locate
 
-    if is_unit_testing():
-        path = sys.path[0]
-        # live plugin
-        if path.endswith('jesse-live'):
-            strategy_dir = f'tests.strategies.{strategy_name}.{strategy_name}'
-        # main framework
-        else:
-            strategy_dir = f'jesse.strategies.{strategy_name}.{strategy_name}'
-
-        return locate(strategy_dir)
-    else:
+    if not is_unit_testing():
         return locate(f'strategies.{strategy_name}.{strategy_name}')
+    path = sys.path[0]
+    # live plugin
+    if path.endswith('jesse-live'):
+        strategy_dir = f'tests.strategies.{strategy_name}.{strategy_name}'
+    # main framework
+    else:
+        strategy_dir = f'jesse.strategies.{strategy_name}.{strategy_name}'
+
+    return locate(strategy_dir)
 
 
 def insecure_hash(msg: str) -> str:
@@ -340,7 +346,7 @@ def is_debugging() -> bool:
 
 def is_importing_candles() -> bool:
     from jesse.config import config
-    return config['app']['trading_mode'] == 'import-candles'
+    return config['app']['trading_mode'] == 'candles'
 
 
 def is_live() -> bool:
@@ -395,10 +401,6 @@ def key(*args, **kwargs):
 def max_timeframe(timeframes_list: list) -> str:
     from jesse.enums import timeframes
 
-    if timeframes.WEEK_1 in timeframes_list:
-        return timeframes.WEEK_1
-    if timeframes.DAY_3 in timeframes_list:
-        return timeframes.DAY_3
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
     if timeframes.HOUR_12 in timeframes_list:
@@ -436,15 +438,15 @@ def normalize(x: float, x_min: float, x_max: float) -> float:
     return (x - x_min) / (x_max - x_min)
 
 
-def now() -> int:
+def now(force_fresh=False) -> int:
     """
     Always returns the current time in milliseconds but rounds time in matter of seconds
     """
-    return now_to_timestamp()
+    return now_to_timestamp(force_fresh)
 
 
-def now_to_timestamp() -> int:
-    if not (is_live() or is_collecting_data() or is_importing_candles()):
+def now_to_timestamp(force_fresh=False) -> int:
+    if not force_fresh and (not (is_live() or is_collecting_data() or is_importing_candles())):
         from jesse.store import store
         return store.app.time
 
@@ -699,8 +701,8 @@ def style(msg_text: str, msg_style: str) -> str:
 
 def terminate_app() -> None:
     # close the database
-    from jesse.services.db import close_connection
-    close_connection()
+    from jesse.services.db import database
+    database.close_connection()
     # disconnect python from the OS
     os._exit(1)
 
@@ -801,6 +803,58 @@ def closing_side(position_type: str) -> str:
         raise ValueError(f'Value entered for position_type ({position_type}) is not valid')
 
 
+def merge_dicts(d1: dict, d2: dict) -> dict:
+    """
+    Merges nested dictionaries
+
+    :param d1: dict
+    :param d2: dict
+    :return: dict
+    """
+    def inner(dict1, dict2):
+        for k in set(dict1.keys()).union(dict2.keys()):
+            if k in dict1 and k in dict2:
+                if isinstance(dict1[k], dict) and isinstance(dict2[k], dict):
+                    yield k, dict(merge_dicts(dict1[k], dict2[k]))
+                else:
+                    yield k, dict2[k]
+            elif k in dict1:
+                yield k, dict1[k]
+            else:
+                yield k, dict2[k]
+
+    return dict(inner(d1, d2))
+
+
+def computer_name():
+    import platform
+    return platform.node()
+
+
+def validate_response(response):
+    if response.status_code != 200:
+        err_msg = f"[{response.status_code}]: {response.json()['message']}\nPlease contact us at support@jesse.trade if this is unexpected."
+
+        if response.status_code not in [401, 403]:
+            raise ConnectionError(err_msg)
+        error(err_msg, force_print=True)
+        terminate_app()
+
+
+def get_session_id():
+    from jesse.store import store
+    return store.app.session_id
+
+
+def get_pid():
+    return os.getpid()
+
+
+def is_jesse_project():
+    ls = os.listdir('.')
+    return 'strategies' in ls and 'storage' in ls
+
+
 def dd(item, pretty=True):
     """
     Dump and Die but pretty: used for debugging when developing Jesse
@@ -837,11 +891,31 @@ def float_or_none(item):
         return float(item)
 
 
-def str_or_none(item):
+def str_or_none(item, encoding='utf-8'):
     """
     Return the str of the value if it's not None
     """
     if item is None:
         return None
     else:
-        return str(item)
+        # return item if it's str, if not, decode it using encoding
+        if isinstance(item, str):
+            return item
+        return str(item, encoding)
+
+
+def get_settlement_currency_from_exchange(exchange: str):
+    if exchange in {'FTX Futures', 'Bitfinex', 'Coinbase'}:
+        return 'USD'
+    else:
+        return 'USDT'
+
+
+def cpu_cores_count():
+    from multiprocessing import cpu_count
+    return cpu_count()
+
+
+# a function that converts name to env_name. Example: 'Testnet Binance Futures' into 'TESTNET_BINANCE_FUTURES'
+def convert_to_env_name(name: str) -> str:
+    return name.replace(' ', '_').upper()

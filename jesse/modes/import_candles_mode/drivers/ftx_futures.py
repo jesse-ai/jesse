@@ -42,9 +42,8 @@ class FTXFutures(CandleExchange):
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
         first_timestamp = int(data[0]['time'])
-        second_timestamp = first_timestamp + 60_000 * 1440
-
-        return second_timestamp
+        # second_timestamp:
+        return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol: str, start_timestamp: int) -> list:
         end_timestamp = start_timestamp + (self.count - 1) * 60000
@@ -65,10 +64,7 @@ class FTXFutures(CandleExchange):
         self._handle_errors(response)
 
         data = response.json()['result']
-        candles = []
-
-        for d in data:
-            candles.append({
+        return [{
                 'id': jh.generate_unique_id(),
                 'symbol': symbol,
                 'exchange': self.name,
@@ -78,9 +74,7 @@ class FTXFutures(CandleExchange):
                 'high': float(d['high']),
                 'low': float(d['low']),
                 'volume': float(d['volume'])
-            })
-
-        return candles
+            } for d in data]
 
     def _handle_errors(self, response) -> None:
         # Exchange In Maintenance

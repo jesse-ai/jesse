@@ -147,6 +147,10 @@ class CandlesState:
             if with_skip and f'{exchange}-{symbol}' not in self.initiated_pairs:
                 return
 
+            # if it's a complete candle and NOT an initial candle, store it in the database
+            if f'{exchange}-{symbol}' in self.initiated_pairs and jh.now_to_timestamp() >= (candle[0] + 60000):
+                store_candle_into_db(exchange, symbol, candle)
+
             self.update_position(exchange, symbol, candle[2])
 
             # ignore new candle at the time of execution because it messes

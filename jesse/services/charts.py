@@ -13,6 +13,17 @@ from jesse.routes import router
 from jesse.store import store
 
 
+def equity_curve() -> list:
+    start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
+    date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
+    daily_balance = store.app.daily_balance
+
+    return [{
+        'timestamp': date.timestamp(),
+        'balance': balance
+    } for date, balance in zip(date_list, daily_balance)]
+
+
 def portfolio_vs_asset_returns(study_name: str) -> None:
     register_matplotlib_converters()
     trades = store.completed_trades.trades
@@ -41,8 +52,9 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
         prices = []
         candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
         max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
-        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * jh.get_config('env.data.warmup_candles_num',
-                                                                                       210)
+        pre_candles_count = jh.timeframe_to_one_minutes(max_timeframe) * jh.get_config(
+            'env.data.warmup_candles_num', 210
+        )
         for i, c in enumerate(candles):
             # do not plot prices for required_initial_candles period
             if i < pre_candles_count:
@@ -75,7 +87,7 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
             continue
 
         if t.type == 'long':
-            #Buy
+            # Buy
             # add price change%
             buy_y.append(
                 price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.opened_at))]]
@@ -83,8 +95,8 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
             # add datetime
             buy_x.append(datetime.fromtimestamp(t.opened_at / 1000))
 
-            #Sell
-            if str(int(t.closed_at)) in price_dict[key]['indexes']:   #only generate data point if this trade wasn't after the last candle (open position at end)
+            # Sell: only generate data point if this trade wasn't after the last candle (open position at end)
+            if str(int(t.closed_at)) in price_dict[key]['indexes']:
                 # add price change%
                 sell_y.append(
                     price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.closed_at))]]
@@ -93,8 +105,8 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
                 sell_x.append(datetime.fromtimestamp(t.closed_at / 1000))
 
         elif t.type == 'short':
-            #Buy
-            if str(int(t.closed_at)) in price_dict[key]['indexes']:   #only generate data point if this trade wasn't after the last candle (open position at end)
+            # Buy: only generate data point if this trade wasn't after the last candle (open position at end)
+            if str(int(t.closed_at)) in price_dict[key]['indexes']:
                 # add price change%
                 buy_y.append(
                     price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.closed_at))]]
@@ -102,7 +114,7 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
                 # add datetime
                 buy_x.append(datetime.fromtimestamp(t.closed_at / 1000))
 
-            #Sell
+            # Sell
             # add price change%
             sell_y.append(
                 price_dict[key]['prices'][price_dict[key]['indexes'][str(int(t.opened_at))]]
@@ -129,7 +141,5 @@ def portfolio_vs_asset_returns(study_name: str) -> None:
     now = str(arrow.utcnow())[0:19]
     # make sure directories exist
     os.makedirs('./storage/charts', exist_ok=True)
-    file_path = f'storage/charts/{mode}-{now}-{study_name}.png'.replace(":", "-")
+    file_path = f'storage/charts/{jh.get_session_id()}.png'.replace(":", "-")
     plt.savefig(file_path)
-
-    print(f'\nChart output saved at:\n{file_path}')

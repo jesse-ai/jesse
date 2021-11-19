@@ -8,10 +8,15 @@ from jesse.store import store
 
 def set_up():
     reset_config()
+    from jesse.routes import router
+    router.set_routes([
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '1m', 'strategy': 'Test01'}
+    ])
+    router.set_extra_candles([{'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '5m'}])
     config['app']['considering_timeframes'] = ['1m', '5m']
     config['app']['considering_symbols'] = ['BTC-USD']
     config['app']['considering_exchanges'] = ['Sandbox']
-    store.reset()
+    store.reset(True)
     store.candles.init_storage()
 
 
@@ -125,5 +130,3 @@ def test_get_forming_candle():
     assert forming_candle[0] == candles_to_add[10][0]
     assert forming_candle[1] == candles_to_add[10][1]
     assert forming_candle[2] == candles_to_add[12][2]
-
-

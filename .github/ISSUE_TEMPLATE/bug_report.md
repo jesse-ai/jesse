@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-IMPORTANT: Please open an issue ONLY if you find something wrong with the source code. For questions and feedback use the Forum (https://forum.jesse.trade/) or Discord (https://jesse.trade/discord). Also make sure to give the documentation (https://docs.jesse.trade/) a good read to eliminate the possibility of causing the problem due to wrong usage. Make sure you are using the most recent version `pip show jesse` and updated all requirements `pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/master/requirements.txt`.
+IMPORTANT: Please open an issue ONLY if you find something wrong with the source code. For questions and feedback use Discord (https://jesse.trade/discord). Also make sure to give the documentation (https://docs.jesse.trade/) and FAQ (https://jesse.trade/help) a good read to eliminate the possibility of causing the problem due to wrong usage. Make sure you are using the most recent version `pip show jesse` and updated all requirements `pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/master/requirements.txt`.
 -->
 
 **Describe the bug**

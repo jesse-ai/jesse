@@ -23,9 +23,7 @@ def tradingview_logs(study_name: str) -> None:
             else:
                 tv_text += f'strategy.order("{i}", {1 if t.type == "long" else 0}, {abs(o.qty)}, {o.price}, when = {when})\n'
 
-    path = f'storage/trading-view-pine-editor/{study_name}.txt'
+    path = f'storage/trading-view-pine-editor/{jh.get_session_id()}.txt'.replace(":", "-")
     os.makedirs('./storage/trading-view-pine-editor', exist_ok=True)
     with open(path, 'w+') as outfile:
         outfile.write(tv_text)
-
-    print(f'\nPine-editor output saved at: \n{path}')

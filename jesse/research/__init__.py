@@ -1,10 +1,11 @@
 from .get_candles import get_candles
-from jesse.services.db import store_candles as store_candles_from_list
-import jesse.helpers as jh
+from .backtest import backtest
 import numpy as np
 
 
 def init() -> None:
+    import jesse.helpers as jh
+
     from pydoc import locate
     import os
     import sys
@@ -30,6 +31,9 @@ def init() -> None:
 
 
 def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
+    from jesse.services.db import store_candles as store_candles_from_list
+    import jesse.helpers as jh
+
     arr = [{
             'id': jh.generate_unique_id(),
             'symbol': symbol,

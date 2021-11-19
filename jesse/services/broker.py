@@ -95,7 +95,7 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
-        if price == self.position.current_price:
+        if abs(price - self.position.current_price) < 0.0001:
             return self.api.market_order(
                 self.exchange,
                 self.symbol,
@@ -154,39 +154,6 @@ class Broker:
             side,
             role,
             []
-        )
-
-    def stop_loss_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
-        self._validate_qty(qty)
-
-        # validation
-        if self.position.is_close:
-            raise OrderNotAllowed(
-                'Cannot submit a (reduce_only) stop_loss order when there is no open position'
-            )
-
-        side = jh.opposite_side(jh.type_to_side(self.position.type))
-
-        if price < 0:
-            raise ValueError('price cannot be negative.')
-
-        if side == 'buy' and price < self.position.current_price:
-            raise OrderNotAllowed(
-                f'Cannot submit a buy stop at {price} when current price is {self.position.current_price}'
-            )
-        if side == 'sell' and price > self.position.current_price:
-            raise OrderNotAllowed(
-                f'Cannot submit a sell stop at {price} when current price is {self.position.current_price}.'
-            )
-
-        return self.api.stop_order(
-            self.exchange,
-            self.symbol,
-            abs(qty),
-            price,
-            side,
-            role,
-            [order_flags.REDUCE_ONLY]
         )
 
     def cancel_all_orders(self) -> bool:

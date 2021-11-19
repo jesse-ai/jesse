@@ -29,8 +29,9 @@ def set_up_without_fee(is_futures_trading=False):
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
-    router.set_routes([(exchanges.SANDBOX, 'BTC-USDT', '5m', 'Test19')])
-    store.reset(True)
+    router.initiate([
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+    ], [])
 
     global position
     global exchange
@@ -56,8 +57,9 @@ def set_up_with_fee(is_futures_trading=False):
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
-    router.set_routes([(exchanges.SANDBOX, 'BTC-USDT', '5m', 'Test19')])
-    store.reset(True)
+    router.initiate([
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+    ], [])
 
     global position
     global exchange
@@ -178,7 +180,7 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.available_margin() == 940
 
     # submit stop-loss order
-    stop_loss_order = broker.stop_loss_at(1, 40, order_roles.CLOSE_POSITION)
+    stop_loss_order = broker.reduce_position_at(1, 40, order_roles.CLOSE_POSITION)
     assert stop_loss_order.flag == order_flags.REDUCE_ONLY
     # balance should NOT have changed
     assert exchange.assets['USDT'] == 1000
@@ -252,7 +254,7 @@ def test_stop_loss():
     # even executed orders should not affect wallet_balance unless it's for reducing positon
     assert exchange.wallet_balance() == 1000
 
-    order = broker.stop_loss_at(1, 40)
+    order = broker.reduce_position_at(1, 40)
     assert order.type == order_types.STOP
     assert order.price == 40
     assert order.qty == -1
@@ -278,4 +280,4 @@ def test_should_not_submit_reduce_only_orders_when_position_is_closed():
         broker.reduce_position_at(1, 20)
 
     with pytest.raises(OrderNotAllowed):
-        broker.stop_loss_at(1, 20)
+        broker.reduce_position_at(1, 20)

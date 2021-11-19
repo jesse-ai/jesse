@@ -16,11 +16,14 @@ def save_daily_portfolio_balance() -> None:
     #             'asset': asset_key,
     #             'balance': asset_value,
     #         })
-    balances = [
-        e.assets[jh.app_currency()]
-        for key, e in store.exchanges.storage.items()
-    ]
-
+    balances = []
+    for key, e in store.exchanges.storage.items():
+        try:
+            balances.append(
+                e.assets[jh.app_currency()]
+            )
+        except KeyError:
+            raise ValueError('Invalid quote trading pair. Check your trading route\'s symbol')
 
     # add open position values
     for key, pos in store.positions.storage.items():

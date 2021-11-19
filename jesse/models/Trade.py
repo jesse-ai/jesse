@@ -1,8 +1,5 @@
 import peewee
 
-import jesse.helpers as jh
-from jesse.services.db import db
-
 
 class Trade(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
@@ -21,7 +18,9 @@ class Trade(peewee.Model):
     exchange = peewee.CharField()
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('timestamp', 'exchange', 'symbol'), True),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -30,10 +29,5 @@ class Trade(peewee.Model):
         if attributes is None:
             attributes = {}
 
-        for a in attributes:
-            setattr(self, a, attributes[a])
-
-
-if not jh.is_unit_testing():
-    # create the table
-    Trade.create_table()
+        for a, value in attributes.items():
+            setattr(self, a, value)

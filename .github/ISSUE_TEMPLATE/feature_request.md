@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!---
-Make sure to check the Projects tab if your idea is already listed and give Jesse's documentation a good read to make sure you don't request something that's already possible.
+Make sure to check the roadmap (https://docs.jesse.trade/docs/roadmap.html) and the Trello boards linked there whether your idea is already listed and give Jesse's documentation a good read to make sure you don't request something that's already possible. If possible use Discord (https://jesse.trade/discord) to discuss your ideas with the community.
 -->
 
 **Is your feature request related to a problem? Please describe.**
