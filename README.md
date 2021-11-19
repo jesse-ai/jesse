@@ -103,11 +103,11 @@ And it will print a local URL for you to open in your browser such as:
 INFO:     Started server process [66103]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
 ```
 
-So go ahead and open (in my case) `http://127.0.0.1:8000` in your browser of choice. If you are running on a server, you can use the IP address of the server instead of 
-`127.0.0.1`. So for example if the IP address of your server is `1.2.3.4` the URL would be `http://1.2.3.4:8000`. I will soon add instructions on how to secure the remote server that is running the application.
+So go ahead and open (in my case) `http://127.0.0.1:9000` in your browser of choice. If you are running on a server, you can use the IP address of the server instead of 
+`127.0.0.1`. So for example if the IP address of your server is `1.2.3.4` the URL would be `http://1.2.3.4:9000`. I will soon add instructions on how to secure the remote server that is running the application.
 
 ## Live Trade Plugin
 To install the beta version of the live trade plugin, first, make sure to uninstall the previous one:
@@ -120,6 +120,53 @@ Now you need to change your account on Jesse.Trade as a beta user. You'll find i
 ![user profile beta](https://raw.githubusercontent.com/jesse-ai/storage/master/singles/user-profile-beta.jpg)
 
 Now you can see the latest beta version on the [releases](http://jesse.trade/releases) page. Download and install it as always. 
+
+## Security
+In case you are running the application on a remote server, you should secure the server. I will mention two methods here, but of course security is a big topic but I think these two methods are enough.
+
+### 1. Password
+Change the password (`PASSWORD`) in your `.env` file. Make sure to set it to something secure. 
+
+### 2. Firewall
+The dashboard is supposed to be accessible only by you. That makes it easy to secure. So the best way is to just close all incoming ports except
+for the ones you need. But open them **only for your trusted IP addresses**. This can be done via both a firewall from within 
+the server, or the firewall that your cloud provider provides (Hetzner, DigitalOcean, etc).
+
+I will show you how to do it via ufw which is a popular firewall that comes with Ubuntu 20.04:
+
+```sh
+ufw status
+# if it's active, stop it:
+systemctl stop ufw
+# allow all outgoing traffic
+ufw default allow outgoing
+# deny all incoming traffic
+ufw default deny incoming
+# allow ssh port (22)
+ufw allow ssh
+# if you don't have specific IP addresses, you can use allow http for all:
+ufw deny 80
+ufw allow from 1.1.1.1 to any port 80 proto tcp
+ufw allow from 1.1.1.2 to any port 80 proto tcp
+ufw allow from 1.1.1.3 to any port 80 proto tcp
+# enable the firewall
+ufw enable
+# check the status
+ufw status numbered
+# if you see a rule that is not what you want, delete it by its number. For example 
+# if [1] is not wrong, delete it by:
+ufw delete 1
+# and check again
+ufw status numbered
+ufw delete 3
+ufw status numbered
+ufw status numbered
+systemctl restart ufw
+ufw allow 443
+ufw status verbos
+ufw status verbose
+ufw allow from 195.201.232.249 to any port 5432 proto tcp
+```
 
 ## Disclaimer
 **This is version is the beta version of an early-access plugin! That means you should NOT use it in production yet! If done otherwise, you and only your are responsible.**
