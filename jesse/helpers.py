@@ -737,9 +737,7 @@ _timeframe_to_one_minutes_dic = {
         timeframes.HOUR_6: 360,
         timeframes.HOUR_8: 480,
         timeframes.HOUR_12: 720,
-        timeframes.DAY_1: 1440,
-        timeframes.DAY_3: 4320,
-        timeframes.WEEK_1: 10080,
+        timeframes.DAY_1: 1440
     }
 
 
