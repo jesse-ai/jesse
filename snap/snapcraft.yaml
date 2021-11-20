@@ -1,0 +1,35 @@
+name: jesse
+base: core20
+version: '0.1'
+summary: A cryto trading framework.
+description: |
+  Jesse is an advanced crypto trading framework which aims to simplify 
+  researching and defining trading strategies.
+
+
+grade: stable
+confinement: strict
+
+apps:
+  jesse:
+    command: bin/jesse
+    plugs:
+      - home
+      - network
+      - network-bind
+
+parts:
+  jesse:
+    plugin: python
+    source: .
+    after:
+      - talib
+  
+  talib:
+    plugin: autotools
+    source: http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+    override-build: |
+      ./configure --prefix=/usr
+      make
+      make install
+
