@@ -129,8 +129,7 @@ Change the password (`PASSWORD`) in your `.env` file. Make sure to set it to som
 
 ### 2. Firewall
 The dashboard is supposed to be accessible only by you. That makes it easy to secure. So the best way is to just close all incoming ports except
-for the ones you need. But open them **only for your trusted IP addresses**. This can be done via both a firewall from within 
-the server, or the firewall that your cloud provider provides (Hetzner, DigitalOcean, etc).
+for the ones you need. But open them **only for your trusted IP addresses**. This can be done via both a firewall from within the server or the firewall that your cloud provider provides (Hetzner, DigitalOcean, etc).
 
 I will show you how to do it via ufw which is a popular firewall that comes with Ubuntu 20.04:
 
@@ -144,28 +143,18 @@ ufw default allow outgoing
 ufw default deny incoming
 # allow ssh port (22)
 ufw allow ssh
-# if you don't have specific IP addresses, you can use allow http for all:
-ufw deny 80
-ufw allow from 1.1.1.1 to any port 80 proto tcp
-ufw allow from 1.1.1.2 to any port 80 proto tcp
-ufw allow from 1.1.1.3 to any port 80 proto tcp
+# If you don't have specific IP addresses, you can open the targeted port
+# (9000 by default) for all, but it's best to allow specific IP addre~~sses only. 
+# Assuming your IP addresses are 1.1.1.1, 1.1.1.2, and 1.1.1.3, run:
+ufw allow from 1.1.1.1 to any port 9000 proto tcp
+ufw allow from 1.1.1.2 to any port 9000 proto tcp
+ufw allow from 1.1.1.3 to any port 9000 proto tcp
 # enable the firewall
 ufw enable
 # check the status
 ufw status numbered
-# if you see a rule that is not what you want, delete it by its number. For example 
-# if [1] is not wrong, delete it by:
-ufw delete 1
-# and check again
-ufw status numbered
-ufw delete 3
-ufw status numbered
-ufw status numbered
+# restart ufw to apply the changes
 systemctl restart ufw
-ufw allow 443
-ufw status verbos
-ufw status verbose
-ufw allow from 195.201.232.249 to any port 5432 proto tcp
 ```
 
 ## Disclaimer
