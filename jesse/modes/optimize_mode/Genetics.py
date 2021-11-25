@@ -23,7 +23,6 @@ from jesse.store import store
 import jesse.services.report as report
 import traceback
 import os
-import json
 from pandas import json_normalize
 
 
@@ -431,52 +430,15 @@ class Genetics(ABC):
                  'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
                  'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
 
-        path = f'./storage/genetics/{study_name}.txt'
+        path = f'storage/genetics/{study_name}.csv'
         os.makedirs('./storage/genetics', exist_ok=True)
-        txt = ''
-        with open(path, 'a', encoding="utf-8") as f:
-            txt += '\n\n'
-            txt += f'# iteration {index}'
-            txt += '\n'
+        exists = os.path.exists(path)
 
-            for i in range(30):
-                log = f"win_rate: {round(self.population[i]['training_log']['win_rate'], 2) if self.population[i]['training_log']['win_rate'] else None}, total: {self.population[i]['training_log']['total']}, net_profit_percentage: {round(self.population[i]['training_log']['net_profit_percentage'], 2) if self.population[i]['training_log']['net_profit_percentage'] else None}% || win_rate: {round(self.population[i]['testing_log']['win_rate'], 2) if self.population[i]['testing_log']['win_rate'] else None}, total: {self.population[i]['testing_log']['total']}, net_profit_percentage: {round(self.population[i]['testing_log']['net_profit_percentage'], 2) if self.population[i]['testing_log']['net_profit_percentage'] else None}%"
+        df = json_normalize(dnas_json['snapshot'])
 
-                txt += '\n'
-                txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
+        with open(path, 'a', newline='', encoding="utf-8") as outfile:
+            if not exists:
+                # header of CSV file
+                df.to_csv(outfile, header=True, index=False, encoding='utf-8', sep ='\t')
 
-            f.write(txt)
-
-        if self.options['csv']:
-            path = f'storage/genetics/csv/{study_name}.csv'
-            os.makedirs('./storage/genetics/csv', exist_ok=True)
-            exists = os.path.exists(path)
-
-            df = json_normalize(dnas_json['snapshot'])
-
-            with open(path, 'a', newline='', encoding="utf-8") as outfile:
-                if not exists:
-                    # header of CSV file
-                    df.to_csv(outfile, header=True, index=False, encoding='utf-8', sep ='\t')
-
-                df.to_csv(outfile, header=False, index=False, encoding='utf-8', sep ='\t')
-
-        if self.options['json']:
-            path = f'storage/genetics/json/{study_name}.json'
-            os.makedirs('./storage/genetics/json', exist_ok=True)
-            exists = os.path.exists(path)
-
-            mode = 'r+' if exists else 'w'
-            with open(path, mode, encoding="utf-8") as file:
-                if not exists:
-                    snapshots = {"snapshots": []}
-                    snapshots["snapshots"].append(dnas_json['snapshot'])
-                    json.dump(snapshots, file, ensure_ascii=False)
-                else:
-                    # file exists - append
-                    file.seek(0)
-                    data = json.load(file)
-                    data["snapshots"].append(dnas_json['snapshot'])
-                    file.seek(0)
-                    json.dump(data, file, ensure_ascii=False)
-                file.write('\n')
+            df.to_csv(outfile, header=False, index=False, encoding='utf-8', sep ='\t')
