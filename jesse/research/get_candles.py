@@ -13,7 +13,6 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     
     :return: np.ndarray
     """
-    exchange = exchange.title()
     symbol = symbol.upper()
 
     import arrow
