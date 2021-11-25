@@ -20,6 +20,8 @@ class Database:
         return self.db.is_closed()
 
     def is_open(self) -> bool:
+        if self.db is None:
+            return False
         return not self.db.is_closed()
 
     def close_connection(self) -> None:
