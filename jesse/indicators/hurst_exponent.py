@@ -118,10 +118,11 @@ if not no_numba:
         # 4. calculate the Hurst exponent.
         H, c = np.linalg.lstsq(
             a=np.vstack((np.log(chunk_size_list), np.ones(num_chunksize))).T,
-            b=np.log(rs_values_list)
+            b=np.log(rs_values_list), rcond=None
         )[0]
 
         out[0] = H
+
 
 def hurst_dma(prices, min_chunksize=8, max_chunksize=200, num_chunksize=5):
     """Estimate the Hurst exponent using R/S method.
@@ -166,7 +167,7 @@ def hurst_dma(prices, min_chunksize=8, max_chunksize=200, num_chunksize=5):
 
     H, const = np.linalg.lstsq(
         a=np.vstack([np.log10(n_list), np.ones(len(n_list))]).T,
-        b=np.log10(dma_list)
+        b=np.log10(dma_list), rcond=None
     )[0]
     return H
 
