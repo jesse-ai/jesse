@@ -63,7 +63,7 @@ class Order(Model):
 
         if jh.is_live():
             self.notify_submission()
-        if jh.is_debuggable('order_submission') or jh.is_live():
+        if jh.is_debuggable('order_submission'):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -156,7 +156,7 @@ class Order(Model):
             txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
-            if jh.is_debuggable('order_cancellation') or jh.is_live():
+            if jh.is_debuggable('order_cancellation'):
                 logger.info(txt)
             if jh.is_live():
                 self.broadcast()
@@ -182,7 +182,7 @@ class Order(Model):
             if self.price:
                 txt += f', ${round(self.price, 2)}'
             # log
-            if jh.is_debuggable('order_execution') or jh.is_live():
+            if jh.is_debuggable('order_execution'):
                 logger.info(txt)
             # notify
             if jh.is_live():
