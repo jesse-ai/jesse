@@ -5,7 +5,7 @@ import jesse.helpers as jh
 from jesse.services import logger
 
 
-def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None:
+def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray, on_conflict='ignore') -> None:
     from jesse.models.Candle import Candle
 
     d = {
@@ -21,10 +21,21 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray) -> None
     }
 
     def async_save() -> None:
-        Candle.insert(**d).on_conflict_ignore().execute()
+        if on_conflict == 'ignore':
+            Candle.insert(**d).on_conflict_ignore().execute()
+        elif on_conflict == 'replace':
+            Candle.insert(**d).on_conflict(
+                conflict_target=['timestamp', 'symbol', 'exchange'],
+                preserve=(Candle.open, Candle.high, Candle.low, Candle.close, Candle.volume),
+            ).execute()
+        elif on_conflict == 'error':
+            Candle.insert(**d).execute()
+        else:
+            raise Exception(f'Unknown on_conflict value: {on_conflict}')
 
         if jh.is_debugging():
-            logger.info(f"Stored candle in database: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}")
+            logger.info(
+                f"Stored candle in database: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}")
 
     # async call
     threading.Thread(target=async_save).start()
@@ -105,7 +116,8 @@ def store_completed_trade_into_db(completed_trade) -> None:
     def async_save() -> None:
         CompletedTrade.insert(**d).execute()
         if jh.is_debugging():
-            logger.info(f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
+            logger.info(
+                f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
 
     # async call
     threading.Thread(target=async_save).start()
@@ -150,8 +162,9 @@ def store_daily_balance_into_db(daily_balance: dict) -> None:
     def async_save():
         DailyBalance.insert(**daily_balance).execute()
         if jh.is_debugging():
-            logger.info(f'Stored daily portfolio balance record into the database: {daily_balance["asset"]} => {jh.format_currency(round(daily_balance["balance"], 2))}'
-            )
+            logger.info(
+                f'Stored daily portfolio balance record into the database: {daily_balance["asset"]} => {jh.format_currency(round(daily_balance["balance"], 2))}'
+                )
 
     # async call
     threading.Thread(target=async_save).start()
