@@ -158,4 +158,4 @@ systemctl restart ufw
 ```
 
 ## Disclaimer
-**This is version is the beta version of an early-access plugin! That means you should NOT use it in production yet! If done otherwise, you and only your are responsible.**
+**This is version is the beta version of an early-access plugin! That means you should NOT use it in production yet! If done otherwise, only you are responsible.**
