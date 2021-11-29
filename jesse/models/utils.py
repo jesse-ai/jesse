@@ -33,10 +33,6 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray, on_conf
         else:
             raise Exception(f'Unknown on_conflict value: {on_conflict}')
 
-        if jh.is_debugging():
-            logger.info(
-                f"Stored candle in database: {jh.timestamp_to_time(d['timestamp'])}-{exchange}-{symbol}: {candle}")
-
     # async call
     threading.Thread(target=async_save).start()
 
