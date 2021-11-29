@@ -132,8 +132,9 @@ class Strategy(ABC):
 
         role = order.role
 
-        # if the order's role is CLOSE_POSITION but the position is still open, then it's increase_position order
-        if role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
+        # if the order's role is CLOSE_POSITION but the position qty is not the same as this order's qty,
+        # then it's increase_position order (because the position was already open before this)
+        if self.trade and role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
             order.role = order_roles.INCREASE_POSITION
             role = order_roles.INCREASE_POSITION
 

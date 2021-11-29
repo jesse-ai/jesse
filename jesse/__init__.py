@@ -185,7 +185,13 @@ def run() -> None:
     from jesse.services.migrator import run as run_migrations
     run_migrations()
 
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=9000, log_level="info")
+    from jesse.services.env import ENV_VALUES
+    if 'APP_PORT' in ENV_VALUES:
+        port = int(ENV_VALUES['APP_PORT'])
+    else:
+        port = 9000
+
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="info")
 
 
 @fastapi_app.post('/general-info')
