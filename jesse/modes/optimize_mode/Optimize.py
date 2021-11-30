@@ -114,7 +114,7 @@ class Optimizer(ABC):
         length = int(self.population_size / self.cpu_cores)
 
         progressbar = Progressbar(length)
-        for _ in range(length):
+        for i in range(length):
             people = []
             with Manager() as manager:
                 dna_bucket = manager.list([])
@@ -156,7 +156,7 @@ class Optimizer(ABC):
             # general_info streams
             general_info = {
                 'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                'index': f'{len(self.population)}/{self.population_size}',
+                'index': f'{(i + 1) * self.cpu_cores}/{self.population_size}',
                 'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
                 'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
                 'average_execution_seconds': self.average_execution_seconds
