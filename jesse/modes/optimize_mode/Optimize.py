@@ -253,9 +253,9 @@ class Optimizer(ABC):
                 sync_publish('general_info', general_info)
 
                 if self.population_size > 50:
-                    number_of_ind_to_show = 15
+                    number_of_ind_to_show = 40
                 elif self.population_size > 20:
-                    number_of_ind_to_show = 10
+                    number_of_ind_to_show = 15
                 elif self.population_size > 9:
                     number_of_ind_to_show = 9
                 else:
@@ -285,7 +285,7 @@ class Optimizer(ABC):
                     if baby['fitness'] >= self.fitness_goal:
                         self.update_progressbar(progressbar, finished=True)
                         sync_publish('alert', {
-                            'message': f'Fitness goal reached after iteration {i}',
+                            'message': f'Fitness goal reached after iteration {i*self.cpu_cores}',
                             'type': 'success'
                         })
                         return baby

@@ -9,6 +9,7 @@ from jesse.services import logger
 import traceback
 import os
 from random import randint, choice
+import numpy as np
 
 
 def _formatted_inputs_for_isolated_backtest(user_config, routes):
@@ -34,19 +35,23 @@ def get_fitness(
     hp = jh.dna_to_hp(strategy_hp, dna)
 
     # run backtest simulation
-    training_data_metrics = isolated_backtest(
-        _formatted_inputs_for_isolated_backtest(optimization_config, routes),
-        routes,
-        extra_routes,
-        training_candles,
-        hp
-    )
+    # TODO: log errors if any
+    try:
+        training_data_metrics = isolated_backtest(
+            _formatted_inputs_for_isolated_backtest(optimization_config, routes),
+            routes,
+            extra_routes,
+            training_candles,
+            hyperparameters=hp
+        )
+    except Exception as e:
+        jh.dump("".join(traceback.TracebackException.from_exception(e).format()))
+        raise e
 
     training_log = {'win-rate': None, 'total': None, 'PNL': None}
     testing_log = {'win-rate': None, 'total': None, 'PNL': None}
 
     # TODO: some of these have to be dynamic based on how many days it's trading for like for example "total"
-    # I'm guessing we should accept "optimal" total from command line
     if training_data_metrics['total'] > 5:
         total_effect_rate = log10(training_data_metrics['total']) / log10(optimal_total)
         total_effect_rate = min(total_effect_rate, 1)
@@ -82,11 +87,15 @@ def get_fitness(
 
         # log for debugging/monitoring
         training_log = {
-            'win-rate': int(training_data_metrics['win_rate'] * 100), 'total': training_data_metrics['total'],
+            'win-rate': int(training_data_metrics['win_rate'] * 100),
+            'total': training_data_metrics['total'],
             'PNL': round(training_data_metrics['net_profit_percentage'], 2)
         }
 
         score = total_effect_rate * ratio_normalized
+        # if score is numpy nan, replace it with 0.0001
+        if np.isnan(score):
+            score = 0.0001
 
         # run backtest simulation
         testing_data_metrics = isolated_backtest(
@@ -94,7 +103,7 @@ def get_fitness(
             routes,
             extra_routes,
             testing_candles,
-            hp
+            hyperparameters=hp
         )
 
         # log for debugging/monitoring
