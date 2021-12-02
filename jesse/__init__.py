@@ -185,12 +185,14 @@ def run() -> None:
     from jesse.services.migrator import run as run_migrations
     run_migrations()
 
+    # read port from .env file, if not found, use default
     from jesse.services.env import ENV_VALUES
     if 'APP_PORT' in ENV_VALUES:
         port = int(ENV_VALUES['APP_PORT'])
     else:
         port = 9000
 
+    # run the main application
     uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="info")
 
 
@@ -344,33 +346,6 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
 def shutdown_event():
     from jesse.services.db import database
     database.close_connection()
-
-
-@cli.command()
-@click.argument('name', required=True, type=str)
-def make_project(name: str) -> None:
-    """
-    generates a new strategy folder from jesse/strategies/ExampleStrategy
-    """
-    from jesse.config import config
-    from jesse.services.failure import register_custom_exception_handler
-
-    config['app']['trading_mode'] = 'make-project'
-
-    register_custom_exception_handler()
-
-    from jesse.services import project_maker
-
-    project_maker.generate(name)
-
-
-@cli.command()
-def migrate() -> None:
-    """
-    Runs the database migrations to make sure no columns are missing
-    """
-    from jesse.services.migrator import run
-    run()
 
 
 @fastapi_app.post("/login-jesse-trade")
