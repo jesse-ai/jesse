@@ -178,9 +178,13 @@ def cli() -> None:
 
 
 @cli.command()
-def install_live() -> None:
+@click.option(
+    '--strict/--no-strict', default=True,
+    help='Default is the strict mode which will raise an exception if the values for license is not set.'
+)
+def install_live(strict: bool) -> None:
     from jesse.services.installer import install
-    install()
+    install(HAS_LIVE_TRADE_PLUGIN, strict)
 
 
 @cli.command()

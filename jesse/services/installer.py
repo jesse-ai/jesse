@@ -4,13 +4,28 @@ import platform
 import requests
 import subprocess
 import sys
+import click
 
 
-def install():
-    # TODO: see if live-trade is already installed
+def install(is_live_plugin_already_installed: bool, strict: bool):
+    if is_live_plugin_already_installed:
+        from jesse_live.version import __version__
+        click.clear()
+        print(f'Version "{__version__}" of the live-trade plugin is already installed.')
+        if strict:
+            txt = '\nIf you meant to update, first delete the existing version by running "pip uninstall jesse_live -y" and then run "jesse install-live" one more time.'
+            print(jh.color(txt, 'yellow'))
+        return
+
+    if 'LICENSE_API_TOKEN' not in ENV_VALUES:
+        if strict:
+            print('ERROR: You need to set the LICENSE_API_TOKEN environment variable in your .env')
+        return
 
     # if no value is set for LICENSE_API_TOKEN, then no need to continue
     if not ENV_VALUES['LICENSE_API_TOKEN']:
+        if strict:
+            print("No license API token set. Please set the LICENSE_API_TOKEN environment variable to continue. If you don't have one yet, create one at https://jesse.trade/user/api-tokens" )
         return
     else:
         access_token = ENV_VALUES['LICENSE_API_TOKEN']
@@ -44,13 +59,14 @@ def install():
     else:
         formatted_os_name = 'Windows 10 - 64 bit'
 
-    print(
-        jh.python_version(),
-        os_name,
-        # jlh.os_name(),
-        # jlh.computer_name(),
-        platform.processor(),
-    )
+    # # TODO: remove debug print
+    # print(
+    #     jh.python_version(),
+    #     os_name,
+    #     # jlh.os_name(),
+    #     # jlh.computer_name(),
+    #     platform.processor(),
+    # )
 
     print('Downloading the latest version of the live-trade plugin...')
     url = 'https://jesse.trade/api/download-release'
@@ -74,7 +90,9 @@ def install():
     # The downloaded file is a whl file. Install it with pip
     print(f'Installing {filename}...')
     _pip_install(filepath)
-    print('Done!')
+
+    # remove the raw installation file
+    subprocess.check_call(['rm', filepath])
 
 
 def _pip_install(package):
