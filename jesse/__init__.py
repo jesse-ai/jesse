@@ -178,6 +178,12 @@ def cli() -> None:
 
 
 @cli.command()
+def install_live() -> None:
+    from jesse.services.installer import install
+    install()
+
+
+@cli.command()
 def run() -> None:
     validate_cwd()
 
