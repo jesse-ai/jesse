@@ -358,26 +358,6 @@ def shutdown_event():
     database.close_connection()
 
 
-@fastapi_app.post("/login-jesse-trade")
-def login_jesse_trade(json_request: LoginJesseTradeRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import auth
-
-    return auth.login_to_jesse_trade(json_request.email, json_request.password)
-
-
-@fastapi_app.post("/logout-jesse-trade")
-def logout_jesse_trade(authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import auth
-
-    return auth.logout_from_jesse_trade()
-
-
 if HAS_LIVE_TRADE_PLUGIN:
     # load live trade related functions from the live trade plugin
     from jesse_live.web_routes import live, get_candles, get_logs, get_orders
