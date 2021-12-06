@@ -7,6 +7,10 @@ import sys
 import click
 
 
+def _pip_install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+
 def install(is_live_plugin_already_installed: bool, strict: bool):
     if is_live_plugin_already_installed:
         from jesse_live.version import __version__
@@ -93,7 +97,3 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
 
     # remove the raw installation file
     subprocess.check_call(['rm', filepath])
-
-
-def _pip_install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
