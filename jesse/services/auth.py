@@ -29,11 +29,15 @@ def unauthorized_response() -> JSONResponse:
 
 
 def get_access_token():
-    if not os.path.isfile('storage/temp/access_token'):
-        return None
+    from jesse.services.env import ENV_VALUES
 
-    with open('storage/temp/access_token', 'r') as f:
-        return list(f)[0]
+    if 'LICENSE_API_TOKEN' not in ENV_VALUES:
+        raise ValueError('ERROR: You need to set the LICENSE_API_TOKEN environment variable in your .env')
+    if not ENV_VALUES['LICENSE_API_TOKEN']:
+        raise ValueError("No license API token set. Please set the LICENSE_API_TOKEN environment variable to continue. "
+                         "If you don't have one yet, create one at https://jesse.trade/user/api-tokens")
+
+    return ENV_VALUES['LICENSE_API_TOKEN']
 
 
 def login_to_jesse_trade(email: str, password: str) -> JSONResponse:
