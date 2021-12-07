@@ -17,6 +17,7 @@ from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRe
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
+import time
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -197,7 +198,10 @@ def run() -> None:
     try:
         run_migrations()
     except peewee.OperationalError:
-        print("Database wasn't ready. Skipping migrations.")
+        sleep_seconds = 10
+        print(f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again.")
+        time.sleep(sleep_seconds)
+        run_migrations()
 
     # read port from .env file, if not found, use default
     from jesse.services.env import ENV_VALUES
