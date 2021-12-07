@@ -193,7 +193,11 @@ def run() -> None:
 
     # run all the db migrations
     from jesse.services.migrator import run as run_migrations
-    run_migrations()
+    import peewee
+    try:
+        run_migrations()
+    except peewee.OperationalError:
+        print("Database wasn't ready. Skipping migrations.")
 
     # read port from .env file, if not found, use default
     from jesse.services.env import ENV_VALUES
