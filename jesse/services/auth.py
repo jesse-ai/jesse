@@ -32,10 +32,9 @@ def get_access_token():
     from jesse.services.env import ENV_VALUES
 
     if 'LICENSE_API_TOKEN' not in ENV_VALUES:
-        raise ValueError('ERROR: You need to set the LICENSE_API_TOKEN environment variable in your .env')
+        return None
     if not ENV_VALUES['LICENSE_API_TOKEN']:
-        raise ValueError("No license API token set. Please set the LICENSE_API_TOKEN environment variable to continue. "
-                         "If you don't have one yet, create one at https://jesse.trade/user/api-tokens")
+        return None
 
     return ENV_VALUES['LICENSE_API_TOKEN']
 
