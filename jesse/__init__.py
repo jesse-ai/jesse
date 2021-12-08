@@ -367,8 +367,105 @@ def shutdown_event():
 
 
 if HAS_LIVE_TRADE_PLUGIN:
-    # load live trade related functions from the live trade plugin
-    from jesse_live.web_routes import live, get_candles, get_logs, get_orders
+    from jesse.services.web import fastapi_app, LiveRequestJson, LiveCancelRequestJson, GetCandlesRequestJson, \
+        GetLogsRequestJson, GetOrdersRequestJson
+    from jesse.services import auth as authenticator
+
+    @fastapi_app.post("/live")
+    def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse import validate_cwd
+
+        # dev_mode is used only by developers so it doesn't have to be a supported parameter
+        dev_mode: bool = False
+
+        validate_cwd()
+
+        # execute live session
+        from jesse_live import live_mode
+        from jesse.services.multiprocessing import process_manager
+
+        trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
+
+        process_manager.add_task(
+            live_mode.run,
+            f'{trading_mode}-' + str(request_json.id),
+            request_json.debug_mode,
+            dev_mode,
+            request_json.config,
+            request_json.routes,
+            request_json.extra_routes,
+            trading_mode,
+        )
+
+        mode = 'live' if request_json.paper_mode is False else 'paper'
+
+        return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
+
+
+    @fastapi_app.delete("/live")
+    def cancel_backtest(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse.services.multiprocessing import process_manager
+
+        trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
+
+        process_manager.cancel_process(f'{trading_mode}-' + request_json.id)
+
+        return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
+
+
+    @fastapi_app.post('/get-candles')
+    def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse import validate_cwd
+
+        validate_cwd()
+
+        from jesse.modes.data_provider import get_candles as gc
+
+        arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe)
+
+        return JSONResponse({
+            'id': json_request.id,
+            'data': arr
+        }, status_code=200)
+
+
+    @fastapi_app.post('/get-logs')
+    def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse_live.services.data_provider import get_logs as gl
+
+        arr = gl(json_request.session_id, json_request.type)
+
+        return JSONResponse({
+            'id': json_request.id,
+            'data': arr
+        }, status_code=200)
+
+
+    @fastapi_app.post('/get-orders')
+    def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse_live.services.data_provider import get_orders as go
+
+        arr = go(json_request.session_id)
+
+        return JSONResponse({
+            'id': json_request.id,
+            'data': arr
+        }, status_code=200)
 
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
