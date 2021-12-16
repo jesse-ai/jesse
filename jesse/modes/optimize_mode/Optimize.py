@@ -114,7 +114,7 @@ class Optimizer(ABC):
         length = int(self.population_size / self.cpu_cores)
 
         progressbar = Progressbar(length)
-        for _ in range(length):
+        for i in range(length):
             people = []
             with Manager() as manager:
                 dna_bucket = manager.list([])
@@ -156,7 +156,7 @@ class Optimizer(ABC):
             # general_info streams
             general_info = {
                 'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                'index': f'{len(self.population)}/{self.population_size}',
+                'index': f'{(i + 1) * self.cpu_cores}/{self.population_size}',
                 'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
                 'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
                 'average_execution_seconds': self.average_execution_seconds
@@ -253,9 +253,9 @@ class Optimizer(ABC):
                 sync_publish('general_info', general_info)
 
                 if self.population_size > 50:
-                    number_of_ind_to_show = 15
+                    number_of_ind_to_show = 40
                 elif self.population_size > 20:
-                    number_of_ind_to_show = 10
+                    number_of_ind_to_show = 15
                 elif self.population_size > 9:
                     number_of_ind_to_show = 9
                 else:
@@ -285,7 +285,7 @@ class Optimizer(ABC):
                     if baby['fitness'] >= self.fitness_goal:
                         self.update_progressbar(progressbar, finished=True)
                         sync_publish('alert', {
-                            'message': f'Fitness goal reached after iteration {i}',
+                            'message': f'Fitness goal reached after iteration {i*self.cpu_cores}',
                             'type': 'success'
                         })
                         return baby

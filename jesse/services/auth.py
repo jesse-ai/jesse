@@ -29,11 +29,14 @@ def unauthorized_response() -> JSONResponse:
 
 
 def get_access_token():
-    if not os.path.isfile('storage/temp/access_token'):
+    from jesse.services.env import ENV_VALUES
+
+    if 'LICENSE_API_TOKEN' not in ENV_VALUES:
+        return None
+    if not ENV_VALUES['LICENSE_API_TOKEN']:
         return None
 
-    with open('storage/temp/access_token', 'r') as f:
-        return list(f)[0]
+    return ENV_VALUES['LICENSE_API_TOKEN']
 
 
 def login_to_jesse_trade(email: str, password: str) -> JSONResponse:

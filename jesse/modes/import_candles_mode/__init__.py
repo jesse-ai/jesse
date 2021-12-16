@@ -31,6 +31,10 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
     register_custom_exception_handler()
 
+    # close database connection
+    from jesse.services.db import database
+    database.open_connection()
+
     # at every second, we check to see if it's time to execute stuff
     status_checker = Timeloop()
 
@@ -129,7 +133,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                     temp_existing_time = jh.timestamp_to_time(first_existing_timestamp)[:10]
                     sync_publish('alert', {
                         'message': f'No candle exists in the market for {temp_start_time}. So '
-                                   f'Jesse is importing since the first existing date which is {temp_existing_time}',
+                                   f'Jesse started importing since the first existing date which is {temp_existing_time}',
                         'type': 'success'
                     })
                     run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
@@ -165,9 +169,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
         'type': 'success'
     })
 
-    # close database connection
-    from jesse.services.db import close_connection
-    close_connection()
+    # if it is to skip, then it's being called from another process hence we should leave the database be
+    if not skip_confirmation:
+        # close database connection
+        from jesse.services.db import database
+        database.close_connection()
 
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,

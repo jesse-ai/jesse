@@ -6,9 +6,8 @@ from jesse.services.failure import terminate_session
 import jesse.helpers as jh
 from datetime import timedelta
 
-# import sys
-# if sys.platform == 'darwin':
-#     mp.set_start_method('fork')
+# set multiprocessing process type to spawn
+mp.set_start_method('spawn', force=True)
 
 
 class Process(mp.Process):

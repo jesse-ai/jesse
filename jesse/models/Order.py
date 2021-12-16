@@ -5,9 +5,13 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import sync_publish
 from jesse.config import config
-from jesse.services.db import db
 from jesse.services.notifier import notify
 from jesse.enums import order_statuses, order_flags
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Order(Model):
@@ -35,7 +39,9 @@ class Order(Model):
     submitted_via = None
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('exchange', 'symbol'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -57,7 +63,7 @@ class Order(Model):
 
         if jh.is_live():
             self.notify_submission()
-        if jh.is_debuggable('order_submission') or jh.is_live():
+        if jh.is_debuggable('order_submission'):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -150,7 +156,7 @@ class Order(Model):
             txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
-            if jh.is_debuggable('order_cancellation') or jh.is_live():
+            if jh.is_debuggable('order_cancellation'):
                 logger.info(txt)
             if jh.is_live():
                 self.broadcast()
@@ -176,7 +182,7 @@ class Order(Model):
             if self.price:
                 txt += f', ${round(self.price, 2)}'
             # log
-            if jh.is_debuggable('order_execution') or jh.is_live():
+            if jh.is_debuggable('order_execution'):
                 logger.info(txt)
             # notify
             if jh.is_live():
@@ -194,6 +200,6 @@ class Order(Model):
         e.on_order_execution(self)
 
 
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
+# if database is open, create the table
+if database.is_open():
     Order.create_table()

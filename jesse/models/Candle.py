@@ -1,7 +1,9 @@
 import peewee
+from jesse.services.db import database
 
-import jesse.helpers as jh
-from jesse.services.db import db
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Candle(peewee.Model):
@@ -19,7 +21,9 @@ class Candle(peewee.Model):
     is_partial = True
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = (
             (('timestamp', 'exchange', 'symbol'), True),
         )
@@ -34,6 +38,6 @@ class Candle(peewee.Model):
             setattr(self, a, value)
 
 
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
+# if database is open, create the table
+if database.is_open():
     Candle.create_table()

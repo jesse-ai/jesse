@@ -3,7 +3,11 @@ import peewee
 
 import jesse.helpers as jh
 from jesse.config import config
-from jesse.services.db import db
+from jesse.services.db import database
+
+
+if database.is_closed():
+    database.open_connection()
 
 
 class CompletedTrade(peewee.Model):
@@ -29,7 +33,9 @@ class CompletedTrade(peewee.Model):
     orders = []
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -131,6 +137,6 @@ class CompletedTrade(peewee.Model):
         return (self.closed_at - self.opened_at) / 1000
 
 
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
+# if database is open, create the table
+if database.is_open():
     CompletedTrade.create_table()

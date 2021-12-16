@@ -32,18 +32,18 @@ class CandlesState:
                 return
 
             # only at first second on each minute
-            if jh.now() % 60_000 != 1000:
+            if jh.now(True) % 60_000 != 1000:
                 return
 
             for c in config['app']['considering_candles']:
                 exchange, symbol = c[0], c[1]
                 current_candle = self.get_current_candle(exchange, symbol, '1m')
 
-                # fix for for a bug
+                # fix for a bug
                 if current_candle[0] <= 60_000:
                     continue
 
-                if jh.now() > current_candle[0] + 60_000:
+                if jh.now() >= current_candle[0] + 60_000:
                     new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
                     self.add_candle(new_candle, exchange, symbol, '1m')
 
@@ -103,6 +103,7 @@ class CandlesState:
             with_skip: bool = True
     ) -> None:
         if jh.is_collecting_data():
+            raise NotImplemented("Collecting data is deactivated at the moment")
             # make sure it's a complete (and not a forming) candle
             if jh.now_to_timestamp() >= (candle[0] + 60000):
                 store_candle_into_db(exchange, symbol, candle)
@@ -120,16 +121,16 @@ class CandlesState:
             if with_skip and f'{exchange}-{symbol}' not in self.initiated_pairs:
                 return
 
-            # if it's a complete candle and NOT an initial candle, store it in the database
-            if f'{exchange}-{symbol}' in self.initiated_pairs and jh.now_to_timestamp() >= (candle[0] + 60000):
-                store_candle_into_db(exchange, symbol, candle)
-
             self.update_position(exchange, symbol, candle[2])
 
             # ignore new candle at the time of execution because it messes
             # the count of candles without actually having an impact
             if candle[0] >= jh.now():
                 return
+
+        # if it's not an initial candle, add it to the storage, if already exists, update it
+        if f'{exchange}-{symbol}' in self.initiated_pairs:
+            store_candle_into_db(exchange, symbol, candle, on_conflict='replace')
 
         # initial
         if len(arr) == 0:

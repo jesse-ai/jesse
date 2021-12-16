@@ -1,7 +1,9 @@
 import peewee
+from jesse.services.db import database
 
-import jesse.helpers as jh
-from jesse.services.db import db
+
+if database.is_closed():
+    database.open_connection()
 
 
 class Option(peewee.Model):
@@ -11,7 +13,9 @@ class Option(peewee.Model):
     json = peewee.TextField()
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
 
     def __init__(self, attributes=None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
@@ -23,6 +27,6 @@ class Option(peewee.Model):
             setattr(self, a, attributes[a])
 
 
-if not jh.is_unit_testing() and jh.is_jesse_project():
-    # create the table
+# if database is open, create the table
+if database.is_open():
     Option.create_table()

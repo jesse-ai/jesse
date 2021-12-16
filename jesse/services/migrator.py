@@ -1,4 +1,4 @@
-from jesse.services.db import db
+from jesse.services.db import database
 from playhouse.migrate import *
 
 
@@ -10,7 +10,15 @@ def run():
     If actions type is 'rename', you must add new field with 'old_name' key.
     To make column to not nullable, you must clean all null value of columns.
     """
-    migrator = PostgresqlMigrator(db)
+    print('Running database migrations...')
+
+    database.open_connection()
+
+    # create initial tables
+    from jesse.models import Candle, CompletedTrade, Log, Order, Option
+    database.db.create_tables([Candle, CompletedTrade, Log, Order])
+
+    migrator = PostgresqlMigrator(database.db)
 
     _candle(migrator)
     _completed_trade(migrator)
@@ -21,11 +29,13 @@ def run():
     _ticker(migrator)
     _trade(migrator)
 
+    database.close_connection()
+
 
 def _candle(migrator):
     fields = []
 
-    candle_columns = db.get_columns('candle')
+    candle_columns = database.db.get_columns('candle')
 
     _migrate(migrator, fields, candle_columns, 'candle')
 
@@ -33,7 +43,7 @@ def _candle(migrator):
 def _completed_trade(migrator):
     fields = []
 
-    completedtrade_columns = db.get_columns('completedtrade')
+    completedtrade_columns = database.db.get_columns('completedtrade')
 
     _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
 
@@ -41,7 +51,7 @@ def _completed_trade(migrator):
 def _daily_balance(migrator):
     fields = []
 
-    dailybalance_columns = db.get_columns('dailybalance')
+    dailybalance_columns = database.db.get_columns('dailybalance')
 
     _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
 
@@ -49,7 +59,7 @@ def _daily_balance(migrator):
 def _log(migrator):
     fields = []
 
-    log_columns = db.get_columns('log')
+    log_columns = database.db.get_columns('log')
 
     _migrate(migrator, fields, log_columns, 'log')
 
@@ -62,7 +72,7 @@ def _order(migrator):
         {'name': 'price', 'type': FloatField(null=True), 'action': 'allow_null'},
     ]
 
-    order_columns = db.get_columns('order')
+    order_columns = database.db.get_columns('order')
 
     _migrate(migrator, fields, order_columns, 'order')
 
@@ -70,7 +80,7 @@ def _order(migrator):
 def _orderbook(migrator):
     fields = []
 
-    orderbook_columns = db.get_columns('orderbook')
+    orderbook_columns = database.db.get_columns('orderbook')
 
     _migrate(migrator, fields, orderbook_columns, 'orderbook')
 
@@ -78,7 +88,7 @@ def _orderbook(migrator):
 def _ticker(migrator):
     fields = []
 
-    ticker_columns = db.get_columns('ticker')
+    ticker_columns = database.db.get_columns('ticker')
 
     _migrate(migrator, fields, ticker_columns, 'ticker')
 
@@ -86,7 +96,7 @@ def _ticker(migrator):
 def _trade(migrator):
     fields = []
 
-    trade_columns = db.get_columns('trade')
+    trade_columns = database.db.get_columns('trade')
 
     _migrate(migrator, fields, trade_columns, 'trade')
 
@@ -112,7 +122,8 @@ def _migrate(migrator, fields, columns, table):
                 migrate(
                     migrator.alter_column_type(table, field['name'], field['type'])
                 )
-                print(f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
+                print(
+                    f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
             elif field['action'] == 'allow_null':
                 migrate(
                     migrator.drop_not_null(table, field['name'])
@@ -122,7 +133,8 @@ def _migrate(migrator, fields, columns, table):
                 migrate(
                     migrator.add_not_null(table, field['name'])
                 )
-                print(f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
+                print(
+                    f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
         # if column name doesn't not already exist
         else:
             if field['action'] == 'add':
