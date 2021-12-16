@@ -4,30 +4,8 @@ from setuptools import setup, find_packages
 VERSION = '0.29.3'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
-REQUIRED_PACKAGES = [
-    'arrow',
-    'blinker',
-    'Click',
-    'matplotlib',
-    'mplfinance',
-    'newtulipy',
-    'numpy',
-    'numpy_groupies',
-    'pandas',
-    'peewee',
-    'psycopg2-binary',
-    'pydash',
-    'pytest',
-    'PyWavelets',
-    'quantstats',
-    'requests',
-    'scipy',
-    'statsmodels',
-    'TA-Lib',
-    'tabulate',
-    'timeloop',
-    'websocket-client'
-]
+with open("requirements.txt", "r", encoding="utf-8") as f:
+    requirements = f.read().splitlines()
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
@@ -48,7 +26,7 @@ setup(
         'Source': 'http://github.com/jesse-ai/jesse',
         'Tracker': 'https://github.com/jesse-ai/jesse/issues',
     },
-    install_requires=REQUIRED_PACKAGES,
+    install_requires=requirements,
     entry_points='''
         [console_scripts]
         jesse=jesse.__init__:cli
