@@ -109,6 +109,7 @@ class NewStrategyRequestJson(BaseModel):
 
 class FeedbackRequestJson(BaseModel):
     description: str
+    email: Optional[str] = None
 
 
 class ReportExceptionRequestJson(BaseModel):
@@ -117,4 +118,4 @@ class ReportExceptionRequestJson(BaseModel):
     mode: str
     attach_logs: bool
     session_id: Optional[str] = None
-
+    email: Optional[str] = None

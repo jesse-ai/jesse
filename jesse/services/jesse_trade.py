@@ -4,12 +4,13 @@ from jesse.services.auth import get_access_token
 import jesse.helpers as jh
 
 
-def feedback(description: str) -> JSONResponse:
+def feedback(description: str, email: str = None) -> JSONResponse:
     access_token = get_access_token()
 
     res = requests.post(
         'https://jesse.trade/api/feedback', {
-            'description': description
+            'description': description,
+            'email': email
         },
         headers={'Authorization': f'Bearer {access_token}'}
     )
@@ -23,7 +24,9 @@ def feedback(description: str) -> JSONResponse:
     }, status_code=200)
 
 
-def report_exception(description: str, traceback: str, mode: str, attach_logs: bool, session_id: str) -> JSONResponse:
+def report_exception(
+        description: str, traceback: str, mode: str, attach_logs: bool, session_id: str, email: str = None
+) -> JSONResponse:
     access_token = get_access_token()
 
     if attach_logs and session_id:
@@ -46,6 +49,7 @@ def report_exception(description: str, traceback: str, mode: str, attach_logs: b
     params = {
         'description': description,
         'traceback': traceback,
+        'email': email
     }
     res = requests.post(
         'https://jesse.trade/api/exception',
