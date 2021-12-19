@@ -6,9 +6,6 @@ from jesse.store import store
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     config['app']['considering_candles'] = [('Sandbox', 'BTC-USD')]
     store.reset()

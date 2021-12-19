@@ -1,8 +1,8 @@
 import arrow
-import click
 import numpy as np
 
 import jesse.helpers as jh
+from jesse.services import logger
 
 
 def generate_candle_from_one_minutes(timeframe: str,
@@ -27,26 +27,22 @@ def generate_candle_from_one_minutes(timeframe: str,
 
 
 def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
+    """
+    Ever since the new GUI dashboard, this function should log instead of actually printing
+
+    :param candle: np.ndarray
+    :param is_partial: bool
+    :param symbol: str
+    """
     if jh.should_execute_silently():
         return
 
-    if is_bullish(candle) and is_partial:
-        candle_form = click.style('  ==', fg='green')
-    elif is_bullish(candle) and not is_partial:
-        candle_form = click.style('====', bg='green')
-    elif is_bearish(candle) and is_partial:
-        candle_form = click.style('  ==', fg='red')
-    else:
-        candle_form = click.style('====', bg='red')
+    candle_form = '  ==' if is_partial else '===='
+    candle_info = f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}'
+    msg = candle_form + candle_info
 
-    if is_bullish(candle):
-        candle_info = click.style(f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}',
-            fg='green')
-    else:
-        candle_info = click.style(f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}',
-            fg='red')
-
-    print(candle_form + candle_info)
+    # store it in the log file
+    logger.info(msg)
 
 
 def is_bullish(candle: np.ndarray) -> bool:

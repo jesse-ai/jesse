@@ -42,7 +42,7 @@ class FTXFutures(CandleExchange):
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
         first_timestamp = int(data[0]['time'])
-        # second_timestamp
+        # second_timestamp:
         return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol: str, start_timestamp: int) -> list:

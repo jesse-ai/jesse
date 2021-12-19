@@ -7,6 +7,7 @@ from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
 from jesse.config import config
+from tests.utils import single_route_backtest
 
 
 def get_btc_candles():
@@ -31,11 +32,7 @@ def set_up(routes, is_futures_trading=True):
 
 
 def test_can_handle_multiple_entry_orders_too_close_to_each_other():
-    set_up([
-        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test34'),
-    ])
-
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+    single_route_backtest('Test34')
 
     assert len(store.completed_trades.trades) == 1
 
@@ -53,12 +50,10 @@ def test_can_handle_multiple_entry_orders_too_close_to_each_other():
     # second order must be increasing order
     assert t.orders[1].role == order_roles.INCREASE_POSITION
     assert t.orders[2].role == order_roles.INCREASE_POSITION
-def test_conflicting_orders():
-    set_up([
-        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test04'),
-    ])
 
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+
+def test_conflicting_orders():
+    single_route_backtest('Test04')
 
     assert len(store.completed_trades.trades) == 1
 
@@ -70,11 +65,7 @@ def test_conflicting_orders():
 
 
 def test_conflicting_orders_2():
-    set_up([
-        (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test20'),
-    ])
-
-    backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())
+    single_route_backtest('Test20')
 
     assert len(store.completed_trades.trades) == 1
 

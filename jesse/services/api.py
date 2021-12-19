@@ -14,7 +14,13 @@ class API:
             self.initiate_drivers()
 
     def initiate_drivers(self) -> None:
-        for e in jh.get_config('app.considering_exchanges'):
+        considering_exchanges = jh.get_config('app.considering_exchanges')
+
+        # A helpful assertion
+        if not len(considering_exchanges):
+            raise Exception('No exchange is available for initiating in the API class')
+
+        for e in considering_exchanges:
             if jh.is_live():
                 def initiate_ws(exchange_name: str) -> None:
                     from jesse_live.info import SUPPORTED_EXCHANGES, SUPPORTED_EXCHANGES_NAMES

@@ -7,13 +7,13 @@ from jesse.store import store
 def test_routes():
     # re-define routes
     router.set_routes([
-        (exchanges.BITFINEX, 'ETH-USD', timeframes.HOUR_3, 'Test19'),
-        (exchanges.SANDBOX, 'BTC-USD', timeframes.MINUTE_15, 'Test19'),
+        {'exchange': exchanges.BITFINEX, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'},
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USD', 'timeframe': timeframes.MINUTE_15, 'strategy': 'Test19'},
     ])
 
     router.set_extra_candles([
-        (exchanges.BITFINEX, 'EOS-USD', timeframes.HOUR_3),
-        (exchanges.BITFINEX, 'EOS-USD', timeframes.HOUR_1),
+        {'exchange': exchanges.BITFINEX, 'symbol': 'EOS-USD', 'timeframe': timeframes.HOUR_3},
+        {'exchange': exchanges.BITFINEX, 'symbol': 'EOS-USD', 'timeframe': timeframes.HOUR_1},
     ])
 
     # reset store for new routes to take affect

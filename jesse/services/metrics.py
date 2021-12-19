@@ -9,9 +9,10 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def candles(candles_array: np.ndarray) -> List[List[str]]:
-    period = jh.date_diff_in_days(jh.timestamp_to_arrow(candles_array[0][0]),
-                                  jh.timestamp_to_arrow(candles_array[-1][0])) + 1
+def candles_info(candles_array: np.ndarray) -> dict:
+    period = jh.date_diff_in_days(
+        jh.timestamp_to_arrow(candles_array[0][0]),
+        jh.timestamp_to_arrow(candles_array[-1][0])) + 1
 
     if period > 365:
         duration = f'{period} days ({round(period / 365, 2)} years)'
@@ -20,26 +21,20 @@ def candles(candles_array: np.ndarray) -> List[List[str]]:
     else:
         duration = f'{period} days'
 
-    return [
-        ['period', duration],
-        ['starting-ending date',
-         f'{jh.timestamp_to_time(candles_array[0][0])[:10]} => {jh.timestamp_to_time(candles_array[-1][0] + 60_000)[:10]}'],
-    ]
+    return {
+        'duration': duration,
+        'starting_time': candles_array[0][0],
+        'finishing_time': (candles_array[-1][0] + 60_000),
+    }
 
 
-def routes(routes: List[Any]) -> List[Union[List[str], List[Any]]]:
-    array = [['exchange', 'symbol', 'timeframe', 'strategy', 'DNA']]
-
-    for r in routes:
-        array.append([
-            r.exchange,
-            r.symbol,
-            r.timeframe,
-            r.strategy_name,
-            r.dna
-        ])
-
-    return array
+def routes(routes_arr: list) -> list:
+    return [{
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'strategy_name': r.strategy_name,
+        } for r in routes_arr]
 
 
 def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
@@ -51,7 +46,7 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
     if not trades_list:
-        return None
+        return {'total': 0}
 
     df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
 
@@ -80,7 +75,7 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
-    short_percentage = 100 - longs_percentage
+    shorts_percentage = 100 - longs_percentage
     fee = df['fee'].sum()
     net_profit = df['PNL'].sum()
     net_profit_percentage = (net_profit / starting_balance) * 100
@@ -140,7 +135,7 @@ def trades(trades_list: list, daily_balance: list, final: bool = True) -> dict:
         'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
         'longs_count': np.nan if np.isnan(longs_count) else longs_count,
         'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,
-        'short_percentage': np.nan if np.isnan(short_percentage) else short_percentage,
+        'shorts_percentage': np.nan if np.isnan(shorts_percentage) else shorts_percentage,
         'shorts_count': np.nan if np.isnan(shorts_count) else shorts_count,
         'fee': np.nan if np.isnan(fee) else fee,
         'net_profit': np.nan if np.isnan(net_profit) else net_profit,

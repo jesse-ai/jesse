@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 import arrow
 import click
@@ -10,7 +10,6 @@ import jesse.helpers as jh
 import jesse.services.metrics as stats
 import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
-import jesse.services.table as table
 from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes, order_types, order_roles, order_flags
@@ -18,7 +17,6 @@ from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
-from jesse.services import logger
 from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.cache import cache
@@ -26,11 +24,54 @@ from jesse.services.candle import generate_candle_from_one_minutes, print_candle
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
+from jesse.services import logger
+from jesse.services.failure import register_custom_exception_handler
+from jesse.services.redis import sync_publish, process_status
+from timeloop import Timeloop
+from datetime import timedelta
+from jesse.services.progressbar import Progressbar
 
 
-def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[str, np.ndarray]]] = None,
-        chart: bool = False, tradingview: bool = False, full_reports: bool = False,
-        csv: bool = False, json: bool = False) -> None:
+def run(
+        debug_mode,
+        user_config: dict,
+        routes: List[Dict[str, str]],
+        extra_routes: List[Dict[str, str]],
+        start_date: str,
+        finish_date: str,
+        candles: dict = None,
+        chart: bool = False,
+        tradingview: bool = False,
+        full_reports: bool = False,
+        csv: bool = False,
+        json: bool = False
+) -> None:
+    if not jh.is_unit_testing():
+        # at every second, we check to see if it's time to execute stuff
+        status_checker = Timeloop()
+        @status_checker.job(interval=timedelta(seconds=1))
+        def handle_time():
+            if process_status() != 'started':
+                raise exceptions.Termination
+        status_checker.start()
+
+    from jesse.config import config, set_config
+    config['app']['trading_mode'] = 'backtest'
+
+    # debug flag
+    config['app']['debug_mode'] = debug_mode
+
+    # inject config
+    if not jh.is_unit_testing():
+        set_config(user_config)
+
+    # set routes
+    router.initiate(routes, extra_routes)
+
+    store.app.set_session_id()
+
+    register_custom_exception_handler()
+
     # clear the screen
     if not jh.should_execute_silently():
         click.clear()
@@ -43,57 +84,28 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
     # load historical candles
     if candles is None:
-        print('loading candles...')
         candles = load_candles(start_date, finish_date)
         click.clear()
 
     if not jh.should_execute_silently():
-        # print candles table
+        sync_publish('general_info', {
+            'session_id': jh.get_session_id(),
+            'debug_mode': str(config['app']['debug_mode']),
+        })
+
+        # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-        table.key_value(stats.candles(candles[key]['candles']), 'candles', alignments=('left', 'right'))
-        print('\n')
+        sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
 
-        # print routes table
-        table.multi_value(stats.routes(router.routes))
-        print('\n')
-
-        # print guidance for debugging candles
-        if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
-            print('     Symbol  |     timestamp    | open | close | high | low | volume')
+        # routes info
+        sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
-    simulator(candles)
+    simulator(candles, run_silently=jh.should_execute_silently())
 
     if not jh.should_execute_silently():
         if store.completed_trades.count > 0:
-            change = []
-            # calcualte market change
-            for e in router.routes:
-                if e.strategy is None:
-                    return
-
-                first = Candle.select(
-                    Candle.close
-                ).where(
-                    Candle.timestamp == jh.date_to_timestamp(start_date),
-                    Candle.exchange == e.exchange,
-                    Candle.symbol == e.symbol
-                ).first()
-                last = Candle.select(
-                    Candle.close
-                ).where(
-                    Candle.timestamp == jh.date_to_timestamp(finish_date) - 60000,
-                    Candle.exchange == e.exchange,
-                    Candle.symbol == e.symbol
-                ).first()
-
-                change.append(((last.close - first.close) / first.close) * 100.0)
-
-            data = report.portfolio_metrics()
-            data.append(['Market Change', f'{round(np.average(change), 2)}%'])
-            print('\n')
-            table.key_value(data, 'Metrics', alignments=('left', 'right'))
-            print('\n')
+            sync_publish('metrics', report.portfolio_metrics())
 
             routes_count = len(router.routes)
             more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
@@ -102,6 +114,8 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
 
             if chart:
                 charts.portfolio_vs_asset_returns(study_name)
+
+            sync_publish('equity_curve', charts.equity_curve())
 
             # QuantStats' report
             if full_reports:
@@ -132,7 +146,12 @@ def run(start_date: str, finish_date: str, candles: Dict[str, Dict[str, Union[st
                 bh_daily_returns_all_routes = price_pct_change.mean(1)
                 quantstats.quantstats_tearsheet(bh_daily_returns_all_routes, study_name)
         else:
-            print(jh.color('No trades were made.', 'yellow'))
+            sync_publish('equity_curve', None)
+            sync_publish('metrics', None)
+
+    # close database connection
+    from jesse.services.db import database
+    database.close_connection()
 
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
@@ -145,7 +164,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     if start_date > finish_date:
         raise ValueError('start_date cannot be bigger than finish_date.')
     if finish_date > arrow.utcnow().int_timestamp * 1000:
-        raise ValueError("Can't load candle data from the future!")
+        raise ValueError(
+            "Can't load candle data from the future! The finish-date can be up to yesterday's date at most.")
 
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
@@ -165,7 +185,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
         cache_key = f"{start_date_str}-{finish_date_str}-{key}"
         cached_value = cache.get_value(cache_key)
-        # if cache exists
+        # if cache exists use cache_value
         # not cached, get and cache for later calls in the next 5 minutes
         # fetch from database
         candles_tuple = cached_value or Candle.select(
@@ -180,7 +200,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
             raise exceptions.CandleNotFoundInDatabase(
-                f'Not enough candles for {symbol}. Try running "jesse import-candles"')
+                f'Not enough candles for {symbol}. You need to import candles.'
+            )
         elif len(candles_tuple) != required_candles_count + 1:
             raise exceptions.CandleNotFoundInDatabase(
                 f'There are missing candles between {start_date_str} => {finish_date_str}')
@@ -197,7 +218,9 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparameters: dict = None) -> None:
+def simulator(
+        candles: dict, run_silently: bool, hyperparameters: dict = None
+) -> None:
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
@@ -225,10 +248,10 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
 
-        # inject hyper parameters (used for optimize_mode)
-        # convert DNS string into hyperparameters
-        if r.dna and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.dna)
+        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
+        # first convert DNS string into hyperparameters
+        if len(r.strategy.dna()) > 0 and hyperparameters is None:
+            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.strategy.dna())
 
         # inject hyperparameters sent within the optimize mode
         if hyperparameters is not None:
@@ -243,75 +266,79 @@ def simulator(candles: Dict[str, Dict[str, Union[str, np.ndarray]]], hyperparame
     # add initial balance
     save_daily_portfolio_balance()
 
-    with click.progressbar(length=length, label='Executing simulation...') as progressbar:
-        for i in range(length):
-            # update time
-            store.app.time = first_candles_set[i][0] + 60_000
+    progressbar = Progressbar(length, step=60)
+    for i in range(length):
+        # update time
+        store.app.time = first_candles_set[i][0] + 60_000
 
-            # add candles
-            for j in candles:
-                short_candle = candles[j]['candles'][i]
-                if i != 0:
-                    previous_short_candle = candles[j]['candles'][i - 1]
-                    short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
-                exchange = candles[j]['exchange']
-                symbol = candles[j]['symbol']
+        # add candles
+        for j in candles:
+            short_candle = candles[j]['candles'][i]
+            if i != 0:
+                previous_short_candle = candles[j]['candles'][i - 1]
+                short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+            exchange = candles[j]['exchange']
+            symbol = candles[j]['symbol']
 
-                store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
-                                         with_generation=False)
+            store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                                     with_generation=False)
 
-                # print short candle
-                if jh.is_debuggable('shorter_period_candles'):
-                    print_candle(short_candle, True, symbol)
+            # print short candle
+            if jh.is_debuggable('shorter_period_candles'):
+                print_candle(short_candle, True, symbol)
 
-                _simulate_price_change_effect(short_candle, exchange, symbol)
+            _simulate_price_change_effect(short_candle, exchange, symbol)
 
-                # generate and add candles for bigger timeframes
-                for timeframe in config['app']['considering_timeframes']:
-                    # for 1m, no work is needed
-                    if timeframe == '1m':
-                        continue
+            # generate and add candles for bigger timeframes
+            for timeframe in config['app']['considering_timeframes']:
+                # for 1m, no work is needed
+                if timeframe == '1m':
+                    continue
 
-                    count = jh.timeframe_to_one_minutes(timeframe)
-                    # until = count - ((i + 1) % count)
+                count = jh.timeframe_to_one_minutes(timeframe)
+                # until = count - ((i + 1) % count)
 
-                    if (i + 1) % count == 0:
-                        generated_candle = generate_candle_from_one_minutes(
-                            timeframe,
-                            candles[j]['candles'][(i - (count - 1)):(i + 1)])
-                        store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
-                                                 with_generation=False)
+                if (i + 1) % count == 0:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles[j]['candles'][(i - (count - 1)):(i + 1)])
+                    store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
+                                             with_generation=False)
 
-            # update progressbar
-            if not jh.is_debugging() and not jh.should_execute_silently() and i % 60 == 0:
-                progressbar.update(60)
+        # update progressbar
+        if not run_silently and i % 60 == 0:
+            progressbar.update()
+            sync_publish('progressbar', {
+                'current': progressbar.current,
+                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+            })
 
-            # now that all new generated candles are ready, execute
-            for r in router.routes:
-                count = jh.timeframe_to_one_minutes(r.timeframe)
-                # 1m timeframe
-                if r.timeframe == timeframes.MINUTE_1:
-                    r.strategy._execute()
-                elif (i + 1) % count == 0:
-                    # print candle
-                    if jh.is_debuggable('trading_candles'):
-                        print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
-                                     r.symbol)
-                    r.strategy._execute()
+        # now that all new generated candles are ready, execute
+        for r in router.routes:
+            count = jh.timeframe_to_one_minutes(r.timeframe)
+            # 1m timeframe
+            if r.timeframe == timeframes.MINUTE_1:
+                r.strategy._execute()
+            elif (i + 1) % count == 0:
+                # print candle
+                if jh.is_debuggable('trading_candles'):
+                    print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
+                                 r.symbol)
+                r.strategy._execute()
 
-            # now check to see if there's any MARKET orders waiting to be executed
-            store.orders.execute_pending_market_orders()
+        # now check to see if there's any MARKET orders waiting to be executed
+        store.orders.execute_pending_market_orders()
 
-            if i != 0 and i % 1440 == 0:
-                save_daily_portfolio_balance()
+        if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
 
-    if not jh.should_execute_silently():
-        if jh.is_debuggable('trading_candles') or jh.is_debuggable('shorter_period_candles'):
-            print('\n')
-
+    if not run_silently:
         # print executed time for the backtest session
         finish_time_track = time.time()
-        print('Executed backtest simulation in: ', f'{round(finish_time_track - begin_time_track, 2)} seconds')
+        sync_publish('alert', {
+            'message': f'Successfully executed backtest simulation in: {round(finish_time_track - begin_time_track, 2)} seconds',
+            'type': 'success'
+        })
 
     for r in router.routes:
         r.strategy._terminate()

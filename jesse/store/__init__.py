@@ -62,17 +62,17 @@ def install_routes() -> None:
     considering_symbols = trading_symbols.copy()
 
     for e in router.extra_candles:
-        considering_candles.add((e[0], e[1]))
-
-        considering_exchanges.add(e[0])
-        considering_symbols.add(e[1])
-        considering_timeframes.add(e[2])
+        considering_candles.add((e['exchange'], e['symbol']))
+        considering_exchanges.add(e['exchange'])
+        considering_symbols.add(e['symbol'])
+        considering_timeframes.add(e['timeframe'])
 
     # 1m must be present at all times
     considering_timeframes.add('1m')
 
     config['app']['considering_candles'] = tuple(considering_candles)
     config['app']['considering_exchanges'] = tuple(considering_exchanges)
+
     config['app']['considering_symbols'] = tuple(considering_symbols)
     config['app']['considering_timeframes'] = tuple(considering_timeframes)
     config['app']['trading_exchanges'] = tuple(trading_exchanges)
@@ -117,8 +117,8 @@ class StoreClass:
         self.orderbooks = OrderbookState()
 
 
-if not jh.is_unit_testing():
-    install_routes()
+# if not jh.is_unit_testing():
+#     install_routes()
 
 store = StoreClass()
-store.reset()
+# store.reset()

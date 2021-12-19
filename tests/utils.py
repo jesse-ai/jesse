@@ -45,7 +45,7 @@ def get_downtrend_candles():
     }
 
 
-def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
+def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
         {'asset': 'USDT', 'balance': 10_000},
@@ -64,11 +64,6 @@ def set_up(routes=None, is_futures_trading=True, leverage=1, leverage_mode='cros
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
 
-    if routes:
-        router.set_routes(routes)
-
-    store.reset(True)
-
 
 def single_route_backtest(
         strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up'
@@ -77,11 +72,12 @@ def single_route_backtest(
     used to simplify simple tests
     """
     set_up(
-        [(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, strategy_name)],
         is_futures_trading=is_futures_trading,
         leverage=leverage,
         leverage_mode=leverage_mode
     )
+
+    routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name}]
 
     if trend == 'up':
         candles = get_btc_candles()
@@ -91,4 +87,25 @@ def single_route_backtest(
         raise ValueError
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run('2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+
+
+def two_routes_backtest(
+        strategy_name1: str, strategy_name2: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up'
+):
+    """
+    used to simplify simple tests
+    """
+    set_up(
+        is_futures_trading=is_futures_trading,
+        leverage=leverage,
+        leverage_mode=leverage_mode
+    )
+
+    routes = [
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name1},
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '1m', 'strategy': strategy_name2},
+    ]
+
+    # dates are fake. just to pass required parameters
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())

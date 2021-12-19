@@ -1,8 +1,5 @@
 import peewee
 
-import jesse.helpers as jh
-from jesse.services.db import db
-
 
 class Orderbook(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
@@ -14,7 +11,9 @@ class Orderbook(peewee.Model):
     data = peewee.BlobField()
 
     class Meta:
-        database = db
+        from jesse.services.db import database
+
+        database = database.db
         indexes = ((('timestamp', 'exchange', 'symbol'), True),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
@@ -25,8 +24,3 @@ class Orderbook(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
-
-
-if not jh.is_unit_testing():
-    # create the table
-    Orderbook.create_table()

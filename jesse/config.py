@@ -1,14 +1,9 @@
+import jesse.helpers as jh
+
+
 config = {
     # these values are related to the user's environment
     'env': {
-        'databases': {
-            'postgres_host': '127.0.0.1',
-            'postgres_name': 'jesse_db',
-            'postgres_port': 5432,
-            'postgres_username': 'jesse_user',
-            'postgres_password': 'password',
-        },
-
         'caching': {
             'driver': 'pickle'
         },
@@ -201,20 +196,6 @@ config = {
             },
         },
 
-        # changes the metrics output of the backtest
-        'metrics': {
-            'sharpe_ratio': True,
-            'calmar_ratio': False,
-            'sortino_ratio': False,
-            'omega_ratio': False,
-            'winning_streak': False,
-            'losing_streak': False,
-            'largest_losing_trade': False,
-            'largest_winning_trade': False,
-            'total_winning_trades': False,
-            'total_losing_trades': False,
-        },
-
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # Optimize mode
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -274,27 +255,67 @@ config = {
     },
 }
 
-backup_config = config.copy()
 
-
-def set_config(c) -> None:
+def set_config(conf: dict) -> None:
     global config
-    config['env'] = c
-    # add sandbox because it isn't in the local config file
-    config['env']['exchanges']['Sandbox'] = {
-        'type': 'spot',
-        # used only in futures trading
-        'settlement_currency': 'USDT',
-        'fee': 0,
-        'futures_leverage_mode': 'cross',
-        'futures_leverage': 1,
-        'assets': [
-            {'asset': 'USDT', 'balance': 10_000},
-            {'asset': 'BTC', 'balance': 0},
-        ],
-    }
+
+    # optimization mode only
+    if jh.is_optimizing():
+        # ratio
+        config['env']['optimization']['ratio'] = conf['ratio']
+        # exchange info (only one because the optimize mode supports only one trading route at the moment)
+        config['env']['optimization']['exchange'] = conf['exchange']
+        # warm_up_candles
+        config['env']['optimization']['warmup_candles_num'] = int(conf['warm_up_candles'])
+
+    # backtest and live
+    if jh.is_backtesting() or jh.is_live():
+        # warm_up_candles
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
+        # logs
+        config['env']['logging'] = conf['logging']
+        # exchanges
+        for key, e in conf['exchanges'].items():
+            config['env']['exchanges'][e['name']] = {
+                'fee': float(e['fee']),
+                'type': 'futures',
+                # used only in futures trading
+                # 'settlement_currency': 'USDT',
+                'settlement_currency': jh.get_settlement_currency_from_exchange(e['name']),
+                # accepted values are: 'cross' and 'isolated'
+                'futures_leverage_mode': e['futures_leverage_mode'],
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                'futures_leverage': int(e['futures_leverage']),
+                'assets': [
+                    {'asset': 'USDT', 'balance': float(e['balance'])},
+                ],
+            }
+
+    # live mode only
+    if jh.is_live():
+        config['env']['notifications'] = conf['notifications']
+
+    # TODO: must become a config value later when we go after multi account support?
+    config['env']['identifier'] = 'main'
+
+    # # add sandbox because it isn't in the local config file but it is needed since we might have replaced it
+    # config['env']['exchanges']['Sandbox'] = {
+    #     'type': 'spot',
+    #     # used only in futures trading
+    #     'settlement_currency': 'USDT',
+    #     'fee': 0,
+    #     'futures_leverage_mode': 'cross',
+    #     'futures_leverage': 1,
+    #     'assets': [
+    #         {'asset': 'USDT', 'balance': 10_000},
+    #         {'asset': 'BTC', 'balance': 0},
+    #     ],
+    # }
 
 
 def reset_config() -> None:
     global config
     config = backup_config.copy()
+
+
+backup_config = config.copy()

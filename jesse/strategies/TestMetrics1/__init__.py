@@ -30,7 +30,7 @@ class TestMetrics1(Strategy):
         assert self.metrics['longs_count'] == 1
         assert self.metrics['shorts_count'] == 0
         assert self.metrics['longs_percentage'] == 100
-        assert self.metrics['short_percentage'] == 0
+        assert self.metrics['shorts_percentage'] == 0
         assert self.metrics['fee'] == 0
         assert self.metrics['net_profit'] == 50
         assert self.metrics['net_profit_percentage'] == 0.5

@@ -29,8 +29,9 @@ def set_up_without_fee(is_futures_trading=False):
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
-    router.set_routes([(exchanges.SANDBOX, 'BTC-USDT', '5m', 'Test19')])
-    store.reset(True)
+    router.initiate([
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+    ], [])
 
     global position
     global exchange
@@ -56,8 +57,9 @@ def set_up_with_fee(is_futures_trading=False):
     config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
-    router.set_routes([(exchanges.SANDBOX, 'BTC-USDT', '5m', 'Test19')])
-    store.reset(True)
+    router.initiate([
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+    ], [])
 
     global position
     global exchange
