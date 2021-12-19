@@ -1,8 +1,94 @@
-# Jesse beta (GUI dashboard)
+# Jesse
+[![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
+[![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
+[![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
+[![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 
-Here's a quick guide on how to set up and run the dashboard branch until it is officially released.
+---
 
-First, you need to set up Jesse from the source code if you haven't already:
+[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
+[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
+[![FAQ](https://img.shields.io/badge/FAQ-Find%20answers!-yellow)](https://jesse.trade/help)
+[![Chat](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
+[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
+---
+Jesse is an advanced crypto trading framework which aims to simplify researching and defining trading strategies.
+
+## Why Jesse?
+In short, Jesse is more accurate than other solutions, and way more simple. 
+In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months. 
+
+[Here](https://docs.jesse.trade/docs/) you can read more about why Jesse's features. 
+
+## Getting Started
+Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
+documentation is short yet very informative. 
+
+## Example Backtest Results
+
+Check out Jesse's [blog](https://jesse.trade/blog) for tutorials that go through example strategies step by step. 
+
+Here's an example output for a backtest simulation just to get you excited:
+```
+ CANDLES              |
+----------------------+--------------------------
+ period               |   1792 days (4.91 years)
+ starting-ending date | 2016-01-01 => 2020-11-27
+
+
+ exchange   | symbol   | timeframe   | strategy         | DNA
+------------+----------+-------------+------------------+-------
+ Bitfinex   | BTC-USD   | 6h          | TrendFollowing05 |
+
+
+Executing simulation...  [####################################]  100%
+Executed backtest simulation in:  135.85 seconds
+
+
+ METRICS                         |
+---------------------------------+------------------------------------
+ Total Closed Trades             |                                221
+ Total Net Profit                |            1,699,245.56 (1699.25%)
+ Starting => Finishing Balance   |            100,000 => 1,799,245.56
+ Total Open Trades               |                                  0
+ Open PL                         |                                  0
+ Total Paid Fees                 |                         331,480.93
+ Max Drawdown                    |                            -22.42%
+ Annual Return                   |                             80.09%
+ Expectancy                      |                   7,688.89 (7.69%)
+ Avg Win | Avg Loss              |                 31,021.9 | 8,951.7
+ Ratio Avg Win / Avg Loss        |                               3.47
+ Percent Profitable              |                                42%
+ Longs | Shorts                  |                          60% | 40%
+ Avg Holding Time                | 3.0 days, 22.0 hours, 50.0 minutes
+ Winning Trades Avg Holding Time |  6.0 days, 14.0 hours, 9.0 minutes
+ Losing Trades Avg Holding Time  |   2.0 days, 1.0 hour, 41.0 minutes
+ Sharpe Ratio                    |                               1.88
+ Calmar Ratio                    |                               3.57
+ Sortino Ratio                   |                               3.51
+ Omega Ratio                     |                               1.49
+ Winning Streak                  |                                  5
+ Losing Streak                   |                                 10
+ Largest Winning Trade           |                         205,575.89
+ Largest Losing Trade            |                         -50,827.92
+ Total Winning Trades            |                                 92
+ Total Losing Trades             |                                129
+```
+
+And here are generated charts:
+![chart-example](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/chart-example.png)
+
+## What's next?
+This is the very initial release. There's way more. Subscribe to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
+
+## Community
+I created a [discord server](https://jesse.trade/discord) for Jesse users to discuss algo-trading. It's a warm place to share ideas, and help each other out.
+
+## How to contribute
+Thank you for your interest in contributing to the project. Before starting to work on a PR, please make sure that it isn't under the "in progress" column in our [Github project page](https://github.com/jesse-ai/jesse/projects/2). In case you want to help but don't know what tasks we need help for, checkout the "todo" column. 
+
+First, you need to install Jesse from the repository instead of PyPi:
+
 ```sh
 # first, make sure that the PyPi version is not installed
 pip uninstall jesse
@@ -13,149 +99,12 @@ cd jesse
 pip install -e .
 ```
 
-Then you need to switch to the `beta` branch:
-```sh
-git checkout beta
+Now every change you make to the code will be affected immediately.
+
+After every change, make sure your changes did not break any functionality by running tests:
 ```
-
-Now go to your Jesse project (where you used to run backtest command, etc) and first create a `.env` file with the below configuration:
-
-```sh
-nano .env
-```
-
-```
-PASSWORD=test
-
-POSTGRES_HOST=127.0.0.1
-POSTGRES_NAME=jesse_db
-POSTGRES_PORT=5432
-POSTGRES_USERNAME=jesse_user
-POSTGRES_PASSWORD=password
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# Live Trade Only                                                                 # 
-# =============================================================================== #
-# Below values don't concern you if you haven't installed the live trade plugin   #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-# For all notifications
-GENERAL_TELEGRAM_BOT_TOKEN=
-GENERAL_TELEGRAM_BOT_CHAT_ID=
-GENERAL_DISCORD_WEBHOOK=
-
-# For error notifications only
-ERROR_TELEGRAM_BOT_TOKEN=
-ERROR_TELEGRAM_BOT_CHAT_ID=
-ERROR_DISCORD_WEBHOOK=
-
-# Testnet Binance Futures: 
-# http://testnet.binancefuture.com
-TESTNET_BINANCE_FUTURES_API_KEY=
-TESTNET_BINANCE_FUTURES_API_SECRET=
-
-# Binance Futures: 
-# https://www.binance.com/en/futures/btcusdt
-BINANCE_FUTURES_API_KEY=
-BINANCE_FUTURES_API_SECRET=
-
-# FTX Futures: 
-# https://ftx.com/markets/future
-FTX_FUTURES_API_KEY=
-FTX_FUTURES_API_SECRET=
-# leave empty if it's the main account and not a subaccount
-FTX_FUTURES_SUBACCOUNT_NAME=
-```
-
-Of course, you should change the values to your config if you're not using the default values. Also, don't forget to change the `PASSWORD` as you need it for logging in. You no longer need `routes.py` and `config.py`, or even `live-config.py` files in your Jesse project. You can delete them if you want.
-
-## New Requirements
-First, install Redis which is a requirement for this application. I will add guides for different environments but for now, you should be able to find guides on the net. On a mac, it's as easy as running `brew install redis`. On Ubuntu 20.04:
-
-```sh
-sudo apt update -y
-sudo apt install redis-server -y
-# The supervised directive is set to no by default. So let's edit it:
-sudo nano /etc/redis/redis.conf
-# Find the line that says `supervised no` and change it to `supervised systemd`
-sudo systemctl restart redis.service
-```
-
-Then you need to install few pip packages as well. A quick way to install them all is by running:
-```sh
-pip install -r https://raw.githubusercontent.com/jesse-ai/jesse/beta/requirements.txt
-```
-
-## Start the application
-
-To get the party started, (inside your Jesse project) run the application by:
-```
-jesse run
-```
-
-And it will print a local URL for you to open in your browser such as:
-```
-INFO:     Started server process [66103]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
-```
-
-So go ahead and open (in my case) `http://127.0.0.1:9000` in your browser of choice. If you are running on a server, you can use the IP address of the server instead of 
-`127.0.0.1`. So for example if the IP address of your server is `1.2.3.4` the URL would be `http://1.2.3.4:9000`. I will soon add instructions on how to secure the remote server that is running the application.
-
-## Live Trade Plugin
-To install the beta version of the live trade plugin, first, make sure to uninstall the previous one:
-```
-pip uninstall jesse-live
-```
-
-Now you need to change your account on Jesse.Trade as a beta user. You'll find it at your [profile](https://jesse.trade/user/profile) page:
-
-![user profile beta](https://raw.githubusercontent.com/jesse-ai/storage/master/singles/user-profile-beta.jpg)
-
-Now you can see the latest beta version on the [releases](http://jesse.trade/releases) page. Download and install it as always. 
-
-## Security
-In case you are running the application on a remote server, you should secure the server. I will mention two methods here, but of course security is a big topic but I think these two methods are enough.
-
-### 1. Password
-Change the password (`PASSWORD`) in your `.env` file. Make sure to set it to something secure. 
-
-### 2. Firewall
-The dashboard is supposed to be accessible only by you. That makes it easy to secure. So the best way is to just close all incoming ports except
-for the ones you need. But open them **only for your trusted IP addresses**. This can be done via both a firewall from within the server or the firewall that your cloud provider provides (Hetzner, DigitalOcean, etc).
-
-I will show you how to do it via ufw which is a popular firewall that comes with Ubuntu 20.04:
-
-```sh
-ufw status
-# if it's active, stop it:
-systemctl stop ufw
-# allow all outgoing traffic
-ufw default allow outgoing
-# deny all incoming traffic
-ufw default deny incoming
-# allow ssh port (22)
-ufw allow ssh
-# If you don't have specific IP addresses, you can open the targeted port
-# (9000 by default) for all, but it's best to allow specific IP addre~~sses only. 
-# Assuming your IP addresses are 1.1.1.1, 1.1.1.2, and 1.1.1.3, run:
-ufw allow from 1.1.1.1 to any port 9000 proto tcp
-ufw allow from 1.1.1.2 to any port 9000 proto tcp
-ufw allow from 1.1.1.3 to any port 9000 proto tcp
-# enable the firewall
-ufw enable
-# check the status
-ufw status numbered
-# restart ufw to apply the changes
-systemctl restart ufw
+pytest
 ```
 
 ## Disclaimer
-**This is version is the beta version of an early-access plugin! That means you should NOT use it in production yet! If done otherwise, only you are responsible.**
+This software is for educational purposes only. USE THE SOFTWARE AT YOUR OWN RISK. THE AUTHORS AND ALL AFFILIATES ASSUME NO RESPONSIBILITY FOR YOUR TRADING RESULTS. Do not risk money which you are afraid to lose. There might be bugs in the code - this software DOES NOT come with ANY warranty.
