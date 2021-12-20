@@ -71,7 +71,7 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     }
     response = requests.post(url, headers=headers, params={
         'os': formatted_os_name,
-        'python_version': str(jh.python_version()),
+        'python_version': '{}.{}'.format(*jh.python_version()),
         'beta': True,
         'jesse_version': jesse_version
     })
