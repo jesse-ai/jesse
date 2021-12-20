@@ -63,15 +63,7 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     else:
         formatted_os_name = 'Windows 10 - 64 bit'
 
-    # # TODO: remove debug print
-    # print(
-    #     jh.python_version(),
-    #     os_name,
-    #     # jlh.os_name(),
-    #     # jlh.computer_name(),
-    #     platform.processor(),
-    # )
-
+    from jesse.version import __version__ as jesse_version
     print('Downloading the latest version of the live-trade plugin...')
     url = 'https://jesse.trade/api/download-release'
     headers = {
@@ -80,7 +72,8 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     response = requests.post(url, headers=headers, params={
         'os': formatted_os_name,
         'python_version': str(jh.python_version()),
-        'beta': True
+        'beta': True,
+        'jesse_version': jesse_version
     })
     if response.status_code != 200:
         raise Exception('Error: ' + response.text)
