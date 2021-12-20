@@ -4,8 +4,38 @@ from setuptools import setup, find_packages
 VERSION = '0.30.0'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
-with open("requirements.txt", "r", encoding="utf-8") as f:
-    requirements = f.read().splitlines()
+REQUIRED_PACKAGES = [
+    'arrow',
+    'blinker',
+    'click',
+    'matplotlib',
+    'mplfinance',
+    'newtulipy',
+    'numpy',
+    'numpy_groupies',
+    'pandas',
+    'peewee',
+    'psycopg2-binary',
+    'pydash',
+    'pytest',
+    'PyWavelets',
+    'quantstats',
+    'requests',
+    'scipy',
+    'statsmodels',
+    'TA-Lib',
+    'tabulate',
+    'timeloop',
+    'websocket-client',
+    'simplejson',
+    'aioredis',
+    'redis',
+    'fastapi',
+    'uvicorn',
+    'websockets',
+    'python-dotenv',
+    'aiofiles'
+]
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
@@ -26,7 +56,7 @@ setup(
         'Source': 'https://github.com/jesse-ai/jesse',
         'Tracker': 'https://github.com/jesse-ai/jesse/issues',
     },
-    install_requires=requirements,
+    install_requires=REQUIRED_PACKAGES,
     entry_points='''
         [console_scripts]
         jesse=jesse.__init__:cli
