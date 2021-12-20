@@ -43,9 +43,9 @@ jobs:
         id: cache
         with:
           path: ${{ matrix.path }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-new-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-           ${{ runner.os }}-pip-
+           ${{ runner.os }}-pip-new-
       - name: Install ta-lib
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
