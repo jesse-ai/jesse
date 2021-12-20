@@ -1,0 +1,2 @@
+include jesse/static/*
+include jesse/static/**/*

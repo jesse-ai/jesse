@@ -38,7 +38,7 @@ def validate_cwd() -> None:
     if not jh.is_jesse_project():
         print(
             jh.color(
-                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project.',
+                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
                 'red'
             )
         )

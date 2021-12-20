@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = '0.30.1'
+VERSION = '0.30.5'
 DESCRIPTION = "A trading framework for cryptocurrencies"
 
 REQUIRED_PACKAGES = [
@@ -66,6 +66,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     include_package_data=True,
 )
