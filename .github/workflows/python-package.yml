@@ -51,7 +51,12 @@ jobs:
         uses: actions/cache@v2
         id: talib-cache
         with:
-          path: /usr/local/lib
+          path: |
+           /usr/local/lib/libta_lib.a
+           /usr/local/lib/libta_lib.la
+           /usr/local/lib/libta_lib.so
+           /usr/local/lib/libta_lib.so.0
+           /usr/local/lib/libta_lib.so.0.0.0
           key: talib-cache-0.4.0
       - name: Install ta-lib mac / windows
         run: |
