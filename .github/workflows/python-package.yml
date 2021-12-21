@@ -54,11 +54,13 @@ jobs:
           path: /usr/local/lib
           key: talib-cache-0.4.0
       - name: Install ta-lib
+        env:
+          TALIB_LINUX_CACHE_HIT: ${{steps.talib-cache.outputs.cache-hit}}
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
             brew install ta-lib
           fi
-          if ([ "$RUNNER_OS" = "Linux" && ${{steps.talib-cache.outputs.cache-hit}} != 'true' ]); then
+          if ([ "$RUNNER_OS" = "Linux" && "$TALIB_LINUX_CACHE_HIT" != 'true' ]); then
             wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz
             cd ta-lib/
             ./configure --prefix=/usr
