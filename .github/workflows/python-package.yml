@@ -52,12 +52,12 @@ jobs:
         id: talib-cache
         with:
           path: |
-           /usr/local/lib/libta_lib.a
-           /usr/local/lib/libta_lib.la
-           /usr/local/lib/libta_lib.so
-           /usr/local/lib/libta_lib.so.0
-           /usr/local/lib/libta_lib.so.0.0.0
-          key: talib-cache-0.4.0
+           /usr/lib/libta_lib.a
+           /usr/lib/libta_lib.la
+           /usr/lib/libta_lib.so
+           /usr/lib/libta_lib.so.0
+           /usr/lib/libta_lib.so.0.0.0
+          key: ta-lib-cache-0.4.0
       - name: Install ta-lib mac / windows
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
