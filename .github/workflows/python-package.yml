@@ -46,16 +46,23 @@ jobs:
           key: ${{ runner.os }}-pip-new-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
            ${{ runner.os }}-pip-new-
+      - name: Cache talib
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/cache@v2
+        id: talib-cache
+        with:
+          path: /usr/local/lib
+          key: talib-cache-0.4.0
       - name: Install ta-lib
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
             brew install ta-lib
           fi
-          if ([ "$RUNNER_OS" = "Linux" ]); then
-            if [ ! -f "$HOME/ta-lib/src" ]; then wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz; fi
+          if ([ "$RUNNER_OS" = "Linux" && ${{steps.talib-cache.outputs.cache-hit}} != 'true' ]); then
+            wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz
             cd ta-lib/
             ./configure --prefix=/usr
-            if [ ! -f "$HOME/ta-lib/src" ]; then make; fi
+            make
             sudo make install
             cd
           fi
