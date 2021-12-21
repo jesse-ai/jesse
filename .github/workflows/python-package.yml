@@ -53,24 +53,23 @@ jobs:
         with:
           path: /usr/local/lib
           key: talib-cache-0.4.0
-      - name: Install ta-lib
-        env:
-          TALIB_LINUX_CACHE_HIT: ${{steps.talib-cache.outputs.cache-hit}}
+      - name: Install ta-lib mac / windows
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
             brew install ta-lib
           fi
-          if ([ "$RUNNER_OS" = "Linux" && "$TALIB_LINUX_CACHE_HIT" != 'true' ]); then
+          if ([ "$RUNNER_OS" = "Windows" ]); then
+            curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
+          fi
+      - name: Install ta-lib Linux
+        if: steps.talib-cache.outputs.cache-hit != 'true'
+        run: |
             wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz
             cd ta-lib/
             ./configure --prefix=/usr
             make
             sudo make install
             cd
-          fi
-          if ([ "$RUNNER_OS" = "Windows" ]); then
-            curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
-          fi
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
