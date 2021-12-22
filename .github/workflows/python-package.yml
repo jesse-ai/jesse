@@ -48,7 +48,7 @@ jobs:
            ${{ runner.os }}-pip-new-
       - name: Cache talib
         if: ${{ runner.os == 'Linux' }}
-        uses: actions/cache@v2
+        uses: john-shaffer/cache@sudo-tar
         id: talib-cache
         with:
           path: |
