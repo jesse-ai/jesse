@@ -57,7 +57,8 @@ jobs:
            /usr/lib/libta_lib.so
            /usr/lib/libta_lib.so.0
            /usr/lib/libta_lib.so.0.0.0
-          key: ta-lib-cache-0.4.0
+           /usr/include/ta-lib
+          key: talib-cache-v0.4.0
       - name: Install ta-lib mac / windows
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
