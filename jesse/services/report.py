@@ -58,9 +58,9 @@ def candles() -> dict:
     # add extra_routes
     for e in router.extra_candles:
         candle_keys.append({
-            'exchange': e[0],
-            'symbol': e[1],
-            'timeframe': e[2]
+            'exchange': e['exchange'],
+            'symbol': e['symbol'],
+            'timeframe': e['timeframe']
         })
 
     for k in candle_keys:
