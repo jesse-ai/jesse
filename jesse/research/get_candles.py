@@ -13,14 +13,19 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     
     :return: np.ndarray
     """
-    symbol = symbol.upper()
-
     import arrow
-
     import jesse.helpers as jh
     from jesse.models import Candle
     from jesse.exceptions import CandleNotFoundInDatabase
     from jesse.services.candle import generate_candle_from_one_minutes
+
+    # check if .env file exists
+    if not jh.is_jesse_project():
+        raise FileNotFoundError(
+            'Invalid directory: ".env" file not found. To use Jesse inside notebooks, create notebooks inside the root of a Jesse project.'
+        )
+
+    symbol = symbol.upper()
 
     start_date = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
     finish_date = jh.arrow_to_timestamp(arrow.get(finish_date, 'YYYY-MM-DD')) - 60000
@@ -46,7 +51,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
 
     # validate that there are enough candles for selected period
     if len(candles) == 0 or candles[-1][0] != finish_date or candles[0][0] != start_date:
-        raise CandleNotFoundInDatabase(f'Not enough candles for {symbol}. Try running "jesse import-candles"')
+        raise CandleNotFoundInDatabase(f'Not enough candles for {symbol}. Try importing candles first.')
 
     if timeframe == '1m':
         return candles
