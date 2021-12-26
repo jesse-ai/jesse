@@ -892,3 +892,20 @@ def cpu_cores_count():
 # a function that converts name to env_name. Example: 'Testnet Binance Futures' into 'TESTNET_BINANCE_FUTURES'
 def convert_to_env_name(name: str) -> str:
     return name.replace(' ', '_').upper()
+
+
+def is_notebook():
+    try:
+        shell = get_ipython().__class__.__name__
+        # Jupyter notebook or qtconsole
+        if shell == 'ZMQInteractiveShell':
+            return True
+        elif shell == 'TerminalInteractiveShell':
+            # Terminal running IPython
+            return False
+        else:
+            # Other type (?)
+            return False
+    except NameError:
+        # Probably standard Python interpreter
+        return False
