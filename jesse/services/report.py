@@ -22,6 +22,8 @@ def positions() -> list:
     arr = []
 
     for r in router.routes:
+        if r.strategy is None:
+            continue
         p: Position = r.strategy.position
         arr.append({
             'type': p.type,
