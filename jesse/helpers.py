@@ -909,3 +909,15 @@ def is_notebook():
     except NameError:
         # Probably standard Python interpreter
         return False
+
+
+def get_os() -> str:
+    import platform
+    if platform.system() == 'Darwin':
+        return 'mac'
+    elif platform.system() == 'Linux':
+        return 'linux'
+    elif platform.system() == 'Windows':
+        return 'windows'
+    else:
+        raise NotImplementedError(f'Unsupported OS: "{platform.system()}"')
