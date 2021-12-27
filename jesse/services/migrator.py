@@ -14,12 +14,9 @@ def run():
 
     database.open_connection()
 
-    # create initial tables
-    from jesse.models import Candle, CompletedTrade, Log, Order, Option
-    database.db.create_tables([Candle, CompletedTrade, Log, Order])
-
+    # create migrator
     migrator = PostgresqlMigrator(database.db)
-
+    # run migrations
     _candle(migrator)
     _completed_trade(migrator)
     _daily_balance(migrator)
@@ -29,39 +26,43 @@ def run():
     _ticker(migrator)
     _trade(migrator)
 
+    # create initial tables
+    from jesse.models import Candle, CompletedTrade, Log, Order, Option
+    database.db.create_tables([Candle, CompletedTrade, Log, Order])
+
     database.close_connection()
 
 
 def _candle(migrator):
     fields = []
 
-    candle_columns = database.db.get_columns('candle')
-
-    _migrate(migrator, fields, candle_columns, 'candle')
+    if 'candle' in database.db.get_tables():
+        candle_columns = database.db.get_columns('candle')
+        _migrate(migrator, fields, candle_columns, 'candle')
 
 
 def _completed_trade(migrator):
     fields = []
 
-    completedtrade_columns = database.db.get_columns('completedtrade')
-
-    _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
+    if 'completedtrade' in database.db.get_tables():
+        completedtrade_columns = database.db.get_columns('completedtrade')
+        _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
 
 
 def _daily_balance(migrator):
     fields = []
 
-    dailybalance_columns = database.db.get_columns('dailybalance')
-
-    _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
+    if 'dailybalance' in database.db.get_tables():
+        dailybalance_columns = database.db.get_columns('dailybalance')
+        _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
 
 
 def _log(migrator):
     fields = []
 
-    log_columns = database.db.get_columns('log')
-
-    _migrate(migrator, fields, log_columns, 'log')
+    if 'log' in database.db.get_tables():
+        log_columns = database.db.get_columns('log')
+        _migrate(migrator, fields, log_columns, 'log')
 
 
 def _order(migrator):
@@ -72,33 +73,33 @@ def _order(migrator):
         {'name': 'price', 'type': FloatField(null=True), 'action': 'allow_null'},
     ]
 
-    order_columns = database.db.get_columns('order')
-
-    _migrate(migrator, fields, order_columns, 'order')
+    if 'order' in database.db.get_tables():
+        order_columns = database.db.get_columns('order')
+        _migrate(migrator, fields, order_columns, 'order')
 
 
 def _orderbook(migrator):
     fields = []
 
-    orderbook_columns = database.db.get_columns('orderbook')
-
-    _migrate(migrator, fields, orderbook_columns, 'orderbook')
+    if 'orderbook' in database.db.get_tables():
+        orderbook_columns = database.db.get_columns('orderbook')
+        _migrate(migrator, fields, orderbook_columns, 'orderbook')
 
 
 def _ticker(migrator):
     fields = []
 
-    ticker_columns = database.db.get_columns('ticker')
-
-    _migrate(migrator, fields, ticker_columns, 'ticker')
+    if 'ticker' in database.db.get_tables():
+        ticker_columns = database.db.get_columns('ticker')
+        _migrate(migrator, fields, ticker_columns, 'ticker')
 
 
 def _trade(migrator):
     fields = []
 
-    trade_columns = database.db.get_columns('trade')
-
-    _migrate(migrator, fields, trade_columns, 'trade')
+    if 'trade' in database.db.get_tables():
+        trade_columns = database.db.get_columns('trade')
+        _migrate(migrator, fields, trade_columns, 'trade')
 
 
 def _migrate(migrator, fields, columns, table):
