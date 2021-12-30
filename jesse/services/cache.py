@@ -19,7 +19,11 @@ class Cache:
             # if cache_database exists, load the dictionary
             if os.path.isfile(f"{self.path}cache_database.pickle"):
                 with open(f"{self.path}cache_database.pickle", 'rb') as f:
-                    self.db = pickle.load(f)
+                    try:
+                        self.db = pickle.load(f)
+                    except EOFError:
+                        # File got broken
+                        self.db = {}
             # if not, create a dict object. We'll create the file when using set_value()
             else:
                 self.db = {}
