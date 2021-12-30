@@ -808,6 +808,50 @@ def test_default_hyperparameters():
     single_route_backtest('TestDefaultHyperparameters')
 
 
+def test_positions():
+    set_up()
+
+    routes = [
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': 'TestPositions'},
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'TestPositions'},
+    ]
+
+    candles = {}
+    for r in routes:
+        key = jh.key(r['exchange'], r['symbol'])
+        candles[key] = {
+            'exchange': r['exchange'],
+            'symbol': r['symbol'],
+            'candles': fake_range_candle((5 * 3) * 20)
+        }
+    # run backtest (dates are fake just to pass)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+
+    # assertions done in the TestPositions
+
+
+def test_portfolio_value():
+    set_up()
+
+    routes = [
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': 'TestPortfolioValue'},
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'TestPortfolioValue'},
+    ]
+
+    candles = {}
+    for r in routes:
+        key = jh.key(r['exchange'], r['symbol'])
+        candles[key] = {
+            'exchange': r['exchange'],
+            'symbol': r['symbol'],
+            'candles': fake_range_candle((5 * 3) * 20)
+        }
+    # run backtest (dates are fake just to pass)
+    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+
+    # assertions done in the TestPortfolioValue
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(

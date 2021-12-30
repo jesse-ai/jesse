@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 import pydash
@@ -1203,3 +1203,17 @@ class Strategy(ABC):
                 notifier.notify_urgently(msg)
         else:
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
+    
+    @property
+    def positions(self) -> Dict[str, Position]:
+        positions_dict = {}
+        for r in self.routes:
+            positions_dict[r.symbol] = r.strategy.position
+        return positions_dict
+
+    @property
+    def portfolio_value(self) -> float:
+        total_position_values = 0
+        for key, p in self.positions.items():
+            total_position_values += p.pnl
+        return (total_position_values + self.capital) * self.leverage
