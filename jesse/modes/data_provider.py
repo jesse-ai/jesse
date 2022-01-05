@@ -70,6 +70,7 @@ def get_general_info(has_live=False) -> dict:
     system_info['python_version'] = '{}.{}'.format(*jh.python_version())
     system_info['operating_system'] = jh.get_os()
     system_info['cpu_cores'] = jh.cpu_cores_count()
+    system_info['is_docker'] = jh.is_docker()
 
     return {
         'exchanges': exchanges,

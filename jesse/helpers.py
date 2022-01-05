@@ -921,3 +921,9 @@ def get_os() -> str:
         return 'windows'
     else:
         raise NotImplementedError(f'Unsupported OS: "{platform.system()}"')
+
+
+# a function that returns boolean whether or not the code is being executed inside a docker container
+def is_docker() -> bool:
+    import os
+    return os.path.exists('/.dockerenv')
