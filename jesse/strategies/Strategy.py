@@ -209,6 +209,46 @@ class Strategy(ABC):
             if submitted_order:
                 self._open_position_orders.append(submitted_order)
 
+    def _execute_short(self) -> None:
+        self.go_short()
+
+        # validation
+        if self.sell is None:
+            raise exceptions.InvalidStrategy('You forgot to set self.sell. example [qty, price]')
+        elif type(self.sell) not in [tuple, list]:
+            raise exceptions.InvalidStrategy('self.sell must be either a list or a tuple. example: [qty, price]')
+
+        self._prepare_sell()
+
+        if self.take_profit is not None:
+            self._validate_take_profit()
+            self._prepare_take_profit()
+
+        if self.stop_loss is not None:
+            self._validate_stop_loss()
+            self._prepare_stop_loss()
+
+        # filters
+        passed = self._execute_filters()
+        if not passed:
+            return
+
+        for o in self._sell:
+            # MARKET order
+            if abs(o[1] - self.price) < 0.0001:
+                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+            # STOP order
+            elif o[1] < self.price:
+                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
+            # LIMIT order
+            elif o[1] > self.price:
+                submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
+            else:
+                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
+
+            if submitted_order:
+                self._open_position_orders.append(submitted_order)
+
     def _prepare_buy(self, make_copies: bool = True) -> None:
         if type(self.buy) is np.ndarray:
             return
@@ -302,46 +342,6 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy('You forgot to set self.take_profit. example [qty, price]')
         elif type(self.take_profit) not in [tuple, list, np.ndarray]:
             raise exceptions.InvalidStrategy('self.take_profit must be either a list or a tuple. example: [qty, price]')
-
-    def _execute_short(self) -> None:
-        self.go_short()
-
-        # validation
-        if self.sell is None:
-            raise exceptions.InvalidStrategy('You forgot to set self.sell. example [qty, price]')
-        elif type(self.sell) not in [tuple, list]:
-            raise exceptions.InvalidStrategy('self.sell must be either a list or a tuple. example: [qty, price]')
-
-        self._prepare_sell()
-
-        if self.take_profit is not None:
-            self._validate_take_profit()
-            self._prepare_take_profit()
-
-        if self.stop_loss is not None:
-            self._validate_stop_loss()
-            self._prepare_stop_loss()
-
-        # filters
-        passed = self._execute_filters()
-        if not passed:
-            return
-
-        for o in self._sell:
-            # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
-                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
-            # STOP order
-            elif o[1] < self.price:
-                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
-            # LIMIT order
-            elif o[1] > self.price:
-                submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
-            else:
-                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
-
-            for o in self._open_position_orders:
-                self._open_position_orders.append(submitted_order)
 
     def _execute_filters(self) -> bool:
         for f in self.filters():
@@ -699,7 +699,6 @@ class Strategy(ABC):
                     submitted_order.submitted_via = 'stop-loss'
                     self._close_position_orders.append(submitted_order)
 
-        self._open_position_orders = []
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -728,8 +727,6 @@ class Strategy(ABC):
     def _on_increased_position(self, order: Order) -> None:
         self.increased_count += 1
 
-        self._open_position_orders = []
-
         self._broadcast('route-increased-position')
 
         self.on_increased_position(order)
@@ -749,8 +746,6 @@ class Strategy(ABC):
         prepares for on_reduced_position() is implemented by user
         """
         self.reduced_count += 1
-
-        self._open_position_orders = []
 
         self._broadcast('route-reduced-position')
 

@@ -852,6 +852,14 @@ def test_portfolio_value():
     # assertions done in the TestPortfolioValue
 
 
+def test_multiple_entry_orders_update_entry_long():
+    single_route_backtest('TestMultipleEntryOrdersUpdateEntryLongPositions')
+
+
+def test_multiple_entry_orders_update_entry_short():
+    single_route_backtest('TestMultipleEntryOrdersUpdateEntryShortPositions')
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(
