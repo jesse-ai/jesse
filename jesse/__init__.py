@@ -105,7 +105,13 @@ def report_exception(json_request: ReportExceptionRequestJson, authorization: Op
 
     from jesse.services import jesse_trade
     return jesse_trade.report_exception(
-        json_request.description, json_request.traceback, json_request.mode, json_request.attach_logs, json_request.session_id, json_request.email
+        json_request.description,
+        json_request.traceback,
+        json_request.mode,
+        json_request.attach_logs,
+        json_request.session_id,
+        json_request.email,
+        has_live=HAS_LIVE_TRADE_PLUGIN
     )
 
 

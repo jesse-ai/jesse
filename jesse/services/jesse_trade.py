@@ -2,6 +2,7 @@ import requests
 from fastapi.responses import JSONResponse
 from jesse.services.auth import get_access_token
 import jesse.helpers as jh
+import json
 
 
 def feedback(description: str, email: str = None) -> JSONResponse:
@@ -25,7 +26,7 @@ def feedback(description: str, email: str = None) -> JSONResponse:
 
 
 def report_exception(
-        description: str, traceback: str, mode: str, attach_logs: bool, session_id: str, email: str = None
+        description: str, traceback: str, mode: str, attach_logs: bool, session_id: str, email: str = None, has_live: bool = False
 ) -> JSONResponse:
     access_token = get_access_token()
 
@@ -45,11 +46,23 @@ def report_exception(
             files['exchange_log'] = open(path_exchange_log, 'rb')
     else:
         files = None
+    r
+    from jesse.version import __version__ as jesse_version
+    info = {
+        'os': jh.get_os(),
+        'python_version': '{}.{}'.format(*jh.python_version()),
+        'is_docker': jh.is_docker(),
+        'jesse_version': jesse_version
+    }
+    if has_live:
+        from jesse_live.version import __version__ as live_plugin_version
+        info['live_plugin_version'] = live_plugin_version
 
     params = {
         'description': description,
         'traceback': traceback,
-        'email': email
+        'email': email,
+        'info': json.dumps(info)
     }
     res = requests.post(
         'https://jesse.trade/api/exception',
