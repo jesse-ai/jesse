@@ -45,7 +45,7 @@ jobs:
           path: ${{ matrix.path }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-           ${{ runner.os }}-pip-new-
+           ${{ runner.os }}-pip-
       - name: Cache talib
         if: ${{ runner.os == 'Linux' }}
         uses: john-shaffer/cache@sudo-tar
