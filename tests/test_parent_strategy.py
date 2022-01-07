@@ -860,6 +860,18 @@ def test_multiple_entry_orders_update_entry_short():
     single_route_backtest('TestMultipleEntryOrdersUpdateEntryShortPositions')
 
 
+def test_can_cancel_entry_orders_after_open_position():
+    # long position - setting to []
+    single_route_backtest('TestCanCancelEntryOrdersAfterOpenPositionLong1')
+    # long position - setting to None
+    single_route_backtest('TestCanCancelEntryOrdersAfterOpenPositionLong2')
+
+    # short position - setting to []
+    single_route_backtest('TestCanCancelEntryOrdersAfterOpenPositionShort1')
+    # short position - setting to None
+    single_route_backtest('TestCanCancelEntryOrdersAfterOpenPositionShort2')
+
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(

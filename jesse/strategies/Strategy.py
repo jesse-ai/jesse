@@ -253,6 +253,11 @@ class Strategy(ABC):
         if type(self.buy) is np.ndarray:
             return
 
+        if self.buy is None or self.buy == []:
+            # just to make sure we also support None
+            self.buy = []
+            return
+
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
         if type(self.buy[0]) not in [list, tuple]:
@@ -264,6 +269,11 @@ class Strategy(ABC):
 
     def _prepare_sell(self, make_copies: bool = True) -> None:
         if type(self.sell) is np.ndarray:
+            return
+
+        if self.sell is None or self.sell == []:
+            # just to make sure we also support None
+            self.sell = []
             return
 
         # create a copy in the placeholders variables so we can detect future modifications
