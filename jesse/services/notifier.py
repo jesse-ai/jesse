@@ -46,7 +46,7 @@ def _telegram_errors_bot(msg: str) -> None:
 
 
 def _discord(msg: str) -> None:
-    webhook_address = jh.get_config('env.notifications.general_notifier.discord_webhook', '')
+    webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
 
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
@@ -55,7 +55,7 @@ def _discord(msg: str) -> None:
 
 
 def _discord_errors(msg: str) -> None:
-    webhook_address = jh.get_config('env.notifications.error_notifier.discord_webhook', '')
+    webhook_address = ENV_VALUES['ERROR_DISCORD_WEBHOOK']
 
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
