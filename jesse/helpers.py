@@ -101,6 +101,21 @@ def dashless_symbol(symbol: str) -> str:
     return symbol.replace("-", "")
 
 
+def dashy_symbol(symbol: str) -> str:
+    # if already has '-' in symbol, return symbol
+    if '-' in symbol:
+        return symbol
+
+    from jesse.config import config
+
+    for s in config['app']['considering_symbols']:
+        compare_symbol = dashless_symbol(s)
+        if compare_symbol == symbol:
+            return s
+
+    return f"{symbol[0:3]}-{symbol[3:]}"
+
+
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
@@ -636,6 +651,9 @@ def should_execute_silently() -> bool:
 
 def side_to_type(s: str) -> str:
     from jesse.enums import trade_types, sides
+
+    # make sure string is lowercase
+    s = s.lower()
 
     if s == sides.BUY:
         return trade_types.LONG

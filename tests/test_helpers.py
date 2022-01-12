@@ -83,6 +83,12 @@ def test_dashless_symbol():
     assert jh.dashless_symbol('BTCUSDT') == 'BTCUSDT'
 
 
+def test_dashy_symbol():
+    assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
+    assert jh.dashy_symbol('BTCUSDT') == 'BTC-USDT'
+    assert jh.dashy_symbol('BTC-USDT') == 'BTC-USDT'
+
+
 def test_date_diff_in_days():
     date_1 = arrow.get('2015-12-23 18:40:48', 'YYYY-MM-DD HH:mm:ss')
     date_2 = arrow.get('2017-11-15 13:18:20', 'YYYY-MM-DD HH:mm:ss')
@@ -464,6 +470,10 @@ def test_should_execute_silently():
 def test_side_to_type():
     assert jh.side_to_type("buy") == "long"
     assert jh.side_to_type("sell") == "short"
+
+    # make sure title case works as well
+    assert jh.side_to_type("Buy") == "long"
+    assert jh.side_to_type("Sell") == "short"
 
 
 def test_string_after_character():
