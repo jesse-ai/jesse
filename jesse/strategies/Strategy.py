@@ -663,48 +663,42 @@ class Strategy(ABC):
 
         if self.take_profit is not None:
             for o in self._take_profit:
-                # validation: make sure take-profit will exit with profit
-                if self.is_long:
-                    if o[1] <= self.position.entry_price:
-                        raise exceptions.InvalidStrategy(
-                            f'take-profit({o[1]}) must be above entry-price({self.position.entry_price}) in a long position'
-                        )
-                elif self.is_short:
-                    if o[1] >= self.position.entry_price:
-                        raise exceptions.InvalidStrategy(
-                            f'take-profit({o[1]}) must be below entry-price({self.position.entry_price}) in a short position'
-                        )
+                # validation: make sure take-profit will exit with profit, if not, close the position
+                if self.is_long and o[1] <= self.position.entry_price:
+                    submitted_order: Order = self.broker.sell_at_market(o[0], order_roles.CLOSE_POSITION)
+                    logger.info(
+                        'The take-profit is below entry-price for long position, so it will be replaced with a market order instead')
+                elif self.is_short and o[1] >= self.position.entry_price:
+                    submitted_order: Order = self.broker.buy_at_market(o[0], order_roles.CLOSE_POSITION)
+                    logger.info(
+                        'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
+                else:
+                    submitted_order: Order = self.broker.reduce_position_at(
+                        o[0],
+                        o[1],
+                        order_roles.CLOSE_POSITION
+                    )
 
-                # submit take-profit
-                submitted_order: Order = self.broker.reduce_position_at(
-                    o[0],
-                    o[1],
-                    order_roles.CLOSE_POSITION
-                )
                 if submitted_order:
                     submitted_order.submitted_via = 'take-profit'
                     self._exit_orders.append(submitted_order)
 
         if self.stop_loss is not None:
             for o in self._stop_loss:
-                # validation
-                if self.is_long:
-                    if o[1] >= self.position.entry_price:
-                        raise exceptions.InvalidStrategy(
-                            f'stop-loss({o[1]}) must be below entry-price({self.position.entry_price}) in a long position'
-                        )
-                elif self.is_short:
-                    if o[1] <= self.position.entry_price:
-                        raise exceptions.InvalidStrategy(
-                            f'stop-loss({o[1]}) must be above entry-price({self.position.entry_price}) in a short position'
-                        )
+                # validation: make sure stop-loss will exit with profit, if not, close the position
+                if self.is_long and o[1] >= self.position.entry_price:
+                    submitted_order: Order = self.broker.sell_at_market(o[0], order_roles.CLOSE_POSITION)
+                    logger.info('The stop-loss is above entry-price for long position, so it will be replaced with a market order instead')
+                elif self.is_short and o[1] <= self.position.entry_price:
+                    submitted_order: Order = self.broker.buy_at_market(o[0], order_roles.CLOSE_POSITION)
+                    logger.info('The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
+                else:
+                    submitted_order: Order = self.broker.reduce_position_at(
+                        o[0],
+                        o[1],
+                        order_roles.CLOSE_POSITION
+                    )
 
-                # submit stop-loss
-                submitted_order: Order = self.broker.reduce_position_at(
-                    o[0],
-                    o[1],
-                    order_roles.CLOSE_POSITION
-                )
                 if submitted_order:
                     submitted_order.submitted_via = 'stop-loss'
                     self._exit_orders.append(submitted_order)

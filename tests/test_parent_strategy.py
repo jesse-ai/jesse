@@ -872,6 +872,19 @@ def test_can_cancel_entry_orders_after_open_position():
     single_route_backtest('TestCanCancelEntryOrdersAfterOpenPositionShort2')
 
 
+def test_stop_loss_price_is_replaced_with_market_order():
+    # long position
+    single_route_backtest('TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceLongPosition')
+    # short position
+    single_route_backtest('TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceShortPosition')
+
+
+def test_take_profit_price_is_replaced_with_market_order():
+    # long position
+    single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPosition')
+    # # short position
+    single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientShortPosition')
+
 # TODO: implement liquidation in backtest mode for cross mode
 # def test_liquidation_in_cross_mode_for_short_trades():
 #     single_route_backtest(
