@@ -104,6 +104,10 @@ def error(msg: str) -> None:
 
 
 def log_exchange_message(exchange, message):
+    # if the type of message is not str, convert it to str
+    if not isinstance(message, str):
+        message = str(message)
+
     formatted_time = jh.timestamp_to_time(jh.now())[:19]
     message = f'[{formatted_time} - {exchange}]: ' + message
 
