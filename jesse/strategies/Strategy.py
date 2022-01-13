@@ -546,8 +546,8 @@ class Strategy(ABC):
                             o[1],
                             order_roles.CLOSE_POSITION
                         )
-                        submitted_order.submitted_via = 'take-profit'
                         if submitted_order:
+                            submitted_order.submitted_via = 'take-profit'
                             self._exit_orders.append(submitted_order)
 
             if self.position.is_open and self.stop_loss is not None:
@@ -571,8 +571,8 @@ class Strategy(ABC):
                             o[1],
                             order_roles.CLOSE_POSITION
                         )
-                        submitted_order.submitted_via = 'stop-loss'
                         if submitted_order:
+                            submitted_order.submitted_via = 'stop-loss'
                             self._exit_orders.append(submitted_order)
         except TypeError:
             raise exceptions.InvalidStrategy(
