@@ -8,7 +8,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_roles, order_types
-from jesse.factories import fake_range_candle, fake_range_candle_from_range_prices
+from jesse.factories import range_candles, candles_from_close_prices
 from jesse.models import CompletedTrade
 from jesse.models import Order
 from jesse.modes import backtest_mode
@@ -73,7 +73,7 @@ def test_can_perform_backtest_with_multiple_routes():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
@@ -274,7 +274,7 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_1, 'strategy': 'Test14'}
     ]
 
-    generated_candles = fake_range_candle_from_range_prices(
+    generated_candles = candles_from_close_prices(
         list(range(1, 10)) + list(range(10, 1, -1))
     )
 
@@ -335,7 +335,7 @@ def test_multiple_routes_can_communicate_with_each_other():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
@@ -541,7 +541,7 @@ def test_should_buy_and_execute_buy():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
@@ -587,7 +587,7 @@ def test_should_sell_and_execute_sell():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
@@ -683,13 +683,6 @@ def test_terminate_closes_trades_at_the_end_of_backtest():
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97
 
-    # TODO
-    # assert {
-    #            'id': 2,
-    #            'time': 1552315246171.0,
-    #            'message': 'Closed open Sandbox-BTC-USDT position at 99.0 with PNL: 97.0(4850.0%) because we reached the end of the backtest session.'
-    #        } in store.logs.info
-    #
 
 def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     set_up()
@@ -822,7 +815,7 @@ def test_positions():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
     # run backtest (dates are fake just to pass)
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
@@ -844,7 +837,7 @@ def test_portfolio_value():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle((5 * 3) * 20)
+            'candles': range_candles((5 * 3) * 20)
         }
     # run backtest (dates are fake just to pass)
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
@@ -884,38 +877,3 @@ def test_take_profit_price_is_replaced_with_market_order():
     single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPosition')
     # # short position
     single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientShortPosition')
-
-# TODO: implement liquidation in backtest mode for cross mode
-# def test_liquidation_in_cross_mode_for_short_trades():
-#     single_route_backtest(
-#         'TestLiquidationInCrossModeForShortTrade', is_futures_trading=True, leverage=10,
-#         leverage_mode='cross'
-#     )
-
-# def test_route_capital_isolation():
-#     set_up(
-#         [
-#             (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation1'),
-#             (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_1, 'TestRouteCapitalIsolation2'),
-#         ],
-#     )
-#
-#     # run backtest (dates are fake just to pass)
-#     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_and_eth_candles())
-
-
-# def test_inputs_get_rounded_behind_the_scene():
-#     set_up([(exchanges.SANDBOX, 'EOS-USDT', timeframes.MINUTE_1, 'Test44')])
-#     candles = {}
-#     candles[jh.key(exchanges.SANDBOX, 'EOS-USDT')] = {
-#         'exchange': exchanges.SANDBOX,
-#         'symbol': 'EOS-USDT',
-#         'candles': fake_range_candle_from_range_prices(range(1, 100))
-#     }
-#     backtest_mode.run('2019-04-01', '2019-04-02', candles)
-#
-#     t: CompletedTrade = store.completed_trades.trades[0]
-#
-#     assert len(store.completed_trades.trades) == 1
-#     assert t.qty == 1.5
-#     assert t.entry_price == 5.123

@@ -1,4 +1,4 @@
-from jesse.factories import fake_range_candle
+from jesse.factories import range_candles
 from jesse.services.candle import *
 
 
@@ -14,7 +14,7 @@ def test_candle_includes_price():
 
 
 def test_generate_candle_from_one_minutes():
-    candles = fake_range_candle(5)
+    candles = range_candles(5)
 
     five_minutes_candle = generate_candle_from_one_minutes('5m', candles)
 

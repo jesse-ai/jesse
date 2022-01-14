@@ -1,7 +1,7 @@
 import numpy as np
 
 import jesse.indicators as ta
-from jesse.factories import fake_range_candle_from_range_prices
+from jesse.factories import candles_from_close_prices
 from .data.test_candles_indicators import *
 
 matypes = 39
@@ -549,7 +549,7 @@ def test_ema():
         118.73, 110.74409879, 111.72, 124.04, 118.52, 113.64, 119.65, 117.11129288, 109.23, 110.77, 102.65,
         91.99
     ]
-    candles = fake_range_candle_from_range_prices(close_prices)
+    candles = candles_from_close_prices(close_prices)
 
     single = ta.ema(candles, 8)
     seq = ta.ema(candles, 8, sequential=True)
@@ -1762,7 +1762,7 @@ def test_skew():
 
 def test_sma():
     close_prices = [22.27, 22.19, 22.08, 22.17, 22.18, 22.13, 22.23, 22.43, 22.24, 22.29]
-    candles = fake_range_candle_from_range_prices(close_prices)
+    candles = candles_from_close_prices(close_prices)
 
     single = ta.sma(candles, 10)
     seq = ta.sma(candles, 10, sequential=True)

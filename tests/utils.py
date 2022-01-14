@@ -1,10 +1,8 @@
 import jesse.helpers as jh
 from jesse.config import reset_config
-from jesse.enums import exchanges, timeframes
-from jesse.factories import fake_range_candle_from_range_prices
+from jesse.enums import exchanges
+from jesse.factories import candles_from_close_prices
 from jesse.modes import backtest_mode
-from jesse.routes import router
-from jesse.store import store
 from jesse.config import config
 
 
@@ -13,14 +11,14 @@ def get_btc_and_eth_candles():
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': fake_range_candle_from_range_prices(range(101, 200)),
+            'candles': candles_from_close_prices(range(101, 200)),
         }
     }
 
     candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
         'exchange': exchanges.SANDBOX,
         'symbol': 'ETH-USDT',
-        'candles': fake_range_candle_from_range_prices(range(1, 100))
+        'candles': candles_from_close_prices(range(1, 100))
     }
     return candles
 
@@ -30,7 +28,7 @@ def get_btc_candles():
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': fake_range_candle_from_range_prices(range(1, 100)),
+            'candles': candles_from_close_prices(range(1, 100)),
         }
     }
 
@@ -40,7 +38,7 @@ def get_downtrend_candles():
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': fake_range_candle_from_range_prices(range(100, 10, -1)),
+            'candles': candles_from_close_prices(range(100, 10, -1)),
         }
     }
 

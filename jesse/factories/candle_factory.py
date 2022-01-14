@@ -14,7 +14,10 @@ min_price = min(open_price, close_price)
 low_price = min_price if randint(0, 1) else randint(min_price, min_price + 10)
 
 
-def fake_range_candle(count: int) -> np.ndarray:
+def range_candles(count: int) -> np.ndarray:
+    """
+    Generates a range of candles with random values.
+    """
     fake_candle(reset=True)
     arr = np.zeros((count, 6))
     for i in range(count):
@@ -22,7 +25,11 @@ def fake_range_candle(count: int) -> np.ndarray:
     return arr
 
 
-def fake_range_candle_from_range_prices(prices: Union[list, range]) -> np.ndarray:
+def candles_from_close_prices(prices: Union[list, range]) -> np.ndarray:
+    """
+    Generates a range of candles from a list of close prices.
+    The first candle has the timestamp of "2021-01-01T00:00:00+00:00"
+    """
     fake_candle(reset=True)
     global first_timestamp
     arr = []

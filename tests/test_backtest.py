@@ -2,7 +2,7 @@ import jesse.helpers as jh
 import jesse.services.selectors as selectors
 from jesse.config import reset_config
 from jesse.enums import timeframes, exchanges
-from jesse.factories import fake_range_candle
+from jesse.factories import range_candles
 from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
@@ -21,7 +21,7 @@ def test_backtesting_one_route():
     candles[key] = {
         'exchange': exchanges.SANDBOX,
         'symbol': 'BTC-USDT',
-        'candles': fake_range_candle(5 * 20)
+        'candles': range_candles(5 * 20)
     }
 
     # run backtest (dates are fake just to pass)
@@ -78,7 +78,7 @@ def test_backtesting_three_routes():
         candles[key] = {
             'exchange': r['exchange'],
             'symbol': r['symbol'],
-            'candles': fake_range_candle(5 * 3 * 20)
+            'candles': range_candles(5 * 3 * 20)
         }
 
     # run backtest (dates are fake just to pass)

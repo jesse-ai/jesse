@@ -1,7 +1,7 @@
 import numpy as np
 
 from jesse.config import config, reset_config
-from jesse.factories import fake_candle, fake_range_candle
+from jesse.factories import fake_candle, range_candles
 from jesse.services.candle import generate_candle_from_one_minutes
 from jesse.store import store
 
@@ -26,7 +26,7 @@ def test_batch_add_candles():
     assert len(store.candles.get_candles('Sandbox', 'BTC-USD', '1m')) == 0
 
     # create 100 candles
-    candles_to_add = fake_range_candle(100)
+    candles_to_add = range_candles(100)
     assert len(candles_to_add) == 100
 
     store.candles.batch_add_candle(candles_to_add, 'Sandbox', 'BTC-USD', '1m')
@@ -72,7 +72,7 @@ def test_can_update_candle():
 def test_get_candles_including_forming():
     set_up()
 
-    candles_to_add = fake_range_candle(14)
+    candles_to_add = range_candles(14)
     store.candles.batch_add_candle(candles_to_add, 'Sandbox', 'BTC-USD', '1m')
     store.candles.add_candle(
         generate_candle_from_one_minutes(
@@ -113,7 +113,7 @@ def test_get_candles_including_forming():
 def test_get_forming_candle():
     set_up()
 
-    candles_to_add = fake_range_candle(13)
+    candles_to_add = range_candles(13)
     store.candles.batch_add_candle(candles_to_add[0:4], 'Sandbox', 'BTC-USD', '1m')
     forming_candle = store.candles.get_current_candle('Sandbox', 'BTC-USD', '5m')
     assert forming_candle[0] == candles_to_add[0][0]
