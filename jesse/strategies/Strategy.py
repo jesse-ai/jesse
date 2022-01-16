@@ -1204,7 +1204,7 @@ class Strategy(ABC):
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
     
     @property
-    def positions(self) -> Dict[str, Position]:
+    def all_positions(self) -> Dict[str, Position]:
         positions_dict = {}
         for r in self.routes:
             positions_dict[r.symbol] = r.strategy.position
@@ -1213,6 +1213,6 @@ class Strategy(ABC):
     @property
     def portfolio_value(self) -> float:
         total_position_values = 0
-        for key, p in self.positions.items():
+        for key, p in self.all_positions.items():
             total_position_values += p.pnl
         return (total_position_values + self.capital) * self.leverage

@@ -4,7 +4,7 @@ from jesse.strategies import Strategy
 class TestPositions(Strategy):
     def before(self):
         if self.index == 0:
-            assert self.positions[self.symbol] == self.position
+            assert self.all_positions[self.symbol] == self.position
 
     def should_long(self) -> bool:
         return False
