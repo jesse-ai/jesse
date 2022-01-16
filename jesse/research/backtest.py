@@ -11,7 +11,7 @@ def backtest(
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
-    such as  our own optimization mode. Because of its isolation design, it can be used
+    such as our own optimization mode. Because of it being a pure function, it can be used
     in Python's multiprocessing without worrying about pickling issues.
 
     Example `config`:
