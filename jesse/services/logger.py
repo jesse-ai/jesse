@@ -74,6 +74,9 @@ def error(msg: str) -> None:
     if jh.app_mode() not in LOGGERS:
         _init_main_logger()
 
+    # error logs should be logged as info logs as well
+    info(msg)
+
     msg = str(msg)
     from jesse.store import store
 
