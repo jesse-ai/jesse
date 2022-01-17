@@ -208,6 +208,23 @@ class Position:
         else:
             return np.nan
 
+    @property
+    def to_dict(self):
+        return {
+            'entry_price': self.entry_price,
+            'qty': self.qty,
+            'current_price': self.current_price,
+            'value': self.value,
+            'type': self.type,
+            'exchange': self.exchange_name,
+            'pnl': self.pnl,
+            'pnl_percentage': self.pnl_percentage,
+            'leverage': self.leverage,
+            'liquidation_price': self.liquidation_price,
+            'bankruptcy_price': self.bankruptcy_price,
+            'mode': self.mode,
+        }
+
     def _close(self, close_price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is already closed.')
