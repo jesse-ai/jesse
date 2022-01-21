@@ -58,22 +58,26 @@ class RouterClass:
         self.routes = []
 
         for r in routes:
-            # validate strategy
-            strategy_name = r["strategy"]
-            if jh.is_unit_testing():
-                path = sys.path[0]
-                # live plugin
-                if path.endswith('jesse-live'):
-                    strategies_dir = f'{sys.path[0]}/tests/strategies'
-                # main framework
+            # validate strategy that the strategy file exists (if sent as a string)
+            if isinstance(r["strategy"], str):
+                strategy_name = r["strategy"]
+                if jh.is_unit_testing():
+                    path = sys.path[0]
+                    # live plugin
+                    if path.endswith('jesse-live'):
+                        strategies_dir = f'{sys.path[0]}/tests/strategies'
+                    # main framework
+                    else:
+                        strategies_dir = f'{sys.path[0]}/jesse/strategies'
+                    exists = jh.file_exists(f"{strategies_dir}/{strategy_name}/__init__.py")
                 else:
-                    strategies_dir = f'{sys.path[0]}/jesse/strategies'
-                exists = jh.file_exists(f"{strategies_dir}/{strategy_name}/__init__.py")
+                    exists = jh.file_exists(f'strategies/{strategy_name}/__init__.py')
             else:
-                exists = jh.file_exists(f'strategies/{strategy_name}/__init__.py')
-            if not exists:
+                exists = True
+
+            if not exists and isinstance(r["strategy"], str):
                 raise exceptions.InvalidRoutes(
-                    f'A strategy with the name of "{strategy_name}" could not be found.')
+                    f'A strategy with the name of "{r["strategy"]}" could not be found.')
 
             self.routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None))
 

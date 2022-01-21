@@ -227,11 +227,22 @@ def simulator(
     length = len(first_candles_set)
     # to preset the array size for performance
     store.app.starting_time = first_candles_set[0][0]
+    # try:
+    #     store.app.starting_time = first_candles_set[0][0]
+    # except IndexError:
+    #     jh.dump(candles)
+    #     jh.dump(first_candles_set)
+    #     raise exceptions.CandleNotFoundInDatabase
     store.app.time = first_candles_set[0][0]
 
     # initiate strategies
     for r in router.routes:
-        StrategyClass = jh.get_strategy_class(r.strategy_name)
+        # if the r.strategy is str read it from file
+        if isinstance(r.strategy_name, str):
+            StrategyClass = jh.get_strategy_class(r.strategy_name)
+        # else it is a class object so just use it
+        else:
+            StrategyClass = r.strategy_name
 
         try:
             r.strategy = StrategyClass()

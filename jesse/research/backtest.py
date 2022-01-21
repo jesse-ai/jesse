@@ -1,13 +1,12 @@
 from typing import List, Dict
+from jesse.services import charts
 
 
 def backtest(
         config: dict,
         routes: List[Dict[str, str]],
         extra_routes: List[Dict[str, str]],
-        candles: dict,
-        run_silently: bool = True,
-        hyperparameters: dict = None
+        candles: dict
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -40,6 +39,17 @@ def backtest(
         },
     }
     """
+    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters=None)
+
+
+def _isolated_backtest(
+        config: dict,
+        routes: List[Dict[str, str]],
+        extra_routes: List[Dict[str, str]],
+        candles: dict,
+        run_silently: bool = True,
+        hyperparameters: dict = None
+) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
     from jesse.config import config as jesse_config, reset_config
@@ -87,7 +97,18 @@ def backtest(
     # run backtest simulation
     simulator(trading_candles, run_silently, hyperparameters)
 
-    result = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+    result = {
+        'metrics': None,
+        'charts': None,
+        'logs': None,
+    }
+    if store.completed_trades.count > 0:
+        # add metrics
+        result['metrics'] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+        # add charts
+        result['charts'] = charts.portfolio_vs_asset_returns()
+        # add logs
+        result['logs'] = store.logs.info
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()

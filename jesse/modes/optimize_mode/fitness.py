@@ -4,7 +4,7 @@ of methods of a class. Below functions have been designed with that in mind.
 """
 from math import log10
 import jesse.helpers as jh
-from jesse.research import backtest as isolated_backtest
+from jesse.research.backtest import _isolated_backtest as isolated_backtest
 from jesse.services import logger
 import traceback
 import os
