@@ -226,13 +226,10 @@ def simulator(
     first_candles_set = candles[key]['candles']
     length = len(first_candles_set)
     # to preset the array size for performance
-    store.app.starting_time = first_candles_set[0][0]
-    # try:
-    #     store.app.starting_time = first_candles_set[0][0]
-    # except IndexError:
-    #     jh.dump(candles)
-    #     jh.dump(first_candles_set)
-    #     raise exceptions.CandleNotFoundInDatabase
+    try:
+        store.app.starting_time = first_candles_set[0][0]
+    except IndexError:
+        raise IndexError('Check your "warm_up_candles" config value')
     store.app.time = first_candles_set[0][0]
 
     # initiate strategies

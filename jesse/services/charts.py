@@ -25,6 +25,9 @@ def equity_curve() -> list:
 
 
 def portfolio_vs_asset_returns(study_name: str = None) -> str:
+    if jh.is_unit_testing():
+        return 'charts'
+
     register_matplotlib_converters()
     trades = store.completed_trades.trades
     # create a plot figure
