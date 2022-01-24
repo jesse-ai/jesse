@@ -41,7 +41,7 @@ def create_disposable_logger(name):
     LOGGERS[name] = new_logger
 
 
-def info(msg: str) -> None:
+def info(msg: str, send_notification=False) -> None:
     if jh.app_mode() not in LOGGERS:
         _init_main_logger()
 
@@ -68,6 +68,9 @@ def info(msg: str) -> None:
     if jh.is_live():
         from jesse.models.utils import store_log_into_db
         store_log_into_db(log_dict, 'info')
+
+    if send_notification:
+        notify(msg)
 
 
 def error(msg: str) -> None:
