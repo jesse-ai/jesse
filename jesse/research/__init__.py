@@ -1,3 +1,2 @@
-from .get_candles import get_candles
-from .store_candles import store_candles
+from .candles import get_candles, store_candles, fake_candle, fake_range_candles, candles_from_close_prices, candlestick_chart
 from .backtest import backtest

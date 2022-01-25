@@ -1,4 +1,7 @@
 import numpy as np
+from jesse import utils
+from jesse import factories
+from typing import Union
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, finish_date: str) -> np.ndarray:
@@ -70,3 +73,65 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
             )
 
     return np.array(generated_candles)
+
+
+def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
+    """
+    Stores candles in the database. The stored data can later be used for being fetched again via get_candles or even for running backtests on them.
+    A common use case for this function is for importing candles from a CSV file so you can later use them for backtesting.
+    """
+    from jesse.services.db import store_candles as store_candles_from_list
+    import jesse.helpers as jh
+
+    # check if .env file exists
+    if not jh.is_jesse_project():
+        raise FileNotFoundError(
+            'Invalid directory: ".env" file not found. To use Jesse inside notebooks, create notebooks inside the root of a Jesse project.'
+        )
+
+    # TODO: add validation for timeframe to make sure it's `1m`
+
+    arr = [{
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': exchange,
+            'timestamp': c[0],
+            'open': c[1],
+            'close': c[2],
+            'high': c[3],
+            'low': c[4],
+            'volume': c[5]
+        } for c in candles]
+
+    store_candles_from_list(arr)
+
+
+def candlestick_chart(candles: np.ndarray):
+    """
+    Displays a candlestick chart from the numpy array
+    """
+    import mplfinance as mpf
+    df = utils.numpy_candles_to_dataframe(candles)
+    mpf.plot(df, type='candle')
+
+
+def fake_candle(attributes: dict = None, reset: bool = False) -> np.ndarray:
+    """
+    Generates a fake candle.
+    """
+    return factories.fake_candle(attributes, reset)
+
+
+def fake_range_candles(count: int) -> np.ndarray:
+    """
+    Generates a range of candles with random values.
+    """
+    return factories.range_candles(count)
+
+
+def candles_from_close_prices(prices: Union[list, range]) -> np.ndarray:
+    """
+    Generates a range of candles from a list of close prices.
+    The first candle has the timestamp of "2021-01-01T00:00:00+00:00"
+    """
+    return factories.candles_from_close_prices(prices)
