@@ -298,15 +298,6 @@ def dd(msg: str) -> None:
     jh.terminate_app()
 
 
-def candlestick_chart(candles: np.ndarray):
-    """
-    Displays a candlestick chart from the numpy array
-    """
-    import mplfinance as mpf
-    df = numpy_candles_to_dataframe(candles)
-    mpf.plot(df, type='candle')
-
-
 def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
     """
     Creates an array containing all combinations of the passed arrays individual values without repetitions. Useful for the optimization mode.
