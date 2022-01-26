@@ -46,18 +46,21 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
            ${{ runner.os }}-pip-
-      - name: Cache talib
+      - name: Set up ta-lib dir
         if: ${{ runner.os == 'Linux' }}
-        uses: john-shaffer/cache@sudo-tar
+        run: |
+            mkdir -p $HOME/.local/ta-lib
+            echo "LD_LIBRARY_PATH=$HOME/.local/ta-lib/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+            echo "TA_INCLUDE_PATH=$HOME/.local/ta-lib/include" >> $GITHUB_ENV
+            echo "TA_LIBRARY_PATH=$HOME/.local/ta-lib/lib" >> $GITHUB_ENV
+      - name: Set up ta-lib cache
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/cache@v2
         id: talib-cache
         with:
           path: |
-           /usr/lib/libta_lib.a
-           /usr/lib/libta_lib.la
-           /usr/lib/libta_lib.so
-           /usr/lib/libta_lib.so.0
-           /usr/lib/libta_lib.so.0.0.0
-           /usr/include/ta-lib
+              ~/.local/ta-lib/lib
+              ~/.local/ta-lib/include
           key: talib-cache-v0.4.0
       - name: Install ta-lib mac / windows
         run: |
@@ -72,7 +75,7 @@ jobs:
         run: |
             wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz
             cd ta-lib/
-            ./configure --prefix=/usr
+            ./configure --prefix=$HOME/.local/ta-lib
             make
             sudo make install
             cd
