@@ -46,7 +46,7 @@ def report_exception(
             files['exchange_log'] = open(path_exchange_log, 'rb')
     else:
         files = None
-    r
+
     from jesse.version import __version__ as jesse_version
     info = {
         'os': jh.get_os(),
