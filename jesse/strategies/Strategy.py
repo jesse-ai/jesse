@@ -828,7 +828,7 @@ class Strategy(ABC):
         Jesse is never ending.
         """
         if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("Terminating strategy...")
+            logger.info(f"Terminating {self.symbol}...")
 
         self.terminate()
 
