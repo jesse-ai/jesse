@@ -20,21 +20,17 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray, on_conf
         'volume': candle[5]
     }
 
-    def async_save() -> None:
-        if on_conflict == 'ignore':
-            Candle.insert(**d).on_conflict_ignore().execute()
-        elif on_conflict == 'replace':
-            Candle.insert(**d).on_conflict(
-                conflict_target=['timestamp', 'symbol', 'exchange'],
-                preserve=(Candle.open, Candle.high, Candle.low, Candle.close, Candle.volume),
-            ).execute()
-        elif on_conflict == 'error':
-            Candle.insert(**d).execute()
-        else:
-            raise Exception(f'Unknown on_conflict value: {on_conflict}')
-
-    # async call
-    threading.Thread(target=async_save).start()
+    if on_conflict == 'ignore':
+        Candle.insert(**d).on_conflict_ignore().execute()
+    elif on_conflict == 'replace':
+        Candle.insert(**d).on_conflict(
+            conflict_target=['timestamp', 'symbol', 'exchange'],
+            preserve=(Candle.open, Candle.high, Candle.low, Candle.close, Candle.volume),
+        ).execute()
+    elif on_conflict == 'error':
+        Candle.insert(**d).execute()
+    else:
+        raise Exception(f'Unknown on_conflict value: {on_conflict}')
 
 
 def store_log_into_db(log: dict, log_type: str) -> None:
@@ -56,11 +52,7 @@ def store_log_into_db(log: dict, log_type: str) -> None:
         'type': log_type
     }
 
-    def async_save() -> None:
-        Log.insert(**d).execute()
-
-    # async call
-    threading.Thread(target=async_save).start()
+    Log.insert(**d).execute()
 
 
 def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None:
