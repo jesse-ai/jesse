@@ -121,3 +121,13 @@ def log_exchange_message(exchange, message):
         create_disposable_logger('exchange-streams')
 
     LOGGERS['exchange-streams'].info(message)
+
+
+def broadcast_error_without_logging(msg: str):
+    msg = str(msg)
+
+    sync_publish('error_log', {
+        'id': jh.generate_unique_id(),
+        'timestamp': jh.now_to_timestamp(),
+        'message': msg
+    })
