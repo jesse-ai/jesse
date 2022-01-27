@@ -153,20 +153,20 @@ def info() -> List[List[Union[str, Any]]]:
     ]
 
 
-def watch_list() -> Optional[Any]:
-    # only support one route
-    if len(router.routes) > 1:
-        return None
-
+def watch_list() -> List[List[Union[str, str]]]:
+    """
+    Returns a list of data that are currently being watched in realtime
+    only support the first route
+    """
     strategy = router.routes[0].strategy
 
     # don't if the strategy hasn't been initiated yet
     if not store.candles.are_all_initiated:
-        return None
+        return []
 
     watch_list_array = strategy.watch_list()
 
-    return watch_list_array if len(watch_list_array) else None
+    return watch_list_array if len(watch_list_array) else []
 
 
 def errors() -> List[List[Union[str, Any]]]:
