@@ -103,6 +103,9 @@ def run(
     # run backtest simulation
     simulator(candles, run_silently=jh.should_execute_silently())
 
+    # hyperparameters (if any)
+    sync_publish('hyperparameters', stats.hyperparameters(router.routes))
+
     if not jh.should_execute_silently():
         if store.completed_trades.count > 0:
             sync_publish('metrics', report.portfolio_metrics())
