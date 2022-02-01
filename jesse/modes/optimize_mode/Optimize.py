@@ -194,7 +194,7 @@ class Optimizer(ABC):
             self.generate_initial_population()
 
             if len(self.population) < 0.5 * self.population_size:
-                raise ValueError(f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} indviduals from self.population_size are usable.')
+                raise ValueError(f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} indviduals from planned {self.population_size} are usable.')
 
             # if even our best individual is too weak, then we better not continue
             if self.population[0]['fitness'] == 0.0001:
