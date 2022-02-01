@@ -21,17 +21,33 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     finish_date = jh.now(force_fresh=True)
     start_date = finish_date - (num_candles * one_min_count * 60_000)
 
-    # fetch from database
+    # fetch 1m candles from database
     candles = np.array(
         fetch_candles_from_db(exchange, symbol, start_date, finish_date)
     )
 
+    # if there are no candles in the database, return []
+    if candles.size == 0:
+        database.close_connection()
+        return []
+
+    # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
+    timeframe_duration = one_min_count*60_000
+    while candles[0][0] % timeframe_duration != 0:
+        candles = candles[1:]
+
+    # generate bigger candles from 1m candles
     if timeframe != '1m':
-        generated_candles = [generate_candle_from_one_minutes(
-                        timeframe,
-                        candles[(i - (one_min_count - 1)):(i + 1)],
-                        True
-                    ) for i in range(len(candles)) if (i + 1) % one_min_count == 0]
+        generated_candles = []
+        for i in range(len(candles)):
+            if (i + 1) % one_min_count == 0:
+                bigger_candle = generate_candle_from_one_minutes(
+                    timeframe,
+                    candles[(i - (one_min_count - 1)):(i + 1)],
+                    True
+                 )
+                generated_candles.append(bigger_candle)
+
         candles = generated_candles
 
     database.close_connection()
