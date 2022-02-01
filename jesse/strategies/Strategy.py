@@ -457,6 +457,12 @@ class Strategy(ABC):
         pass
 
     def _update_position(self) -> None:
+        self._wait_until_executing_orders_are_fully_handled()
+
+        # after _wait_until_executing_orders_are_fully_handled, the position might have closed, so:
+        if self.position.is_close:
+            return
+
         self.update_position()
 
         self._detect_and_handle_entry_and_exit_modifications()
@@ -538,8 +544,8 @@ class Strategy(ABC):
                     for o in self._exit_orders:
                         if o.submitted_via == 'take-profit' and o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    # clean orders array but leave executed ones
-                    self._exit_orders = [o for o in self._exit_orders if o.is_executed]
+                    # remove canceled orders to optimize the loop
+                    self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._take_profit:
                         submitted_order: Order = self.broker.reduce_position_at(
                             o[0],
@@ -563,8 +569,8 @@ class Strategy(ABC):
                     for o in self._exit_orders:
                         if o.submitted_via == 'stop-loss' and o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    # clean orders array but leave executed ones
-                    self._exit_orders = [o for o in self._exit_orders if o.is_executed]
+                    # remove canceled orders to optimize the loop
+                    self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._stop_loss:
                         submitted_order: Order = self.broker.reduce_position_at(
                             o[0],
@@ -594,6 +600,14 @@ class Strategy(ABC):
     def update_position(self) -> None:
         pass
 
+    def _wait_until_executing_orders_are_fully_handled(self):
+        if self._is_handling_updated_order:
+            logger.info(
+                "Stopped strategy execution at this time because we're still handling the result "
+                "of an executed order. Trying again in 3 seconds..."
+            )
+            sleep(3)
+
     def _check(self) -> None:
         """
         Based on the newly updated info, check if we should take action or not
@@ -601,12 +615,7 @@ class Strategy(ABC):
         if not self._is_initiated:
             self._is_initiated = True
 
-        if self._is_handling_updated_order:
-            logger.info(
-                "Stopped strategy execution at this time because of we're still handling the result "
-                "of an order update. Trying again in 3 seconds..."
-            )
-            sleep(3)
+        self._wait_until_executing_orders_are_fully_handled()
 
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
