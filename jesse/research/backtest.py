@@ -6,7 +6,8 @@ def backtest(
         config: dict,
         routes: List[Dict[str, str]],
         extra_routes: List[Dict[str, str]],
-        candles: dict
+        candles: dict,
+        hyperparameters: dict = None
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -39,7 +40,7 @@ def backtest(
         },
     }
     """
-    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters=None)
+    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters)
 
 
 def _isolated_backtest(
