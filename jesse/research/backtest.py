@@ -40,7 +40,7 @@ def backtest(
         },
     }
     """
-    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters)
+    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters=hyperparameters)
 
 
 def _isolated_backtest(
