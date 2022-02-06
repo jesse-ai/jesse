@@ -874,6 +874,10 @@ def test_stop_loss_price_is_replaced_with_market_order():
 
 def test_take_profit_price_is_replaced_with_market_order():
     # long position
-    single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPosition')
+    single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPTestCanRunWithoutShortingsition')
     # # short position
     single_route_backtest('TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientShortPosition')
+
+
+def test_can_run_without_shorting():
+    single_route_backtest('TestCanRunWithoutShorting')

@@ -383,7 +383,6 @@ class Strategy(ABC):
     def go_long(self) -> None:
         pass
 
-    @abstractmethod
     def go_short(self) -> None:
         pass
 
@@ -432,13 +431,10 @@ class Strategy(ABC):
 
     @abstractmethod
     def should_long(self) -> bool:
-        """are all filters good to execute buy"""
         pass
 
-    @abstractmethod
     def should_short(self) -> bool:
-        """are all filters good to execute sell"""
-        pass
+        return False
 
     @abstractmethod
     def should_cancel(self) -> bool:
