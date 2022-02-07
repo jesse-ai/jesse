@@ -478,6 +478,7 @@ def test_side_to_type():
 
 def test_string_after_character():
     assert jh.string_after_character('btcusdt@bookTicker', '@') == 'bookTicker'
+    assert jh.string_after_character('9000|24628', '|') == '24628'
 
 
 def test_style():
