@@ -142,6 +142,7 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
 @fastapi_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     from jesse.services.multiprocessing import process_manager
+    from jesse.services.env import ENV_VALUES
 
     if not authenticator.is_valid_token(token):
         return
@@ -149,7 +150,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     await websocket.accept()
 
     queue = Queue()
-    ch, = await async_redis.psubscribe('channel:*')
+    ch, = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
 
     async def echo(q):
         while True:
@@ -173,7 +174,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
             # just so WebSocketDisconnect would be raised on connection close
             await websocket.receive_text()
     except WebSocketDisconnect:
-        await async_redis.punsubscribe('channel:*')
+        await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
         print('Websocket disconnected')
 
 
