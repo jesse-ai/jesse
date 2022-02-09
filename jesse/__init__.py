@@ -347,12 +347,28 @@ def cancel_optimization(request_json: CancelRequestJson, authorization: Optional
 
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
+    """
+    Log files require session_id because there is one log per each session. Except for the optimize mode
+    """
     if not authenticator.is_valid_token(token):
         return authenticator.unauthorized_response()
 
     from jesse.modes import data_provider
 
     return data_provider.download_file(mode, file_type, session_id)
+
+
+@fastapi_app.get("/download/optimize/log")
+def download_optimization_log(token: str = Query(...)):
+    """
+    Optimization logs don't have have session ID
+    """
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import data_provider
+
+    return data_provider.download_file('optimize', 'log')
 
 
 @fastapi_app.delete("/backtest")

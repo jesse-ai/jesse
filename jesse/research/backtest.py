@@ -99,7 +99,7 @@ def _isolated_backtest(
     simulator(trading_candles, run_silently, hyperparameters)
 
     result = {
-        'metrics': None,
+        'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
         'charts': None,
         'logs': None,
     }

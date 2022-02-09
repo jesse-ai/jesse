@@ -181,26 +181,40 @@ class Optimizer(ABC):
         # len(self.population) instead of self.population_size because some DNAs might not have been created due to errors
         # to fix an issue with being less than 100 population_len (which means there's only on hyperparameter in the strategy)
         population_len = len(self.population)
-        random_index = np.random.choice(population_len, int(population_len / 100), replace=False)
+        if population_len == 0:
+            raise IndexError('population is empty')
+        count = int(population_len / 100)
+        if count == 0:
+            count = 1
+        random_index = np.random.choice(population_len, count, replace=False)
         chosen_ones = [self.population[r] for r in random_index]
-
         return pydash.max_by(chosen_ones, 'fitness')
 
     def evolve(self) -> list:
         """
         the main method, that runs the evolutionary algorithm
         """
+        # clear the logs to start from a clean slate
+        jh.clear_file('storage/logs/optimize-mode.txt')
+
+        logger.log_optimize_mode('Optimization session started')
+
         if self.started_index == 0:
+            logger.log_optimize_mode(
+                f"Generating {self.population_size} population size (random DNAs) using {self.cpu_cores} CPU cores"
+            )
             self.generate_initial_population()
 
             if len(self.population) < 0.5 * self.population_size:
-                raise ValueError(f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} indviduals from planned {self.population_size} are usable.')
+                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} indviduals from planned {self.population_size} are usable.'
+                logger.log_optimize_mode(msg)
+                raise ValueError(msg)
 
             # if even our best individual is too weak, then we better not continue
             if self.population[0]['fitness'] == 0.0001:
-                raise exceptions.InvalidStrategy(
-                    'Cannot continue because no individual with the minimum fitness-score was found. '
-                    'Your strategy seems to be flawed or maybe it requires modifications. ')
+                msg = 'Cannot continue because no individual with the minimum fitness-score was found. Your strategy seems to be flawed or maybe it requires modifications. '
+                logger.log_optimize_mode(msg)
+                raise exceptions.InvalidStrategy(msg)
 
         loop_length = int(self.iterations / self.cpu_cores)
 
