@@ -260,9 +260,5 @@ def quantstats_tearsheet(buy_and_hold_returns: pd.Series, study_name: str) -> No
 #
 #     data['quantile'] = port
 #
-#     jh.dump(list(data.keys()))
-#     print('\n\n\n\n')
-#     jh.dump(data)
-#
 #     return data
 #
