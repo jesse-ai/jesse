@@ -166,6 +166,14 @@ def watch_list() -> List[List[Union[str, str]]]:
 
     watch_list_array = strategy.watch_list()
 
+    # loop through the watch list and convert each item into a string
+    for index, value in enumerate(watch_list_array):
+        # if value is not a tuple with two values in it, raise ValueError
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise ValueError("watch_list() must return a list of tuples with 2 values in each. Example: [(key1, value1), (key2, value2)]")
+
+        watch_list_array[index] = (str(value[0]), str(value[1]))
+
     return watch_list_array if len(watch_list_array) else []
 
 
