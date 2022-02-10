@@ -20,6 +20,11 @@ In fact, it is so simple that in case you already know Python, you can get start
 
 [Here](https://docs.jesse.trade/docs/) you can read more about why Jesse's features. 
 
+## Sponsored Promotion
+
+[![TokenBot](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/TokenBot-Jesse-banner.png)](https://www.tokenbot.com)
+
+
 ## Getting Started
 Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
 documentation is short yet very informative. 
