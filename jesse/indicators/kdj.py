@@ -37,7 +37,4 @@ def kdj(candles: np.ndarray, fastk_period: int = 9, slowk_period: int = 3, slowk
     d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
     j = 3 * k - 2 * d
 
-    if sequential:
-        return KDJ(k, d, j)
-    else:
-        return KDJ(k[-1], d[-1], j[-1])
+    return KDJ(k, d, j) if sequential else KDJ(k[-1], d[-1], j[-1])

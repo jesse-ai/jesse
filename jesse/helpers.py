@@ -113,7 +113,7 @@ def dashy_symbol(symbol: str) -> str:
         if compare_symbol == symbol:
             return s
 
-    return f"{symbol[0:3]}-{symbol[3:]}"
+    return f'{symbol[:3]}-{symbol[3:]}'
 
 
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
@@ -314,10 +314,7 @@ def insert_list(index: int, item, arr: list) -> list:
     """
     helper to insert an item in a Python List without removing the item
     """
-    if index == -1:
-        return arr + [item]
-
-    return arr[:index] + [item] + arr[index:]
+    return arr + [item] if index == -1 else arr[:index] + [item] + arr[index:]
 
 
 def is_backtesting() -> bool:
@@ -743,7 +740,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
     try:
         return dic[timeframe]
     except KeyError:
-        all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
+        all_timeframes = list(class_iter(timeframes))
         raise InvalidTimeframe(
             f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.')
 
@@ -881,10 +878,7 @@ def float_or_none(item):
     """
     Return the float of the value if it's not None
     """
-    if item is None:
-        return None
-    else:
-        return float(item)
+    return None if item is None else float(item)
 
 
 def str_or_none(item, encoding='utf-8'):
@@ -895,9 +889,7 @@ def str_or_none(item, encoding='utf-8'):
         return None
     else:
         # return item if it's str, if not, decode it using encoding
-        if isinstance(item, str):
-            return item
-        return str(item, encoding)
+        return item if isinstance(item, str) else str(item, encoding)
 
 
 def get_settlement_currency_from_exchange(exchange: str):
@@ -921,14 +913,7 @@ def is_notebook():
     try:
         shell = get_ipython().__class__.__name__
         # Jupyter notebook or qtconsole
-        if shell == 'ZMQInteractiveShell':
-            return True
-        elif shell == 'TerminalInteractiveShell':
-            # Terminal running IPython
-            return False
-        else:
-            # Other type (?)
-            return False
+        return shell == 'ZMQInteractiveShell'
     except NameError:
         # Probably standard Python interpreter
         return False

@@ -22,8 +22,6 @@ def run(
         start_date: str,
         finish_date: str,
         optimal_total: int,
-        csv: bool,
-        json: bool
 ) -> None:
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
@@ -60,7 +58,7 @@ def run(
     click.clear()
 
     optimizer = Optimizer(
-        training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date, finish_date
+        training_candles, testing_candles, optimal_total, cpu_cores, start_date, finish_date
     )
 
     # start the process
@@ -83,8 +81,9 @@ def _get_training_and_testing_candles(start_date_str: str, finish_date_str: str)
         training_candles[key] = {
             'exchange': candles[key]['exchange'],
             'symbol': candles[key]['symbol'],
-            'candles': candles[key]['candles'][0:divider_index],
+            'candles': candles[key]['candles'][:divider_index],
         }
+
 
         testing_candles[key] = {
             'exchange': candles[key]['exchange'],

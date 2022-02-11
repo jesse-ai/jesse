@@ -183,7 +183,7 @@ class Optimizer(ABC):
         population_len = len(self.population)
         if population_len == 0:
             raise IndexError('population is empty')
-        count = int(population_len / 100)
+        count = population_len // 100
         if count == 0:
             count = 1
         random_index = np.random.choice(population_len, count, replace=False)

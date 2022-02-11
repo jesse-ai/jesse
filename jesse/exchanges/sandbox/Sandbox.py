@@ -77,9 +77,7 @@ class Sandbox(Exchange):
         store.orders.get_order_by_id(self.name, symbol, order_id).cancel()
 
     def get_exec_inst(self, flags: list) -> Union[str, None]:
-        if flags:
-            return flags[0]
-        return None
+        return flags[0] if flags else None
 
     def _fetch_precisions(self) -> None:
         pass

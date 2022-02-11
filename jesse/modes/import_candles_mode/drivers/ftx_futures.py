@@ -1,4 +1,3 @@
-
 import requests
 
 import jesse.helpers as jh

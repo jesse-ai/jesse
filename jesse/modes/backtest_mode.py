@@ -211,7 +211,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
                 f'There are missing candles between {start_date_str} => {finish_date_str}')
 
         # cache it for near future calls
-        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60**2 * 24 * 7)
 
         candles[key] = {
             'exchange': exchange,
