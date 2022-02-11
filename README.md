@@ -22,7 +22,7 @@ In fact, it is so simple that in case you already know Python, you can get start
 
 ## Sponsored Promotion
 
-[![TokenBot](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/TokenBot-Jesse-banner.png)](https://www.tokenbot.com)
+[![TokenBot](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/TokenBot-Jesse-banner.png)](https://tokenbot.com/?utm_source=github&utm_medium=jesse&utm_campaign=algodevs)
 
 
 ## Getting Started
