@@ -79,10 +79,7 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
         if direction is None:
             return cross_above or cross_below
 
-    if direction == "above":
-        return cross_above
-    else:
-        return cross_below
+    return cross_above if direction == "above" else cross_below
 
 
 def estimate_risk(entry_price: float, stop_price: float) -> float:

@@ -30,7 +30,4 @@ def mama(candles: np.ndarray, fastlimit: float = 0.5, slowlimit: float = 0.05, s
 
     mama_val, fama = talib.MAMA(source, fastlimit=fastlimit, slowlimit=slowlimit)
 
-    if sequential:
-        return MAMA(mama_val, fama)
-    else:
-        return MAMA(mama_val[-1], fama[-1])
+    return MAMA(mama_val, fama) if sequential else MAMA(mama_val[-1], fama[-1])

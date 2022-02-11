@@ -30,8 +30,6 @@ class Optimizer(ABC):
             self,
             training_candles: ndarray, testing_candles: ndarray,
             optimal_total: int, cpu_cores: int,
-            csv: bool,
-            export_json: bool,
             start_date: str, finish_date: str,
             charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
             fitness_goal: float = 1,
@@ -78,8 +76,6 @@ class Optimizer(ABC):
             'symbol': self.symbol,
             'timeframe': self.timeframe,
             'strategy_hp': self.strategy_hp,
-            'csv': csv,
-            'json': export_json,
             'start_date': start_date,
             'finish_date': finish_date,
         }
@@ -181,7 +177,10 @@ class Optimizer(ABC):
         # len(self.population) instead of self.population_size because some DNAs might not have been created due to errors
         # to fix an issue with being less than 100 population_len (which means there's only on hyperparameter in the strategy)
         population_len = len(self.population)
-        random_index = np.random.choice(population_len, int(population_len / 100), replace=False)
+        random_index = np.random.choice(
+            population_len, population_len // 100, replace=False
+        )
+
         chosen_ones = [self.population[r] for r in random_index]
 
         return pydash.max_by(chosen_ones, 'fitness')
@@ -372,66 +371,29 @@ class Optimizer(ABC):
     #     self.charset = data['charset']
     #     self.fitness_goal = data['fitness_goal']
     #     self.options = data['options']
-
+    #
     # def take_snapshot(self, index: int) -> None:
     #     """
     #     stores a snapshot of the fittest population members into a file.
     #     """
-    #     study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+    #     study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{ self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
     #
-    #     dna_json = {'snapshot': []}
+    #     dnas_json = {'snapshot': []}
     #     for i in range(30):
-    #         dna_json['snapshot'].append(
+    #         dnas_json['snapshot'].append(
     #             {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
     #              'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
     #              'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
     #
-    #     path = f'./storage/genetics/{study_name}.txt'
+    #     path = f'storage/genetics/{study_name}.csv'
     #     os.makedirs('./storage/genetics', exist_ok=True)
-    #     txt = ''
-    #     with open(path, 'a', encoding="utf-8") as f:
-    #         txt += '\n\n'
-    #         txt += f'# iteration {index}'
-    #         txt += '\n'
+    #     exists = os.path.exists(path)
     #
-    #         for i in range(30):
-    #             log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
+    #     df = json_normalize(dnas_json['snapshot'])
     #
-    #             txt += '\n'
-    #             txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
+    #     with open(path, 'a', newline='', encoding="utf-8") as outfile:
+    #         if not exists:
+    #             # header of CSV file
+    #             df.to_csv(outfile, header=True, index=False, encoding='utf-8', sep ='\t')
     #
-    #         f.write(txt)
-    #
-    #     if self.options['csv']:
-    #         path = f'storage/genetics/csv/{study_name}.csv'
-    #         os.makedirs('./storage/genetics/csv', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         df = json_normalize(dna_json['snapshot'])
-    #
-    #         with open(path, 'a', newline='', encoding="utf-8") as outfile:
-    #             if not exists:
-    #                 # header of CSV file
-    #                 df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-    #
-    #             df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-    #
-    #     if self.options['json']:
-    #         path = f'storage/genetics/json/{study_name}.json'
-    #         os.makedirs('./storage/genetics/json', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         mode = 'r+' if exists else 'w'
-    #         with open(path, mode, encoding="utf-8") as file:
-    #             if not exists:
-    #                 snapshots = {"snapshots": []}
-    #                 snapshots["snapshots"].append(dna_json['snapshot'])
-    #                 json.dump(snapshots, file, ensure_ascii=False)
-    #             else:
-    #                 # file exists - append
-    #                 file.seek(0)
-    #                 data = json.load(file)
-    #                 data["snapshots"].append(dna_json['snapshot'])
-    #                 file.seek(0)
-    #                 json.dump(data, file, ensure_ascii=False)
-    #             file.write('\n')
+    #         df.to_csv(outfile, header=False, index=False, encoding='utf-8', sep ='\t')

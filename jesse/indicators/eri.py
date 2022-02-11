@@ -29,7 +29,4 @@ def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str
     bull = candles[:, 3] - ema
     bear = candles[:, 4] - ema
 
-    if sequential:
-        return ERI(bull, bear)
-    else:
-        return ERI(bull[-1], bear[-1])
+    return ERI(bull, bear) if sequential else ERI(bull[-1], bear[-1])

@@ -5,9 +5,7 @@ import traceback
 from jesse.services.redis import sync_publish
 
 
-def register_custom_exception_handler() -> None:
-    # other threads
-    def handle_thread_exception(args) -> None:
+def handle_thread_exception(args) -> None:
         if args.exc_type == SystemExit:
             return
 
@@ -21,13 +19,15 @@ def register_custom_exception_handler() -> None:
                     f'{args.exc_type.__name__}: {args.exc_value}'
                 )
 
-            sync_publish('exception', {
-                'error': f"{args.exc_type.__name__}: {str(args.exc_value)}",
-                'traceback': str(traceback.format_exc())
-            })
-            terminate_session()
+            sync_publish(
+                'exception',
+                {
+                    'error': f'{args.exc_type.__name__}: {args.exc_value}',
+                    'traceback': str(traceback.format_exc()),
+                },
+            )
 
-    threading.excepthook = handle_thread_exception
+            terminate_session()
 
 
 def terminate_session():

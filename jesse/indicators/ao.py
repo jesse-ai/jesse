@@ -24,7 +24,4 @@ def ao(candles: np.ndarray, sequential: bool = False) -> AO:
 
     mom = talib.MOM(res, timeperiod=1)
 
-    if sequential:
-        return AO(res, mom)
-    else:
-        return AO(res[-1], mom[-1])
+    return AO(res, mom) if sequential else AO(res[-1], mom[-1])

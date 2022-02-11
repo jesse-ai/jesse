@@ -40,24 +40,15 @@ class Position:
 
     @property
     def mark_price(self) -> float:
-        if not jh.is_live():
-            return self.current_price
-
-        return self._mark_price
+        return self.current_price if not jh.is_live() else self._mark_price
 
     @property
     def funding_rate(self) -> float:
-        if not jh.is_live():
-            return 0
-
-        return self._funding_rate
+        return 0 if not jh.is_live() else self._funding_rate
 
     @property
     def next_funding_timestamp(self) -> Union[int, None]:
-        if not jh.is_live():
-            return None
-
-        return self._next_funding_timestamp
+        return None if not jh.is_live() else self._next_funding_timestamp
 
     @property
     def value(self) -> float:
@@ -118,10 +109,7 @@ class Position:
         if self.exchange.type == 'spot':
             return 1
 
-        if self.strategy:
-            return self.strategy.leverage
-        else:
-            return np.nan
+        return self.strategy.leverage if self.strategy else np.nan
 
     @property
     def entry_margin(self) -> float:

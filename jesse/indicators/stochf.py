@@ -34,7 +34,4 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
     k = 100 * (candles_close - ll) / (hh - ll)
     d = ma(k, period=fastd_period, matype=fastd_matype, sequential=True)
 
-    if sequential:
-        return StochasticFast(k, d)
-    else:
-        return StochasticFast(k[-1], d[-1])
+    return StochasticFast(k, d) if sequential else StochasticFast(k[-1], d[-1])

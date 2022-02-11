@@ -73,9 +73,7 @@ class Strategy(ABC):
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None and len(self.hyperparameters()) > 0:
-            self.hp = {}
-            for dna in self.hyperparameters():
-                self.hp[dna['name']] = dna['default']
+            self.hp = {dna['name']: dna['default'] for dna in self.hyperparameters()}
 
     @property
     def _price_precision(self) -> int:
@@ -1210,14 +1208,9 @@ class Strategy(ABC):
     
     @property
     def all_positions(self) -> Dict[str, Position]:
-        positions_dict = {}
-        for r in self.routes:
-            positions_dict[r.symbol] = r.strategy.position
-        return positions_dict
+        return {r.symbol: r.strategy.position for r in self.routes}
 
     @property
     def portfolio_value(self) -> float:
-        total_position_values = 0
-        for key, p in self.all_positions.items():
-            total_position_values += p.pnl
+        total_position_values = sum(p.pnl for key, p in self.all_positions.items())
         return (total_position_values + self.capital) * self.leverage

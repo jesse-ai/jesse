@@ -36,9 +36,7 @@ def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
 
 def fibonacci(n: int = 2) -> np.ndarray:
     """Fibonacci Sequence as a numpy array"""
-    n = int(fabs(n)) if n >= 0 else 2
-
-    n -= 1
+    n = (int(fabs(n)) if n >= 0 else 2) - 1
     a, b = 1, 1
 
     result = np.array([a])
@@ -48,7 +46,4 @@ def fibonacci(n: int = 2) -> np.ndarray:
         result = np.append(result, a)
 
     fib_sum = np.sum(result)
-    if fib_sum > 0:
-        return result / fib_sum
-    else:
-        return result
+    return result / fib_sum if fib_sum > 0 else result
