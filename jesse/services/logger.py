@@ -41,6 +41,16 @@ def create_disposable_logger(name):
     LOGGERS[name] = new_logger
 
 
+def create_logger_file(name):
+    log_file = f"storage/logs/{name}.txt"
+    os.makedirs('storage/logs', exist_ok=True)
+    new_logger = logging.getLogger(name)
+    new_logger.setLevel(logging.INFO)
+    # should add to the end of file
+    new_logger.addHandler(logging.FileHandler(log_file, mode='a'))
+    LOGGERS[name] = new_logger
+
+
 def info(msg: str, send_notification=False) -> None:
     if jh.app_mode() not in LOGGERS:
         _init_main_logger()
@@ -121,6 +131,21 @@ def log_exchange_message(exchange, message):
         create_disposable_logger('exchange-streams')
 
     LOGGERS['exchange-streams'].info(message)
+
+
+def log_optimize_mode(message):
+    # if the type of message is not str, convert it to str
+    if not isinstance(message, str):
+        message = str(message)
+
+    formatted_time = jh.timestamp_to_time(jh.now())[:19]
+    message = f'[{formatted_time}]: ' + message
+    file_name = 'optimize-mode'
+
+    if file_name not in LOGGERS:
+        create_logger_file(file_name)
+
+    LOGGERS[file_name].info(message)
 
 
 def broadcast_error_without_logging(msg: str):

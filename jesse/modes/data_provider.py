@@ -169,7 +169,7 @@ def update_config(client_config: dict):
     database.close_connection()
 
 
-def download_file(mode: str, file_type: str, session_id: str):
+def download_file(mode: str, file_type: str, session_id: str = None):
     if mode == 'backtest' and file_type == 'log':
         path = f'storage/logs/backtest-mode/{session_id}.txt'
         filename = f'backtest-{session_id}.txt'
@@ -188,6 +188,10 @@ def download_file(mode: str, file_type: str, session_id: str):
     elif mode == 'backtest' and file_type == 'tradingview':
         path = f'storage/trading-view-pine-editor/{session_id}.txt'
         filename = f'backtest-{session_id}.txt'
+    elif mode == 'optimize' and file_type == 'log':
+        path = f'storage/logs/optimize-mode.txt'
+        # filename should be "optimize-" + current timestamp
+        filename = f'optimize-{jh.timestamp_to_date(jh.now(True))}.txt'
     else:
         raise Exception(f'Unknown file type: {file_type} or mode: {mode}')
 

@@ -5,6 +5,7 @@ from jesse.services.redis import sync_publish, sync_redis
 from jesse.services.failure import terminate_session
 import jesse.helpers as jh
 from datetime import timedelta
+from jesse.services.env import ENV_VALUES
 
 # set multiprocessing process type to spawn
 mp.set_start_method('spawn', force=True)
@@ -49,9 +50,16 @@ class ProcessManager:
         self.client_id_to_pid_to_map = {}
 
     @staticmethod
-    def _set_process_status(pid, status):
+    def _prefixed_pid(pid):
+        return f"{ENV_VALUES['APP_PORT']}|{pid}"
+
+    @staticmethod
+    def _prefixed_client_id(client_id):
+        return f"{ENV_VALUES['APP_PORT']}|{client_id}"
+
+    def _set_process_status(self, pid, status):
         seconds = 3600 * 24 * 365  # one year
-        key = f'process-status:{pid}'
+        key = f"{ENV_VALUES['APP_PORT']}|process-status:{pid}"
         value = f'status:{status}'
         sync_redis.setex(key, timedelta(seconds=seconds), value)
 
@@ -59,33 +67,23 @@ class ProcessManager:
         w = Process(target=function, args=args)
         self._workers.append(w)
         w.start()
-        self._pid_to_client_id_map[w.pid] = client_id
-        self.client_id_to_pid_to_map[client_id] = w.pid
+
+        self._pid_to_client_id_map[self._prefixed_pid(w.pid)] = self._prefixed_client_id(client_id)
+        self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)] = self._prefixed_pid(w.pid)
         self._set_process_status(w.pid, 'started')
 
     def get_client_id(self, pid):
-        client_id: str = self._pid_to_client_id_map[pid]
+        client_id: str = self._pid_to_client_id_map[self._prefixed_pid(pid)]
         # return after "-" because we add them before sending it to multiprocessing
         return client_id[client_id.index('-') + len('-'):]
 
     def get_pid(self, client_id):
-        return self.client_id_to_pid_to_map[client_id]
+        return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
 
     def cancel_process(self, client_id):
         pid = self.get_pid(client_id)
+        pid = jh.string_after_character(pid, '|')
         self._set_process_status(pid, 'stopping')
-        # TODO: after some time, set it to stopped?
-
-        # pid = self.get_pid(client_id)
-        # for i, w in enumerate(self._workers):
-        #     if w.is_alive() and w.pid == pid:
-        #         del self.client_id_to_pid_to_map[client_id]
-        #         del self._pid_to_client_id_map[w.pid]
-        #         w.terminate()
-        #         w.join()
-        #         w.close()
-        #         del self._workers[i]
-        #         return
 
     def flush(self):
         for w in self._workers:

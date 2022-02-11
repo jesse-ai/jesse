@@ -208,6 +208,11 @@ def file_exists(path: str) -> bool:
     return os.path.isfile(path)
 
 
+def clear_file(path: str) -> None:
+    with open(path, 'w') as f:
+        f.write('')
+
+
 def make_directory(path: str) -> None:
     if not os.path.exists(path):
         os.makedirs(path)
