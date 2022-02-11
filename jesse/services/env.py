@@ -23,6 +23,7 @@ if jh.is_jesse_project():
         ENV_VALUES['POSTGRES_PASSWORD'] = 'password'
         ENV_VALUES['REDIS_HOST'] = 'localhost'
         ENV_VALUES['REDIS_PORT'] = '6379'
+        ENV_VALUES['REDIS_DB'] = 0
         ENV_VALUES['REDIS_PASSWORD'] = ''
 
     # validation for existence of .env file
