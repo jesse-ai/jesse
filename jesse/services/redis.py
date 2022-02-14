@@ -28,7 +28,7 @@ if jh.is_jesse_project():
 
 def sync_publish(event: str, msg):
     if jh.is_unit_testing():
-        raise EnvironmentError('sync_publish() should be NOT called during testing. There must be something wrong')
+        raise OSError('sync_publish() should be NOT called during testing. There must be something wrong')
 
     sync_redis.publish(
         f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
@@ -51,7 +51,7 @@ async def async_publish(event: str, msg):
 
 def process_status(pid=None) -> str:
     if jh.is_unit_testing():
-        raise EnvironmentError('process_status() is not meant to be called in unit tests')
+        raise OSError('process_status() is not meant to be called in unit tests')
 
     if pid is None:
         pid = jh.get_pid()

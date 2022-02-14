@@ -28,7 +28,7 @@ class Cache:
             else:
                 self.db = {}
 
-    def set_value(self, key: str, data: Any, expire_seconds: int = 60 * 60) -> None:
+    def set_value(self, key: str, data: Any, expire_seconds: int = 60**2) -> None:
         if self.driver is None:
             return
 
@@ -92,7 +92,7 @@ def cached(method):
     def decorated(self, *args, **kwargs):
         cached_method = self._cached_methods.get(method)
         if cached_method is None:
-            cached_method = lru_cache()(method)
+            cached_method = lru_cache(method)
             self._cached_methods[method] = cached_method
         return cached_method(self, *args, **kwargs)
 

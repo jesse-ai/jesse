@@ -54,9 +54,10 @@ class BybitPerpetual(CandleExchange):
         payload = {
             'interval': 1,
             'symbol': dashless_symbol,
-            'from': int(start_timestamp / 1000),
+            'from': start_timestamp // 1000,
             'limit': self.count,
         }
+
 
         response = requests.get(self.endpoint, params=payload)
 

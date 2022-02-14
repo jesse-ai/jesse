@@ -10,23 +10,21 @@ class TestMultipleEntryOrdersUpdateEntryLongPositions(Strategy):
             assert self.orders[1].type == 'LIMIT'
             assert self.orders[1].status == 'ACTIVE'
 
-        if self.price == 15:
-            assert self.orders[0].type == 'MARKET'
-            assert self.orders[0].status == 'EXECUTED'
-            assert self.orders[0].price == 10
-
+        elif self.price == 15:
+            self._fake_order(0, 'MARKET', 'EXECUTED', 10)
             assert self.orders[1].type == 'LIMIT'
             assert self.orders[1].status == 'CANCELED'
             assert self.orders[2].type == 'LIMIT'
             assert self.orders[2].status == 'CANCELED'
 
-            assert self.orders[3].type == 'MARKET'
-            assert self.orders[3].status == 'EXECUTED'
-            assert self.orders[3].price == 13
+            self._fake_order(3, 'MARKET', 'EXECUTED', 13)
+            self._fake_order(4, 'LIMIT', 'ACTIVE', 10)
 
-            assert self.orders[4].type == 'LIMIT'
-            assert self.orders[4].status == 'ACTIVE'
-            assert self.orders[4].price == 10
+
+    def _fake_order(self, i, type, status, price):
+        assert self.orders[i].type == type
+        assert self.orders[i].status == status
+        assert self.orders[i].price == price
 
     def should_long(self) -> bool:
         return self.price == 10

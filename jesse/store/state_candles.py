@@ -291,11 +291,7 @@ class CandlesState:
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
-            if len(arr) == 0:
-                return np.zeros((0, 6))
-            else:
-                return arr[:]
-
+            return np.zeros((0, 6)) if len(arr) == 0 else arr[:]
         # other timeframes
         dif, long_key, short_key = self.forming_estimation(exchange, symbol, timeframe)
         long_count = len(self.get_storage(exchange, symbol, timeframe))
@@ -328,11 +324,7 @@ class CandlesState:
         # no need to worry for forming candles when timeframe == 1m
         if timeframe == '1m':
             arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
-            if len(arr) == 0:
-                return np.zeros((0, 6))
-            else:
-                return arr[-1]
-
+            return np.zeros((0, 6)) if len(arr) == 0 else arr[-1]
         # other timeframes
         dif, long_key, short_key = self.forming_estimation(exchange, symbol, timeframe)
         long_count = len(self.get_storage(exchange, symbol, timeframe))
@@ -344,7 +336,4 @@ class CandlesState:
                 timeframe, self.storage[short_key][short_count - dif:short_count],
                 True
             )
-        if long_count == 0:
-            return np.zeros((0, 6))
-        else:
-            return self.storage[long_key][-1]
+        return np.zeros((0, 6)) if long_count == 0 else self.storage[long_key][-1]

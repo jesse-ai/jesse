@@ -144,15 +144,12 @@ def portfolio_metrics() -> dict:
 
 
 def info() -> List[List[Union[str, Any]]]:
-    return [
-        [
+    return [[
             jh.timestamp_to_time(w['time'])[11:19],
             f"{w['message'][:70]}.."
             if len(w['message']) > 70
             else w['message'],
-        ]
-        for w in store.logs.info[::-1][0:5]
-    ]
+        ] for w in store.logs.info[::-1][:5]]
 
 
 def watch_list() -> List[List[Union[str, str]]]:
@@ -184,15 +181,12 @@ def watch_list() -> List[List[Union[str, str]]]:
 
 
 def errors() -> List[List[Union[str, Any]]]:
-    return [
-        [
+    return [[
             jh.timestamp_to_time(w['time'])[11:19],
             f"{w['message'][:70]}.."
             if len(w['message']) > 70
             else w['message'],
-        ]
-        for w in store.logs.errors[::-1][0:5]
-    ]
+        ] for w in store.logs.errors[::-1][:5]]
 
 
 def orders():
@@ -219,4 +213,4 @@ def orders():
             'created_at': o.created_at,
             'canceled_at': o.canceled_at,
             'executed_at': o.executed_at,
-        } for o in route_orders[::-1][0:5]]
+        } for o in route_orders[::-1][:5]]

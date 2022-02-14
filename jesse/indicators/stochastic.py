@@ -37,7 +37,4 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
     k = ma(stoch_val, period=slowk_period, matype=slowk_matype, sequential=True)
     d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
 
-    if sequential:
-        return Stochastic(k, d)
-    else:
-        return Stochastic(k[-1], d[-1])
+    return Stochastic(k, d) if sequential else Stochastic(k[-1], d[-1])

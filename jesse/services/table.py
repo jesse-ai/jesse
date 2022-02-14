@@ -2,7 +2,7 @@ from tabulate import tabulate
 from typing import Union
 
 def key_value(data, title: str, alignments: Union[list, tuple] = None, uppercase_title: bool = True) -> None:
-    table = [d for d in data]
+    table = list(data)
 
     if alignments is None:
         print(tabulate(table, headers=[title.upper() if uppercase_title else title, ''], tablefmt="presto"))

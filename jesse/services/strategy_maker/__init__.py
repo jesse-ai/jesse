@@ -20,7 +20,7 @@ def generate(name: str) -> JSONResponse:
     shutil.copytree(f'{dirname}/ExampleStrategy', path)
 
     # replace 'ExampleStrategy' with the name of the new strategy
-    with open(f"{path}/__init__.py", "rt") as fin:
+    with open(f"{path}/__init__.py") as fin:
         data = fin.read()
         data = data.replace('ExampleStrategy', name)
     with open(f"{path}/__init__.py", "wt") as fin:
