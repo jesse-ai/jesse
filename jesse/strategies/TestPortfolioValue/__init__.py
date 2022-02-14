@@ -9,7 +9,7 @@ class TestPortfolioValue(Strategy):
             # print('\nstarting: self.portfolio_value', self.portfolio_value)
             assert self.portfolio_value == 10_000
 
-        elif self.index == 10:
+        if self.index == 10:
             # print('=========')
             # print(self.symbol, 'value', self.available_margin, self.positions['ETH-USDT'].value, self.positions['BTC-USDT'].value)
             # print(self.symbol, 'PNL', self.positions['ETH-USDT'].pnl, self.positions['BTC-USDT'].pnl)

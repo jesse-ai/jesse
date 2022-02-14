@@ -212,7 +212,11 @@ def run() -> None:
 
     # read port from .env file, if not found, use default
     from jesse.services.env import ENV_VALUES
-    port = int(ENV_VALUES['APP_PORT']) if 'APP_PORT' in ENV_VALUES else 9000
+    if 'APP_PORT' in ENV_VALUES:
+        port = int(ENV_VALUES['APP_PORT'])
+    else:
+        port = 9000
+
     # run the main application
     uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="info")
 

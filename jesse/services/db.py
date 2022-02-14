@@ -15,10 +15,14 @@ class Database:
         self.db: PostgresqlExtDatabase = None
 
     def is_closed(self) -> bool:
-        return True if self.db is None else self.db.is_closed()
+        if self.db is None:
+            return True
+        return self.db.is_closed()
 
     def is_open(self) -> bool:
-        return False if self.db is None else not self.db.is_closed()
+        if self.db is None:
+            return False
+        return not self.db.is_closed()
 
     def close_connection(self) -> None:
         if self.db:

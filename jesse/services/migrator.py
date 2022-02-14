@@ -34,34 +34,34 @@ def run():
 
 
 def _candle(migrator):
+    fields = []
+
     if 'candle' in database.db.get_tables():
         candle_columns = database.db.get_columns('candle')
-        fields = []
-
         _migrate(migrator, fields, candle_columns, 'candle')
 
 
 def _completed_trade(migrator):
+    fields = []
+
     if 'completedtrade' in database.db.get_tables():
         completedtrade_columns = database.db.get_columns('completedtrade')
-        fields = []
-
         _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
 
 
 def _daily_balance(migrator):
+    fields = []
+
     if 'dailybalance' in database.db.get_tables():
         dailybalance_columns = database.db.get_columns('dailybalance')
-        fields = []
-
         _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
 
 
 def _log(migrator):
+    fields = []
+
     if 'log' in database.db.get_tables():
         log_columns = database.db.get_columns('log')
-        fields = []
-
         _migrate(migrator, fields, log_columns, 'log')
 
 
@@ -79,26 +79,26 @@ def _order(migrator):
 
 
 def _orderbook(migrator):
+    fields = []
+
     if 'orderbook' in database.db.get_tables():
         orderbook_columns = database.db.get_columns('orderbook')
-        fields = []
-
         _migrate(migrator, fields, orderbook_columns, 'orderbook')
 
 
 def _ticker(migrator):
+    fields = []
+
     if 'ticker' in database.db.get_tables():
         ticker_columns = database.db.get_columns('ticker')
-        fields = []
-
         _migrate(migrator, fields, ticker_columns, 'ticker')
 
 
 def _trade(migrator):
+    fields = []
+
     if 'trade' in database.db.get_tables():
         trade_columns = database.db.get_columns('trade')
-        fields = []
-
         _migrate(migrator, fields, trade_columns, 'trade')
 
 
@@ -136,10 +136,12 @@ def _migrate(migrator, fields, columns, table):
                 )
                 print(
                     f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
-        elif field['action'] == 'add':
-            migrate(
-                migrator.add_column(table, field['name'], field['type'])
-            )
-            print(f"'{field['name']}' field successfully added to '{table}' table.")
+        # if column name doesn't not already exist
         else:
-            print(f"'{field['name']}' field does not exist in '{table}' table.")
+            if field['action'] == 'add':
+                migrate(
+                    migrator.add_column(table, field['name'], field['type'])
+                )
+                print(f"'{field['name']}' field successfully added to '{table}' table.")
+            else:
+                print(f"'{field['name']}' field does not exist in '{table}' table.")

@@ -33,7 +33,10 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
 
     res = frame_fast(candles, n, SC, FC)
 
-    return res if sequential else res[-1]
+    if sequential:
+        return res
+    else:
+        return res[-1]
 
 
 @njit

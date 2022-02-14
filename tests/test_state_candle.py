@@ -75,12 +75,11 @@ def test_get_candles_including_forming():
     candles_to_add = range_candles(14)
     store.candles.batch_add_candle(candles_to_add, 'Sandbox', 'BTC-USD', '1m')
     store.candles.add_candle(
-        generate_candle_from_one_minutes('5m', candles_to_add[:5], False),
-        'Sandbox',
-        'BTC-USD',
-        '5m',
+        generate_candle_from_one_minutes(
+            '5m', candles_to_add[0:5], False
+        ),
+        'Sandbox', 'BTC-USD', '5m'
     )
-
     store.candles.add_candle(
         generate_candle_from_one_minutes(
             '5m', candles_to_add[5:10], False
@@ -115,7 +114,7 @@ def test_get_forming_candle():
     set_up()
 
     candles_to_add = range_candles(13)
-    store.candles.batch_add_candle(candles_to_add[:4], 'Sandbox', 'BTC-USD', '1m')
+    store.candles.batch_add_candle(candles_to_add[0:4], 'Sandbox', 'BTC-USD', '1m')
     forming_candle = store.candles.get_current_candle('Sandbox', 'BTC-USD', '5m')
     assert forming_candle[0] == candles_to_add[0][0]
     assert forming_candle[1] == candles_to_add[0][1]

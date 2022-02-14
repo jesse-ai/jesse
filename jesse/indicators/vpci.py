@@ -32,4 +32,7 @@ def vpci(candles: np.ndarray, short_range: int = 5, long_range: int = 25, sequen
 
     VPCIS = talib.SMA(VPCI_val * candles[:, 5], short_range) / talib.SMA(candles[:, 5], short_range)
 
-    return VPCI(VPCI_val, VPCIS) if sequential else VPCI(VPCI_val[-1], VPCIS[-1])
+    if sequential:
+        return VPCI(VPCI_val, VPCIS)
+    else:
+        return VPCI(VPCI_val[-1], VPCIS[-1])

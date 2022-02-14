@@ -34,5 +34,8 @@ def cksp(candles: np.ndarray, p: int = 10, x: float = 1.0,  q: int = 9, sequenti
     SS0 = talib.MIN(candles_low, q) + x * atr
     SS = talib.MIN(SS0, q)
 
-    return CKSP(LS, SS) if sequential else CKSP(LS[-1], SS[-1])
+    if sequential:
+        return CKSP(LS, SS)
+    else:
+        return CKSP(LS[-1], SS[-1])
 

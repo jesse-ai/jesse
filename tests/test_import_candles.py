@@ -45,7 +45,7 @@ def test_fill_absent_candles_beginning_middle_end():
     assert candles[-1]['timestamp'] == smaller_data_set[-1]['timestamp']
 
     # Should fill if candles in the middle are absent
-    candles = smaller_data_set[:3] + smaller_data_set[5:7]
+    candles = smaller_data_set[0:3] + smaller_data_set[5:7]
     assert len(candles) == 5
     candles = importer._fill_absent_candles(candles, start, end)
     assert len(candles) == 7
@@ -53,7 +53,7 @@ def test_fill_absent_candles_beginning_middle_end():
     assert candles[-1]['timestamp'] == smaller_data_set[-1]['timestamp']
 
     # Should fill if candles in the ending are absent
-    candles = smaller_data_set[:5]
+    candles = smaller_data_set[0:5]
     assert len(candles) == 5
     candles = importer._fill_absent_candles(candles, start, end)
     assert len(candles) == 7

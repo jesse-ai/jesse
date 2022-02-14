@@ -82,7 +82,9 @@ class RouterClass:
             self.routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None))
 
     def set_market_data(self, routes: List[Any]) -> None:
-        self.market_data = [Route(*r) for r in routes]
+        self.market_data = []
+        for r in routes:
+            self.market_data.append(Route(*r))
 
     def set_extra_candles(self, extra_candles: list) -> None:
         self.extra_candles = extra_candles

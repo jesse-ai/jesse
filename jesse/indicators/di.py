@@ -23,4 +23,7 @@ def di(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DI:
     MINUS_DI = talib.MINUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
     PLUS_DI = talib.PLUS_DI(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
-    return DI(PLUS_DI, MINUS_DI) if sequential else DI(PLUS_DI[-1], MINUS_DI[-1])
+    if sequential:
+        return DI(PLUS_DI, MINUS_DI)
+    else:
+        return DI(PLUS_DI[-1], MINUS_DI[-1])

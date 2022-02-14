@@ -27,4 +27,7 @@ def msw(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
     s = same_length(candles, msw_sine)
     l = same_length(candles, msw_lead)
 
-    return MSW(s, l) if sequential else MSW(s[-1], l[-1])
+    if sequential:
+        return MSW(s, l)
+    else:
+        return MSW(s[-1], l[-1])

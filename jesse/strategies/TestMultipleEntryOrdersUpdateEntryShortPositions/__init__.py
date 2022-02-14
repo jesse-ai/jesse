@@ -6,19 +6,33 @@ import jesse.helpers as jh
 class TestMultipleEntryOrdersUpdateEntryShortPositions(Strategy):
     def before(self) -> None:
         if self.price == 12:
-            self._fake_order(0, 'MARKET', 'EXECUTED', 10)
-            self._fake_order(1, 'LIMIT', 'ACTIVE', 20)
-        elif self.price == 15:
-            self._fake_order(0, 'MARKET', 'EXECUTED', 10)
-            self._fake_order(1, 'LIMIT', 'CANCELED', 20)
-            self._fake_order(2, 'LIMIT', 'CANCELED', 21)
-            self._fake_order(3, 'MARKET', 'EXECUTED', 13)
-            self._fake_order(4, 'LIMIT', 'ACTIVE', 22)
+            assert self.orders[0].type == 'MARKET'
+            assert self.orders[0].status == 'EXECUTED'
+            assert self.orders[0].price == 10
 
-    def _fake_order(self, i, type, status, price):
-        assert self.orders[i].type == type
-        assert self.orders[i].status == status
-        assert self.orders[i].price == price
+            assert self.orders[1].type == 'LIMIT'
+            assert self.orders[1].status == 'ACTIVE'
+            assert self.orders[1].price == 20
+
+        if self.price == 15:
+            assert self.orders[0].type == 'MARKET'
+            assert self.orders[0].status == 'EXECUTED'
+            assert self.orders[0].price == 10
+
+            assert self.orders[1].type == 'LIMIT'
+            assert self.orders[1].status == 'CANCELED'
+            assert self.orders[1].price == 20
+            assert self.orders[2].type == 'LIMIT'
+            assert self.orders[2].status == 'CANCELED'
+            assert self.orders[2].price == 21
+
+            assert self.orders[3].type == 'MARKET'
+            assert self.orders[3].status == 'EXECUTED'
+            assert self.orders[3].price == 13
+
+            assert self.orders[4].type == 'LIMIT'
+            assert self.orders[4].status == 'ACTIVE'
+            assert self.orders[4].price == 22
 
     def should_long(self) -> bool:
         return False

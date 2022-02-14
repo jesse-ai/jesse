@@ -46,7 +46,7 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     is_64_bit = platform.machine().endswith('64')
     print('is_64_bit', is_64_bit)
     if not is_64_bit:
-        raise NotImplementedError('Only 64-bit machines are supported')
+        raise NotImplementedError(f'Only 64-bit machines are supported')
 
     is_arm = platform.machine().startswith('arm')
     print('is_arm', is_arm)

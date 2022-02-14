@@ -40,4 +40,4 @@ if jh.is_jesse_project():
         # raise FileNotFoundError('.env file is missing from within your local project. This usually happens when you\'re in the wrong directory. You can create one by running "cp .env.example .env"')
 
     if not jh.is_unit_testing() and ENV_VALUES['PASSWORD'] == '':
-        raise OSError('You forgot to set the PASSWORD in your .env file')
+        raise EnvironmentError('You forgot to set the PASSWORD in your .env file')

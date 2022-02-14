@@ -41,5 +41,8 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
 
     signal = ma(res, period=signal_period, matype=signal_matype, sequential=True)
 
-    return RSMK(res, signal) if sequential else RSMK(res[-1], signal[-1])
+    if sequential:
+        return RSMK(res, signal)
+    else:
+        return RSMK(res[-1], signal[-1])
 

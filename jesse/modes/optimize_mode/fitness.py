@@ -98,7 +98,7 @@ def get_fitness(
         score = total_effect_rate * ratio_normalized
         # if score is numpy nan, replace it with 0.0001
         if np.isnan(score):
-            logger.log_optimize_mode('Score is nan. DNA is invalid')
+            logger.log_optimize_mode(f'Score is nan. DNA is invalid')
             score = 0.0001
         # elif jh.is_debugging():
         else:
@@ -120,7 +120,7 @@ def get_fitness(
                 'PNL': round(testing_data_metrics['net_profit_percentage'], 2)
             }
     else:
-        logger.log_optimize_mode('Less than 5 trades in the training data. DNA is invalid')
+        logger.log_optimize_mode(f'Less than 5 trades in the training data. DNA is invalid')
         score = 0.0001
 
     return score, training_log, testing_log

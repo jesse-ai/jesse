@@ -42,4 +42,7 @@ def kst(candles: np.ndarray, sma_period1: int = 10, sma_period2: int = 10, sma_p
            3 * aroc3[aroc3.size - aroc4.size:] + 4 * aroc4
     signal = talib.SMA(line, signal_period)
 
-    return KST(line, signal) if sequential else KST(line[-1], signal[-1])
+    if sequential:
+        return KST(line, signal)
+    else:
+        return KST(line[-1], signal[-1])

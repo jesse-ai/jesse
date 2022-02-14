@@ -175,6 +175,10 @@ def hyperparameters(routes_arr: list) -> list:
     if routes_arr[0].strategy.hp is None:
         return []
 
-    return [[
+    hp = []
+    # only for the first route
+    for key in routes_arr[0].strategy.hp:
+        hp.append([
             key, routes_arr[0].strategy.hp[key]
-        ] for key in routes_arr[0].strategy.hp]
+        ])
+    return hp

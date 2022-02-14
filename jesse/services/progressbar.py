@@ -28,7 +28,9 @@ class Progressbar:
 
     @property
     def current(self):
-        return 100 if self.is_finished else round(self.index / self.length * 100, 1)
+        if self.is_finished:
+            return 100
+        return round(self.index / self.length * 100, 1)
 
     @property
     def average_execution_seconds(self):
@@ -36,7 +38,9 @@ class Progressbar:
 
     @property
     def remaining_index(self):
-        return 0 if self.is_finished else self.length - self.index
+        if self.is_finished:
+            return 0
+        return self.length - self.index
 
     @property
     def estimated_remaining_seconds(self):

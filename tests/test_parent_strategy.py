@@ -128,29 +128,18 @@ def test_filters():
 def test_forming_candles():
     reset_config()
     routes = [
-        {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'BTC-USDT',
-            'timeframe': timeframes.MINUTE_5,
-            'strategy': 'Test19',
-        }
-    ]
-
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_5, 'strategy': 'Test19'}
+    ] 
     extra_routes = [
-        {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'BTC-USDT',
-            'timeframe': timeframes.MINUTE_15,
-        }
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_15}
     ]
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'BTC-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'BTC-USDT',
-            'candles': test_candles_0,
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'BTC-USDT',
+        'candles': test_candles_0
     }
 
     backtest_mode.run(False, {}, routes, extra_routes, '2019-04-01', '2019-04-02', candles)
@@ -177,21 +166,15 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up()
 
     routes = [
-        {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'timeframe': timeframes.MINUTE_1,
-            'strategy': 'Test05',
-        }
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': timeframes.MINUTE_1, 'strategy': 'Test05'}
     ]
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'candles': test_candles_1,
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'ETH-USDT',
+        'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
@@ -228,21 +211,15 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     set_up()
 
     routes = [
-        {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'timeframe': timeframes.MINUTE_5,
-            'strategy': 'Test06',
-        }
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': timeframes.MINUTE_5, 'strategy': 'Test06'}
     ]
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'candles': test_candles_1,
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'ETH-USDT',
+        'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
@@ -301,13 +278,12 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
         list(range(1, 10)) + list(range(10, 1, -1))
     )
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'BTC-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'BTC-USDT',
-            'candles': generated_candles,
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'BTC-USDT',
+        'candles': generated_candles
     }
 
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
@@ -712,21 +688,15 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     set_up()
 
     routes = [
-        {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'timeframe': timeframes.MINUTE_1,
-            'strategy': 'Test07',
-        }
+        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': timeframes.MINUTE_1, 'strategy': 'Test07'}
     ]
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'ETH-USDT',
-            'candles': test_candles_1,
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'ETH-USDT',
+        'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)

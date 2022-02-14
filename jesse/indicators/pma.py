@@ -31,7 +31,10 @@ def pma(candles: np.ndarray, source_type: str = "hl2", sequential: bool = False)
 
     predict, trigger = pma_fast(source)
 
-    return PMA(predict, trigger) if sequential else PMA(predict[-1], trigger[-1])
+    if sequential:
+        return PMA(predict, trigger)
+    else:
+        return PMA(predict[-1], trigger[-1])
 
 
 @njit

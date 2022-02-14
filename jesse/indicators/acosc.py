@@ -25,4 +25,7 @@ def acosc(candles: np.ndarray, sequential: bool = False) -> AC:
     res = ao - talib.SMA(ao, 5)
     mom = talib.MOM(res, timeperiod=1)
 
-    return AC(res, mom) if sequential else AC(res[-1], mom[-1])
+    if sequential:
+        return AC(res, mom)
+    else:
+        return AC(res[-1], mom[-1])

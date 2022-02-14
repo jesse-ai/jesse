@@ -16,13 +16,12 @@ def test_backtesting_one_route():
     ]
     config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
 
+    candles = {}
     key = jh.key(exchanges.SANDBOX, 'BTC-USDT')
-    candles = {
-        key: {
-            'exchange': exchanges.SANDBOX,
-            'symbol': 'BTC-USDT',
-            'candles': range_candles(5 * 20),
-        }
+    candles[key] = {
+        'exchange': exchanges.SANDBOX,
+        'symbol': 'BTC-USDT',
+        'candles': range_candles(5 * 20)
     }
 
     # run backtest (dates are fake just to pass)
