@@ -160,6 +160,10 @@ def watch_list() -> List[List[Union[str, str]]]:
     """
     strategy = router.routes[0].strategy
 
+    # return if strategy object is not initialized yet
+    if strategy is None:
+        return []
+
     # don't if the strategy hasn't been initiated yet
     if not store.candles.are_all_initiated:
         return []
