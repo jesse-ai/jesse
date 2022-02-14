@@ -26,12 +26,14 @@ def positions() -> list:
             continue
         p: Position = r.strategy.position
         arr.append({
+            'currency': jh.app_currency(),
             'type': p.type,
             'strategy_name': p.strategy.name,
             'symbol': p.symbol,
             'leverage': p.leverage,
             'opened_at': p.opened_at,
             'qty': p.qty,
+            'value': p.value,
             'entry': p.entry_price,
             'current_price': p.current_price,
             'liq_price': p.liquidation_price,
