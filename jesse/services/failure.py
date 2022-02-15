@@ -20,6 +20,9 @@ def register_custom_exception_handler() -> None:
                 jesse_logger.error(
                     f'{args.exc_type.__name__}: {args.exc_value}'
                 )
+                jesse_logger.info(
+                    str(traceback.format_exc())
+                )
 
             sync_publish('exception', {
                 'error': f"{args.exc_type.__name__}: {str(args.exc_value)}",
