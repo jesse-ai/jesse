@@ -33,7 +33,7 @@ def positions() -> list:
             'leverage': p.leverage,
             'opened_at': p.opened_at,
             'qty': p.qty,
-            'value': p.value,
+            'value': round(p.value, 2),
             'entry': p.entry_price,
             'current_price': p.current_price,
             'liq_price': p.liquidation_price,
