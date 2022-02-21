@@ -125,6 +125,14 @@ class Order(Model):
         return self.flag == order_flags.CLOSE
 
     @property
+    def is_stop_loss(self):
+        return self.submitted_via == 'stop-loss'
+
+    @property
+    def is_take_profit(self):
+        return self.submitted_via == 'take-profit'
+
+    @property
     def to_dict(self):
         return {
             'id': self.id,

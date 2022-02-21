@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.enums import sides, order_statuses
 from jesse.models import Order
 from jesse.enums import order_types
-from .utils import set_up
+from .utils import set_up, single_route_backtest
 
 
 def test_cancel_order():
@@ -50,3 +50,12 @@ def test_execute_order():
 
     assert order.is_executed is True
     assert order.executed_at == jh.now_to_timestamp()
+
+
+def test_order_is_stop_loss_property():
+    single_route_backtest('TestOrderIsStopLossProperty')
+
+
+def test_order_is_take_profit_property():
+    single_route_backtest('TestOrderIsTakeProfitProperty')
+
