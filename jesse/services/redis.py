@@ -12,6 +12,7 @@ async def init_redis():
     return await aioredis.create_redis_pool(
         address=(ENV_VALUES['REDIS_HOST'], ENV_VALUES['REDIS_PORT']),
         password=ENV_VALUES['REDIS_PASSWORD'] or None,
+        db=int(ENV_VALUES.get('REDIS_DB') or 0),
     )
 
 
@@ -21,7 +22,7 @@ if jh.is_jesse_project():
     if not jh.is_notebook():
         async_redis = asyncio.run(init_redis())
         sync_redis = sync_redis_lib.Redis(
-            host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=0,
+            host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
             password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
         )
 
