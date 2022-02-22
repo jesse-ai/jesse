@@ -1,44 +1,13 @@
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = '0.33.1'
+VERSION = '0.33.2'
 DESCRIPTION = "A trading framework for cryptocurrencies"
-
-REQUIRED_PACKAGES = [
-    'arrow',
-    'blinker',
-    'click',
-    'matplotlib',
-    'mplfinance',
-    'newtulipy',
-    'numpy',
-    'numpy_groupies',
-    'pandas',
-    'peewee',
-    'psycopg2-binary',
-    'pydash',
-    'pytest',
-    'PyWavelets',
-    'quantstats',
-    'requests',
-    'scipy',
-    'statsmodels',
-    'TA-Lib',
-    'tabulate',
-    'timeloop',
-    'websocket-client',
-    'simplejson',
-    'aioredis',
-    'redis',
-    'fastapi',
-    'uvicorn',
-    'websockets',
-    'python-dotenv',
-    'aiofiles'
-]
+with open("requirements.txt", "r", encoding="utf-8") as f:
+    REQUIRED_PACKAGES = f.read().splitlines()
 
 with open("README.md", "r", encoding="utf-8") as f:
-    long_description = f.read()
+    LONG_DESCRIPTION = f.read()
 
 setup(
     name='jesse',
@@ -47,7 +16,7 @@ setup(
     author_email="saleh@jesse.trade",
     packages=find_packages(),
     description=DESCRIPTION,
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     url="https://jesse.trade",
     project_urls={
