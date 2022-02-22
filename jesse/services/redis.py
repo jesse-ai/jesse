@@ -1,6 +1,6 @@
 import aioredis
 import redis as sync_redis_lib
-import jimplejson as json
+import simplejson as json
 import asyncio
 import jesse.helpers as jh
 from jesse.libs.custom_json import NpEncoder

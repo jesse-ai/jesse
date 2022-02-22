@@ -1,5 +1,5 @@
 import numpy as np
-import jimplejson as json
+import simplejson as json
 
 
 class NpEncoder(json.JSONEncoder):
