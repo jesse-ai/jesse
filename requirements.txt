@@ -6,7 +6,7 @@ mplfinance==0.12.8b6
 newtulipy==0.4.6
 numpy==1.22.2
 numpy_groupies==0.9.14
-pandas==1.4.0
+pandas==1.4.1
 peewee==3.14.8
 psycopg2-binary==2.9.2
 pydash==5.1.0
