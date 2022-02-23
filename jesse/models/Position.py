@@ -327,6 +327,10 @@ class Position:
             notifier.notify(info_text)
 
     def _on_executed_order(self, order: Order) -> None:
+        # skip live trading
+        if jh.is_livetrading():
+            return
+
         qty = order.qty
         price = order.price
 
@@ -367,3 +371,14 @@ class Position:
 
         if self.strategy:
             self.strategy._on_updated_position(order)
+
+    def update_from_stream(self, data: dict) -> None:
+        """
+        Used for updating the position from the WS stream (only for live trading)
+        """
+        self.entry_price = data['entry_price']
+        self._liquidation_price = data['liquidation_price']
+        # if position was closed, but is now about to open, set opened_at to current time
+        if self.is_close and data['qty'] != 0:
+            self.opened_at = jh.now_to_timestamp()
+        self.qty = data['qty']
