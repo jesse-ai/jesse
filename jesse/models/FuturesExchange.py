@@ -11,10 +11,20 @@ from .Exchange import Exchange
 
 
 class FuturesExchange(Exchange):
+    # # used for live-trading only:
+    # in futures trading, margin is only with one asset, so:
+    _available_margin = 0
+    # in futures trading, wallet is only with one asset, so:
+    _wallet_balance = 0
+    # so is started_balance
+    _started_balance = 0
+
     # current holding assets
     assets = {}
     # current available assets (dynamically changes based on active orders)
     available_assets = {}
+    # used to estimating metrics
+    starting_assets = {}
 
     buy_orders = {}
     sell_orders = {}
@@ -58,10 +68,22 @@ class FuturesExchange(Exchange):
 
         self.settlement_currency = settlement_currency.upper()
 
+    def started_balance(self) -> float:
+        if jh.is_livetrading():
+            return self._started_balance
+
+        return self.starting_assets[jh.app_currency()]
+
     def wallet_balance(self, symbol: str = '') -> float:
+        if jh.is_livetrading():
+            return self._wallet_balance
+
         return self.assets[self.settlement_currency]
 
     def available_margin(self, symbol: str = '') -> float:
+        if jh.is_livetrading():
+            return self._available_margin
+
         # a temp which gets added to per each asset (remember that all future assets use the same currency for settlement)
         temp_credits = self.assets[self.settlement_currency]
 
@@ -97,6 +119,9 @@ class FuturesExchange(Exchange):
         return temp_credits * self.futures_leverage
 
     def charge_fee(self, amount: float) -> None:
+        if jh.is_livetrading():
+            return
+
         fee_amount = abs(amount) * self.fee_rate
         new_balance = self.assets[self.settlement_currency] - fee_amount
         if fee_amount != 0:
@@ -106,12 +131,18 @@ class FuturesExchange(Exchange):
         self.assets[self.settlement_currency] = new_balance
 
     def add_realized_pnl(self, realized_pnl: float) -> None:
+        if jh.is_livetrading():
+            return
+
         new_balance = self.assets[self.settlement_currency] + realized_pnl
         logger.info(
             f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
     def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+        if jh.is_livetrading():
+            return
+
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
@@ -137,6 +168,9 @@ class FuturesExchange(Exchange):
                 self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
 
     def on_order_execution(self, order: Order) -> None:
+        if jh.is_livetrading():
+            return
+
         base_asset = jh.base_asset(order.symbol)
 
         if order.type == order_types.MARKET:
@@ -157,6 +191,9 @@ class FuturesExchange(Exchange):
                         break
 
     def on_order_cancellation(self, order: Order) -> None:
+        if jh.is_livetrading():
+            return
+
         base_asset = jh.base_asset(order.symbol)
 
         self.available_assets[base_asset] -= order.qty
@@ -174,3 +211,15 @@ class FuturesExchange(Exchange):
                     if item[0] == order.qty and item[1] == order.price:
                         self.sell_orders[base_asset][index] = np.array([0, 0])
                         break
+
+    def update_from_stream(self, data: dict) -> None:
+        """
+        Used for updating the exchange from the WS stream (only for live trading)
+        """
+        if not jh.is_livetrading():
+            raise Exception('This method is only for live trading')
+
+        self._available_margin = data['available_margin']
+        self._wallet_balance = data['wallet_balance']
+        if self._started_balance == 0:
+            self._started_balance = self._wallet_balance

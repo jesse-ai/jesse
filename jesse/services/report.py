@@ -88,15 +88,13 @@ def candles() -> dict:
 
 
 def livetrade():
-    # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
-    # sum up balance of all trading exchanges
     starting_balance = 0
     current_balance = 0
     for e in store.exchanges.storage:
-        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
-        current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
-    starting_balance = round(starting_balance, 2)
-    current_balance = round(current_balance, 2)
+        starting_balance = round(store.exchanges.storage[e].started_balance(), 2)
+        current_balance = round(store.exchanges.storage[e].wallet_balance(), 2)
+        # there's only one exchange, so we can break
+        break
 
     # short trades summary
     if len(store.completed_trades.trades):
