@@ -13,7 +13,7 @@ def test_close_position():
     })
     assert p.exit_price is None
 
-    p._close(50)
+    p._mutating_close(50)
 
     assert p.qty == 0
     assert p.entry_price is None
@@ -90,7 +90,7 @@ def test_open_position():
     assert p.exit_price is None
     assert p.current_price is None
 
-    p._open(1, 50)
+    p._mutating_open(1, 50)
 
     assert p.qty == 1
     assert p.entry_price == 50
@@ -178,7 +178,7 @@ def test_position_pnl_percentage():
 def test_position_roi():
     set_up()
     p = Position(exchanges.SANDBOX, 'BTC-USDT')
-    p._open(3, 100)
+    p._mutating_open(3, 100)
     p.current_price = 110
 
     assert p.value == 330

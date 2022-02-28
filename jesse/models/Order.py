@@ -117,6 +117,10 @@ class Order(Model):
         return self.is_executed
 
     @property
+    def is_partially_filled(self) -> bool:
+        return self.status == order_statuses.PARTIALLY_FILLED
+
+    @property
     def is_reduce_only(self) -> bool:
         return self.flag == order_flags.REDUCE_ONLY
 
@@ -198,6 +202,10 @@ class Order(Model):
                 if config['env']['notifications']['events']['executed_orders']:
                     notify(txt)
 
+        # log the order of the trade for metrics
+        from jesse.store import store
+        store.completed_trades.add_executed_order(self)
+
         p = selectors.get_position(self.exchange, self.symbol)
 
         if p:
@@ -206,6 +214,9 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+    def update_from_stream(self, data: dict) -> None:
+        pass
 
 
 # if database is open, create the table

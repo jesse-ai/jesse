@@ -190,8 +190,6 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
     assert t1.closed_at == 1547202840000 + 60000
-    assert t1.entry_candle_timestamp == 1547201100000
-    assert t1.exit_candle_timestamp == 1547202840000
     assert t1.orders[0].type == order_types.MARKET
 
     t2: CompletedTrade = store.completed_trades.trades[1]
@@ -202,8 +200,6 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
     assert t2.closed_at == 1547203740000 + 60000
-    assert t2.entry_candle_timestamp == 1547203560000
-    assert t2.exit_candle_timestamp == 1547203740000
     assert t2.orders[0].type == order_types.MARKET
 
 
@@ -234,8 +230,6 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
     assert t1.closed_at == 1547202840000 + 60000
-    assert t1.entry_candle_timestamp == 1547201100000
-    assert t1.exit_candle_timestamp == 1547202660000
     assert t1.orders[0].type == order_types.STOP
 
     t2: CompletedTrade = store.completed_trades.trades[1]
@@ -246,8 +240,6 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
     assert t2.closed_at == 1547203740000 + 60000
-    assert t2.entry_candle_timestamp == 1547203560000
-    assert t2.exit_candle_timestamp == 1547203560000
     assert t2.orders[0].type == order_types.STOP
 
 
@@ -710,8 +702,6 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t1.fee == 0
     assert t1.opened_at == 1547201100000 + 60000
     assert t1.closed_at == 1547201700000 + 60000
-    assert t1.entry_candle_timestamp == 1547201100000
-    assert t1.exit_candle_timestamp == 1547201700000
     assert t1.orders[0].type == order_types.MARKET
 
     t2: CompletedTrade = store.completed_trades.trades[1]
@@ -722,8 +712,6 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t2.fee == 0
     assert t2.opened_at == 1547203560000 + 60000
     assert t2.closed_at == 1547203680000 + 60000
-    assert t2.entry_candle_timestamp == 1547203560000
-    assert t2.exit_candle_timestamp == 1547203680000
     assert t2.orders[0].type == order_types.MARKET
 
 

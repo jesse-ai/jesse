@@ -96,8 +96,6 @@ def store_completed_trade_into_db(completed_trade) -> None:
         'qty': completed_trade.qty,
         'opened_at': completed_trade.opened_at,
         'closed_at': completed_trade.closed_at,
-        'entry_candle_timestamp': completed_trade.entry_candle_timestamp,
-        'exit_candle_timestamp': completed_trade.exit_candle_timestamp,
         'leverage': completed_trade.leverage,
     }
 

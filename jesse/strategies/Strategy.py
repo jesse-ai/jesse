@@ -134,7 +134,7 @@ class Strategy(ABC):
 
         # if the order's role is CLOSE_POSITION but the position qty is not the same as this order's qty,
         # then it's increase_position order (because the position was already open before this)
-        if self.trade and role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
+        if role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
             order.role = order_roles.INCREASE_POSITION
             role = order_roles.INCREASE_POSITION
 
@@ -142,8 +142,6 @@ class Strategy(ABC):
         if role == order_roles.CLOSE_POSITION and self.position.is_open:
             order.role = order_roles.REDUCE_POSITION
             role = order_roles.REDUCE_POSITION
-
-        self._log_position_update(order, role)
 
         if role == order_roles.OPEN_POSITION:
             self._on_open_position(order)
@@ -1014,83 +1012,6 @@ class Strategy(ABC):
     @property
     def fee_rate(self) -> float:
         return selectors.get_exchange(self.exchange).fee_rate
-
-    def _log_position_update(self, order: Order, role: str) -> None:
-        """
-        A log can be either about opening, adding, reducing, or closing the position.
-
-        Arguments:
-            order {order} -- the order object
-        """
-        # set the trade_id for the order if we're in the middle of a trade. Otherwise, it
-        # is done at order_roles.OPEN_POSITION
-        if self.trade:
-            order.trade_id = self.trade.id
-
-        if role == order_roles.OPEN_POSITION:
-            self.trade = CompletedTrade()
-            self.trade.leverage = self.leverage
-            self.trade.orders = [order]
-            self.trade.timeframe = self.timeframe
-            self.trade.id = jh.generate_unique_id()
-            order.trade_id = self.trade.id
-            self.trade.strategy_name = self.name
-            self.trade.exchange = order.exchange
-            self.trade.symbol = order.symbol
-            self.trade.type = trade_types.LONG if order.side == sides.BUY else trade_types.SHORT
-            self.trade.qty = order.qty
-            self.trade.opened_at = jh.now_to_timestamp()
-            self.trade.entry_candle_timestamp = self.current_candle[0]
-        elif role in [order_roles.INCREASE_POSITION, order_roles.REDUCE_POSITION]:
-            self.trade.orders.append(order)
-            self.trade.qty += order.qty
-        elif role == order_roles.CLOSE_POSITION:
-            self.trade.exit_candle_timestamp = self.current_candle[0]
-            self.trade.orders.append(order)
-
-            # calculate average entry_price price
-            sum_price = 0
-            sum_qty = 0
-            for trade_order in self.trade.orders:
-                if not trade_order.is_executed:
-                    continue
-
-                if jh.side_to_type(trade_order.side) != self.trade.type:
-                    continue
-
-                sum_qty += abs(trade_order.qty)
-                sum_price += abs(trade_order.qty) * trade_order.price
-            self.trade.entry_price = sum_price / sum_qty
-
-            # calculate average exit_price
-            sum_price = 0
-            sum_qty = 0
-            for trade_order in self.trade.orders:
-                if not trade_order.is_executed:
-                    continue
-
-                if jh.side_to_type(trade_order.side) == self.trade.type:
-                    continue
-
-                sum_qty += abs(trade_order.qty)
-                sum_price += abs(trade_order.qty) * trade_order.price
-
-            self.trade.exit_price = sum_price / sum_qty
-
-            self.trade.closed_at = jh.now_to_timestamp()
-            self.trade.qty = pydash.sum_by(
-                filter(lambda o: o.side == jh.type_to_side(self.trade.type), self.trade.orders),
-                lambda o: abs(o.qty)
-            )
-
-            store.completed_trades.add_trade(self.trade)
-            if jh.is_livetrading():
-                store_completed_trade_into_db(self.trade)
-            self.trade = None
-            self.trades_count += 1
-        if jh.is_livetrading():
-            store_order_into_db(order)
-
 
     @property
     def is_long(self) -> bool:
