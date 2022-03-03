@@ -3,15 +3,13 @@ from time import sleep
 from typing import List, Dict
 
 import numpy as np
-import pydash
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
-from jesse.enums import sides, trade_types, order_roles
+from jesse.enums import sides
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.models.utils import store_completed_trade_into_db, store_order_into_db
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -119,38 +117,34 @@ class Strategy(ABC):
 
     def _on_updated_position(self, order: Order) -> None:
         """
-        Handles the after-effect of the executed order
-
-        Note that it assumes that the position has already been affected
-        by the executed order.
-
-        Arguments:
-            order {Order} -- the executed order object
+        Handles the after-effect of the executed order to execute strategy
+        events. Note that it assumes that the position has already
+        been affected by the executed order.
         """
+
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
 
-        role = order.role
+        # this is the last executed order, and had its effect on
+        # the position. We need to know what its effect was:
+        before_qty = self.position.qty - order.qty
+        after_qty = self.position.qty
 
-        # if the order's role is CLOSE_POSITION but the position qty is not the same as this order's qty,
-        # then it's increase_position order (because the position was already open before this)
-        if role == order_roles.OPEN_POSITION and abs(self.position.qty) != abs(order.qty):
-            order.role = order_roles.INCREASE_POSITION
-            role = order_roles.INCREASE_POSITION
-
-        # if the order's role is CLOSE_POSITION but the position is still open, then it's reduce_position order
-        if role == order_roles.CLOSE_POSITION and self.position.is_open:
-            order.role = order_roles.REDUCE_POSITION
-            role = order_roles.REDUCE_POSITION
-
-        if role == order_roles.OPEN_POSITION:
+        # call the relevant strategy event handler:
+        # if opening position
+        if before_qty == 0 and after_qty != 0:
             self._on_open_position(order)
-        elif role == order_roles.CLOSE_POSITION:
+        # if closing position
+        elif before_qty != 0 and after_qty == 0:
             self._on_close_position(order)
-        elif role == order_roles.INCREASE_POSITION:
+        # if increasing position size
+        elif abs(after_qty) > abs(before_qty):
             self._on_increased_position(order)
-        elif role == order_roles.REDUCE_POSITION:
+        # if reducing position size
+        elif abs(after_qty) < abs(before_qty):
             self._on_reduced_position(order)
+        else:
+            pass
 
         self._is_handling_updated_order = False
 
@@ -194,13 +188,13 @@ class Strategy(ABC):
         for o in self._buy:
             # MARKET order
             if abs(o[1] - self.price) < 0.0001:
-                submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.buy_at_market(o[0])
             # STOP order
             elif o[1] > self.price:
-                submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1])
             # LIMIT order
             elif o[1] < self.price:
-                submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.buy_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
@@ -234,13 +228,13 @@ class Strategy(ABC):
         for o in self._sell:
             # MARKET order
             if abs(o[1] - self.price) < 0.0001:
-                submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.sell_at_market(o[0])
             # STOP order
             elif o[1] < self.price:
-                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1])
             # LIMIT order
             elif o[1] > self.price:
-                submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
+                submitted_order = self.broker.sell_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
@@ -482,14 +476,13 @@ class Strategy(ABC):
                     for o in self._buy:
                         # MARKET order
                         if abs(o[1] - self.price) < 0.0001:
-                            submitted_order = self.broker.buy_at_market(o[0], order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.buy_at_market(o[0])
                         # STOP order
                         elif o[1] > self.price:
-                            submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1],
-                                                                          order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1])
                         # LIMIT order
                         elif o[1] < self.price:
-                            submitted_order = self.broker.buy_at(o[0], o[1], order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.buy_at(o[0], o[1])
                         else:
                             raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
@@ -512,14 +505,13 @@ class Strategy(ABC):
                     for o in self._sell:
                         # MARKET order
                         if abs(o[1] - self.price) < 0.0001:
-                            submitted_order = self.broker.sell_at_market(o[0], order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.sell_at_market(o[0])
                         # STOP order
                         elif o[1] < self.price:
-                            submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1],
-                                                                          order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1])
                         # LIMIT order
                         elif o[1] > self.price:
-                            submitted_order = self.broker.sell_at(o[0], o[1], order_roles.OPEN_POSITION)
+                            submitted_order = self.broker.sell_at(o[0], o[1])
                         else:
                             raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
@@ -541,11 +533,7 @@ class Strategy(ABC):
                     # remove canceled orders to optimize the loop
                     self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._take_profit:
-                        submitted_order: Order = self.broker.reduce_position_at(
-                            o[0],
-                            o[1],
-                            order_roles.CLOSE_POSITION
-                        )
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
                             submitted_order.submitted_via = 'take-profit'
                             self._exit_orders.append(submitted_order)
@@ -566,11 +554,7 @@ class Strategy(ABC):
                     # remove canceled orders to optimize the loop
                     self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._stop_loss:
-                        submitted_order: Order = self.broker.reduce_position_at(
-                            o[0],
-                            o[1],
-                            order_roles.CLOSE_POSITION
-                        )
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
                             submitted_order.submitted_via = 'stop-loss'
                             self._exit_orders.append(submitted_order)
@@ -668,19 +652,15 @@ class Strategy(ABC):
             for o in self._take_profit:
                 # validation: make sure take-profit will exit with profit, if not, close the position
                 if self.is_long and o[1] <= self.position.entry_price:
-                    submitted_order: Order = self.broker.sell_at_market(o[0], order_roles.CLOSE_POSITION)
+                    submitted_order: Order = self.broker.sell_at_market(o[0])
                     logger.info(
                         'The take-profit is below entry-price for long position, so it will be replaced with a market order instead')
                 elif self.is_short and o[1] >= self.position.entry_price:
-                    submitted_order: Order = self.broker.buy_at_market(o[0], order_roles.CLOSE_POSITION)
+                    submitted_order: Order = self.broker.buy_at_market(o[0])
                     logger.info(
                         'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(
-                        o[0],
-                        o[1],
-                        order_roles.CLOSE_POSITION
-                    )
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
 
                 if submitted_order:
                     submitted_order.submitted_via = 'take-profit'
@@ -690,17 +670,13 @@ class Strategy(ABC):
             for o in self._stop_loss:
                 # validation: make sure stop-loss will exit with profit, if not, close the position
                 if self.is_long and o[1] >= self.position.entry_price:
-                    submitted_order: Order = self.broker.sell_at_market(o[0], order_roles.CLOSE_POSITION)
+                    submitted_order: Order = self.broker.sell_at_market(o[0])
                     logger.info('The stop-loss is above entry-price for long position, so it will be replaced with a market order instead')
                 elif self.is_short and o[1] <= self.position.entry_price:
-                    submitted_order: Order = self.broker.buy_at_market(o[0], order_roles.CLOSE_POSITION)
+                    submitted_order: Order = self.broker.buy_at_market(o[0])
                     logger.info('The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(
-                        o[0],
-                        o[1],
-                        order_roles.CLOSE_POSITION
-                    )
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
 
                 if submitted_order:
                     submitted_order.submitted_via = 'stop-loss'
@@ -851,9 +827,7 @@ class Strategy(ABC):
                 f"Closed open {self.exchange}-{self.symbol} position at {self.position.current_price} with PNL: {round(self.position.pnl, 4)}({round(self.position.pnl_percentage, 2)}%) because we reached the end of the backtest session."
             )
             # fake a closing (market) order so that the calculations would be correct
-            self.broker.reduce_position_at(
-                self.position.qty, self.position.current_price, order_roles.CLOSE_POSITION
-            )
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price)
             return
 
         if len(self._entry_orders):

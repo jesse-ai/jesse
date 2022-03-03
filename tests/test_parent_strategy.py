@@ -7,7 +7,7 @@ import jesse.helpers as jh
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import reset_config
-from jesse.enums import exchanges, timeframes, order_roles, order_types
+from jesse.enums import exchanges, timeframes, order_types
 from jesse.factories import range_candles, candles_from_close_prices
 from jesse.models import CompletedTrade
 from jesse.models import Order
@@ -91,11 +91,8 @@ def test_can_perform_backtest_with_multiple_routes():
         assert o.price == s.candles[0][2]
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
-        assert s.orders[0].role == order_roles.OPEN_POSITION
         assert s.orders[0].type == order_types.MARKET
-        assert s.orders[2].role == order_roles.CLOSE_POSITION
         assert s.orders[2].type == order_types.STOP
-        assert s.orders[1].role == order_roles.CLOSE_POSITION
         assert s.orders[1].type == order_types.LIMIT
         assert s.trade is None
         assert len(store.completed_trades.trades) == 2
@@ -347,16 +344,12 @@ def test_multiple_routes_can_communicate_with_each_other():
             assert len(s.orders) == 1
             # assert that the order got canceled
             assert o.is_canceled is True
-            assert s.orders[0].role == order_roles.OPEN_POSITION
             assert s.orders[0].type == order_types.LIMIT
         elif r.strategy.trades_count == 1:
             assert len(s.orders) == 3
             assert o.is_executed is True
-            assert s.orders[0].role == order_roles.OPEN_POSITION
             assert s.orders[0].type == order_types.LIMIT
-            assert s.orders[2].role == order_roles.CLOSE_POSITION
             assert s.orders[2].type == order_types.STOP
-            assert s.orders[1].role == order_roles.CLOSE_POSITION
             assert s.orders[1].type == order_types.LIMIT
 
 
@@ -551,9 +544,6 @@ def test_should_buy_and_execute_buy():
         assert o.price == s.candles[0][2]
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
-        assert s.orders[1].role == order_roles.CLOSE_POSITION
-        assert s.orders[2].role == order_roles.CLOSE_POSITION
-        assert s.orders[0].role == order_roles.OPEN_POSITION
         assert s.trade is None
         trade: CompletedTrade = store.completed_trades.trades[0]
         assert trade.type == 'long'
@@ -597,9 +587,6 @@ def test_should_sell_and_execute_sell():
         assert o.price == s.candles[0][2]
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
-        assert s.orders[1].role == order_roles.CLOSE_POSITION
-        assert s.orders[2].role == order_roles.CLOSE_POSITION
-        assert s.orders[0].role == order_roles.OPEN_POSITION
         assert s.trade is None
         assert len(store.completed_trades.trades) == 1
         assert store.completed_trades.trades[0].type == 'short'

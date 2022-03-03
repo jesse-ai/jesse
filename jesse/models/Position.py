@@ -352,7 +352,7 @@ class Position:
                 self._mutating_close(price)
             # order increases the size of the position
             elif self.qty * qty > 0:
-                if order.is_reduce_only:
+                if order.reduce_only:
                     logger.info('Did not increase position because order is a reduce_only order')
                 else:
                     self._increase(qty, price)
@@ -361,7 +361,7 @@ class Position:
                 # if size of the order is big enough to both close the
                 # position AND open it on the opposite side
                 if abs(qty) > abs(self.qty):
-                    if order.is_reduce_only:
+                    if order.reduce_only:
                         logger.info(
                             f'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {qty}, Position QTY: {self.qty}')
                         self._mutating_close(price)
@@ -381,14 +381,18 @@ class Position:
         """
         Used for updating the position from the WS stream (only for live trading)
         """
+        before_qty = abs(self.qty)
+        after_qty = abs(data['qty'])
+
         self.entry_price = data['entry_price']
         self._liquidation_price = data['liquidation_price']
+        self.qty = data['qty']
+
         # if opening position
-        if self.is_close and data['qty'] != 0:
+        if before_qty == 0 and after_qty != 0:
             self.opened_at = jh.now_to_timestamp()
             self._open()
         # if closing position
-        if self.is_open and data['qty'] == 0:
+        elif after_qty != 0 and before_qty == 0:
             self.closed_at = jh.now_to_timestamp()
             self._close()
-        self.qty = data['qty']

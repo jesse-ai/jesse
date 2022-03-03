@@ -42,21 +42,6 @@ class colors:
     BLACK = 'black'
 
 
-class order_roles:
-    OPEN_POSITION = 'OPEN POSITION'
-    CLOSE_POSITION = 'CLOSE POSITION'
-    INCREASE_POSITION = 'INCREASE POSITION'
-    REDUCE_POSITION = 'REDUCE POSITION'
-
-
-class order_flags:
-    OCO = 'OCO'
-    POST_ONLY = 'PostOnly'
-    CLOSE = 'Close'
-    HIDDEN = 'Hidden'
-    REDUCE_ONLY = 'ReduceOnly'
-
-
 class order_types:
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'

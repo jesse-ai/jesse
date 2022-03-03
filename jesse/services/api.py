@@ -49,13 +49,12 @@ class API:
         qty: float,
         current_price: float,
         side: str,
-        role: str,
-        flags: list
+        reduce_only: bool
     ) -> Union[Order, None]:
         if exchange not in self.drivers:
             logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
             return None
-        return self.drivers[exchange].market_order(symbol, qty, current_price, side, role, flags)
+        return self.drivers[exchange].market_order(symbol, qty, current_price, side, reduce_only)
 
     def limit_order(
         self,
@@ -64,13 +63,12 @@ class API:
         qty: float,
         price: float,
         side: str,
-        role: str,
-        flags: list
+        reduce_only: bool
     ) -> Union[Order, None]:
         if exchange not in self.drivers:
             logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
             return None
-        return self.drivers[exchange].limit_order(symbol, qty, price, side, role, flags)
+        return self.drivers[exchange].limit_order(symbol, qty, price, side, reduce_only)
 
     def stop_order(
         self, exchange: str,
@@ -78,13 +76,12 @@ class API:
         qty: float,
         price: float,
         side: str,
-        role: str,
-        flags: list
+        reduce_only: bool
     ) -> Union[Order, None]:
         if exchange not in self.drivers:
             logger.info(f'Exchange "{exchange}" driver not initiated yet. Trying again in the next candle')
             return None
-        return self.drivers[exchange].stop_order(symbol, qty, price, side, role, flags)
+        return self.drivers[exchange].stop_order(symbol, qty, price, side, reduce_only)
 
     def cancel_all_orders(self, exchange: str, symbol: str) -> bool:
         if exchange not in self.drivers:

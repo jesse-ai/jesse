@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.config import reset_config
-from jesse.enums import exchanges, order_roles
+from jesse.enums import exchanges
 from jesse.factories import candles_from_close_prices
 from jesse.models import CompletedTrade
 from jesse.routes import router
@@ -42,13 +42,6 @@ def test_can_handle_multiple_entry_orders_too_close_to_each_other():
     assert t.exit_price == 3
     # 4 entry + 1 exit
     assert len(t.orders) == 5
-    # last order is closing order
-    assert t.orders[-1].role == order_roles.CLOSE_POSITION
-    # first order must be opening order
-    assert t.orders[0].role == order_roles.OPEN_POSITION
-    # second order must be increasing order
-    assert t.orders[1].role == order_roles.INCREASE_POSITION
-    assert t.orders[2].role == order_roles.INCREASE_POSITION
 
 
 def test_conflicting_orders():

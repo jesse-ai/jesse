@@ -6,7 +6,7 @@ import jesse.services.selectors as selectors
 from jesse import sync_publish
 from jesse.config import config
 from jesse.services.notifier import notify
-from jesse.enums import order_statuses, order_flags
+from jesse.enums import order_statuses
 from jesse.services.db import database
 
 
@@ -28,14 +28,14 @@ class Order(Model):
     exchange = CharField()
     side = CharField()
     type = CharField()
-    flag = CharField(null=True)
+    reduce_only = BooleanField()
     qty = FloatField()
+    filled_qty = FloatField(default=0)
     price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
-    role = CharField(null=True)
     submitted_via = None
 
     class Meta:
@@ -121,14 +121,6 @@ class Order(Model):
         return self.status == order_statuses.PARTIALLY_FILLED
 
     @property
-    def is_reduce_only(self) -> bool:
-        return self.flag == order_flags.REDUCE_ONLY
-
-    @property
-    def is_close(self) -> bool:
-        return self.flag == order_flags.CLOSE
-
-    @property
     def is_stop_loss(self):
         return self.submitted_via == 'stop-loss'
 
@@ -146,6 +138,7 @@ class Order(Model):
             'side': self.side,
             'type': self.type,
             'qty': self.qty,
+            'filled_qty': self.filled_qty,
             'price': self.price,
             'flag': self.flag,
             'status': self.status,
@@ -214,9 +207,6 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
-
-    def update_from_stream(self, data: dict) -> None:
-        pass
 
 
 # if database is open, create the table

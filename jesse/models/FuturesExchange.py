@@ -146,7 +146,7 @@ class FuturesExchange(Exchange):
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
-        if (order.type != order_types.MARKET or skip_market_order) and not order.is_reduce_only:
+        if (order.type != order_types.MARKET or skip_market_order) and not order.reduce_only:
             order_size = abs(order.qty * order.price)
             remaining_margin = self.available_margin()
             if order_size > remaining_margin:
@@ -161,7 +161,7 @@ class FuturesExchange(Exchange):
 
         self.available_assets[base_asset] += order.qty
 
-        if not order.is_reduce_only:
+        if not order.reduce_only:
             if order.side == sides.BUY:
                 self.buy_orders[base_asset].append(np.array([order.qty, order.price]))
             else:
@@ -176,7 +176,7 @@ class FuturesExchange(Exchange):
         if order.type == order_types.MARKET:
             self.on_order_submission(order, skip_market_order=False)
 
-        if not order.is_reduce_only:
+        if not order.reduce_only:
             if order.side == sides.BUY:
                 # find and set order to [0, 0] (same as removing it)
                 for index, item in enumerate(self.buy_orders[base_asset]):
@@ -198,7 +198,7 @@ class FuturesExchange(Exchange):
 
         self.available_assets[base_asset] -= order.qty
         # self.available_assets[quote_asset] += order.qty * order.price
-        if not order.is_reduce_only:
+        if not order.reduce_only:
             if order.side == sides.BUY:
                 # find and set order to [0, 0] (same as removing it)
                 for index, item in enumerate(self.buy_orders[base_asset]):

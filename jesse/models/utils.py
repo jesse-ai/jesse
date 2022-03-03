@@ -122,14 +122,14 @@ def store_order_into_db(order) -> None:
         'exchange': order.exchange,
         'side': order.side,
         'type': order.type,
-        'flag': order.flag,
+        'reduce_only': order.reduce_only,
         'qty': order.qty,
+        'filled_qty': order.filled_qty,
         'price': order.price,
         'status': order.status,
         'created_at': order.created_at,
         'executed_at': order.executed_at,
         'canceled_at': order.canceled_at,
-        'role': order.role,
     }
 
     def async_save() -> None:

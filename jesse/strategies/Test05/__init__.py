@@ -1,4 +1,5 @@
 from jesse.strategies import Strategy
+import jesse.helpers as jh
 
 
 # test_is_smart_enough_to_open_positions_via_market_orders
@@ -26,6 +27,3 @@ class Test05(Strategy):
 
     def should_cancel(self):
         return False
-
-    def filters(self):
-        return []
