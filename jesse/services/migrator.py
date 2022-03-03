@@ -1,5 +1,6 @@
 from jesse.services.db import database
 from playhouse.migrate import *
+from jesse.enums import migration_actions
 
 
 def run():
@@ -67,10 +68,10 @@ def _log(migrator):
 
 def _order(migrator):
     fields = [
-        {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': 'add'},
-        {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': 'allow_null'},
-        {'name': 'exchange_id', 'type': CharField(null=True), 'action': 'allow_null'},
-        {'name': 'price', 'type': FloatField(null=True), 'action': 'allow_null'},
+        {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ADD},
+        {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ALLOW_NULL},
+        {'name': 'exchange_id', 'type': CharField(null=True), 'action': migration_actions.ALLOW_NULL},
+        {'name': 'price', 'type': FloatField(null=True), 'action': migration_actions.ALLOW_NULL},
     ]
 
     if 'order' in database.db.get_tables():
@@ -107,30 +108,30 @@ def _migrate(migrator, fields, columns, table):
         column_name_exist = any(field['name'] == item.name for item in columns)
 
         if column_name_exist:
-            if field['action'] == 'add':
+            if field['action'] == migration_actions.ADD:
                 print(f"'{field['name']}' field already exists on '{table}' the table.")
-            elif field['action'] == 'drop':
+            elif field['action'] == migration_actions.DROP:
                 migrate(
                     migrator.drop_column(table, field['name'])
                 )
                 print(f"Successfully dropped '{field['name']}' field from '{table}' the table.")
-            elif field['action'] == 'rename':
+            elif field['action'] == migration_actions.RENAME:
                 migrate(
                     migrator.rename_column(table, field['name'], field['new_name'])
                 )
                 print(f"'{field['name']}' field successfully changed to {field['new_name']} in the '{table}' table.")
-            elif field['action'] == 'modify_type':
+            elif field['action'] == migration_actions.MODIFY_TYPE:
                 migrate(
                     migrator.alter_column_type(table, field['name'], field['type'])
                 )
                 print(
                     f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
-            elif field['action'] == 'allow_null':
+            elif field['action'] == migration_actions.ALLOW_NULL:
                 migrate(
                     migrator.drop_not_null(table, field['name'])
                 )
                 print(f"'{field['name']}' field successfully updated to accept nullable values in the '{table}' table.")
-            elif field['action'] == 'deny_null':
+            elif field['action'] == migration_actions.DENY_NULL:
                 migrate(
                     migrator.add_not_null(table, field['name'])
                 )
@@ -138,7 +139,7 @@ def _migrate(migrator, fields, columns, table):
                     f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
         # if column name doesn't not already exist
         else:
-            if field['action'] == 'add':
+            if field['action'] == migration_actions.ADD:
                 migrate(
                     migrator.add_column(table, field['name'], field['type'])
                 )

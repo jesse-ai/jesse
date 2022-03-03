@@ -57,3 +57,12 @@ class exchanges:
     BINANCE_FUTURES = 'Binance Futures'
     TESTNET_BINANCE_FUTURES = 'Testnet Binance Futures'
     SANDBOX = 'Sandbox'
+
+
+class migration_actions:
+    ADD = 'add'
+    DROP = 'drop'
+    RENAME = 'rename'
+    MODIFY_TYPE = 'modify_type'
+    ALLOW_NULL = 'allow_null'
+    DENY_NULL = 'deny_null'
