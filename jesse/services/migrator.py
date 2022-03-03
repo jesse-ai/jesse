@@ -72,6 +72,10 @@ def _order(migrator):
         {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ALLOW_NULL},
         {'name': 'exchange_id', 'type': CharField(null=True), 'action': migration_actions.ALLOW_NULL},
         {'name': 'price', 'type': FloatField(null=True), 'action': migration_actions.ALLOW_NULL},
+        {'name': 'flag', 'type': CharField(default=False), 'action': migration_actions.DROP},
+        {'name': 'role', 'type': CharField(default=False), 'action': migration_actions.DROP},
+        {'name': 'filled_qty', 'type': FloatField(default=0), 'action': migration_actions.ADD},
+        {'name': 'reduce_only', 'type': BooleanField(default=False), 'action': migration_actions.ADD},
     ]
 
     if 'order' in database.db.get_tables():

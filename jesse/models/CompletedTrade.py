@@ -46,7 +46,8 @@ class CompletedTrade(peewee.Model):
         # to store the actual order objects
         self.orders = []
 
-    def toJSON(self) -> dict:
+    @property
+    def to_json(self) -> dict:
         return {
             "id": self.id,
             "strategy_name": self.strategy_name,
@@ -65,6 +66,7 @@ class CompletedTrade(peewee.Model):
             "closed_at": self.closed_at,
         }
 
+    @property
     def to_dict(self) -> dict:
         return {
             'id': self.id,
@@ -95,7 +97,6 @@ class CompletedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
         return jh.estimate_PNL(
             self.qty, self.entry_price, self.exit_price,

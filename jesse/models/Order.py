@@ -140,7 +140,6 @@ class Order(Model):
             'qty': self.qty,
             'filled_qty': self.filled_qty,
             'price': self.price,
-            'flag': self.flag,
             'status': self.status,
             'created_at': self.created_at,
             'canceled_at': self.canceled_at,

@@ -262,7 +262,7 @@ class Position:
         #     if jh.is_live() and config['env']['notifications']['events']['updated_position']:
         #         notifier.notify(info_text)
 
-    def _reduce(self, qty: float, price: float) -> None:
+    def _mutating_reduce(self, qty: float, price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is closed.')
 
@@ -289,7 +289,7 @@ class Position:
         if jh.is_live() and config['env']['notifications']['events']['updated_position']:
             notifier.notify(info_text)
 
-    def _increase(self, qty: float, price: float) -> None:
+    def _mutating_increase(self, qty: float, price: float) -> None:
         if not self.is_open:
             raise OpenPositionError('position must be already open in order to increase its size')
 
@@ -335,7 +335,13 @@ class Position:
             notifier.notify(info_text)
 
     def _on_executed_order(self, order: Order) -> None:
-        if not jh.is_livetrading():
+        if jh.is_livetrading():
+            # if position got closed because of this order
+            before_qty = self.qty - order.qty
+            after_qty = self.qty
+            if before_qty != 0 and after_qty == 0:
+                self._close()
+        else:
             qty = order.qty
             price = order.price
 
@@ -355,7 +361,7 @@ class Position:
                 if order.reduce_only:
                     logger.info('Did not increase position because order is a reduce_only order')
                 else:
-                    self._increase(qty, price)
+                    self._mutating_increase(qty, price)
             # order reduces the size of the position
             elif self.qty * qty < 0:
                 # if size of the order is big enough to both close the
@@ -372,7 +378,7 @@ class Position:
                         self._mutating_close(price)
                         self._mutating_open(diff_qty, price)
                 else:
-                    self._reduce(qty, price)
+                    self._mutating_reduce(qty, price)
 
         if self.strategy:
             self.strategy._on_updated_position(order)
@@ -393,6 +399,6 @@ class Position:
             self.opened_at = jh.now_to_timestamp()
             self._open()
         # if closing position
-        elif after_qty != 0 and before_qty == 0:
+        elif before_qty != 0 and after_qty == 0:
             self.closed_at = jh.now_to_timestamp()
-            self._close()
+

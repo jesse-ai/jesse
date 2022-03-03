@@ -4,6 +4,7 @@ from jesse.models import Position, CompletedTrade, Order
 import jesse.helpers as jh
 from jesse.models.utils import store_completed_trade_into_db
 from jesse.enums import sides
+from jesse.services import logger
 
 
 class CompletedTrades:
@@ -56,6 +57,10 @@ class CompletedTrades:
         t.exchange = position.exchange_name
         t.symbol = position.symbol
         t.type = position.type
+        if not jh.is_unit_testing():
+            logger.info(
+                f"OPENED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {t.entry_price}"
+            )
 
     def close_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
@@ -70,14 +75,12 @@ class CompletedTrades:
             store_completed_trade_into_db(t)
         # store the trade into the list
         self.trades.append(t)
+        if not jh.is_unit_testing():
+            logger.info(
+                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {t.entry_price}, exit_price: {t.exit_price}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
+            )
         # at the end, reset the trade variable
         self._reset_current_trade(position.exchange_name, position.symbol)
-
-    # TODO: to detect initially received orders from the exchange in live mode:
-    # position qty increase from 0: OPEN
-    # position qty becoming 0: CLOSE
-    # position qty increasing in size: INCREASE
-    # position qty decreasing in size: REDUCE
 
     @property
     def count(self) -> int:

@@ -18,7 +18,7 @@ def store_logs(study_name: str = '', export_json: bool = False, export_tradingvi
     path = f'storage/json/{study_name}.json'
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
     for t in store.completed_trades.trades:
-        trades_json['trades'].append(t.toJSON())
+        trades_json['trades'].append(t.to_json)
 
     if export_json:
         os.makedirs('./storage/json', exist_ok=True)

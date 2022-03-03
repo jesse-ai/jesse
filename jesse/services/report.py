@@ -98,7 +98,7 @@ def livetrade():
 
     # short trades summary
     if len(store.completed_trades.trades):
-        df = pd.DataFrame.from_records([t.to_dict() for t in store.completed_trades.trades])
+        df = pd.DataFrame.from_records([t.to_dict for t in store.completed_trades.trades])
         total = len(df)
         winning_trades = len(df.loc[df['PNL'] > 0])
         losing_trades = len(df.loc[df['PNL'] < 0])
@@ -211,10 +211,11 @@ def orders():
             'side': o.side,
             'type': o.type,
             'qty': o.qty,
+            'filled_qty': o.filled_qty,
             'price': o.price,
-            'flag': o.flag,
             'status': o.status,
             'created_at': o.created_at,
             'canceled_at': o.canceled_at,
             'executed_at': o.executed_at,
+            'reduce_only': o.reduce_only,
         } for o in route_orders[::-1][0:5]]

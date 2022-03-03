@@ -133,15 +133,19 @@ class Strategy(ABC):
         # call the relevant strategy event handler:
         # if opening position
         if before_qty == 0 and after_qty != 0:
+            logger.info(f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}")
             self._on_open_position(order)
         # if closing position
         elif before_qty != 0 and after_qty == 0:
+            logger.info(f"CLOSED Position for {self.symbol}")
             self._on_close_position(order)
         # if increasing position size
         elif abs(after_qty) > abs(before_qty):
+            logger.info(f"Position size increased from {before_qty} to {after_qty}")
             self._on_increased_position(order)
         # if reducing position size
         elif abs(after_qty) < abs(before_qty):
+            logger.info(f"Position size reduced from {before_qty} to {after_qty}")
             self._on_reduced_position(order)
         else:
             pass
@@ -698,9 +702,6 @@ class Strategy(ABC):
         pass
 
     def _on_close_position(self, order: Order):
-        if not jh.should_execute_silently() or jh.is_debugging():
-            logger.info("A closing order has been executed")
-
         self._broadcast('route-close-position')
         self._execute_cancel()
         self.on_close_position(order)
