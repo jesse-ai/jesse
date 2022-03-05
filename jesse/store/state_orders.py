@@ -32,7 +32,18 @@ class OrdersState:
             o for o in self.storage[key] if o.id != order.id
         ]
 
+    def execute_pending_market_orders(self) -> None:
+        if not self.to_execute:
+            return
+
+        for o in self.to_execute:
+            o.execute()
+
+        self.to_execute = []
+
+    # # # # # # # # # # # # # # # # #
     # getters
+    # # # # # # # # # # # # # # # # #
     def get_orders(self, exchange, symbol) -> List[Order]:
         key = f'{exchange}-{symbol}'
         return self.storage.get(key, [])
@@ -61,12 +72,3 @@ class OrdersState:
             return pydash.find(self.storage[key], lambda o: o.exchange_id == id)
 
         return pydash.find(self.storage[key], lambda o: o.id == id)
-
-    def execute_pending_market_orders(self) -> None:
-        if not self.to_execute:
-            return
-
-        for o in self.to_execute:
-            o.execute()
-
-        self.to_execute = []

@@ -5,9 +5,6 @@ from jesse.store import store
 
 
 def set_up():
-    """
-
-    """
     reset_config()
     config['app']['trading_exchanges'] = [exchanges.SANDBOX, exchanges.BITFINEX]
     config['app']['trading_symbols'] = ['BTC-USD', 'ETH-USD']
@@ -57,6 +54,8 @@ def test_state_order_get_order_by_id():
     store.orders.add_order(o2)
     assert store.orders.get_order_by_id(exchanges.SANDBOX, 'ETH-USD',
                                         o2.id) == o2
+
+
 def test_state_order_get_orders():
     set_up()
 
@@ -64,6 +63,4 @@ def test_state_order_get_orders():
     o2 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USD'})
     store.orders.add_order(o1)
     store.orders.add_order(o2)
-    assert store.orders.get_orders(exchanges.SANDBOX,'ETH-USD') == [o1, o2]
-
-
+    assert store.orders.get_orders(exchanges.SANDBOX, 'ETH-USD') == [o1, o2]
