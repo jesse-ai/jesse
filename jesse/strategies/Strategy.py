@@ -45,9 +45,6 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self._entry_orders = []
-        self._exit_orders = []
-
         self.trade: CompletedTrade = None
         self.trades_count = 0
 
@@ -202,9 +199,6 @@ class Strategy(ABC):
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
-            if submitted_order:
-                self._entry_orders.append(submitted_order)
-
     def _execute_short(self) -> None:
         self.go_short()
 
@@ -241,9 +235,6 @@ class Strategy(ABC):
                 submitted_order = self.broker.sell_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
-
-            if submitted_order:
-                self._entry_orders.append(submitted_order)
 
     def _prepare_buy(self, make_copies: bool = True) -> None:
         if type(self.buy) is np.ndarray:
@@ -413,8 +404,7 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self._entry_orders = []
-        self._exit_orders = []
+        store.orders.reset_trade_orders(self.exchange, self.symbol)
 
         self.increased_count = 0
         self.reduced_count = 0
@@ -473,25 +463,21 @@ class Strategy(ABC):
                     self._buy = self.buy.copy()
 
                     # cancel orders
-                    for o in self._entry_orders:
+                    for o in self.entry_orders:
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    self._entry_orders = [o for o in self._entry_orders if o.is_executed]
                     for o in self._buy:
                         # MARKET order
                         if abs(o[1] - self.price) < 0.0001:
-                            submitted_order = self.broker.buy_at_market(o[0])
+                            self.broker.buy_at_market(o[0])
                         # STOP order
                         elif o[1] > self.price:
-                            submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1])
+                            self.broker.start_profit_at(sides.BUY, o[0], o[1])
                         # LIMIT order
                         elif o[1] < self.price:
-                            submitted_order = self.broker.buy_at(o[0], o[1])
+                            self.broker.buy_at(o[0], o[1])
                         else:
                             raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
-
-                        if submitted_order:
-                            self._entry_orders.append(submitted_order)
 
             elif self.is_short:
                 # prepare format
@@ -502,25 +488,21 @@ class Strategy(ABC):
                     self._sell = self.sell.copy()
 
                     # cancel orders
-                    for o in self._entry_orders:
+                    for o in self.entry_orders:
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    self._entry_orders = [o for o in self._entry_orders if o.is_executed]
                     for o in self._sell:
                         # MARKET order
                         if abs(o[1] - self.price) < 0.0001:
-                            submitted_order = self.broker.sell_at_market(o[0])
+                            self.broker.sell_at_market(o[0])
                         # STOP order
                         elif o[1] < self.price:
-                            submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1])
+                            self.broker.start_profit_at(sides.SELL, o[0], o[1])
                         # LIMIT order
                         elif o[1] > self.price:
-                            submitted_order = self.broker.sell_at(o[0], o[1])
+                            self.broker.sell_at(o[0], o[1])
                         else:
                             raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
-
-                        if submitted_order:
-                            self._entry_orders.append(submitted_order)
 
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
@@ -531,16 +513,13 @@ class Strategy(ABC):
                     self._take_profit = self.take_profit.copy()
 
                     # cancel orders
-                    for o in self._exit_orders:
-                        if o.submitted_via == 'take-profit' and o.is_active or o.is_queued:
+                    for o in self.exit_orders:
+                        if o.is_take_profit and o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    # remove canceled orders to optimize the loop
-                    self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._take_profit:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
                             submitted_order.submitted_via = 'take-profit'
-                            self._exit_orders.append(submitted_order)
 
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
@@ -552,16 +531,14 @@ class Strategy(ABC):
                     self._stop_loss = self.stop_loss.copy()
 
                     # cancel orders
-                    for o in self._exit_orders:
-                        if o.submitted_via == 'stop-loss' and o.is_active or o.is_queued:
+                    for o in self.exit_orders:
+                        if o.is_stop_loss and o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
                     # remove canceled orders to optimize the loop
-                    self._exit_orders = [o for o in self._exit_orders if not o.is_canceled]
                     for o in self._stop_loss:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
                             submitted_order.submitted_via = 'stop-loss'
-                            self._exit_orders.append(submitted_order)
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
@@ -607,7 +584,7 @@ class Strategy(ABC):
             logger.info('Maximum allowed trades in test-drive mode is reached')
             return
 
-        if len(self._entry_orders) and self.is_close and self.should_cancel():
+        if len(self.entry_orders) and self.is_close and self.should_cancel():
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -634,7 +611,7 @@ class Strategy(ABC):
         if jh.is_backtesting() or jh.is_unit_testing():
             store.orders.execute_pending_market_orders()
 
-        if self.position.is_close and self._entry_orders == []:
+        if self.position.is_close and self.entry_orders == []:
             should_short = self.should_short()
             should_long = self.should_long()
             # validation
@@ -668,7 +645,6 @@ class Strategy(ABC):
 
                 if submitted_order:
                     submitted_order.submitted_via = 'take-profit'
-                    self._exit_orders.append(submitted_order)
 
         if self.stop_loss is not None:
             for o in self._stop_loss:
@@ -684,7 +660,6 @@ class Strategy(ABC):
 
                 if submitted_order:
                     submitted_order.submitted_via = 'stop-loss'
-                    self._exit_orders.append(submitted_order)
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
@@ -831,7 +806,7 @@ class Strategy(ABC):
             self.broker.reduce_position_at(self.position.qty, self.position.current_price)
             return
 
-        if len(self._entry_orders):
+        if len(self.entry_orders):
             self._execute_cancel()
             logger.info('Canceled open-position orders because we reached the end of the backtest session.')
 
@@ -931,27 +906,6 @@ class Strategy(ABC):
         :return: np.ndarray
         """
         return store.candles.get_candles(exchange, symbol, timeframe)
-
-    @property
-    def orders(self) -> List[Order]:
-        """
-        Returns all the orders submitted by for this strategy. Just as a helper
-        to use when writing super simple strategies.
-
-        Returns:
-            [List[Order]] -- orders submitted by strategy
-        """
-        return store.orders.get_orders(self.exchange, self.symbol)
-
-    @property
-    def trades(self) -> List[CompletedTrade]:
-        """
-        Returns all the completed trades for this strategy.
-
-        Returns:
-         [List[CompletedTrade]] -- completed trades by strategy
-        """
-        return store.completed_trades.trades
 
     @property
     def metrics(self) -> dict:
@@ -1113,3 +1067,31 @@ class Strategy(ABC):
         for key, p in self.all_positions.items():
             total_position_values += p.pnl
         return (total_position_values + self.capital) * self.leverage
+
+    @property
+    def trades(self) -> List[CompletedTrade]:
+        """
+        Returns all the completed trades for this strategy.
+        """
+        return store.completed_trades.trades
+
+    @property
+    def orders(self) -> List[Order]:
+        """
+        Returns all the orders submitted by for this strategy.
+        """
+        return store.orders.get_orders(self.exchange, self.symbol)
+
+    @property
+    def entry_orders(self):
+        """
+        Returns all the entry orders for this position.
+        """
+        return store.orders.get_entry_orders(self.exchange, self.symbol)
+
+    @property
+    def exit_orders(self):
+        """
+        Returns all the exit orders for this position.
+        """
+        return store.orders.get_exit_orders(self.exchange, self.symbol)

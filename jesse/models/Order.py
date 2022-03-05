@@ -146,6 +146,10 @@ class Order(Model):
             'executed_at': self.executed_at,
         }
 
+    @property
+    def position(self):
+        return selectors.get_position(self.exchange, self.symbol)
+
     def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return

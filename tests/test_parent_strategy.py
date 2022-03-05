@@ -59,50 +59,6 @@ def test_can_close_a_long_position_and_go_short_at_the_same_candle():
     assert store.app.total_liquidations == 1
 
 
-def test_can_perform_backtest_with_multiple_routes():
-    set_up()
-
-    routes = [
-        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': 'Test01'},
-        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test02'},
-    ]
-
-    candles = {}
-    for r in routes:
-        key = jh.key(r['exchange'], r['symbol'])
-        candles[key] = {
-            'exchange': r['exchange'],
-            'symbol': r['symbol'],
-            'candles': range_candles((5 * 3) * 20)
-        }
-
-    # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
-
-    for r in router.routes:
-        s: Strategy = r.strategy
-        p = s.position
-
-        assert p.is_close is True
-        assert len(s.orders) == 3
-        o: Order = s.orders[0]
-        short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
-        assert o.price == short_candles[4][2]
-        assert o.price == s.candles[0][2]
-        assert o.created_at == short_candles[4][0] + 60_000
-        assert o.is_executed is True
-        assert s.orders[0].type == order_types.MARKET
-        assert s.orders[2].type == order_types.STOP
-        assert s.orders[1].type == order_types.LIMIT
-        assert s.trade is None
-        assert len(store.completed_trades.trades) == 2
-        # assert one is long and the other is a short trade
-        assert (store.completed_trades.trades[0].type == 'long'
-                and store.completed_trades.trades[1].type == 'short') or (
-                       store.completed_trades.trades[0].type == 'short'
-                       and store.completed_trades.trades[1].type == 'long')
-
-
 def test_fee_rate_property():
     single_route_backtest('Test48')
 
@@ -118,8 +74,6 @@ def test_filters():
     single_route_backtest('Test37')
 
     assert len(store.completed_trades.trades) == 0
-
-    # rest of the assertions have been done inside Test37
 
 
 def test_forming_candles():
@@ -310,49 +264,6 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
     assert t1.fee == 0
 
 
-def test_multiple_routes_can_communicate_with_each_other():
-    set_up()
-
-    routes = [
-        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': 'Test03'},
-        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test03'},
-    ]
-
-    candles = {}
-    for r in routes:
-        key = jh.key(r['exchange'], r['symbol'])
-        candles[key] = {
-            'exchange': r['exchange'],
-            'symbol': r['symbol'],
-            'candles': range_candles((5 * 3) * 20)
-        }
-
-    # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
-
-    assert len(store.completed_trades.trades) == 1
-
-    for r in router.routes:
-        s: Strategy = r.strategy
-        p = s.position
-
-        assert p.is_close is True
-        o: Order = s.orders[0]
-        short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
-        assert o.created_at == short_candles[4][0] + 60_000
-        if r.strategy.trades_count == 0:
-            assert len(s.orders) == 1
-            # assert that the order got canceled
-            assert o.is_canceled is True
-            assert s.orders[0].type == order_types.LIMIT
-        elif r.strategy.trades_count == 1:
-            assert len(s.orders) == 3
-            assert o.is_executed is True
-            assert s.orders[0].type == order_types.LIMIT
-            assert s.orders[2].type == order_types.STOP
-            assert s.orders[1].type == order_types.LIMIT
-
-
 def test_must_not_be_able_to_set_two_similar_routes():
     reset_config()
     router.set_routes([
@@ -537,8 +448,8 @@ def test_should_buy_and_execute_buy():
         p = s.position
 
         assert p.is_close is True
-        assert len(s.orders) == 3
-        o: Order = s.orders[0]
+        assert len(s.trades[0].orders) == 2
+        o: Order = s.trades[0].orders[0]
         short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
         assert o.price == short_candles[4][2]
         assert o.price == s.candles[0][2]
@@ -580,8 +491,9 @@ def test_should_sell_and_execute_sell():
         p = s.position
 
         assert p.is_close is True
-        assert len(s.orders) == 3
-        o: Order = s.orders[0]
+        orders = s.trades[-1].orders
+        assert len(orders) == 2
+        o: Order = orders[0]
         short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
         assert o.price == short_candles[4][2]
         assert o.price == s.candles[0][2]
@@ -852,3 +764,7 @@ def test_take_profit_price_is_replaced_with_market_order():
 
 def test_can_run_without_shorting():
     single_route_backtest('TestCanRunWithoutShorting')
+
+
+def test_entry_orders_and_exit_orders_properties():
+    single_route_backtest('TestEntryOrdersAndExitOrdersProperties')
