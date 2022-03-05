@@ -414,7 +414,7 @@ class Strategy(ABC):
         self._take_profit = None
 
         self._entry_orders = []
-        self._close_positi = []
+        self._exit_orders = []
 
         self.increased_count = 0
         self.reduced_count = 0
