@@ -1058,10 +1058,6 @@ class Strategy(ABC):
         return router.routes
 
     @property
-    def has_active_entry_orders(self) -> bool:
-        return len(self._entry_orders) > 0
-
-    @property
     def leverage(self) -> int:
         if type(self.position.exchange) is SpotExchange:
             return 1

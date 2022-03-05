@@ -709,10 +709,6 @@ def test_validation_for_equal_stop_loss_and_take_profit():
     assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
 
 
-def test_has_active_entry_orders():
-    single_route_backtest('TestHasEntryOrders')
-
-
 def test_increased_and_reduced_count():
     single_route_backtest('TestIncreasedAndReducedCount')
 
