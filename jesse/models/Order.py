@@ -56,14 +56,14 @@ class Order(Model):
         if self.created_at is None:
             self.created_at = jh.now_to_timestamp()
 
-        if jh.is_live():
-            from jesse.store import store
-            self.session_id = store.app.session_id
-            self.save(force_insert=True)
+        # if jh.is_live():
+        #     from jesse.store import store
+            # self.session_id = store.app.session_id
+            # self.save(force_insert=True)
 
         if jh.is_live():
             self.notify_submission()
-        if jh.is_debuggable('order_submission'):
+        if jh.is_debuggable('order_submission') and self.is_active:
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -79,7 +79,7 @@ class Order(Model):
     def notify_submission(self) -> None:
         self.broadcast()
 
-        if config['env']['notifications']['events']['submitted_orders']:
+        if config['env']['notifications']['events']['submitted_orders'] and self.is_active:
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -157,8 +157,8 @@ class Order(Model):
         self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
 
-        if jh.is_live():
-            self.save()
+        # if jh.is_live():
+        #     self.save()
 
         if not silent:
             txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -182,8 +182,8 @@ class Order(Model):
         self.executed_at = jh.now_to_timestamp()
         self.status = order_statuses.EXECUTED
 
-        if jh.is_live():
-            self.save()
+        # if jh.is_live():
+        #     self.save()
 
         if not silent:
             txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
