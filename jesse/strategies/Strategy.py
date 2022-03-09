@@ -163,9 +163,9 @@ class Strategy(ABC):
 
         # validation
         if self.buy is None:
-            raise exceptions.InvalidStrategy('You forgot to set self.buy. example [qty, price]')
+            raise exceptions.InvalidStrategy('You forgot to set self.buy. example (qty, price)')
         elif type(self.buy) not in [tuple, list]:
-            raise exceptions.InvalidStrategy('self.buy must be either a list or a tuple. example: [qty, price]')
+            raise exceptions.InvalidStrategy(f'self.buy must be either a list or a tuple. example: (qty, price). You set: {type(self.buy)}')
 
         self._prepare_buy()
 
@@ -220,9 +220,11 @@ class Strategy(ABC):
 
         # validation
         if self.sell is None:
-            raise exceptions.InvalidStrategy('You forgot to set self.sell. example [qty, price]')
+            raise exceptions.InvalidStrategy('You forgot to set self.sell. example (qty, price)')
         elif type(self.sell) not in [tuple, list]:
-            raise exceptions.InvalidStrategy('self.sell must be either a list or a tuple. example: [qty, price]')
+            raise exceptions.InvalidStrategy(
+                f'self.sell must be either a list or a tuple. example: (qty, price). You set {type(self.sell)}'
+            )
 
         self._prepare_sell()
 
@@ -334,15 +336,15 @@ class Strategy(ABC):
 
     def _validate_stop_loss(self) -> None:
         if self.stop_loss is None:
-            raise exceptions.InvalidStrategy('You forgot to set self.stop_loss. example [qty, price]')
+            raise exceptions.InvalidStrategy('You forgot to set self.stop_loss. example (qty, price)')
         elif type(self.stop_loss) not in [tuple, list, np.ndarray]:
-            raise exceptions.InvalidStrategy('self.stop_loss must be either a list or a tuple. example: [qty, price]')
+            raise exceptions.InvalidStrategy(f'self.stop_loss must be either a list or a tuple. example: (qty, price). You set {type(self.stop_loss)}')
 
     def _validate_take_profit(self) -> None:
         if self.take_profit is None:
-            raise exceptions.InvalidStrategy('You forgot to set self.take_profit. example [qty, price]')
+            raise exceptions.InvalidStrategy('You forgot to set self.take_profit. example (qty, price)')
         elif type(self.take_profit) not in [tuple, list, np.ndarray]:
-            raise exceptions.InvalidStrategy('self.take_profit must be either a list or a tuple. example: [qty, price]')
+            raise exceptions.InvalidStrategy(f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
 
     def _execute_filters(self) -> bool:
         for f in self.filters():
