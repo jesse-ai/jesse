@@ -182,20 +182,36 @@ class Strategy(ABC):
             self._prepare_stop_loss()
 
         # filters
-        passed = self._execute_filters()
-        if not passed:
+        if not self._execute_filters():
             return
 
+        self._submit_buy_orders()
+
+    def _submit_buy_orders(self) -> None:
         for o in self._buy:
             # MARKET order
             if abs(o[1] - self.price) < 0.0001:
-                submitted_order = self.broker.buy_at_market(o[0])
+                self.broker.buy_at_market(o[0])
             # STOP order
             elif o[1] > self.price:
-                submitted_order = self.broker.start_profit_at(sides.BUY, o[0], o[1])
+                self.broker.start_profit_at(sides.BUY, o[0], o[1])
             # LIMIT order
             elif o[1] < self.price:
-                submitted_order = self.broker.buy_at(o[0], o[1])
+                self.broker.buy_at(o[0], o[1])
+            else:
+                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
+
+    def _submit_sell_orders(self) -> None:
+        for o in self._sell:
+            # MARKET order
+            if abs(o[1] - self.price) < 0.0001:
+                self.broker.sell_at_market(o[0])
+            # STOP order
+            elif o[1] < self.price:
+                self.broker.start_profit_at(sides.SELL, o[0], o[1])
+            # LIMIT order
+            elif o[1] > self.price:
+                self.broker.sell_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
@@ -219,22 +235,10 @@ class Strategy(ABC):
             self._prepare_stop_loss()
 
         # filters
-        passed = self._execute_filters()
-        if not passed:
+        if not self._execute_filters():
             return
 
-        for o in self._sell:
-            # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
-                submitted_order = self.broker.sell_at_market(o[0])
-            # STOP order
-            elif o[1] < self.price:
-                submitted_order = self.broker.start_profit_at(sides.SELL, o[0], o[1])
-            # LIMIT order
-            elif o[1] > self.price:
-                submitted_order = self.broker.sell_at(o[0], o[1])
-            else:
-                raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
+        self._submit_sell_orders()
 
     def _prepare_buy(self, make_copies: bool = True) -> None:
         if type(self.buy) is np.ndarray:
@@ -466,18 +470,8 @@ class Strategy(ABC):
                     for o in self.entry_orders:
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    for o in self._buy:
-                        # MARKET order
-                        if abs(o[1] - self.price) < 0.0001:
-                            self.broker.buy_at_market(o[0])
-                        # STOP order
-                        elif o[1] > self.price:
-                            self.broker.start_profit_at(sides.BUY, o[0], o[1])
-                        # LIMIT order
-                        elif o[1] < self.price:
-                            self.broker.buy_at(o[0], o[1])
-                        else:
-                            raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
+
+                    self._submit_buy_orders()
 
             elif self.is_short:
                 # prepare format
@@ -491,18 +485,8 @@ class Strategy(ABC):
                     for o in self.entry_orders:
                         if o.is_active or o.is_queued:
                             self.broker.cancel_order(o.id)
-                    for o in self._sell:
-                        # MARKET order
-                        if abs(o[1] - self.price) < 0.0001:
-                            self.broker.sell_at_market(o[0])
-                        # STOP order
-                        elif o[1] < self.price:
-                            self.broker.start_profit_at(sides.SELL, o[0], o[1])
-                        # LIMIT order
-                        elif o[1] > self.price:
-                            self.broker.sell_at(o[0], o[1])
-                        else:
-                            raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
+
+                    self._submit_sell_orders()
 
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
