@@ -193,29 +193,12 @@ def errors() -> List[List[Union[str, Any]]]:
     ]
 
 
-def orders():
+def orders() -> List[dict]:
     route_orders = []
+
     for r in router.routes:
         r_orders = store.orders.get_orders(r.exchange, r.symbol)
         for o in r_orders:
-            route_orders.append(o)
+            route_orders.append(o.to_dict)
 
-    if not len(route_orders):
-        return []
-
-    route_orders.sort(key=lambda x: x.created_at, reverse=False)
-
-    return [{
-            'id': o.id,
-            'symbol': o.symbol,
-            'side': o.side,
-            'type': o.type,
-            'qty': o.qty,
-            'filled_qty': o.filled_qty,
-            'price': o.price,
-            'status': o.status,
-            'created_at': o.created_at,
-            'canceled_at': o.canceled_at,
-            'executed_at': o.executed_at,
-            'reduce_only': o.reduce_only,
-        } for o in route_orders[::-1][0:5]]
+    return route_orders

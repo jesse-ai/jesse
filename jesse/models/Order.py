@@ -73,12 +73,7 @@ class Order(Model):
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
 
-    def broadcast(self) -> None:
-        sync_publish('order', self.to_dict)
-
     def notify_submission(self) -> None:
-        self.broadcast()
-
         if config['env']['notifications']['events']['submitted_orders'] and self.is_active:
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
@@ -167,7 +162,6 @@ class Order(Model):
             if jh.is_debuggable('order_cancellation'):
                 logger.info(txt)
             if jh.is_live():
-                self.broadcast()
                 if config['env']['notifications']['events']['cancelled_orders']:
                     notify(txt)
 
@@ -194,7 +188,6 @@ class Order(Model):
                 logger.info(txt)
             # notify
             if jh.is_live():
-                self.broadcast()
                 if config['env']['notifications']['events']['executed_orders']:
                     notify(txt)
 
