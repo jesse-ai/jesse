@@ -68,7 +68,12 @@ class Cache:
             self._update_db()
 
         with open(item['path'], 'rb') as f:
-            return pickle.load(f)
+            try:
+                cache_value = pickle.load(f)
+            except EOFError:
+                # File got broken
+                cache_value = False
+            return cache_value
 
     def _update_db(self) -> None:
         # store/update database
