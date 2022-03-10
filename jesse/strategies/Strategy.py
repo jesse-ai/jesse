@@ -245,16 +245,6 @@ class Strategy(ABC):
         self._submit_sell_orders()
 
     def _prepare_buy(self, make_copies: bool = True) -> None:
-        if type(self.buy) is np.ndarray:
-            return
-
-        if self.buy is None or self.buy == []:
-            # just to make sure we also support None
-            self.buy = []
-            return
-
-        # create a copy in the placeholders variables so we can detect future modifications
-        # also, make it list of orders even if there's only one, to make it easier to loop
         try:
             self.buy = self._get_formatted_order(self.buy)
         except ValueError:
@@ -267,16 +257,6 @@ class Strategy(ABC):
             self._buy = self.buy.copy()
 
     def _prepare_sell(self, make_copies: bool = True) -> None:
-        if type(self.sell) is np.ndarray:
-            return
-
-        if self.sell is None or self.sell == []:
-            # just to make sure we also support None
-            self.sell = []
-            return
-
-        # create a copy in the placeholders variables so we can detect future modifications
-        # also, make it list of orders even if there's only one, to make it easier to loop
         try:
             self.sell = self._get_formatted_order(self.sell)
         except ValueError:
@@ -289,10 +269,6 @@ class Strategy(ABC):
             self._sell = self.sell.copy()
 
     def _prepare_stop_loss(self, make_copies: bool = True) -> None:
-        # if it's numpy, then it has already been prepared
-        if type(self.stop_loss) is np.ndarray:
-            return
-
         try:
             self.stop_loss = self._get_formatted_order(self.stop_loss)
         except ValueError:
@@ -305,10 +281,6 @@ class Strategy(ABC):
             self._stop_loss = self.stop_loss.copy()
 
     def _prepare_take_profit(self, make_copies: bool = True) -> None:
-        # if it's numpy, then it has already been prepared
-        if type(self.take_profit) is np.ndarray:
-            return
-
         try:
             self.take_profit = self._get_formatted_order(self.take_profit)
         except ValueError:
