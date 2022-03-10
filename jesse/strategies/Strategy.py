@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import numpy as np
 
@@ -130,7 +130,8 @@ class Strategy(ABC):
         # call the relevant strategy event handler:
         # if opening position
         if before_qty == 0 and after_qty != 0:
-            logger.info(f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}")
+            logger.info(
+                f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}")
             self._on_open_position(order)
         # if closing position
         elif before_qty != 0 and after_qty == 0:
@@ -165,7 +166,8 @@ class Strategy(ABC):
         if self.buy is None:
             raise exceptions.InvalidStrategy('You forgot to set self.buy. example (qty, price)')
         elif type(self.buy) not in [tuple, list]:
-            raise exceptions.InvalidStrategy(f'self.buy must be either a list or a tuple. example: (qty, price). You set: {type(self.buy)}')
+            raise exceptions.InvalidStrategy(
+                f'self.buy must be either a list or a tuple. example: (qty, price). You set: {type(self.buy)}')
 
         self._prepare_buy()
 
@@ -253,9 +255,13 @@ class Strategy(ABC):
 
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
-        if type(self.buy[0]) not in [list, tuple]:
-            self.buy = [self.buy]
-        self.buy = self._convert_to_numpy_array(self.buy, 'self.buy')
+        try:
+            self.buy = self._get_formatted_order(self.buy)
+        except ValueError:
+            raise exceptions.InvalidShape(
+                'The format of self.buy is invalid. \n'
+                f'It must be either (qty, price) or [(qty, price), (qty, price)] for multiple points; but {self.buy} was given'
+            )
 
         if make_copies:
             self._buy = self.buy.copy()
@@ -271,9 +277,13 @@ class Strategy(ABC):
 
         # create a copy in the placeholders variables so we can detect future modifications
         # also, make it list of orders even if there's only one, to make it easier to loop
-        if type(self.sell[0]) not in [list, tuple]:
-            self.sell = [self.sell]
-        self.sell = self._convert_to_numpy_array(self.sell, 'self.sell')
+        try:
+            self.sell = self._get_formatted_order(self.sell)
+        except ValueError:
+            raise exceptions.InvalidShape(
+                'The format of self.sell is invalid. \n'
+                f'It must be either (qty, price) or [(qty, price), (qty, price)] for multiple points; but {self.sell} was given'
+            )
 
         if make_copies:
             self._sell = self.sell.copy()
@@ -283,9 +293,13 @@ class Strategy(ABC):
         if type(self.stop_loss) is np.ndarray:
             return
 
-        if type(self.stop_loss[0]) not in [list, tuple, np.ndarray]:
-            self.stop_loss = [self.stop_loss]
-        self.stop_loss = self._convert_to_numpy_array(self.stop_loss, 'self.stop_loss')
+        try:
+            self.stop_loss = self._get_formatted_order(self.stop_loss)
+        except ValueError:
+            raise exceptions.InvalidShape(
+                'The format of self.stop_loss is invalid. \n'
+                f'It must be either (qty, price) or [(qty, price), (qty, price)] for multiple points; but {self.stop_loss} was given'
+            )
 
         if make_copies:
             self._stop_loss = self.stop_loss.copy()
@@ -295,56 +309,30 @@ class Strategy(ABC):
         if type(self.take_profit) is np.ndarray:
             return
 
-        if type(self.take_profit[0]) not in [list, tuple, np.ndarray]:
-            self.take_profit = [self.take_profit]
-        self.take_profit = self._convert_to_numpy_array(self.take_profit, 'self.take_profit')
+        try:
+            self.take_profit = self._get_formatted_order(self.take_profit)
+        except ValueError:
+            raise exceptions.InvalidShape(
+                'The format of self.take_profit is invalid. \n'
+                f'It must be either (qty, price) or [(qty, price), (qty, price)] for multiple points; but {self.take_profit} was given'
+            )
 
         if make_copies:
             self._take_profit = self.take_profit.copy()
-
-    def _convert_to_numpy_array(self, arr, name) -> np.ndarray:
-        if type(arr) is np.ndarray:
-            return arr
-
-        try:
-            # create numpy array from list
-            arr = np.array(arr, dtype=float)
-
-            if jh.is_live():
-                # in livetrade mode, we'll need them rounded
-                current_exchange = selectors.get_exchange(self.exchange)
-
-                # skip rounding if the exchange doesn't have values for 'precisions'
-                if 'precisions' not in current_exchange.vars:
-                    return arr
-
-                price_precision = current_exchange.vars['precisions'][self.symbol]['price_precision']
-                qty_precision = current_exchange.vars['precisions'][self.symbol]['qty_precision']
-
-                prices = jh.round_price_for_live_mode(arr[:, 1], price_precision)
-                qtys = jh.round_qty_for_live_mode(arr[:, 0], qty_precision)
-
-                arr[:, 0] = qtys
-                arr[:, 1] = prices
-
-            return arr
-        except ValueError:
-            raise exceptions.InvalidShape(
-                f'The format of {name} is invalid. \n'
-                f'It must be (qty, price) or [(qty, price), (qty, price)] for multiple points; but {arr} was given'
-            )
 
     def _validate_stop_loss(self) -> None:
         if self.stop_loss is None:
             raise exceptions.InvalidStrategy('You forgot to set self.stop_loss. example (qty, price)')
         elif type(self.stop_loss) not in [tuple, list, np.ndarray]:
-            raise exceptions.InvalidStrategy(f'self.stop_loss must be either a list or a tuple. example: (qty, price). You set {type(self.stop_loss)}')
+            raise exceptions.InvalidStrategy(
+                f'self.stop_loss must be either a list or a tuple. example: (qty, price). You set {type(self.stop_loss)}')
 
     def _validate_take_profit(self) -> None:
         if self.take_profit is None:
             raise exceptions.InvalidStrategy('You forgot to set self.take_profit. example (qty, price)')
         elif type(self.take_profit) not in [tuple, list, np.ndarray]:
-            raise exceptions.InvalidStrategy(f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
+            raise exceptions.InvalidStrategy(
+                f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
 
     def _execute_filters(self) -> bool:
         for f in self.filters():
@@ -637,10 +625,12 @@ class Strategy(ABC):
                 # validation: make sure stop-loss will exit with profit, if not, close the position
                 if self.is_long and o[1] >= self.position.entry_price:
                     submitted_order: Order = self.broker.sell_at_market(o[0])
-                    logger.info('The stop-loss is above entry-price for long position, so it will be replaced with a market order instead')
+                    logger.info(
+                        'The stop-loss is above entry-price for long position, so it will be replaced with a market order instead')
                 elif self.is_short and o[1] <= self.position.entry_price:
                     submitted_order: Order = self.broker.buy_at_market(o[0])
-                    logger.info('The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
+                    logger.info(
+                        'The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
                 else:
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
 
@@ -961,20 +951,63 @@ class Strategy(ABC):
         arr = self._take_profit
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
+    def _get_formatted_order(self, var) -> Union[list, np.ndarray]:
+        if type(var) is np.ndarray:
+            return var
+
+        # just to make sure we also support None
+        if var is None or var == []:
+            return []
+
+        # create a copy in the placeholders variables so we can detect future modifications
+        # also, make it list of orders even if there's only one, to make it easier to loop
+        if type(var[0]) not in [list, tuple]:
+            var = [var]
+
+        # create numpy array from list
+        arr = np.array(var, dtype=float)
+
+        if jh.is_live():
+            # in livetrade mode, we'll need them rounded
+            current_exchange = selectors.get_exchange(self.exchange)
+
+            # skip rounding if the exchange doesn't have values for 'precisions'
+            if 'precisions' not in current_exchange.vars:
+                return arr
+
+            price_precision = current_exchange.vars['precisions'][self.symbol]['price_precision']
+            qty_precision = current_exchange.vars['precisions'][self.symbol]['qty_precision']
+
+            prices = jh.round_price_for_live_mode(arr[:, 1], price_precision)
+            qtys = jh.round_qty_for_live_mode(arr[:, 0], qty_precision)
+
+            arr[:, 0] = qtys
+            arr[:, 1] = prices
+
+        return arr
+
     @property
     def average_entry_price(self) -> float:
         if self.is_long:
             arr = self._buy
         elif self.is_short:
             arr = self._sell
-        elif self.should_long():
-            arr = self._buy
-        elif self.should_short():
-            arr = self._sell
+        elif self.has_long_entry_orders:
+            arr = self._get_formatted_order(self.buy)
+        elif self.has_short_entry_orders:
+            arr = self._get_formatted_order(self.sell)
         else:
             return None
 
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
+
+    @property
+    def has_long_entry_orders(self) -> bool:
+        return self.entry_orders != [] and self.entry_orders[0].side == 'buy'
+
+    @property
+    def has_short_entry_orders(self) -> bool:
+        return self.entry_orders != [] and self.entry_orders[0].side == 'sell'
 
     def liquidate(self) -> None:
         """
@@ -1039,7 +1072,7 @@ class Strategy(ABC):
                 notifier.notify_urgently(msg)
         else:
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
-    
+
     @property
     def all_positions(self) -> Dict[str, Position]:
         positions_dict = {}
