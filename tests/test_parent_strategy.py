@@ -60,6 +60,10 @@ def test_has_short_entry_orders_property():
     single_route_backtest('TestHasShortEntryOrdersProperty')
 
 
+def test_has_long_entry_orders_property_in_filters():
+    single_route_backtest('TestHasLongAndShortEntryOrdersPropertiesInFilters')
+
+
 def test_can_close_a_long_position_and_go_short_at_the_same_candle():
     single_route_backtest('Test45', is_futures_trading=True, leverage_mode='isolated')
 

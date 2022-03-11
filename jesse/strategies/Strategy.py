@@ -975,10 +975,20 @@ class Strategy(ABC):
 
     @property
     def has_long_entry_orders(self) -> bool:
+        # if no order has been submitted yet, but self.buy is not None, then we are calling
+        # this property inside a filter.
+        if self.entry_orders == [] and self.buy is not None:
+            return True
+
         return self.entry_orders != [] and self.entry_orders[0].side == 'buy'
 
     @property
     def has_short_entry_orders(self) -> bool:
+        # if no order has been submitted yet, but self.sell is not None, then we are calling
+        # this property inside a filter.
+        if self.entry_orders == [] and self.sell is not None:
+            return True
+
         return self.entry_orders != [] and self.entry_orders[0].side == 'sell'
 
     def liquidate(self) -> None:
