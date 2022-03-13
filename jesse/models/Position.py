@@ -75,9 +75,9 @@ class Position:
 
         :return: str
         """
-        if self.qty > 0:
+        if self.is_long:
             return 'long'
-        if self.qty < 0:
+        if self.is_short:
             return 'short'
 
         return 'close'
@@ -161,6 +161,24 @@ class Position:
         :return: bool
         """
         return self.qty == 0
+
+    @property
+    def is_long(self) -> bool:
+        """
+        Is the current position a long position?
+
+        :return: bool
+        """
+        return self.qty > 0
+
+    @property
+    def is_short(self) -> bool:
+        """
+        Is the current position a short position?
+
+        :return: bool
+        """
+        return self.qty < 0
 
     @property
     def mode(self) -> str:
