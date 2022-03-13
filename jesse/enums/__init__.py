@@ -51,12 +51,15 @@ class order_types:
 
 
 class exchanges:
+    SANDBOX = 'Sandbox'
     COINBASE = 'Coinbase'
     BITFINEX = 'Bitfinex'
     BINANCE = 'Binance'
     BINANCE_FUTURES = 'Binance Futures'
     TESTNET_BINANCE_FUTURES = 'Testnet Binance Futures'
-    SANDBOX = 'Sandbox'
+    BYBIT_PERPETUAL = 'Bybit Perpetual'
+    TESTNET_BYBIT_PERPETUAL = 'Testnet Bybit Perpetual'
+    FTX_FUTURES = 'FTX Futures'
 
 
 class migration_actions:
@@ -66,3 +69,8 @@ class migration_actions:
     MODIFY_TYPE = 'modify_type'
     ALLOW_NULL = 'allow_null'
     DENY_NULL = 'deny_null'
+
+
+class order_submitted_via:
+    STOP_LOSS = 'stop-loss'
+    TAKE_PROFIT = 'take-profit'

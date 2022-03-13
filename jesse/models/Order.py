@@ -3,10 +3,9 @@ from playhouse.postgres_ext import *
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
-from jesse import sync_publish
 from jesse.config import config
 from jesse.services.notifier import notify
-from jesse.enums import order_statuses
+from jesse.enums import order_statuses, order_submitted_via
 from jesse.services.db import database
 
 
@@ -36,6 +35,8 @@ class Order(Model):
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
+
+    # needed in Jesse, but no need to store in database(?)
     submitted_via = None
 
     class Meta:
@@ -117,11 +118,11 @@ class Order(Model):
 
     @property
     def is_stop_loss(self):
-        return self.submitted_via == 'stop-loss'
+        return self.submitted_via == order_submitted_via.STOP_LOSS
 
     @property
     def is_take_profit(self):
-        return self.submitted_via == 'take-profit'
+        return self.submitted_via == order_submitted_via.TAKE_PROFIT
 
     @property
     def to_dict(self):

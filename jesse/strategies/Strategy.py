@@ -8,7 +8,7 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
-from jesse.enums import sides
+from jesse.enums import sides, order_submitted_via
 from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
@@ -36,6 +36,10 @@ class Strategy(ABC):
         self.increased_count = 0
         self.reduced_count = 0
 
+        # Variables used for accepting orders from user. Each variable also has a
+        # similar one   starting with _ which is used as a temp placeholder to
+        # later compare with the current one to detect if user has submitted
+        # any new orders. If so, we cancel old ones and submit the new ones.
         self.buy = None
         self._buy = None
         self.sell = None
@@ -465,7 +469,7 @@ class Strategy(ABC):
                     for o in self._take_profit:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
-                            submitted_order.submitted_via = 'take-profit'
+                            submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
@@ -484,7 +488,7 @@ class Strategy(ABC):
                     for o in self._stop_loss:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
                         if submitted_order:
-                            submitted_order.submitted_via = 'stop-loss'
+                            submitted_order.submitted_via = order_submitted_via.STOP_LOSS
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
@@ -590,7 +594,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
 
                 if submitted_order:
-                    submitted_order.submitted_via = 'take-profit'
+                    submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
         if self.stop_loss is not None:
             for o in self._stop_loss:
@@ -607,7 +611,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
 
                 if submitted_order:
-                    submitted_order.submitted_via = 'stop-loss'
+                    submitted_order.submitted_via = order_submitted_via.STOP_LOSS
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
@@ -807,7 +811,7 @@ class Strategy(ABC):
     @property
     def price(self) -> float:
         """
-        Same as self.close, except in livetrde, this is rounded as the exchanges require it.
+        Same as self.close, except in livetrade, this is rounded as the exchanges require it.
 
         Returns:
             [float] -- the current trading candle's current(close) price
@@ -923,7 +927,7 @@ class Strategy(ABC):
         arr = self._take_profit
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
-    def _get_formatted_order(self, var) -> Union[list, np.ndarray]:
+    def _get_formatted_order(self, var, round_for_live_mode=True) -> Union[list, np.ndarray]:
         if type(var) is np.ndarray:
             return var
 
@@ -939,7 +943,7 @@ class Strategy(ABC):
         # create numpy array from list
         arr = np.array(var, dtype=float)
 
-        if jh.is_live():
+        if jh.is_live() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)
 
