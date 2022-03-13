@@ -552,6 +552,8 @@ def prepare_qty(qty: float, side: str) -> float:
         return -abs(qty)
     elif side.lower() in ('buy', 'long'):
         return abs(qty)
+    elif side.lower() == 'close':
+        return 0.0
     else:
         raise ValueError(f'{side} is not a valid input')
 
@@ -776,7 +778,7 @@ def type_to_side(t: str) -> str:
         return sides.BUY
     if t == trade_types.SHORT:
         return sides.SELL
-    raise ValueError
+    raise ValueError(f'unsupported type: "{t}". Only "long" and "short" are supported.')
 
 
 def unique_list(arr) -> list:

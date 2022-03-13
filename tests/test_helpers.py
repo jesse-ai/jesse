@@ -397,6 +397,7 @@ def test_orderbook_trim_price():
 def test_prepare_qty():
     assert jh.prepare_qty(10, 'sell') == -10
     assert jh.prepare_qty(-10, 'buy') == 10
+    assert jh.prepare_qty(0, 'close') == 0.0
 
     with pytest.raises(ValueError):
         jh.prepare_qty(-10, 'invalid_input')
@@ -526,6 +527,10 @@ def test_today_to_timestamp():
 def test_type_to_side():
     assert jh.type_to_side('long') == 'buy'
     assert jh.type_to_side('short') == 'sell'
+
+    # validate that if sent any other string, it will raise ValueError
+    with pytest.raises(ValueError):
+        jh.type_to_side('invalid')
 
 
 def test_unique_list():
