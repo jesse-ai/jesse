@@ -401,7 +401,7 @@ class Position:
         if self.strategy:
             self.strategy._on_updated_position(order)
 
-    def update_from_stream(self, data: dict) -> None:
+    def update_from_stream(self, data: dict, is_initial: bool) -> None:
         """
         Used for updating the position from the WS stream (only for live trading)
         """
@@ -414,6 +414,12 @@ class Position:
 
         # if opening position
         if before_qty == 0 and after_qty != 0:
+            if is_initial:
+                from jesse.store import store
+                store.completed_trades.add_order_record_only(
+                    self.exchange_name, self.symbol, jh.type_to_side(self.type),
+                    self.qty, self.entry_price
+                )
             self.opened_at = jh.now_to_timestamp()
             self._open()
         # if closing position

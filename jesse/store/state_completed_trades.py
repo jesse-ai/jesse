@@ -35,12 +35,23 @@ class CompletedTrades:
         t = self._get_current_trade(executed_order.exchange, executed_order.symbol)
         executed_order.trade_id = t.id
         t.orders.append(executed_order)
-        if executed_order.side == sides.BUY:
-            t.buy_orders.append(np.array([abs(executed_order.qty), executed_order.price]))
-        elif executed_order.side == sides.SELL:
-            t.sell_orders.append(np.array([abs(executed_order.qty), executed_order.price]))
+        self.add_order_record_only(
+            executed_order.exchange, executed_order.symbol, executed_order.side,
+            executed_order.qty, executed_order.price
+        )
+
+    def add_order_record_only(self, exchange: str, symbol: str, side: str, qty: float, price: float) -> None:
+        """
+        used in add_executed_order() and for when initially adding open positions in live mode.
+        used for correct trade-metrics calculations in persistency support for live mode.
+        """
+        t = self._get_current_trade(exchange, symbol)
+        if side == sides.BUY:
+            t.buy_orders.append(np.array([abs(qty), price]))
+        elif side == sides.SELL:
+            t.sell_orders.append(np.array([abs(qty), price]))
         else:
-            raise Exception("Invalid order side")
+            raise Exception(f"Invalid order side: {side}")
 
     def open_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
