@@ -33,11 +33,16 @@ class CompletedTrades:
 
     def add_executed_order(self, executed_order: Order) -> None:
         t = self._get_current_trade(executed_order.exchange, executed_order.symbol)
-        executed_order.trade_id = t.id
-        t.orders.append(executed_order)
+        if executed_order.is_partially_filled:
+            qty = executed_order.filled_qty
+        else:
+            qty = executed_order.qty
+            executed_order.trade_id = t.id
+            t.orders.append(executed_order)
+
         self.add_order_record_only(
             executed_order.exchange, executed_order.symbol, executed_order.side,
-            executed_order.qty, executed_order.price
+            qty, executed_order.price
         )
 
     def add_order_record_only(self, exchange: str, symbol: str, side: str, qty: float, price: float) -> None:
@@ -68,10 +73,6 @@ class CompletedTrades:
         t.exchange = position.exchange_name
         t.symbol = position.symbol
         t.type = position.type
-        if not jh.is_unit_testing():
-            logger.info(
-                f"OPENED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {t.entry_price}"
-            )
 
     def close_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
@@ -88,7 +89,7 @@ class CompletedTrades:
         self.trades.append(t)
         if not jh.is_unit_testing():
             logger.info(
-                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {t.entry_price}, exit_price: {t.exit_price}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
+                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {round(t.entry_price, 2)}, exit_price: {round(t.exit_price, 2)}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
             )
         # at the end, reset the trade variable
         self._reset_current_trade(position.exchange_name, position.symbol)

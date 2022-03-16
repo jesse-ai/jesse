@@ -205,6 +205,32 @@ class Order(Model):
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
 
+    def execute_partially(self, silent=False) -> None:
+        self.executed_at = jh.now_to_timestamp()
+        self.status = order_statuses.PARTIALLY_FILLED
+
+        # if jh.is_live():
+        #     self.save()
+
+        if not silent:
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.side}, qty: {self.filled_qty}/{self.qty}, price: {self.price}"
+            # log
+            if jh.is_debuggable('order_execution'):
+                logger.info(txt)
+            # notify
+            if jh.is_live():
+                if config['env']['notifications']['events']['executed_orders']:
+                    notify(txt)
+
+        # log the order of the trade for metrics
+        from jesse.store import store
+        store.completed_trades.add_executed_order(self)
+
+        p = selectors.get_position(self.exchange, self.symbol)
+
+        if p:
+            p._on_executed_order(self)
+
 
 # if database is open, create the table
 if database.is_open():

@@ -128,7 +128,10 @@ class Strategy(ABC):
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:
-        before_qty = self.position.qty - order.qty
+        if order.is_partially_filled:
+            before_qty = self.position.qty - order.filled_qty
+        else:
+            before_qty = self.position.qty - order.qty
         after_qty = self.position.qty
 
         # call the relevant strategy event handler:
@@ -143,11 +146,11 @@ class Strategy(ABC):
             self._on_close_position(order)
         # if increasing position size
         elif abs(after_qty) > abs(before_qty):
-            logger.info(f"Position size increased from {before_qty} to {after_qty}")
+            logger.info(f"Position size increased to {after_qty}")
             self._on_increased_position(order)
         # if reducing position size
         elif abs(after_qty) < abs(before_qty):
-            logger.info(f"Position size reduced from {before_qty} to {after_qty}")
+            logger.info(f"Position size reduced to {after_qty}")
             self._on_reduced_position(order)
         else:
             pass

@@ -344,7 +344,7 @@ class Position:
         from jesse.store import store
         store.completed_trades.open_trade(self)
 
-        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}, {self.qty}, ${round(self.entry_price, 2)}'
+        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}\n size: {self.qty}, entry_price: ${round(self.entry_price, 2)}'
 
         if jh.is_debuggable('position_opened'):
             logger.info(info_text)
@@ -355,7 +355,10 @@ class Position:
     def _on_executed_order(self, order: Order) -> None:
         if jh.is_livetrading():
             # if position got closed because of this order
-            before_qty = self.qty - order.qty
+            if order.is_partially_filled:
+                before_qty = self.qty - order.filled_qty
+            else:
+                before_qty = self.qty - order.qty
             after_qty = self.qty
             if before_qty != 0 and after_qty == 0:
                 self._close()
