@@ -137,20 +137,35 @@ class Strategy(ABC):
         # call the relevant strategy event handler:
         # if opening position
         if before_qty == 0 and after_qty != 0:
-            logger.info(
-                f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}")
+            txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
+            if jh.is_debuggable('position_opened'):
+                logger.info(txt)
+            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+                notifier.notify(txt)
             self._on_open_position(order)
         # if closing position
         elif before_qty != 0 and after_qty == 0:
-            logger.info(f"CLOSED Position for {self.symbol}")
+            txt = f"CLOSED Position for {self.symbol}"
+            if jh.is_debuggable('position_closed'):
+                logger.info(txt)
+            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+                notifier.notify(txt)
             self._on_close_position(order)
         # if increasing position size
         elif abs(after_qty) > abs(before_qty):
-            logger.info(f"Position size increased to {after_qty}")
+            txt = f"INCREASED Position size to {after_qty}"
+            if jh.is_debuggable('position_increased'):
+                logger.info(txt)
+            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+                notifier.notify(txt)
             self._on_increased_position(order)
         # if reducing position size
         elif abs(after_qty) < abs(before_qty):
-            logger.info(f"Position size reduced to {after_qty}")
+            txt = f"REDUCED Position size to {after_qty}"
+            if jh.is_debuggable('position_reduced'):
+                logger.info(txt)
+            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+                notifier.notify(txt)
             self._on_reduced_position(order)
         else:
             pass

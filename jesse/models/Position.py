@@ -4,11 +4,10 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
-from jesse.config import config
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
-from jesse.services import logger, notifier
+from jesse.services import logger
 from jesse.utils import sum_floats, subtract_floats
 
 
@@ -271,14 +270,6 @@ class Position:
     def _close(self):
         from jesse.store import store
         store.completed_trades.close_trade(self)
-        # if not jh.is_unit_testing():
-        #     info_text = f'CLOSED {trade_type} position: {self.exchange_name}, {self.symbol}, {self.strategy.name}. PNL: ${round(estimated_profit, 2)}, Balance: ${jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2))}, entry: {entry}, exit: {close_price}'
-        #
-        #     if jh.is_debuggable('position_closed'):
-        #         logger.info(info_text)
-        #
-        #     if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-        #         notifier.notify(info_text)
 
     def _mutating_reduce(self, qty: float, price: float) -> None:
         if self.is_open is False:
@@ -299,35 +290,21 @@ class Position:
         elif self.type == trade_types.SHORT:
             self.qty = sum_floats(self.qty, qty)
 
-        info_text = f'REDUCED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
-
-        if jh.is_debuggable('position_reduced'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
-
     def _mutating_increase(self, qty: float, price: float) -> None:
         if not self.is_open:
             raise OpenPositionError('position must be already open in order to increase its size')
 
         qty = abs(qty)
 
-        self.entry_price = jh.estimate_average_price(qty, price, self.qty,
-                                                     self.entry_price)
+        self.entry_price = jh.estimate_average_price(
+            qty, price, self.qty,
+            self.entry_price
+        )
 
         if self.type == trade_types.LONG:
             self.qty = sum_floats(self.qty, qty)
         elif self.type == trade_types.SHORT:
             self.qty = subtract_floats(self.qty, qty)
-
-        info_text = f'INCREASED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
-
-        if jh.is_debuggable('position_increased'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
 
     def _mutating_open(self, qty: float, price: float, change_balance: bool = True) -> None:
         if self.is_open:
@@ -343,14 +320,6 @@ class Position:
     def _open(self):
         from jesse.store import store
         store.completed_trades.open_trade(self)
-
-        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}\n size: {self.qty}, entry_price: ${round(self.entry_price, 2)}'
-
-        if jh.is_debuggable('position_opened'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
 
     def _on_executed_order(self, order: Order) -> None:
         if jh.is_livetrading():
@@ -428,4 +397,3 @@ class Position:
         # if closing position
         elif before_qty != 0 and after_qty == 0:
             self.closed_at = jh.now_to_timestamp()
-
