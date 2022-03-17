@@ -126,14 +126,14 @@ def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int
     return abs(dif.days)
 
 
-def date_to_timestamp(date: str) -> int:
+def date_to_timestamp(date: str, format = 'YYYY-MM-DD') -> int:
     """
     converts date string into timestamp. "2015-08-01" => 1438387200000
 
     :param date: str
     :return: int
     """
-    return arrow_to_timestamp(arrow.get(date, 'YYYY-MM-DD'))
+    return arrow_to_timestamp(arrow.get(date, format))
 
 
 def dna_to_hp(strategy_hp, dna: str):
@@ -153,6 +153,23 @@ def dna_to_hp(strategy_hp, dna: str):
 
         hp[h['name']] = decoded_gene
     return hp
+
+
+def hp_to_dna(strategy_hp, hp: list):
+    dna = ''
+
+    for decoded_gene, h in zip(hp, strategy_hp):
+        if h['type'] in [int, float]:
+            gene = chr(
+                int(
+                    convert_number(h['max'], h['min'], 119, 40, decoded_gene)
+                )
+            )
+        else:
+            raise TypeError('Only int and float types are implemented')
+
+        dna += gene
+    return dna
 
 
 def dump_exception() -> None:
