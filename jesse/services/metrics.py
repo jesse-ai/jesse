@@ -49,7 +49,7 @@ def trades(trades_list: List[CompletedTrade], daily_balance: list, final: bool =
     if not trades_list:
         return {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
 
-    df = pd.DataFrame.from_records([t.to_dict() for t in trades_list])
+    df = pd.DataFrame.from_records([t.to_dict for t in trades_list])
 
     total_completed = len(df)
     winning_trades = df.loc[df['PNL'] > 0]

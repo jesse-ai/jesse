@@ -12,7 +12,7 @@ import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import config
-from jesse.enums import timeframes, order_types, order_roles, order_flags
+from jesse.enums import timeframes, order_types
 from jesse.models import Candle, Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
@@ -450,10 +450,9 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
             'exchange': exchange,
             'side': closing_order_side,
             'type': order_types.MARKET,
-            'flag': order_flags.REDUCE_ONLY,
+            'reduce_only': True,
             'qty': jh.prepare_qty(p.qty, closing_order_side),
-            'price': p.bankruptcy_price,
-            'role': order_roles.CLOSE_POSITION
+            'price': p.bankruptcy_price
         })
 
         store.orders.add_order(order)

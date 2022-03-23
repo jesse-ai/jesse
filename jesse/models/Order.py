@@ -3,10 +3,9 @@ from playhouse.postgres_ext import *
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
-from jesse import sync_publish
 from jesse.config import config
 from jesse.services.notifier import notify
-from jesse.enums import order_statuses, order_flags
+from jesse.enums import order_statuses, order_submitted_via
 from jesse.services.db import database
 
 
@@ -28,14 +27,16 @@ class Order(Model):
     exchange = CharField()
     side = CharField()
     type = CharField()
-    flag = CharField(null=True)
+    reduce_only = BooleanField()
     qty = FloatField()
+    filled_qty = FloatField(default=0)
     price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
-    role = CharField(null=True)
+
+    # needed in Jesse, but no need to store in database(?)
     submitted_via = None
 
     class Meta:
@@ -56,14 +57,14 @@ class Order(Model):
         if self.created_at is None:
             self.created_at = jh.now_to_timestamp()
 
-        if jh.is_live():
-            from jesse.store import store
-            self.session_id = store.app.session_id
-            self.save(force_insert=True)
+        # if jh.is_live():
+        #     from jesse.store import store
+            # self.session_id = store.app.session_id
+            # self.save(force_insert=True)
 
         if jh.is_live():
             self.notify_submission()
-        if jh.is_debuggable('order_submission'):
+        if jh.is_debuggable('order_submission') and self.is_active:
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -73,13 +74,8 @@ class Order(Model):
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
 
-    def broadcast(self) -> None:
-        sync_publish('order', self.to_dict)
-
     def notify_submission(self) -> None:
-        self.broadcast()
-
-        if config['env']['notifications']['events']['submitted_orders']:
+        if config['env']['notifications']['events']['submitted_orders'] and self.is_active:
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -117,20 +113,16 @@ class Order(Model):
         return self.is_executed
 
     @property
-    def is_reduce_only(self) -> bool:
-        return self.flag == order_flags.REDUCE_ONLY
-
-    @property
-    def is_close(self) -> bool:
-        return self.flag == order_flags.CLOSE
+    def is_partially_filled(self) -> bool:
+        return self.status == order_statuses.PARTIALLY_FILLED
 
     @property
     def is_stop_loss(self):
-        return self.submitted_via == 'stop-loss'
+        return self.submitted_via == order_submitted_via.STOP_LOSS
 
     @property
     def is_take_profit(self):
-        return self.submitted_via == 'take-profit'
+        return self.submitted_via == order_submitted_via.TAKE_PROFIT
 
     @property
     def to_dict(self):
@@ -142,13 +134,17 @@ class Order(Model):
             'side': self.side,
             'type': self.type,
             'qty': self.qty,
+            'filled_qty': self.filled_qty,
             'price': self.price,
-            'flag': self.flag,
             'status': self.status,
             'created_at': self.created_at,
             'canceled_at': self.canceled_at,
             'executed_at': self.executed_at,
         }
+
+    @property
+    def position(self):
+        return selectors.get_position(self.exchange, self.symbol)
 
     def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
@@ -157,8 +153,8 @@ class Order(Model):
         self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
 
-        if jh.is_live():
-            self.save()
+        # if jh.is_live():
+        #     self.save()
 
         if not silent:
             txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -167,7 +163,6 @@ class Order(Model):
             if jh.is_debuggable('order_cancellation'):
                 logger.info(txt)
             if jh.is_live():
-                self.broadcast()
                 if config['env']['notifications']['events']['cancelled_orders']:
                     notify(txt)
 
@@ -182,8 +177,8 @@ class Order(Model):
         self.executed_at = jh.now_to_timestamp()
         self.status = order_statuses.EXECUTED
 
-        if jh.is_live():
-            self.save()
+        # if jh.is_live():
+        #     self.save()
 
         if not silent:
             txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -194,9 +189,12 @@ class Order(Model):
                 logger.info(txt)
             # notify
             if jh.is_live():
-                self.broadcast()
                 if config['env']['notifications']['events']['executed_orders']:
                     notify(txt)
+
+        # log the order of the trade for metrics
+        from jesse.store import store
+        store.completed_trades.add_executed_order(self)
 
         p = selectors.get_position(self.exchange, self.symbol)
 
@@ -206,6 +204,32 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+    def execute_partially(self, silent=False) -> None:
+        self.executed_at = jh.now_to_timestamp()
+        self.status = order_statuses.PARTIALLY_FILLED
+
+        # if jh.is_live():
+        #     self.save()
+
+        if not silent:
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.side}, qty: {self.filled_qty}/{self.qty}, price: {self.price}"
+            # log
+            if jh.is_debuggable('order_execution'):
+                logger.info(txt)
+            # notify
+            if jh.is_live():
+                if config['env']['notifications']['events']['executed_orders']:
+                    notify(txt)
+
+        # log the order of the trade for metrics
+        from jesse.store import store
+        store.completed_trades.add_executed_order(self)
+
+        p = selectors.get_position(self.exchange, self.symbol)
+
+        if p:
+            p._on_executed_order(self)
 
 
 # if database is open, create the table
