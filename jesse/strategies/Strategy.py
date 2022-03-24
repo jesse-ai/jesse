@@ -783,6 +783,18 @@ class Strategy(ABC):
     def terminate(self):
         pass
 
+    def custom_metrics(self) -> dict:
+        """
+        Add custom metrics to your backtest for a better understanding by the strategy developer sight
+        """
+        return {}
+
+    def custom_position_attributes(self) -> dict:
+        """
+        Add custom attributes as indicators etc. to your closed position.
+        """
+        return {}
+
     def watch_list(self) -> list:
         """
         returns an array containing an array of key-value items that should

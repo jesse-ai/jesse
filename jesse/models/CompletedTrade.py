@@ -45,6 +45,7 @@ class CompletedTrade(peewee.Model):
         self.sell_orders = DynamicNumpyArray((10, 2))
         # to store the actual order objects
         self.orders = []
+        self.custom_strategy_attr = {}
 
     @property
     def to_json(self) -> dict:
@@ -64,6 +65,7 @@ class CompletedTrade(peewee.Model):
             "holding_period": self.holding_period,
             "opened_at": self.opened_at,
             "closed_at": self.closed_at,
+            **self.custom_strategy_attr
         }
 
     @property
@@ -84,6 +86,7 @@ class CompletedTrade(peewee.Model):
             "PNL": self.pnl,
             "PNL_percentage": self.pnl_percentage,
             "holding_period": self.holding_period,
+            **self.custom_strategy_attr
         }
 
     @property

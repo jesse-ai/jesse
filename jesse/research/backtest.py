@@ -96,12 +96,13 @@ def _isolated_backtest(
             )
 
     # run backtest simulation
-    simulator(trading_candles, run_silently, hyperparameters)
+    routes_metrics = simulator(trading_candles, run_silently, hyperparameters)
 
     result = {
         'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
         'charts': None,
         'logs': None,
+        'routes_metrics': routes_metrics
     }
     if store.completed_trades.count > 0:
         # add metrics

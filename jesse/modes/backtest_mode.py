@@ -224,7 +224,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
 def simulator(
         candles: dict, run_silently: bool, hyperparameters: dict = None
-) -> None:
+) -> dict:
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
@@ -351,13 +351,18 @@ def simulator(
             'message': f'Successfully executed backtest simulation in: {round(finish_time_track - begin_time_track, 2)} seconds',
             'type': 'success'
         })
-
+    extra_metrics = {}
     for r in router.routes:
+        route_metrics = r.strategy.custom_metrics()
+        if len(router.routes) > 1:
+            route_metrics = {f'{r.exchange}-{r.symbol}-{r.strategy_name}-{k}': v for k, v in route_metrics.items() }
+        extra_metrics = {**extra_metrics, **route_metrics}
         r.strategy._terminate()
         store.orders.execute_pending_market_orders()
 
     # now that backtest is finished, add finishing balance
     save_daily_portfolio_balance()
+    return extra_metrics
 
 
 def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) -> np.ndarray:
