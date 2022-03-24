@@ -12,7 +12,7 @@ class order_statuses:
     ACTIVE = 'ACTIVE'
     CANCELED = 'CANCELED'
     EXECUTED = 'EXECUTED'
-    PARTIALLY_EXECUTED = 'PARTIALLY EXECUTED'
+    PARTIALLY_FILLED = 'PARTIALLY FILLED'
     QUEUED = 'QUEUED'
     LIQUIDATED = 'LIQUIDATED'
 
@@ -42,21 +42,6 @@ class colors:
     BLACK = 'black'
 
 
-class order_roles:
-    OPEN_POSITION = 'OPEN POSITION'
-    CLOSE_POSITION = 'CLOSE POSITION'
-    INCREASE_POSITION = 'INCREASE POSITION'
-    REDUCE_POSITION = 'REDUCE POSITION'
-
-
-class order_flags:
-    OCO = 'OCO'
-    POST_ONLY = 'PostOnly'
-    CLOSE = 'Close'
-    HIDDEN = 'Hidden'
-    REDUCE_ONLY = 'ReduceOnly'
-
-
 class order_types:
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'
@@ -66,9 +51,26 @@ class order_types:
 
 
 class exchanges:
+    SANDBOX = 'Sandbox'
     COINBASE = 'Coinbase'
     BITFINEX = 'Bitfinex'
     BINANCE = 'Binance'
     BINANCE_FUTURES = 'Binance Futures'
     TESTNET_BINANCE_FUTURES = 'Testnet Binance Futures'
-    SANDBOX = 'Sandbox'
+    BYBIT_PERPETUAL = 'Bybit Perpetual'
+    TESTNET_BYBIT_PERPETUAL = 'Testnet Bybit Perpetual'
+    FTX_FUTURES = 'FTX Futures'
+
+
+class migration_actions:
+    ADD = 'add'
+    DROP = 'drop'
+    RENAME = 'rename'
+    MODIFY_TYPE = 'modify_type'
+    ALLOW_NULL = 'allow_null'
+    DENY_NULL = 'deny_null'
+
+
+class order_submitted_via:
+    STOP_LOSS = 'stop-loss'
+    TAKE_PROFIT = 'take-profit'

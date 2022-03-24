@@ -216,7 +216,8 @@ config = {
         'data': {
             # The minimum number of warmup candles that is loaded before each session.
             'warmup_candles_num': 240,
-        }
+            'persistency': True,
+        },
     },
 
     # These values are just placeholders used by Jesse at runtime
@@ -294,6 +295,7 @@ def set_config(conf: dict) -> None:
     # live mode only
     if jh.is_live():
         config['env']['notifications'] = conf['notifications']
+        config['env']['data']['persistency'] = conf['persistency']
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'

@@ -1,7 +1,7 @@
 from typing import Union
 
 import jesse.helpers as jh
-from jesse.enums import sides, order_flags
+from jesse.enums import sides
 from jesse.exceptions import OrderNotAllowed, InvalidStrategy
 from jesse.models import Order
 from jesse.models import Position
@@ -21,7 +21,7 @@ class Broker:
         if qty == 0:
             raise InvalidStrategy('qty cannot be 0')
 
-    def sell_at_market(self, qty: float, role: str = None) -> Union[Order, None]:
+    def sell_at_market(self, qty: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -30,10 +30,10 @@ class Broker:
             abs(qty),
             self.position.current_price,
             sides.SELL,
-            role, []
+            reduce_only=False
         )
 
-    def sell_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
+    def sell_at(self, qty: float, price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -45,11 +45,10 @@ class Broker:
             abs(qty),
             price,
             sides.SELL,
-            role,
-            []
+            reduce_only=False
         )
 
-    def buy_at_market(self, qty: float, role: str = None) -> Union[Order, None]:
+    def buy_at_market(self, qty: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         return self.api.market_order(
@@ -58,11 +57,10 @@ class Broker:
             abs(qty),
             self.position.current_price,
             sides.BUY,
-            role,
-            []
+            reduce_only=False
         )
 
-    def buy_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
+    def buy_at(self, qty: float, price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -74,11 +72,10 @@ class Broker:
             abs(qty),
             price,
             sides.BUY,
-            role,
-            []
+            reduce_only=False
         )
 
-    def reduce_position_at(self, qty: float, price: float, role: str = None) -> Union[Order, None]:
+    def reduce_position_at(self, qty: float, price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -102,8 +99,7 @@ class Broker:
                 qty,
                 price,
                 side,
-                role,
-                [order_flags.REDUCE_ONLY]
+                reduce_only=True
             )
 
         elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (
@@ -114,8 +110,7 @@ class Broker:
                 qty,
                 price,
                 side,
-                role,
-                [order_flags.REDUCE_ONLY]
+                reduce_only=True
             )
         elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (
                 side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
@@ -125,13 +120,12 @@ class Broker:
                 abs(qty),
                 price,
                 side,
-                role,
-                [order_flags.REDUCE_ONLY]
+                reduce_only=True
             )
         else:
             raise OrderNotAllowed("This order doesn't seem to be for reducing the position.")
 
-    def start_profit_at(self, side: str, qty: float, price: float, role: str = None) -> Union[Order, None]:
+    def start_profit_at(self, side: str, qty: float, price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         if price < 0:
@@ -152,8 +146,7 @@ class Broker:
             abs(qty),
             price,
             side,
-            role,
-            []
+            reduce_only=False
         )
 
     def cancel_all_orders(self) -> bool:

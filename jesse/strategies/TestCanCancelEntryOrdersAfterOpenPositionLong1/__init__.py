@@ -1,4 +1,5 @@
 from jesse.strategies import Strategy
+import jesse.helpers as jh
 
 
 class TestCanCancelEntryOrdersAfterOpenPositionLong1(Strategy):

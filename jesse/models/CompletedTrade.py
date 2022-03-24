@@ -4,6 +4,8 @@ import peewee
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.services.db import database
+from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
+from jesse.enums import trade_types
 
 
 if database.is_closed():
@@ -19,18 +21,9 @@ class CompletedTrade(peewee.Model):
     exchange = peewee.CharField()
     type = peewee.CharField()
     timeframe = peewee.CharField()
-    entry_price = peewee.FloatField(default=np.nan)
-    exit_price = peewee.FloatField(default=np.nan)
-    take_profit_at = peewee.FloatField(default=np.nan)
-    stop_loss_at = peewee.FloatField(default=np.nan)
-    qty = peewee.FloatField(default=np.nan)
     opened_at = peewee.BigIntegerField()
     closed_at = peewee.BigIntegerField()
-    entry_candle_timestamp = peewee.BigIntegerField()
-    exit_candle_timestamp = peewee.BigIntegerField()
     leverage = peewee.IntegerField()
-
-    orders = []
 
     class Meta:
         from jesse.services.db import database
@@ -47,8 +40,14 @@ class CompletedTrade(peewee.Model):
         for a, value in attributes.items():
             setattr(self, a, value)
 
-    def toJSON(self) -> dict:
-        orders = [o.__dict__ for o in self.orders]
+        # used for fast calculation of the total qty, entry_price, exit_price, etc.
+        self.buy_orders = DynamicNumpyArray((10, 2))
+        self.sell_orders = DynamicNumpyArray((10, 2))
+        # to store the actual order objects
+        self.orders = []
+
+    @property
+    def to_json(self) -> dict:
         return {
             "id": self.id,
             "strategy_name": self.strategy_name,
@@ -65,11 +64,9 @@ class CompletedTrade(peewee.Model):
             "holding_period": self.holding_period,
             "opened_at": self.opened_at,
             "closed_at": self.closed_at,
-            "entry_candle_timestamp": self.entry_candle_timestamp,
-            "exit_candle_timestamp": self.exit_candle_timestamp,
-            "orders": orders,
         }
 
+    @property
     def to_dict(self) -> dict:
         return {
             'id': self.id,
@@ -82,8 +79,6 @@ class CompletedTrade(peewee.Model):
             'qty': self.qty,
             'opened_at': self.opened_at,
             'closed_at': self.closed_at,
-            'entry_candle_timestamp': self.entry_candle_timestamp,
-            'exit_candle_timestamp': self.exit_candle_timestamp,
             "fee": self.fee,
             "size": self.size,
             "PNL": self.pnl,
@@ -102,7 +97,6 @@ class CompletedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        """PNL"""
         fee = config['env']['exchanges'][self.exchange]['fee']
         return jh.estimate_PNL(
             self.qty, self.entry_price, self.exit_price,
@@ -135,6 +129,45 @@ class CompletedTrade(peewee.Model):
     def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
         return (self.closed_at - self.opened_at) / 1000
+
+    @property
+    def is_long(self) -> bool:
+        return self.type == trade_types.LONG
+
+    @property
+    def is_short(self) -> bool:
+        return self.type == trade_types.SHORT
+
+    @property
+    def qty(self) -> float:
+        if self.is_long:
+            return self.buy_orders[:][:, 0].sum()
+        elif self.is_short:
+            return self.sell_orders[:][:, 0].sum()
+        else:
+            return 0.0
+
+    @property
+    def entry_price(self) -> float:
+        if self.is_long:
+            orders = self.buy_orders[:]
+        elif self.is_short:
+            orders = self.sell_orders[:]
+        else:
+            return np.nan
+
+        return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
+
+    @property
+    def exit_price(self) -> float:
+        if self.is_long:
+            orders = self.sell_orders[:]
+        elif self.is_short:
+            orders = self.buy_orders[:]
+        else:
+            return np.nan
+
+        return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
 
 
 # if database is open, create the table

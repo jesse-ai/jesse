@@ -13,7 +13,7 @@ def test_close_position():
     })
     assert p.exit_price is None
 
-    p._close(50)
+    p._mutating_close(50)
 
     assert p.qty == 0
     assert p.entry_price is None
@@ -29,7 +29,7 @@ def test_increase_a_long_position():
         'qty': 2,
     })
 
-    p._increase(2, 100)
+    p._mutating_increase(2, 100)
 
     assert p.qty == 4
     assert p.entry_price == 75
@@ -44,7 +44,7 @@ def test_increase_a_short_position():
         'qty': -2,
     })
 
-    p._increase(2, 40)
+    p._mutating_increase(2, 40)
 
     assert p.qty == -4
     assert p.entry_price == 45
@@ -75,7 +75,7 @@ def test_is_able_to_close_via_reduce_position_too():
         'qty': 2,
     })
 
-    p._reduce(2, 50)
+    p._mutating_reduce(2, 50)
 
     assert p.qty == 0
 
@@ -90,7 +90,7 @@ def test_open_position():
     assert p.exit_price is None
     assert p.current_price is None
 
-    p._open(1, 50)
+    p._mutating_open(1, 50)
 
     assert p.qty == 1
     assert p.entry_price == 50
@@ -178,7 +178,7 @@ def test_position_pnl_percentage():
 def test_position_roi():
     set_up()
     p = Position(exchanges.SANDBOX, 'BTC-USDT')
-    p._open(3, 100)
+    p._mutating_open(3, 100)
     p.current_price = 110
 
     assert p.value == 330
@@ -226,7 +226,7 @@ def test_reduce_a_long_position():
         'qty': 2,
     })
 
-    p._reduce(1, 50)
+    p._mutating_reduce(1, 50)
 
     assert p.qty == 1
 
@@ -240,7 +240,7 @@ def test_reduce_a_short_position():
         'qty': -2,
     })
 
-    p._reduce(1, 50)
+    p._mutating_reduce(1, 50)
 
     assert p.qty == -1
 

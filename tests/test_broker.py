@@ -2,7 +2,7 @@ import pytest
 
 import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
-from jesse.enums import exchanges, timeframes, order_types, order_flags, order_roles
+from jesse.enums import exchanges, timeframes, order_types
 from jesse.exceptions import InvalidStrategy, NegativeBalance, OrderNotAllowed
 from jesse.models import Position, Exchange
 from jesse.routes import router
@@ -169,7 +169,7 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.available_margin() == 1000
     assert exchange.wallet_balance() == 1000
     # open position
-    open_position_order = broker.start_profit_at('buy', 1, 60, order_roles.OPEN_POSITION)
+    open_position_order = broker.start_profit_at('buy', 1, 60)
     open_position_order.execute()
     position.current_price = 60
     assert position.is_open is True
@@ -180,14 +180,14 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.available_margin() == 940
 
     # submit stop-loss order
-    stop_loss_order = broker.reduce_position_at(1, 40, order_roles.CLOSE_POSITION)
-    assert stop_loss_order.flag == order_flags.REDUCE_ONLY
+    stop_loss_order = broker.reduce_position_at(1, 40)
+    assert stop_loss_order.reduce_only is True
     # balance should NOT have changed
     assert exchange.assets['USDT'] == 1000
     assert exchange.wallet_balance() == 1000
     # submit take-profit order also
-    take_profit_order = broker.reduce_position_at(1, 80, order_roles.CLOSE_POSITION)
-    assert take_profit_order.flag == order_flags.REDUCE_ONLY
+    take_profit_order = broker.reduce_position_at(1, 80)
+    assert take_profit_order.reduce_only is True
     assert exchange.assets['USDT'] == 1000
 
     # execute stop order
@@ -259,7 +259,7 @@ def test_stop_loss():
     assert order.price == 40
     assert order.qty == -1
     assert order.side == 'sell'
-    assert order.flag == order_flags.REDUCE_ONLY
+    assert order.reduce_only is True
     # balance should NOT have changed
     assert exchange.available_margin() == 950
     assert exchange.wallet_balance() == 1000

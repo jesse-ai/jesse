@@ -96,8 +96,6 @@ def store_completed_trade_into_db(completed_trade) -> None:
         'qty': completed_trade.qty,
         'opened_at': completed_trade.opened_at,
         'closed_at': completed_trade.closed_at,
-        'entry_candle_timestamp': completed_trade.entry_candle_timestamp,
-        'exit_candle_timestamp': completed_trade.exit_candle_timestamp,
         'leverage': completed_trade.leverage,
     }
 
@@ -124,14 +122,14 @@ def store_order_into_db(order) -> None:
         'exchange': order.exchange,
         'side': order.side,
         'type': order.type,
-        'flag': order.flag,
+        'reduce_only': order.reduce_only,
         'qty': order.qty,
+        'filled_qty': order.filled_qty,
         'price': order.price,
         'status': order.status,
         'created_at': order.created_at,
         'executed_at': order.executed_at,
         'canceled_at': order.canceled_at,
-        'role': order.role,
     }
 
     def async_save() -> None:

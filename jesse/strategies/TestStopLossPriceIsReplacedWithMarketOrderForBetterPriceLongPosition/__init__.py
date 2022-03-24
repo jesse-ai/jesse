@@ -7,11 +7,11 @@ class TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceLongPosition(Strat
         if self.price == 15:
             last_trade = self.trades[-1]
             # it should have closed on the market price at the time being 10 instead of 12
-            last_trade.exit_price = 10
+            assert last_trade.exit_price == 10
 
             # the order type should be market
-            assert self.orders[0].type == order_types.MARKET
-            assert self.orders[1].type == order_types.MARKET
+            assert self.trades[-1].orders[0].type == order_types.MARKET
+            assert self.trades[-1].orders[1].type == order_types.MARKET
 
     def should_long(self) -> bool:
         return self.price == 10

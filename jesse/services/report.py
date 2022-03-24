@@ -36,7 +36,7 @@ def positions() -> list:
             'value': round(p.value, 2),
             'entry': p.entry_price,
             'current_price': p.current_price,
-            'liq_price': p.liquidation_price,
+            'liquidation_price': p.liquidation_price,
             'pnl': p.pnl,
             'pnl_perc': p.pnl_percentage
         })
@@ -88,19 +88,17 @@ def candles() -> dict:
 
 
 def livetrade():
-    # TODO: for now, we assume that we trade on one exchange only. Later, we need to support for more than one exchange at a time
-    # sum up balance of all trading exchanges
     starting_balance = 0
     current_balance = 0
     for e in store.exchanges.storage:
-        starting_balance += store.exchanges.storage[e].starting_assets[jh.app_currency()]
-        current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
-    starting_balance = round(starting_balance, 2)
-    current_balance = round(current_balance, 2)
+        starting_balance = round(store.exchanges.storage[e].started_balance(), 2)
+        current_balance = round(store.exchanges.storage[e].wallet_balance(), 2)
+        # there's only one exchange, so we can break
+        break
 
     # short trades summary
     if len(store.completed_trades.trades):
-        df = pd.DataFrame.from_records([t.to_dict() for t in store.completed_trades.trades])
+        df = pd.DataFrame.from_records([t.to_dict for t in store.completed_trades.trades])
         total = len(df)
         winning_trades = len(df.loc[df['PNL'] > 0])
         losing_trades = len(df.loc[df['PNL'] < 0])
@@ -195,28 +193,12 @@ def errors() -> List[List[Union[str, Any]]]:
     ]
 
 
-def orders():
+def orders() -> List[dict]:
     route_orders = []
+
     for r in router.routes:
         r_orders = store.orders.get_orders(r.exchange, r.symbol)
         for o in r_orders:
-            route_orders.append(o)
+            route_orders.append(o.to_dict)
 
-    if not len(route_orders):
-        return []
-
-    route_orders.sort(key=lambda x: x.created_at, reverse=False)
-
-    return [{
-            'id': o.id,
-            'symbol': o.symbol,
-            'side': o.side,
-            'type': o.type,
-            'qty': o.qty,
-            'price': o.price,
-            'flag': o.flag,
-            'status': o.status,
-            'created_at': o.created_at,
-            'canceled_at': o.canceled_at,
-            'executed_at': o.executed_at,
-        } for o in route_orders[::-1][0:5]]
+    return route_orders

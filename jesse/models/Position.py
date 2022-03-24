@@ -4,11 +4,10 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
-from jesse.config import config
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
-from jesse.services import logger, notifier
+from jesse.services import logger
 from jesse.utils import sum_floats, subtract_floats
 
 
@@ -75,9 +74,9 @@ class Position:
 
         :return: str
         """
-        if self.qty > 0:
+        if self.is_long:
             return 'long'
-        if self.qty < 0:
+        if self.is_short:
             return 'short'
 
         return 'close'
@@ -163,6 +162,24 @@ class Position:
         return self.qty == 0
 
     @property
+    def is_long(self) -> bool:
+        """
+        Is the current position a long position?
+
+        :return: bool
+        """
+        return self.qty > 0
+
+    @property
+    def is_short(self) -> bool:
+        """
+        Is the current position a short position?
+
+        :return: bool
+        """
+        return self.qty < 0
+
+    @property
     def mode(self) -> str:
         if self.exchange.type == 'spot':
             return 'spot'
@@ -225,7 +242,7 @@ class Position:
             'mode': self.mode,
         }
 
-    def _close(self, close_price: float) -> None:
+    def _mutating_close(self, close_price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is already closed.')
 
@@ -243,20 +260,18 @@ class Position:
         if self.exchange:
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
-        self.qty = 0
-        self.entry_price = None
         self.closed_at = jh.now_to_timestamp()
 
-        if not jh.is_unit_testing():
-            info_text = f'CLOSED {trade_type} position: {self.exchange_name}, {self.symbol}, {self.strategy.name}. PNL: ${round(estimated_profit, 2)}, Balance: ${jh.format_currency(round(self.exchange.wallet_balance(self.symbol), 2))}, entry: {entry}, exit: {close_price}'
+        self.qty = 0
+        self.entry_price = None
 
-            if jh.is_debuggable('position_closed'):
-                logger.info(info_text)
+        self._close()
 
-            if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-                notifier.notify(info_text)
+    def _close(self):
+        from jesse.store import store
+        store.completed_trades.close_trade(self)
 
-    def _reduce(self, qty: float, price: float) -> None:
+    def _mutating_reduce(self, qty: float, price: float) -> None:
         if self.is_open is False:
             raise EmptyPosition('The position is closed.')
 
@@ -275,41 +290,23 @@ class Position:
         elif self.type == trade_types.SHORT:
             self.qty = sum_floats(self.qty, qty)
 
-        info_text = f'REDUCED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
-
-        if jh.is_debuggable('position_reduced'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
-
-    def _increase(self, qty: float, price: float) -> None:
+    def _mutating_increase(self, qty: float, price: float) -> None:
         if not self.is_open:
             raise OpenPositionError('position must be already open in order to increase its size')
 
         qty = abs(qty)
-        # size = qty * price
 
-        # if self.exchange:
-        #     self.exchange.decrease_futures_balance(size)
-
-        self.entry_price = jh.estimate_average_price(qty, price, self.qty,
-                                                     self.entry_price)
+        self.entry_price = jh.estimate_average_price(
+            qty, price, self.qty,
+            self.entry_price
+        )
 
         if self.type == trade_types.LONG:
             self.qty = sum_floats(self.qty, qty)
         elif self.type == trade_types.SHORT:
             self.qty = subtract_floats(self.qty, qty)
 
-        info_text = f'INCREASED position: {self.exchange_name}, {self.symbol}, {self.type}, {self.qty}, ${round(self.entry_price, 2)}'
-
-        if jh.is_debuggable('position_increased'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
-
-    def _open(self, qty: float, price: float, change_balance: bool = True) -> None:
+    def _mutating_open(self, qty: float, price: float, change_balance: bool = True) -> None:
         if self.is_open:
             raise OpenPositionError('an already open position cannot be opened')
 
@@ -318,52 +315,85 @@ class Position:
         self.qty = qty
         self.opened_at = jh.now_to_timestamp()
 
-        info_text = f'OPENED {self.type} position: {self.exchange_name}, {self.symbol}, {self.qty}, ${round(self.entry_price, 2)}'
+        self._open()
 
-        if jh.is_debuggable('position_opened'):
-            logger.info(info_text)
-
-        if jh.is_live() and config['env']['notifications']['events']['updated_position']:
-            notifier.notify(info_text)
+    def _open(self):
+        from jesse.store import store
+        store.completed_trades.open_trade(self)
 
     def _on_executed_order(self, order: Order) -> None:
-        qty = order.qty
-        price = order.price
-
-        # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
-
-        self.exchange.charge_fee(qty * price)
-
-        # order opens position
-        if self.qty == 0:
-            change_balance = order.type == order_types.MARKET
-            self._open(qty, price, change_balance)
-        # order closes position
-        elif (sum_floats(self.qty, qty)) == 0:
-            self._close(price)
-        # order increases the size of the position
-        elif self.qty * qty > 0:
-            if order.is_reduce_only:
-                logger.info('Did not increase position because order is a reduce_only order')
+        if jh.is_livetrading():
+            # if position got closed because of this order
+            if order.is_partially_filled:
+                before_qty = self.qty - order.filled_qty
             else:
-                self._increase(qty, price)
-        # order reduces the size of the position
-        elif self.qty * qty < 0:
-            # if size of the order is big enough to both close the
-            # position AND open it on the opposite side
-            if abs(qty) > abs(self.qty):
-                if order.is_reduce_only:
-                    logger.info(
-                        f'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {qty}, Position QTY: {self.qty}')
-                    self._close(price)
+                before_qty = self.qty - order.qty
+            after_qty = self.qty
+            if before_qty != 0 and after_qty == 0:
+                self._close()
+        else:
+            qty = order.qty
+            price = order.price
+
+            # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
+
+            self.exchange.charge_fee(qty * price)
+
+            # order opens position
+            if self.qty == 0:
+                change_balance = order.type == order_types.MARKET
+                self._mutating_open(qty, price, change_balance)
+            # order closes position
+            elif (sum_floats(self.qty, qty)) == 0:
+                self._mutating_close(price)
+            # order increases the size of the position
+            elif self.qty * qty > 0:
+                if order.reduce_only:
+                    logger.info('Did not increase position because order is a reduce_only order')
                 else:
-                    logger.info(
-                        f'Executed order is big enough to not close, but flip the position type. Order QTY: {qty}, Position QTY: {self.qty}')
-                    diff_qty = sum_floats(self.qty, qty)
-                    self._close(price)
-                    self._open(diff_qty, price)
-            else:
-                self._reduce(qty, price)
+                    self._mutating_increase(qty, price)
+            # order reduces the size of the position
+            elif self.qty * qty < 0:
+                # if size of the order is big enough to both close the
+                # position AND open it on the opposite side
+                if abs(qty) > abs(self.qty):
+                    if order.reduce_only:
+                        logger.info(
+                            f'Executed order is bigger than the current position size but it is a reduce_only order so it just closes it. Order QTY: {qty}, Position QTY: {self.qty}')
+                        self._mutating_close(price)
+                    else:
+                        logger.info(
+                            f'Executed order is big enough to not close, but flip the position type. Order QTY: {qty}, Position QTY: {self.qty}')
+                        diff_qty = sum_floats(self.qty, qty)
+                        self._mutating_close(price)
+                        self._mutating_open(diff_qty, price)
+                else:
+                    self._mutating_reduce(qty, price)
 
         if self.strategy:
             self.strategy._on_updated_position(order)
+
+    def update_from_stream(self, data: dict, is_initial: bool) -> None:
+        """
+        Used for updating the position from the WS stream (only for live trading)
+        """
+        before_qty = abs(self.qty)
+        after_qty = abs(data['qty'])
+
+        self.entry_price = data['entry_price']
+        self._liquidation_price = data['liquidation_price']
+        self.qty = data['qty']
+
+        # if opening position
+        if before_qty == 0 and after_qty != 0:
+            if is_initial:
+                from jesse.store import store
+                store.completed_trades.add_order_record_only(
+                    self.exchange_name, self.symbol, jh.type_to_side(self.type),
+                    self.qty, self.entry_price
+                )
+            self.opened_at = jh.now_to_timestamp()
+            self._open()
+        # if closing position
+        elif before_qty != 0 and after_qty == 0:
+            self.closed_at = jh.now_to_timestamp()

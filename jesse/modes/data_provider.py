@@ -2,6 +2,7 @@ import json
 import os
 import numpy as np
 import peewee
+import requests
 
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
@@ -88,12 +89,24 @@ def get_general_info(has_live=False) -> dict:
     system_info['cpu_cores'] = jh.cpu_cores_count()
     system_info['is_docker'] = jh.is_docker()
 
+    update_info = {}
+
+    try:
+        response = requests.get('https://pypi.org/pypi/jesse/json')
+        update_info['jesse_latest_version'] = response.json()['info']['version']
+        response = requests.get('https://jesse.trade/api/plugins/live/releases/info')
+        update_info['jesse_live_latest_version'] = response.json()[0]['version']
+        update_info['is_update_info_available'] = True
+    except Exception:
+        update_info['is_update_info_available'] = False
+
     return {
         'exchanges': exchanges,
         'live_exchanges': live_exchanges,
         'strategies': strategies,
         'has_live_plugin_installed': has_live,
         'system_info': system_info,
+        'update_info': update_info
     }
 
 

@@ -39,9 +39,8 @@ class TestCompletedTradeAfterExitingTrade(Strategy):
         assert trade.leverage == 2
 
         # assert all orders have their trade_id set
-        from jesse.store import store
-        orders = store.orders.get_orders(trade.exchange, trade.symbol)
-        assert len(orders) == 3
+        orders = trade.orders
+        assert len(orders) == 2
         for o in orders:
             if not o.is_canceled:
                 assert o.trade_id == trade.id
