@@ -883,7 +883,7 @@ def float_or_none(item):
     """
     Return the float of the value if it's not None
     """
-    if item is None:
+    if item is None or item == '':
         return None
     else:
         return float(item)
@@ -899,7 +899,11 @@ def str_or_none(item, encoding='utf-8'):
         # return item if it's str, if not, decode it using encoding
         if isinstance(item, str):
             return item
-        return str(item, encoding)
+
+        try:
+            return str(item, encoding)
+        except TypeError:
+            return str(item)
 
 
 def get_settlement_currency_from_exchange(exchange: str):

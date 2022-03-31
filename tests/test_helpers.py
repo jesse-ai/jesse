@@ -585,3 +585,20 @@ def test_get_pid():
 def test_convert_to_env_name():
     assert jh.convert_to_env_name('Testnet Binance Futures') == 'TESTNET_BINANCE_FUTURES'
     assert jh.convert_to_env_name('Testnet Binance') == 'TESTNET_BINANCE'
+
+
+def test_str_or_none():
+    assert jh.str_or_none('test') == 'test'
+    assert jh.str_or_none(None) is None
+    assert jh.str_or_none('') is ''
+    assert jh.str_or_none(3009004354) == '3009004354'
+    assert jh.str_or_none(b'3009004354') == '3009004354'
+
+
+def test_float_or_none():
+    assert jh.float_or_none(1.23) == 1.23
+    assert jh.float_or_none(1) == 1.0
+    assert jh.float_or_none(None) is None
+    assert jh.float_or_none('') is None
+    assert jh.float_or_none(b'1.23') == 1.23
+    assert jh.float_or_none('1.23') == 1.23
