@@ -141,7 +141,6 @@ def test_store_state_app_is_reset_properly():
         def before(self) -> None:
             if self.index == 0:
                 from jesse.store import store
-                jh.dump(store.app.daily_balance)
                 assert store.app.daily_balance == [10000]
 
         def should_long(self) -> bool:
