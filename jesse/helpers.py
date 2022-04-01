@@ -853,15 +853,15 @@ def is_jesse_project():
     return 'strategies' in ls and 'storage' in ls
 
 
-def dd(item, pretty=True):
+def dd(item):
     """
     Dump and Die but pretty: used for debugging when developing Jesse
     """
-    dump(item, pretty)
+    dump(item)
     terminate_app()
 
 
-def dump(item, pretty=True):
+def dump(*item):
     """
     Dump object in pretty format: used for debugging when developing Jesse
     """
@@ -869,10 +869,7 @@ def dump(item, pretty=True):
         color('\n========= Debugging Value =========='.upper(), 'yellow')
     )
 
-    if pretty:
-        pprint(item)
-    else:
-        print(item)
+    pprint(item)
 
     print(
         color('====================================\n', 'yellow')
