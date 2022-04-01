@@ -134,3 +134,57 @@ def test_warm_up_candles_more_than_warmup_candles_config_raises_error():
     # assert that it raises IndexError when warm_up_candles==100 and candles.length==10
     with pytest.raises(IndexError):
         research.backtest(config, routes, extra_routes, candles)
+
+
+def test_store_state_app_is_reset_properly():
+    class TestStateApp(Strategy):
+        def before(self) -> None:
+            if self.index == 0:
+                from jesse.store import store
+                jh.dump(store.app.daily_balance)
+                assert store.app.daily_balance == [10000]
+
+        def should_long(self) -> bool:
+            return False
+
+        def should_short(self) -> bool:
+            return False
+
+        def should_cancel(self) -> bool:
+            return True
+
+        def go_long(self):
+            pass
+
+        def go_short(self):
+            pass
+
+    fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
+    exchange_name = 'Fake Exchange'
+    symbol = 'FAKE-USDT'
+    timeframe = '1m'
+    config = {
+        'starting_balance': 10_000,
+        'fee': 0,
+        'futures_leverage': 2,
+        'futures_leverage_mode': 'cross',
+        'exchange': exchange_name,
+        'settlement_currency': 'USDT',
+        'warm_up_candles': 0
+    }
+    routes = [
+        {'exchange': exchange_name, 'strategy': TestStateApp, 'symbol': symbol, 'timeframe': timeframe},
+    ]
+    extra_routes = []
+    candles = {
+        jh.key(exchange_name, symbol): {
+            'exchange': exchange_name,
+            'symbol': symbol,
+            'candles': fake_candles,
+        },
+    }
+
+    # run the backtest for the first time
+    research.backtest(config, routes, extra_routes, candles)
+    # run the backtest for the second time and assert that the app.daily_balance is reset
+    research.backtest(config, routes, extra_routes, candles)
