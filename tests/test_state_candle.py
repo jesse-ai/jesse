@@ -4,6 +4,7 @@ from jesse.config import config, reset_config
 from jesse.factories import fake_candle, range_candles
 from jesse.services.candle import generate_candle_from_one_minutes
 from jesse.store import store
+import jesse.helpers as jh
 
 
 def set_up():
@@ -132,3 +133,30 @@ def test_can_update_candle():
     assert len(store.candles.get_candles('Sandbox', 'BTC-USD', '1m')) == 1
 
 
+def test_can_update_previous_candle():
+    set_up()
+
+    # add 1th candle
+    c1 = fake_candle()
+    store.candles.add_candle(c1, 'Sandbox', 'BTC-USD', '1m')
+
+    # add 2nd candle
+    c2 = fake_candle()
+    store.candles.add_candle(c2, 'Sandbox', 'BTC-USD', '1m')
+
+    # add 3rd candle
+    c3 = fake_candle()
+    store.candles.add_candle(c3, 'Sandbox', 'BTC-USD', '1m')
+
+    # create a new candle from c2 and update its closing price
+    new_c2 = c2.copy()
+    new_c2[2] = 50
+
+    # assert that the 2nd candle is not updated yet
+    assert store.candles.get_candles('Sandbox', 'BTC-USD', '1m')[-2][2] != c3[2]
+
+    # update the 2nd candle
+    store.candles.add_candle(new_c2, 'Sandbox', 'BTC-USD', '1m')
+
+    # assert that the 2nd candle is updated now
+    assert store.candles.get_candles('Sandbox', 'BTC-USD', '1m')[-2][2] == new_c2[2]

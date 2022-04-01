@@ -124,16 +124,16 @@ class CandlesState:
             if with_skip and f'{exchange}-{symbol}' not in self.initiated_pairs:
                 return
 
-            self.update_position(exchange, symbol, candle[2])
+            # if it's 1m timeframe and it's a new candle, update position's current price
+            if timeframe == timeframes.MINUTE_1 and len(arr) and candle[0] >= arr[-1][0]:
+                self.update_position(exchange, symbol, candle[2])
 
             # ignore new candle at the time of execution because it messes
             # the count of candles without actually having an impact
             if candle[0] >= jh.now():
                 return
 
-        # if it's not an initial candle, add it to the storage, if already exists, update it
-        if f'{exchange}-{symbol}' in self.initiated_pairs:
-            store_candle_into_db(exchange, symbol, candle, on_conflict='replace')
+            self._store_or_update_candle_into_db(exchange, symbol, candle)
 
         # initial
         if len(arr) == 0:
@@ -163,9 +163,21 @@ class CandlesState:
             if with_generation and timeframe == '1m':
                 self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
+        # allow updating of the previous candle
+        elif candle[0] == arr[-2][0]:
+            # update the previous candle if it is different
+            if not np.array_equal(candle, arr[-2]):
+                jh.dump('updated previous candle')
+                arr[-2] = candle
+
         # past candles will be ignored (dropped)
         elif candle[0] < arr[-1][0]:
             return
+
+    def _store_or_update_candle_into_db(self, exchange: str, symbol: str, candle: np.ndarray) -> None:
+        # if it's not an initial candle, add it to the storage, if already exists, update it
+        if f'{exchange}-{symbol}' in self.initiated_pairs:
+            store_candle_into_db(exchange, symbol, candle, on_conflict='replace')
 
     def add_candle_from_trade(self, trade, exchange: str, symbol: str) -> None:
         """
