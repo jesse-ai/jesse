@@ -43,6 +43,9 @@ class CandlesState:
                 if current_candle[0] <= 60_000:
                     continue
 
+                # if a missing candle is found, generate an empty candle from the
+                # last one this is useful when the exchange doesn't stream an empty
+                # candle when no volume is traded at the period of the candle
                 if jh.now() >= current_candle[0] + 60_000:
                     new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
                     self.add_candle(new_candle, exchange, symbol, '1m')
@@ -105,9 +108,9 @@ class CandlesState:
         if jh.is_collecting_data():
             raise NotImplemented("Collecting data is deactivated at the moment")
             # make sure it's a complete (and not a forming) candle
-            if jh.now_to_timestamp() >= (candle[0] + 60000):
-                store_candle_into_db(exchange, symbol, candle)
-            return
+            # if jh.now_to_timestamp() >= (candle[0] + 60000):
+            #     store_candle_into_db(exchange, symbol, candle)
+            # return
 
         if candle[0] == 0:
             if jh.is_debugging():
@@ -252,7 +255,9 @@ class CandlesState:
                 accept_forming_candles=True
             )
 
-            self.add_candle(generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False)
+            self.add_candle(
+                generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False
+            )
 
     def simulate_order_execution(self, exchange: str, symbol: str, timeframe: str, new_candle: np.ndarray) -> None:
         previous_candle = self.get_current_candle(exchange, symbol, timeframe)

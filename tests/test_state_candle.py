@@ -51,24 +51,6 @@ def test_can_add_new_candle():
     np.testing.assert_equal(store.candles.get_candles('Sandbox', 'BTC-USD', '1m'), np.array([c1, c2]))
 
 
-def test_can_update_candle():
-    set_up()
-
-    np.testing.assert_equal(store.candles.get_candles('Sandbox', 'BTC-USD', '1m'), np.zeros((0, 6)))
-
-    # add it
-    c1 = fake_candle()
-    store.candles.add_candle(c1, 'Sandbox', 'BTC-USD', '1m')
-    np.testing.assert_equal(store.candles.get_current_candle('Sandbox', 'BTC-USD', '1m'), c1)
-
-    # now update it with another candle which has the same timestamp
-    c2 = c1.copy()
-    c2[1] = 1000
-    store.candles.add_candle(c2, 'Sandbox', 'BTC-USD', '1m')
-    np.testing.assert_equal(store.candles.get_current_candle('Sandbox', 'BTC-USD', '1m'), c2)
-    assert len(store.candles.get_candles('Sandbox', 'BTC-USD', '1m')) == 1
-
-
 def test_get_candles_including_forming():
     set_up()
 
@@ -130,3 +112,23 @@ def test_get_forming_candle():
     assert forming_candle[0] == candles_to_add[10][0]
     assert forming_candle[1] == candles_to_add[10][1]
     assert forming_candle[2] == candles_to_add[12][2]
+
+
+def test_can_update_candle():
+    set_up()
+
+    np.testing.assert_equal(store.candles.get_candles('Sandbox', 'BTC-USD', '1m'), np.zeros((0, 6)))
+
+    # add it
+    c1 = fake_candle()
+    store.candles.add_candle(c1, 'Sandbox', 'BTC-USD', '1m')
+    np.testing.assert_equal(store.candles.get_current_candle('Sandbox', 'BTC-USD', '1m'), c1)
+
+    # now update it with another candle which has the same timestamp
+    c2 = c1.copy()
+    c2[1] = 1000
+    store.candles.add_candle(c2, 'Sandbox', 'BTC-USD', '1m')
+    np.testing.assert_equal(store.candles.get_current_candle('Sandbox', 'BTC-USD', '1m'), c2)
+    assert len(store.candles.get_candles('Sandbox', 'BTC-USD', '1m')) == 1
+
+
