@@ -1,11 +1,9 @@
 import math
-import threading
 import time
 from datetime import timedelta
 from typing import Dict, List, Any, Union
 
 import arrow
-import click
 import pydash
 from timeloop import Timeloop
 
@@ -23,7 +21,12 @@ from jesse import exceptions
 from jesse.services.progressbar import Progressbar
 
 
-def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
+def run(
+        exchange: str,
+        symbol: str,
+        start_date_str: str,
+        mode: str = 'candles'
+) -> None:
     config['app']['trading_mode'] = mode
 
     # first, create and set session_id
@@ -31,7 +34,7 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
 
     register_custom_exception_handler()
 
-    # close database connection
+    # open database connection
     from jesse.services.db import database
     database.open_connection()
 
@@ -60,7 +63,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     # We just call this to throw a exception in case of a symbol without dash
     jh.quote_asset(symbol)
 
-    click.clear()
     symbol = symbol.upper()
 
     until_date = arrow.utcnow().floor('day')
@@ -76,10 +78,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
         raise FileNotFoundError('You are missing the "plugins.py" file')
 
     loop_length = int(candles_count / driver.count) + 1
-    # ask for confirmation
-    if not skip_confirmation:
-        click.confirm(
-            f'Importing {days_count} days candles from "{exchange}" for "{symbol}". Duplicates will be skipped. All good?', abort=True, default=True)
 
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
@@ -109,7 +107,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
             if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
-                click.clear()
                 first_existing_timestamp = driver.get_starting_time(symbol)
 
                 # if driver can't provide accurate get_starting_time()
@@ -136,17 +133,14 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                                    f'Jesse started importing since the first existing date which is {temp_existing_time}',
                         'type': 'success'
                     })
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
+                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
                     return
 
             # fill absent candles (if there's any)
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
             # store in the database
-            if skip_confirmation:
-                store_candles(candles)
-            else:
-                threading.Thread(target=store_candles, args=[candles]).start()
+            store_candles(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
@@ -169,11 +163,12 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
         'type': 'success'
     })
 
-    # if it is to skip, then it's being called from another process hence we should leave the database be
-    if not skip_confirmation:
-        # close database connection
-        from jesse.services.db import database
-        database.close_connection()
+    # # TODO: shen should it close the database?
+    # # if it is to skip, then it's being called from another process hence we should leave the database be
+    # if not skip_confirmation:
+    #     # close database connection
+    #     from jesse.services.db import database
+    #     database.close_connection()
 
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,
@@ -336,5 +331,3 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
 
         start_timestamp += 60000
     return candles
-
-
