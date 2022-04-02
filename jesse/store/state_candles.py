@@ -167,7 +167,6 @@ class CandlesState:
         elif candle[0] == arr[-2][0]:
             # update the previous candle if it is different
             if not np.array_equal(candle, arr[-2]):
-                jh.dump('updated previous candle')
                 arr[-2] = candle
 
         # past candles will be ignored (dropped)
