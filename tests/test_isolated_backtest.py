@@ -44,16 +44,10 @@ def test_can_pass_strategy_as_class():
         def should_long(self):
             return False
 
-        def should_short(self):
-            return False
-
         def should_cancel(self):
             return False
 
         def go_long(self):
-            pass
-
-        def go_short(self):
             pass
 
     fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
@@ -94,16 +88,10 @@ def test_warm_up_candles_more_than_warmup_candles_config_raises_error():
         def should_long(self):
             return False
 
-        def should_short(self):
-            return False
-
         def should_cancel(self):
             return False
 
         def go_long(self):
-            pass
-
-        def go_short(self):
             pass
 
     fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
@@ -146,16 +134,10 @@ def test_store_state_app_is_reset_properly():
         def should_long(self) -> bool:
             return False
 
-        def should_short(self) -> bool:
-            return False
-
         def should_cancel(self) -> bool:
             return True
 
         def go_long(self):
-            pass
-
-        def go_short(self):
             pass
 
     fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
