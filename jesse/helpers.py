@@ -953,3 +953,11 @@ def get_os() -> str:
 def is_docker() -> bool:
     import os
     return os.path.exists('/.dockerenv')
+
+
+def clear_output():
+    if is_notebook():
+        from IPython.display import clear_output
+        clear_output(wait=True)
+    else:
+        click.clear()
