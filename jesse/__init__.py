@@ -254,7 +254,7 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
     process_manager.add_task(
         import_candles_mode.run, 'candles-' + str(request_json.id), request_json.exchange, request_json.symbol,
-        request_json.start_date, True
+        request_json.start_date
     )
 
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
