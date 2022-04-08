@@ -31,7 +31,7 @@ def _telegram(msg: str) -> None:
         response = requests.get(
             f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
         )
-        if response.status_code != 200:
+        if response.status_code not in [200, 429]:
             logger.error(f'Telegram ERROR [{response.status_code}]: {response.text}')
     except requests.exceptions.ConnectionError:
         logger.error('Telegram ERROR: ConnectionError')
@@ -48,7 +48,7 @@ def _telegram_errors_bot(msg: str) -> None:
         response = requests.get(
             f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
         )
-        if response.status_code != 200:
+        if response.status_code not in [200, 429]:
             logger.error(f'Telegram ERROR [{response.status_code}]: {response.text}')
     except requests.exceptions.ConnectionError:
         logger.error('Telegram ERROR: ConnectionError')
@@ -62,7 +62,7 @@ def _discord(msg: str) -> None:
 
     try:
         response = requests.post(webhook_address, {'content': msg})
-        if response.status_code != 200:
+        if response.status_code not in [200, 429]:
             logger.error(f'Discord ERROR [{response.status_code}]: {response.text}')
     except requests.exceptions.ConnectionError:
         logger.error('Discord ERROR: ConnectionError')
@@ -76,7 +76,7 @@ def _discord_errors(msg: str) -> None:
 
     try:
         response = requests.post(webhook_address, {'content': msg})
-        if response.status_code != 200:
+        if response.status_code not in [200, 429]:
             logger.error(f'Discord ERROR [{response.status_code}]: {response.text}')
     except requests.exceptions.ConnectionError:
         logger.error('Discord ERROR: ConnectionError')
