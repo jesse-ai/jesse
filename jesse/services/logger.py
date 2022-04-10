@@ -83,12 +83,12 @@ def info(msg: str, send_notification=False) -> None:
         notify(msg)
 
 
-def error(msg: str) -> None:
+def error(msg: str, send_notification=True) -> None:
     if jh.app_mode() not in LOGGERS:
         _init_main_logger()
 
     # error logs should be logged as info logs as well
-    info(msg)
+    info(msg, send_notification)
 
     msg = str(msg)
     from jesse.store import store
@@ -100,7 +100,7 @@ def error(msg: str) -> None:
         'message': msg
     }
 
-    if jh.is_live() and jh.get_config('env.notifications.events.errors', True):
+    if jh.is_live() and jh.get_config('env.notifications.events.errors', True) and send_notification:
         # notify_urgently(f"ERROR at \"{jh.get_config('env.identifier')}\" account:\n{msg}")
         notify_urgently(f"ERROR:\n{msg}")
         notify(f'ERROR:\n{msg}')
