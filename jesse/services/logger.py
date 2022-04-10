@@ -88,7 +88,7 @@ def error(msg: str, send_notification=True) -> None:
         _init_main_logger()
 
     # error logs should be logged as info logs as well
-    info(msg, send_notification)
+    info(msg)
 
     msg = str(msg)
     from jesse.store import store
