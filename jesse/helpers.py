@@ -841,6 +841,8 @@ def validate_response(response):
 
 def get_session_id():
     from jesse.store import store
+    if store.app.session_id == '':
+        store.app.session_id = generate_unique_id()
     return store.app.session_id
 
 
@@ -961,3 +963,11 @@ def clear_output():
         clear_output(wait=True)
     else:
         click.clear()
+
+
+def get_class_name(cls):
+    # if it's a string, return it
+    if isinstance(cls, str):
+        return cls
+    # else, return the class name
+    return cls.__name__

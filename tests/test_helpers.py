@@ -602,3 +602,13 @@ def test_float_or_none():
     assert jh.float_or_none('') is None
     assert jh.float_or_none(b'1.23') == 1.23
     assert jh.float_or_none('1.23') == 1.23
+
+
+def test_get_class_name():
+    class TestClass:
+        pass
+
+    assert jh.get_class_name(TestClass) == 'TestClass'
+
+    # if string is passed, it will return the string
+    assert jh.get_class_name('TestClass') == 'TestClass'
