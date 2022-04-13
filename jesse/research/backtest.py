@@ -1,5 +1,4 @@
 from typing import List, Dict
-from jesse.services import charts
 
 
 def backtest(
@@ -7,6 +6,13 @@ def backtest(
         routes: List[Dict[str, str]],
         extra_routes: List[Dict[str, str]],
         candles: dict,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_hyperparameters: bool = False,
+        generate_equity_curve: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
         hyperparameters: dict = None
 ) -> dict:
     """
@@ -40,7 +46,21 @@ def backtest(
         },
     }
     """
-    return _isolated_backtest(config, routes, extra_routes, candles, run_silently=True, hyperparameters=hyperparameters)
+    return _isolated_backtest(
+        config,
+        routes,
+        extra_routes,
+        candles,
+        run_silently=True,
+        hyperparameters=hyperparameters,
+        generate_charts=generate_charts,
+        generate_tradingview=generate_tradingview,
+        generate_quantstats=generate_quantstats,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        generate_hyperparameters=generate_hyperparameters,
+    )
 
 
 def _isolated_backtest(
@@ -49,7 +69,14 @@ def _isolated_backtest(
         extra_routes: List[Dict[str, str]],
         candles: dict,
         run_silently: bool = True,
-        hyperparameters: dict = None
+        hyperparameters: dict = None,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        generate_hyperparameters: bool = False
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -57,7 +84,6 @@ def _isolated_backtest(
     from jesse.routes import router
     from jesse.store import store
     from jesse.config import set_config
-    from jesse.services import metrics
     from jesse.services import required_candles
     import jesse.helpers as jh
 
@@ -69,8 +95,6 @@ def _isolated_backtest(
     # set routes
     router.initiate(routes, extra_routes)
 
-    # register_custom_exception_handler()
-
     validate_routes(router)
     # TODO: further validate routes and allow only one exchange
     # TODO: validate the name of the exchange in the config and the route? or maybe to make sure it's a supported exchange
@@ -79,7 +103,6 @@ def _isolated_backtest(
     store.candles.init_storage(5000)
 
     # divide candles into warm_up_candles and trading_candles and then inject warm_up_candles
-
     max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
     warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
     trading_candles = candles
@@ -96,20 +119,45 @@ def _isolated_backtest(
             )
 
     # run backtest simulation
-    simulator(trading_candles, run_silently, hyperparameters)
+    backtest_result = simulator(
+        trading_candles,
+        run_silently,
+        hyperparameters=hyperparameters,
+        generate_charts=generate_charts,
+        generate_tradingview=generate_tradingview,
+        generate_quantstats=generate_quantstats,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        generate_hyperparameters=generate_hyperparameters
+    )
 
     result = {
         'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
-        'charts': None,
         'logs': None,
     }
-    if store.completed_trades.count > 0:
-        # add metrics
-        result['metrics'] = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
-        # add charts
-        result['charts'] = charts.portfolio_vs_asset_returns()
-        # add logs
+
+    if backtest_result['metrics'] is None:
+        result['metrics'] = {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
+        result['logs'] = None
+    else:
+        result['metrics'] = backtest_result['metrics']
         result['logs'] = store.logs.info
+
+    if generate_charts:
+        result['charts'] = backtest_result['charts']
+    if generate_tradingview:
+        result['tradingview'] = backtest_result['tradingview']
+    if generate_quantstats:
+        result['quantstats'] = backtest_result['quantstats']
+    if generate_csv:
+        result['csv'] = backtest_result['csv']
+    if generate_json:
+        result['json'] = backtest_result['json']
+    if generate_equity_curve:
+        result['equity_curve'] = backtest_result['equity_curve']
+    if generate_hyperparameters:
+        result['hyperparameters'] = backtest_result['hyperparameters']
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()

@@ -50,7 +50,7 @@ class CompletedTrade(peewee.Model):
     def to_json(self) -> dict:
         return {
             "id": self.id,
-            "strategy_name": self.strategy_name,
+            "strategy_name": jh.get_class_name(self.strategy_name),
             "symbol": self.symbol,
             "exchange": self.exchange,
             "type": self.type,
@@ -70,7 +70,7 @@ class CompletedTrade(peewee.Model):
     def to_dict(self) -> dict:
         return {
             'id': self.id,
-            'strategy_name': self.strategy_name,
+            'strategy_name': jh.get_class_name(self.strategy_name),
             'symbol': self.symbol,
             'exchange': self.exchange,
             'type': self.type,

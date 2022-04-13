@@ -85,72 +85,56 @@ def run(
     # load historical candles
     if candles is None:
         candles = load_candles(start_date, finish_date)
-        click.clear()
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
             'session_id': jh.get_session_id(),
             'debug_mode': str(config['app']['debug_mode']),
         })
-
         # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
         sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
-
         # routes info
         sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
-    simulator(candles, run_silently=jh.should_execute_silently())
+    result = simulator(
+        candles,
+        run_silently=jh.should_execute_silently(),
+        generate_charts=chart,
+        generate_tradingview=tradingview,
+        generate_quantstats=full_reports,
+        generate_csv=csv,
+        generate_json=json,
+        generate_equity_curve=True,
+        generate_hyperparameters=True
+    )
 
-    # hyperparameters (if any)
     if not jh.should_execute_silently():
-        sync_publish('hyperparameters', stats.hyperparameters(router.routes))
-
-    if not jh.should_execute_silently():
-        if store.completed_trades.count > 0:
-            sync_publish('metrics', report.portfolio_metrics())
-
-            routes_count = len(router.routes)
-            more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
-            study_name = f"{router.routes[0].strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}-{start_date}-{finish_date}"
-            store_logs(study_name, json, tradingview, csv)
-
-            if chart:
-                charts.portfolio_vs_asset_returns(study_name)
-
-            sync_publish('equity_curve', charts.equity_curve())
-
-            # QuantStats' report
-            if full_reports:
-                _generate_quantstats_report(start_date, finish_date, study_name)
-        else:
-            sync_publish('equity_curve', None)
-            sync_publish('metrics', None)
+        sync_publish('alert', {
+            'message': f"Successfully executed backtest simulation in: {result['execution_duration']} seconds",
+            'type': 'success'
+        })
+        sync_publish('hyperparameters', result['hyperparameters'])
+        sync_publish('metrics', result['metrics'])
+        sync_publish('equity_curve', result['equity_curve'])
 
     # close database connection
     from jesse.services.db import database
     database.close_connection()
 
 
-def _generate_quantstats_report(start_date: str, finish_date: str, study_name: str) -> None:
+def _generate_quantstats_report(candles_dict: dict) -> str:
+    if store.completed_trades.count < 0:
+        return None
+
     price_data = []
     timestamps = []
     # load close candles for Buy and hold and calculate pct_change
     for index, c in enumerate(config['app']['considering_candles']):
         exchange, symbol = c[0], c[1]
         if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
-            # fetch from database
-            candles_tuple = Candle.select(
-                Candle.timestamp, Candle.close
-            ).where(
-                Candle.timestamp.between(jh.date_to_timestamp(start_date),
-                                         jh.date_to_timestamp(finish_date) - 60000),
-                Candle.exchange == exchange,
-                Candle.symbol == symbol
-            ).order_by(Candle.timestamp.asc()).tuples()
-
-            candles = np.array(candles_tuple)
+            candles = candles_dict[jh.key(exchange, symbol)]['candles']
 
             if timestamps == []:
                 timestamps = candles[:, 0]
@@ -162,7 +146,20 @@ def _generate_quantstats_report(start_date: str, finish_date: str, study_name: s
     ).resample('D').mean()
     price_pct_change = price_df.pct_change(1).fillna(0)
     buy_and_hold_daily_returns_all_routes = price_pct_change.mean(1)
-    quantstats.quantstats_tearsheet(buy_and_hold_daily_returns_all_routes, study_name)
+    study_name = _get_study_name()
+    res = quantstats.quantstats_tearsheet(buy_and_hold_daily_returns_all_routes, study_name)
+    return res
+
+
+def _get_study_name() -> str:
+    routes_count = len(router.routes)
+    more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
+    if type(router.routes[0].strategy_name) is str:
+        strategy_name = router.routes[0].strategy_name
+    else:
+        strategy_name = router.routes[0].strategy_name.__name__
+    study_name = f"{strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}"
+    return study_name
 
 
 def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
@@ -230,8 +227,18 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
 
 def simulator(
-        candles: dict, run_silently: bool, hyperparameters: dict = None
-) -> None:
+        candles: dict,
+        run_silently: bool,
+        hyperparameters: dict = None,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        generate_hyperparameters: bool = False,
+) -> dict:
+    result = {}
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
@@ -354,17 +361,34 @@ def simulator(
     if not run_silently:
         # print executed time for the backtest session
         finish_time_track = time.time()
-        sync_publish('alert', {
-            'message': f'Successfully executed backtest simulation in: {round(finish_time_track - begin_time_track, 2)} seconds',
-            'type': 'success'
-        })
+        result['execution_duration'] = round(finish_time_track - begin_time_track, 2)
 
     for r in router.routes:
         r.strategy._terminate()
         store.orders.execute_pending_market_orders()
 
-    # now that backtest is finished, add finishing balance
+    # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
+
+    if generate_hyperparameters:
+        result['hyperparameters'] = stats.hyperparameters(router.routes)
+    result['metrics'] = report.portfolio_metrics()
+    # generate logs in json, csv and tradingview's pine-editor format
+    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
+    if generate_json:
+        result['json'] = logs_path['json']
+    if generate_tradingview:
+        result['tradingview'] = logs_path['tradingview']
+    if generate_csv:
+        result['csv'] = logs_path['csv']
+    if generate_charts:
+        result['charts'] = charts.portfolio_vs_asset_returns(_get_study_name())
+    if generate_equity_curve:
+        result['equity_curve'] = charts.equity_curve()
+    if generate_quantstats:
+        result['quantstats'] = _generate_quantstats_report(candles)
+
+    return result
 
 
 def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) -> np.ndarray:

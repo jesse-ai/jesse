@@ -10,17 +10,24 @@ from jesse.store import store
 import jesse.helpers as jh
 
 
-def store_logs(study_name: str = '', export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> None:
-    mode = config['app']['trading_mode']
+def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> dict:
+    if store.completed_trades.count < 0:
+        return {
+            'json': None,
+            'tradingview': None,
+            'csv': None
+        }
 
-    now = str(arrow.utcnow())[0:19]
-    study_name = jh.get_session_id()
-    path = f'storage/json/{study_name}.json'
+    result = {}
+    file_name = jh.get_session_id()
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
-    for t in store.completed_trades.trades:
-        trades_json['trades'].append(t.to_json)
 
     if export_json:
+        path = f'storage/json/{file_name}.json'
+
+        for t in store.completed_trades.trades:
+            trades_json['trades'].append(t.to_json)
+
         os.makedirs('./storage/json', exist_ok=True)
         with open(path, 'w+') as outfile:
             def set_default(obj):
@@ -29,14 +36,15 @@ def store_logs(study_name: str = '', export_json: bool = False, export_tradingvi
                 raise TypeError
 
             json.dump(trades_json, outfile, default=set_default)
+            result['json'] = path
 
     # store output for TradingView.com's pine-editor
     if export_tradingview:
-        tradingview_logs(study_name)
+        result['tradingview'] = tradingview_logs(file_name)
 
     # also write a CSV file
     if export_csv:
-        path = f'storage/csv/{study_name}.csv'
+        path = f'storage/csv/{file_name}.csv'
         os.makedirs('./storage/csv', exist_ok=True)
 
         with open(path, 'w', newline='') as outfile:
@@ -48,3 +56,7 @@ def store_logs(study_name: str = '', export_json: bool = False, export_tradingvi
                     wr.writerow(t.keys())
 
                 wr.writerow(t.values())
+
+            result['csv'] = path
+
+    return result

@@ -137,7 +137,10 @@ def livetrade():
     }
 
 
-def portfolio_metrics() -> dict:
+def portfolio_metrics() -> Union[dict, None]:
+    if store.completed_trades.count < 0:
+        return None
+
     return stats.trades(store.completed_trades.trades, store.app.daily_balance)
 
 
