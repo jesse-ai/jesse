@@ -858,6 +858,8 @@ def validate_response(response):
 
 def get_session_id():
     from jesse.store import store
+    if store.app.session_id == '':
+        store.app.session_id = generate_unique_id()
     return store.app.session_id
 
 
@@ -870,15 +872,15 @@ def is_jesse_project():
     return 'strategies' in ls and 'storage' in ls
 
 
-def dd(item, pretty=True):
+def dd(item):
     """
     Dump and Die but pretty: used for debugging when developing Jesse
     """
-    dump(item, pretty)
+    dump(item)
     terminate_app()
 
 
-def dump(item, pretty=True):
+def dump(*item):
     """
     Dump object in pretty format: used for debugging when developing Jesse
     """
@@ -886,10 +888,7 @@ def dump(item, pretty=True):
         color('\n========= Debugging Value =========='.upper(), 'yellow')
     )
 
-    if pretty:
-        pprint(item)
-    else:
-        print(item)
+    pprint(item)
 
     print(
         color('====================================\n', 'yellow')
@@ -900,7 +899,7 @@ def float_or_none(item):
     """
     Return the float of the value if it's not None
     """
-    if item is None:
+    if item is None or item == '':
         return None
     else:
         return float(item)
@@ -916,7 +915,11 @@ def str_or_none(item, encoding='utf-8'):
         # return item if it's str, if not, decode it using encoding
         if isinstance(item, str):
             return item
-        return str(item, encoding)
+
+        try:
+            return str(item, encoding)
+        except TypeError:
+            return str(item)
 
 
 def get_settlement_currency_from_exchange(exchange: str):
@@ -969,3 +972,19 @@ def get_os() -> str:
 def is_docker() -> bool:
     import os
     return os.path.exists('/.dockerenv')
+
+
+def clear_output():
+    if is_notebook():
+        from IPython.display import clear_output
+        clear_output(wait=True)
+    else:
+        click.clear()
+
+
+def get_class_name(cls):
+    # if it's a string, return it
+    if isinstance(cls, str):
+        return cls
+    # else, return the class name
+    return cls.__name__

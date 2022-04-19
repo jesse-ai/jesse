@@ -1,11 +1,9 @@
 import math
-import threading
 import time
 from datetime import timedelta
 from typing import Dict, List, Any, Union
 
 import arrow
-import click
 import pydash
 from timeloop import Timeloop
 
@@ -23,32 +21,41 @@ from jesse import exceptions
 from jesse.services.progressbar import Progressbar
 
 
-def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool = False, mode: str = 'candles') -> None:
-    config['app']['trading_mode'] = mode
+def run(
+        exchange: str,
+        symbol: str,
+        start_date_str: str,
+        mode: str = 'candles',
+        running_via_dashboard: bool = True,
+        show_progressbar: bool = False,
+):
+    if running_via_dashboard:
+        config['app']['trading_mode'] = mode
 
-    # first, create and set session_id
-    store.app.set_session_id()
+        # first, create and set session_id
+        store.app.set_session_id()
 
-    register_custom_exception_handler()
+        register_custom_exception_handler()
 
-    # close database connection
+    # open database connection
     from jesse.services.db import database
     database.open_connection()
 
-    # at every second, we check to see if it's time to execute stuff
-    status_checker = Timeloop()
+    if running_via_dashboard:
+        # at every second, we check to see if it's time to execute stuff
+        status_checker = Timeloop()
 
-    @status_checker.job(interval=timedelta(seconds=1))
-    def handle_time():
-        if process_status() != 'started':
-            raise exceptions.Termination
+        @status_checker.job(interval=timedelta(seconds=1))
+        def handle_time():
+            if process_status() != 'started':
+                raise exceptions.Termination
 
-    status_checker.start()
+        status_checker.start()
 
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
-        raise ValueError('start_date must be a string representing a date before today. ex: 2020-01-17')
+        raise ValueError(f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
 
     # more start_date validations
     today = arrow.utcnow().floor('day').int_timestamp * 1000
@@ -60,7 +67,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     # We just call this to throw a exception in case of a symbol without dash
     jh.quote_asset(symbol)
 
-    click.clear()
     symbol = symbol.upper()
 
     until_date = arrow.utcnow().floor('day')
@@ -71,15 +77,11 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
-        raise ValueError(f'{exchange} is not a supported exchange')
+        raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {list(drivers.keys())}')
     except TypeError:
         raise FileNotFoundError('You are missing the "plugins.py" file')
 
     loop_length = int(candles_count / driver.count) + 1
-    # ask for confirmation
-    if not skip_confirmation:
-        click.confirm(
-            f'Importing {days_count} days candles from "{exchange}" for "{symbol}". Duplicates will be skipped. All good?', abort=True, default=True)
 
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
@@ -109,7 +111,6 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
             if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
-                click.clear()
                 first_existing_timestamp = driver.get_starting_time(symbol)
 
                 # if driver can't provide accurate get_starting_time()
@@ -131,49 +132,59 @@ def run(exchange: str, symbol: str, start_date_str: str, skip_confirmation: bool
                 else:
                     temp_start_time = jh.timestamp_to_time(temp_start_timestamp)[:10]
                     temp_existing_time = jh.timestamp_to_time(first_existing_timestamp)[:10]
-                    sync_publish('alert', {
-                        'message': f'No candle exists in the market for {temp_start_time}. So '
-                                   f'Jesse started importing since the first existing date which is {temp_existing_time}',
-                        'type': 'success'
-                    })
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], True)
+                    msg = f'No candle exists in the market for {temp_start_time}. So Jesse started importing since the first existing date which is {temp_existing_time}'
+                    if running_via_dashboard:
+                        sync_publish('alert', {
+                            'message': msg,
+                            'type': 'success'
+                        })
+                    else:
+                        print(msg)
+                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
                     return
 
             # fill absent candles (if there's any)
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
             # store in the database
-            if skip_confirmation:
-                store_candles(candles)
-            else:
-                threading.Thread(target=store_candles, args=[candles]).start()
+            store_candles(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
 
         progressbar.update()
-        sync_publish('progressbar', {
-            'current': progressbar.current,
-            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-        })
+        if running_via_dashboard:
+            sync_publish('progressbar', {
+                'current': progressbar.current,
+                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+            })
+        elif show_progressbar:
+            jh.clear_output()
+            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
             time.sleep(driver.sleep_time)
 
+    success_text = f'Successfully imported candles for {symbol} from {exchange} since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). '
+
     # stop the status_checker time loop
-    status_checker.stop()
+    if running_via_dashboard:
+        status_checker.stop()
 
-    sync_publish('alert', {
-        'message': f'Successfully imported candles since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). ',
-        'type': 'success'
-    })
+        sync_publish('alert', {
+            'message': success_text,
+            'type': 'success'
+        })
 
-    # if it is to skip, then it's being called from another process hence we should leave the database be
-    if not skip_confirmation:
+    # # TODO: shen should it close the database?
+    # # if it is to skip, then it's being called from another process hence we should leave the database be
+    # if not skip_confirmation:
+    if not running_via_dashboard:
         # close database connection
         from jesse.services.db import database
         database.close_connection()
+        return success_text
 
 
 def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchange, symbol: str, start_timestamp: int,
@@ -336,5 +347,3 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
 
         start_timestamp += 60000
     return candles
-
-

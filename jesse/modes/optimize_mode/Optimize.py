@@ -1,4 +1,3 @@
-# import pickle
 from abc import ABC
 from datetime import timedelta
 from random import randint, choices
@@ -15,8 +14,6 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.store import store
 import os
-# import json
-# from pandas import json_normalize
 from jesse import exceptions
 from jesse.modes.optimize_mode.fitness import get_and_add_fitness_to_the_bucket, create_baby
 from jesse.routes import router

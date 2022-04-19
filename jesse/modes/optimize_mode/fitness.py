@@ -6,7 +6,6 @@ from math import log10
 import jesse.helpers as jh
 from jesse.research.backtest import _isolated_backtest as isolated_backtest
 from jesse.services import logger
-import traceback
 import os
 from random import randint, choice
 import numpy as np

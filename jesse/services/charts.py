@@ -1,7 +1,5 @@
 import os
 from datetime import datetime, timedelta
-
-import arrow
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -14,6 +12,9 @@ from jesse.store import store
 
 
 def equity_curve() -> list:
+    if store.completed_trades.count < 0:
+        return None
+
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
     daily_balance = store.app.daily_balance
@@ -27,6 +28,9 @@ def equity_curve() -> list:
 def portfolio_vs_asset_returns(study_name: str = None) -> str:
     if jh.is_unit_testing():
         return 'charts'
+
+    if store.completed_trades.count < 0:
+        return None
 
     register_matplotlib_converters()
     trades = store.completed_trades.trades
@@ -141,7 +145,7 @@ def portfolio_vs_asset_returns(study_name: str = None) -> str:
     # store final result
     # make sure directories exist
     os.makedirs('./storage/charts', exist_ok=True)
-    file_path = f'storage/charts/{jh.get_session_id()}.png'.replace(":", "-")
+    file_path = f'storage/charts/{jh.get_session_id()}.png'
     plt.savefig(file_path)
 
     return file_path

@@ -71,8 +71,10 @@ def trades(trades_list: List[CompletedTrade], daily_balance: list, final: bool =
 
     largest_losing_trade = 0 if total_losing_trades == 0 else losing_trades['PNL'].min()
     largest_winning_trade = 0 if total_winning_trades == 0 else winning_trades['PNL'].max()
-
-    win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
+    if len(winning_trades) == 0:
+        win_rate = 0
+    else:
+        win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100
