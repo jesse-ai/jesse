@@ -52,7 +52,7 @@ def create_logger_file(name):
 
 
 def info(msg: str, send_notification=False) -> None:
-    if jh.app_mode() not in LOGGERS:
+    if jh.app_mode() not in LOGGERS and (jh.is_live() or (jh.is_backtesting() and jh.is_debugging())):
         _init_main_logger()
 
     msg = str(msg)
