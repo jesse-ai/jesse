@@ -1,6 +1,6 @@
 from jesse.models import CompletedTrade
 from jesse.store import store
-from .utils import single_route_backtest
+from jesse.testing_utils import single_route_backtest
 import numpy as np
 
 

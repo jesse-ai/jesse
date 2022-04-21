@@ -17,7 +17,7 @@ from jesse.store import store
 from jesse.strategies import Strategy
 from tests.data import test_candles_0
 from tests.data import test_candles_1
-from .utils import set_up, single_route_backtest, two_routes_backtest
+from jesse.testing_utils import set_up, single_route_backtest, two_routes_backtest
 
 
 def test_average_stop_loss_exception():

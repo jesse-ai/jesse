@@ -6,7 +6,7 @@ from jesse.models import CompletedTrade
 from jesse.routes import router
 from jesse.store import store
 from jesse.config import config
-from tests.utils import single_route_backtest
+from jesse.testing_utils import single_route_backtest
 
 
 def get_btc_candles():

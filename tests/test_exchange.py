@@ -1,7 +1,7 @@
 import pytest
 
 from jesse.exceptions import NegativeBalance, InsufficientMargin
-from .utils import single_route_backtest
+from jesse.testing_utils import single_route_backtest
 
 
 def test_negative_balance_validation_for_spot_market():

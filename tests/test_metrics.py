@@ -1,5 +1,5 @@
 from jesse.store import store
-from .utils import single_route_backtest
+from jesse.testing_utils import single_route_backtest
 from jesse.services import metrics
 import numpy as np
 

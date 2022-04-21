@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.enums import sides, order_statuses
 from jesse.models import Order
 from jesse.enums import order_types
-from .utils import set_up, single_route_backtest
+from jesse.testing_utils import set_up, single_route_backtest
 
 
 def test_cancel_order():
