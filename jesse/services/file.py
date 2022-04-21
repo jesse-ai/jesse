@@ -11,7 +11,7 @@ import jesse.helpers as jh
 
 
 def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> dict:
-    if store.completed_trades.count < 0:
+    if store.completed_trades.count == 0:
         return {
             'json': None,
             'tradingview': None,
