@@ -125,7 +125,7 @@ def run(
 
 
 def _generate_quantstats_report(candles_dict: dict) -> str:
-    if store.completed_trades.count < 0:
+    if store.completed_trades.count == 0:
         return None
 
     price_data = []
