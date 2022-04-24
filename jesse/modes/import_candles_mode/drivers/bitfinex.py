@@ -35,8 +35,7 @@ class Bitfinex(CandleExchange):
 
         response = requests.get(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
 
-        if response.status_code != 200:
-            raise Exception(response.content)
+        self.validate_response(response)
 
         data = response.json()
 
@@ -70,15 +69,17 @@ class Bitfinex(CandleExchange):
             params=payload
         )
 
+        self.validate_response(response)
+
         data = response.json()
         return [{
-                'id': jh.generate_unique_id(),
-                'symbol': symbol,
-                'exchange': self.name,
-                'timestamp': d[0],
-                'open': d[1],
-                'close': d[2],
-                'high': d[3],
-                'low': d[4],
-                'volume': d[5]
-            } for d in data]
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': self.name,
+            'timestamp': d[0],
+            'open': d[1],
+            'close': d[2],
+            'high': d[3],
+            'low': d[4],
+            'volume': d[5]
+        } for d in data]

@@ -1,8 +1,7 @@
 import requests
 
 import jesse.helpers as jh
-from jesse import exceptions
-from .interface import CandleExchange
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
 class Binance(CandleExchange):
@@ -27,16 +26,7 @@ class Binance(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)
+        self.validate_response(response)
 
         data = response.json()
 
@@ -66,22 +56,16 @@ class Binance(CandleExchange):
 
         data = response.json()
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
+        self.validate_response(response)
 
         return [{
-                'id': jh.generate_unique_id(),
-                'symbol': symbol,
-                'exchange': self.name,
-                'timestamp': int(d[0]),
-                'open': float(d[1]),
-                'close': float(d[4]),
-                'high': float(d[2]),
-                'low': float(d[3]),
-                'volume': float(d[5])
-            } for d in data]
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': self.name,
+            'timestamp': int(d[0]),
+            'open': float(d[1]),
+            'close': float(d[4]),
+            'high': float(d[2]),
+            'low': float(d[3]),
+            'volume': float(d[5])
+        } for d in data]

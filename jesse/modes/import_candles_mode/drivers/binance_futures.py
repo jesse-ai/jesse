@@ -1,7 +1,6 @@
 import requests
 
 import jesse.helpers as jh
-from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
 
@@ -31,16 +30,7 @@ class BinanceFutures(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)
+        self.validate_response(response)
 
         data = response.json()
 
@@ -68,16 +58,7 @@ class BinanceFutures(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            return
+        self.validate_response(response)
 
         data = response.json()
         return [{

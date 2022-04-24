@@ -1,9 +1,9 @@
 import requests
 
 import jesse.helpers as jh
-from jesse import exceptions
-from .interface import CandleExchange
+from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
+
 
 class BinanceInverseFutures(CandleExchange):
     def __init__(self) -> None:
@@ -28,16 +28,7 @@ class BinanceInverseFutures(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)
+        self.validate_response(response)
 
         data = response.json()
 
@@ -63,29 +54,20 @@ class BinanceInverseFutures(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 400:
-            raise ValueError(response.json()['msg'])
-
-        if response.status_code != 200:
-            return
+        self.validate_response(response)
 
         data = response.json()
         return [{
-                'id': jh.generate_unique_id(),
-                'symbol': symbol,
-                'exchange': self.name,
-                'timestamp': int(d[0]),
-                'open': float(d[1]),
-                'close': float(d[4]),
-                'high': float(d[2]),
-                'low': float(d[3]),
-                'volume': float(d[5])
-            } for d in data]
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': self.name,
+            'timestamp': int(d[0]),
+            'open': float(d[1]),
+            'close': float(d[4]),
+            'high': float(d[2]),
+            'low': float(d[3]),
+            'volume': float(d[5])
+        } for d in data]
 
 
 def encode_symbol(symbol: str) -> str:

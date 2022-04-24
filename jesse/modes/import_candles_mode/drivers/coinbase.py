@@ -1,7 +1,6 @@
 import requests
 
 import jesse.helpers as jh
-from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
@@ -54,7 +53,7 @@ class Coinbase(CandleExchange):
             params=payload
         )
 
-        self._handle_errors(response)
+        self.validate_response(response)
 
         data = response.json()
         return [{
@@ -68,16 +67,3 @@ class Coinbase(CandleExchange):
                 'low': float(d[1]),
                 'volume': float(d[5])
             } for d in data]
-
-    @staticmethod
-    def _handle_errors(response) -> None:
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        # unsupported symbol
-        if response.status_code == 404:
-            raise ValueError(response.json()['message'])
-
-        if response.status_code != 200:
-            raise Exception(response.content)

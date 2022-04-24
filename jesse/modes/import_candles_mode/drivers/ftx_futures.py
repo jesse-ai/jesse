@@ -1,8 +1,6 @@
-
 import requests
 
 import jesse.helpers as jh
-from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 
 
@@ -35,7 +33,7 @@ class FTXFutures(CandleExchange):
             params=payload
         )
 
-        self._handle_errors(response)
+        self.validate_response(response)
 
         data = response.json()['result']
 
@@ -61,7 +59,7 @@ class FTXFutures(CandleExchange):
             params=payload
         )
 
-        self._handle_errors(response)
+        self.validate_response(response)
 
         data = response.json()['result']
         return [{
@@ -75,11 +73,3 @@ class FTXFutures(CandleExchange):
                 'low': float(d['low']),
                 'volume': float(d['volume'])
             } for d in data]
-
-    def _handle_errors(self, response) -> None:
-        # Exchange In Maintenance
-        if response.status_code == 502:
-            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
-
-        if response.status_code != 200:
-            raise Exception(response.json()['error'])
