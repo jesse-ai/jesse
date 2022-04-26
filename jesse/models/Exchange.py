@@ -1,35 +1,50 @@
 from abc import ABC, abstractmethod
-
 from jesse.models import Order
+from jesse.services import selectors
+import jesse.helpers as jh
+from jesse.libs import DynamicNumpyArray
 
 
 class Exchange(ABC):
-    name = ''
-    fee_rate = None
+    def __init__(self, name: str, starting_balance: float, fee_rate: float, exchange_type: str):
+        # currently holding assets
+        self.assets = {}
+        # used for calculating available balance in futures mode:
+        self.temp_reduced_amount = {}
+        # used for calculating final performance metrics
+        self.starting_assets = {}
+        # current available assets (dynamically changes based on active orders)
+        self.available_assets = {}
+        self.fee_rate = fee_rate
+        # some exchanges might require even further info
+        self.vars = {}
 
-    # current holding assets
-    assets = {}
-    # used for calculating available balance in futures mode:
-    temp_reduced_amount = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-    # used for calculating final performance metrics
-    starting_assets = {}
+        self.buy_orders = {}
+        self.sell_orders = {}
 
-    # some exchanges might require even further info
-    vars = {}
-
-    def __init__(self, name: str, starting_assets: list, fee_rate: float, exchange_type: str):
         self.name = name
         self.type = exchange_type.lower()
 
-        for item in starting_assets:
-            self.assets[item['asset']] = item['balance']
-            self.temp_reduced_amount[item['asset']] = 0
+        # in running session's quote currency
+        self.starting_balance = starting_balance
 
-        self.starting_assets = self.assets.copy()
-        self.available_assets = self.assets.copy()
-        self.fee_rate = fee_rate
+        all_trading_routes = selectors.get_all_trading_routes()
+        first_route = all_trading_routes[0]
+        self.settlement_currency = jh.quote_asset(first_route.symbol)
+
+        # initiate dict keys for trading assets
+        for r in all_trading_routes:
+            base_asset = jh.base_asset(r.symbol)
+            self.buy_orders[base_asset] = DynamicNumpyArray((10, 2))
+            self.sell_orders[base_asset] = DynamicNumpyArray((10, 2))
+            self.assets[base_asset] = 0.0
+            self.assets[self.settlement_currency] = starting_balance
+            self.temp_reduced_amount[base_asset] = 0.0
+            self.temp_reduced_amount[self.settlement_currency] = 0.0
+            self.starting_assets[base_asset] = 0.0
+            self.starting_assets[self.settlement_currency] = starting_balance
+            self.available_assets[base_asset] = 0.0
+            self.available_assets[self.settlement_currency] = starting_balance
 
     @abstractmethod
     def wallet_balance(self, symbol: str = '') -> float:

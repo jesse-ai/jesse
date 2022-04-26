@@ -17,16 +17,12 @@ broker: Broker = None
 def set_up_without_fee(is_futures_trading=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 1000},
-        {'asset': 'BTC', 'balance': 0},
-    ]
+    config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 1000
     if is_futures_trading:
         # used only in futures trading
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
-    config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
     router.initiate([
@@ -45,16 +41,12 @@ def set_up_without_fee(is_futures_trading=False):
 def set_up_with_fee(is_futures_trading=False):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0.002
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 1000},
-        {'asset': 'BTC', 'balance': 0},
-    ]
+    config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 1000
     if is_futures_trading:
         # used only in futures trading
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
     else:
         config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
-    config['env']['exchanges'][exchanges.SANDBOX]['settlement_currency'] = 'USDT'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
     router.initiate([

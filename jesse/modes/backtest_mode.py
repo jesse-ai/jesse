@@ -72,10 +72,6 @@ def run(
 
     register_custom_exception_handler()
 
-    # clear the screen
-    if not jh.should_execute_silently():
-        click.clear()
-
     # validate routes
     validate_routes(router)
 

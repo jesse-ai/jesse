@@ -1,72 +1,35 @@
 import numpy as np
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.enums import sides, order_types
 from jesse.exceptions import InsufficientMargin
-from jesse.libs import DynamicNumpyArray
 from jesse.models import Order
 from jesse.services import selectors
-from .Exchange import Exchange
+from jesse.models.Exchange import Exchange
 
 
 class FuturesExchange(Exchange):
-    # # used for live-trading only:
-    # in futures trading, margin is only with one asset, so:
-    _available_margin = 0
-    # in futures trading, wallet is only with one asset, so:
-    _wallet_balance = 0
-    # so is started_balance
-    _started_balance = 0
-
-    # current holding assets
-    assets = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-    # used to estimating metrics
-    starting_assets = {}
-
-    buy_orders = {}
-    sell_orders = {}
-
     def __init__(
             self,
             name: str,
-            starting_assets: list,
+            starting_balance: float,
             fee_rate: float,
-            settlement_currency: str,
             futures_leverage_mode: str,
             futures_leverage: int
     ):
-        super().__init__(name, starting_assets, fee_rate, 'futures')
+        super().__init__(name, starting_balance, fee_rate, 'futures')
+
+        # # # # live-trading only # # # #
+        # in futures trading, margin is only with one asset, so:
+        self._available_margin = 0
+        # in futures trading, wallet is only with one asset, so:
+        self._wallet_balance = 0
+        # so is started_balance
+        self._started_balance = 0
+        # # # # # # # # # # # # # # # # #
 
         self.futures_leverage_mode = futures_leverage_mode
         self.futures_leverage = futures_leverage
-
-        for item in starting_assets:
-            self.buy_orders[item['asset']] = DynamicNumpyArray((10, 2))
-            self.sell_orders[item['asset']] = DynamicNumpyArray((10, 2))
-
-        # make sure trading routes exist in starting_assets
-        from jesse.routes import router
-        for r in router.routes:
-            base = jh.base_asset(r.symbol)
-            if base not in self.assets:
-                self.assets[base] = 0
-                self.temp_reduced_amount[base] = 0
-            if base not in self.buy_orders:
-                self.buy_orders[base] = DynamicNumpyArray((10, 2))
-            if base not in self.sell_orders:
-                self.sell_orders[base] = DynamicNumpyArray((10, 2))
-
-        self.starting_assets = self.assets.copy()
-        self.available_assets = self.assets.copy()
-
-        # start from 0 balance for self.available_assets which acts as a temp variable
-        for k in self.available_assets:
-            self.available_assets[k] = 0
-
-        self.settlement_currency = settlement_currency.upper()
 
     def started_balance(self) -> float:
         if jh.is_livetrading():

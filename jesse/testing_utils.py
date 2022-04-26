@@ -45,11 +45,7 @@ def get_downtrend_candles():
 
 def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
     reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 10_000},
-        {'asset': 'BTC', 'balance': 0},
-        {'asset': 'ETH', 'balance': 0},
-    ]
+    config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 10_000
 
     if zero_fee:
         config['env']['exchanges']['Sandbox']['fee'] = 0

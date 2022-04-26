@@ -27,7 +27,6 @@ def backtest(
         'futures_leverage': 3,
         'futures_leverage_mode': 'cross',
         'exchange': 'Binance',
-        'settlement_currency': 'USDT',
         'warm_up_candles': 100
     }
 

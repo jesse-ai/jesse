@@ -8,9 +8,7 @@ def set_up():
     reset_config()
     config['app']['considering_exchanges'] = [exchanges.SANDBOX]
     config['app']['trading_exchanges'] = [exchanges.SANDBOX]
-    config['env']['exchanges'][exchanges.SANDBOX]['assets'] = [
-        {'asset': 'USDT', 'balance': 2000}
-    ]
+    config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 2000
     store.reset()
 
 

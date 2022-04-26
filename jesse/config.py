@@ -25,174 +25,88 @@ config = {
             'Sandbox': {
                 'fee': 0,
                 'type': 'spot',
-                # used only in futures trading
-                'settlement_currency': 'USDT',
                 # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                    {'asset': 'BTC', 'balance': 0},
-                ],
+                'balance': 10_000,
             },
 
             'Bybit Perpetual': {
                 'fee': 0.00075,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
-                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USDT',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                ],
+                'balance': 10_000
             },
 
             'Testnet Bybit Perpetual': {
                 'fee': 0.00075,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
-                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USDT',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                ],
+                'balance': 10_000
             },
 
             # https://ftx.com/markets/future
             'FTX Futures': {
                 'fee': 0.0006,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
-                # 'spot' support is currently very limited - you can use 'futures' with leverage 1 for now
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USD',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 20x, etc. Enter as integers
                 'futures_leverage': 1,
+                'balance': 10_000
+            },
 
-                'assets': [
-                    {'asset': 'USD', 'balance': 10_000},
-                ],
+            # https://ftx.com/markets/spot
+            'FTX Spot': {
+                'fee': 0.0007,
+                'type': 'spot',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000
             },
 
             # https://www.bitfinex.com
             'Bitfinex': {
                 'fee': 0.002,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USD',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                    {'asset': 'USD', 'balance': 10_000},
-                    {'asset': 'BTC', 'balance': 0},
-                ],
+                'balance': 10_000
             },
 
             # https://www.binance.com
             'Binance': {
                 'fee': 0.001,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USDT',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                    {'asset': 'BTC', 'balance': 0},
-                ],
+                'balance': 10_000
             },
 
             # https://www.binance.com
             'Binance Futures': {
                 'fee': 0.0004,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USDT',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                ],
+                'balance': 10_000
             },
 
             # https://testnet.binancefuture.com
             'Testnet Binance Futures': {
                 'fee': 0.0004,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USDT',
-                # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                ],
+                'balance': 10_000
             },
 
             # https://pro.coinbase.com
             'Coinbase': {
                 'fee': 0.005,
-
-                # backtest mode only: accepted are 'spot' and 'futures'
                 'type': 'futures',
-
-                # futures mode only
-                'settlement_currency': 'USD',
-                # accepted values are: 'cross' and 'isolated'
-                'futures_leverage_mode': 'cross',
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
-                'futures_leverage': 1,
-
-                'assets': [
-                    {'asset': 'USDT', 'balance': 10_000},
-                    {'asset': 'USD', 'balance': 10_000},
-                    {'asset': 'BTC', 'balance': 0},
-                ],
+                'balance': 10_000
             },
         },
 
@@ -258,6 +172,7 @@ config = {
 
 
 def set_config(conf: dict) -> None:
+    jh.dump(conf, 'user_config')
     global config
 
     # optimization mode only
@@ -279,18 +194,15 @@ def set_config(conf: dict) -> None:
         for key, e in conf['exchanges'].items():
             config['env']['exchanges'][e['name']] = {
                 'fee': float(e['fee']),
-                'type': 'futures',
-                # used only in futures trading
-                # 'settlement_currency': 'USDT',
-                'settlement_currency': jh.get_settlement_currency_from_exchange(e['name']),
-                # accepted values are: 'cross' and 'isolated'
-                'futures_leverage_mode': e['futures_leverage_mode'],
-                # 1x, 2x, 10x, 50x, etc. Enter as integers
-                'futures_leverage': int(e['futures_leverage']),
-                'assets': [
-                    {'asset': 'USDT', 'balance': float(e['balance'])},
-                ],
+                'type': e['type'],
+                'balance': float(e['balance'])
             }
+            if e['type'] == 'futures':
+                jh.dump(e)
+                # 1x, 2x, 10x, 50x, etc. Enter as integers
+                config['env']['exchanges'][e['name']]['futures_leverage'] = int(e['futures_leverage'])
+                # accepted values are: 'cross' and 'isolated'
+                config['env']['exchanges'][e['name']]['futures_leverage_mode'] = e['futures_leverage_mode']
 
     # live mode only
     if jh.is_live():
@@ -304,7 +216,6 @@ def set_config(conf: dict) -> None:
     # config['env']['exchanges']['Sandbox'] = {
     #     'type': 'spot',
     #     # used only in futures trading
-    #     'settlement_currency': 'USDT',
     #     'fee': 0,
     #     'futures_leverage_mode': 'cross',
     #     'futures_leverage': 1,

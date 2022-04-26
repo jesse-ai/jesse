@@ -18,7 +18,6 @@ def _formatted_inputs_for_isolated_backtest(user_config, routes):
         'futures_leverage': user_config['exchange']['futures_leverage'],
         'futures_leverage_mode': user_config['exchange']['futures_leverage_mode'],
         'exchange': routes[0]['exchange'],
-        'settlement_currency': jh.quote_asset(routes[0]['symbol']),
         'warm_up_candles': user_config['warmup_candles_num']
     }
 

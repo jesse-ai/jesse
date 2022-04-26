@@ -7,20 +7,10 @@ from .Exchange import Exchange
 
 
 class SpotExchange(Exchange):
-    def add_realized_pnl(self, realized_pnl: float) -> None:
-        pass
+    def __init__(self, name: str, starting_balance: float, fee_rate: float):
+        super().__init__(name, starting_balance, fee_rate, 'spot')
 
-    def charge_fee(self, amount: float) -> None:
-        pass
-
-    # current holding assets
-    assets = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-
-    def __init__(self, name: str, starting_assets: list, fee_rate: float):
-        super().__init__(name, starting_assets, fee_rate, 'spot')
-
+        # TODO: must rewrite this section
         from jesse.routes import router
         # check if base assets are configured
         for route in router.routes:
@@ -151,3 +141,9 @@ class SpotExchange(Exchange):
             logger.info(
                 f'Available balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
             )
+
+    def add_realized_pnl(self, realized_pnl: float) -> None:
+        pass
+
+    def charge_fee(self, amount: float) -> None:
+        pass
