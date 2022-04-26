@@ -8,6 +8,8 @@ def notify(msg: str) -> None:
     """
     sends notifications to "main_telegram_bot" which is supposed to receive messages.
     """
+    msg = _format_msg(msg)
+
     _telegram(msg)
     _discord(msg)
 
@@ -16,6 +18,8 @@ def notify_urgently(msg: str) -> None:
     """
     sends notifications to "errors_telegram_bot" which we usually do NOT mute
     """
+    msg = _format_msg(msg)
+
     _telegram_errors_bot(msg)
     _discord_errors(msg)
 
@@ -31,8 +35,11 @@ def _telegram(msg: str) -> None:
         response = requests.get(
             f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
         )
-        if response.status_code not in [200, 429]:
-            logger.error(f'Telegram ERROR [{response.status_code}]: {response.text}', send_notification=False)
+        if response.status_code // 100 != 2:
+            err_msg = f'Telegram ERROR [{response.status_code}]: {response.text}'
+            if response.status_code // 100 == 4:
+                err_msg += f'\nParameters: {msg}'
+            logger.error(err_msg, send_notification=False)
     except requests.exceptions.ConnectionError:
         logger.error('Telegram ERROR: ConnectionError', send_notification=False)
 
@@ -48,8 +55,11 @@ def _telegram_errors_bot(msg: str) -> None:
         response = requests.get(
             f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
         )
-        if response.status_code not in [200, 429]:
-            logger.error(f'Telegram ERROR [{response.status_code}]: {response.text}', send_notification=False)
+        if response.status_code // 100 != 2:
+            err_msg = f'Telegram ERROR [{response.status_code}]: {response.text}'
+            if response.status_code // 100 == 4:
+                err_msg += f'\nParameters: {msg}'
+            logger.error(err_msg, send_notification=False)
     except requests.exceptions.ConnectionError:
         logger.error('Telegram ERROR: ConnectionError', send_notification=False)
 
@@ -62,8 +72,11 @@ def _discord(msg: str) -> None:
 
     try:
         response = requests.post(webhook_address, {'content': msg})
-        if response.status_code not in [200, 429]:
-            logger.error(f'Discord ERROR [{response.status_code}]: {response.text}', send_notification=False)
+        if response.status_code // 100 != 2:
+            err_msg = f'Discord ERROR [{response.status_code}]: {response.text}'
+            if response.status_code // 100 == 4:
+                err_msg += f'\nParameters: {msg}'
+            logger.error(err_msg, send_notification=False)
     except requests.exceptions.ConnectionError:
         logger.error('Discord ERROR: ConnectionError', send_notification=False)
 
@@ -76,7 +89,22 @@ def _discord_errors(msg: str) -> None:
 
     try:
         response = requests.post(webhook_address, {'content': msg})
-        if response.status_code not in [200, 429]:
-            logger.error(f'Discord ERROR [{response.status_code}]: {response.text}', send_notification=False)
+        if response.status_code // 100 != 2:
+            err_msg = f'Discord ERROR [{response.status_code}]: {response.text}'
+            if response.status_code // 100 == 4:
+                err_msg += f'\nParameters: {msg}'
+            logger.error(err_msg, send_notification=False)
     except requests.exceptions.ConnectionError:
         logger.error('Discord ERROR: ConnectionError', send_notification=False)
+
+
+def _format_msg(msg: str) -> str:
+    # if "_" exists in the message, replace it with "\_"
+    msg = msg.replace('_', '\_')
+    # if "*" exists in the message, replace it with "\*"
+    msg = msg.replace('*', '\*')
+    # if "[" exists in the message, replace it with "\["
+    msg = msg.replace('[', '\[')
+    # if "]" exists in the message, replace it with "\}"
+    msg = msg.replace(']', '\]')
+    return msg
