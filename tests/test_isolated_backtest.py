@@ -13,10 +13,10 @@ def test_can_pass_strategy_as_string():
     config = {
         'starting_balance': 10_000,
         'fee': 0,
+        'type': 'futures',
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': exchange_name,
-        'settlement_currency': 'USDT',
         'warm_up_candles': 0
     }
     routes = [
@@ -57,10 +57,10 @@ def test_can_pass_strategy_as_class():
     config = {
         'starting_balance': 10_000,
         'fee': 0,
+        'type': 'futures',
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': exchange_name,
-        'settlement_currency': 'USDT',
         'warm_up_candles': 0
     }
     routes = [
@@ -101,10 +101,10 @@ def test_warm_up_candles_more_than_warmup_candles_config_raises_error():
     config = {
         'starting_balance': 10_000,
         'fee': 0,
+        'type': 'futures',
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': exchange_name,
-        'settlement_currency': 'USDT',
         'warm_up_candles': 100
     }
     routes = [
@@ -147,10 +147,10 @@ def test_store_state_app_is_reset_properly():
     config = {
         'starting_balance': 10_000,
         'fee': 0,
+        'type': 'futures',
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': exchange_name,
-        'settlement_currency': 'USDT',
         'warm_up_candles': 0
     }
     routes = [
@@ -201,10 +201,10 @@ def test_dna_method_works_in_isolated_backtest():
     config = {
         'starting_balance': 10_000,
         'fee': 0,
+        'type': 'futures',
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': exchange_name,
-        'settlement_currency': 'USDT',
         'warm_up_candles': 0
     }
     routes = [

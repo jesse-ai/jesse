@@ -24,7 +24,7 @@ config = {
         'exchanges': {
             'Sandbox': {
                 'fee': 0,
-                'type': 'spot',
+                'type': 'futures',
                 # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
@@ -172,7 +172,6 @@ config = {
 
 
 def set_config(conf: dict) -> None:
-    jh.dump(conf, 'user_config')
     global config
 
     # optimization mode only
@@ -198,7 +197,6 @@ def set_config(conf: dict) -> None:
                 'balance': float(e['balance'])
             }
             if e['type'] == 'futures':
-                jh.dump(e)
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
                 config['env']['exchanges'][e['name']]['futures_leverage'] = int(e['futures_leverage'])
                 # accepted values are: 'cross' and 'isolated'

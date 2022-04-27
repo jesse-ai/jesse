@@ -24,6 +24,7 @@ def backtest(
     {
         'starting_balance': 5_000,
         'fee': 0.001,
+        'type': 'futures',
         'futures_leverage': 3,
         'futures_leverage_mode': 'cross',
         'exchange': 'Binance',
@@ -31,10 +32,10 @@ def backtest(
     }
 
     Example `route`:
-    [{'exchange': 'Binance', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
+    [{'exchange': 'Bybit Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
 
     Example `extra_route`:
-    [{'exchange': 'Binance', 'symbol': 'BTC-USD', 'timeframe': '3m'}]
+    [{'exchange': 'Bybit Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
 
     Example `candles`:
     {
@@ -175,10 +176,10 @@ def _format_config(config):
             config['exchange']: {
                 'balance': config['starting_balance'],
                 'fee': config['fee'],
+                'type': 'futures',
                 'futures_leverage': config['futures_leverage'],
                 'futures_leverage_mode': config['futures_leverage_mode'],
                 'name': config['exchange'],
-                'settlement_currency': config['settlement_currency']
             }
         },
         'logging': {

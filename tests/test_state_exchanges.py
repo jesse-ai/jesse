@@ -2,6 +2,7 @@ import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges
 from jesse.store import store
+from jesse.routes import router
 
 
 def set_up():
@@ -9,7 +10,10 @@ def set_up():
     config['app']['considering_exchanges'] = [exchanges.SANDBOX]
     config['app']['trading_exchanges'] = [exchanges.SANDBOX]
     config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 2000
-    store.reset()
+    routes = [
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': 'TestVanillaStrategy'}
+    ]
+    router.initiate(routes)
 
 
 def test_have_correct_exchanges_in_store_after_creating_store():
