@@ -1118,3 +1118,7 @@ class Strategy(ABC):
         Returns all the exit orders for this position.
         """
         return store.orders.get_exit_orders(self.exchange, self.symbol)
+
+    @property
+    def exchange_type(self):
+        return selectors.get_exchange(self.exchange).type

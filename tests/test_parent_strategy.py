@@ -784,3 +784,10 @@ def test_can_run_without_shorting():
 
 def test_entry_orders_and_exit_orders_properties():
     single_route_backtest('TestEntryOrdersAndExitOrdersProperties')
+
+
+def test_exchange_type_property():
+    # spot
+    single_route_backtest('TestExchangeTypeProperty1', is_futures_trading=False)
+    # futures
+    single_route_backtest('TestExchangeTypeProperty2', is_futures_trading=True)
