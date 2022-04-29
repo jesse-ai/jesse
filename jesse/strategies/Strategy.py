@@ -571,17 +571,26 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
+        # simulate market order execution in backtest mode
         if jh.is_backtesting() or jh.is_unit_testing():
             store.orders.execute_pending_market_orders()
 
         if self.position.is_close and self.entry_orders == []:
             should_short = self.should_short()
+            # validate that should_short is not True if the exchange_type is spot
+            if self.exchange_type == 'spot' and should_short is True:
+                raise exceptions.InvalidStrategy(
+                    'should_short cannot be True if the exchange type os "spot".'
+                )
+
             should_long = self.should_long()
-            # validation
+
+            # should_short and should_long cannot be True at the same time
             if should_short and should_long:
                 raise exceptions.ConflictingRules(
                     'should_short and should_long should not be true at the same time.'
                 )
+
             if should_long:
                 self._execute_long()
             elif should_short:
