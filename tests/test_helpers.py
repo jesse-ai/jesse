@@ -276,10 +276,6 @@ def test_is_paper_trading():
     assert jh.is_paper_trading() is False
 
 
-def test_is_test_driving():
-    assert jh.is_test_driving() is False
-
-
 def test_is_unit_testing():
     assert jh.is_unit_testing() is True
 

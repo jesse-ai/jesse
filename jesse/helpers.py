@@ -364,11 +364,6 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
-def is_test_driving() -> bool:
-    from jesse.config import config
-    return config['app']['is_test_driving']
-
-
 def is_unit_testing() -> bool:
     from jesse.config import config
     # config['app']['is_unit_testing'] is only set in the live plugin unit tests

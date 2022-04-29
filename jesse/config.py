@@ -159,9 +159,6 @@ config = {
         # Accepted values are: 'backtest', 'livetrade', 'fitness'.
         'trading_mode': '',
 
-        # variable used for test-driving the livetrade mode
-        'is_test_driving': False,
-
         # this would enable many console.log()s in the code, which are helpful for debugging.
         'debug_mode': False,
 

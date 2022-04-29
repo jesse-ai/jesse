@@ -547,11 +547,6 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
-        # for caution to make sure testing on livetrade won't bleed your account
-        if jh.is_test_driving() and store.completed_trades.count >= 2:
-            logger.info('Maximum allowed trades in test-drive mode is reached')
-            return
-
         if len(self.entry_orders) and self.is_close and self.should_cancel():
             self._execute_cancel()
 
