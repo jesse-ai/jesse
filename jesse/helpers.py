@@ -867,6 +867,9 @@ def dump(*item):
     """
     Dump object in pretty format: used for debugging when developing Jesse
     """
+    if len(item) == 1:
+        item = item[0]
+
     print(
         color('\n========= Debugging Value =========='.upper(), 'yellow')
     )
