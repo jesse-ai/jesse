@@ -46,12 +46,14 @@ class Exchange(ABC):
             self.available_assets[base_asset] = 0.0
             self.available_assets[self.settlement_currency] = starting_balance
 
+    @property
     @abstractmethod
-    def wallet_balance(self, symbol: str = '') -> float:
+    def wallet_balance(self) -> float:
         pass
 
+    @property
     @abstractmethod
-    def available_margin(self, symbol: str = '') -> float:
+    def available_margin(self) -> float:
         pass
 
     @abstractmethod

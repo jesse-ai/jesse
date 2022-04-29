@@ -31,19 +31,22 @@ class FuturesExchange(Exchange):
         self.futures_leverage_mode = futures_leverage_mode
         self.futures_leverage = futures_leverage
 
+    @property
     def started_balance(self) -> float:
         if jh.is_livetrading():
             return self._started_balance
 
         return self.starting_assets[jh.app_currency()]
 
-    def wallet_balance(self, symbol: str = '') -> float:
+    @property
+    def wallet_balance(self) -> float:
         if jh.is_livetrading():
             return self._wallet_balance
 
         return self.assets[self.settlement_currency]
 
-    def available_margin(self, symbol: str = '') -> float:
+    @property
+    def available_margin(self) -> float:
         if jh.is_livetrading():
             return self._available_margin
 
@@ -111,7 +114,7 @@ class FuturesExchange(Exchange):
         # make sure we don't spend more than we're allowed considering current allowed leverage
         if (order.type != order_types.MARKET or skip_market_order) and not order.reduce_only:
             order_size = abs(order.qty * order.price)
-            remaining_margin = self.available_margin()
+            remaining_margin = self.available_margin
             if order_size > remaining_margin:
                 raise InsufficientMargin(
                     f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')

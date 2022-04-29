@@ -901,12 +901,12 @@ class Strategy(ABC):
     @property
     def capital(self) -> float:
         """the current capital in the trading exchange"""
-        return self.position.exchange.wallet_balance(self.symbol)
+        return self.position.exchange.wallet_balance
 
     @property
     def available_margin(self) -> float:
         """Current available margin considering leverage"""
-        return self.position.exchange.available_margin(self.symbol)
+        return self.position.exchange.available_margin
 
     @property
     def fee_rate(self) -> float:
