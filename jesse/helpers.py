@@ -90,7 +90,8 @@ def convert_number(old_max: float, old_min: float, new_max: float, new_min: floa
     """
     # validation
     if old_value > old_max or old_value < old_min:
-        raise ValueError(f'old_value:{old_value} must be within the range. {old_min}-{old_max}')
+        raise ValueError(
+            f'old_value:{old_value} must be within the range. {old_min}-{old_max}')
 
     old_range = (old_max - old_min)
     new_range = (new_max - new_min)
@@ -147,7 +148,8 @@ def dna_to_hp(strategy_hp, dna: str):
                 )
             )
         elif h['type'] is float:
-            decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
+            decoded_gene = convert_number(
+                119, 40, h['max'], h['min'], ord(gene))
         else:
             raise TypeError('Only int and float types are implemented')
 
@@ -280,7 +282,8 @@ def get_config(keys: str, default: Any = None) -> Any:
 
     if is_unit_testing() or keys not in CACHED_CONFIG:
         if os.environ.get(keys.upper().replace(".", "_").replace(" ", "_")) is not None:
-            CACHED_CONFIG[keys] = os.environ.get(keys.upper().replace(".", "_").replace(" ", "_"))
+            CACHED_CONFIG[keys] = os.environ.get(
+                keys.upper().replace(".", "_").replace(" ", "_"))
         else:
             from functools import reduce
             from jesse.config import config
@@ -375,7 +378,7 @@ def is_unit_testing() -> bool:
     return "pytest" in sys.modules or config['app']['is_unit_testing']
 
 
-def is_valid_uuid(uuid_to_test:str, version: int = 4) -> bool:
+def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_to_test, version=version)
     except ValueError:
@@ -450,7 +453,8 @@ def current_1m_candle_timestamp():
 
 
 def np_ffill(arr: np.ndarray, axis: int = 0) -> np.ndarray:
-    idx_shape = tuple([slice(None)] + [np.newaxis] * (len(arr.shape) - axis - 1))
+    idx_shape = tuple([slice(None)] + [np.newaxis]
+                      * (len(arr.shape) - axis - 1))
     idx = np.where(~np.isnan(arr), np.arange(arr.shape[axis])[idx_shape], 0)
     np.maximum.accumulate(idx, axis=axis, out=idx)
     slc = [
@@ -567,7 +571,8 @@ def quote_asset(symbol: str) -> str:
         return symbol.split('-')[1]
     except IndexError:
         from jesse.exceptions import InvalidRoutes
-        raise InvalidRoutes(f"The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{symbol}'")
+        raise InvalidRoutes(
+            f"The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{symbol}'")
 
 
 def random_str(num_characters: int = 8) -> str:
@@ -634,11 +639,11 @@ def round_decimals_down(number: np.ndarray, decimals: int = 2) -> float:
     Returns a value rounded down to a specific number of decimal places.
     """
     if not isinstance(decimals, int):
-      raise TypeError("decimal places must be an integer")
+        raise TypeError("decimal places must be an integer")
     elif decimals < 0:
-      raise ValueError("decimal places has to be 0 or more")
+        raise ValueError("decimal places has to be 0 or more")
     elif decimals == 0:
-      return np.floor(number)
+        return np.floor(number)
 
     factor = 10 ** decimals
     return np.floor(number * factor) / factor
@@ -778,7 +783,8 @@ def type_to_side(t: str) -> str:
         return sides.BUY
     if t == trade_types.SHORT:
         return sides.SELL
-    raise ValueError(f'unsupported type: "{t}". Only "long" and "short" are supported.')
+    raise ValueError(
+        f'unsupported type: "{t}". Only "long" and "short" are supported.')
 
 
 def unique_list(arr) -> list:
@@ -798,7 +804,8 @@ def closing_side(position_type: str) -> str:
     elif position_type.lower() == 'short':
         return 'buy'
     else:
-        raise ValueError(f'Value entered for position_type ({position_type}) is not valid')
+        raise ValueError(
+            f'Value entered for position_type ({position_type}) is not valid')
 
 
 def merge_dicts(d1: dict, d2: dict) -> dict:
@@ -920,6 +927,14 @@ def cpu_cores_count():
 # a function that converts name to env_name. Example: 'Testnet Binance Futures' into 'TESTNET_BINANCE_FUTURES'
 def convert_to_env_name(name: str) -> str:
     return name.replace(' ', '_').upper()
+
+
+def is_backtester():
+    from jesse.services.env import ENV_VALUES
+    if 'IS_BACKTEST' in ENV_VALUES:
+        return ENV_VALUES['IS_BACKTEST']
+
+    return False
 
 
 def is_notebook():

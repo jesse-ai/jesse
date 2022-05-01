@@ -19,17 +19,19 @@ async def init_redis():
 async_redis = None
 sync_redis = None
 if jh.is_jesse_project():
-    if not jh.is_notebook():
+    if not jh.is_notebook() and not jh.is_backtester():
         async_redis = asyncio.run(init_redis())
         sync_redis = sync_redis_lib.Redis(
-            host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
+            host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(
+                ENV_VALUES.get('REDIS_DB') or 0),
             password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
         )
 
 
 def sync_publish(event: str, msg):
     if jh.is_unit_testing():
-        raise EnvironmentError('sync_publish() should be NOT called during testing. There must be something wrong')
+        raise EnvironmentError(
+            'sync_publish() should be NOT called during testing. There must be something wrong')
 
     sync_redis.publish(
         f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
@@ -52,7 +54,8 @@ async def async_publish(event: str, msg):
 
 def process_status(pid=None) -> str:
     if jh.is_unit_testing():
-        raise EnvironmentError('process_status() is not meant to be called in unit tests')
+        raise EnvironmentError(
+            'process_status() is not meant to be called in unit tests')
 
     if pid is None:
         pid = jh.get_pid()
