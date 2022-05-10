@@ -16,7 +16,7 @@ A clear and concise description of what the bug is. Include the whole error mess
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Include your routes.py, config.py (make sure to remove personal information) and if possible your strategy code (if you want to keep it private - contact us on Discord directly).
+1. Include your routes, config (make sure to remove personal information) and if possible your strategy code (if you want to keep it private - contact us on Discord directly).
 2. Explain the steps you do that lead to the error
 
 **Expected behavior**
@@ -26,7 +26,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Enviroment (please complete the following information):**
- - OS: [e.g. iOS, Windows, Ubuntu]
+ - OS: [e.g. iOS, Windows, Ubuntu, Docker]
  - Version [use `pip show jesse`] 
 
 
