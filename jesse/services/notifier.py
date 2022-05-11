@@ -10,6 +10,11 @@ def notify(msg: str) -> None:
     """
     msg = _format_msg(msg)
 
+    # Notification drivers don't accept text with more than 2000 characters.
+    # So if that's the case limit it to the last 2000 characters.
+    if len(msg) > 2000:
+        msg = msg[-2000:]
+
     _telegram(msg)
     _discord(msg)
 
@@ -19,6 +24,11 @@ def notify_urgently(msg: str) -> None:
     sends notifications to "errors_telegram_bot" which we usually do NOT mute
     """
     msg = _format_msg(msg)
+
+    # Notification drivers don't accept text with more than 2000 characters.
+    # So if that's the case limit it to the last 2000 characters.
+    if len(msg) > 2000:
+        msg = msg[-2000:]
 
     _telegram_errors_bot(msg)
     _discord_errors(msg)
@@ -70,11 +80,6 @@ def _discord(msg: str) -> None:
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
 
-    # Discord doesn't accept msg with more than 2000 characters.
-    # So if that's the case limit it to the last 2000 characters.
-    if len(msg) > 2000:
-        msg = msg[-2000:]
-
     try:
         response = requests.post(webhook_address, {'content': msg})
         if response.status_code // 100 != 2:
@@ -91,11 +96,6 @@ def _discord_errors(msg: str) -> None:
 
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
-
-    # Discord doesn't accept msg with more than 2000 characters.
-    # So if that's the case limit it to the last 2000 characters.
-    if len(msg) > 2000:
-        msg = msg[-2000:]
 
     try:
         response = requests.post(webhook_address, {'content': msg})
