@@ -146,6 +146,10 @@ class Order(Model):
     def position(self):
         return selectors.get_position(self.exchange, self.symbol)
 
+    @property
+    def remaining_qty(self):
+        return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
+
     def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return
@@ -213,7 +217,7 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f"PARTIALLY FILLED: {self.symbol}, {self.side}, qty: {self.filled_qty}/{self.qty}, price: {self.price}"
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.rema}, price: {self.price}"
             # log
             if jh.is_debuggable('order_execution'):
                 logger.info(txt)
