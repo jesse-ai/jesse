@@ -217,7 +217,7 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.rema}, price: {self.price}"
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {self.price}"
             # log
             if jh.is_debuggable('order_execution'):
                 logger.info(txt)
