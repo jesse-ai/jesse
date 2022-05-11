@@ -70,6 +70,11 @@ def _discord(msg: str) -> None:
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
 
+    # Discord doesn't accept msg with more than 2000 characters.
+    # So if that's the case limit it to the last 2000 characters.
+    if len(msg) > 2000:
+        msg = msg[-2000:]
+
     try:
         response = requests.post(webhook_address, {'content': msg})
         if response.status_code // 100 != 2:
@@ -86,6 +91,11 @@ def _discord_errors(msg: str) -> None:
 
     if not webhook_address or not config['env']['notifications']['enabled']:
         return
+
+    # Discord doesn't accept msg with more than 2000 characters.
+    # So if that's the case limit it to the last 2000 characters.
+    if len(msg) > 2000:
+        msg = msg[-2000:]
 
     try:
         response = requests.post(webhook_address, {'content': msg})
