@@ -5,6 +5,7 @@ from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
 
+
 class TestnetBybitPerpetual(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
@@ -71,7 +72,12 @@ class TestnetBybitPerpetual(CandleExchange):
         if response.status_code != 200:
             return
 
-        data = response.json()['result']
+        data = response.json()
+
+        if data['ret_code'] != 0:
+            raise exceptions.ExchangeError(data['ret_msg'])
+
+        data = data['result']
 
         return [{
                 'id': jh.generate_unique_id(),
