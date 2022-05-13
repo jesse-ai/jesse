@@ -1060,20 +1060,13 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info') -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False) -> None:
         msg = str(msg)
 
         if log_type == 'info':
-            logger.info(msg)
-
-            if jh.is_live():
-                notifier.notify(msg)
+            logger.info(msg, send_notification=jh.is_live() and send_notification)
         elif log_type == 'error':
-            logger.error(msg)
-
-            if jh.is_live():
-                notifier.notify(msg)
-                notifier.notify_urgently(msg)
+            logger.error(msg, send_notification=jh.is_live() and send_notification)
         else:
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
 
