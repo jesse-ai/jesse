@@ -114,7 +114,9 @@ class CandlesState:
 
         if candle[0] == 0:
             if jh.is_debugging():
-                logger.error("DEBUGGING-VALUE: please report to Saleh: candle[0] is zero")
+                logger.error(
+                    f"DEBUGGING-VALUE: please report to Saleh: candle[0] is zero. \nFull candle: {candle}\n"
+                )
             return
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
