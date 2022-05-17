@@ -246,6 +246,10 @@ class CandlesState:
             number_of_candles = len(self.get_candles(exchange, symbol, '1m'))
             short_candles = self.get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
 
+            if generate_from_count == -1:
+                # it's receiving an slightly older candle than the last one. Ignore it
+                return
+
             if generate_from_count < 0:
                 current_1m = self.get_current_candle(exchange, symbol, '1m')
                 raise ValueError(
