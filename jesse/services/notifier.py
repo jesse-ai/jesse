@@ -2,6 +2,34 @@ import requests
 from jesse.config import config
 from jesse.services.env import ENV_VALUES
 from jesse.services import logger
+from timeloop import Timeloop
+from datetime import timedelta
+
+
+MSG_QUEUE = []
+
+
+def start_notifier_loop():
+    """
+    a constant running loop that runs in a separate thread and
+    checks for new messages in the msg_queue. If there are
+    any, it sends them by calling _telegram() and _discord()
+    """
+    tl = Timeloop()
+
+    @tl.job(interval=timedelta(seconds=0.5))
+    def handle_time():
+        if len(MSG_QUEUE) > 0:
+            msg = MSG_QUEUE.pop(0)
+            if msg['type'] == 'info':
+                _telegram(msg['content'])
+                _discord(msg['content'])
+            elif msg['type'] == 'error':
+                _telegram_errors_bot(msg['content'])
+                _discord_errors(msg['content'])
+            else:
+                raise ValueError(f'Unknown message type: {msg["type"]}')
+    tl.start()
 
 
 def notify(msg: str) -> None:
@@ -15,8 +43,7 @@ def notify(msg: str) -> None:
     if len(msg) > 2000:
         msg = msg[-2000:]
 
-    _telegram(msg)
-    _discord(msg)
+    MSG_QUEUE.append({'type': 'info', 'content': msg})
 
 
 def notify_urgently(msg: str) -> None:
@@ -30,8 +57,7 @@ def notify_urgently(msg: str) -> None:
     if len(msg) > 2000:
         msg = msg[-2000:]
 
-    _telegram_errors_bot(msg)
-    _discord_errors(msg)
+    MSG_QUEUE.append({'type': 'error', 'content': msg})
 
 
 def _telegram(msg: str) -> None:
