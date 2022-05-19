@@ -57,7 +57,7 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+    def on_order_submission(self, order: Order) -> None:
         pass
 
     @abstractmethod
@@ -66,12 +66,4 @@ class Exchange(ABC):
 
     @abstractmethod
     def on_order_cancellation(self, order: Order) -> None:
-        pass
-
-    @abstractmethod
-    def add_realized_pnl(self, realized_pnl: float) -> None:
-        pass
-
-    @abstractmethod
-    def charge_fee(self, amount: float) -> None:
         pass

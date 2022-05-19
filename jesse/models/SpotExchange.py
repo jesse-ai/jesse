@@ -1,149 +1,74 @@
 import jesse.helpers as jh
-import jesse.services.logger as logger
-from jesse.enums import sides, order_types
-from jesse.exceptions import NegativeBalance, InvalidConfig
+from jesse.enums import sides
+from jesse.exceptions import InsufficientBalance
 from jesse.models import Order
-from .Exchange import Exchange
+from jesse.models.Exchange import Exchange
 
 
 class SpotExchange(Exchange):
     def __init__(self, name: str, starting_balance: float, fee_rate: float):
         super().__init__(name, starting_balance, fee_rate, 'spot')
 
-        # TODO: must rewrite this section
-        from jesse.routes import router
-        # check if base assets are configured
-        for route in router.routes:
-            base_asset = jh.base_asset(route.symbol)
-            if base_asset not in self.available_assets:
-                raise InvalidConfig(
-                    f"Jesse needs to know the balance of your base asset for spot mode. Please add {base_asset} to your exchanges assets config.")
+        jh.dump(self.type)
 
-    def wallet_balance(self, symbol: str = '') -> float:
-        if symbol == '':
-            raise ValueError
-        quote_asset = jh.quote_asset(symbol)
-        return self.assets[quote_asset]
+    @property
+    def wallet_balance(self) -> float:
+        return self.assets[self.settlement_currency]
 
-    def available_margin(self, symbol: str = '') -> float:
-        return self.wallet_balance(symbol)
+    @property
+    def available_margin(self) -> float:
+        return self.wallet_balance
 
-    def on_order_submission(self, order: Order, skip_market_order=True):
-        base_asset = jh.base_asset(order.symbol)
-        quote_asset = jh.quote_asset(order.symbol)
-
-        # skip market order at the time of submission because we don't have
-        # the exact order.price. Instead, we call on_order_submission() one
-        # more time at time of execution without "skip_market_order=False".
-        if order.type == order_types.MARKET and skip_market_order:
+    def on_order_submission(self, order: Order) -> None:
+        if jh.is_livetrading():
             return
 
-        # used for logging balance change
-        temp_old_quote_available_asset = self.available_assets[quote_asset]
-        temp_old_base_available_asset = self.available_assets[base_asset]
+        base_asset = jh.base_asset(order.symbol)
 
+        # buy order
         if order.side == sides.BUY:
-            quote_balance = self.available_assets[quote_asset]
-            self.available_assets[quote_asset] -= (abs(order.qty) * order.price) * (1 + self.fee_rate)
-            if self.available_assets[quote_asset] < 0:
-                raise NegativeBalance(
-                    f"Balance cannot go below zero in spot market. Available capital at {self.name} for {quote_asset} is {quote_balance} but you're trying to sell {abs(order.qty * order.price)}"
+            # cannot buy if we don't have enough balance (of the settlement currency)
+            quote_balance = self.assets[self.settlement_currency]
+            self.assets[self.settlement_currency] -= (abs(order.qty) * order.price) * (1 + self.fee_rate)
+            if self.assets[self.settlement_currency] < 0:
+                raise InsufficientBalance(
+                    f"Not enough balance. Available balance at {self.name} for {self.settlement_currency} is {quote_balance} but you're trying to spend {abs(order.qty * order.price)}"
                 )
         # sell order
         else:
-            base_balance = self.available_assets[base_asset]
-            new_base_balance = base_balance + order.qty
-            if new_base_balance < 0:
-                raise NegativeBalance(
-                    f"Balance cannot go below zero in spot market. Available capital at {self.name} for {base_asset} is {base_balance} but you're trying to sell {abs(order.qty)}"
+            # sell order's qty cannot be bigger than the amount of existing base asset
+            base_balance = self.assets[base_asset]
+            jh.dump(order.to_dict, self.assets)
+            if abs(order.qty) > base_balance:
+                raise InsufficientBalance(
+                    f"Not enough balance. Available balance at {self.name} for {base_asset} is {base_balance} but you're trying to sell {abs(order.qty)}"
                 )
-
-            self.available_assets[base_asset] -= abs(order.qty)
-
-        temp_new_quote_available_asset = self.available_assets[quote_asset]
-        if jh.is_debuggable('balance_update') and temp_old_quote_available_asset != temp_new_quote_available_asset:
-            logger.info(
-                f'Available balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_available_asset, 2)} to {round(temp_new_quote_available_asset, 2)}'
-            )
-        temp_new_base_available_asset = self.available_assets[base_asset]
-        if jh.is_debuggable('balance_update') and temp_old_base_available_asset != temp_new_base_available_asset:
-            logger.info(
-                f'Available balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
-            )
+            self.assets[base_asset] -= abs(order.qty)
 
     def on_order_execution(self, order: Order) -> None:
+        if jh.is_livetrading():
+            return
+
         base_asset = jh.base_asset(order.symbol)
-        quote_asset = jh.quote_asset(order.symbol)
 
-        if order.type == order_types.MARKET:
-            self.on_order_submission(order, skip_market_order=False)
-
-        # used for logging balance change
-        temp_old_quote_asset = self.assets[quote_asset]
-        temp_old_quote_available_asset = self.available_assets[quote_asset]
-        temp_old_base_asset = self.assets[base_asset]
-        temp_old_base_available_asset = self.available_assets[base_asset]
-
-        # works for both buy and sell orders (sell order's qty < 0)
-        self.assets[base_asset] += order.qty
-
+        # buy order
         if order.side == sides.BUY:
-            self.available_assets[base_asset] += order.qty
-            self.assets[quote_asset] -= (abs(order.qty) * order.price) * (1 + self.fee_rate)
+            # asset's balance is increased by the amount of the order's qty after fees are deducted
+            self.assets[base_asset] += abs(order.qty) * (1 - self.fee_rate)
         # sell order
         else:
-            self.available_assets[quote_asset] += abs(order.qty) * order.price * (1 - self.fee_rate)
-            self.assets[quote_asset] += abs(order.qty) * order.price * (1 - self.fee_rate)
-
-        temp_new_quote_asset = self.assets[quote_asset]
-        if jh.is_debuggable('balance_update') and temp_old_quote_asset != temp_new_quote_asset:
-            logger.info(
-                f'Balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_asset, 2)} to {round(temp_new_quote_asset, 2)}'
-            )
-        temp_new_quote_available_asset = self.available_assets[quote_asset]
-        if jh.is_debuggable('balance_update') and temp_old_quote_available_asset != temp_new_quote_available_asset:
-            logger.info(
-                f'Balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_available_asset, 2)} to {round(temp_new_quote_available_asset, 2)}'
-            )
-
-        temp_new_base_asset = self.assets[base_asset]
-        if jh.is_debuggable('balance_update') and temp_old_base_asset != temp_new_base_asset:
-            logger.info(
-                f'Balance for {base_asset} on {self.name} changed from {round(temp_old_base_asset, 2)} to {round(temp_new_base_asset, 2)}'
-            )
-        temp_new_base_available_asset = self.available_assets[base_asset]
-        if jh.is_debuggable('balance_update') and temp_old_base_available_asset != temp_new_base_available_asset:
-            logger.info(
-                f'Balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
-            )
+            # settlement currency's balance is increased by the amount of the order's qty after fees are deducted
+            self.assets[self.settlement_currency] += abs(order.qty) * order.price * (1 - self.fee_rate)
 
     def on_order_cancellation(self, order: Order) -> None:
+        if jh.is_livetrading():
+            return
+
         base_asset = jh.base_asset(order.symbol)
-        quote_asset = jh.quote_asset(order.symbol)
 
-        # used for logging balance change
-        temp_old_quote_available_asset = self.available_assets[quote_asset]
-        temp_old_base_available_asset = self.available_assets[base_asset]
-
+        # buy order
         if order.side == sides.BUY:
-            self.available_assets[quote_asset] += (abs(order.qty) * order.price) * (1 + self.fee_rate)
+            self.assets[self.settlement_currency] += abs(order.qty) * order.price * (1 + self.fee_rate)
         # sell order
         else:
-            self.available_assets[base_asset] += abs(order.qty)
-
-        temp_new_quote_available_asset = self.available_assets[quote_asset]
-        if jh.is_debuggable('balance_update') and temp_old_quote_available_asset != temp_new_quote_available_asset:
-            logger.info(
-                f'Available balance for {quote_asset} on {self.name} changed from {round(temp_old_quote_available_asset, 2)} to {round(temp_new_quote_available_asset, 2)}'
-            )
-        temp_new_base_available_asset = self.available_assets[base_asset]
-        if jh.is_debuggable('balance_update') and temp_old_base_available_asset != temp_new_base_available_asset:
-            logger.info(
-                f'Available balance for {base_asset} on {self.name} changed from {round(temp_old_base_available_asset, 2)} to {round(temp_new_base_available_asset, 2)}'
-            )
-
-    def add_realized_pnl(self, realized_pnl: float) -> None:
-        pass
-
-    def charge_fee(self, amount: float) -> None:
-        pass
+            self.assets[base_asset] += abs(order.qty)

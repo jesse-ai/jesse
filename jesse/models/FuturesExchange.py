@@ -19,6 +19,8 @@ class FuturesExchange(Exchange):
     ):
         super().__init__(name, starting_balance, fee_rate, 'futures')
 
+        jh.dump(self.type)
+
         # # # # live-trading only # # # #
         # in futures trading, margin is only with one asset, so:
         self._available_margin = 0
@@ -105,25 +107,18 @@ class FuturesExchange(Exchange):
             f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
-    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+    def on_order_submission(self, order: Order) -> None:
         if jh.is_livetrading():
             return
 
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
-        if (order.type != order_types.MARKET or skip_market_order) and not order.reduce_only:
+        if not order.reduce_only:
             order_size = abs(order.qty * order.price)
-            remaining_margin = self.available_margin
-            if order_size > remaining_margin:
+            if order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')
-
-        # skip market order at the time of submission because we don't have
-        # the exact order.price. Instead, we call on_order_submission() one
-        # more time at time of execution without "skip_market_order=False".
-        if order.type == order_types.MARKET and skip_market_order:
-            return
+                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(self.available_margin)}')
 
         self.available_assets[base_asset] += order.qty
 
@@ -138,9 +133,6 @@ class FuturesExchange(Exchange):
             return
 
         base_asset = jh.base_asset(order.symbol)
-
-        if order.type == order_types.MARKET:
-            self.on_order_submission(order, skip_market_order=False)
 
         if not order.reduce_only:
             if order.side == sides.BUY:

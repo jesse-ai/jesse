@@ -571,9 +571,7 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
-        # simulate market order execution in backtest mode
-        if jh.is_backtesting() or jh.is_unit_testing():
-            store.orders.execute_pending_market_orders()
+        self._simulate_market_order_execution()
 
         if self.position.is_close and self.entry_orders == []:
             should_short = self.should_short()
@@ -595,6 +593,14 @@ class Strategy(ABC):
                 self._execute_long()
             elif should_short:
                 self._execute_short()
+
+    @staticmethod
+    def _simulate_market_order_execution() -> None:
+        """
+        Simulate market order execution in backtest mode
+        """
+        if jh.is_backtesting() or jh.is_unit_testing():
+            store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -776,6 +782,9 @@ class Strategy(ABC):
             logger.info(
                 f"Closed open {self.exchange}-{self.symbol} position at {self.position.current_price} with PNL: {round(self.position.pnl, 4)}({round(self.position.pnl_percentage, 2)}%) because we reached the end of the backtest session."
             )
+            # first cancel all active orders so the balances would go back to the original state
+            if self.exchange_type == 'spot':
+                self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
             self.broker.reduce_position_at(self.position.qty, self.position.current_price)
             return

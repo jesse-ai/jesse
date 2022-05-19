@@ -10,7 +10,7 @@ class Test20(Strategy):
         return False
 
     def go_long(self):
-        # self.price = 2
+        # self.price: 2
         qty = 1
 
         self.buy = qty, self.price + .5

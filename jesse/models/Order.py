@@ -196,14 +196,13 @@ class Order(Model):
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
 
-        p = selectors.get_position(self.exchange, self.symbol)
-
-        if p:
-            p._on_executed_order(self)
-
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+        p = selectors.get_position(self.exchange, self.symbol)
+        if p:
+            p._on_executed_order(self)
 
     def execute_partially(self, silent=False) -> None:
         self.executed_at = jh.now_to_timestamp()

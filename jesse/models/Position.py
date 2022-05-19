@@ -257,7 +257,7 @@ class Position:
         trade_type = self.type
         self.exit_price = close_price
 
-        if self.exchange:
+        if self.exchange and self.exchange.type == 'futures':
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
         self.closed_at = jh.now_to_timestamp()
@@ -280,7 +280,7 @@ class Position:
 
         estimated_profit = jh.estimate_PNL(qty, self.entry_price, price, self.type)
 
-        if self.exchange:
+        if self.exchange and self.exchange.type == 'futures':
             # self.exchange.increase_futures_balance(qty * self.entry_price + estimated_profit)
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
@@ -337,7 +337,8 @@ class Position:
 
             # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
 
-            self.exchange.charge_fee(qty * price)
+            if self.exchange and self.exchange.type == 'futures':
+                self.exchange.charge_fee(qty * price)
 
             # order opens position
             if self.qty == 0:
