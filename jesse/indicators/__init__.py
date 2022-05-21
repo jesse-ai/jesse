@@ -53,6 +53,7 @@ from .frama import frama
 from .fwma import fwma
 from .gatorosc import gatorosc
 from .gauss import gauss
+from .ha import ha
 from .high_pass import high_pass
 from .high_pass_2_pole import high_pass_2_pole
 from .hma import hma
