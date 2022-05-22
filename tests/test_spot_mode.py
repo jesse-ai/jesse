@@ -71,9 +71,6 @@ def test_should_be_able_to_submit_stop_loss_order_with_size_less_or_equal_to_cur
 
 
 def test_should_be_able_submit_take_profit_and_stop_loss_at_same_time_in_spot():
-    """
-    test that can indeed submit a take profit and stop-loss order at the same time
-    """
     single_route_backtest(
         'TestCanSubmitTakeProfitAndStopLossAtSameTimeInSpot',
         is_futures_trading=False
@@ -87,6 +84,13 @@ def test_stop_order_should_consider_executed_take_profit_orders_in_spot():
     """
     single_route_backtest(
         'TestStopOrderShouldConsiderExecutedTakeProfitOrdersInSpot',
+        is_futures_trading=False
+    )
+
+
+def test_balances_are_handled_correctly_for_cancelling_orders_in_spot():
+    single_route_backtest(
+        'TestBalancesAreHandledCorrectlyForCancellingOrdersInSpot',
         is_futures_trading=False
     )
 
