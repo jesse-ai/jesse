@@ -19,8 +19,6 @@ class FuturesExchange(Exchange):
     ):
         super().__init__(name, starting_balance, fee_rate, 'futures')
 
-        jh.dump(self.type)
-
         # # # # live-trading only # # # #
         # in futures trading, margin is only with one asset, so:
         self._available_margin = 0
