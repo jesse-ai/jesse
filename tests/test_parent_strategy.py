@@ -791,3 +791,7 @@ def test_exchange_type_property():
     single_route_backtest('TestExchangeTypeProperty1', is_futures_trading=False)
     # futures
     single_route_backtest('TestExchangeTypeProperty2', is_futures_trading=True)
+
+
+def test_on_cancel_method():
+    single_route_backtest('TestOnCancelMethod')
