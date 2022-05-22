@@ -79,6 +79,18 @@ def test_should_be_able_submit_take_profit_and_stop_loss_at_same_time_in_spot():
         is_futures_trading=False
     )
 
+
+def test_stop_order_should_consider_executed_take_profit_orders_in_spot():
+    """
+    test that stop-loss order considers executed take-profit orders (when
+    the take-profit order is submitted via multiple orders.
+    """
+    single_route_backtest(
+        'TestStopOrderShouldConsiderExecutedTakeProfitOrdersInSpot',
+        is_futures_trading=False
+    )
+
+
 # tests to write:
 # test if fee reduction works correctly in spot mode in both buy and sell orders
 # test that both market and limit orders' balance behavior on the exchange work in spot mode
