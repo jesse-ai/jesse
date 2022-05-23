@@ -15,7 +15,7 @@ LOW = 3
 
 HA = namedtuple('HA', ['open', 'close', 'high', 'low'])
 
-def ha(candles: np.ndarray, sequential: bool = False) -> HA:
+def heikin_ashi_candles(candles: np.ndarray, sequential: bool = False) -> HA:
     """
     Heikin Ashi Candles
     :param candles: np.ndarray

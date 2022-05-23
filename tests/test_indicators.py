@@ -692,10 +692,10 @@ def test_gauss():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-def test_ha():
+def test_heikin_ashi_candles():
     candles = np.array(test_candles_19)
-    open_single,close_single,high_single,low_single  = ta.ha(candles)
-    open_seq,close_seq,high_seq,low_seq = ta.ha(candles, sequential=True)
+    open_single,close_single,high_single,low_single  = ta.heikin_ashi_candles(candles)
+    open_seq,close_seq,high_seq,low_seq = ta.heikin_ashi_candles(candles, sequential=True)
     # SINGLES
     assert round(open_single, 2) == 197.68
     assert round(close_single, 2) == 149.8
