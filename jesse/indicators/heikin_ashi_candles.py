@@ -36,7 +36,7 @@ def ha_fast(source):
     LOW = 3
 
     # init array
-    ha_candles = np.empty_like(source)
+    ha_candles = np.full_like(source, np.nan)
     for i in range(1,ha_candles.shape[0]):
         # https://www.investopedia.com/trading/heikin-ashi-better-candlestick/
         #
