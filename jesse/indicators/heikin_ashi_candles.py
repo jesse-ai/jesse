@@ -7,12 +7,6 @@ try:
 except ImportError:
     njit = lambda a : a
 
-# index consts to facilitate reading the code
-OPEN = 0
-CLOSE = 1
-HIGH = 2
-LOW = 3
-
 HA = namedtuple('HA', ['open', 'close', 'high', 'low'])
 
 def heikin_ashi_candles(candles: np.ndarray, sequential: bool = False) -> HA:
@@ -35,8 +29,14 @@ def heikin_ashi_candles(candles: np.ndarray, sequential: bool = False) -> HA:
 @njit
 def ha_fast(source):
 
+    # index consts to facilitate reading the code
+    OPEN = 0
+    CLOSE = 1
+    HIGH = 2
+    LOW = 3
+
     # init array
-    ha_candles = np.full_like(source, np.nan)
+    ha_candles = np.empty_like(source)
     for i in range(1,ha_candles.shape[0]):
         # https://www.investopedia.com/trading/heikin-ashi-better-candlestick/
         #
