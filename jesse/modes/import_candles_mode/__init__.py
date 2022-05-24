@@ -84,7 +84,7 @@ def run(
     loop_length = int(candles_count / driver.count) + 1
 
     progressbar = Progressbar(loop_length)
-    for i in range(candles_count):
+    for i in range(loop_length):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
 
