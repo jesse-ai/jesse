@@ -245,3 +245,13 @@ def test_reduce_a_short_position():
     assert p.qty == -1
 
 
+def test_position_exchange_type_property():
+    single_route_backtest(
+        'TestPositionExchangeTypeProperty1',
+        is_futures_trading=True
+    )
+
+    single_route_backtest(
+        'TestPositionExchangeTypeProperty2',
+        is_futures_trading=False
+    )

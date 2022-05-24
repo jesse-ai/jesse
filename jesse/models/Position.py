@@ -114,13 +114,17 @@ class Position:
 
     @property
     def leverage(self) -> Union[int, np.float64]:
-        if self.exchange.type == 'spot':
+        if self.exchange_type == 'spot':
             return 1
 
         if self.strategy:
             return self.strategy.leverage
         else:
             return np.nan
+
+    @property
+    def exchange_type(self) -> str:
+        return self.exchange.type
 
     @property
     def entry_margin(self) -> float:
@@ -312,6 +316,7 @@ class Position:
 
         self.entry_price = price
         self.exit_price = None
+        jh.dump(self.type, 'self.qty = qty')
         self.qty = qty
         self.opened_at = jh.now_to_timestamp()
 
