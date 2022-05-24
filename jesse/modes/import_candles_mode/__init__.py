@@ -224,7 +224,8 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         days_count = math.ceil(days_count)
     candles_count = days_count * 1440
     start_date = jh.timestamp_to_arrow(start_timestamp).floor('day')
-    for _ in range(candles_count):
+    loop_length = int(candles_count / backup_driver.count) + 1
+    for _ in range(loop_length):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (backup_driver.count - 1) * 60000
 
