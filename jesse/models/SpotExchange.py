@@ -37,7 +37,7 @@ class SpotExchange(Exchange):
         if order.side == sides.BUY:
             # cannot buy if we don't have enough balance (of the settlement currency)
             quote_balance = self.assets[self.settlement_currency]
-            self.assets[self.settlement_currency] -= (abs(order.qty) * order.price) * (1 + self.fee_rate)
+            self.assets[self.settlement_currency] -= (abs(order.qty) * order.price)
             if self.assets[self.settlement_currency] < 0:
                 raise InsufficientBalance(
                     f"Not enough balance. Available balance at {self.name} for {self.settlement_currency} is {quote_balance} but you're trying to spend {abs(order.qty * order.price)}"
@@ -79,7 +79,9 @@ class SpotExchange(Exchange):
         # sell order
         else:
             # settlement currency's balance is increased by the amount of the order's qty after fees are deducted
-            self.assets[self.settlement_currency] += abs(order.qty) * order.price * (1 - self.fee_rate)
+            self.assets[self.settlement_currency] += (abs(order.qty) * order.price) * (1 - self.fee_rate)
+            # now reduce base asset's balance by the amount of the order's qty
+            self.assets[base_asset] -= abs(order.qty)
 
     def on_order_cancellation(self, order: Order) -> None:
         if jh.is_livetrading():
@@ -95,7 +97,7 @@ class SpotExchange(Exchange):
 
         # buy order
         if order.side == sides.BUY:
-            self.assets[self.settlement_currency] += abs(order.qty) * order.price * (1 + self.fee_rate)
+            self.assets[self.settlement_currency] += abs(order.qty) * order.price
         # sell order
         else:
             self.assets[base_asset] += abs(order.qty)
