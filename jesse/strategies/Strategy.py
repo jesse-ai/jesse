@@ -128,14 +128,12 @@ class Strategy(ABC):
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:
-        if order.is_partially_filled:
-            before_qty = self.position.qty - order.filled_qty
-        else:
-            before_qty = self.position.qty - order.qty
+        before_qty = self.position.previous_qty
         after_qty = self.position.qty
 
         # call the relevant strategy event handler:
         # if opening position
+        jh.dump('before_qty, after_qty', before_qty, after_qty)
         if before_qty == 0 and after_qty != 0:
             txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
             if jh.is_debuggable('position_opened'):
