@@ -43,12 +43,11 @@ def get_downtrend_candles():
     }
 
 
-def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=False):
+def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 10_000
 
-    if zero_fee:
-        config['env']['exchanges']['Sandbox']['fee'] = 0
+    config['env']['exchanges']['Sandbox']['fee'] = fee
 
     if is_futures_trading:
         # used only in futures trading
@@ -60,7 +59,7 @@ def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', zero_fee=
 
 
 def single_route_backtest(
-        strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up'
+        strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up', fee=0
 ):
     """
     used to simplify simple tests
@@ -68,7 +67,8 @@ def single_route_backtest(
     set_up(
         is_futures_trading=is_futures_trading,
         leverage=leverage,
-        leverage_mode=leverage_mode
+        leverage_mode=leverage_mode,
+        fee=fee
     )
 
     routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name}]
