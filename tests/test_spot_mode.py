@@ -109,3 +109,19 @@ def test_balance_and_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_
         is_futures_trading=False,
         fee=0.001
     )
+
+
+def test_cannot_set_stop_loss_order_in_go_long():
+    with pytest.raises(exceptions.InvalidStrategy):
+        single_route_backtest(
+            'TestCannotSetStopLossOrderInGoLong',
+            is_futures_trading=False
+        )
+
+
+def test_cannot_set_take_profit_order_in_go_long():
+    with pytest.raises(exceptions.InvalidStrategy):
+        single_route_backtest(
+            'TestCannotSetTakeProfitOrderInGoLong',
+            is_futures_trading=False
+        )

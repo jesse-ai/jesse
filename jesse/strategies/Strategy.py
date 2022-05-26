@@ -191,12 +191,24 @@ class Strategy(ABC):
         self._prepare_buy()
 
         if self.take_profit is not None:
+            if self.exchange_type == 'spot':
+                raise exceptions.InvalidStrategy(
+                    "Setting self.take_profit in the go_long() method is not supported for spot trading (it's only supported in futures trading). "
+                    "Try setting it in self.on_open_position() instead."
+                )
+
             # validate
             self._validate_take_profit()
 
             self._prepare_take_profit()
 
         if self.stop_loss is not None:
+            if self.exchange_type == 'spot':
+                raise exceptions.InvalidStrategy(
+                    "Setting self.stop_loss in the go_long() method is not supported for spot trading (it's only supported in futures trading). "
+                    "Try setting it in self.on_open_position() instead."
+                )
+
             # validate
             self._validate_stop_loss()
 
