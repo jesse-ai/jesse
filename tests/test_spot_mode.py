@@ -103,9 +103,9 @@ def test_position_open_increase_reduce_close_events_in_spot():
     )
 
 
-def test_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_sell_orders():
+def test_balance_and_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_sell_orders():
     single_route_backtest(
-        'TestFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders',
+        'TestBalanceAndFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders',
         is_futures_trading=False,
         fee=0.001
     )
@@ -113,4 +113,3 @@ def test_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_sell_orders(
 
 # tests to write:
 # test that both market and limit orders' balance behavior on the exchange work in spot mode
-# test that open, increase, reduce, and close events are handled correctly in spot mode

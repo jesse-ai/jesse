@@ -3,10 +3,30 @@ import jesse.helpers as jh
 from jesse import utils
 
 
-class TestFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders(Strategy):
+class TestBalanceAndFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders(Strategy):
     def before(self) -> None:
         if self.index == 0:
             assert self.capital == 10_000
+            assert self.position.exchange.assets['BTC'] == self.position.qty == 0
+
+        # one index after opening the position
+        elif self.price == 11:
+            assert self.capital == 9966
+            assert self.position.exchange.assets['BTC'] == self.position.qty == 0.999
+
+        # after increasing the position
+        elif self.price == 13:
+            assert self.capital == 9966
+            assert self.position.exchange.assets['BTC'] == self.position.qty == 2.997
+
+        # after reducing the position
+        elif self.price == 16:
+            assert self.capital == 9966 + 14.970015
+            assert self.position.exchange.assets['BTC'] == self.position.qty == 1.998
+
+        # after closing the position
+        elif self.price == 18:
+            assert self.capital == 9966 + 14.970015 + 33.932034
             assert self.position.exchange.assets['BTC'] == self.position.qty == 0
 
     def should_long(self):
