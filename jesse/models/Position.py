@@ -323,7 +323,6 @@ class Position:
         self._open()
 
     def _update_qty(self, qty: float, operation='set'):
-        # TODO: consider exchange type, fee reduction, etc
         self.previous_qty = self.qty
 
         if self.exchange_type == 'spot':
