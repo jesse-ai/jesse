@@ -109,7 +109,3 @@ def test_balance_and_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_
         is_futures_trading=False,
         fee=0.001
     )
-
-
-# tests to write:
-# test that both market and limit orders' balance behavior on the exchange work in spot mode
