@@ -66,6 +66,9 @@ class Position:
 
         :return: float
         """
+        if self.is_close:
+            return 0
+
         return abs(self.current_price * self.qty)
 
     @property

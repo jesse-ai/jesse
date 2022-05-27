@@ -1,5 +1,5 @@
 import jesse.helpers as jh
-from jesse.models.utils import store_daily_balance_into_db
+# from jesse.models.utils import store_daily_balance_into_db
 from jesse.services import logger
 from jesse.store import store
 
@@ -16,23 +16,23 @@ def save_daily_portfolio_balance() -> None:
     #             'asset': asset_key,
     #             'balance': asset_value,
     #         })
-    balances = []
-    for key, e in store.exchanges.storage.items():
+    total_balances = 0
+    # select the first item in store.exchanges.storage.items()
+    e, = store.exchanges.storage.values()
+    if e.type == 'futures':
         try:
-            balances.append(
-                e.assets[jh.app_currency()]
-            )
+            total_balances += e.assets[jh.app_currency()]
         except KeyError:
             raise ValueError('Invalid quote trading pair. Check your trading route\'s symbol')
 
-    # add open position values
     for key, pos in store.positions.storage.items():
-        if pos.is_open:
-            balances.append(pos.pnl)
+        if pos.exchange_type == 'futures' and pos.is_open:
+            total_balances += pos.pnl
+        elif pos.exchange_type == 'spot':
+            total_balances += pos.strategy.portfolio_value
 
-    total = sum(balances)
-    store.app.daily_balance.append(total)
+    store.app.daily_balance.append(total_balances)
 
     # TEMP: disable storing in database for now
     if not jh.is_livetrading():
-        logger.info(f'Saved daily portfolio balance: {round(total, 2)}')
+        logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')

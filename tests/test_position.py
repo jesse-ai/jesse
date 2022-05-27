@@ -208,6 +208,9 @@ def test_position_value():
     assert long_position.value == 100
     assert short_position.value == 100
 
+    closed_position_value = Position(exchanges.SANDBOX, 'BTC-USDT', {'qty': 0})
+    assert closed_position_value.value == 0
+
 
 def test_position_with_leverage():
     # with 1x leverage

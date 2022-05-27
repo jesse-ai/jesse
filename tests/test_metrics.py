@@ -89,3 +89,19 @@ def test_metrics_for_trades_without_fee():
 #         'average_losing_holding_period': np.nan,
 #         'average_winning_holding_period': 180.0
 #     }
+
+
+def test_daily_balance_stores_portfolio_value():
+    # futures
+    single_route_backtest(
+        'TestDailyBalanceStoresPortfolioValue',
+        is_futures_trading=True,
+        candles_count=10*1024
+    )
+
+    # spot
+    single_route_backtest(
+        'TestDailyBalanceStoresPortfolioValue',
+        is_futures_trading=False,
+        candles_count=10 * 1024
+    )
