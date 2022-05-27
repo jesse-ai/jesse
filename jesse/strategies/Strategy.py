@@ -983,6 +983,10 @@ class Strategy(ABC):
         # create numpy array from list
         arr = np.array(var, dtype=float)
 
+        # validate that the price (second column) is not less or equal to zero
+        if arr[:, 1].min() <= 0:
+            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
+
         if jh.is_live() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)

@@ -21,8 +21,4 @@ class Test27(Strategy):
         return False
 
     def on_route_canceled(self, strategy):
-        """
-
-        :param strategy:
-        """
         self.take_profit = 1, self.price

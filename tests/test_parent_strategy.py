@@ -795,3 +795,8 @@ def test_exchange_type_property():
 
 def test_on_cancel_method():
     single_route_backtest('TestOnCancelMethod')
+
+
+def test_order_price_cannot_be_greater_than_zero():
+    with pytest.raises(exceptions.InvalidStrategy):
+        single_route_backtest('TestOrderPriceCannotBeGreaterThanZero')
