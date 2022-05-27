@@ -146,6 +146,10 @@ class Order(Model):
     def position(self):
         return selectors.get_position(self.exchange, self.symbol)
 
+    @property
+    def value(self):
+        return abs(self.qty) * self.price
+
     def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return
