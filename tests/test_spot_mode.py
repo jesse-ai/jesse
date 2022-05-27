@@ -5,13 +5,11 @@ import jesse.helpers as jh
 
 
 def test_should_be_able_to_short_in_spot_mode():
-    # assert exception is raised
     with pytest.raises(exceptions.InvalidStrategy):
         single_route_backtest('TestShortInSpot', is_futures_trading=False)
 
 
 def test_should_raise_exception_if_trying_to_spend_more_than_available_balance_in_spot_mode():
-    # assert exception is raised
     with pytest.raises(exceptions.InsufficientBalance):
         single_route_backtest('TestCannotSpendMoreThanAvailableBalance', is_futures_trading=False)
 
