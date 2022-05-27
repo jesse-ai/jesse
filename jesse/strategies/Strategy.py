@@ -1113,8 +1113,21 @@ class Strategy(ABC):
     @property
     def portfolio_value(self) -> float:
         total_position_values = 0
-        for key, p in self.all_positions.items():
-            total_position_values += p.pnl
+
+        # in spot mode, self.capital does not include open order's value, so:
+        if self.is_spot_trading:
+            for o in self.entry_orders:
+                if o.is_active:
+                    total_position_values += o.value
+
+            for key, p in self.all_positions.items():
+                total_position_values += p.value
+
+        # in futures mode, it's simpler:
+        elif self.is_futures_trading:
+            for key, p in self.all_positions.items():
+                total_position_values += p.pnl
+
         return (total_position_values + self.capital) * self.leverage
 
     @property
@@ -1148,3 +1161,11 @@ class Strategy(ABC):
     @property
     def exchange_type(self):
         return selectors.get_exchange(self.exchange).type
+
+    @property
+    def is_spot_trading(self) -> bool:
+        return self.exchange_type == 'spot'
+
+    @property
+    def is_futures_trading(self) -> bool:
+        return self.exchange_type == 'futures'

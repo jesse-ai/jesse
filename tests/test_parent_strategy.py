@@ -744,6 +744,19 @@ def test_portfolio_value():
     # assertions done in the TestPortfolioValue
 
 
+def test_portfolio_value_includes_position_value_and_open_orders_value():
+    # in futures mode
+    single_route_backtest(
+        'TestPortfolioValueIncludesPositionValueAndOpenOrdersValue',
+        is_futures_trading=True,
+    )
+    # in the spot mode
+    single_route_backtest(
+        'TestPortfolioValueIncludesPositionValueAndOpenOrdersValue',
+        is_futures_trading=False,
+    )
+
+
 def test_multiple_entry_orders_update_entry_long():
     single_route_backtest('TestMultipleEntryOrdersUpdateEntryLongPositions')
 
