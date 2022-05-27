@@ -23,22 +23,22 @@ def get_btc_and_eth_candles():
     return candles
 
 
-def get_btc_candles():
+def get_btc_candles(candles_count=100):
     return {
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': candles_from_close_prices(range(1, 100)),
+            'candles': candles_from_close_prices(range(1, candles_count)),
         }
     }
 
 
-def get_downtrend_candles():
+def get_downtrend_candles(candles_count=100):
     return {
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': candles_from_close_prices(range(100, 10, -1)),
+            'candles': candles_from_close_prices(range(candles_count, 10, -1)),
         }
     }
 
@@ -59,7 +59,9 @@ def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
 
 
 def single_route_backtest(
-        strategy_name: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up', fee=0
+        strategy_name: str, is_futures_trading=True,
+        leverage=1, leverage_mode='cross', trend='up', fee=0,
+        candles_count=100,
 ):
     """
     used to simplify simple tests
@@ -74,9 +76,9 @@ def single_route_backtest(
     routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name}]
 
     if trend == 'up':
-        candles = get_btc_candles()
+        candles = get_btc_candles(candles_count)
     elif trend == 'down':
-        candles = get_downtrend_candles()
+        candles = get_downtrend_candles(candles_count)
     else:
         raise ValueError
 

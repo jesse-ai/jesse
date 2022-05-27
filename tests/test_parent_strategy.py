@@ -813,3 +813,7 @@ def test_on_cancel_method():
 def test_order_price_cannot_be_greater_than_zero():
     with pytest.raises(exceptions.InvalidStrategy):
         single_route_backtest('TestOrderPriceCannotBeGreaterThanZero')
+
+
+def test_daily_balances_property():
+    single_route_backtest('TestDailyBalancesProperty', candles_count=10*1440)

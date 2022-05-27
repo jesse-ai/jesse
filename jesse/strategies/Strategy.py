@@ -1169,3 +1169,7 @@ class Strategy(ABC):
     @property
     def is_futures_trading(self) -> bool:
         return self.exchange_type == 'futures'
+
+    @property
+    def daily_balances(self):
+        return store.app.daily_balance
