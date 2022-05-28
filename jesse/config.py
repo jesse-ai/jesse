@@ -1,4 +1,5 @@
 import jesse.helpers as jh
+from jesse.modes.utils import get_exchange_type
 
 
 config = {
@@ -190,10 +191,10 @@ def set_config(conf: dict) -> None:
         for key, e in conf['exchanges'].items():
             config['env']['exchanges'][e['name']] = {
                 'fee': float(e['fee']),
-                'type': e['type'],
+                'type': get_exchange_type(e['name']),
                 'balance': float(e['balance'])
             }
-            if e['type'] == 'futures':
+            if config['env']['exchanges'][e['name']]['type'] == 'futures':
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
                 config['env']['exchanges'][e['name']]['futures_leverage'] = int(e['futures_leverage'])
                 # accepted values are: 'cross' and 'isolated'

@@ -1,7 +1,7 @@
 import requests
-from jesse.config import config
 from jesse.services.env import ENV_VALUES
 from jesse.services import logger
+import jesse.helpers as jh
 
 
 def notify(msg: str) -> None:
@@ -24,7 +24,7 @@ def _telegram(msg: str) -> None:
     token = ENV_VALUES['GENERAL_TELEGRAM_BOT_TOKEN']
     chat_id: int = ENV_VALUES['GENERAL_TELEGRAM_BOT_CHAT_ID']
 
-    if not token or not config['env']['notifications']['enabled']:
+    if not token or not jh.get_config('env.notifications.enabled'):
         return
 
     try:
@@ -41,7 +41,7 @@ def _telegram_errors_bot(msg: str) -> None:
     token = ENV_VALUES['ERROR_TELEGRAM_BOT_TOKEN']
     chat_id: int = ENV_VALUES['ERROR_TELEGRAM_BOT_CHAT_ID']
 
-    if not token or not config['env']['notifications']['enabled']:
+    if not token or not jh.get_config('env.notifications.enabled'):
         return
 
     try:
@@ -57,7 +57,7 @@ def _telegram_errors_bot(msg: str) -> None:
 def _discord(msg: str) -> None:
     webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
 
-    if not webhook_address or not config['env']['notifications']['enabled']:
+    if not webhook_address or not jh.get_config('env.notifications.enabled'):
         return
 
     try:
@@ -71,7 +71,7 @@ def _discord(msg: str) -> None:
 def _discord_errors(msg: str) -> None:
     webhook_address = ENV_VALUES['ERROR_DISCORD_WEBHOOK']
 
-    if not webhook_address or not config['env']['notifications']['enabled']:
+    if not webhook_address or not jh.get_config('env.notifications.enabled'):
         return
 
     try:

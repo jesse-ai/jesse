@@ -2,6 +2,7 @@ import jesse.helpers as jh
 from jesse.config import config
 from jesse.exceptions import InvalidConfig
 from jesse.models import SpotExchange, FuturesExchange
+from jesse.modes.utils import get_exchange_type
 
 
 class ExchangesState:
@@ -11,7 +12,7 @@ class ExchangesState:
         for name in config['app']['considering_exchanges']:
             starting_assets = config['env']['exchanges'][name]['balance']
             fee = config['env']['exchanges'][name]['fee']
-            exchange_type = config['env']['exchanges'][name]['type']
+            exchange_type = get_exchange_type(name)
 
             if exchange_type == 'spot':
                 self.storage[name] = SpotExchange(name, starting_assets, fee)

@@ -1,10 +1,11 @@
 import jesse.helpers as jh
 # from jesse.models.utils import store_daily_balance_into_db
 from jesse.services import logger
-from jesse.store import store
 
 
 def save_daily_portfolio_balance() -> None:
+    from jesse.store import store
+
     # # store daily_balance of assets into database
     # if jh.is_livetrading():
     #     for asset_key, asset_value in e.assets.items():
@@ -36,3 +37,19 @@ def save_daily_portfolio_balance() -> None:
     # TEMP: disable storing in database for now
     if not jh.is_livetrading():
         logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')
+
+
+def get_exchange_type(exchange_name: str) -> str:
+    """
+    a helper for getting the exchange_type for the running session
+    """
+    # in live trading, exchange type is not configurable, hence we hardcode it
+    if jh.is_live():
+        from jesse_live.info import SUPPORTED_EXCHANGES
+        # SUPPORTED_EXCHANGES is a list. Search through it and find the exchange name
+        for exchange in SUPPORTED_EXCHANGES:
+            if exchange['name'] == exchange_name:
+                return exchange['type']
+
+    # for other trading modes, we can get the exchange type from the config file
+    return jh.get_config(f'env.exchanges.{exchange_name}.type')
