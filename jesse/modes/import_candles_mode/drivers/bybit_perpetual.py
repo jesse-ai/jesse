@@ -53,7 +53,12 @@ class BybitPerpetual(CandleExchange):
 
         self.validate_response(response)
 
-        data = response.json()['result']
+        data = response.json()
+
+        if data['ret_code'] != 0:
+            raise exceptions.ExchangeError(data['ret_msg'])
+
+        data = data['result']
 
         return [{
             'id': jh.generate_unique_id(),

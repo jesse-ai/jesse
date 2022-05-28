@@ -3,6 +3,7 @@
 [![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
+![coverage](https://codecov.io/gh/jesse-ai/jesse/graph/badge.svg)
 
 ---
 

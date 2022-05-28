@@ -76,3 +76,11 @@ class InsufficientBalance(Exception):
 
 class Termination(Exception):
     pass
+
+
+class InvalidExchangeApiKeys(Exception):
+    pass
+
+
+class ExchangeError(Exception):
+    pass
