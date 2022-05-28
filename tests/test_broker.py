@@ -101,59 +101,6 @@ def test_cancel_all_orders():
     assert o5.is_canceled is False
 
 
-# TODO: redo using strategies
-# def test_limit_orders():
-#     set_up_with_fee(is_futures_trading=True)
-#
-#     assert exchange.assets['USDT'] == 1000
-#     assert exchange.available_assets['USDT'] == 1000
-#     order = broker.buy_at(1, 40)
-#     assert order.price == 40
-#     assert order.qty == 1
-#     assert order.type == 'LIMIT'
-#     assert exchange.available_assets['USDT'] == 959.92
-#     assert exchange.assets['USDT'] == 1000
-#     broker.cancel_order(order.id)
-#     assert exchange.assets['USDT'] == 1000
-#     assert exchange.available_assets['USDT'] == 1000
-#
-#     # buy again, this time execute
-#     order = broker.buy_at(1, 40)
-#     assert exchange.available_assets['USDT'] == 959.92
-#     order.execute()
-#     assert exchange.assets['BTC'] == 1
-#     assert exchange.available_assets['BTC'] == 1
-#
-#     assert exchange.assets['USDT'] == 959.92
-#     order = broker.sell_at(1, 60)
-#     assert order.price == 60
-#     assert order.qty == -1
-#     assert order.type == 'LIMIT'
-#     assert exchange.assets['USDT'] == 959.92
-#     assert exchange.available_assets['BTC'] == 0
-#     assert exchange.assets['BTC'] == 1
-#     broker.cancel_order(order.id)
-#     assert exchange.assets['BTC'] == 1
-#     assert exchange.assets['USDT'] == 959.92
-#     assert exchange.available_assets['USDT'] == 959.92
-#
-#     order = broker.sell_at(1, 60)
-#     order.execute()
-#     assert exchange.assets['BTC'] == 0
-#     assert exchange.available_assets['BTC'] == 0
-#     assert exchange.assets['USDT'] == 1019.8
-#     assert exchange.available_assets['USDT'] == 1019.8
-#
-#     # validate that when qty for base asset is 0 (spot market)
-#     with pytest.raises(NegativeBalance):
-#         broker.sell_at(1, 60)
-#
-#     # validation: qty cannot be 0
-#     with pytest.raises(InvalidStrategy):
-#         broker.sell_at(0, 100)
-#         broker.buy_at(0, 100)
-
-
 def test_opening_and_closing_position_with_stop():
     set_up_without_fee(is_futures_trading=True)
 
@@ -196,39 +143,6 @@ def test_opening_and_closing_position_with_stop():
     assert position.is_close is True
     assert position.entry_price is None
     assert position.exit_price == 40
-
-
-# # TODO: redo using strategies
-# def test_start_profit():
-#     set_up_without_fee(is_futures_trading=True)
-#
-#     assert position.current_price == 50
-#     assert position.is_close is True
-#     assert exchange.assets['USDT'] == 1000
-#     assert exchange.available_assets['USDT'] == 1000
-#
-#     order = broker.start_profit_at('buy', 1, 60)
-#     assert exchange.available_assets['USDT'] == 940
-#     assert exchange.assets['USDT'] == 1000
-#     assert order.type == order_types.STOP
-#     assert order.qty == 1
-#
-#     order.cancel()
-#     assert exchange.assets['USDT'] == 1000
-#     assert exchange.available_assets['USDT'] == 1000
-#
-#     order = broker.start_profit_at('buy', 1, 60)
-#     assert exchange.available_assets['USDT'] == 940
-#     assert exchange.assets['USDT'] == 1000
-#     order.execute()
-#     assert exchange.assets['USDT'] == 940
-#     assert exchange.available_assets['USDT'] == 940
-#     assert position.qty == 1
-#     assert position.entry_price == 60
-#
-#     # validation: qty cannot be 0
-#     with pytest.raises(InvalidStrategy):
-#         broker.start_profit_at('buy', 0, 100)
 
 
 def test_stop_loss():
