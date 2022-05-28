@@ -414,7 +414,10 @@ class Position:
 
         self.entry_price = data['entry_price']
         self._liquidation_price = data['liquidation_price']
-        self.qty = data['qty']
+        # if the new qty (data['qty']) is different than the current (self.qty) then update it:
+        if self.qty != data['qty']:
+            self.previous_qty = self.qty
+            self.qty = data['qty']
 
         # if opening position
         if before_qty == 0 and after_qty != 0:
