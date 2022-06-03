@@ -13,12 +13,11 @@ class SpotExchange(Exchange):
     def charge_fee(self, amount: float) -> None:
         pass
 
-    # current holding assets
-    assets = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-
     def __init__(self, name: str, starting_assets: list, fee_rate: float):
+        # current holding assets
+        self.assets = {}
+        # current available assets (dynamically changes based on active orders)
+        self.available_assets = {}
         super().__init__(name, starting_assets, fee_rate, 'spot')
 
         from jesse.routes import router

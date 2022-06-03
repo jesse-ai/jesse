@@ -11,24 +11,6 @@ from .Exchange import Exchange
 
 
 class FuturesExchange(Exchange):
-    # # used for live-trading only:
-    # in futures trading, margin is only with one asset, so:
-    _available_margin = 0
-    # in futures trading, wallet is only with one asset, so:
-    _wallet_balance = 0
-    # so is started_balance
-    _started_balance = 0
-
-    # current holding assets
-    assets = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-    # used to estimating metrics
-    starting_assets = {}
-
-    buy_orders = {}
-    sell_orders = {}
-
     def __init__(
             self,
             name: str,
@@ -38,6 +20,23 @@ class FuturesExchange(Exchange):
             futures_leverage_mode: str,
             futures_leverage: int
     ):
+        # # used for live-trading only:
+        # in futures trading, margin is only with one asset, so:
+        self._available_margin = 0
+        # in futures trading, wallet is only with one asset, so:
+        self._wallet_balance = 0
+        # so is started_balance
+        self._started_balance = 0
+
+        # current holding assets
+        self.assets = {}
+        # current available assets (dynamically changes based on active orders)
+        self.available_assets = {}
+        # used to estimating metrics
+        self.starting_assets = {}
+
+        self.buy_orders = {}
+        self.sell_orders = {}
         super().__init__(name, starting_assets, fee_rate, 'futures')
 
         self.futures_leverage_mode = futures_leverage_mode
