@@ -43,7 +43,7 @@ class Order(Model):
         from jesse.services.db import database
 
         database = database.db
-        indexes = ((('exchange', 'symbol'), False),)
+        indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)

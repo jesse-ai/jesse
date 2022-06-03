@@ -94,9 +94,9 @@ def run(
 
         # prevent duplicates calls to boost performance
         count = Candle.select().where(
-            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp),
+            Candle.exchange == exchange,
             Candle.symbol == symbol,
-            Candle.exchange == exchange
+            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp)
         ).count()
         already_exists = count == driver.count
 
@@ -195,9 +195,10 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
         Candle.volume
     ).where(
-        Candle.timestamp.between(start_timestamp, end_timestamp),
         Candle.exchange == backup_driver.name,
-        Candle.symbol == symbol).order_by(Candle.timestamp.asc()).tuples()
+        Candle.symbol == symbol,
+        Candle.timestamp.between(start_timestamp, end_timestamp)
+    ).order_by(Candle.timestamp.asc()).tuples()
     already_exists = len(backup_candles) == (end_timestamp - start_timestamp) / 60_000 + 1
     if already_exists:
         # loop through them and set new ID and exchange
@@ -234,9 +235,9 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
 
         # prevent duplicates
         count = Candle.select().where(
-            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp),
+            Candle.exchange == backup_driver.name,
             Candle.symbol == symbol,
-            Candle.exchange == backup_driver.name
+            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp)
         ).count()
         already_exists = count == backup_driver.count
 
@@ -274,9 +275,10 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
         Candle.volume
     ).where(
-        Candle.timestamp.between(start_timestamp, end_timestamp),
         Candle.exchange == backup_driver.name,
-        Candle.symbol == symbol).order_by(Candle.timestamp.asc()).tuples()
+        Candle.symbol == symbol,
+        Candle.timestamp.between(start_timestamp, end_timestamp)
+    ).order_by(Candle.timestamp.asc()).tuples()
     already_exists = len(backup_candles) == (end_timestamp - start_timestamp) / 60_000 + 1
     if already_exists:
         # loop through them and set new ID and exchange

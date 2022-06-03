@@ -2,7 +2,6 @@ import time
 from typing import Dict, Union, List
 
 import arrow
-import click
 import numpy as np
 import pandas as pd
 
@@ -196,9 +195,9 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
                 Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
                 Candle.volume
             ).where(
-                Candle.timestamp.between(start_date, finish_date),
                 Candle.exchange == exchange,
-                Candle.symbol == symbol
+                Candle.symbol == symbol,
+                Candle.timestamp.between(start_date, finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000

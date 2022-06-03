@@ -17,6 +17,9 @@ class Log(peewee.Model):
     class Meta:
         from jesse.services.db import database
         database = database.db
+        indexes = (
+            (('session_id', 'type', 'timestamp'), True),
+        )
 
     def __init__(self, attributes=None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
