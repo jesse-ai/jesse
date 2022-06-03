@@ -18,7 +18,7 @@ class Log(peewee.Model):
         from jesse.services.db import database
         database = database.db
         indexes = (
-            (('session_id', 'type', 'timestamp'), True),
+            (('session_id', 'type', 'timestamp'), False),
         )
 
     def __init__(self, attributes=None, **kwargs) -> None:

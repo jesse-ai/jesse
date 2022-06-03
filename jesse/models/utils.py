@@ -46,10 +46,10 @@ def store_log_into_db(log: dict, log_type: str) -> None:
 
     d = {
         'id': log['id'],
-        'timestamp': log['timestamp'],
-        'message': log['message'],
         'session_id': store.app.session_id,
-        'type': log_type
+        'type': log_type,
+        'timestamp': log['timestamp'],
+        'message': log['message']
     }
 
     Log.insert(**d).execute()
