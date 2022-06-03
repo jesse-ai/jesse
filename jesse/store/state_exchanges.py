@@ -24,4 +24,5 @@ class ExchangesState:
                 )
             else:
                 raise InvalidConfig(
-                    'Value for exchange type in your config file in not valid. Supported values are "spot" and "futures"')
+                    f'Value for exchange type in your config file in not valid. Supported values are "spot" and "futures". Your value is "{exchange_type}"'
+                )

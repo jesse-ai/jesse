@@ -9,7 +9,7 @@ from jesse import exceptions
 from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_types
 from jesse.factories import range_candles, candles_from_close_prices
-from jesse.models import CompletedTrade
+from jesse.models import ClosedTrade
 from jesse.models import Order
 from jesse.modes import backtest_mode
 from jesse.routes import router
@@ -30,13 +30,13 @@ def test_average_take_profit_and_average_stop_loss():
 
     assert len(store.completed_trades.trades) == 2
 
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 1
     assert t1.exit_price == 3.5
     assert t1.qty == 2
 
-    t2: CompletedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.completed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 11
     assert t2.exit_price == 13.5
@@ -121,7 +121,7 @@ def test_increasing_position_size_after_opening():
     single_route_backtest('Test16')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 10) / 2
     assert t1.exit_price == 15
@@ -149,7 +149,7 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
 
     assert len(store.completed_trades.trades) == 2
 
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.35
@@ -159,7 +159,7 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t1.closed_at == 1547202840000 + 60000
     assert t1.orders[0].type == order_types.MARKET
 
-    t2: CompletedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.completed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 126.58
@@ -189,7 +189,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
     assert len(store.completed_trades.trades) == 2
 
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.33
     assert t1.exit_price == 128.35
@@ -199,7 +199,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t1.closed_at == 1547202840000 + 60000
     assert t1.orders[0].type == order_types.STOP
 
-    t2: CompletedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.completed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.05
     assert t2.exit_price == 126.58
@@ -214,8 +214,8 @@ def test_liquidate():
     single_route_backtest('Test31')
 
     assert len(store.completed_trades.trades) == 2
-    t1: CompletedTrade = store.completed_trades.trades[0]
-    t2: CompletedTrade = store.completed_trades.trades[1]
+    t1: ClosedTrade = store.completed_trades.trades[0]
+    t2: ClosedTrade = store.completed_trades.trades[1]
 
     assert t1.type == 'long'
     assert t1.entry_price == 1
@@ -248,7 +248,7 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (4 * 2 + 6) / 3
@@ -260,7 +260,7 @@ def test_modifying_take_profit_after_opening_position():
     single_route_backtest('Test12')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 16
@@ -272,7 +272,7 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
     single_route_backtest('Test13')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (16 * 2 + 11) / 3
@@ -296,7 +296,7 @@ def test_on_reduced_position():
     single_route_backtest('Test18')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 13
@@ -408,7 +408,7 @@ def test_opening_position_in_multiple_points():
     single_route_backtest('Test15')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 9 + 11) / 3
     assert t1.exit_price == 15
@@ -420,7 +420,7 @@ def test_reducing_position_size_after_opening():
     single_route_backtest('Test17')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 10) / 2
@@ -472,7 +472,7 @@ def test_should_buy_and_execute_buy():
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
         assert s.trade is None
-        trade: CompletedTrade = store.completed_trades.trades[0]
+        trade: ClosedTrade = store.completed_trades.trades[0]
         assert trade.type == 'long'
         # must include executed orders, in this case it's entry and take_profit
         assert len(trade.orders) == 2
@@ -524,7 +524,7 @@ def test_stop_loss_at_multiple_points():
     single_route_backtest('Test11')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'short'
     assert t1.entry_price == 3
     assert t1.exit_price == (6 + 5 + 4) / 3
@@ -555,7 +555,7 @@ def test_taking_profit_at_multiple_points():
     single_route_backtest('Test10')
 
     assert len(store.completed_trades.trades) == 1
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 13 + 11) / 3
@@ -609,7 +609,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     # run backtest (dates are fake just to pass)
     backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    t1: CompletedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.98
@@ -619,7 +619,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t1.closed_at == 1547201700000 + 60000
     assert t1.orders[0].type == order_types.MARKET
 
-    t2: CompletedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.completed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 127.66

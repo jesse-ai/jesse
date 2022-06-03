@@ -9,7 +9,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via
-from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -49,7 +49,7 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self.trade: CompletedTrade = None
+        self.trade: ClosedTrade = None
         self.trades_count = 0
 
         self._is_executing = False
@@ -1124,7 +1124,7 @@ class Strategy(ABC):
         return (total_position_values + self.capital) * self.leverage
 
     @property
-    def trades(self) -> List[CompletedTrade]:
+    def trades(self) -> List[ClosedTrade]:
         """
         Returns all the completed trades for this strategy.
         """

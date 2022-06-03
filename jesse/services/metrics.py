@@ -6,7 +6,7 @@ import pandas as pd
 from quantstats import stats
 
 import jesse.helpers as jh
-from jesse.models import CompletedTrade
+from jesse.models import ClosedTrade
 from jesse.store import store
 
 
@@ -38,7 +38,7 @@ def routes(routes_arr: list) -> list:
         } for r in routes_arr]
 
 
-def trades(trades_list: List[CompletedTrade], daily_balance: list, final: bool = True) -> dict:
+def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
     starting_balance = 0
     current_balance = 0
 

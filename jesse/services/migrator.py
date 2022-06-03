@@ -28,8 +28,8 @@ def run():
     _trade(migrator)
 
     # create initial tables
-    from jesse.models import Candle, CompletedTrade, Log, Order, Option
-    database.db.create_tables([Candle, CompletedTrade, Log, Order])
+    from jesse.models import Candle, ClosedTrade, Log, Order, Option
+    database.db.create_tables([Candle, ClosedTrade, Log, Order])
 
     database.close_connection()
 

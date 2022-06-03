@@ -1,4 +1,4 @@
-from jesse.models import CompletedTrade
+from jesse.models import ClosedTrade
 from jesse.store import store
 from jesse.testing_utils import single_route_backtest
 import numpy as np
@@ -7,19 +7,19 @@ import numpy as np
 def test_completed_trade_in_a_simple_strategy():
     assert store.completed_trades.trades == []
 
-    single_route_backtest('CanAddCompletedTradeToStore')
+    single_route_backtest('CanAddClosedTradeToStore')
 
     assert len(store.completed_trades.trades) == 1
     assert store.completed_trades.count == 1
 
-    t: CompletedTrade = store.completed_trades.trades[0]
+    t: ClosedTrade = store.completed_trades.trades[0]
 
     assert t.entry_price == 10
     assert t.exit_price == 15
     assert t.exchange == 'Sandbox'
     assert t.symbol == 'BTC-USDT'
     assert t.type == 'long'
-    assert t.strategy_name == 'CanAddCompletedTradeToStore'
+    assert t.strategy_name == 'CanAddClosedTradeToStore'
     assert t.qty == 1
     assert t.size == 1*10
     assert t.fee == 0
@@ -33,12 +33,12 @@ def test_completed_trade_in_a_strategy_with_two_trades():
 
 
 def test_completed_trade_after_exiting_the_trade():
-    single_route_backtest('TestCompletedTradeAfterExitingTrade', leverage=2)
+    single_route_backtest('TestClosedTradeAfterExitingTrade', leverage=2)
 
 
 def test_trade_qty_entry_price_exit_price_size_properties():
     # long trade
-    t1 = CompletedTrade({
+    t1 = ClosedTrade({
         'type': 'long',
     })
     # add buy orders
@@ -54,7 +54,7 @@ def test_trade_qty_entry_price_exit_price_size_properties():
     assert t1.size == 20*150
 
     # short trade
-    t2 = CompletedTrade({
+    t2 = ClosedTrade({
         'type': 'short',
     })
     # add sell orders

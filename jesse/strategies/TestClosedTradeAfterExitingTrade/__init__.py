@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.strategies import Strategy
 
 
-class TestCompletedTradeAfterExitingTrade(Strategy):
+class TestClosedTradeAfterExitingTrade(Strategy):
     def should_long(self) -> bool:
         return self.price == 10
 
@@ -26,7 +26,7 @@ class TestCompletedTradeAfterExitingTrade(Strategy):
         trade = self.trades[0]
 
         assert jh.is_valid_uuid(trade.id) is True
-        assert trade.strategy_name == 'TestCompletedTradeAfterExitingTrade'
+        assert trade.strategy_name == 'TestClosedTradeAfterExitingTrade'
         assert trade.symbol == 'BTC-USDT'
         assert trade.exchange == 'Sandbox'
         assert trade.type == 'long'

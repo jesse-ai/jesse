@@ -82,7 +82,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None
 
 def store_completed_trade_into_db(completed_trade) -> None:
     return
-    from jesse.models.CompletedTrade import CompletedTrade
+    from jesse.models.ClosedTrade import ClosedTrade
 
     d = {
         'id': completed_trade.id,
@@ -100,7 +100,7 @@ def store_completed_trade_into_db(completed_trade) -> None:
     }
 
     def async_save() -> None:
-        CompletedTrade.insert(**d).execute()
+        ClosedTrade.insert(**d).execute()
         if jh.is_debugging():
             logger.info(
                 f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')

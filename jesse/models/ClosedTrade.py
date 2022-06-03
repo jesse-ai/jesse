@@ -12,7 +12,7 @@ if database.is_closed():
     database.open_connection()
 
 
-class CompletedTrade(peewee.Model):
+class ClosedTrade(peewee.Model):
     """A trade is made when a position is opened AND closed."""
 
     id = peewee.UUIDField(primary_key=True)
@@ -172,4 +172,4 @@ class CompletedTrade(peewee.Model):
 
 # if database is open, create the table
 if database.is_open():
-    CompletedTrade.create_table()
+    ClosedTrade.create_table()

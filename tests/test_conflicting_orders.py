@@ -2,7 +2,7 @@ import jesse.helpers as jh
 from jesse.config import reset_config
 from jesse.enums import exchanges
 from jesse.factories import candles_from_close_prices
-from jesse.models import CompletedTrade
+from jesse.models import ClosedTrade
 from jesse.routes import router
 from jesse.store import store
 from jesse.config import config
@@ -35,7 +35,7 @@ def test_can_handle_multiple_entry_orders_too_close_to_each_other():
 
     assert len(store.completed_trades.trades) == 1
 
-    t: CompletedTrade = store.completed_trades.trades[0]
+    t: ClosedTrade = store.completed_trades.trades[0]
 
     assert t.type == 'long'
     assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4
@@ -49,7 +49,7 @@ def test_conflicting_orders():
 
     assert len(store.completed_trades.trades) == 1
 
-    t: CompletedTrade = store.completed_trades.trades[0]
+    t: ClosedTrade = store.completed_trades.trades[0]
 
     assert t.type == 'long'
     assert t.entry_price == (1.1 + 1.11) / 2
@@ -61,7 +61,7 @@ def test_conflicting_orders_2():
 
     assert len(store.completed_trades.trades) == 1
 
-    t: CompletedTrade = store.completed_trades.trades[0]
+    t: ClosedTrade = store.completed_trades.trades[0]
 
     assert t.entry_price == 2.5
     assert t.exit_price == 2.6
@@ -76,7 +76,7 @@ def test_conflicting_orders_2():
 #
 #     assert len(store.completed_trades.trades) == 1
 #
-#     t: CompletedTrade = store.completed_trades.trades[0]
+#     t: ClosedTrade = store.completed_trades.trades[0]
 #
 #     assert t.type == 'long'
 #     assert t.entry_price == (1.1 + 1.2 + 1.3 + 1.4) / 4

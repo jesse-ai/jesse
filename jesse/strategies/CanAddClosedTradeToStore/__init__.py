@@ -2,7 +2,7 @@ from jesse.strategies import Strategy
 import jesse.helpers as jh
 
 
-class CanAddCompletedTradeToStore(Strategy):
+class CanAddClosedTradeToStore(Strategy):
     def should_long(self):
         return self.price == 10
 

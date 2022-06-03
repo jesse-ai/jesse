@@ -4,7 +4,7 @@ from jesse.exceptions import InvalidRoutes
 from jesse.routes import router
 from .state_app import AppState
 from .state_candles import CandlesState
-from .state_completed_trades import CompletedTrades
+from .state_completed_trades import ClosedTrades
 from .state_exchanges import ExchangesState
 from .state_logs import LogsState
 from .state_orderbook import OrderbookState
@@ -83,7 +83,7 @@ def install_routes() -> None:
 class StoreClass:
     app = AppState()
     orders = OrdersState()
-    completed_trades = CompletedTrades()
+    completed_trades = ClosedTrades()
     logs = LogsState()
     exchanges = ExchangesState()
     candles = CandlesState()
@@ -107,7 +107,7 @@ class StoreClass:
 
         self.app = AppState()
         self.orders = OrdersState()
-        self.completed_trades = CompletedTrades()
+        self.completed_trades = ClosedTrades()
         self.logs = LogsState()
         self.exchanges = ExchangesState()
         self.candles = CandlesState()
