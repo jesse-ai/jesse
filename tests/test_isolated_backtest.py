@@ -83,7 +83,7 @@ def test_can_pass_strategy_as_class():
     # assert result['logs'] is None
 
 
-def test_warm_up_candles_more_than_warmup_candles_config_raises_error():
+def test_warm_up_candles_more_than_warmup_candles_config_raises_error_in_isolated_backtest():
     class TestStrategy(Strategy):
         def should_long(self):
             return False
@@ -124,7 +124,7 @@ def test_warm_up_candles_more_than_warmup_candles_config_raises_error():
         research.backtest(config, routes, extra_routes, candles)
 
 
-def test_store_state_app_is_reset_properly():
+def test_store_state_app_is_reset_properly_in_isolated_backtest():
     class TestStateApp(Strategy):
         def before(self) -> None:
             if self.index == 0:
