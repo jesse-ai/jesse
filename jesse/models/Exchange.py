@@ -4,22 +4,18 @@ from jesse.models import Order
 
 
 class Exchange(ABC):
-    name = ''
-    fee_rate = None
-
-    # current holding assets
-    assets = {}
-    # used for calculating available balance in futures mode:
-    temp_reduced_amount = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-    # used for calculating final performance metrics
-    starting_assets = {}
-
-    # some exchanges might require even further info
-    vars = {}
-
     def __init__(self, name: str, starting_assets: list, fee_rate: float, exchange_type: str):
+        # current holding assets
+        self.assets = {}
+        # used for calculating available balance in futures mode:
+        self.temp_reduced_amount = {}
+        # current available assets (dynamically changes based on active orders)
+        self.available_assets = {}
+        # used for calculating final performance metrics
+        self.starting_assets = {}
+
+        # some exchanges might require even further info
+        self.vars = {}
         self.name = name
         self.type = exchange_type.lower()
 
