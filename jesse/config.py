@@ -189,9 +189,13 @@ def set_config(conf: dict) -> None:
         config['env']['logging'] = conf['logging']
         # exchanges
         for key, e in conf['exchanges'].items():
+            if not jh.is_live() and e['type']:
+                exchange_type = e['type']
+            else:
+                exchange_type = get_exchange_type(e['name'])
             config['env']['exchanges'][e['name']] = {
                 'fee': float(e['fee']),
-                'type': get_exchange_type(e['name']),
+                'type': exchange_type,
                 'balance': float(e['balance'])
             }
             if config['env']['exchanges'][e['name']]['type'] == 'futures':
