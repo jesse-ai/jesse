@@ -1,5 +1,6 @@
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
+from jesse.enums import exchanges
 
 
 config = {
@@ -23,7 +24,7 @@ config = {
         },
 
         'exchanges': {
-            'Sandbox': {
+            exchanges.SANDBOX: {
                 'fee': 0,
                 'type': 'futures',
                 # accepted values are: 'cross' and 'isolated'
@@ -33,7 +34,7 @@ config = {
                 'balance': 10_000,
             },
 
-            'Bybit Perpetual': {
+            exchanges.BYBIT_USDT_PERPETUAL: {
                 'fee': 0.00075,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -41,7 +42,7 @@ config = {
                 'balance': 10_000
             },
 
-            'Testnet Bybit Perpetual': {
+            exchanges.BYBIT_USDT_PERPETUAL_TESTNET: {
                 'fee': 0.00075,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -50,7 +51,7 @@ config = {
             },
 
             # https://ftx.com/markets/future
-            'FTX Futures': {
+            exchanges.FTX_PERPETUAL_FUTURES: {
                 'fee': 0.0006,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -59,7 +60,7 @@ config = {
             },
 
             # https://ftx.com/markets/spot
-            'FTX Spot': {
+            exchanges.FTX_SPOT: {
                 'fee': 0.0007,
                 'type': 'spot',
                 'futures_leverage_mode': 'cross',
@@ -68,7 +69,7 @@ config = {
             },
 
             # https://www.bitfinex.com
-            'Bitfinex': {
+            exchanges.BITFINEX_SPOT: {
                 'fee': 0.002,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -77,7 +78,7 @@ config = {
             },
 
             # https://www.binance.com
-            'Binance': {
+            exchanges.BINANCE_SPOT: {
                 'fee': 0.001,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -86,7 +87,7 @@ config = {
             },
 
             # https://www.binance.com
-            'Binance Futures': {
+            exchanges.BINANCE_PERPETUAL_FUTURES: {
                 'fee': 0.0004,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -95,7 +96,7 @@ config = {
             },
 
             # https://testnet.binancefuture.com
-            'Testnet Binance Futures': {
+            exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: {
                 'fee': 0.0004,
                 'type': 'futures',
                 'futures_leverage_mode': 'cross',
@@ -104,7 +105,7 @@ config = {
             },
 
             # https://pro.coinbase.com
-            'Coinbase': {
+            exchanges.COINBASE_SPOT: {
                 'fee': 0.005,
                 'type': 'futures',
                 'balance': 10_000

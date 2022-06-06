@@ -32,10 +32,10 @@ def backtest(
     }
 
     Example `route`:
-    [{'exchange': 'Bybit Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
+    [{'exchange': 'Bybit USDT Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
 
     Example `extra_route`:
-    [{'exchange': 'Bybit Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
+    [{'exchange': 'Bybit USDT Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
 
     Example `candles`:
     {

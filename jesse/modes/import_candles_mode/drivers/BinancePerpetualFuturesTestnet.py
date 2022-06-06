@@ -2,18 +2,23 @@ import requests
 
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
+from typing import Union
+from jesse.enums import exchanges
 
 
-class Binance(CandleExchange):
+class BinancePerpetualFuturesTestnet(CandleExchange):
     def __init__(self) -> None:
+        # import here instead of the top of the file to prevent possible the circular imports issue
+        from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
+
         super().__init__(
-            name='Binance',
+            name=exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
             count=1000,
             rate_limit_per_second=2,
-            backup_exchange_class=None
+            backup_exchange_class=BinanceSpot
         )
 
-        self.endpoint = 'https://www.binance.com/api/v1/klines'
+        self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -35,7 +40,7 @@ class Binance(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol: str, start_timestamp: int) -> list:
+    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
         """
         note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
         note2: like Bitfinex, start_time includes the candle and so does the end_time.
@@ -54,10 +59,9 @@ class Binance(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        data = response.json()
-
         self.validate_response(response)
 
+        data = response.json()
         return [{
             'id': jh.generate_unique_id(),
             'symbol': symbol,

@@ -11,7 +11,7 @@ def test_app_currency():
     from jesse.routes import router
     from jesse.enums import exchanges, timeframes
     router.initiate(
-        [{'exchange': exchanges.BITFINEX, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
+        [{'exchange': exchanges.BITFINEX_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'
 
 

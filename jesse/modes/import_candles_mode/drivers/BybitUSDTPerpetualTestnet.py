@@ -3,18 +3,20 @@ import requests
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
+from jesse.enums import exchanges
+from jesse import exceptions
 
 
-class TestnetBybitPerpetual(CandleExchange):
+class BybitUSDTPerpetualTestnet(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.binance import Binance
+        from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
 
         super().__init__(
-            name='Testnet Bybit Perpetual',
+            name=exchanges.BYBIT_USDT_PERPETUAL_TESTNET,
             count=200,
             rate_limit_per_second=4,
-            backup_exchange_class=Binance
+            backup_exchange_class=BinanceSpot
         )
 
         self.endpoint = 'https://api-testnet.bybit.com/public/linear/kline'

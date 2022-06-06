@@ -3,50 +3,30 @@ import requests
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
+from jesse.enums import exchanges
 
 
-class BybitPerpetual(CandleExchange):
+class BinancePerpetualFutures(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.binance import Binance
+        from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
 
         super().__init__(
-            name='Bybit Perpetual',
-            count=200,
-            rate_limit_per_second=4,
-            backup_exchange_class=Binance
+            name=exchanges.BINANCE_PERPETUAL_FUTURES,
+            count=1000,
+            rate_limit_per_second=2,
+            backup_exchange_class=BinanceSpot
         )
 
-        self.endpoint = 'https://api.bybit.com/public/linear/kline'
+        self.endpoint = 'https://fapi.binance.com/fapi/v1/klines'
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': 'W',
+            'interval': '1d',
             'symbol': dashless_symbol,
-            'limit': 200,
-            'from': 1514811660
-        }
-
-        response = requests.get(self.endpoint, params=payload)
-
-        self.validate_response(response)
-
-        data = response.json()['result']
-
-        # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
-        return int(data[1]['open_time']) * 1000
-
-    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
-        dashless_symbol = jh.dashless_symbol(symbol)
-
-        payload = {
-            'interval': 1,
-            'symbol': dashless_symbol,
-            'from': int(start_timestamp / 1000),
-            'limit': self.count,
+            'limit': 1500,
         }
 
         response = requests.get(self.endpoint, params=payload)
@@ -55,19 +35,41 @@ class BybitPerpetual(CandleExchange):
 
         data = response.json()
 
-        if data['ret_code'] != 0:
-            raise exceptions.ExchangeError(data['ret_msg'])
+        # since the first timestamp doesn't include all the 1m
+        # candles, let's start since the second day then
+        first_timestamp = int(data[0][0])
+        return first_timestamp + 60_000 * 1440
 
-        data = data['result']
+    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
+        """
+        note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
+        note2: like Bitfinex, start_time includes the candle and so does the end_time.
+        """
+        end_timestamp = start_timestamp + (self.count - 1) * 60000
 
+        dashless_symbol = jh.dashless_symbol(symbol)
+
+        payload = {
+            'interval': '1m',
+            'symbol': dashless_symbol,
+            'startTime': start_timestamp,
+            'endTime': end_timestamp,
+            'limit': self.count,
+        }
+
+        response = requests.get(self.endpoint, params=payload)
+
+        self.validate_response(response)
+
+        data = response.json()
         return [{
             'id': jh.generate_unique_id(),
             'symbol': symbol,
             'exchange': self.name,
-            'timestamp': int(d['open_time']) * 1000,
-            'open': float(d['open']),
-            'close': float(d['close']),
-            'high': float(d['high']),
-            'low': float(d['low']),
-            'volume': float(d['volume'])
+            'timestamp': int(d[0]),
+            'open': float(d[1]),
+            'close': float(d[4]),
+            'high': float(d[2]),
+            'low': float(d[3]),
+            'volume': float(d[5])
         } for d in data]

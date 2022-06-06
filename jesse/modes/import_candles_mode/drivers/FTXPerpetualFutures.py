@@ -2,22 +2,23 @@ import requests
 
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
+from jesse.enums import exchanges
 
 
-class FTXSpot(CandleExchange):
+class FTXPerpetualFutures(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent the possible circular imports issue
-        from jesse.modes.import_candles_mode.drivers.bitfinex import Bitfinex
+        from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
 
         super().__init__(
-            name='FTX Spot',
+            name=exchanges.FTX_PERPETUAL_FUTURES,
             count=1440,
             rate_limit_per_second=6,
-            backup_exchange_class=Bitfinex
+            backup_exchange_class=BitfinexSpot
         )
 
     def get_starting_time(self, symbol: str) -> int:
-        formatted_symbol = symbol.replace('-', '/')
+        formatted_symbol = symbol.replace('USD', 'PERP')
 
         end_timestamp = jh.now()
         start_timestamp = end_timestamp - (86400_000 * 365 * 8)
@@ -52,7 +53,7 @@ class FTXSpot(CandleExchange):
             'end_time': end_timestamp / 1000,
         }
 
-        formatted_symbol = symbol.replace('-', '/')
+        formatted_symbol = symbol.replace('USD', 'PERP')
 
         response = requests.get(
             f'https://ftx.com/api/markets/{formatted_symbol}/candles',
@@ -63,13 +64,13 @@ class FTXSpot(CandleExchange):
 
         data = response.json()['result']
         return [{
-            'id': jh.generate_unique_id(),
-            'symbol': symbol,
-            'exchange': self.name,
-            'timestamp': int(d['time']),
-            'open': float(d['open']),
-            'close': float(d['close']),
-            'high': float(d['high']),
-            'low': float(d['low']),
-            'volume': float(d['volume'])
-        } for d in data]
+                'id': jh.generate_unique_id(),
+                'symbol': symbol,
+                'exchange': self.name,
+                'timestamp': int(d['time']),
+                'open': float(d['open']),
+                'close': float(d['close']),
+                'high': float(d['high']),
+                'low': float(d['low']),
+                'volume': float(d['volume'])
+            } for d in data]

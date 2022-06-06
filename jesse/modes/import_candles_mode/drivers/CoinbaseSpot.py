@@ -2,18 +2,19 @@ import requests
 
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
+from jesse.enums import exchanges
 
 
-class Coinbase(CandleExchange):
+class CoinbaseSpot(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.bitfinex import Bitfinex
+        from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
 
         super().__init__(
-            name='Coinbase',
+            name=exchanges.COINBASE_SPOT,
             count=300,
             rate_limit_per_second=1.5,
-            backup_exchange_class=Bitfinex
+            backup_exchange_class=BitfinexSpot
         )
 
         self.endpoint = 'https://api.pro.coinbase.com/products'
