@@ -258,3 +258,19 @@ def test_position_exchange_type_property():
         'TestPositionExchangeTypeProperty2',
         is_futures_trading=False
     )
+
+
+def test_position_total_cost_property():
+    # futures
+    single_route_backtest(
+        'TestPositionTotalCostProperty',
+        is_futures_trading=True,
+        leverage=2
+    )
+
+    # spot
+    single_route_backtest(
+        'TestPositionTotalCostProperty',
+        is_futures_trading=False
+    )
+
