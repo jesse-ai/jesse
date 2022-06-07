@@ -11,7 +11,7 @@ class TestReduceOnlyMarketOrders(Strategy):
 
     def go_long(self):
         entry = self.price
-        qty = utils.size_to_qty(self.capital, entry, fee_rate=self.fee_rate)
+        qty = utils.size_to_qty(self.balance, entry, fee_rate=self.fee_rate)
         self.buy = qty, entry
 
     def go_short(self):

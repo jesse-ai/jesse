@@ -917,13 +917,12 @@ class Strategy(ABC):
 
     @property
     def balance(self) -> float:
-        """alias for self.capital"""
-        return self.capital
+        """the current capital in the trading exchange"""
+        return self.position.exchange.wallet_balance
 
     @property
     def capital(self) -> float:
-        """the current capital in the trading exchange"""
-        return self.position.exchange.wallet_balance
+        raise NotImplementedError('The alias "self.capital" has been removed. Please use "self.balance" instead.')
 
     @property
     def available_margin(self) -> float:
@@ -1107,7 +1106,7 @@ class Strategy(ABC):
     def portfolio_value(self) -> float:
         total_position_values = 0
 
-        # in spot mode, self.capital does not include open order's value, so:
+        # in spot mode, self.balance does not include open order's value, so:
         if self.is_spot_trading:
             for o in self.entry_orders:
                 if o.is_active:
@@ -1121,7 +1120,7 @@ class Strategy(ABC):
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
-        return (total_position_values + self.capital) * self.leverage
+        return (total_position_values + self.balance) * self.leverage
 
     @property
     def trades(self) -> List[ClosedTrade]:

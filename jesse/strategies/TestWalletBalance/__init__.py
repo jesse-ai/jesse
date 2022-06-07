@@ -6,7 +6,7 @@ from jesse.strategies import Strategy
 class TestWalletBalance(Strategy):
     def before(self):
         if self.index == 0:
-            assert self.position.exchange.wallet_balance == 10000 == self.capital == self.balance
+            assert self.position.exchange.wallet_balance == 10000 == self.balance
             assert self.position.exchange.available_margin == 20000 == self.available_margin
 
         if self.price == 11:

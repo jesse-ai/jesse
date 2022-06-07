@@ -817,3 +817,9 @@ def test_order_price_cannot_be_greater_than_zero():
 
 def test_daily_balances_property():
     single_route_backtest('TestDailyBalancesProperty', candles_count=10*1440)
+
+
+def test_capital_property_raises_not_implemented_error():
+    single_route_backtest('TestCapitalPropertyRaisesNotImplementedError')
+    with pytest.raises(NotImplementedError):
+        single_route_backtest('TestCapitalPropertyRaisesNotImplementedError')

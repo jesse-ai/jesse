@@ -9,7 +9,7 @@ class TestCannotSpendMoreThanAvailableBalance(Strategy):
 
     def go_long(self):
         # try to spend 110% of available balance
-        qty = utils.size_to_qty(self.capital*1.1, self.price)
+        qty = utils.size_to_qty(self.balance*1.1, self.price)
         self.buy = qty, self.price
 
     def should_cancel(self):
