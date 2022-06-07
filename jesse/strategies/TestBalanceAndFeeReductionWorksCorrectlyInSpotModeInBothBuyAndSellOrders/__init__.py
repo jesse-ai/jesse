@@ -71,5 +71,5 @@ class TestBalanceAndFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders(S
         assert self.position.exchange.assets['USDT'] == self.balance
         assert self.position.exchange.assets['BTC'] == self.position.qty == 0
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

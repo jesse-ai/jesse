@@ -17,5 +17,5 @@ class TestCanSubmitStopLossOrderWithSizeEqualToCurrentPositionQty(Strategy):
         assert order.is_stop_loss is True
         assert order.price == 8
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

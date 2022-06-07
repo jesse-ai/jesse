@@ -29,5 +29,5 @@ class TestStopOrderShouldConsiderExecutedTakeProfitOrdersInSpot(Strategy):
             assert last_trade.qty == 2
             assert last_trade.type == "long"
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

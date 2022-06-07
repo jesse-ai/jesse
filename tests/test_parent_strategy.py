@@ -820,6 +820,5 @@ def test_daily_balances_property():
 
 
 def test_capital_property_raises_not_implemented_error():
-    single_route_backtest('TestCapitalPropertyRaisesNotImplementedError')
     with pytest.raises(NotImplementedError):
         single_route_backtest('TestCapitalPropertyRaisesNotImplementedError')

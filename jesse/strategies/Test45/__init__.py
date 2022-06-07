@@ -18,7 +18,7 @@ class Test45(Strategy):
         self.sell = qty, self.price
         assert self.index == 11
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def update_position(self):

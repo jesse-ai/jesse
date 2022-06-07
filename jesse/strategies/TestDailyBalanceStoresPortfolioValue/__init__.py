@@ -20,7 +20,7 @@ class TestDailyBalanceStoresPortfolioValue(Strategy):
         # submit an entry buy order that is not supposed to be filled
         self.buy = 50, 9
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def terminate(self):

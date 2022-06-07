@@ -26,5 +26,5 @@ class TestCanSubmitTakeProfitOrderWithSizeLessThanCurrentPositionQty(Strategy):
         assert order.price == 20
         assert order.is_take_profit is True
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

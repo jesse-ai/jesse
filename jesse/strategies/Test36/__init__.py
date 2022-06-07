@@ -26,7 +26,7 @@ class Test36(Strategy):
             (1, 14),
         ]
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return True
 
     def filters(self):

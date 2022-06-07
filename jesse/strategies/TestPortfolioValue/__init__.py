@@ -25,5 +25,5 @@ class TestPortfolioValue(Strategy):
         qty = utils.size_to_qty(10, self.price)
         self.sell = qty, self.price
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

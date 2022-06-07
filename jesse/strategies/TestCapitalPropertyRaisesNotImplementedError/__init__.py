@@ -11,5 +11,5 @@ class TestCapitalPropertyRaisesNotImplementedError(Strategy):
     def go_long(self) -> None:
         pass
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

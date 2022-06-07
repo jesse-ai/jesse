@@ -420,7 +420,7 @@ class Strategy(ABC):
         return False
 
     @abstractmethod
-    def should_cancel(self) -> bool:
+    def should_cancel_entry(self) -> bool:
         pass
 
     def before(self) -> None:
@@ -556,7 +556,7 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
-        if len(self.entry_orders) and self.is_close and self.should_cancel():
+        if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS

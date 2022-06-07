@@ -22,5 +22,5 @@ class Test19(Strategy):
         # self.stop_loss = qty, self.price - .1
         pass
 
-    def should_cancel(self) -> bool:
+    def should_cancel_entry(self) -> bool:
         return False

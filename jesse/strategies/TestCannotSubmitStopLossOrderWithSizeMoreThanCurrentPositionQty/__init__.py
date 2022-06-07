@@ -13,5 +13,5 @@ class TestCannotSubmitStopLossOrderWithSizeMoreThanCurrentPositionQty(Strategy):
     def on_open_position(self, order) -> None:
         self.stop_loss = self.position.qty*1.01, self.price*0.99
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

@@ -22,5 +22,5 @@ class TestOrderValueProperty(Strategy):
     def go_short(self) -> None:
         self.sell = 2, 8
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

@@ -41,5 +41,5 @@ class TestBalancesAreHandledCorrectlyForCancellingOrdersInSpot(Strategy):
         assert self.position.qty == 0
         assert self.balance == 10_000 + 40
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return self.price == 12

@@ -19,7 +19,7 @@ class Test02(Strategy):
         self.stop_loss = qty, self.price + 10
         self.take_profit = qty, self.price - 10
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def filters(self):

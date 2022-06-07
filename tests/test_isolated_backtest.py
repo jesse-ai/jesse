@@ -48,7 +48,7 @@ def test_can_pass_strategy_as_class_in_a_futures_exchange():
         def should_long(self):
             return False
 
-        def should_cancel(self):
+        def should_cancel_entry(self):
             return False
 
         def go_long(self):
@@ -94,7 +94,7 @@ def test_can_pass_strategy_as_class_in_a_spot_exchange():
         def should_long(self):
             return False
 
-        def should_cancel(self):
+        def should_cancel_entry(self):
             return False
 
         def go_long(self):
@@ -134,7 +134,7 @@ def test_warm_up_candles_more_than_warmup_candles_config_raises_error_in_isolate
         def should_long(self):
             return False
 
-        def should_cancel(self):
+        def should_cancel_entry(self):
             return False
 
         def go_long(self):
@@ -180,7 +180,7 @@ def test_store_state_app_is_reset_properly_in_isolated_backtest():
         def should_long(self) -> bool:
             return False
 
-        def should_cancel(self) -> bool:
+        def should_cancel_entry(self) -> bool:
             return True
 
         def go_long(self):
@@ -228,7 +228,7 @@ def test_dna_method_works_in_isolated_backtest():
         def should_long(self) -> bool:
             return False
 
-        def should_cancel(self) -> bool:
+        def should_cancel_entry(self) -> bool:
             return True
 
         def go_long(self):
@@ -277,7 +277,7 @@ def test_dna_method_works_in_isolated_backtest():
         def should_long(self) -> bool:
             return False
 
-        def should_cancel(self) -> bool:
+        def should_cancel_entry(self) -> bool:
             return True
 
         def go_long(self):

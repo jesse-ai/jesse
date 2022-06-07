@@ -32,7 +32,7 @@ class TestEntryOrdersAndExitOrdersProperties(Strategy):
             ]
             self.stop_loss = 3, 25
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         # cancel second position entry attempt
         if self.price == 27:
             return True

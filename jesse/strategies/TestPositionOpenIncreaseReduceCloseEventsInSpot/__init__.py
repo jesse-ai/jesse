@@ -52,5 +52,5 @@ class TestPositionOpenIncreaseReduceCloseEventsInSpot(Strategy):
         assert self.position.qty == 0
         self.vars['called_on_close_position'] = True
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

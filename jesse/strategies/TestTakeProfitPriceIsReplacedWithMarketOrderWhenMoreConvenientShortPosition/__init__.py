@@ -26,5 +26,5 @@ class TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientShortPositio
         self.sell = 1, 10
         self.take_profit = 1, 12
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

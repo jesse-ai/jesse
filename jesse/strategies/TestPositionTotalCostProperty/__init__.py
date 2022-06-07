@@ -21,5 +21,5 @@ class TestPositionTotalCostProperty(Strategy):
     def go_long(self) -> None:
         self.buy = 10, self.price
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

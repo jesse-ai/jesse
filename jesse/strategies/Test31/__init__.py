@@ -24,5 +24,5 @@ class Test31(Strategy):
     def go_short(self):
         self.sell = 1, self.price
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

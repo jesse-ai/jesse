@@ -34,5 +34,5 @@ class TestCanSubmitTakeProfitAndStopLossAtSameTimeInSpot(Strategy):
             assert last_trade.entry_price == 20
             assert last_trade.qty == 2
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

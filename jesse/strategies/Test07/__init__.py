@@ -23,7 +23,7 @@ class Test07(Strategy):
         self.stop_loss = qty, 129.52
         self.take_profit = qty, 126.58
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def filters(self):
