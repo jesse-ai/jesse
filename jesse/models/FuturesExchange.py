@@ -89,7 +89,6 @@ class FuturesExchange(Exchange):
             return
 
         fee_amount = abs(amount) * self.fee_rate
-        jh.dump('charging fee', fee_amount)
         new_balance = self.assets[self.settlement_currency] - fee_amount
         if fee_amount != 0:
             logger.info(
