@@ -5,7 +5,7 @@ from jesse.strategies import Strategy
 from jesse import research
 
 
-def test_can_pass_strategy_as_string():
+def test_can_pass_strategy_as_string_in_futures_exchange():
     fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
     exchange_name = 'Fake Exchange'
     symbol = 'FAKE-USDT'
@@ -39,8 +39,12 @@ def test_can_pass_strategy_as_string():
     # assert result['logs'] is None
 
 
-def test_can_pass_strategy_as_class():
+def test_can_pass_strategy_as_class_in_a_futures_exchange():
     class TestStrategy(Strategy):
+        def before(self) -> None:
+            if self.index == 0:
+                assert self.exchange_type == 'futures'
+
         def should_long(self):
             return False
 
@@ -79,8 +83,50 @@ def test_can_pass_strategy_as_class():
 
     # result must have None values because the strategy makes no decisions
     assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
-    # assert result['charts'] is None
-    # assert result['logs'] is None
+
+
+def test_can_pass_strategy_as_class_in_a_spot_exchange():
+    class TestStrategy(Strategy):
+        def before(self) -> None:
+            if self.index == 0:
+                assert self.exchange_type == 'spot'
+
+        def should_long(self):
+            return False
+
+        def should_cancel(self):
+            return False
+
+        def go_long(self):
+            pass
+
+    fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
+    exchange_name = 'Fake Exchange'
+    symbol = 'FAKE-USDT'
+    timeframe = '1m'
+    config = {
+        'starting_balance': 10_000,
+        'fee': 0,
+        'type': 'spot',
+        'exchange': exchange_name,
+        'warm_up_candles': 0
+    }
+    routes = [
+        {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
+    ]
+    extra_routes = []
+    candles = {
+        jh.key(exchange_name, symbol): {
+            'exchange': exchange_name,
+            'symbol': symbol,
+            'candles': fake_candles,
+        },
+    }
+
+    result = research.backtest(config, routes, extra_routes, candles)
+
+    # result must have None values because the strategy makes no decisions
+    assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
 
 
 def test_warm_up_candles_more_than_warmup_candles_config_raises_error_in_isolated_backtest():

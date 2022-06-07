@@ -171,16 +171,20 @@ def _format_config(config):
     Jesse's required format for user_config is different from what this function accepts (so it
     would be easier to write for the researcher). Hence we need to reformat the config_dict:
     """
+    exchange_config = {
+        'balance': config['starting_balance'],
+        'fee': config['fee'],
+        'type': config['type'],
+        'name': config['exchange'],
+    }
+    # futures exchange has different config, so:
+    if exchange_config['type'] == 'futures':
+        exchange_config['futures_leverage'] = config['futures_leverage']
+        exchange_config['futures_leverage_mode'] = config['futures_leverage_mode']
+
     return {
         'exchanges': {
-            config['exchange']: {
-                'balance': config['starting_balance'],
-                'fee': config['fee'],
-                'type': 'futures',
-                'futures_leverage': config['futures_leverage'],
-                'futures_leverage_mode': config['futures_leverage_mode'],
-                'name': config['exchange'],
-            }
+            config['exchange']: exchange_config
         },
         'logging': {
             'balance_update': True,
