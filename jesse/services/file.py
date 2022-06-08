@@ -21,12 +21,11 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
     result = {}
     file_name = jh.get_session_id()
     trades_json = {'trades': [], 'considering_timeframes': config['app']['considering_timeframes']}
+    for t in store.completed_trades.trades:
+        trades_json['trades'].append(t.to_json)
 
     if export_json:
         path = f'storage/json/{file_name}.json'
-
-        for t in store.completed_trades.trades:
-            trades_json['trades'].append(t.to_json)
 
         os.makedirs('./storage/json', exist_ok=True)
         with open(path, 'w+') as outfile:
