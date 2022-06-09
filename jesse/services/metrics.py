@@ -8,6 +8,7 @@ from quantstats import stats
 import jesse.helpers as jh
 from jesse.models import ClosedTrade
 from jesse.store import store
+from jesse.services import selectors
 
 
 def candles_info(candles_array: np.ndarray) -> dict:
@@ -22,11 +23,22 @@ def candles_info(candles_array: np.ndarray) -> dict:
     else:
         duration = f'{period} days'
 
-    return {
+    # type of the exchange
+    trading_exchange = selectors.get_trading_exchange()
+
+    info = {
         'duration': duration,
         'starting_time': candles_array[0][0],
         'finishing_time': (candles_array[-1][0] + 60_000),
+        'exchange_type': trading_exchange.type,
     }
+
+    # if the exchange type is futures, also display leverage
+    if trading_exchange.type == 'futures':
+        info['leverage'] = trading_exchange.futures_leverage
+        info['leverage_mode'] = trading_exchange.futures_leverage_mode
+
+    return info
 
 
 def routes(routes_arr: list) -> list:
