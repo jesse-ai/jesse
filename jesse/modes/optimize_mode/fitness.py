@@ -15,6 +15,7 @@ def _formatted_inputs_for_isolated_backtest(user_config, routes):
     return {
         'starting_balance': user_config['exchange']['balance'],
         'fee': user_config['exchange']['fee'],
+        'type': user_config['exchange']['type'],
         'futures_leverage': user_config['exchange']['futures_leverage'],
         'futures_leverage_mode': user_config['exchange']['futures_leverage_mode'],
         'exchange': routes[0]['exchange'],
