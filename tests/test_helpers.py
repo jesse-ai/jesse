@@ -11,7 +11,7 @@ def test_app_currency():
     from jesse.routes import router
     from jesse.enums import exchanges, timeframes
     router.initiate(
-        [{'exchange': exchanges.BITFINEX, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
+        [{'exchange': exchanges.BITFINEX_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'
 
 
@@ -274,10 +274,6 @@ def test_is_optimizing():
 
 def test_is_paper_trading():
     assert jh.is_paper_trading() is False
-
-
-def test_is_test_driving():
-    assert jh.is_test_driving() is False
 
 
 def test_is_unit_testing():

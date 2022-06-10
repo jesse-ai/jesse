@@ -2,7 +2,6 @@ import time
 from typing import Dict, Union, List
 
 import arrow
-import click
 import numpy as np
 import pandas as pd
 
@@ -72,10 +71,6 @@ def run(
 
     register_custom_exception_handler()
 
-    # clear the screen
-    if not jh.should_execute_silently():
-        click.clear()
-
     # validate routes
     validate_routes(router)
 
@@ -125,7 +120,7 @@ def run(
 
 
 def _generate_quantstats_report(candles_dict: dict) -> str:
-    if store.completed_trades.count < 0:
+    if store.completed_trades.count == 0:
         return None
 
     price_data = []
@@ -200,9 +195,9 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
                 Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
                 Candle.volume
             ).where(
-                Candle.timestamp.between(start_date, finish_date),
                 Candle.exchange == exchange,
-                Candle.symbol == symbol
+                Candle.symbol == symbol,
+                Candle.timestamp.between(start_date, finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000
@@ -263,7 +258,7 @@ def simulator(
             r.strategy = StrategyClass()
         except TypeError:
             raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file."
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
                 "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
             )
         except:

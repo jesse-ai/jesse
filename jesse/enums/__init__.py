@@ -52,14 +52,17 @@ class order_types:
 
 class exchanges:
     SANDBOX = 'Sandbox'
-    COINBASE = 'Coinbase'
-    BITFINEX = 'Bitfinex'
-    BINANCE = 'Binance'
-    BINANCE_FUTURES = 'Binance Futures'
-    TESTNET_BINANCE_FUTURES = 'Testnet Binance Futures'
-    BYBIT_PERPETUAL = 'Bybit Perpetual'
-    TESTNET_BYBIT_PERPETUAL = 'Testnet Bybit Perpetual'
-    FTX_FUTURES = 'FTX Futures'
+    COINBASE_SPOT = 'Coinbase Spot'
+    BITFINEX_SPOT = 'Bitfinex Spot'
+    BINANCE_SPOT = 'Binance Spot'
+    BINANCE_PERPETUAL_FUTURES = 'Binance Perpetual Futures'
+    BINANCE_PERPETUAL_FUTURES_TESTNET = 'Binance Perpetual Futures Testnet'
+    BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'
+    BYBIT_USDT_PERPETUAL_TESTNET = 'Bybit USDT Perpetual Testnet'
+    BYBIT_SPOT = 'Bybit Spot'
+    BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
+    FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
+    FTX_SPOT = 'FTX Spot'
 
 
 class migration_actions:

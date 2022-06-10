@@ -12,7 +12,7 @@ from jesse.store import store
 
 
 def equity_curve() -> list:
-    if store.completed_trades.count < 0:
+    if store.completed_trades.count == 0:
         return None
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
@@ -29,7 +29,7 @@ def portfolio_vs_asset_returns(study_name: str = None) -> str:
     if jh.is_unit_testing():
         return 'charts'
 
-    if store.completed_trades.count < 0:
+    if store.completed_trades.count == 0:
         return None
 
     register_matplotlib_converters()

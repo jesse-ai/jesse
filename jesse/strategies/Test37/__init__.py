@@ -25,7 +25,7 @@ class Test37(Strategy):
         self.sell = qty, self.price
         self.take_profit = qty, self.price + .10
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def filters(self):

@@ -25,11 +25,14 @@ from jesse.services.progressbar import Progressbar
 class Optimizer(ABC):
     def __init__(
             self,
-            training_candles: ndarray, testing_candles: ndarray,
-            optimal_total: int, cpu_cores: int,
+            training_candles: ndarray,
+            testing_candles: ndarray,
+            optimal_total: int,
+            cpu_cores: int,
             csv: bool,
             export_json: bool,
-            start_date: str, finish_date: str,
+            start_date: str,
+            finish_date: str,
             charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
             fitness_goal: float = 1,
     ) -> None:

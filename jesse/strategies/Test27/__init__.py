@@ -17,12 +17,8 @@ class Test27(Strategy):
     def go_short(self):
         pass
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def on_route_canceled(self, strategy):
-        """
-
-        :param strategy:
-        """
         self.take_profit = 1, self.price

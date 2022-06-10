@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import requests
+from jesse import exceptions
 
 
 class CandleExchange(ABC):
@@ -26,3 +28,18 @@ class CandleExchange(ABC):
     @abstractmethod
     def get_starting_time(self, symbol: str) -> int:
         pass
+
+    @staticmethod
+    def validate_response(response: requests.Response) -> None:
+        if response.status_code == 502:
+            raise exceptions.ExchangeInMaintenance('ERROR: 502 Bad Gateway. Please try again later')
+        elif response.status_code // 100 == 5:
+            raise ConnectionError('ERROR: {} {}'.format(response.status_code, response.reason))
+
+        # unsupported inputs
+        if response.status_code == 400:
+            raise ValueError(response.content)
+
+        # if the response code is not in the 200-299, raise an exception
+        if response.status_code // 100 != 2:
+            raise ConnectionError(f'ERROR: {response.status_code} {response.reason}')

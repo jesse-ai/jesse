@@ -19,7 +19,7 @@ class DailyBalance(peewee.Model):
 
         database = database.db
         indexes = (
-            (('identifier', 'exchange', 'timestamp', 'asset'), True),
+            (('identifier', 'exchange', 'asset', 'timestamp'), True),
             (('identifier', 'exchange'), False),
         )
 

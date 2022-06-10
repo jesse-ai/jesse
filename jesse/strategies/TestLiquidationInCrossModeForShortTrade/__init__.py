@@ -39,5 +39,5 @@ class TestLiquidationInCrossModeForShortTrade(Strategy):
         print('qty', qty)
         self.sell = qty, self.price
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

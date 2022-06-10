@@ -381,11 +381,6 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
-def is_test_driving() -> bool:
-    from jesse.config import config
-    return config['app']['is_test_driving']
-
-
 def is_unit_testing() -> bool:
     from jesse.config import config
     # config['app']['is_unit_testing'] is only set in the live plugin unit tests
@@ -884,6 +879,9 @@ def dump(*item):
     """
     Dump object in pretty format: used for debugging when developing Jesse
     """
+    if len(item) == 1:
+        item = item[0]
+
     print(
         color('\n========= Debugging Value =========='.upper(), 'yellow')
     )
@@ -920,13 +918,6 @@ def str_or_none(item, encoding='utf-8'):
             return str(item, encoding)
         except TypeError:
             return str(item)
-
-
-def get_settlement_currency_from_exchange(exchange: str):
-    if exchange in {'FTX Futures', 'Bitfinex', 'Coinbase'}:
-        return 'USD'
-    else:
-        return 'USDT'
 
 
 def cpu_cores_count():

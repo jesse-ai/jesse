@@ -17,5 +17,5 @@ class TestInsufficientMargin3(Strategy):
         qty = utils.size_to_qty(10_001, self.price * .99)
         self.sell = qty, self.price * .99
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

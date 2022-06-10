@@ -32,5 +32,5 @@ class TestLiquidationInIsolatedModeForShortTrade(Strategy):
         # utils.size_to_qty(self.available_margin, self.price) == 2000
         self.sell = 2000, self.price
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

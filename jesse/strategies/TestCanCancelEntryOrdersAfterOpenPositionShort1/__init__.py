@@ -46,5 +46,5 @@ class TestCanCancelEntryOrdersAfterOpenPositionShort1(Strategy):
             (1, 8),
         ]
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

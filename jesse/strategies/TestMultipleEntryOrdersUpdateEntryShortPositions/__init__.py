@@ -57,5 +57,5 @@ class TestMultipleEntryOrdersUpdateEntryShortPositions(Strategy):
             (1, 21),
         ]
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
