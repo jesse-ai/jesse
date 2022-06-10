@@ -52,7 +52,7 @@ def create_logger_file(name):
 
 
 def info(msg: str, send_notification=False) -> None:
-    if jh.app_mode() not in LOGGERS:
+    if jh.app_mode() not in LOGGERS and (jh.is_live() or (jh.is_backtesting() and jh.is_debugging())):
         _init_main_logger()
 
     msg = str(msg)
@@ -83,7 +83,7 @@ def info(msg: str, send_notification=False) -> None:
         notify(msg)
 
 
-def error(msg: str) -> None:
+def error(msg: str, send_notification=True) -> None:
     if jh.app_mode() not in LOGGERS:
         _init_main_logger()
 
@@ -100,7 +100,7 @@ def error(msg: str) -> None:
         'message': msg
     }
 
-    if jh.is_live() and jh.get_config('env.notifications.events.errors', True):
+    if jh.is_live() and jh.get_config('env.notifications.events.errors', True) and send_notification:
         # notify_urgently(f"ERROR at \"{jh.get_config('env.identifier')}\" account:\n{msg}")
         notify_urgently(f"ERROR:\n{msg}")
         notify(f'ERROR:\n{msg}')

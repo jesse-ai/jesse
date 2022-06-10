@@ -42,7 +42,7 @@ class TestHasLongEntryOrdersProperty(Strategy):
             assert self.has_long_entry_orders is False
             assert self.has_short_entry_orders is False
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return self.price == 15
 
     def update_position(self) -> None:

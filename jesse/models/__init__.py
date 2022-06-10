@@ -1,5 +1,5 @@
 from .Candle import Candle
-from .CompletedTrade import CompletedTrade
+from .ClosedTrade import ClosedTrade
 from .Exchange import Exchange
 from .FuturesExchange import FuturesExchange
 from .Order import Order

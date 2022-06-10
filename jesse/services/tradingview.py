@@ -4,12 +4,11 @@ import jesse.helpers as jh
 from jesse.store import store
 
 
-def tradingview_logs(study_name: str) -> None:
+def tradingview_logs(study_name: str) -> str:
     starting_balance = sum(
         store.exchanges.storage[e].starting_assets[jh.app_currency()]
         for e in store.exchanges.storage
     )
-
 
     tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital={starting_balance}, commission_type=strategy.commission.percent, commission_value=0.2)\n'
     for i, t in enumerate(store.completed_trades.trades[::-1][:]):
@@ -27,3 +26,5 @@ def tradingview_logs(study_name: str) -> None:
     os.makedirs('./storage/trading-view-pine-editor', exist_ok=True)
     with open(path, 'w+') as outfile:
         outfile.write(tv_text)
+
+    return path

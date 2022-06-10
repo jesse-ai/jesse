@@ -3,16 +3,17 @@ import jesse.helpers as jh
 
 
 class AppState:
-    time = arrow.utcnow().int_timestamp * 1000
-    starting_time = None
-    daily_balance = []
+    def __init__(self):
+        self.time = arrow.utcnow().int_timestamp * 1000
+        self.starting_time = None
+        self.daily_balance = []
 
-    # used as placeholders for detecting open trades metrics
-    total_open_trades = 0
-    total_open_pl = 0
-    total_liquidations = 0
+        # used as placeholders for detecting open trades metrics
+        self.total_open_trades = 0
+        self.total_open_pl = 0
+        self.total_liquidations = 0
 
-    session_id = ''
+        self.session_id = ''
 
     def set_session_id(self) -> None:
         """

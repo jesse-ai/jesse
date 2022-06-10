@@ -3,6 +3,7 @@
 [![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
+![coverage](https://codecov.io/gh/jesse-ai/jesse/graph/badge.svg)
 
 ---
 
@@ -19,11 +20,6 @@ In short, Jesse is more accurate than other solutions, and way more simple.
 In fact, it is so simple that in case you already know Python, you can get started today, in matter of minutes, instead of weeks and months. 
 
 [Here](https://docs.jesse.trade/docs/) you can read more about why Jesse's features. 
-
-## Sponsored Promotion
-
-[![TokenBot](https://raw.githubusercontent.com/jesse-ai/jesse/master/assets/TokenBot-Jesse-banner.png)](https://tokenbot.com/?utm_source=github&utm_medium=jesse&utm_campaign=algodevs)
-
 
 ## Getting Started
 Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 

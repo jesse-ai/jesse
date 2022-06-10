@@ -46,10 +46,10 @@ def store_log_into_db(log: dict, log_type: str) -> None:
 
     d = {
         'id': log['id'],
-        'timestamp': log['timestamp'],
-        'message': log['message'],
         'session_id': store.app.session_id,
-        'type': log_type
+        'type': log_type,
+        'timestamp': log['timestamp'],
+        'message': log['message']
     }
 
     Log.insert(**d).execute()
@@ -82,7 +82,7 @@ def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None
 
 def store_completed_trade_into_db(completed_trade) -> None:
     return
-    from jesse.models.CompletedTrade import CompletedTrade
+    from jesse.models.ClosedTrade import ClosedTrade
 
     d = {
         'id': completed_trade.id,
@@ -100,7 +100,7 @@ def store_completed_trade_into_db(completed_trade) -> None:
     }
 
     def async_save() -> None:
-        CompletedTrade.insert(**d).execute()
+        ClosedTrade.insert(**d).execute()
         if jh.is_debugging():
             logger.info(
                 f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
@@ -218,8 +218,8 @@ def fetch_candles_from_db(exchange: str, symbol: str, start_date: int, finish_da
             Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
             Candle.volume
         ).where(
-            Candle.timestamp.between(start_date, finish_date),
             Candle.exchange == exchange,
-            Candle.symbol == symbol
+            Candle.symbol == symbol,
+            Candle.timestamp.between(start_date, finish_date)
         ).order_by(Candle.timestamp.asc()).tuples()
     )

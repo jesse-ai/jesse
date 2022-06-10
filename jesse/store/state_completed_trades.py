@@ -1,35 +1,34 @@
 import numpy as np
-
-from jesse.models import Position, CompletedTrade, Order
+from jesse.models import Position, ClosedTrade, Order
 import jesse.helpers as jh
 from jesse.models.utils import store_completed_trade_into_db
 from jesse.enums import sides
 from jesse.services import logger
 
 
-class CompletedTrades:
+class ClosedTrades:
     def __init__(self) -> None:
         self.trades = []
         self.tempt_trades = {}
 
-    def _get_current_trade(self, exchange: str, symbol: str) -> CompletedTrade:
+    def _get_current_trade(self, exchange: str, symbol: str) -> ClosedTrade:
         key = jh.key(exchange, symbol)
         # if already exists, return it
         if key in self.tempt_trades:
-            t: CompletedTrade = self.tempt_trades[key]
+            t: ClosedTrade = self.tempt_trades[key]
             # set the trade.id if not generated already
             if not t.id:
                 t.id = jh.generate_unique_id()
             return t
         # else, create a new trade, store it, and return it
-        t = CompletedTrade()
+        t = ClosedTrade()
         t.id = jh.generate_unique_id()
         self.tempt_trades[key] = t
         return t
 
     def _reset_current_trade(self, exchange: str, symbol: str) -> None:
         key = jh.key(exchange, symbol)
-        self.tempt_trades[key] = CompletedTrade()
+        self.tempt_trades[key] = ClosedTrade()
 
     def add_executed_order(self, executed_order: Order) -> None:
         t = self._get_current_trade(executed_order.exchange, executed_order.symbol)

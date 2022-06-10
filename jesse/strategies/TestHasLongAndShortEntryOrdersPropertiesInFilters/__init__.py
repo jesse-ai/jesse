@@ -37,5 +37,5 @@ class TestHasLongAndShortEntryOrdersPropertiesInFilters(Strategy):
             assert self.average_entry_price == 20.5
             return self.average_entry_price == 20.5
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return self.price in [15, 25]

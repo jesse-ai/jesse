@@ -16,5 +16,5 @@ class Test26(Strategy):
         self.sell = 1, self.price
         self.stop_loss = 1, 20
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

@@ -18,6 +18,7 @@ class Position:
         self.exit_price = None
         self.current_price = None
         self.qty = 0
+        self.previous_qty = 0
         self.opened_at = None
         self.closed_at = None
         self._mark_price = None
@@ -65,6 +66,9 @@ class Position:
 
         :return: float
         """
+        if self.is_close:
+            return 0
+
         return abs(self.current_price * self.qty)
 
     @property
@@ -114,13 +118,17 @@ class Position:
 
     @property
     def leverage(self) -> Union[int, np.float64]:
-        if self.exchange.type == 'spot':
+        if self.exchange_type == 'spot':
             return 1
 
         if self.strategy:
             return self.strategy.leverage
         else:
             return np.nan
+
+    @property
+    def exchange_type(self) -> str:
+        return self.exchange.type
 
     @property
     def entry_margin(self) -> float:
@@ -257,12 +265,12 @@ class Position:
         trade_type = self.type
         self.exit_price = close_price
 
-        if self.exchange:
+        if self.exchange and self.exchange.type == 'futures':
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
         self.closed_at = jh.now_to_timestamp()
 
-        self.qty = 0
+        self._update_qty(0, operation='set')
         self.entry_price = None
 
         self._close()
@@ -280,15 +288,15 @@ class Position:
 
         estimated_profit = jh.estimate_PNL(qty, self.entry_price, price, self.type)
 
-        if self.exchange:
+        if self.exchange and self.exchange.type == 'futures':
             # self.exchange.increase_futures_balance(qty * self.entry_price + estimated_profit)
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
         if self.type == trade_types.LONG:
-            self.qty = subtract_floats(self.qty, qty)
+            self._update_qty(qty, operation='subtract')
         elif self.type == trade_types.SHORT:
-            self.qty = sum_floats(self.qty, qty)
+            self._update_qty(qty, operation='add')
 
     def _mutating_increase(self, qty: float, price: float) -> None:
         if not self.is_open:
@@ -302,9 +310,9 @@ class Position:
         )
 
         if self.type == trade_types.LONG:
-            self.qty = sum_floats(self.qty, qty)
+            self._update_qty(qty, operation='add')
         elif self.type == trade_types.SHORT:
-            self.qty = subtract_floats(self.qty, qty)
+            self._update_qty(qty, operation='subtract')
 
     def _mutating_open(self, qty: float, price: float, change_balance: bool = True) -> None:
         if self.is_open:
@@ -312,10 +320,33 @@ class Position:
 
         self.entry_price = price
         self.exit_price = None
-        self.qty = qty
+        self._update_qty(qty, operation='set')
         self.opened_at = jh.now_to_timestamp()
 
         self._open()
+
+    def _update_qty(self, qty: float, operation='set'):
+        self.previous_qty = self.qty
+
+        if self.exchange_type == 'spot':
+            if operation == 'set':
+                self.qty = qty * (1 - self.exchange.fee_rate)
+            elif operation == 'add':
+                self.qty = sum_floats(self.qty, qty * (1 - self.exchange.fee_rate))
+            elif operation == 'subtract':
+                # fees are taken from the quote currency. in spot mode, sell orders cause
+                # the qty to reduce but fees are handled on the exchange balance stuff
+                self.qty = subtract_floats(self.qty, qty)
+
+        elif self.exchange_type == 'futures':
+            if operation == 'set':
+                self.qty = qty
+            elif operation == 'add':
+                self.qty = sum_floats(self.qty, qty)
+            elif operation == 'subtract':
+                self.qty = subtract_floats(self.qty, qty)
+        else:
+            raise NotImplementedError('exchange type not implemented')
 
     def _open(self):
         from jesse.store import store
@@ -337,7 +368,8 @@ class Position:
 
             # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
 
-            self.exchange.charge_fee(qty * price)
+            if self.exchange and self.exchange.type == 'futures':
+                self.exchange.charge_fee(qty * price)
 
             # order opens position
             if self.qty == 0:
@@ -382,7 +414,10 @@ class Position:
 
         self.entry_price = data['entry_price']
         self._liquidation_price = data['liquidation_price']
-        self.qty = data['qty']
+        # if the new qty (data['qty']) is different than the current (self.qty) then update it:
+        if self.qty != data['qty']:
+            self.previous_qty = self.qty
+            self.qty = data['qty']
 
         # if opening position
         if before_qty == 0 and after_qty != 0:

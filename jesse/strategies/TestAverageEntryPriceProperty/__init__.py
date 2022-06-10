@@ -42,7 +42,7 @@ class TestAverageEntryPriceProperty(Strategy):
         if self.price == 11:
             assert self.average_entry_price == 12.5
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def should_short(self):

@@ -26,5 +26,5 @@ class TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceShortPosition(Stra
         self.sell = 1, 10
         self.stop_loss = 1, 8
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False

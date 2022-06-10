@@ -1,6 +1,6 @@
 from jesse.enums import exchanges
 from jesse.models import Position
-from .utils import set_up, single_route_backtest
+from jesse.testing_utils import set_up, single_route_backtest
 
 
 def test_close_position():
@@ -208,6 +208,9 @@ def test_position_value():
     assert long_position.value == 100
     assert short_position.value == 100
 
+    closed_position_value = Position(exchanges.SANDBOX, 'BTC-USDT', {'qty': 0})
+    assert closed_position_value.value == 0
+
 
 def test_position_with_leverage():
     # with 1x leverage
@@ -244,4 +247,30 @@ def test_reduce_a_short_position():
 
     assert p.qty == -1
 
+
+def test_position_exchange_type_property():
+    single_route_backtest(
+        'TestPositionExchangeTypeProperty1',
+        is_futures_trading=True
+    )
+
+    single_route_backtest(
+        'TestPositionExchangeTypeProperty2',
+        is_futures_trading=False
+    )
+
+
+def test_position_total_cost_property():
+    # futures
+    single_route_backtest(
+        'TestPositionTotalCostProperty',
+        is_futures_trading=True,
+        leverage=2
+    )
+
+    # spot
+    single_route_backtest(
+        'TestPositionTotalCostProperty',
+        is_futures_trading=False
+    )
 

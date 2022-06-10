@@ -6,8 +6,9 @@ import pandas as pd
 from quantstats import stats
 
 import jesse.helpers as jh
-from jesse.models import CompletedTrade
+from jesse.models import ClosedTrade
 from jesse.store import store
+from jesse.services import selectors
 
 
 def candles_info(candles_array: np.ndarray) -> dict:
@@ -22,11 +23,22 @@ def candles_info(candles_array: np.ndarray) -> dict:
     else:
         duration = f'{period} days'
 
-    return {
+    # type of the exchange
+    trading_exchange = selectors.get_trading_exchange()
+
+    info = {
         'duration': duration,
         'starting_time': candles_array[0][0],
         'finishing_time': (candles_array[-1][0] + 60_000),
+        'exchange_type': trading_exchange.type,
     }
+
+    # if the exchange type is futures, also display leverage
+    if trading_exchange.type == 'futures':
+        info['leverage'] = trading_exchange.futures_leverage
+        info['leverage_mode'] = trading_exchange.futures_leverage_mode
+
+    return info
 
 
 def routes(routes_arr: list) -> list:
@@ -38,7 +50,7 @@ def routes(routes_arr: list) -> list:
         } for r in routes_arr]
 
 
-def trades(trades_list: List[CompletedTrade], daily_balance: list, final: bool = True) -> dict:
+def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
     starting_balance = 0
     current_balance = 0
 
@@ -71,8 +83,10 @@ def trades(trades_list: List[CompletedTrade], daily_balance: list, final: bool =
 
     largest_losing_trade = 0 if total_losing_trades == 0 else losing_trades['PNL'].min()
     largest_winning_trade = 0 if total_winning_trades == 0 else winning_trades['PNL'].max()
-
-    win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
+    if len(winning_trades) == 0:
+        win_rate = 0
+    else:
+        win_rate = len(winning_trades) / (len(losing_trades) + len(winning_trades))
     longs_count = len(df.loc[df['type'] == 'long'])
     shorts_count = len(df.loc[df['type'] == 'short'])
     longs_percentage = longs_count / (longs_count + shorts_count) * 100

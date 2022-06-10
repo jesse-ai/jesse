@@ -1,4 +1,3 @@
-# import pickle
 from abc import ABC
 from datetime import timedelta
 from random import randint, choices
@@ -15,8 +14,6 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.store import store
 import os
-# import json
-# from pandas import json_normalize
 from jesse import exceptions
 from jesse.modes.optimize_mode.fitness import get_and_add_fitness_to_the_bucket, create_baby
 from jesse.routes import router
@@ -28,11 +25,14 @@ from jesse.services.progressbar import Progressbar
 class Optimizer(ABC):
     def __init__(
             self,
-            training_candles: ndarray, testing_candles: ndarray,
-            optimal_total: int, cpu_cores: int,
+            training_candles: ndarray,
+            testing_candles: ndarray,
+            optimal_total: int,
+            cpu_cores: int,
             csv: bool,
             export_json: bool,
-            start_date: str, finish_date: str,
+            start_date: str,
+            finish_date: str,
             charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
             fitness_goal: float = 1,
     ) -> None:

@@ -11,10 +11,10 @@ class Test28(Strategy):
 
     def go_long(self):
         # because we know the price is going up, this order will never get filled
-        self.buy = 1, self.price - 10
+        self.buy = 1, self.price - 9
 
     def go_short(self):
         pass
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return self.price == 20

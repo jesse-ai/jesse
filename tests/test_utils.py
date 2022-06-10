@@ -96,7 +96,7 @@ def test_risk_to_qty():
     # short
     assert utils.risk_to_qty(10000, 1, 80, 100) == 5
 
-    # should not return more than maximum capital. Expect 100 instead of 125
+    # should not return more than maximum balance. Expect 100 instead of 125
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
     # when fee is included
