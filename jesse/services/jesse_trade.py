@@ -7,13 +7,16 @@ import json
 
 def feedback(description: str, email: str = None) -> JSONResponse:
     access_token = get_access_token()
+    authorization = None
+    if access_token:
+        authorization = {'Authorization': f'Bearer {access_token}'}
 
     res = requests.post(
         'https://jesse.trade/api/feedback', {
             'description': description,
             'email': email
         },
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers=authorization
     )
 
     success_message = 'Feedback submitted successfully'
@@ -29,6 +32,9 @@ def report_exception(
         description: str, traceback: str, mode: str, attach_logs: bool, session_id: str, email: str = None, has_live: bool = False
 ) -> JSONResponse:
     access_token = get_access_token()
+    authorization = None
+    if access_token:
+        authorization = {'Authorization': f'Bearer {access_token}'}
 
     if attach_logs and session_id:
         path_exchange_log = None
@@ -68,7 +74,7 @@ def report_exception(
         'https://jesse.trade/api/exception',
         data=params,
         files=files,
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers=authorization
     )
 
     success_message = 'Exception report submitted successfully'
