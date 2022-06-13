@@ -43,6 +43,9 @@ class Position:
         if not jh.is_live():
             return self.current_price
 
+        if self.exchange_type == 'spot':
+            return self.current_price
+
         return self._mark_price
 
     @property
@@ -50,12 +53,18 @@ class Position:
         if not jh.is_live():
             return 0
 
+        if self.exchange_type == 'spot':
+            raise ValueError('funding rate is not applicable to spot trading')
+
         return self._funding_rate
 
     @property
     def next_funding_timestamp(self) -> Union[int, None]:
         if not jh.is_live():
             return None
+
+        if self.exchange_type == 'spot':
+            raise ValueError('funding rate is not applicable to spot trading')
 
         return self._next_funding_timestamp
 
@@ -319,8 +328,12 @@ class Position:
             raise OpenPositionError('an already open position cannot be opened')
 
         self.entry_price = price
+        jh.dump('self.entry_price', self.entry_price)
         self.exit_price = None
-        self._update_qty(qty, operation='set')
+
+        if not (self.exchange_type == 'spot' and jh.is_livetrading()):
+            self._update_qty(qty, operation='set')
+
         self.opened_at = jh.now_to_timestamp()
 
         self._open()
@@ -353,7 +366,7 @@ class Position:
         store.completed_trades.open_trade(self)
 
     def _on_executed_order(self, order: Order) -> None:
-        if jh.is_livetrading():
+        if jh.is_livetrading() and self.exchange_type == 'futures':
             # if position got closed because of this order
             if order.is_partially_filled:
                 before_qty = self.qty - order.filled_qty
@@ -365,8 +378,6 @@ class Position:
         else:
             qty = order.qty
             price = order.price
-
-            # TODO: detect reduce_only order, and if so, see if you need to adjust qty and price (above variables)
 
             if self.exchange and self.exchange.type == 'futures':
                 self.exchange.charge_fee(qty * price)
@@ -412,8 +423,10 @@ class Position:
         before_qty = abs(self.qty)
         after_qty = abs(data['qty'])
 
-        self.entry_price = data['entry_price']
-        self._liquidation_price = data['liquidation_price']
+        if self.exchange_type == 'futures':
+            self.entry_price = data['entry_price']
+            self._liquidation_price = data['liquidation_price']
+
         # if the new qty (data['qty']) is different than the current (self.qty) then update it:
         if self.qty != data['qty']:
             self.previous_qty = self.qty
