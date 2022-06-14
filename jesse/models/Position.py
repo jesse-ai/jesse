@@ -89,7 +89,7 @@ class Position:
         """
         if self.is_long:
             return 'long'
-        if self.is_short:
+        elif self.is_short:
             return 'short'
 
         return 'close'
