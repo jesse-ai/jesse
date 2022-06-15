@@ -90,6 +90,13 @@ class Order(Model):
         return self.status == order_statuses.ACTIVE
 
     @property
+    def is_cancellable(self):
+        """
+        orders that are either active or partially filled
+        """
+        return self.is_active or self.is_partially_filled
+
+    @property
     def is_queued(self) -> bool:
         """
         Used in live mode only: it means the strategy has considered the order as submitted,
