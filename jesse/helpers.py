@@ -614,6 +614,11 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
     :param precision: int
     :return: float | nd.array
     """
+    input_type = type(roundable_qty)
+    # if roundable_qty is a scalar, convert to nd.array
+    if not isinstance(roundable_qty, np.ndarray):
+        roundable_qty = np.array([roundable_qty])
+
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = round_decimals_down(roundable_qty, precision)
 
@@ -621,10 +626,12 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
         if q == 0.0:
             rounded[index] = 1 / 10 ** precision
 
+    if input_type == float:
+        return float(rounded[0])
     return rounded
 
 
-def round_decimals_down(number: np.ndarray, decimals: int = 2) -> float:
+def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> float:
     """
     Returns a value rounded down to a specific number of decimal places.
     """
