@@ -626,7 +626,7 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
         if q == 0.0:
             rounded[index] = 1 / 10 ** precision
 
-    if input_type == float:
+    if input_type in [float, np.float64]:
         return float(rounded[0])
     return rounded
 
@@ -636,11 +636,11 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
     Returns a value rounded down to a specific number of decimal places.
     """
     if not isinstance(decimals, int):
-      raise TypeError("decimal places must be an integer")
+        raise TypeError("decimal places must be an integer")
     elif decimals < 0:
-      raise ValueError("decimal places has to be 0 or more")
+        raise ValueError("decimal places has to be 0 or more")
     elif decimals == 0:
-      return np.floor(number)
+        return np.floor(number)
 
     factor = 10 ** decimals
     return np.floor(number * factor) / factor

@@ -454,8 +454,9 @@ def test_round_qty_for_live_mode():
     # round one number only
     to_round = 10.123456789
     expected_result = 10.1234
-    assert jh.round_qty_for_live_mode(to_round, 4) == expected_result
-    assert type(jh.round_qty_for_live_mode(to_round, 4)) == float
+    res = jh.round_qty_for_live_mode(to_round, 4)
+    assert res == expected_result
+    assert type(res) == float
 
 
 def test_round_decimals_down():
