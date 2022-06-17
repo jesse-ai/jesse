@@ -1007,6 +1007,9 @@ class Strategy(ABC):
 
     @property
     def average_entry_price(self) -> float:
+        if jh.is_livetrading():
+            return self.position.entry_price
+
         if self.is_long:
             arr = self._buy
         elif self.is_short:
