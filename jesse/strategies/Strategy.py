@@ -133,7 +133,7 @@ class Strategy(ABC):
 
         # call the relevant strategy event handler:
         # if opening position
-        if before_qty == 0 and after_qty != 0:
+        if before_qty < self.position._min_qty < after_qty:
             txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
@@ -141,7 +141,7 @@ class Strategy(ABC):
                 notifier.notify(txt)
             self._on_open_position(order)
         # if closing position
-        elif before_qty != 0 and after_qty == 0:
+        elif before_qty > self.position._min_qty > after_qty:
             txt = f"CLOSED Position for {self.symbol}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
@@ -967,11 +967,15 @@ class Strategy(ABC):
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     def _get_formatted_order(self, var, round_for_live_mode=True) -> Union[list, np.ndarray]:
+        jh.dump('var, round_for_live_mode', var, round_for_live_mode)
+
         if type(var) is np.ndarray:
+            jh.dump('#1')
             return var
 
         # just to make sure we also support None
         if var is None or var == []:
+            jh.dump('#2')
             return []
 
         # create a copy in the placeholders variables so we can detect future modifications
@@ -987,12 +991,14 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
 
         # if jh.is_live() and round_for_live_mode:
+        jh.dump('jh.is_livetrading() and round_for_live_mode', jh.is_livetrading() and round_for_live_mode, jh.is_livetrading(), round_for_live_mode)
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
+                jh.dump('Skipping rounding for livetrade because the exchange does not have precisions')
                 return arr
 
             price_precision = current_exchange.vars['precisions'][self.symbol]['price_precision']
@@ -1001,8 +1007,10 @@ class Strategy(ABC):
             prices = jh.round_price_for_live_mode(arr[:, 1], price_precision)
             qtys = jh.round_qty_for_live_mode(arr[:, 0], qty_precision)
 
+            jh.dump('arr before', arr)
             arr[:, 0] = qtys
             arr[:, 1] = prices
+            jh.dump('arr after', arr)
 
         return arr
 

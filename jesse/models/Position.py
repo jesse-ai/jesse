@@ -156,7 +156,7 @@ class Position:
 
         :return: float
         """
-        if self.qty == 0:
+        if abs(self.qty) < self._min_qty:
             return 0
 
         if self.entry_price is None:
@@ -266,7 +266,7 @@ class Position:
         }
 
     def _mutating_close(self, close_price: float) -> None:
-        if self.is_open is False:
+        if self.is_close and self._can_mutate_qty:
             raise EmptyPosition('The position is already closed.')
 
         # just to prevent confusion
@@ -285,7 +285,9 @@ class Position:
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
         self.closed_at = jh.now_to_timestamp()
 
-        self._update_qty(0, operation='set')
+        if self._can_mutate_qty:
+            self._update_qty(0, operation='set')
+
         self.entry_price = None
 
         self._close()
@@ -295,6 +297,9 @@ class Position:
         store.completed_trades.close_trade(self)
 
     def _mutating_reduce(self, qty: float, price: float) -> None:
+        if not self._can_mutate_qty:
+            return
+
         if self.is_open is False:
             raise EmptyPosition('The position is closed.')
 
@@ -325,20 +330,21 @@ class Position:
             self.entry_price
         )
 
-        if self.type == trade_types.LONG:
-            self._update_qty(qty, operation='add')
-        elif self.type == trade_types.SHORT:
-            self._update_qty(qty, operation='subtract')
+        if self._can_mutate_qty:
+            if self.type == trade_types.LONG:
+                self._update_qty(qty, operation='add')
+            elif self.type == trade_types.SHORT:
+                self._update_qty(qty, operation='subtract')
 
     def _mutating_open(self, qty: float, price: float) -> None:
-        if self.is_open:
+        if self.is_open and self._can_mutate_qty:
             raise OpenPositionError('an already open position cannot be opened')
 
         self.entry_price = price
         jh.dump('self.entry_price', self.entry_price)
         self.exit_price = None
 
-        if not (self.exchange_type == 'spot' and jh.is_livetrading()):
+        if self._can_mutate_qty:
             self._update_qty(qty, operation='set')
 
         self.opened_at = jh.now_to_timestamp()
@@ -373,6 +379,7 @@ class Position:
         store.completed_trades.open_trade(self)
 
     def _on_executed_order(self, order: Order) -> None:
+        # futures (live)
         if jh.is_livetrading() and self.exchange_type == 'futures':
             # if position got closed because of this order
             if order.is_partially_filled:
@@ -382,12 +389,10 @@ class Position:
             after_qty = self.qty
             if before_qty != 0 and after_qty == 0:
                 self._close()
+        # spot (live)
         elif jh.is_livetrading() and self.exchange_type == 'spot':
             # if position got closed because of this order
-            if order.is_partially_filled:
-                before_qty = self.qty - abs(order.filled_qty)
-            else:
-                before_qty = self.qty - abs(order.qty)
+            before_qty = self.previous_qty
             after_qty = self.qty
             qty = order.qty
             price = order.price
@@ -495,3 +500,7 @@ class Position:
             return 0
 
         return self._min_notional_size / self.current_price
+
+    @property
+    def _can_mutate_qty(self):
+        return not (self.exchange_type == 'spot' and jh.is_livetrading())
