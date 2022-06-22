@@ -269,25 +269,23 @@ class Position:
         if self.is_close and self._can_mutate_qty:
             raise EmptyPosition('The position is already closed.')
 
-        # just to prevent confusion
-        close_qty = abs(self.qty)
-
-        estimated_profit = jh.estimate_PNL(
-            close_qty, self.entry_price,
-            close_price, self.type
-        )
-        entry = self.entry_price
-        trade_type = self.type
         self.exit_price = close_price
+        self.closed_at = jh.now_to_timestamp()
 
         if self.exchange and self.exchange.type == 'futures':
+            # just to prevent confusion
+            close_qty = abs(self.qty)
+            estimated_profit = jh.estimate_PNL(
+                close_qty, self.entry_price,
+                close_price, self.type
+            )
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(close_qty * close_price)
-        self.closed_at = jh.now_to_timestamp()
 
         if self._can_mutate_qty:
             self._update_qty(0, operation='set')
 
+        # reset entry_price
         self.entry_price = None
 
         self._close()
@@ -324,7 +322,6 @@ class Position:
 
         qty = abs(qty)
 
-        jh.dump(qty, price, self.qty, self.entry_price)
         self.entry_price = jh.estimate_average_price(
             qty, price, self.qty,
             self.entry_price
@@ -341,7 +338,6 @@ class Position:
             raise OpenPositionError('an already open position cannot be opened')
 
         self.entry_price = price
-        jh.dump('self.entry_price', self.entry_price)
         self.exit_price = None
 
         if self._can_mutate_qty:
@@ -397,22 +393,18 @@ class Position:
             qty = order.qty
             price = order.price
             closing_position = before_qty > self._min_qty > after_qty
-            jh.dump('closing_position', closing_position)
             if closing_position:
                 self._mutating_close(price)
             opening_position = before_qty < self._min_qty < after_qty
-            jh.dump('opening_position', opening_position)
             if opening_position:
                 self._mutating_open(qty, price)
             increasing_position = after_qty > before_qty > self._min_qty
-            jh.dump('increasing_position', increasing_position)
             if increasing_position:
                 self._mutating_increase(qty, price)
             reducing_position = self._min_qty < after_qty < before_qty
-            jh.dump('reducing_position', reducing_position)
             if reducing_position:
                 self._mutating_reduce(qty, price)
-        else:
+        else: # backtest (both futures and spot)
             qty = order.qty
             price = order.price
 
@@ -482,7 +474,6 @@ class Position:
                     self.qty, self.entry_price
                 )
             self.opened_at = jh.now_to_timestamp()
-            jh.dump('opened position #1')
             self._open()
         elif closing_position:
             self.closed_at = jh.now_to_timestamp()
