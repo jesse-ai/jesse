@@ -122,7 +122,6 @@ class Strategy(ABC):
         events. Note that it assumes that the position has already
         been affected by the executed order.
         """
-
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
 
@@ -131,41 +130,48 @@ class Strategy(ABC):
         before_qty = self.position.previous_qty
         after_qty = self.position.qty
 
-        # call the relevant strategy event handler:
         # if opening position
-        if before_qty < self.position._min_qty < after_qty:
+        if abs(before_qty) <= abs(self.position._min_qty) < abs(after_qty):
+            effect = 'opening_position'
+        # if closing position
+        elif abs(before_qty) > abs(self.position._min_qty) >= abs(after_qty):
+            effect = 'closing_position'
+        # if increasing position size
+        elif abs(after_qty) > abs(before_qty):
+            effect = 'increased_position'
+        # if reducing position size
+        else: # abs(after_qty) < abs(before_qty):
+            effect = 'reduced_position'
+
+        # call the relevant strategy event handler:
+        if effect == 'opening_position':
             txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_open_position(order)
-        # if closing position
-        elif before_qty > self.position._min_qty > after_qty:
+        elif effect == 'closing_position':
             txt = f"CLOSED Position for {self.symbol}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_close_position(order)
-        # if increasing position size
-        elif abs(after_qty) > abs(before_qty):
+        elif effect == 'increased_position':
             txt = f"INCREASED Position size to {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
-        # if reducing position size
-        elif abs(after_qty) < abs(before_qty):
+        else: # if effect == 'reduced_position':
             txt = f"REDUCED Position size to {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_reduced_position(order)
-        else:
-            pass
 
         self._is_handling_updated_order = False
 
@@ -967,15 +973,11 @@ class Strategy(ABC):
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     def _get_formatted_order(self, var, round_for_live_mode=True) -> Union[list, np.ndarray]:
-        jh.dump('var, round_for_live_mode', var, round_for_live_mode)
-
         if type(var) is np.ndarray:
-            jh.dump('#1')
             return var
 
         # just to make sure we also support None
         if var is None or var == []:
-            jh.dump('#2')
             return []
 
         # create a copy in the placeholders variables so we can detect future modifications
@@ -991,14 +993,12 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
 
         # if jh.is_live() and round_for_live_mode:
-        jh.dump('jh.is_livetrading() and round_for_live_mode', jh.is_livetrading() and round_for_live_mode, jh.is_livetrading(), round_for_live_mode)
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
-                jh.dump('Skipping rounding for livetrade because the exchange does not have precisions')
                 return arr
 
             price_precision = current_exchange.vars['precisions'][self.symbol]['price_precision']
@@ -1007,10 +1007,8 @@ class Strategy(ABC):
             prices = jh.round_price_for_live_mode(arr[:, 1], price_precision)
             qtys = jh.round_qty_for_live_mode(arr[:, 0], qty_precision)
 
-            jh.dump('arr before', arr)
             arr[:, 0] = qtys
             arr[:, 1] = prices
-            jh.dump('arr after', arr)
 
         return arr
 
@@ -1044,7 +1042,6 @@ class Strategy(ABC):
         # this property inside a filter.
         if self.entry_orders == [] and self.sell is not None:
             return True
-
         return self.entry_orders != [] and self.entry_orders[0].side == 'sell'
 
     def liquidate(self) -> None:
