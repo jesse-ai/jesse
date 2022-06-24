@@ -464,8 +464,8 @@ class Position:
             self.previous_qty = self.qty
             self.qty = data['qty']
 
-        opening_position = before_qty < self._min_qty < after_qty
-        closing_position = before_qty > self._min_qty > after_qty
+        opening_position = before_qty <= self._min_qty < after_qty
+        closing_position = before_qty > self._min_qty >= after_qty
         if opening_position:
             if is_initial:
                 from jesse.store import store
