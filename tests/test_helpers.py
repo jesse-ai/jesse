@@ -615,3 +615,9 @@ def test_get_class_name():
 
     # if string is passed, it will return the string
     assert jh.get_class_name('TestClass') == 'TestClass'
+
+
+def test_round_or_none():
+    assert jh.round_or_none(1.23) == 1
+    assert jh.round_or_none(1.23456789, 2) == 1.23
+    assert jh.round_or_none(None) is None

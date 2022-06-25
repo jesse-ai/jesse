@@ -5,7 +5,7 @@ import random
 import string
 import sys
 import uuid
-from typing import List, Tuple, Union, Any
+from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
@@ -593,6 +593,15 @@ def readable_duration(seconds: int, granularity: int = 2) -> str:
 
 def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
+
+
+def round_or_none(x: Union[float, None], digits: int = 0) -> Optional[float]:
+    """
+    Rounds a number to a certain number of digits or returns None if the number is None
+    """
+    if x is None:
+        return None
+    return round(x, digits)
 
 
 def round_price_for_live_mode(price, precision: int) -> Union[float, np.ndarray]:
