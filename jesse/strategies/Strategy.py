@@ -562,6 +562,7 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
+        # should cancel entry?
         if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
 
@@ -583,11 +584,13 @@ class Strategy(ABC):
                         'The exchange did not respond as expected for order cancellation'
                     )
 
+        # update position
         if self.position.is_open:
             self._update_position()
 
         self._simulate_market_order_execution()
 
+        # should_long and should_short
         if self.position.is_close and self.entry_orders == []:
             should_short = self.should_short()
             # validate that should_short is not True if the exchange_type is spot
