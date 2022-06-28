@@ -2,7 +2,6 @@ import time
 from typing import Dict, Union, List
 
 import arrow
-import click
 import numpy as np
 import pandas as pd
 
@@ -73,10 +72,6 @@ def run(
     store.app.set_session_id()
 
     register_custom_exception_handler()
-
-    # clear the screen
-    if not jh.should_execute_silently():
-        click.clear()
 
     # validate routes
     validate_routes(router)
@@ -199,13 +194,13 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         # not cached, get and cache for later calls in the next 5 minutes
         # fetch from database
         candles_tuple = cached_value or Candle.select(
-            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-            Candle.volume
-        ).where(
-            Candle.timestamp.between(start_date, finish_date),
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(Candle.timestamp.asc()).tuples()
+                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+                Candle.volume
+            ).where(
+                Candle.exchange == exchange,
+                Candle.symbol == symbol,
+                Candle.timestamp.between(start_date, finish_date)
+            ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
@@ -265,7 +260,7 @@ def simulator(
             r.strategy = StrategyClass()
         except TypeError:
             raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file."
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
                 "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
             )
         except:

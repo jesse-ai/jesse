@@ -27,6 +27,14 @@ def get_exchange(name: str) -> Any:
     return store.exchanges.storage.get(name, None)
 
 
+def get_trading_exchange():
+    """
+    since we now only allow trading from one exchange at a time, this is the only one that we're gonna need
+    """
+    first_trading_route = get_all_trading_routes()[0]
+    return get_exchange(first_trading_route.exchange)
+
+
 def get_all_exchanges() -> ValuesView[Any]:
     from jesse.store import store
     return store.exchanges.storage.values()

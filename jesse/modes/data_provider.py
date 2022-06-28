@@ -6,6 +6,7 @@ import requests
 
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
+from jesse.config import config
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -66,7 +67,6 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
 
 
 def get_general_info(has_live=False) -> dict:
-    from jesse.modes.import_candles_mode.drivers import drivers
     from jesse.version import __version__ as jesse_version
     system_info = {
         'jesse_version': jesse_version
@@ -80,7 +80,9 @@ def get_general_info(has_live=False) -> dict:
     else:
         live_exchanges = []
 
-    exchanges = list(sorted(drivers.keys()))
+    exchanges = jh.get_config('env.exchanges').copy()
+    del exchanges['Sandbox']
+    exchanges = list(exchanges.items())
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
 
@@ -136,12 +138,6 @@ def get_config(client_config: dict, has_live=False) -> dict:
             for k in list(data['live']['exchanges'].keys()):
                 if k not in live_exchanges:
                     del data['live']['exchanges'][k]
-
-        # fix the settlement_currency of exchanges
-        for k, e in data['live']['exchanges'].items():
-            e['settlement_currency'] = jh.get_settlement_currency_from_exchange(e['name'])
-        for k, e in data['backtest']['exchanges'].items():
-            e['settlement_currency'] = jh.get_settlement_currency_from_exchange(e['name'])
 
         o.updated_at = jh.now()
         o.save()

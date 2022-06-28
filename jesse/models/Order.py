@@ -43,7 +43,7 @@ class Order(Model):
         from jesse.services.db import database
 
         database = database.db
-        indexes = ((('exchange', 'symbol'), False),)
+        indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
@@ -146,6 +146,13 @@ class Order(Model):
     def position(self):
         return selectors.get_position(self.exchange, self.symbol)
 
+    @property
+    def value(self):
+        return abs(self.qty) * self.price
+
+    def remaining_qty(self):
+        return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
+
     def cancel(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
             return
@@ -196,14 +203,13 @@ class Order(Model):
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
 
-        p = selectors.get_position(self.exchange, self.symbol)
-
-        if p:
-            p._on_executed_order(self)
-
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_execution(self)
+
+        p = selectors.get_position(self.exchange, self.symbol)
+        if p:
+            p._on_executed_order(self)
 
     def execute_partially(self, silent=False) -> None:
         self.executed_at = jh.now_to_timestamp()
@@ -213,7 +219,7 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f"PARTIALLY FILLED: {self.symbol}, {self.side}, qty: {self.filled_qty}/{self.qty}, price: {self.price}"
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {self.price}"
             # log
             if jh.is_debuggable('order_execution'):
                 logger.info(txt)

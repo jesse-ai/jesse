@@ -1,86 +1,52 @@
 import numpy as np
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.enums import sides, order_types
 from jesse.exceptions import InsufficientMargin
-from jesse.libs import DynamicNumpyArray
 from jesse.models import Order
 from jesse.services import selectors
-from .Exchange import Exchange
+from jesse.models.Exchange import Exchange
 
 
 class FuturesExchange(Exchange):
-    # # used for live-trading only:
-    # in futures trading, margin is only with one asset, so:
-    _available_margin = 0
-    # in futures trading, wallet is only with one asset, so:
-    _wallet_balance = 0
-    # so is started_balance
-    _started_balance = 0
-
-    # current holding assets
-    assets = {}
-    # current available assets (dynamically changes based on active orders)
-    available_assets = {}
-    # used to estimating metrics
-    starting_assets = {}
-
-    buy_orders = {}
-    sell_orders = {}
-
     def __init__(
             self,
             name: str,
-            starting_assets: list,
+            starting_balance: float,
             fee_rate: float,
-            settlement_currency: str,
             futures_leverage_mode: str,
             futures_leverage: int
     ):
-        super().__init__(name, starting_assets, fee_rate, 'futures')
+        super().__init__(name, starting_balance, fee_rate, 'futures')
+
+        # # # # live-trading only # # # #
+        # in futures trading, margin is only with one asset, so:
+        self._available_margin = 0
+        # in futures trading, wallet is only with one asset, so:
+        self._wallet_balance = 0
+        # so is started_balance
+        self._started_balance = 0
+        # # # # # # # # # # # # # # # # #
 
         self.futures_leverage_mode = futures_leverage_mode
         self.futures_leverage = futures_leverage
 
-        for item in starting_assets:
-            self.buy_orders[item['asset']] = DynamicNumpyArray((10, 2))
-            self.sell_orders[item['asset']] = DynamicNumpyArray((10, 2))
-
-        # make sure trading routes exist in starting_assets
-        from jesse.routes import router
-        for r in router.routes:
-            base = jh.base_asset(r.symbol)
-            if base not in self.assets:
-                self.assets[base] = 0
-                self.temp_reduced_amount[base] = 0
-            if base not in self.buy_orders:
-                self.buy_orders[base] = DynamicNumpyArray((10, 2))
-            if base not in self.sell_orders:
-                self.sell_orders[base] = DynamicNumpyArray((10, 2))
-
-        self.starting_assets = self.assets.copy()
-        self.available_assets = self.assets.copy()
-
-        # start from 0 balance for self.available_assets which acts as a temp variable
-        for k in self.available_assets:
-            self.available_assets[k] = 0
-
-        self.settlement_currency = settlement_currency.upper()
-
+    @property
     def started_balance(self) -> float:
         if jh.is_livetrading():
             return self._started_balance
 
         return self.starting_assets[jh.app_currency()]
 
-    def wallet_balance(self, symbol: str = '') -> float:
+    @property
+    def wallet_balance(self) -> float:
         if jh.is_livetrading():
             return self._wallet_balance
 
         return self.assets[self.settlement_currency]
 
-    def available_margin(self, symbol: str = '') -> float:
+    @property
+    def available_margin(self) -> float:
         if jh.is_livetrading():
             return self._available_margin
 
@@ -139,25 +105,18 @@ class FuturesExchange(Exchange):
             f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
-    def on_order_submission(self, order: Order, skip_market_order: bool = True) -> None:
+    def on_order_submission(self, order: Order) -> None:
         if jh.is_livetrading():
             return
 
         base_asset = jh.base_asset(order.symbol)
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
-        if (order.type != order_types.MARKET or skip_market_order) and not order.reduce_only:
+        if not order.reduce_only:
             order_size = abs(order.qty * order.price)
-            remaining_margin = self.available_margin()
-            if order_size > remaining_margin:
+            if order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(remaining_margin)}')
-
-        # skip market order at the time of submission because we don't have
-        # the exact order.price. Instead, we call on_order_submission() one
-        # more time at time of execution without "skip_market_order=False".
-        if order.type == order_types.MARKET and skip_market_order:
-            return
+                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(self.available_margin)}')
 
         self.available_assets[base_asset] += order.qty
 
@@ -172,9 +131,6 @@ class FuturesExchange(Exchange):
             return
 
         base_asset = jh.base_asset(order.symbol)
-
-        if order.type == order_types.MARKET:
-            self.on_order_submission(order, skip_market_order=False)
 
         if not order.reduce_only:
             if order.side == sides.BUY:

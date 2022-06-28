@@ -91,8 +91,8 @@ def livetrade():
     starting_balance = 0
     current_balance = 0
     for e in store.exchanges.storage:
-        starting_balance = round(store.exchanges.storage[e].started_balance(), 2)
-        current_balance = round(store.exchanges.storage[e].wallet_balance(), 2)
+        starting_balance = round(store.exchanges.storage[e].started_balance, 2)
+        current_balance = round(store.exchanges.storage[e].wallet_balance, 2)
         # there's only one exchange, so we can break
         break
 

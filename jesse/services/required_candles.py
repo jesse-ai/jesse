@@ -50,9 +50,9 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
                 Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
                 Candle.volume
             ).where(
-                Candle.timestamp.between(pre_start_date, pre_finish_date),
                 Candle.exchange == exchange,
-                Candle.symbol == symbol
+                Candle.symbol == symbol,
+                Candle.timestamp.between(pre_start_date, pre_finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         )
 

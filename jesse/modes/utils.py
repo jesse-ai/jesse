@@ -1,10 +1,11 @@
 import jesse.helpers as jh
-from jesse.models.utils import store_daily_balance_into_db
+# from jesse.models.utils import store_daily_balance_into_db
 from jesse.services import logger
-from jesse.store import store
 
 
 def save_daily_portfolio_balance() -> None:
+    from jesse.store import store
+
     # # store daily_balance of assets into database
     # if jh.is_livetrading():
     #     for asset_key, asset_value in e.assets.items():
@@ -16,23 +17,39 @@ def save_daily_portfolio_balance() -> None:
     #             'asset': asset_key,
     #             'balance': asset_value,
     #         })
-    balances = []
-    for key, e in store.exchanges.storage.items():
+    total_balances = 0
+    # select the first item in store.exchanges.storage.items()
+    e, = store.exchanges.storage.values()
+    if e.type == 'futures':
         try:
-            balances.append(
-                e.assets[jh.app_currency()]
-            )
+            total_balances += e.assets[jh.app_currency()]
         except KeyError:
             raise ValueError('Invalid quote trading pair. Check your trading route\'s symbol')
 
-    # add open position values
     for key, pos in store.positions.storage.items():
-        if pos.is_open:
-            balances.append(pos.pnl)
+        if pos.exchange_type == 'futures' and pos.is_open:
+            total_balances += pos.pnl
+        elif pos.exchange_type == 'spot':
+            total_balances += pos.strategy.portfolio_value
 
-    total = sum(balances)
-    store.app.daily_balance.append(total)
+    store.app.daily_balance.append(total_balances)
 
     # TEMP: disable storing in database for now
     if not jh.is_livetrading():
-        logger.info(f'Saved daily portfolio balance: {round(total, 2)}')
+        logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')
+
+
+def get_exchange_type(exchange_name: str) -> str:
+    """
+    a helper for getting the exchange_type for the running session
+    """
+    # in live trading, exchange type is not configurable, hence we hardcode it
+    if jh.is_live():
+        from jesse_live.info import SUPPORTED_EXCHANGES
+        # SUPPORTED_EXCHANGES is a list. Search through it and find the exchange name
+        for exchange in SUPPORTED_EXCHANGES:
+            if exchange['name'] == exchange_name:
+                return exchange['type']
+
+    # for other trading modes, we can get the exchange type from the config file
+    return jh.get_config(f'env.exchanges.{exchange_name}.type')

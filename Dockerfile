@@ -1,4 +1,5 @@
-FROM python:3.9-slim
+ARG TEST_BUILD=0
+FROM python:3.9-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
 RUN apt-get update \
@@ -25,4 +26,11 @@ RUN pip3 install -r requirements.txt
 COPY . /jesse-docker
 RUN pip3 install -e .
 
+FROM jesse_basic_env AS jesse_with_test_0
 WORKDIR /home
+
+FROM jesse_basic_env AS jesse_with_test_1
+RUN pip3 install codecov pytest-cov
+ENTRYPOINT pytest --cov=./ # && codecov
+
+FROM jesse_with_test_${TEST_BUILD} AS jesse_final

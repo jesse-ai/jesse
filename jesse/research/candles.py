@@ -46,9 +46,10 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
         Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
         Candle.volume
     ).where(
-        Candle.timestamp.between(start_date, finish_date),
         Candle.exchange == exchange,
-        Candle.symbol == symbol).order_by(Candle.timestamp.asc()).tuples()
+        Candle.symbol == symbol,
+        Candle.timestamp.between(start_date, finish_date)
+    ).order_by(Candle.timestamp.asc()).tuples()
 
     candles = np.array(tuple(candles_tuple))
 

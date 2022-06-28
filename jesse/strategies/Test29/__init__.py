@@ -31,7 +31,7 @@ class Test29(Strategy):
         # setting it to True means we'll open a position on NEXT candle
         self.vars['should_short'] = True
 
-    def should_cancel(self):
+    def should_cancel_entry(self):
         return False
 
     def on_close_position(self, order):

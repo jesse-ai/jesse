@@ -9,7 +9,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via
-from jesse.models import CompletedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -49,7 +49,7 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self.trade: CompletedTrade = None
+        self.trade: ClosedTrade = None
         self.trades_count = 0
 
         self._is_executing = False
@@ -128,10 +128,7 @@ class Strategy(ABC):
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:
-        if order.is_partially_filled:
-            before_qty = self.position.qty - order.filled_qty
-        else:
-            before_qty = self.position.qty - order.qty
+        before_qty = self.position.previous_qty
         after_qty = self.position.qty
 
         # call the relevant strategy event handler:
@@ -194,12 +191,24 @@ class Strategy(ABC):
         self._prepare_buy()
 
         if self.take_profit is not None:
+            if self.exchange_type == 'spot':
+                raise exceptions.InvalidStrategy(
+                    "Setting self.take_profit in the go_long() method is not supported for spot trading (it's only supported in futures trading). "
+                    "Try setting it in self.on_open_position() instead."
+                )
+
             # validate
             self._validate_take_profit()
 
             self._prepare_take_profit()
 
         if self.stop_loss is not None:
+            if self.exchange_type == 'spot':
+                raise exceptions.InvalidStrategy(
+                    "Setting self.stop_loss in the go_long() method is not supported for spot trading (it's only supported in futures trading). "
+                    "Try setting it in self.on_open_position() instead."
+                )
+
             # validate
             self._validate_stop_loss()
 
@@ -411,7 +420,7 @@ class Strategy(ABC):
         return False
 
     @abstractmethod
-    def should_cancel(self) -> bool:
+    def should_cancel_entry(self) -> bool:
         pass
 
     def before(self) -> None:
@@ -547,12 +556,7 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
-        # for caution to make sure testing on livetrade won't bleed your account
-        if jh.is_test_driving() and store.completed_trades.count >= 2:
-            logger.info('Maximum allowed trades in test-drive mode is reached')
-            return
-
-        if len(self.entry_orders) and self.is_close and self.should_cancel():
+        if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -576,21 +580,36 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
-        if jh.is_backtesting() or jh.is_unit_testing():
-            store.orders.execute_pending_market_orders()
+        self._simulate_market_order_execution()
 
         if self.position.is_close and self.entry_orders == []:
             should_short = self.should_short()
+            # validate that should_short is not True if the exchange_type is spot
+            if self.exchange_type == 'spot' and should_short is True:
+                raise exceptions.InvalidStrategy(
+                    'should_short cannot be True if the exchange type os "spot".'
+                )
+
             should_long = self.should_long()
-            # validation
+
+            # should_short and should_long cannot be True at the same time
             if should_short and should_long:
                 raise exceptions.ConflictingRules(
                     'should_short and should_long should not be true at the same time.'
                 )
+
             if should_long:
                 self._execute_long()
             elif should_short:
                 self._execute_short()
+
+    @staticmethod
+    def _simulate_market_order_execution() -> None:
+        """
+        Simulate market order execution in backtest mode
+        """
+        if jh.is_backtesting() or jh.is_unit_testing():
+            store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -772,6 +791,9 @@ class Strategy(ABC):
             logger.info(
                 f"Closed open {self.exchange}-{self.symbol} position at {self.position.current_price} with PNL: {round(self.position.pnl, 4)}({round(self.position.pnl_percentage, 2)}%) because we reached the end of the backtest session."
             )
+            # first cancel all active orders so the balances would go back to the original state
+            if self.exchange_type == 'spot':
+                self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
             self.broker.reduce_position_at(self.position.qty, self.position.current_price)
             return
@@ -895,18 +917,17 @@ class Strategy(ABC):
 
     @property
     def balance(self) -> float:
-        """alias for self.capital"""
-        return self.capital
+        """the current capital in the trading exchange"""
+        return self.position.exchange.wallet_balance
 
     @property
     def capital(self) -> float:
-        """the current capital in the trading exchange"""
-        return self.position.exchange.wallet_balance(self.symbol)
+        raise NotImplementedError('The alias "self.capital" has been removed. Please use "self.balance" instead.')
 
     @property
     def available_margin(self) -> float:
         """Current available margin considering leverage"""
-        return self.position.exchange.available_margin(self.symbol)
+        return self.position.exchange.available_margin
 
     @property
     def fee_rate(self) -> float:
@@ -960,6 +981,10 @@ class Strategy(ABC):
 
         # create numpy array from list
         arr = np.array(var, dtype=float)
+
+        # validate that the price (second column) is not less or equal to zero
+        if arr[:, 1].min() <= 0:
+            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
 
         if jh.is_live() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
@@ -1060,20 +1085,13 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info') -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False) -> None:
         msg = str(msg)
 
         if log_type == 'info':
-            logger.info(msg)
-
-            if jh.is_live():
-                notifier.notify(msg)
+            logger.info(msg, send_notification=jh.is_live() and send_notification)
         elif log_type == 'error':
-            logger.error(msg)
-
-            if jh.is_live():
-                notifier.notify(msg)
-                notifier.notify_urgently(msg)
+            logger.error(msg, send_notification=jh.is_live() and send_notification)
         else:
             raise ValueError(f'log_type should be either "info" or "error". You passed {log_type}')
 
@@ -1087,12 +1105,25 @@ class Strategy(ABC):
     @property
     def portfolio_value(self) -> float:
         total_position_values = 0
-        for key, p in self.all_positions.items():
-            total_position_values += p.pnl
-        return (total_position_values + self.capital) * self.leverage
+
+        # in spot mode, self.balance does not include open order's value, so:
+        if self.is_spot_trading:
+            for o in self.entry_orders:
+                if o.is_active:
+                    total_position_values += o.value
+
+            for key, p in self.all_positions.items():
+                total_position_values += p.value
+
+        # in futures mode, it's simpler:
+        elif self.is_futures_trading:
+            for key, p in self.all_positions.items():
+                total_position_values += p.pnl
+
+        return (total_position_values + self.balance) * self.leverage
 
     @property
-    def trades(self) -> List[CompletedTrade]:
+    def trades(self) -> List[ClosedTrade]:
         """
         Returns all the completed trades for this strategy.
         """
@@ -1118,3 +1149,19 @@ class Strategy(ABC):
         Returns all the exit orders for this position.
         """
         return store.orders.get_exit_orders(self.exchange, self.symbol)
+
+    @property
+    def exchange_type(self):
+        return selectors.get_exchange(self.exchange).type
+
+    @property
+    def is_spot_trading(self) -> bool:
+        return self.exchange_type == 'spot'
+
+    @property
+    def is_futures_trading(self) -> bool:
+        return self.exchange_type == 'futures'
+
+    @property
+    def daily_balances(self):
+        return store.app.daily_balance

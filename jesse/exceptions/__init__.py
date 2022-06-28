@@ -70,5 +70,17 @@ class InsufficientMargin(Exception):
     pass
 
 
+class InsufficientBalance(Exception):
+    pass
+
+
 class Termination(Exception):
+    pass
+
+
+class InvalidExchangeApiKeys(Exception):
+    pass
+
+
+class ExchangeError(Exception):
     pass
