@@ -66,7 +66,7 @@ class Order(Model):
             self.notify_submission()
 
         if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
-            txt = f'{"2 QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
             logger.info(txt)
@@ -164,10 +164,8 @@ class Order(Model):
     def queue(self):
         self.status = order_statuses.QUEUED
         self.canceled_at = None
-        # TODO: handle notifications and logs
         if jh.is_debuggable('order_submission'):
-            # TODO: remove "1"
-            txt = f'1 QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
                 logger.info(txt)
@@ -181,8 +179,7 @@ class Order(Model):
         self.status = order_statuses.ACTIVE
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
-            # TODO: remove "1"
-            txt = f'1 SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
                 logger.info(txt)
