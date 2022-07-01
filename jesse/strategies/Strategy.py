@@ -497,7 +497,7 @@ class Strategy(ABC):
 
                     # cancel orders
                     for o in self.exit_orders:
-                        if o.is_take_profit and o.is_active or o.is_queued:
+                        if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
                     for o in self._take_profit:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
@@ -515,7 +515,7 @@ class Strategy(ABC):
 
                     # cancel orders
                     for o in self.exit_orders:
-                        if o.is_stop_loss and o.is_active or o.is_queued:
+                        if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
                     # remove canceled orders to optimize the loop
                     for o in self._stop_loss:
