@@ -456,7 +456,7 @@ class Position:
             self.entry_price = data['entry_price']
             self._liquidation_price = data['liquidation_price']
         else: # spot
-            if after_qty > self._min_qty:
+            if after_qty > self._min_qty and self.entry_price is None:
                 self.entry_price = self.current_price
 
         # if the new qty (data['qty']) is different than the current (self.qty) then update it:
