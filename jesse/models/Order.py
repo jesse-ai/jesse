@@ -188,8 +188,12 @@ class Order(Model):
                 logger.info(txt)
         self.notify_submission()
 
-    def cancel(self, silent=False) -> None:
+    def cancel(self, silent=False, source='') -> None:
         if self.is_canceled or self.is_executed:
+            return
+
+        # to fix when the cancelled stream's lag causes cancellation of queued orders
+        if source == 'stream' and self.is_queued:
             return
 
         self.canceled_at = jh.now_to_timestamp()
