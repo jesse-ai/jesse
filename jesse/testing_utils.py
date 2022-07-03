@@ -61,7 +61,7 @@ def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
 def single_route_backtest(
         strategy_name: str, is_futures_trading=True,
         leverage=1, leverage_mode='cross', trend='up', fee=0,
-        candles_count=100,
+        candles_count=100, timeframe='1m'
 ):
     """
     used to simplify simple tests
@@ -73,7 +73,7 @@ def single_route_backtest(
         fee=fee
     )
 
-    routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name}]
+    routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframe, 'strategy': strategy_name}]
 
     if trend == 'up':
         candles = get_btc_candles(candles_count)
