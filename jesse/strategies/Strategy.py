@@ -1028,6 +1028,15 @@ class Strategy(ABC):
         else:
             return None
 
+        # if type of arr is not np.ndarray, then it's not ready yet. Return None
+        if type(arr) is not np.ndarray:
+            arr = None
+
+        if arr is None and self.position.is_open:
+            return self.position.entry_price
+        elif arr is None:
+            return None
+
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
