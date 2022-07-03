@@ -102,6 +102,19 @@ def _isolated_backtest(
     # initiate candle store
     store.candles.init_storage(5000)
 
+    # assert that the passed candles are 1m candles
+    for key, value in candles.items():
+        candle_set = value['candles']
+        if candle_set[1][0] - candle_set[0][0] != 60_000:
+            raise ValueError(
+                f'Candles passed to the research.backtest() must be 1m candles. '
+                f'\nIf you wish to trade other timeframes, notice that you need to pass it through '
+                f'the timeframe option in your routes. '
+                f'\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than '
+                f'the accepted 60000 milliseconds.'
+            )
+
+
     # divide candles into warm_up_candles and trading_candles and then inject warm_up_candles
     max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
     warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
