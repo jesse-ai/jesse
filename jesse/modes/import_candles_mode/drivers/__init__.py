@@ -9,6 +9,7 @@ from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetual import BybitUSDT
 from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.FTXPerpetualFutures import FTXPerpetualFutures
 from jesse.modes.import_candles_mode.drivers.FTXSpot import FTXSpot
+from jesse.modes.import_candles_mode.drivers.FTXUSSpot import FTXUSSpot
 
 
 _builtin_drivers = {
@@ -24,6 +25,7 @@ _builtin_drivers = {
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,
+    exchanges.FTX_US_SPOT: FTXUSSpot
 }
 
 _local_drivers = locate('plugins.import_candles_drivers')
