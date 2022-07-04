@@ -8,7 +8,7 @@ from jesse.modes.import_candles_mode.drivers.BinancePerpetualFuturesTestnet impo
 from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetual import BybitUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.FTXPerpetualFutures import FTXPerpetualFutures
-# from jesse.modes.import_candles_mode.drivers.ftx_spot import FTXSpot
+from jesse.modes.import_candles_mode.drivers.FTXSpot import FTXSpot
 
 
 _builtin_drivers = {
@@ -22,13 +22,13 @@ _builtin_drivers = {
     exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
     exchanges.FTX_PERPETUAL_FUTURES: FTXPerpetualFutures,
 
-    # # SPOT
-    # 'FTX Spot': FTXSpot,
+    # Spot
+    exchanges.FTX_SPOT: FTXSpot,
 }
 
 _local_drivers = locate('plugins.import_candles_drivers')
 
-# drivers must be a dict which is merge of _builtin_drivers and _local_drivers
+# drivers must be a dict which is merged of _builtin_drivers and _local_drivers
 drivers = {}
 drivers.update(_builtin_drivers)
 if _local_drivers is not None:
