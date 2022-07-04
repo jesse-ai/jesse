@@ -490,6 +490,12 @@ class Position:
         if not (jh.is_livetrading() and self.exchange_type == 'spot'):
             return 0
 
+        min_notional_size = self._min_notional_size
+
+        # few exchanges like FTX have min_qty instead of min_notional_size, hence:
+        if min_notional_size is None:
+            return self.exchange.vars['precisions'][self.symbol]['min_qty']
+
         return self._min_notional_size / self.current_price
 
     @property
