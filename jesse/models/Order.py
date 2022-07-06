@@ -155,10 +155,11 @@ class Order(Model):
         return selectors.get_position(self.exchange, self.symbol)
 
     @property
-    def value(self):
+    def value(self) -> float:
         return abs(self.qty) * self.price
 
-    def remaining_qty(self):
+    @property
+    def remaining_qty(self) -> float:
         return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
 
     def queue(self):
