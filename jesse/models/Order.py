@@ -177,6 +177,8 @@ class Order(Model):
         if not self.is_queued:
             raise NotSupportedError(f'Cannot resubmit an order that is not queued. Current status: {self.status}')
 
+        # regenerate the order id to avoid errors on the exchange's side
+        self.id = jh.generate_unique_id()
         self.status = order_statuses.ACTIVE
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
