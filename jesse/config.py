@@ -107,8 +107,10 @@ config = {
             # https://pro.coinbase.com
             exchanges.COINBASE_SPOT: {
                 'fee': 0.005,
-                'type': 'futures',
-                'balance': 10_000
+                'type': 'spot',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000,
             },
         },
 
