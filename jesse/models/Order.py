@@ -45,7 +45,7 @@ class Order(Model):
         database = database.db
         indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 
-    def __init__(self, attributes: dict = None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -62,14 +62,15 @@ class Order(Model):
             # self.session_id = store.app.session_id
             # self.save(force_insert=True)
 
-        if jh.is_live():
-            self.notify_submission()
+        if not should_silent:
+            if jh.is_live():
+                self.notify_submission()
 
-        if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
-            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${round(self.price, 2)}'
-            logger.info(txt)
+            if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
+                txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+                if self.price:
+                    txt += f', ${round(self.price, 2)}'
+                logger.info(txt)
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
@@ -95,7 +96,7 @@ class Order(Model):
         """
         orders that are either active or partially filled
         """
-        return self.is_active or self.is_partially_filled
+        return self.is_active or self.is_partially_filled or self.is_queued
 
     @property
     def is_queued(self) -> bool:
