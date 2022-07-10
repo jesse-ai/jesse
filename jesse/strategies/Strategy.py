@@ -592,6 +592,8 @@ class Strategy(ABC):
 
         # should_long and should_short
         if self.position.is_close and self.entry_orders == []:
+            self._reset()
+
             should_short = self.should_short()
             # validate that should_short is not True if the exchange_type is spot
             if self.exchange_type == 'spot' and should_short is True:

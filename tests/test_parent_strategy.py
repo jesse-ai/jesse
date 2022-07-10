@@ -822,3 +822,10 @@ def test_daily_balances_property():
 def test_capital_property_raises_not_implemented_error():
     with pytest.raises(NotImplementedError):
         single_route_backtest('TestCapitalPropertyRaisesNotImplementedError')
+
+
+def test_strategy_variables_are_reset_before_opening_new_position():
+    single_route_backtest(
+        'TestStrategyVariablesAreResetBeforeOpeningNewPosition',
+        is_futures_trading=False
+    )
