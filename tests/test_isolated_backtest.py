@@ -298,3 +298,50 @@ def test_dna_method_works_in_isolated_backtest():
     ]
 
     research.backtest(config, routes, extra_routes, candles)
+
+
+def test_backtest_function_only_accepts_candles_with_1m_time_difference():
+    class TestStrategy(Strategy):
+        def should_long(self):
+            return False
+
+        def should_cancel_entry(self):
+            return False
+
+        def go_long(self):
+            pass
+
+    candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
+    timestamp = candles[0][0]
+    # update timestamps so the candles are 5m apart
+    for x in candles[1:]:
+        timestamp += 60_000*5
+        x[0] = timestamp
+
+    exchange_name = 'Fake Exchange'
+    symbol = 'FAKE-USDT'
+    timeframe = '5m'
+    config = {
+        'starting_balance': 10_000,
+        'fee': 0,
+        'type': 'futures',
+        'futures_leverage': 2,
+        'futures_leverage_mode': 'cross',
+        'exchange': exchange_name,
+        'warm_up_candles': 0
+    }
+    routes = [
+        {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
+    ]
+    extra_routes = []
+    candles = {
+        jh.key(exchange_name, symbol): {
+            'exchange': exchange_name,
+            'symbol': symbol,
+            'candles': candles,
+        },
+    }
+
+    # assert that it doesn't accept 1h candles
+    with pytest.raises(ValueError):
+        research.backtest(config, routes, extra_routes, candles)

@@ -63,6 +63,7 @@ class exchanges:
     BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
     FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
     FTX_SPOT = 'FTX Spot'
+    FTX_US_SPOT = 'FTX US Spot'
 
 
 class migration_actions:

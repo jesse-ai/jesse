@@ -68,6 +68,15 @@ config = {
                 'balance': 10_000
             },
 
+            # https://ftx.us
+            exchanges.FTX_US_SPOT: {
+                'fee': 0.002,
+                'type': 'spot',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000
+            },
+
             # https://www.bitfinex.com
             exchanges.BITFINEX_SPOT: {
                 'fee': 0.002,

@@ -45,7 +45,7 @@ class Order(Model):
         database = database.db
         indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 
-    def __init__(self, attributes: dict = None, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -62,20 +62,22 @@ class Order(Model):
             # self.session_id = store.app.session_id
             # self.save(force_insert=True)
 
-        if jh.is_live():
-            self.notify_submission()
-        if jh.is_debuggable('order_submission') and self.is_active:
-            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${round(self.price, 2)}'
-            logger.info(txt)
+        if not should_silent:
+            if jh.is_live():
+                self.notify_submission()
+
+            if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
+                txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+                if self.price:
+                    txt += f', ${round(self.price, 2)}'
+                logger.info(txt)
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
 
     def notify_submission(self) -> None:
-        if config['env']['notifications']['events']['submitted_orders'] and self.is_active:
+        if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
                 txt += f', ${round(self.price, 2)}'
@@ -88,6 +90,13 @@ class Order(Model):
     @property
     def is_active(self) -> bool:
         return self.status == order_statuses.ACTIVE
+
+    @property
+    def is_cancellable(self):
+        """
+        orders that are either active or partially filled
+        """
+        return self.is_active or self.is_partially_filled or self.is_queued
 
     @property
     def is_queued(self) -> bool:
@@ -147,14 +156,45 @@ class Order(Model):
         return selectors.get_position(self.exchange, self.symbol)
 
     @property
-    def value(self):
+    def value(self) -> float:
         return abs(self.qty) * self.price
 
-    def remaining_qty(self):
+    @property
+    def remaining_qty(self) -> float:
         return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
 
-    def cancel(self, silent=False) -> None:
+    def queue(self):
+        self.status = order_statuses.QUEUED
+        self.canceled_at = None
+        if jh.is_debuggable('order_submission'):
+            txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
+                logger.info(txt)
+        self.notify_submission()
+
+    def resubmit(self):
+        # don't allow resubmission if the order is already active or cancelled
+        if not self.is_queued:
+            raise NotSupportedError(f'Cannot resubmit an order that is not queued. Current status: {self.status}')
+
+        # regenerate the order id to avoid errors on the exchange's side
+        self.id = jh.generate_unique_id()
+        self.status = order_statuses.ACTIVE
+        self.canceled_at = None
+        if jh.is_debuggable('order_submission'):
+            txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            if self.price:
+                txt += f', ${round(self.price, 2)}'
+                logger.info(txt)
+        self.notify_submission()
+
+    def cancel(self, silent=False, source='') -> None:
         if self.is_canceled or self.is_executed:
+            return
+
+        # to fix when the cancelled stream's lag causes cancellation of queued orders
+        if source == 'stream' and self.is_queued:
             return
 
         self.canceled_at = jh.now_to_timestamp()

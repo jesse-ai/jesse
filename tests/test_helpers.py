@@ -451,6 +451,13 @@ def test_round_qty_for_live_mode():
         np.array([0.001])
     )
 
+    # round one number only
+    to_round = 10.123456789
+    expected_result = 10.1234
+    res = jh.round_qty_for_live_mode(to_round, 4)
+    assert res == expected_result
+    assert type(res) == float
+
 
 def test_round_decimals_down():
     assert jh.round_decimals_down(100.329, 2) == 100.32
@@ -608,3 +615,9 @@ def test_get_class_name():
 
     # if string is passed, it will return the string
     assert jh.get_class_name('TestClass') == 'TestClass'
+
+
+def test_round_or_none():
+    assert jh.round_or_none(1.23) == 1
+    assert jh.round_or_none(1.23456789, 2) == 1.23
+    assert jh.round_or_none(None) is None

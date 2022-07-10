@@ -73,6 +73,12 @@ def get_general_info(has_live=False) -> dict:
     }
 
     if has_live:
+        from jesse.services.auth import get_access_token
+        access_token = get_access_token()
+        if not access_token:
+            has_live = False
+
+    if has_live:
         from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
         live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
         from jesse_live.version import __version__ as live_version

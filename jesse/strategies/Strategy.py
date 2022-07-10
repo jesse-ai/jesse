@@ -122,7 +122,6 @@ class Strategy(ABC):
         events. Note that it assumes that the position has already
         been affected by the executed order.
         """
-
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
 
@@ -131,41 +130,48 @@ class Strategy(ABC):
         before_qty = self.position.previous_qty
         after_qty = self.position.qty
 
-        # call the relevant strategy event handler:
         # if opening position
-        if before_qty == 0 and after_qty != 0:
+        if abs(before_qty) <= abs(self.position._min_qty) < abs(after_qty):
+            effect = 'opening_position'
+        # if closing position
+        elif abs(before_qty) > abs(self.position._min_qty) >= abs(after_qty):
+            effect = 'closing_position'
+        # if increasing position size
+        elif abs(after_qty) > abs(before_qty):
+            effect = 'increased_position'
+        # if reducing position size
+        else: # abs(after_qty) < abs(before_qty):
+            effect = 'reduced_position'
+
+        # call the relevant strategy event handler:
+        if effect == 'opening_position':
             txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_open_position(order)
-        # if closing position
-        elif before_qty != 0 and after_qty == 0:
+        elif effect == 'closing_position':
             txt = f"CLOSED Position for {self.symbol}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_close_position(order)
-        # if increasing position size
-        elif abs(after_qty) > abs(before_qty):
+        elif effect == 'increased_position':
             txt = f"INCREASED Position size to {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
-        # if reducing position size
-        elif abs(after_qty) < abs(before_qty):
+        else: # if effect == 'reduced_position':
             txt = f"REDUCED Position size to {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_reduced_position(order)
-        else:
-            pass
 
         self._is_handling_updated_order = False
 
@@ -491,7 +497,7 @@ class Strategy(ABC):
 
                     # cancel orders
                     for o in self.exit_orders:
-                        if o.is_take_profit and o.is_active or o.is_queued:
+                        if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
                     for o in self._take_profit:
                         submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
@@ -509,7 +515,7 @@ class Strategy(ABC):
 
                     # cancel orders
                     for o in self.exit_orders:
-                        if o.is_stop_loss and o.is_active or o.is_queued:
+                        if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
                     # remove canceled orders to optimize the loop
                     for o in self._stop_loss:
@@ -556,6 +562,7 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
+        # should cancel entry?
         if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
 
@@ -577,12 +584,16 @@ class Strategy(ABC):
                         'The exchange did not respond as expected for order cancellation'
                     )
 
+        # update position
         if self.position.is_open:
             self._update_position()
 
         self._simulate_market_order_execution()
 
+        # should_long and should_short
         if self.position.is_close and self.entry_orders == []:
+            self._reset()
+
             should_short = self.should_short()
             # validate that should_short is not True if the exchange_type is spot
             if self.exchange_type == 'spot' and should_short is True:
@@ -986,7 +997,8 @@ class Strategy(ABC):
         if arr[:, 1].min() <= 0:
             raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
 
-        if jh.is_live() and round_for_live_mode:
+        # if jh.is_live() and round_for_live_mode:
+        if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)
 
@@ -1018,6 +1030,15 @@ class Strategy(ABC):
         else:
             return None
 
+        # if type of arr is not np.ndarray, then it's not ready yet. Return None
+        if type(arr) is not np.ndarray:
+            arr = None
+
+        if arr is None and self.position.is_open:
+            return self.position.entry_price
+        elif arr is None:
+            return None
+
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
@@ -1035,7 +1056,6 @@ class Strategy(ABC):
         # this property inside a filter.
         if self.entry_orders == [] and self.sell is not None:
             return True
-
         return self.entry_orders != [] and self.entry_orders[0].side == 'sell'
 
     def liquidate(self) -> None:

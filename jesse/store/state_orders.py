@@ -103,6 +103,9 @@ class OrdersState:
         return entry_orders
 
     def get_exit_orders(self, exchange: str, symbol: str) -> List[Order]:
+        """
+        excludes cancel orders but includes executed orders
+        """
         all_orders = self.get_orders(exchange, symbol)
         # return empty if no orders
         if len(all_orders) == 0:

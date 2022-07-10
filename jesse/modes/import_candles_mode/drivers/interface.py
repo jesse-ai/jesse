@@ -40,6 +40,10 @@ class CandleExchange(ABC):
         if response.status_code == 400:
             raise ValueError(response.content)
 
+        # unsupported inputs
+        if response.status_code == 404:
+            raise ValueError(f'ERROR {response.status_code} {response.reason}. Check the symbol')
+
         # if the response code is not in the 200-299, raise an exception
         if response.status_code // 100 != 2:
-            raise ConnectionError(f'ERROR: {response.status_code} {response.reason}')
+            raise ConnectionError(f'ERROR {response.status_code} {response.reason}')
