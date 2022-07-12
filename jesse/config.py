@@ -95,6 +95,15 @@ config = {
                 'balance': 10_000
             },
 
+            # https://www.binance.us
+            exchanges.BINANCE_US_SPOT: {
+                'fee': 0.001,
+                'type': 'spot',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000
+            },
+
             # https://www.binance.com
             exchanges.BINANCE_PERPETUAL_FUTURES: {
                 'fee': 0.0004,

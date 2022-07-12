@@ -55,6 +55,7 @@ class exchanges:
     COINBASE_SPOT = 'Coinbase Spot'
     BITFINEX_SPOT = 'Bitfinex Spot'
     BINANCE_SPOT = 'Binance Spot'
+    BINANCE_US_SPOT = 'Binance US Spot'
     BINANCE_PERPETUAL_FUTURES = 'Binance Perpetual Futures'
     BINANCE_PERPETUAL_FUTURES_TESTNET = 'Binance Perpetual Futures Testnet'
     BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'

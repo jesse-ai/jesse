@@ -1,6 +1,7 @@
 from pydoc import locate
 from jesse.enums import exchanges
 from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
+from jesse.modes.import_candles_mode.drivers.BinanceUSSpot import BinanceUSSpot
 from jesse.modes.import_candles_mode.drivers.BinancePerpetualFutures import BinancePerpetualFutures
 from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
 from jesse.modes.import_candles_mode.drivers.CoinbaseSpot import CoinbaseSpot
@@ -14,7 +15,6 @@ from jesse.modes.import_candles_mode.drivers.FTXUSSpot import FTXUSSpot
 
 _builtin_drivers = {
     # Perpetual Futures
-    exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_PERPETUAL_FUTURES: BinancePerpetualFutures,
     exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: BinancePerpetualFuturesTestnet,
     exchanges.BITFINEX_SPOT: BitfinexSpot,
@@ -25,7 +25,9 @@ _builtin_drivers = {
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,
-    exchanges.FTX_US_SPOT: FTXUSSpot
+    exchanges.FTX_US_SPOT: FTXUSSpot,
+    exchanges.BINANCE_SPOT: BinanceSpot,
+    exchanges.BINANCE_US_SPOT: BinanceUSSpot
 }
 
 _local_drivers = locate('plugins.import_candles_drivers')
