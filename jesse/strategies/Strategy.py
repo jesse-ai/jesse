@@ -8,7 +8,7 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
-from jesse.enums import sides, order_submitted_via
+from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
@@ -588,6 +588,20 @@ class Strategy(ABC):
         if self.position.is_open:
             self._update_position()
 
+            # sleep for 1 second if a MARKET order has been submitted but not executed yet (live trading only)
+            if jh.is_livetrading():
+                waiting_counter = 0
+                waiting_seconds = 1
+                while self._have_any_pending_market_exit_orders():
+                    if jh.is_debugging():
+                        logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
+                    waiting_counter += 1
+                    sleep(1)
+                    if waiting_counter > 10:
+                        raise exceptions.ExchangeNotResponding(
+                            'The exchange did not respond as expected for order execution'
+                        )
+
         self._simulate_market_order_execution()
 
         # should_long and should_short
@@ -614,12 +628,15 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
+    def _have_any_pending_market_exit_orders(self) -> bool:
+        return any(o.is_active and o.type == order_types.MARKET for o in self.exit_orders)
+
     @staticmethod
     def _simulate_market_order_execution() -> None:
         """
         Simulate market order execution in backtest mode
         """
-        if jh.is_backtesting() or jh.is_unit_testing():
+        if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
             store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
