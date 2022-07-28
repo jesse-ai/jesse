@@ -829,3 +829,8 @@ def test_strategy_variables_are_reset_before_opening_new_position():
         'TestStrategyVariablesAreResetBeforeOpeningNewPosition',
         is_futures_trading=False
     )
+
+
+def test_can_open_a_new_position_immediately_after_closing_via_update_position():
+    single_route_backtest('TestCanOpenANewPositionImmediatelyAfterClosingViaUpdatePosition')
+
