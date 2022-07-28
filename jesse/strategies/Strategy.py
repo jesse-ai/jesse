@@ -598,7 +598,7 @@ class Strategy(ABC):
             # validate that should_short is not True if the exchange_type is spot
             if self.exchange_type == 'spot' and should_short is True:
                 raise exceptions.InvalidStrategy(
-                    'should_short cannot be True if the exchange type os "spot".'
+                    'should_short cannot be True if the exchange type is "spot".'
                 )
 
             should_long = self.should_long()
