@@ -140,7 +140,7 @@ def run(
                         })
                     else:
                         print(msg)
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
+                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
                     return
 
             # fill absent candles (if there's any)
