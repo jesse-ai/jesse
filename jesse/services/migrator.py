@@ -1,6 +1,7 @@
 from jesse.services.db import database
 from playhouse.migrate import *
 from jesse.enums import migration_actions
+import click
 
 
 def run():
@@ -11,7 +12,9 @@ def run():
     If actions type is 'rename', you must add new field with 'old_name' key.
     To make column to not nullable, you must clean all null value of columns.
     """
-    print('Running database migrations...')
+    click.clear()
+
+    print('Checking for new database migrations...')
 
     database.open_connection()
 
@@ -68,14 +71,14 @@ def _log(migrator):
 
 def _order(migrator):
     fields = [
-        {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ADD},
-        {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ALLOW_NULL},
-        {'name': 'exchange_id', 'type': CharField(null=True), 'action': migration_actions.ALLOW_NULL},
-        {'name': 'price', 'type': FloatField(null=True), 'action': migration_actions.ALLOW_NULL},
-        {'name': 'flag', 'type': CharField(default=False), 'action': migration_actions.DROP},
-        {'name': 'role', 'type': CharField(default=False), 'action': migration_actions.DROP},
-        {'name': 'filled_qty', 'type': FloatField(default=0), 'action': migration_actions.ADD},
-        {'name': 'reduce_only', 'type': BooleanField(default=False), 'action': migration_actions.ADD},
+        # {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ADD},
+        # {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ALLOW_NULL},
+        # {'name': 'exchange_id', 'type': CharField(null=True), 'action': migration_actions.ALLOW_NULL},
+        # {'name': 'price', 'type': FloatField(null=True), 'action': migration_actions.ALLOW_NULL},
+        # {'name': 'flag', 'type': CharField(default=False), 'action': migration_actions.DROP},
+        # {'name': 'role', 'type': CharField(default=False), 'action': migration_actions.DROP},
+        # {'name': 'filled_qty', 'type': FloatField(default=0), 'action': migration_actions.ADD},
+        # {'name': 'reduce_only', 'type': BooleanField(default=False), 'action': migration_actions.ADD},
     ]
 
     if 'order' in database.db.get_tables():
