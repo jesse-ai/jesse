@@ -38,7 +38,11 @@ def run():
 
 
 def _candle(migrator):
-    fields = []
+    fields = [
+        {'action': migration_actions.ADD, 'name': 'timeframe', 'type': CharField(index=False, null=True)},
+        {'action': migration_actions.DROP_INDEX, 'indexes': ('exchange', 'symbol', 'timestamp')},
+        {'action': migration_actions.ADD_INDEX, 'indexes': ('exchange', 'symbol', 'timeframe', 'timestamp'), 'is_unique': True},
+    ]
 
     if 'candle' in database.db.get_tables():
         candle_columns = database.db.get_columns('candle')
@@ -112,44 +116,69 @@ def _trade(migrator):
 
 def _migrate(migrator, fields, columns, table):
     for field in fields:
-        column_name_exist = any(field['name'] == item.name for item in columns)
-
-        if column_name_exist:
-            if field['action'] == migration_actions.ADD:
-                print(f"'{field['name']}' field already exists on '{table}' the table.")
-            elif field['action'] == migration_actions.DROP:
-                migrate(
-                    migrator.drop_column(table, field['name'])
-                )
-                print(f"Successfully dropped '{field['name']}' field from '{table}' the table.")
-            elif field['action'] == migration_actions.RENAME:
-                migrate(
-                    migrator.rename_column(table, field['name'], field['new_name'])
-                )
-                print(f"'{field['name']}' field successfully changed to {field['new_name']} in the '{table}' table.")
-            elif field['action'] == migration_actions.MODIFY_TYPE:
-                migrate(
-                    migrator.alter_column_type(table, field['name'], field['type'])
-                )
-                print(
-                    f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
-            elif field['action'] == migration_actions.ALLOW_NULL:
-                migrate(
-                    migrator.drop_not_null(table, field['name'])
-                )
-                print(f"'{field['name']}' field successfully updated to accept nullable values in the '{table}' table.")
-            elif field['action'] == migration_actions.DENY_NULL:
-                migrate(
-                    migrator.add_not_null(table, field['name'])
-                )
-                print(
-                    f"'{field['name']}' field successfully updated to accept to reject nullable values in the '{table}' table.")
-        # if column name doesn't not already exist
-        else:
-            if field['action'] == migration_actions.ADD:
-                migrate(
-                    migrator.add_column(table, field['name'], field['type'])
-                )
-                print(f"'{field['name']}' field successfully added to '{table}' table.")
+        if field['action'] in [migration_actions.ADD_INDEX, migration_actions.DROP_INDEX]:
+            indexes: list = database.db.get_indexes(table)
+            to_migrate_indexes: list = field['indexes']
+            to_migrate_indexes_str = f'{table}_'
+            for t in to_migrate_indexes:
+                to_migrate_indexes_str += f'{t}_'
+            to_migrate_indexes_str = to_migrate_indexes_str[:-1]
+            already_exists = False
+            for index in indexes:
+                existing_indexes_str: list = index.name
+                if to_migrate_indexes_str == existing_indexes_str:
+                    already_exists = True
+                    break
+            if field['action'] == migration_actions.ADD_INDEX:
+                if not already_exists:
+                    migrate(
+                        migrator.add_index(table, field['indexes'], field['is_unique'])
+                    )
+                    print(f'Added index {field["indexes"]} to {table}')
+            if field['action'] == migration_actions.DROP_INDEX:
+                if already_exists:
+                    migrate(
+                        migrator.drop_index(table, to_migrate_indexes_str)
+                    )
+                    print(f'Dropped index {field["indexes"]} from the "{table}" table')
+        else: # else, fist check if the field exists
+            column_name_exist = any(field['name'] == item.name for item in columns)
+            if column_name_exist:
+                if field['action'] == migration_actions.ADD:
+                    pass
+                elif field['action'] == migration_actions.DROP:
+                    migrate(
+                        migrator.drop_column(table, field['name'])
+                    )
+                    print(f"Successfully dropped '{field['name']}' column from the "'{table}'" table.")
+                elif field['action'] == migration_actions.RENAME:
+                    migrate(
+                        migrator.rename_column(table, field['name'], field['new_name'])
+                    )
+                    print(f"'{field['name']}' column successfully changed to {field['new_name']} in the '{table}' table.")
+                elif field['action'] == migration_actions.MODIFY_TYPE:
+                    migrate(
+                        migrator.alter_column_type(table, field['name'], field['type'])
+                    )
+                    print(
+                        f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
+                elif field['action'] == migration_actions.ALLOW_NULL:
+                    migrate(
+                        migrator.drop_not_null(table, field['name'])
+                    )
+                    print(f"'{field['name']}' column successfully updated to accept nullable values in the '{table}' table.")
+                elif field['action'] == migration_actions.DENY_NULL:
+                    migrate(
+                        migrator.add_not_null(table, field['name'])
+                    )
+                    print(
+                        f"'{field['name']}' column successfully updated to accept to reject nullable values in the '{table}' table.")
+            # if column name doesn't not already exist
             else:
-                print(f"'{field['name']}' field does not exist in '{table}' table.")
+                if field['action'] == migration_actions.ADD:
+                    migrate(
+                        migrator.add_column(table, field['name'], field['type'])
+                    )
+                    print(f"'{field['name']}' column successfully added to '{table}' table.")
+                else:
+                    print(f"'{field['name']}' field does not exist in '{table}' table.")
