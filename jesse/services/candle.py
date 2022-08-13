@@ -5,9 +5,11 @@ import jesse.helpers as jh
 from jesse.services import logger
 
 
-def generate_candle_from_one_minutes(timeframe: str,
-                                     candles: np.ndarray,
-                                     accept_forming_candles: bool = False) -> np.ndarray:
+def generate_candle_from_one_minutes(
+    timeframe: str,
+    candles: np.ndarray,
+    accept_forming_candles: bool = False
+) -> np.ndarray:
     if len(candles) == 0:
         raise ValueError('No candles were passed')
 
@@ -23,6 +25,17 @@ def generate_candle_from_one_minutes(timeframe: str,
         candles[:, 3].max(),
         candles[:, 4].min(),
         candles[:, 5].sum(),
+    ])
+
+
+def candle_dict_to_np_array(candle: dict) -> np.ndarray:
+    return np.array([
+        candle['timestamp'],
+        candle['open'],
+        candle['close'],
+        candle['high'],
+        candle['low'],
+        candle['volume']
     ])
 
 
