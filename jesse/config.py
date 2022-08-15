@@ -152,6 +152,7 @@ config = {
         'data': {
             # The minimum number of warmup candles that is loaded before each session.
             'warmup_candles_num': 240,
+            'generate_candles_from_1m': False,
             'persistency': True,
         },
     },
@@ -229,22 +230,10 @@ def set_config(conf: dict) -> None:
     if jh.is_live():
         config['env']['notifications'] = conf['notifications']
         config['env']['data']['persistency'] = conf['persistency']
+        config['env']['data']['generate_candles_from_1m'] = conf['generate_candles_from_1m']
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'
-
-    # # add sandbox because it isn't in the local config file but it is needed since we might have replaced it
-    # config['env']['exchanges']['Sandbox'] = {
-    #     'type': 'spot',
-    #     # used only in futures trading
-    #     'fee': 0,
-    #     'futures_leverage_mode': 'cross',
-    #     'futures_leverage': 1,
-    #     'assets': [
-    #         {'asset': 'USDT', 'balance': 10_000},
-    #         {'asset': 'BTC', 'balance': 0},
-    #     ],
-    # }
 
 
 def reset_config() -> None:
