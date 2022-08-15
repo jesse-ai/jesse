@@ -24,11 +24,49 @@ def store_candle_into_db(exchange: str, symbol: str, candle: np.ndarray, on_conf
         Candle.insert(**d).on_conflict_ignore().execute()
     elif on_conflict == 'replace':
         Candle.insert(**d).on_conflict(
-            conflict_target=['timestamp', 'symbol', 'exchange'],
+            conflict_target=['exchange', 'symbol', 'timeframe', 'timestamp'],
             preserve=(Candle.open, Candle.high, Candle.low, Candle.close, Candle.volume),
         ).execute()
     elif on_conflict == 'error':
         Candle.insert(**d).execute()
+    else:
+        raise Exception(f'Unknown on_conflict value: {on_conflict}')
+
+
+def store_candles_into_db(exchange: str, symbol: str, timeframe: str, candles: np.ndarray, on_conflict='ignore') -> None:
+    # make sure the number of candles is more than 0
+    if len(candles) == 0:
+        raise Exception(f'No candles to store for {exchange}-{symbol}-{timeframe}')
+
+    from jesse.models import Candle
+
+    # convert candles to list of dicts
+    candles_list = []
+    for candle in candles:
+        d = {
+            'id': jh.generate_unique_id(),
+            'symbol': symbol,
+            'exchange': exchange,
+            'timestamp': candle[0],
+            'open': candle[1],
+            'high': candle[3],
+            'low': candle[4],
+            'close': candle[2],
+            'volume': candle[5],
+            'timeframe': timeframe,
+        }
+        candles_list.append(d)
+
+    if on_conflict == 'ignore':
+        Candle.insert_many(candles_list).on_conflict_ignore().execute()
+    elif on_conflict == 'replace':
+        jh.dump(candles_list)
+        Candle.insert_many(candles_list).on_conflict(
+            conflict_target=['exchange', 'symbol', 'timeframe', 'timestamp'],
+            preserve=(Candle.open, Candle.high, Candle.low, Candle.close, Candle.volume),
+        ).execute()
+    elif on_conflict == 'error':
+        Candle.insert_many(candles_list).execute()
     else:
         raise Exception(f'Unknown on_conflict value: {on_conflict}')
 
