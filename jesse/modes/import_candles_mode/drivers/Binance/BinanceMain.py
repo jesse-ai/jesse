@@ -1,24 +1,25 @@
 import requests
-
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
-from jesse.enums import exchanges
+from .binance_utils import timeframe_to_interval
 
 
-class BinancePerpetualFuturesTestnet(CandleExchange):
-    def __init__(self) -> None:
-        # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
-
+class BinanceMain(CandleExchange):
+    def __init__(
+            self,
+            name: str,
+            rest_endpoint: str,
+            backup_exchange_class,
+    ) -> None:
         super().__init__(
-            name=exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
+            name=name,
             count=1000,
             rate_limit_per_second=2,
-            backup_exchange_class=BinanceSpot
+            backup_exchange_class=backup_exchange_class
         )
 
-        self.endpoint = 'https://testnet.binancefuture.com/fapi/v1/klines'
+        self.endpoint = rest_endpoint
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -40,17 +41,13 @@ class BinancePerpetualFuturesTestnet(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol: str, start_timestamp: int) -> Union[list, None]:
-        """
-        note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
-        note2: like Bitfinex, start_time includes the candle and so does the end_time.
-        """
+    def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         end_timestamp = start_timestamp + (self.count - 1) * 60000
-
+        interval = timeframe_to_interval(timeframe)
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1m',
+            'interval': interval,
             'symbol': dashless_symbol,
             'startTime': start_timestamp,
             'endTime': end_timestamp,
@@ -59,13 +56,16 @@ class BinancePerpetualFuturesTestnet(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
+        jh.dump(timeframe, self.endpoint)
+
         self.validate_response(response)
 
         data = response.json()
         return [{
             'id': jh.generate_unique_id(),
-            'symbol': symbol,
             'exchange': self.name,
+            'symbol': symbol,
+            'timeframe': timeframe,
             'timestamp': int(d[0]),
             'open': float(d[1]),
             'close': float(d[4]),
