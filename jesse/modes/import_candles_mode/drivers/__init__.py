@@ -6,8 +6,8 @@ from jesse.modes.import_candles_mode.drivers.BinancePerpetualFutures import Bina
 from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
 from jesse.modes.import_candles_mode.drivers.CoinbaseSpot import CoinbaseSpot
 from jesse.modes.import_candles_mode.drivers.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
-from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetual import BybitUSDTPerpetual
-from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.FTXPerpetualFutures import FTXPerpetualFutures
 from jesse.modes.import_candles_mode.drivers.FTXSpot import FTXSpot
 from jesse.modes.import_candles_mode.drivers.FTXUSSpot import FTXUSSpot
