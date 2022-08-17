@@ -13,7 +13,7 @@ class BybitUSDTPerpetualMain(CandleExchange):
             rest_endpoint: str,
     ) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
+        from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 
         super().__init__(
             name=name,
