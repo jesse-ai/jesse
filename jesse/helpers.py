@@ -978,3 +978,13 @@ def get_class_name(cls):
         return cls
     # else, return the class name
     return cls.__name__
+
+
+def next_candle_timestamp(candle: np.ndarray, timeframe: str) -> int:
+    return candle[0] + timeframe_to_one_minutes(timeframe) * 60_000
+
+
+def get_candle_start_timestamp_based_on_timeframe(timeframe: str, num_candles_to_fetch: int) -> int:
+    one_min_count = timeframe_to_one_minutes(timeframe)
+    finish_date = now(force_fresh=True)
+    return finish_date - (num_candles_to_fetch * one_min_count * 60_000)
