@@ -197,6 +197,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
             ).where(
                 Candle.exchange == exchange,
                 Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
                 Candle.timestamp.between(start_date, finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period
