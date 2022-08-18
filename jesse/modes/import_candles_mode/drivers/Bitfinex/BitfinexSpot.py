@@ -4,18 +4,16 @@ import jesse.helpers as jh
 from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.enums import exchanges
+from .bitfinex_utils import timeframe_to_interval
 
 
 class BitfinexSpot(CandleExchange):
     def __init__(self) -> None:
-        # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import CoinbaseSpot
-
         super().__init__(
             name=exchanges.BITFINEX_SPOT,
             count=1440,
             rate_limit_per_second=1,
-            backup_exchange_class=CoinbaseSpot
+            backup_exchange_class=None
         )
 
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
@@ -51,10 +49,11 @@ class BitfinexSpot(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol: str, start_timestamp: int) -> list:
+    def fetch(self, symbol: str, start_timestamp: int, timeframe: str) -> list:
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
         # instead of limit. Therefore, we use limit number to calculate the end_timestamp
         end_timestamp = start_timestamp + (self.count - 1) * 60000
+        interval = timeframe_to_interval(timeframe)
 
         payload = {
             'start': start_timestamp,
@@ -66,7 +65,7 @@ class BitfinexSpot(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         response = requests.get(
-            f"{self.endpoint}/trade:1m:t{dashless_symbol}/hist",
+            f"{self.endpoint}/trade:{interval}:t{dashless_symbol}/hist",
             params=payload
         )
 
@@ -75,8 +74,9 @@ class BitfinexSpot(CandleExchange):
         data = response.json()
         return [{
             'id': jh.generate_unique_id(),
-            'symbol': symbol,
             'exchange': self.name,
+            'symbol': symbol,
+            'timeframe': timeframe,
             'timestamp': d[0],
             'open': d[1],
             'close': d[2],

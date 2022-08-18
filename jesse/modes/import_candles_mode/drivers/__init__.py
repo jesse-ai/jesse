@@ -3,7 +3,7 @@ from jesse.enums import exchanges
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceUSSpot import BinanceUSSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import BinancePerpetualFutures
-from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
+from jesse.modes.import_candles_mode.drivers.Bitfinex.BitfinexSpot import BitfinexSpot
 from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import CoinbaseSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
