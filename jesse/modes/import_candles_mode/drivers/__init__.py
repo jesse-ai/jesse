@@ -8,9 +8,9 @@ from jesse.modes.import_candles_mode.drivers.CoinbaseSpot import CoinbaseSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.FTXPerpetualFutures import FTXPerpetualFutures
-from jesse.modes.import_candles_mode.drivers.FTXSpot import FTXSpot
-from jesse.modes.import_candles_mode.drivers.FTXUSSpot import FTXUSSpot
+from jesse.modes.import_candles_mode.drivers.FTX.FTXPerpetualFutures import FTXPerpetualFutures
+from jesse.modes.import_candles_mode.drivers.FTX.FTXSpot import FTXSpot
+from jesse.modes.import_candles_mode.drivers.FTX.FTXUSSpot import FTXUSSpot
 
 
 _builtin_drivers = {

@@ -1,25 +1,35 @@
 import requests
-
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.enums import exchanges
+from .ftx_utils import timeframe_to_interval
 
 
-class FTXSpot(CandleExchange):
-    def __init__(self) -> None:
-        # import here instead of the top of the file to prevent the possible circular imports issue
-        from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
-
+class FTXMain(CandleExchange):
+    def __init__(
+            self,
+            name: str,
+            rest_endpoint: str,
+            backup_exchange_class,
+    ) -> None:
         super().__init__(
-            name=exchanges.FTX_SPOT,
+            name=name,
             count=1440,
             rate_limit_per_second=6,
-            backup_exchange_class=BitfinexSpot
+            backup_exchange_class=backup_exchange_class
         )
 
-    def get_starting_time(self, symbol: str) -> int:
-        formatted_symbol = symbol.replace('-', '/')
+        self.endpoint = rest_endpoint
 
+    def _formatted_symbol(self, symbol: str) -> str:
+        if self.name in [exchanges.FTX_SPOT, exchanges.FTX_US_SPOT]:
+            return symbol.replace('-', '/')
+        elif self.name == exchanges.FTX_PERPETUAL_FUTURES:
+            return symbol.replace('USD', 'PERP')
+        else:
+            raise NotImplemented(f'Unknown exchange {self.name}')
+
+    def get_starting_time(self, symbol: str) -> int:
         end_timestamp = jh.now()
         start_timestamp = end_timestamp - (86400_000 * 365 * 8)
 
@@ -30,7 +40,7 @@ class FTXSpot(CandleExchange):
         }
 
         response = requests.get(
-            f'https://ftx.com/api/markets/{formatted_symbol}/candles',
+            f'{self.endpoint}/api/markets/{self._formatted_symbol(symbol)}/candles',
             params=payload
         )
 
@@ -44,19 +54,18 @@ class FTXSpot(CandleExchange):
         # second_timestamp:
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol: str, start_timestamp: int) -> list:
+    def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> list:
         end_timestamp = start_timestamp + (self.count - 1) * 60000
+        interval = timeframe_to_interval(timeframe)
 
         payload = {
-            'resolution': 60,
+            'resolution': interval,
             'start_time': start_timestamp / 1000,
             'end_time': end_timestamp / 1000,
         }
 
-        formatted_symbol = symbol.replace('-', '/')
-
         response = requests.get(
-            f'https://ftx.com/api/markets/{formatted_symbol}/candles',
+            f'{self.endpoint}/api/markets/{self._formatted_symbol(symbol)}/candles',
             params=payload
         )
 
@@ -65,8 +74,9 @@ class FTXSpot(CandleExchange):
         data = response.json()['result']
         return [{
             'id': jh.generate_unique_id(),
-            'symbol': symbol,
             'exchange': self.name,
+            'symbol': symbol,
+            'timeframe': timeframe,
             'timestamp': int(d['time']),
             'open': float(d['open']),
             'close': float(d['close']),
