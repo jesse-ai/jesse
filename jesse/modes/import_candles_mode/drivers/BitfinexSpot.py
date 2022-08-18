@@ -9,7 +9,7 @@ from jesse.enums import exchanges
 class BitfinexSpot(CandleExchange):
     def __init__(self) -> None:
         # import here instead of the top of the file to prevent possible the circular imports issue
-        from jesse.modes.import_candles_mode.drivers.CoinbaseSpot import CoinbaseSpot
+        from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import CoinbaseSpot
 
         super().__init__(
             name=exchanges.BITFINEX_SPOT,

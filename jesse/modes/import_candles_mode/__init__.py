@@ -361,4 +361,8 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
 
 def _store_candles(candles: List[Dict]) -> None:
     from jesse.models import Candle
+    for c in candles:
+        if 'timeframe' not in c:
+            jh.dump(c)
+            raise Exception('Candle has no timeframe')
     Candle.insert_many(candles).on_conflict_ignore().execute()
