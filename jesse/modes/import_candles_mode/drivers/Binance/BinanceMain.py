@@ -56,8 +56,6 @@ class BinanceMain(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
-        jh.dump(timeframe, self.endpoint)
-
         self.validate_response(response)
 
         data = response.json()
