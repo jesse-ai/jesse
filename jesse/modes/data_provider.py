@@ -3,7 +3,7 @@ import os
 import numpy as np
 import peewee
 import requests
-
+from jesse.enums import timeframes
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
 from jesse.config import config
@@ -17,15 +17,17 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     from jesse.models.utils import fetch_candles_from_db
 
     symbol = symbol.upper()
-    num_candles = 210
+
+    # TODO: fetch more candles if exists, else, as many as the number of warmup candles
+    num_candles_to_fetch = 210
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
-    start_date = finish_date - (num_candles * one_min_count * 60_000)
+    start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, num_candles_to_fetch)
 
     # fetch 1m candles from database
     candles = np.array(
-        fetch_candles_from_db(exchange, symbol, start_date, finish_date)
+        fetch_candles_from_db(exchange, symbol, timeframe, start_date, finish_date)
     )
 
     # if there are no candles in the database, return []
@@ -33,27 +35,28 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
         database.close_connection()
         return []
 
-    # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
-    timeframe_duration = one_min_count*60_000
-    while candles[0][0] % timeframe_duration != 0:
-        candles = candles[1:]
+    if jh.get_config('env.data.generate_candles_from_1m'):
+        # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
+        timeframe_duration = one_min_count * 60_000
+        while candles[0][0] % timeframe_duration != 0:
+            candles = candles[1:]
 
-    # generate bigger candles from 1m candles
-    if timeframe != '1m':
-        generated_candles = []
-        for i in range(len(candles)):
-            if (i + 1) % one_min_count == 0:
-                bigger_candle = generate_candle_from_one_minutes(
-                    timeframe,
-                    candles[(i - (one_min_count - 1)):(i + 1)],
-                    True
-                 )
-                generated_candles.append(bigger_candle)
+        # generate bigger candles from 1m candles
+        if timeframe != '1m':
+            generated_candles = []
+            for i in range(len(candles)):
+                if (i + 1) % one_min_count == 0:
+                    bigger_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles[(i - (one_min_count - 1)):(i + 1)],
+                        True
+                    )
+                    generated_candles.append(bigger_candle)
 
-        candles = generated_candles
+            candles = generated_candles
 
     database.close_connection()
-    
+
     return [
         {
             'time': int(c[0] / 1000),
@@ -79,16 +82,39 @@ def get_general_info(has_live=False) -> dict:
             has_live = False
 
     if has_live:
-        from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
-        live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
+        from jesse_live.info import SUPPORTED_EXCHANGES
+        live_exchanges: list = SUPPORTED_EXCHANGES.copy()
+        # sort supported_exchanges based on the name of the exchange (key of the dict)
+        live_exchanges = sorted(live_exchanges, key=lambda k: k['name'])
         from jesse_live.version import __version__ as live_version
         system_info['live_plugin_version'] = live_version
     else:
         live_exchanges = []
 
-    exchanges = jh.get_config('env.exchanges').copy()
+    supported_timeframes_for_backtest = [
+        timeframes.MINUTE_1,
+        timeframes.MINUTE_3,
+        timeframes.MINUTE_5,
+        timeframes.MINUTE_15,
+        timeframes.MINUTE_30,
+        timeframes.MINUTE_45,
+        timeframes.HOUR_1,
+        timeframes.HOUR_2,
+        timeframes.HOUR_3,
+        timeframes.HOUR_4,
+        timeframes.HOUR_6,
+        timeframes.HOUR_8,
+        timeframes.HOUR_12,
+        timeframes.DAY_1,
+    ]
+    exchanges: dict = jh.get_config('env.exchanges').copy()
     del exchanges['Sandbox']
-    exchanges = list(exchanges.items())
+    for key, e in exchanges.items():
+        e['name'] = key
+        e['supported_timeframes'] = supported_timeframes_for_backtest
+    exchanges: list = list(exchanges.values())
+    # sort exchanges based on the 'name' of the exchange
+    exchanges = sorted(exchanges, key=lambda k: k['name'])
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
 
