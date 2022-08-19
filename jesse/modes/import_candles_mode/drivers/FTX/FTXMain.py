@@ -55,7 +55,9 @@ class FTXMain(CandleExchange):
         return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> list:
-        end_timestamp = start_timestamp + (self.count - 1) * 60000
+        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
+        if end_timestamp > jh.now():
+            end_timestamp = jh.now()
         interval = timeframe_to_interval(timeframe)
 
         payload = {
