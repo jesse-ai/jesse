@@ -86,8 +86,8 @@ class CandlesState:
             )
 
     def init_storage(self, bucket_size: int = 1000) -> None:
-        for c in config['app']['considering_candles']:
-            exchange, symbol = c[0], c[1]
+        for ar in selectors.get_all_routes():
+            exchange, symbol = ar['exchange'], ar['symbol']
 
             # initiate the '1m' timeframes
             key = jh.key(exchange, symbol, timeframes.MINUTE_1)
