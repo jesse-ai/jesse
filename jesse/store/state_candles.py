@@ -1,3 +1,4 @@
+from time import time
 import numpy as np
 
 import jesse.helpers as jh
@@ -173,12 +174,6 @@ class CandlesState:
             if with_generation and timeframe == '1m':
                 self.generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
-        # # allow updating of the previous candle
-        # elif candle[0] == arr[-2][0]:
-        #     # update the previous candle if it is different
-        #     if not np.array_equal(candle, arr[-2]):
-        #         arr[-2] = candle
-
         # allow updating of the previous candle.
         elif candle[0] < arr[-1][0]:
             # estimate the index of the candle to update using its timestamp
@@ -214,28 +209,39 @@ class CandlesState:
         if f'{exchange}-{symbol}' not in self.initiated_pairs:
             return
 
-        # in some cases we might be missing the current forming candle like it is on FTX, hence
-        # if that is the case, generate the current forming candle (it won't be super accurate)
-        current_candle = self.get_current_candle(exchange, symbol, '1m')
-        if jh.now() > current_candle[0] + 60_000:
-            new_candle = self._generate_empty_candle_from_previous_candle(current_candle)
-            self.add_candle(new_candle, exchange, symbol, '1m')
-
         # update position's current price
         self.update_position(exchange, symbol, trade['price'])
 
-        current_candle = self.get_current_candle(exchange, symbol, '1m')
-        new_candle = current_candle.copy()
-        # close
-        new_candle[2] = trade['price']
-        # high
-        new_candle[3] = max(new_candle[3], trade['price'])
-        # low
-        new_candle[4] = min(new_candle[4], trade['price'])
-        # volume
-        new_candle[5] += trade['volume']
+        def do(t):
+            # in some cases we might be missing the current forming candle like it is on FTX, hence
+            # if that is the case, generate the current forming candle (it won't be super accurate)
+            current_candle = self.get_current_candle(exchange, symbol, t)
+            if jh.next_candle_timestamp(current_candle, t) < jh.now():
+                new_candle = self._generate_empty_candle_from_previous_candle(current_candle, t)
+                self.add_candle(new_candle, exchange, symbol, t)
 
-        self.add_candle(new_candle, exchange, symbol, '1m')
+            current_candle = self.get_current_candle(exchange, symbol, t)
+
+            new_candle = current_candle.copy()
+            # close
+            new_candle[2] = trade['price']
+            # high
+            new_candle[3] = max(new_candle[3], trade['price'])
+            # low
+            new_candle[4] = min(new_candle[4], trade['price'])
+            # volume
+            new_candle[5] += trade['volume']
+
+            self.add_candle(new_candle, exchange, symbol, t)
+
+        # to support both candle generation and ...
+        if jh.get_config('env.data.generate_candles_from_1m'):
+            do('1m')
+        else:
+            for ar in selectors.get_all_routes():
+                if ar['exchange'] != exchange:
+                    return
+                do(ar['timeframe'])
 
     @staticmethod
     def update_position(exchange: str, symbol: str, price: float) -> None:
