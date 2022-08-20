@@ -18,12 +18,15 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
 
     symbol = symbol.upper()
 
-    # TODO: fetch more candles if exists, else, as many as the number of warmup candles
-    num_candles_to_fetch = 210
+    # fetch the current value for warmup_candles from the database
+    from jesse.models.Option import Option
+    o = Option.get(Option.type == 'config')
+    db_config = json.loads(o.json)
+    warmup_candles_num = db_config['live']['warm_up_candles']
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
-    start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, num_candles_to_fetch)
+    start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
 
     # fetch 1m candles from database
     candles = np.array(
