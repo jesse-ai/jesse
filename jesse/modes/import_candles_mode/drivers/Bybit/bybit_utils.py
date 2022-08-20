@@ -77,5 +77,5 @@ supported_timeframes = [
     timeframes.HOUR_6,
     timeframes.HOUR_12,
     timeframes.DAY_1,
-    timeframes.WEEK_1,
+    # timeframes.WEEK_1,
 ]
