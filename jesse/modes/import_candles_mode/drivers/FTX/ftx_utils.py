@@ -15,8 +15,8 @@ def timeframe_to_interval(timeframe: str) -> int:
         return 14400
     elif timeframe == timeframes.DAY_1:
         return 86400
-    elif timeframe == timeframes.WEEK_1:
-        return 604800
+    # elif timeframe == timeframes.WEEK_1:
+    #     return 604800
     else:
         raise ValueError('Invalid timeframe: {}'.format(timeframe))
 
@@ -47,5 +47,5 @@ supported_timeframes = [
     timeframes.HOUR_1,
     timeframes.HOUR_4,
     timeframes.DAY_1,
-    timeframes.WEEK_1,
+    # timeframes.WEEK_1,
 ]
