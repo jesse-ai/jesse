@@ -189,7 +189,7 @@ class CandlesState:
                     arr[-index] = candle
                 else:
                     raise Exception(
-                        f"Candle {candle[0]} is not the same as {arr[-index][0]}"
+                        f"Candle {candle[0]}({jh.timestamp_to_time(candle[0])}) is not the same as {arr[-index][0]}({jh.timestamp_to_time(arr[-index][0])}). \nexchange: {exchange}, symbol: {symbol}, timeframe: {timeframe}"
                     )
 
     def _store_or_update_candle_into_db(self, exchange: str, symbol: str, timeframe: str, candle: np.ndarray) -> None:
