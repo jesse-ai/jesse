@@ -192,8 +192,12 @@ def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fe
     :param fee_rate:
     :return: float
     """
+    # make sure entry_price is not None
+    if entry_price is None:
+        raise TypeError(f"entry_price is None")
+
     if math.isnan(position_size) or math.isnan(entry_price):
-        raise TypeError()
+        raise TypeError(f"position_size: {position_size}, entry_price: {entry_price}")
 
     if fee_rate != 0:
         position_size *= 1 - fee_rate * 3
