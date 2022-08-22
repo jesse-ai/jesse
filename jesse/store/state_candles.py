@@ -239,7 +239,7 @@ class CandlesState:
             do('1m')
         else:
             for ar in selectors.get_all_routes():
-                if ar['exchange'] != exchange:
+                if ar['exchange'] != exchange or ar['symbol'] != symbol:
                     return
                 do(ar['timeframe'])
 
