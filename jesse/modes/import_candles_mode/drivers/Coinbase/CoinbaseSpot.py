@@ -38,7 +38,7 @@ class CoinbaseSpot(CandleExchange):
         note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
         note2: like Bitfinex, start_time includes the candle and so does the end_time.
         """
-        end_timestamp = start_timestamp + (self.count - 1) * 60000
+        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
 
         payload = {
             'granularity': timeframe_to_interval(timeframe),

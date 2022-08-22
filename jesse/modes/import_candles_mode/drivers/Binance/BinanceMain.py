@@ -42,7 +42,7 @@ class BinanceMain(CandleExchange):
         return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
-        end_timestamp = start_timestamp + (self.count - 1) * 60000
+        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
         interval = timeframe_to_interval(timeframe)
         dashless_symbol = jh.dashless_symbol(symbol)
 
@@ -56,6 +56,7 @@ class BinanceMain(CandleExchange):
 
         response = requests.get(self.endpoint, params=payload)
 
+        jh.dump('payload', payload, 'from => end', jh.timestamp_to_time(start_timestamp), jh.timestamp_to_time(end_timestamp))
         self.validate_response(response)
 
         data = response.json()
