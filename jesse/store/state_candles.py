@@ -2,6 +2,7 @@ from time import time
 import numpy as np
 
 import jesse.helpers as jh
+import jesse.indicators
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import timeframes
@@ -176,21 +177,15 @@ class CandlesState:
 
         # allow updating of the previous candle.
         elif candle[0] < arr[-1][0]:
-            # estimate the index of the candle to update using its timestamp
-            last_candle_timestamp = arr[-1][0]
-            index = int(
-                ((last_candle_timestamp - candle[0]) / (jh.timeframe_to_one_minutes(timeframe)*60_000))
-            ) + 1
-            # if not that many candles exist in the array, ignore
-            if len(arr) < index:
-                return
-            if not np.array_equal(candle, arr[-index]):
-                if arr[-index][0] == candle[0]:
-                    arr[-index] = candle
-                else:
-                    raise Exception(
-                        f"Candle {candle[0]}({jh.timestamp_to_time(candle[0])}) is not the same as {arr[-index][0]}({jh.timestamp_to_time(arr[-index][0])}). \nexchange: {exchange}, symbol: {symbol}, timeframe: {timeframe}"
-                    )
+            # loop through the last 20 items in arr to find it. If so, update it.
+            for i in range(max(20, len(arr) - 1)):
+                if arr[-i][0] == candle[0]:
+                    arr[-i] = candle
+                    break
+            else:
+                logger.info(
+                    f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
+                )
 
     def _store_or_update_candle_into_db(self, exchange: str, symbol: str, timeframe: str, candle: np.ndarray) -> None:
         # if it's not an initial candle, add it to the storage, if already exists, update it
