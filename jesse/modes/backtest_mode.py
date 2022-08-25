@@ -172,8 +172,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
-        for ar in selectors.get_all_routes():
-            exchange, symbol = ar['exchange'], ar['symbol']
+        for c in config['app']['considering_candles']:
+            exchange, symbol = c[0], c[1]
             required_candles.inject_required_candles_to_store(
                 required_candles.load_required_candles(exchange, symbol, start_date_str, finish_date_str),
                 exchange,
@@ -182,8 +182,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
     # download candles for the duration of the backtest
     candles = {}
-    for ar in selectors.get_all_routes():
-        exchange, symbol = ar['exchange'], ar['symbol']
+    for c in config['app']['considering_candles']:
+        exchange, symbol = c[0], c[1]
 
         key = jh.key(exchange, symbol)
 
