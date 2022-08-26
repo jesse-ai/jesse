@@ -1,4 +1,5 @@
 from typing import List, Dict
+import copy
 
 
 def backtest(
@@ -117,7 +118,8 @@ def _isolated_backtest(
     # divide candles into warm_up_candles and trading_candles and then inject warm_up_candles
     max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
     warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
-    trading_candles = candles
+    trading_candles = copy.deepcopy(candles)
+
     if warm_up_num != 0:
         for c in jesse_config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
