@@ -345,3 +345,46 @@ def test_backtest_function_only_accepts_candles_with_1m_time_difference():
     # assert that it doesn't accept 1h candles
     with pytest.raises(ValueError):
         research.backtest(config, routes, extra_routes, candles)
+
+
+def test_passed_candles_are_not_affected_by_running_isolated_backtests():
+    class TestStrategy(Strategy):
+        def should_long(self):
+            return False
+
+        def should_cancel_entry(self):
+            return False
+
+        def go_long(self):
+            pass
+
+    fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
+    exchange_name = 'Fake Exchange'
+    symbol = 'FAKE-USDT'
+    timeframe = '1m'
+    config = {
+        'starting_balance': 10_000,
+        'fee': 0,
+        'type': 'futures',
+        'futures_leverage': 2,
+        'futures_leverage_mode': 'cross',
+        'exchange': exchange_name,
+        'warm_up_candles': 4
+    }
+    routes = [
+        {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
+    ]
+    extra_routes = []
+    candles = {
+        jh.key(exchange_name, symbol): {
+            'exchange': exchange_name,
+            'symbol': symbol,
+            'candles': fake_candles,
+        },
+    }
+
+    assert len(candles['Fake Exchange-FAKE-USDT']['candles']) == 10
+
+    research.backtest(config, routes, extra_routes, candles)
+
+    assert len(candles['Fake Exchange-FAKE-USDT']['candles']) == 10
