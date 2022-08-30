@@ -19,7 +19,10 @@ def save_daily_portfolio_balance() -> None:
     #         })
     total_balances = 0
     # select the first item in store.exchanges.storage.items()
-    e, = store.exchanges.storage.values()
+    try:
+        e, = store.exchanges.storage.values()
+    except ValueError:
+        raise ValueError('Multiple exchange support is temporarily not supported. Will be implemented soon.')
     if e.type == 'futures':
         try:
             total_balances += e.assets[jh.app_currency()]
