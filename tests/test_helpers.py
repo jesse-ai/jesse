@@ -392,7 +392,11 @@ def test_orderbook_trim_price():
 
 def test_prepare_qty():
     assert jh.prepare_qty(10, 'sell') == -10
+    assert jh.prepare_qty(10, 'short') == -10
+    assert jh.prepare_qty(0, 'short') == 0
     assert jh.prepare_qty(-10, 'buy') == 10
+    assert jh.prepare_qty(-10, 'long') == 10
+    assert jh.prepare_qty(0, 'long') == 0
     assert jh.prepare_qty(0, 'close') == 0.0
 
     with pytest.raises(ValueError):
