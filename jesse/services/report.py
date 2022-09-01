@@ -34,7 +34,7 @@ def positions() -> list:
             'opened_at': p.opened_at,
             'qty': p.qty,
             'value': round(p.value, 2),
-            'entry': jh.round_or_none(p.entry_price, 2) if p.is_open else None,
+            'entry': p.entry_price if p.is_open else None,
             'current_price': p.current_price,
             'liquidation_price': p.liquidation_price,
             'pnl': p.pnl,
