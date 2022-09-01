@@ -68,6 +68,8 @@ class exchanges:
     FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
     FTX_SPOT = 'FTX Spot'
     FTX_US_SPOT = 'FTX US Spot'
+    BITGET_SPOT = 'Bitget Spot'
+    BITGET_USDT_PERPETUAL = 'Bitget USDT Perpetual'
 
 
 class migration_actions:

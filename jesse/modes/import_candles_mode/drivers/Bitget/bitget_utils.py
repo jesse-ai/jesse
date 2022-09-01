@@ -1,4 +1,14 @@
 from jesse.enums import timeframes
+import jesse.helpers as jh
+
+
+def jesse_symbol_to_bitget_usdt_contracts_symbol(symbol: str) -> str:
+    return f'{jh.dashless_symbol(symbol)}_UMCBL'
+
+
+def bitget_symbol_to_jesse_symbol(formatted_symbol: str) -> str:
+    # ex: 'BTCUSDT_UMCBL' -> 'BTC-USDT'
+    return jh.dashy_symbol(formatted_symbol.split('_')[0]).upper()
 
 
 def timeframe_to_interval(timeframe: str) -> str:
@@ -41,3 +51,15 @@ def interval_to_timeframe(interval: str) -> str:
         return timeframes.DAY_1
     else:
         raise NotImplemented('Invalid interval: {}'.format(interval))
+
+
+supported_timeframes = [
+    timeframes.MINUTE_1,
+    timeframes.MINUTE_5,
+    timeframes.MINUTE_15,
+    timeframes.MINUTE_30,
+    timeframes.HOUR_1,
+    timeframes.HOUR_4,
+    timeframes.HOUR_12,
+    timeframes.DAY_1,
+]

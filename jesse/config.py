@@ -130,6 +130,24 @@ config = {
                 'futures_leverage': 1,
                 'balance': 10_000,
             },
+
+            # https://www.bitget.com/en/spot/BTCUSDT_SPBL
+            exchanges.BITGET_SPOT: {
+                'fee': 0.001,
+                'type': 'spot',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000,
+            },
+
+            # https://www.bitget.com/en/mix/usdt/BTCUSDT_UMCBL
+            exchanges.BITGET_USDT_PERPETUAL: {
+                'fee': 0.0006,
+                'type': 'futures',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000
+            },
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
