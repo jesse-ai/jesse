@@ -138,10 +138,11 @@ def run(
                             'message': msg,
                             'type': 'success'
                         })
+                        run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
+                        return
                     else:
                         print(msg)
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
-                    return
+                        return run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], running_via_dashboard=False, show_progressbar=show_progressbar)
 
             # fill absent candles (if there's any)
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
