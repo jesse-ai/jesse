@@ -161,7 +161,7 @@ def run(
             })
         elif show_progressbar:
             jh.clear_output()
-            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining", flush=True)
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
