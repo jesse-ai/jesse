@@ -97,8 +97,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
 
         raise CandleNotFoundInDatabase(
             f'Not enough candles for {exchange} {symbol} exists to run backtest from {start_date_str} => {finish_date_str}. \n'
-            f'First available date is {jh.timestamp_to_date(first_backtestable_timestamp)}\n'
-            f'Last available date is {jh.timestamp_to_date(last_existing_candle)}'
+            f'Are you considering the warmup candles? For more info please read:\n https://jesse.trade/help/faq/i-imported-candles-but-keep-getting-not-enough-candles'
         )
 
     return candles
