@@ -69,7 +69,7 @@ class Order(Model):
             if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
                 txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
                 if self.price:
-                    txt += f', ${round(self.price, 2)}'
+                    txt += f', ${self.price}'
                 logger.info(txt)
 
         # handle exchange balance for ordered asset
@@ -80,7 +80,7 @@ class Order(Model):
         if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f', ${self.price}'
             notify(txt)
 
     @property
@@ -185,7 +185,7 @@ class Order(Model):
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f', ${self.price}'
                 logger.info(txt)
         self.notify_submission()
 
