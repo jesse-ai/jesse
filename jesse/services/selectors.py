@@ -31,6 +31,11 @@ def get_time() -> int:
     return store.app.time
 
 
+def get_starting_time() -> int:
+    from jesse.store import store
+    return store.app.starting_time
+
+
 def get_exchange(name: str) -> Any:
     if name is None:
         raise ValueError(f"name cannot be None. name: {name}")
