@@ -138,8 +138,7 @@ def run(
                             'message': msg,
                             'type': 'success'
                         })
-                        run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
-                        return
+                        return run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
                     else:
                         print(msg)
                         return run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], running_via_dashboard=False, show_progressbar=show_progressbar)
