@@ -2,15 +2,6 @@ from jesse.enums import timeframes
 import jesse.helpers as jh
 
 
-def jesse_symbol_to_bitget_usdt_contracts_symbol(symbol: str) -> str:
-    return f'{jh.dashless_symbol(symbol)}_UMCBL'
-
-
-def bitget_symbol_to_jesse_symbol(formatted_symbol: str) -> str:
-    # ex: 'BTCUSDT_UMCBL' -> 'BTC-USDT'
-    return jh.dashy_symbol(formatted_symbol.split('_')[0]).upper()
-
-
 def timeframe_to_interval(timeframe: str) -> str:
     if timeframe == timeframes.MINUTE_1:
         return '1m'
