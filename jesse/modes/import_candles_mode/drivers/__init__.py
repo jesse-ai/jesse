@@ -12,6 +12,7 @@ from jesse.modes.import_candles_mode.drivers.FTX.FTXPerpetualFutures import FTXP
 from jesse.modes.import_candles_mode.drivers.FTX.FTXSpot import FTXSpot
 from jesse.modes.import_candles_mode.drivers.FTX.FTXUSSpot import FTXUSSpot
 from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetual import BitgetUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetualTestnet import BitgetUSDTPerpetualTestnet
 
 
 _builtin_drivers = {
@@ -24,6 +25,7 @@ _builtin_drivers = {
     exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
     exchanges.FTX_PERPETUAL_FUTURES: FTXPerpetualFutures,
     exchanges.BITGET_USDT_PERPETUAL: BitgetUSDTPerpetual,
+    exchanges.BITGET_USDT_PERPETUAL_TESTNET: BitgetUSDTPerpetualTestnet,
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,

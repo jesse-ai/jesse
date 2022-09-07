@@ -148,6 +148,15 @@ config = {
                 'futures_leverage': 1,
                 'balance': 10_000
             },
+
+            # https://www.bitget.com/en/mix/susdt/SBTCSUSDT_SUMCBL
+            exchanges.BITGET_USDT_PERPETUAL_TESTNET: {
+                'fee': 0.0006,
+                'type': 'futures',
+                'futures_leverage_mode': 'cross',
+                'futures_leverage': 1,
+                'balance': 10_000
+            },
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

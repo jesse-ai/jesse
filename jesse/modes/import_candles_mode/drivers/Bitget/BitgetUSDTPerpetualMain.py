@@ -1,9 +1,10 @@
 from typing import Union
 import requests
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-from jesse.enums import exchanges
-from .bitget_utils import timeframe_to_interval, jesse_symbol_to_bitget_usdt_contracts_symbol
+from .bitget_utils import timeframe_to_interval
 import jesse.helpers as jh
+from jesse.enums import exchanges
+from jesse import exceptions
 
 
 class BitgetUSDTPerpetualMain(CandleExchange):
@@ -24,14 +25,14 @@ class BitgetUSDTPerpetualMain(CandleExchange):
     def get_starting_time(self, symbol: str) -> int:
         payload = {
             'granularity': '1W',
-            'symbol': jesse_symbol_to_bitget_usdt_contracts_symbol(symbol),
+            'symbol': self.jesse_symbol_to_bitget_usdt_contracts_symbol(symbol),
             'startTime': 1359291660000,
             'endTime': jh.now(force_fresh=True)
         }
 
         response = requests.get(self.endpoint, params=payload)
 
-        self.validate_response(response)
+        self.validate_bitget_response(response)
 
         data = response.json()
 
@@ -44,14 +45,14 @@ class BitgetUSDTPerpetualMain(CandleExchange):
 
         payload = {
             'granularity': timeframe_to_interval(timeframe),
-            'symbol': jesse_symbol_to_bitget_usdt_contracts_symbol(symbol),
+            'symbol': self.jesse_symbol_to_bitget_usdt_contracts_symbol(symbol),
             'startTime': int(start_timestamp),
             'endTime': int(end_timestamp)
         }
 
         response = requests.get(self.endpoint, params=payload)
 
-        self.validate_response(response)
+        self.validate_bitget_response(response)
 
         data = response.json()
 
@@ -69,3 +70,23 @@ class BitgetUSDTPerpetualMain(CandleExchange):
                 'volume': float(d[5])
             } for d in data
         ]
+
+    def jesse_symbol_to_bitget_usdt_contracts_symbol(self, symbol: str) -> str:
+        if self.name == exchanges.BITGET_USDT_PERPETUAL:
+            return f'{jh.dashless_symbol(symbol)}_UMCBL'
+        elif self.name == exchanges.BITGET_USDT_PERPETUAL_TESTNET:
+            return f'{jh.dashless_symbol(symbol)}_SUMCBL'
+        else:
+            raise NotImplemented('Invalid exchange: {}'.format(self.name))
+
+    def validate_bitget_response(self, response):
+        data = response.json()
+
+        # 40019: wrong symbol
+        if response.status_code == 400 and data['code'] == "40019":
+            msg = 'Symbol not found. Check the symbol and try again.'
+            if self.name == exchanges.BITGET_USDT_PERPETUAL_TESTNET:
+                msg += f' Example of a valid symbol for "{self.name}": "SBTC-SUSDT"'
+            raise exceptions.SymbolNotFound(msg)
+
+        self.validate_response(response)

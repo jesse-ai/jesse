@@ -70,6 +70,7 @@ class exchanges:
     FTX_US_SPOT = 'FTX US Spot'
     BITGET_SPOT = 'Bitget Spot'
     BITGET_USDT_PERPETUAL = 'Bitget USDT Perpetual'
+    BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
 
 
 class migration_actions:
