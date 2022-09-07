@@ -113,6 +113,10 @@ def dashy_symbol(symbol: str) -> str:
         if compare_symbol == symbol:
             return s
 
+    if len(symbol) > 7 and symbol.endswith('SUSDT'):
+        # ex: SETHSUSDT => SETH-SUSDT
+        return symbol[:-5] + '-' + symbol[-5:]
+
     return f"{symbol[0:3]}-{symbol[3:]}"
 
 
