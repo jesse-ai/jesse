@@ -1,12 +1,9 @@
 import json
-import os
 import numpy as np
 import peewee
-import requests
-from jesse.enums import timeframes
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
-from jesse.config import config
+from jesse.info import live_trading_exchanges, backtesting_exchanges
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -72,81 +69,6 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     ]
 
 
-def get_general_info(has_live=False) -> dict:
-    from jesse.version import __version__ as jesse_version
-    system_info = {
-        'jesse_version': jesse_version
-    }
-
-    if has_live:
-        from jesse.services.auth import get_access_token
-        access_token = get_access_token()
-        if not access_token:
-            has_live = False
-
-    if has_live:
-        from jesse_live.info import SUPPORTED_EXCHANGES
-        live_exchanges: list = SUPPORTED_EXCHANGES.copy()
-        # sort supported_exchanges based on the name of the exchange (key of the dict)
-        live_exchanges = sorted(live_exchanges, key=lambda k: k['name'])
-        from jesse_live.version import __version__ as live_version
-        system_info['live_plugin_version'] = live_version
-    else:
-        live_exchanges = []
-
-    supported_timeframes_for_backtest = [
-        timeframes.MINUTE_1,
-        timeframes.MINUTE_3,
-        timeframes.MINUTE_5,
-        timeframes.MINUTE_15,
-        timeframes.MINUTE_30,
-        timeframes.MINUTE_45,
-        timeframes.HOUR_1,
-        timeframes.HOUR_2,
-        timeframes.HOUR_3,
-        timeframes.HOUR_4,
-        timeframes.HOUR_6,
-        timeframes.HOUR_8,
-        timeframes.HOUR_12,
-        timeframes.DAY_1,
-    ]
-    exchanges: dict = jh.get_config('env.exchanges').copy()
-    del exchanges['Sandbox']
-    for key, e in exchanges.items():
-        e['name'] = key
-        e['supported_timeframes'] = supported_timeframes_for_backtest
-    exchanges: list = list(exchanges.values())
-    # sort exchanges based on the 'name' of the exchange
-    exchanges = sorted(exchanges, key=lambda k: k['name'])
-    strategies_path = os.getcwd() + "/strategies/"
-    strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
-
-    system_info['python_version'] = '{}.{}'.format(*jh.python_version())
-    system_info['operating_system'] = jh.get_os()
-    system_info['cpu_cores'] = jh.cpu_cores_count()
-    system_info['is_docker'] = jh.is_docker()
-
-    update_info = {}
-
-    try:
-        response = requests.get('https://pypi.org/pypi/jesse/json')
-        update_info['jesse_latest_version'] = response.json()['info']['version']
-        response = requests.get('https://jesse.trade/api/plugins/live/releases/info')
-        update_info['jesse_live_latest_version'] = response.json()[0]['version']
-        update_info['is_update_info_available'] = True
-    except Exception:
-        update_info['is_update_info_available'] = False
-
-    return {
-        'exchanges': exchanges,
-        'live_exchanges': live_exchanges,
-        'strategies': strategies,
-        'has_live_plugin_installed': has_live,
-        'system_info': system_info,
-        'update_info': update_info
-    }
-
-
 def get_config(client_config: dict, has_live=False) -> dict:
     from jesse.services.db import database
     database.open_connection()
@@ -161,17 +83,14 @@ def get_config(client_config: dict, has_live=False) -> dict:
         data = jh.merge_dicts(client_config, json.loads(o.json))
 
         # make sure the list of BACKTEST exchanges is up to date
-        from jesse.modes.import_candles_mode.drivers import drivers
         for k in list(data['backtest']['exchanges'].keys()):
-            if k not in drivers:
+            if k not in backtesting_exchanges:
                 del data['backtest']['exchanges'][k]
 
         # make sure the list of LIVE exchanges is up to date
         if has_live:
-            from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
-            live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
             for k in list(data['live']['exchanges'].keys()):
-                if k not in live_exchanges:
+                if k not in live_trading_exchanges:
                     del data['live']['exchanges'][k]
 
         o.updated_at = jh.now()

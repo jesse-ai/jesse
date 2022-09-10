@@ -63,19 +63,3 @@ def interval_to_timeframe(interval: str) -> str:
         return timeframes.WEEK_1
     else:
         raise ValueError('Invalid interval: {}'.format(interval))
-
-
-supported_timeframes = [
-    timeframes.MINUTE_1,
-    timeframes.MINUTE_3,
-    timeframes.MINUTE_5,
-    timeframes.MINUTE_15,
-    timeframes.MINUTE_30,
-    timeframes.HOUR_1,
-    timeframes.HOUR_2,
-    timeframes.HOUR_4,
-    timeframes.HOUR_6,
-    timeframes.HOUR_12,
-    timeframes.DAY_1,
-    # timeframes.WEEK_1,
-]

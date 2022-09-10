@@ -10,7 +10,7 @@ from timeloop import Timeloop
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
 from jesse.models import Candle
-from jesse.modes.import_candles_mode.drivers import drivers
+from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
@@ -76,9 +76,8 @@ def run(
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
-        raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {list(drivers.keys())}')
-    except TypeError:
-        raise FileNotFoundError('You are missing the "plugins.py" file')
+        jh.dump('drivers', drivers)
+        raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {driver_names}')
 
     loop_length = int(candles_count / driver.count) + 1
 

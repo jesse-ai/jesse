@@ -15,7 +15,7 @@ from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetual import B
 from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetualTestnet import BitgetUSDTPerpetualTestnet
 
 
-_builtin_drivers = {
+drivers = {
     # Perpetual Futures
     exchanges.BINANCE_PERPETUAL_FUTURES: BinancePerpetualFutures,
     exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: BinancePerpetualFuturesTestnet,
@@ -34,10 +34,5 @@ _builtin_drivers = {
     exchanges.BINANCE_US_SPOT: BinanceUSSpot
 }
 
-_local_drivers = locate('plugins.import_candles_drivers')
 
-# drivers must be a dict which is merged of _builtin_drivers and _local_drivers
-drivers = {}
-drivers.update(_builtin_drivers)
-if _local_drivers is not None:
-    drivers.update(_local_drivers)
+driver_names = list(drivers.keys())

@@ -1,6 +1,6 @@
 import jesse.helpers as jh
-# from jesse.models.utils import store_daily_balance_into_db
 from jesse.services import logger
+from jesse.info import live_trading_exchanges
 
 
 def save_daily_portfolio_balance() -> None:
@@ -19,7 +19,10 @@ def save_daily_portfolio_balance() -> None:
     #         })
     total_balances = 0
     # select the first item in store.exchanges.storage.items()
-    e, = store.exchanges.storage.values()
+    try:
+        e, = store.exchanges.storage.values()
+    except ValueError:
+        raise ValueError('Multiple exchange support is temporarily not supported. Will be implemented soon.')
     if e.type == 'futures':
         try:
             total_balances += e.assets[jh.app_currency()]
@@ -45,11 +48,7 @@ def get_exchange_type(exchange_name: str) -> str:
     """
     # in live trading, exchange type is not configurable, hence we hardcode it
     if jh.is_live():
-        from jesse_live.info import SUPPORTED_EXCHANGES
-        # SUPPORTED_EXCHANGES is a list. Search through it and find the exchange name
-        for exchange in SUPPORTED_EXCHANGES:
-            if exchange['name'] == exchange_name:
-                return exchange['type']
+        return live_trading_exchanges[exchange_name]['type']
 
     # for other trading modes, we can get the exchange type from the config file
     return jh.get_config(f'env.exchanges.{exchange_name}.type')
