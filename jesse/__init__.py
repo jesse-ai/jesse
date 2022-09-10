@@ -226,10 +226,10 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.modes import data_provider
+    from jesse.services.general_info import get_general_info
 
     try:
-        data = data_provider.get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
+        data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
     except Exception as e:
         return JSONResponse({
             'error': str(e)

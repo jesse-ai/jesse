@@ -1,6 +1,7 @@
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
+from jesse.info import exchange_info, jesse_supported_timeframes
 
 
 config = {
@@ -23,6 +24,7 @@ config = {
             'balance_update': True,
         },
 
+        # fill it later in this file using data in info.py
         'exchanges': {
             exchanges.SANDBOX: {
                 'fee': 0,
@@ -30,103 +32,6 @@ config = {
                 # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
-                'futures_leverage': 1,
-                'balance': 10_000,
-            },
-
-            exchanges.BYBIT_USDT_PERPETUAL: {
-                'fee': 0.00075,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            exchanges.BYBIT_USDT_PERPETUAL_TESTNET: {
-                'fee': 0.00075,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://ftx.com/markets/future
-            exchanges.FTX_PERPETUAL_FUTURES: {
-                'fee': 0.0006,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://ftx.com/markets/spot
-            exchanges.FTX_SPOT: {
-                'fee': 0.0007,
-                'type': 'spot',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://ftx.us
-            exchanges.FTX_US_SPOT: {
-                'fee': 0.002,
-                'type': 'spot',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.bitfinex.com
-            exchanges.BITFINEX_SPOT: {
-                'fee': 0.002,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.binance.com
-            exchanges.BINANCE_SPOT: {
-                'fee': 0.001,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.binance.us
-            exchanges.BINANCE_US_SPOT: {
-                'fee': 0.001,
-                'type': 'spot',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.binance.com
-            exchanges.BINANCE_PERPETUAL_FUTURES: {
-                'fee': 0.0004,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://testnet.binancefuture.com
-            exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: {
-                'fee': 0.0004,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://pro.coinbase.com
-            exchanges.COINBASE_SPOT: {
-                'fee': 0.005,
-                'type': 'spot',
-                'futures_leverage_mode': 'cross',
                 'futures_leverage': 1,
                 'balance': 10_000,
             },
@@ -189,6 +94,16 @@ config = {
         'is_unit_testing': False,
     },
 }
+
+# set exchange config values based on the info
+for key in exchange_info:
+    config['env']['exchanges'][key] = {
+        'fee': exchange_info[key]['fee'],
+        'type': exchange_info[key]['type'],
+        'futures_leverage_mode': 'cross',
+        'futures_leverage': 1,
+        'balance': 10_000
+    }
 
 
 def set_config(conf: dict) -> None:
