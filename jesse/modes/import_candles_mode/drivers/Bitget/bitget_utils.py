@@ -42,15 +42,3 @@ def interval_to_timeframe(interval: str) -> str:
         return timeframes.DAY_1
     else:
         raise NotImplemented('Invalid interval: {}'.format(interval))
-
-
-supported_timeframes = [
-    timeframes.MINUTE_1,
-    timeframes.MINUTE_5,
-    timeframes.MINUTE_15,
-    timeframes.MINUTE_30,
-    timeframes.HOUR_1,
-    timeframes.HOUR_4,
-    timeframes.HOUR_12,
-    timeframes.DAY_1,
-]

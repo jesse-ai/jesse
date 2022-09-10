@@ -5,7 +5,7 @@ BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 BINANCE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
 COINBASE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.HOUR_1, timeframes.HOUR_6, timeframes.DAY_1]
-
+BITGET_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -149,6 +149,32 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': False,
+        }
+    },
+    # BITGET_USDT_PERPETUAL_TESTNET
+    exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET,
+        'url': 'https://jesse.trade/bitget',
+        'fee': 0.0006,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BITGET_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        }
+    },
+    # BITGET_USDT_PERPETUAL
+    exchanges_enums.BITGET_USDT_PERPETUAL: {
+        'name': exchanges_enums.BITGET_USDT_PERPETUAL,
+        'url': 'https://jesse.trade/bitget',
+        'fee': 0.0006,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BITGET_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
         }
     },
 }
