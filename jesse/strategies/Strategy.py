@@ -7,7 +7,7 @@ import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
-from jesse import exceptions, utils
+from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
@@ -905,67 +905,7 @@ class Strategy(ABC):
             [float] -- the current trading candle's LOW price
         """
         return self.current_candle[4]
-    
-    @property
-    def timestamp(self) -> int:
-        """
-        Returns the timestamp of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [int] -- the current trading candle's timestamp
-        """
-        return self.current_candle[0]
-    
-    @property
-    def volume(self) -> float:
-        """
-        Returns the volume of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [float] -- the current trading candle's VOLUME
-        """
-        return self.current_candle[5]
-  
-    @property
-    def hl2(self) -> float:
-        """
-        Returns the (high + low) / 2 of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [float] -- the current trading candle's (high + low) / 2 
-        """
-        return utils.sum_floats(self.current_candle[3], self.current_candle[4]) / 2
 
-    @property
-    def hlc3(self) -> float:
-        """
-        Returns the (high + low + close) / 3 of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [float] -- the current trading candle's (high + low + close) / 3
-        """
-        return utils.sum_floats(utils.sum_floats(self.current_candle[3], self.current_candle[4]), self.current_candle[2]) / 3
-    
-     @property
-    def hlcc4(self) -> float:
-        """
-        Returns the (high + low + close + close) / 4 of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [float] -- the current trading candle's (high + low + close + close) / 4
-        """
-        return utils.sum_floats(utils.sum_floats(self.current_candle[3], self.current_candle[4]), utils.sum_floats(self.current_candle[2], self.current_candle[2])) / 4
-    
-    @property
-    def ohlc4(self) -> float:
-        """
-        Returns the (open + high + low + close) / 4 of the current candle for this strategy.
-        Just as a helper to use when writing super simple strategies.
-        Returns:
-            [float] -- the current trading candle's (open + high + low + close) / 4 
-        """
-        return utils.sum_floats(utils.sum_floats(self.current_candle[1], self.current_candle[3]), utils.sum_floats(self.current_candle[4], self.current_candle[2])) / 4
- 
     @property
     def candles(self) -> np.ndarray:
         """
