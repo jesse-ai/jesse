@@ -177,6 +177,19 @@ exchange_info = {
             'live_trading': True,
         }
     },
+    # BITGET_SPOT
+    exchanges_enums.BITGET_SPOT: {
+        'name': exchanges_enums.BITGET_SPOT,
+        'url': 'https://jesse.trade/bitget',
+        'fee': 0.0006,
+        'type': 'spot',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BITGET_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        }
+    }
 }
 
 # list of supported exchanges for backtesting
