@@ -48,6 +48,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     ).where(
         Candle.exchange == exchange,
         Candle.symbol == symbol,
+        Candle.timeframe == '1m',
         Candle.timestamp.between(start_date, finish_date)
     ).order_by(Candle.timestamp.asc()).tuples()
 
