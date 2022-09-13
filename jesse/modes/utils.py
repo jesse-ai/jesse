@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.services import logger
-from jesse.info import live_trading_exchanges
+from jesse.info import exchange_info
 
 
 def save_daily_portfolio_balance() -> None:
@@ -48,7 +48,7 @@ def get_exchange_type(exchange_name: str) -> str:
     """
     # in live trading, exchange type is not configurable, hence we hardcode it
     if jh.is_live():
-        return live_trading_exchanges[exchange_name]['type']
+        return exchange_info[exchange_name]['type']
 
     # for other trading modes, we can get the exchange type from the config file
     return jh.get_config(f'env.exchanges.{exchange_name}.type')
