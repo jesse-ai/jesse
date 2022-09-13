@@ -366,6 +366,10 @@ def test_on_route_open_position():
     assert t2.qty == 1
 
 
+def test_on_route_open_position_like_the_example_on_the_docs():
+    two_routes_backtest('TestOnRouteOpenPosition', 'TestOnRouteOpenPosition2')
+
+
 def test_on_route_stop_loss():
     two_routes_backtest('Test25', 'Test26')
 
