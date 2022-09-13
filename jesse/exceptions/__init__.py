@@ -84,3 +84,7 @@ class InvalidExchangeApiKeys(Exception):
 
 class ExchangeError(Exception):
     pass
+
+
+class NotSupportedError(Exception):
+    pass
