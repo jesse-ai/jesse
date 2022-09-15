@@ -187,7 +187,8 @@ exchange_info = {
         'supported_timeframes': BITGET_TIMEFRAMES,
         'modes': {
             'backtesting': False,
-            'live_trading': True,
+            # disabled for now
+            'live_trading': False,
         }
     }
 }
