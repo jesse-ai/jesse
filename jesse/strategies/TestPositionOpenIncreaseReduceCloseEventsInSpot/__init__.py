@@ -11,7 +11,7 @@ class TestPositionOpenIncreaseReduceCloseEventsInSpot(Strategy):
             self.vars['called_on_reduced_position'] = False
             self.vars['called_on_close_position'] = False
 
-    def terminate(self):
+    def before_terminate(self):
         assert self.vars['called_on_open_position'] is True
         assert self.vars['called_on_increased_position'] is True
         assert self.vars['called_on_reduced_position'] is True

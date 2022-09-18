@@ -802,7 +802,7 @@ class Strategy(ABC):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info(f"Terminating {self.symbol}...")
 
-        self.terminate()
+        self.before_terminate()
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -830,7 +830,7 @@ class Strategy(ABC):
             self._execute_cancel()
             logger.info('Canceled open-position orders because we reached the end of the backtest session.')
 
-    def terminate(self):
+    def before_terminate(self):
         pass
 
     def watch_list(self) -> list:
