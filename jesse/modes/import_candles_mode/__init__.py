@@ -76,7 +76,6 @@ def run(
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
-        jh.dump('drivers', drivers)
         raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {driver_names}')
 
     loop_length = int(candles_count / driver.count) + 1
