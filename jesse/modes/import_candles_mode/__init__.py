@@ -146,7 +146,7 @@ def run(
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
             # store in the database
-            _store_candles(candles)
+            store_candles_list(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
@@ -262,7 +262,7 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
 
             # store in the database
-            _store_candles(candles)
+            store_candles_list(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=backup_driver.count)
@@ -358,7 +358,7 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
     return candles
 
 
-def _store_candles(candles: List[Dict]) -> None:
+def store_candles_list(candles: List[Dict]) -> None:
     from jesse.models import Candle
     for c in candles:
         if 'timeframe' not in c:

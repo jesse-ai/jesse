@@ -82,30 +82,42 @@ def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
     Stores candles in the database. The stored data can later be used for being fetched again via get_candles or even for running backtests on them.
     A common use case for this function is for importing candles from a CSV file so you can later use them for backtesting.
     """
-    from jesse.services.db import store_candles as store_candles_from_list
+    from jesse.modes.import_candles_mode import store_candles_list as store_candles_from_list
     import jesse.helpers as jh
 
     # check if .env file exists
-    if not jh.is_jesse_project():
+    if not jh.is_unit_testing() and not jh.is_jesse_project():
         raise FileNotFoundError(
             'Invalid directory: ".env" file not found. To use Jesse inside notebooks, create notebooks inside the root of a Jesse project.'
         )
 
-    # TODO: add validation for timeframe to make sure it's `1m`
+    # validate that candles type must be np.ndarray
+    if not isinstance(candles, np.ndarray):
+        raise TypeError('candles must be a numpy array.')
+
+    # add validation for timeframe to make sure it's `1m`
+    if candles[1][0] - candles[0][0] != 60_000:
+        raise ValueError(
+            f'Candles passed to the research.store_candles() must be 1m candles. '
+            f'\nThe difference between your candle timestamps is {candles[1][0] - candles[0][0]} milliseconds which is '
+            f'more than the accepted 60000 milliseconds.'
+        )
 
     arr = [{
-            'id': jh.generate_unique_id(),
-            'symbol': symbol,
-            'exchange': exchange,
-            'timestamp': c[0],
-            'open': c[1],
-            'close': c[2],
-            'high': c[3],
-            'low': c[4],
-            'volume': c[5]
-        } for c in candles]
+        'id': jh.generate_unique_id(),
+        'exchange': exchange,
+        'symbol': symbol,
+        'timeframe': '1m',
+        'timestamp': c[0],
+        'open': c[1],
+        'close': c[2],
+        'high': c[3],
+        'low': c[4],
+        'volume': c[5]
+    } for c in candles]
 
-    store_candles_from_list(arr)
+    if not jh.is_unit_testing():
+        store_candles_from_list(arr)
 
 
 def candlestick_chart(candles: np.ndarray):
