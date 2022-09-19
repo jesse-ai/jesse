@@ -13,7 +13,7 @@ class TestDailyBalancesProperty(Strategy):
     def should_cancel_entry(self):
         return False
 
-    def terminate(self):
+    def before_terminate(self):
         assert len(self.daily_balances) == 10
         for d in self.daily_balances:
             assert d == 10_000

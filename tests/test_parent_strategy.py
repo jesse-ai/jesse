@@ -366,6 +366,10 @@ def test_on_route_open_position():
     assert t2.qty == 1
 
 
+def test_on_route_open_position_like_the_example_on_the_docs():
+    two_routes_backtest('TestOnRouteOpenPosition', 'TestOnRouteOpenPosition2')
+
+
 def test_on_route_stop_loss():
     two_routes_backtest('Test25', 'Test26')
 
@@ -564,29 +568,10 @@ def test_taking_profit_at_multiple_points():
     assert t1.holding_period == 8 * 60
 
 
-def test_terminate():
-    """
-    test that user can use terminate() method. in this unit test use it
-    to close the open position.
-    `"""
-    single_route_backtest('Test41')
-
-    # TODO
-    # assert terminate() is actually executed by logging a
-    # string init, and then checking for that log message
-    # assert {'id': 2, 'message': 'executed terminate successfully', 'time': 1552315246171.0} in store.logs.info
-
-    # assert inside strategies terminate() that we have indeed an open position
-
-    # assert that Strategy's terminate() method closes the open position
-    assert store.app.total_open_trades == 0
-    assert store.app.total_open_pl == 0
-
-
 def test_terminate_closes_trades_at_the_end_of_backtest():
     single_route_backtest('Test40')
 
-    # assert that Strategy's _terminate() method closes the open position
+    # assert that Strategy's _terminate() method closes the open position (without defining `terminate()`)
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97
 
@@ -834,3 +819,32 @@ def test_strategy_variables_are_reset_before_opening_new_position():
 def test_can_open_a_new_position_immediately_after_closing_via_update_position():
     single_route_backtest('TestCanOpenANewPositionImmediatelyAfterClosingViaUpdatePosition')
 
+
+def test_before_terminate1():
+    single_route_backtest('TestBeforeTerminate')
+
+
+def test_before_terminate2():
+    """
+    test that user can use terminate() method. in this unit test use it
+    to close the open position.
+    `"""
+    single_route_backtest('Test41')
+
+    # TODO
+    # assert terminate() is actually executed by logging a
+    # string init, and then checking for that log message
+    # assert {'id': 2, 'message': 'executed terminate successfully', 'time': 1552315246171.0} in store.logs.info
+
+    # assert inside strategies terminate() that we have indeed an open position
+
+    # assert that Strategy's terminate() method closes the open position
+    assert store.app.total_open_trades == 0
+    assert store.app.total_open_pl == 0
+
+
+def test_terminate():
+    single_route_backtest('TestTerminate')
+
+    from jesse.store import store
+    assert store.app.starting_time == 1

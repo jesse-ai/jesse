@@ -23,7 +23,7 @@ class TestDailyBalanceStoresPortfolioValue(Strategy):
     def should_cancel_entry(self):
         return False
 
-    def terminate(self):
+    def before_terminate(self):
         # assert that all the items (daily balances) in store.app.daily_balance remain 10_000
         for item in self.daily_balances:
             assert item == 10_000

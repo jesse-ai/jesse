@@ -21,8 +21,4 @@ class Test21(Strategy):
         return False
 
     def on_route_open_position(self, strategy):
-        """
-
-        :param strategy:
-        """
         self.take_profit = 1, self.price

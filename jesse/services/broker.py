@@ -19,7 +19,7 @@ class Broker:
     @staticmethod
     def _validate_qty(qty: float) -> None:
         if qty == 0:
-            raise InvalidStrategy('qty cannot be 0')
+            raise InvalidStrategy('qty cannot be 0. \nRead more: https://jesse.trade/help/faq/i-keep-getting-invalidstrategy')
 
     def sell_at_market(self, qty: float) -> Union[Order, None]:
         self._validate_qty(qty)

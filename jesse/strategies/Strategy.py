@@ -802,7 +802,7 @@ class Strategy(ABC):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info(f"Terminating {self.symbol}...")
 
-        self.terminate()
+        self.before_terminate()
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -811,6 +811,7 @@ class Strategy(ABC):
             store.orders.execute_pending_market_orders()
 
         if jh.is_live():
+            self.terminate()
             return
 
         if self.position.is_open:
@@ -824,11 +825,17 @@ class Strategy(ABC):
                 self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
             self.broker.reduce_position_at(self.position.qty, self.position.current_price)
+            self.terminate()
             return
 
         if len(self.entry_orders):
             self._execute_cancel()
             logger.info('Canceled open-position orders because we reached the end of the backtest session.')
+
+        self.terminate()
+
+    def before_terminate(self):
+        pass
 
     def terminate(self):
         pass
