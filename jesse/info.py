@@ -19,7 +19,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BYBIT_USDT_PERPETUAL_TESTNET
     exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET: {
@@ -32,7 +33,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # FTX_PERPETUAL_FUTURES
     exchanges_enums.FTX_PERPETUAL_FUTURES: {
@@ -45,7 +47,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # FTX_SPOT
     exchanges_enums.FTX_SPOT: {
@@ -58,7 +61,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # FTX_US_SPOT
     exchanges_enums.FTX_US_SPOT: {
@@ -71,7 +75,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BITFINEX_SPOT
     exchanges_enums.BITFINEX_SPOT: {
@@ -84,7 +89,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': False,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BINANCE_SPOT
     exchanges_enums.BINANCE_SPOT: {
@@ -97,7 +103,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BINANCE_US_SPOT
     exchanges_enums.BINANCE_US_SPOT: {
@@ -110,7 +117,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BINANCE_PERPETUAL_FUTURES
     exchanges_enums.BINANCE_PERPETUAL_FUTURES: {
@@ -123,7 +131,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BINANCE_PERPETUAL_FUTURES_TESTNET
     exchanges_enums.BINANCE_PERPETUAL_FUTURES_TESTNET: {
@@ -136,7 +145,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # COINBASE_SPOT
     exchanges_enums.COINBASE_SPOT: {
@@ -149,7 +159,8 @@ exchange_info = {
         'modes': {
             'backtesting': True,
             'live_trading': False,
-        }
+        },
+        'required_live_plan': 'premium'
     },
     # BITGET_USDT_PERPETUAL_TESTNET
     exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET: {
@@ -162,7 +173,8 @@ exchange_info = {
         'modes': {
             'backtesting': False,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'free'
     },
     # BITGET_USDT_PERPETUAL
     exchanges_enums.BITGET_USDT_PERPETUAL: {
@@ -175,7 +187,8 @@ exchange_info = {
         'modes': {
             'backtesting': False,
             'live_trading': True,
-        }
+        },
+        'required_live_plan': 'free'
     },
     # BITGET_SPOT
     exchanges_enums.BITGET_SPOT: {
@@ -189,7 +202,8 @@ exchange_info = {
             'backtesting': False,
             # disabled for now
             'live_trading': False,
-        }
+        },
+        'required_live_plan': 'free'
     }
 }
 
@@ -200,19 +214,6 @@ backtesting_exchanges = list(sorted(backtesting_exchanges))
 # list of supported exchanges for live trading
 live_trading_exchanges = [k for k, v in exchange_info.items() if v['modes']['live_trading'] is True]
 live_trading_exchanges = list(sorted(live_trading_exchanges))
-
-# # list of supported exchanges for backtesting
-# def get_backtesting_exchanges():
-#     return list(sorted(
-#         [k for k, v in exchange_info.items() if v['modes']['backtesting'] is True]
-#     ))
-#
-#
-# # list of supported exchanges for live trading
-# def get_live_trading_exchanges():
-#     return list(sorted(
-#         [k for k, v in exchange_info.items() if v['modes']['live_trading'] is True]
-#     ))
 
 # used for backtesting, and live trading when local candle generation is enabled:
 jesse_supported_timeframes = [

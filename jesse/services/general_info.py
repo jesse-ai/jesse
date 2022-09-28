@@ -2,6 +2,7 @@ import os
 import requests
 import jesse.helpers as jh
 from jesse.info import exchange_info, jesse_supported_timeframes
+from jesse.enums import exchanges
 
 
 def get_general_info(has_live=False) -> dict:
@@ -9,6 +10,7 @@ def get_general_info(has_live=False) -> dict:
     system_info = {
         'jesse_version': jesse_version
     }
+    plan_info = {'plan': 'guest'}
 
     if has_live:
         from jesse.services.auth import get_access_token
@@ -19,6 +21,20 @@ def get_general_info(has_live=False) -> dict:
         # version info
         from jesse_live.version import __version__ as live_version
         system_info['live_plugin_version'] = live_version
+
+        if access_token:
+            # get the account plan info via the access_token
+            # TODO: change
+            # uri = 'https://jesse.trade/api/user-info'
+            uri = 'http://127.0.0.1:8000/api/user-info'
+            response = requests.post(
+                uri, headers={'Authorization': f'Bearer2 {access_token}'}
+            )
+            if response.status_code != 200:
+                raise Exception(
+                    f"{response.status_code} error: {response.json()['message']}"
+                )
+            plan_info = response.json()
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
@@ -45,5 +61,6 @@ def get_general_info(has_live=False) -> dict:
         'jesse_supported_timeframes': jesse_supported_timeframes,
         'has_live_plugin_installed': has_live,
         'system_info': system_info,
-        'update_info': update_info
+        'update_info': update_info,
+        'plan_info': plan_info
     }
