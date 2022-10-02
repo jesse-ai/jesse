@@ -78,6 +78,9 @@ class Position:
         if self.is_close:
             return 0
 
+        if self.current_price is None:
+            return None
+
         return abs(self.current_price * self.qty)
 
     @property
