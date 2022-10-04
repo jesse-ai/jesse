@@ -28,7 +28,7 @@ def get_general_info(has_live=False) -> dict:
             # uri = 'https://jesse.trade/api/user-info'
             uri = 'http://127.0.0.1:8000/api/user-info'
             response = requests.post(
-                uri, headers={'Authorization': f'Bearer2 {access_token}'}
+                uri, headers={'Authorization': f'Bearer {access_token}'}
             )
             if response.status_code != 200:
                 raise Exception(
