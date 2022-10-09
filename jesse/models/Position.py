@@ -165,6 +165,9 @@ class Position:
         if self.entry_price is None:
             return 0
 
+        if self.value is None:
+            return 0
+
         diff = self.value - abs(self.entry_price * self.qty)
 
         return -diff if self.type == 'short' else diff
