@@ -24,9 +24,7 @@ def get_general_info(has_live=False) -> dict:
 
         if access_token:
             # get the account plan info via the access_token
-            # TODO: change
-            # uri = 'https://jesse.trade/api/user-info'
-            uri = 'http://127.0.0.1:8000/api/user-info'
+            uri = 'https://jesse.trade/api/user-info'
             response = requests.post(
                 uri, headers={'Authorization': f'Bearer {access_token}'}
             )
