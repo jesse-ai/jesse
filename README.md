@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-Algo-trading was <strong>hard</strong>, we made it <strong>simple</strong>.
+Algo-trading was 😵‍💫, we made it 🤩
 </p>
 </div>
 
