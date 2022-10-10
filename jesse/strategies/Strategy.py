@@ -866,7 +866,7 @@ class Strategy(ABC):
     @property
     def open(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the opening price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's OPEN price
@@ -896,7 +896,7 @@ class Strategy(ABC):
     @property
     def high(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the highest price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's HIGH price
@@ -906,7 +906,7 @@ class Strategy(ABC):
     @property
     def low(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the lowest price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's LOW price
