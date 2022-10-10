@@ -18,13 +18,7 @@ Algo-trading was <strong>hard</strong>, we made it <strong>simple</strong>.
 
 ---
 
-[![Website](https://img.shields.io/badge/Website-Start%20here!-9cf)](https://jesse.trade)
-[![Docs](https://img.shields.io/badge/Docs-Learn%20how!-red)](https://docs.jesse.trade)
-[![FAQ](https://img.shields.io/badge/FAQ-Find%20answers!-yellow)](https://jesse.trade/help)
-[![Chat](https://img.shields.io/discord/771690508413829141)](https://jesse.trade/discord)
-[![Blog](https://img.shields.io/badge/Blog-Get%20the%20news!-blueviolet)](https://jesse.trade/blog)
----
-Jesse is an advanced crypto trading framework which aims to **simplify** **researching** and defining **YOUR OWN trading strategies**.
+Jesse is an advanced crypto trading framework that aims to **simplify** **researching** and defining **YOUR OWN trading strategies**.
 
 ## Why Jesse?
 In short, Jesse is more **accurate** than other solutions, and way more **simple**. 
@@ -36,11 +30,19 @@ In fact, it is so simple that in case you already know Python, you can get start
 Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
 documentation is **short yet very informative**. 
 
-## Example Backtest Results
+## Resources
+
+- [⚡️ Website](https://jesse.trade)
+- [🎓 Documentation](https://docs.jesse.trade)
+- [🛟 Help center](https://jesse.trade/help)
+- [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
+- [💬 Discord community](https://jesse.trade/discord)
+
+## Screenshots
 
 Check out Jesse's [Youtube channel](https://jesse.trade/youtube) for tutorials that go through example strategies step by step. 
 
-Here's a few screenshots just to get you excited:
+Here are a few screenshots just to get you excited:
 
 **Backtest results:**
 
@@ -57,15 +59,7 @@ Here's a few screenshots just to get you excited:
 
 ## What's next?
 
-You can see the project's **[roadmap here](https://docs.jesse.trade/docs/roadmap.html)**. **Subscribe** to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam. Pinky promise.
-
-## Resources
-
-- [⚡️ Website](https://jesse.trade)
-- [🎓 Documentation](https://docs.jesse.trade)
-- [🛟 Help center](https://jesse.trade/help)
-- [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
-- [💬 Discord community](https://jesse.trade/discord)
+You can see the project's **[roadmap here](https://docs.jesse.trade/docs/roadmap.html)**. **Subscribe** to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam—Pinky promise.
 
 ## How to contribute
 
@@ -76,7 +70,7 @@ You can also contribute by submitting **bug reports** and **feature requests** o
 In that case, here's what you need to know:
 
 - Before starting to work on a PR, please **reach out** to make sure it **aligns** with the **project's roadmap** and **vision**.
-- If your PR makes changes to source code, please make sure to **add unit tests**. If you're not sure how to do that, just check out some of the already existing [tests](https://github.com/jesse-ai/jesse/tree/master/tests).
+- If your PR makes changes to the source code, please make sure to **add unit tests**. If you're not sure how to do that, just check out some of the already existing [tests](https://github.com/jesse-ai/jesse/tree/master/tests).
 
 First, you need to install Jesse from the repository instead of PyPi:
 
@@ -98,4 +92,4 @@ pytest
 ```
 
 ## Disclaimer
-This software is for educational purposes only. USE THE SOFTWARE AT **YOUR OWN RISK**. THE AUTHORS AND ALL AFFILIATES ASSUME **NO RESPONSIBILITY FOR YOUR TRADING RESULTS**. **Do not risk money which you are afraid to lose**. There might be **bugs** in the code - this software DOES NOT come with **ANY warranty**.
+This software is for educational purposes only. USE THE SOFTWARE AT **YOUR OWN RISK**. THE AUTHORS AND ALL AFFILIATES ASSUME **NO RESPONSIBILITY FOR YOUR TRADING RESULTS**. **Do not risk money that you are afraid to lose**. There might be **bugs** in the code - this software DOES NOT come with **ANY warranty**.
