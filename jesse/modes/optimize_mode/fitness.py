@@ -101,7 +101,7 @@ def get_fitness(
             score = 0.0001
         # elif jh.is_debugging():
         else:
-            logger.log_optimize_mode(f"DNA is usable => {ratio_config}: {round(ratio, 2)}, total: {training_data_metrics['total']}, PNL%: {round(training_data_metrics['net_profit_percentage'], 2)}%, win-rate: {round(training_data_metrics['win_rate']*100, 2)}%")
+            logger.log_optimize_mode(f"Name: {dna} - DNA is usable => {ratio_config}: {round(ratio, 2)}, total: {training_data_metrics['total']}, PNL%: {round(training_data_metrics['net_profit_percentage'], 2)}%, win-rate: {round(training_data_metrics['win_rate']*100, 2)}%")
 
         # run backtest simulation
         testing_data_metrics = isolated_backtest(
