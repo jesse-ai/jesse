@@ -512,7 +512,7 @@ class Strategy(ABC):
                             )
                             break
 
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
@@ -539,7 +539,7 @@ class Strategy(ABC):
                             )
                             break
 
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.STOP_LOSS
         except TypeError:
@@ -676,7 +676,7 @@ class Strategy(ABC):
                     logger.info(
                         'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
@@ -693,7 +693,7 @@ class Strategy(ABC):
                     logger.info(
                         'The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.STOP_LOSS
@@ -844,7 +844,7 @@ class Strategy(ABC):
             if self.exchange_type == 'spot':
                 self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
-            self.broker.reduce_position_at(self.position.qty, self.position.current_price)
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price, self.price)
             self.terminate()
             return
 

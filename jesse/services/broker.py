@@ -75,7 +75,7 @@ class Broker:
             reduce_only=False
         )
 
-    def reduce_position_at(self, qty: float, price: float) -> Union[Order, None]:
+    def reduce_position_at(self, qty: float, price: float, current_price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         qty = abs(qty)
@@ -92,7 +92,7 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
-        if abs(price - self.position.current_price) < 0.0001:
+        if abs(price - current_price) < 0.0001:
             return self.api.market_order(
                 self.exchange,
                 self.symbol,
@@ -102,8 +102,8 @@ class Broker:
                 reduce_only=True
             )
 
-        elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (
-                side == 'buy' and self.position.type == 'short' and price < self.position.current_price):
+        elif (side == 'sell' and self.position.type == 'long' and price > current_price) or (
+                side == 'buy' and self.position.type == 'short' and price < current_price):
             return self.api.limit_order(
                 self.exchange,
                 self.symbol,
@@ -112,8 +112,8 @@ class Broker:
                 side,
                 reduce_only=True
             )
-        elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (
-                side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
+        elif (side == 'sell' and self.position.type == 'long' and price < current_price) or (
+                side == 'buy' and self.position.type == 'short' and price > current_price):
             return self.api.stop_order(
                 self.exchange,
                 self.symbol,
