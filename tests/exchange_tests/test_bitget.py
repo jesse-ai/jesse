@@ -22,15 +22,3 @@ def test_interval_to_timeframe():
     assert bitget_utils.interval_to_timeframe('4H') == timeframes.HOUR_4
     assert bitget_utils.interval_to_timeframe('12H') == timeframes.HOUR_12
     assert bitget_utils.interval_to_timeframe('1D') == timeframes.DAY_1
-
-
-def test_get_formatted_symbol_usdt_contracts():
-    assert bitget_utils.jesse_symbol_to_bitget_usdt_contracts_symbol('BTC-USDT') == 'BTCUSDT_UMCBL'
-
-
-def test_formatted_symbol_to_jesse_symbol():
-    assert bitget_utils.bitget_symbol_to_jesse_symbol('BTCUSDT_UMCBL') == 'BTC-USDT'
-    assert bitget_utils.bitget_symbol_to_jesse_symbol('BTCUSDT_SPCBL') == 'BTC-USDT'
-
-    assert bitget_utils.bitget_symbol_to_jesse_symbol('ETHUSDT_UMCBL') == 'ETH-USDT'
-    assert bitget_utils.bitget_symbol_to_jesse_symbol('ethusdt_SPCBL') == 'ETH-USDT'
