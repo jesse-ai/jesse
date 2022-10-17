@@ -227,29 +227,33 @@ class Strategy(ABC):
         self._submit_buy_orders()
 
     def _submit_buy_orders(self) -> None:
+        price_to_compare = self.price
+
         for o in self._buy:
             # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
+            if abs(o[1] - price_to_compare) < 0.0001:
                 self.broker.buy_at_market(o[0])
             # STOP order
-            elif o[1] > self.price:
+            elif o[1] > price_to_compare:
                 self.broker.start_profit_at(sides.BUY, o[0], o[1])
             # LIMIT order
-            elif o[1] < self.price:
+            elif o[1] < price_to_compare:
                 self.broker.buy_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
     def _submit_sell_orders(self) -> None:
+        price_to_compare = self.price
+
         for o in self._sell:
             # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
+            if abs(o[1] - price_to_compare) < 0.0001:
                 self.broker.sell_at_market(o[0])
             # STOP order
-            elif o[1] < self.price:
+            elif o[1] < price_to_compare:
                 self.broker.start_profit_at(sides.SELL, o[0], o[1])
             # LIMIT order
-            elif o[1] > self.price:
+            elif o[1] > price_to_compare:
                 self.broker.sell_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
@@ -457,6 +461,7 @@ class Strategy(ABC):
             return
 
         try:
+            # if self.buy has been modified
             if self.is_long:
                 # prepare format
                 self._prepare_buy(make_copies=False)
@@ -472,6 +477,7 @@ class Strategy(ABC):
 
                     self._submit_buy_orders()
 
+            # if self.sell has been modified
             elif self.is_short:
                 # prepare format
                 self._prepare_sell(make_copies=False)
@@ -487,6 +493,7 @@ class Strategy(ABC):
 
                     self._submit_sell_orders()
 
+            # if self.take_profit has been modified
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
                 self._prepare_take_profit(False)
@@ -500,10 +507,19 @@ class Strategy(ABC):
                         if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
                     for o in self._take_profit:
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
+                        # to see if the position is still open. If it's closed, no further submitting is required.
+                        if self.position.is_close:
+                            logger.info(
+                                "Position got closed while submitting take-profit orders. Hence, skipping further submissions"
+                            )
+                            break
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
+            # if self.stop_loss has been modified
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
                 self._prepare_stop_loss(False)
@@ -519,7 +535,15 @@ class Strategy(ABC):
                             self.broker.cancel_order(o.id)
                     # remove canceled orders to optimize the loop
                     for o in self._stop_loss:
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
+                        # to see if the position is still open. If it's closed, no further submitting is required.
+                        if self.position.is_close:
+                            logger.info(
+                                "Position got closed while submitting stop-loss orders. Hence, skipping further submissions"
+                            )
+                            break
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.STOP_LOSS
         except TypeError:
@@ -656,7 +680,7 @@ class Strategy(ABC):
                     logger.info(
                         'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
@@ -673,7 +697,7 @@ class Strategy(ABC):
                     logger.info(
                         'The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.STOP_LOSS
@@ -824,7 +848,7 @@ class Strategy(ABC):
             if self.exchange_type == 'spot':
                 self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
-            self.broker.reduce_position_at(self.position.qty, self.position.current_price)
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price, self.price)
             self.terminate()
             return
 
