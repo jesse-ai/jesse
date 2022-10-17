@@ -25,9 +25,18 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     finish_date = jh.now(force_fresh=True)
     start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
 
+    # fetch value of generate_candles_from_1m fresh from the database
+    o = Option.get(Option.type == 'config')
+    generate_candles_from_1m: bool = json.loads(o.json)['live']['generate_candles_from_1m']
+
     # fetch 1m candles from database
+    if generate_candles_from_1m:
+        timeframe_to_fetch = '1m'
+    else:
+        timeframe_to_fetch = timeframe
+
     candles = np.array(
-        fetch_candles_from_db(exchange, symbol, timeframe, start_date, finish_date)
+        fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
     )
 
     # if there are no candles in the database, return []
@@ -35,7 +44,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
         database.close_connection()
         return []
 
-    if jh.get_config('env.data.generate_candles_from_1m'):
+    if generate_candles_from_1m:
         # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
         timeframe_duration = one_min_count * 60_000
         while candles[0][0] % timeframe_duration != 0:
