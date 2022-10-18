@@ -461,6 +461,7 @@ class Strategy(ABC):
             return
 
         try:
+            # if self.buy has been modified
             if self.is_long:
                 # prepare format
                 self._prepare_buy(make_copies=False)
@@ -476,6 +477,7 @@ class Strategy(ABC):
 
                     self._submit_buy_orders()
 
+            # if self.sell has been modified
             elif self.is_short:
                 # prepare format
                 self._prepare_sell(make_copies=False)
@@ -491,6 +493,7 @@ class Strategy(ABC):
 
                     self._submit_sell_orders()
 
+            # if self.take_profit has been modified
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
                 self._prepare_take_profit(False)
@@ -516,6 +519,7 @@ class Strategy(ABC):
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
+            # if self.stop_loss has been modified
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
                 self._prepare_stop_loss(False)

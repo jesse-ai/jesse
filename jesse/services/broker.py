@@ -92,6 +92,8 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
+        # MARKET order
+        # if the price difference is bellow 0.01% of the current price, then we submit a market order
         if abs(price - current_price) < 0.0001:
             return self.api.market_order(
                 self.exchange,
@@ -102,6 +104,7 @@ class Broker:
                 reduce_only=True
             )
 
+        # LIMIT order
         elif (side == 'sell' and self.position.type == 'long' and price > current_price) or (
                 side == 'buy' and self.position.type == 'short' and price < current_price):
             return self.api.limit_order(
@@ -112,6 +115,8 @@ class Broker:
                 side,
                 reduce_only=True
             )
+
+        # STOP order
         elif (side == 'sell' and self.position.type == 'long' and price < current_price) or (
                 side == 'buy' and self.position.type == 'short' and price > current_price):
             return self.api.stop_order(
