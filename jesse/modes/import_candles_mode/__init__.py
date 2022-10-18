@@ -136,10 +136,10 @@ def run(
                             'message': msg,
                             'type': 'success'
                         })
+                        return run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10])
                     else:
                         print(msg)
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
-                    return
+                        return run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], running_via_dashboard=False, show_progressbar=show_progressbar)
 
             # fill absent candles (if there's any)
             candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
@@ -158,7 +158,7 @@ def run(
             })
         elif show_progressbar:
             jh.clear_output()
-            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining", flush=True)
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
