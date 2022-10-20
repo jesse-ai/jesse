@@ -502,10 +502,18 @@ class Strategy(ABC):
                 if not np.array_equal(self.take_profit, self._take_profit):
                     self._take_profit = self.take_profit.copy()
 
-                    # cancel orders
+                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
+                    if len(self._take_profit) == 1:
+                        temp_current_price = self.price
+                    else:
+                        temp_current_price = None
+
+                    # CANCEL previous orders
                     for o in self.exit_orders:
                         if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
+
+                    # SUBMIT new orders
                     for o in self._take_profit:
                         # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
                         # to see if the position is still open. If it's closed, no further submitting is required.
@@ -515,7 +523,13 @@ class Strategy(ABC):
                             )
                             break
 
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
+                        # see if we need to override the take-profit price to be the current price to ensure a MARKET order
+                        if temp_current_price == o[1]:
+                            order_price = self.price
+                        else:
+                            order_price = o[1]
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
@@ -529,11 +543,18 @@ class Strategy(ABC):
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
-                    # cancel orders
+                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
+                    if len(self._stop_loss) == 1:
+                        temp_current_price = self.price
+                    else:
+                        temp_current_price = None
+
+                    # CANCEL previous orders
                     for o in self.exit_orders:
                         if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
-                    # remove canceled orders to optimize the loop
+
+                    # SUBMIT new orders
                     for o in self._stop_loss:
                         # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
                         # to see if the position is still open. If it's closed, no further submitting is required.
@@ -543,13 +564,19 @@ class Strategy(ABC):
                             )
                             break
 
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
+                        # see if we need to override the stop-loss price to be the current price to ensure a MARKET order
+                        if temp_current_price == o[1]:
+                            order_price = self.price
+                        else:
+                            order_price = o[1]
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.STOP_LOSS
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
-                'Try running it with "--debug" in a backtest to see what was going on near the end, and fix it.'
+                'Try running it with the debug mode enabled in a backtest to see what was going on near the end, and fix it.'
             )
         except:
             raise
