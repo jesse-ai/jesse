@@ -82,7 +82,7 @@ class Broker:
 
         # validation
         if price < 0:
-            raise ValueError('price cannot be negative.')
+            raise ValueError(f'order price cannot be negative. You passed {price}')
 
         # validation
         if self.position.is_close:
