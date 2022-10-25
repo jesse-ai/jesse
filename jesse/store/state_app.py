@@ -14,7 +14,7 @@ class AppState:
         self.total_liquidations = 0
 
         self.session_id = ''
-        self.session_info = None
+        self.session_info = {}
 
     def set_session_id(self) -> None:
         """
