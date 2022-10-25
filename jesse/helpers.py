@@ -294,6 +294,11 @@ def get_config(keys: str, default: Any = None) -> Any:
     return CACHED_CONFIG[keys]
 
 
+def get_store():
+    from jesse.store import store
+    return store
+
+
 def get_strategy_class(strategy_name: str):
     from pydoc import locate
 
