@@ -62,6 +62,10 @@ class InvalidTimeframe(Exception):
     pass
 
 
+class InvalidSymbol(Exception):
+    pass
+
+
 class NegativeBalance(Exception):
     pass
 
