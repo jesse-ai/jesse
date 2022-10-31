@@ -3,6 +3,7 @@ import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.enums import exchanges
 from .ftx_utils import timeframe_to_interval
+from jesse import exceptions
 
 
 class FTXMain(CandleExchange):
@@ -25,7 +26,16 @@ class FTXMain(CandleExchange):
         if self.name in [exchanges.FTX_SPOT, exchanges.FTX_US_SPOT]:
             return symbol.replace('-', '/')
         elif self.name == exchanges.FTX_PERPETUAL_FUTURES:
-            return symbol.replace('USD', 'PERP')
+            # validation: make sure the symbol doesn't end in "PERP"
+            if symbol.endswith('PERP'):
+                raise exceptions.InvalidSymbol(
+                    f'Invalid symbol "{symbol}". Please enter symbols as "BTC-USD" format instead of "BTC-PERP" (which still corresponds to "BTC-USD" perpetual contract on FTX.com). This is to keep the API consistent with other exchanges.'
+                )
+            # make sure the symbol doesn't end in a number
+            if symbol[-1].isdigit():
+                raise exceptions.InvalidSymbol(
+                    f'Invalid symbol "{symbol}". Only Perpetual contracts are supported.'
+                )
         else:
             raise NotImplemented(f'Unknown exchange {self.name}')
 
