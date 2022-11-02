@@ -36,6 +36,8 @@ class FTXMain(CandleExchange):
                 raise exceptions.InvalidSymbol(
                     f'Invalid symbol "{symbol}". Only Perpetual contracts are supported.'
                 )
+
+            return symbol.replace('USD', 'PERP')
         else:
             raise NotImplemented(f'Unknown exchange {self.name}')
 
