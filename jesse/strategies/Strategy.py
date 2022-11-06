@@ -1259,3 +1259,19 @@ class Strategy(ABC):
     @property
     def daily_balances(self):
         return store.app.daily_balance
+
+    @property
+    def is_backtesting(self) -> bool:
+        return jh.is_backtesting()
+
+    @property
+    def is_livetrading(self) -> bool:
+        return jh.is_livetrading()
+
+    @property
+    def is_papertrading(self) -> bool:
+        return jh.is_paper_trading()
+
+    @property
+    def is_live(self) -> bool:
+        return jh.is_live()
