@@ -182,10 +182,10 @@ class CandlesState:
                 if arr[-i][0] == candle[0]:
                     arr[-i] = candle
                     break
-            else:
-                logger.info(
-                    f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
-                )
+                else:
+                    logger.info(
+                        f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
+                    )
 
     def _store_or_update_candle_into_db(self, exchange: str, symbol: str, timeframe: str, candle: np.ndarray) -> None:
         # if it's not an initial candle, add it to the storage, if already exists, update it
