@@ -45,8 +45,8 @@ exchange_info = {
         'supported_leverage_modes': ['cross'],
         'supported_timeframes': FTX_TIMEFRAMES,
         'modes': {
-            'backtesting': True,
-            'live_trading': True,
+            'backtesting': False,
+            'live_trading': False,
         },
         'required_live_plan': 'premium'
     },
@@ -59,8 +59,8 @@ exchange_info = {
         'supported_leverage_modes': ['cross'],
         'supported_timeframes': FTX_TIMEFRAMES,
         'modes': {
-            'backtesting': True,
-            'live_trading': True,
+            'backtesting': False,
+            'live_trading': False,
         },
         'required_live_plan': 'premium'
     },
@@ -73,8 +73,8 @@ exchange_info = {
         'supported_leverage_modes': ['cross'],
         'supported_timeframes': FTX_TIMEFRAMES,
         'modes': {
-            'backtesting': True,
-            'live_trading': True,
+            'backtesting': False,
+            'live_trading': False,
         },
         'required_live_plan': 'premium'
     },
