@@ -529,6 +529,14 @@ def test_timestamp_to_time():
     assert jh.timestamp_to_time(1558770180000) == '2019-05-25T07:43:00+00:00'
 
 
+def test_timestamp_to_iso8601():
+    assert jh.timestamp_to_iso8601(1609804800000) == '2021-01-05T00:00:00+00:00'
+
+
+def test_iso8601_to_timestamp():
+    assert jh.iso8601_to_timestamp('2021-01-05T00:00:00.000Z') == 1609804800000
+
+
 def test_today_to_timestamp():
     assert jh.today_to_timestamp() == arrow.utcnow().floor('day').int_timestamp * 1000
 
