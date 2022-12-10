@@ -33,7 +33,7 @@ drivers = {
     exchanges.FTX_SPOT: FTXSpot,
     exchanges.FTX_US_SPOT: FTXUSSpot,
     exchanges.BINANCE_SPOT: BinanceSpot,
-    exchanges.BINANCE_US_SPOT: BinanceUSSpot
+    exchanges.BINANCE_US_SPOT: BinanceUSSpot,
 
     # DEX
     exchanges.DYDX_PERPETUAL: DydxPerpetual,

@@ -207,9 +207,23 @@ exchange_info = {
         'required_live_plan': 'free'
     },
     # DyDx
-    exchanges_enums.DYDX: {
-        'name': exchanges_enums.DYDX,
+    exchanges_enums.DYDX_PERPETUAL: {
+        'name': exchanges_enums.DYDX_PERPETUAL,
         'url': 'https://jesse.trade/dydx',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': DYDX_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+    # DyDx Testnet
+    exchanges_enums.DYDX_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.DYDX_PERPETUAL_TESTNET,
+        'url': 'https://trade.stage.dydx.exchange/trade/ETH-USD',
         'fee': 0.0005,
         'type': 'futures',
         'supported_leverage_modes': ['cross'],
