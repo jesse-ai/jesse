@@ -23,9 +23,9 @@ class DydxPerpetualMain(CandleExchange):
     def get_starting_time(self, symbol: str) -> int:
         payload = {
             'resolution': '1DAY',
-            'limit': 100,
-            'fromISO': 1359291660000,
-            'toISO': 1359291660000
+            'limit': self.count,
+            'fromISO': jh.timestamp_to_iso8601(1359291660000),
+            'toISO': jh.timestamp_to_iso8601(jh.now_to_timestamp(force_fresh=True))
         }
 
         response = requests.get(self.endpoint + '/v3/candles/' + symbol, params=payload)
@@ -33,6 +33,9 @@ class DydxPerpetualMain(CandleExchange):
         self.validate_response(response)
 
         data = response.json()['candles']
+
+        # reverse items of the list
+        data.reverse()
 
         # since the first timestamp doesn't include all the 1m
         # candles, let's start since the second day then
@@ -53,6 +56,9 @@ class DydxPerpetualMain(CandleExchange):
         self.validate_response(response)
 
         data = response.json()['candles']
+
+        # reverse items of the list
+        data.reverse()
 
         return [
             {
