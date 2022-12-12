@@ -48,6 +48,7 @@ def run(
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
         status_checker = Timeloop()
+
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
             if process_status() != 'started':
@@ -88,7 +89,8 @@ def run(
         })
         # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-        sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
+        sync_publish('candles_info', stats.candles_info(
+            candles[key]['candles']))
         # routes info
         sync_publish('routes_info', stats.routes(router.routes))
 
@@ -142,7 +144,8 @@ def _generate_quantstats_report(candles_dict: dict) -> str:
     price_pct_change = price_df.pct_change(1).fillna(0)
     buy_and_hold_daily_returns_all_routes = price_pct_change.mean(1)
     study_name = _get_study_name()
-    res = quantstats.quantstats_tearsheet(buy_and_hold_daily_returns_all_routes, study_name)
+    res = quantstats.quantstats_tearsheet(
+        buy_and_hold_daily_returns_all_routes, study_name)
     return res
 
 
@@ -175,7 +178,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         for c in config['app']['considering_candles']:
             exchange, symbol = c[0], c[1]
             required_candles.inject_required_candles_to_store(
-                required_candles.load_required_candles(exchange, symbol, start_date_str, finish_date_str),
+                required_candles.load_required_candles(
+                    exchange, symbol, start_date_str, finish_date_str),
                 exchange,
                 symbol
             )
@@ -193,14 +197,14 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         # not cached, get and cache for later calls in the next 5 minutes
         # fetch from database
         candles_tuple = cached_value or Candle.select(
-                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                Candle.volume
-            ).where(
-                Candle.exchange == exchange,
-                Candle.symbol == symbol,
-                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-                Candle.timestamp.between(start_date, finish_date)
-            ).order_by(Candle.timestamp.asc()).tuples()
+            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+            Candle.volume
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date, finish_date)
+        ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
@@ -212,7 +216,8 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
                 f'There are missing candles between {start_date_str} => {finish_date_str}')
 
         # cache it for near future calls
-        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        cache.set_value(cache_key, tuple(candles_tuple),
+                        expire_seconds=60 * 60 * 24 * 7)
 
         candles[key] = {
             'exchange': exchange,
@@ -274,7 +279,8 @@ def simulator(
         # read the dna from strategy's dna() and use it for injecting inject hyperparameters
         # first convert DNS string into hyperparameters
         if len(r.strategy.dna()) > 0 and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.strategy.dna())
+            hyperparameters = jh.dna_to_hp(
+                r.strategy.hyperparameters(), r.strategy.dna())
 
         # inject hyperparameters sent within the optimize mode
         if hyperparameters is not None:
@@ -299,7 +305,8 @@ def simulator(
             short_candle = candles[j]['candles'][i]
             if i != 0:
                 previous_short_candle = candles[j]['candles'][i - 1]
-                short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+                short_candle = _get_fixed_jumped_candle(
+                    previous_short_candle, short_candle)
             exchange = candles[j]['exchange']
             symbol = candles[j]['symbol']
 
@@ -358,7 +365,8 @@ def simulator(
     if not run_silently:
         # print executed time for the backtest session
         finish_time_track = time.time()
-        result['execution_duration'] = round(finish_time_track - begin_time_track, 2)
+        result['execution_duration'] = round(
+            finish_time_track - begin_time_track, 2)
 
     for r in router.routes:
         r.strategy._terminate()
@@ -396,6 +404,9 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
+    previous_candle = previous_candle.copy()
+    candle = candle.copy()
+
     if previous_candle[2] < candle[1]:
         candle[1] = previous_candle[2]
         candle[4] = min(previous_candle[2], candle[4])
@@ -424,7 +435,8 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     continue
 
                 if candle_includes_price(current_temp_candle, order.price):
-                    storable_temp_candle, current_temp_candle = split_candle(current_temp_candle, order.price)
+                    storable_temp_candle, current_temp_candle = split_candle(
+                        current_temp_candle, order.price)
                     store.candles.add_candle(
                         storable_temp_candle, exchange, symbol, '1m',
                         with_execution=False,
