@@ -396,6 +396,9 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
+    previous_candle = previous_candle.copy()
+    candle = candle.copy()
+
     if previous_candle[2] < candle[1]:
         candle[1] = previous_candle[2]
         candle[4] = min(previous_candle[2], candle[4])
