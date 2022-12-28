@@ -10,12 +10,13 @@ class DydxPerpetualMain(CandleExchange):
             self,
             name: str,
             rest_endpoint: str,
+            backup_exchange_class
     ) -> None:
         super().__init__(
             name=name,
             count=100,
             rate_limit_per_second=10,
-            backup_exchange_class=None
+            backup_exchange_class=backup_exchange_class
         )
 
         self.endpoint = rest_endpoint
