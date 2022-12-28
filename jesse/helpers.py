@@ -9,6 +9,7 @@ from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
+import numpy
 import numpy as np
 
 CACHED_CONFIG = dict()
@@ -934,6 +935,9 @@ def str_or_none(item, encoding='utf-8'):
         # return item if it's str, if not, decode it using encoding
         if isinstance(item, str):
             return item
+
+        if type(item) == numpy.float64:
+            return str(item)
 
         try:
             return str(item, encoding)

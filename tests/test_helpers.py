@@ -610,6 +610,9 @@ def test_str_or_none():
     assert jh.str_or_none('') is ''
     assert jh.str_or_none(3009004354) == '3009004354'
     assert jh.str_or_none(b'3009004354') == '3009004354'
+    assert jh.str_or_none(1239.5) == '1239.5'
+    a = np.array([1239.5])
+    assert jh.str_or_none(a[0]) == '1239.5'
 
 
 def test_float_or_none():
