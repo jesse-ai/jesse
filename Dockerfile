@@ -2,10 +2,16 @@ ARG TEST_BUILD=0
 FROM python:3.9-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update \
-    && apt-get -y install git build-essential libssl-dev \
+RUN groupadd -g 1000 '${USERNAME}' \
+    && useradd --uid 1000 --gid 1000 -m '${USERNAME}' \
+    #
+    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo git build-essential libssl-dev \
+    && echo '${USERNAME}' ALL=\(root\) NOPASSWD:ALL > '/etc/sudoers.d/${USERNAME}' \
+    && chmod 0440 '/etc/sudoers.d/${USERNAME}' \
     && apt-get clean \
-    && pip install --upgrade pip
+    && pip install --upgrade pip    
 
 RUN pip3 install Cython numpy
 
@@ -25,6 +31,8 @@ RUN pip3 install -r requirements.txt
 # Build
 COPY . /jesse-docker
 RUN pip3 install -e .
+
+USER $USERNAME
 
 FROM jesse_basic_env AS jesse_with_test_0
 WORKDIR /home
