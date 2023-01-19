@@ -47,7 +47,11 @@ def portfolio_vs_asset_returns(study_name: str = None) -> str:
         plt.title(f'Portfolio Daily Return - {study_name}')
     else:
         plt.title('Portfolio Daily Return')
-    plt.plot(date_list, store.app.daily_balance)
+        
+    start_balance_arr = np.full(len(store.app.daily_balance), store.app.daily_balance[0])
+    plt.fill_between(date_list, store.app.daily_balance, start_balance_arr, where=start_balance_arr < store.app.daily_balance, color='green', alpha=0.5)
+    plt.fill_between(date_list, start_balance_arr, store.app.daily_balance, where=start_balance_arr > store.app.daily_balance, color='red', alpha=0.7)
+    plt.plot(date_list, store.app.daily_balance, linewidth='4')
 
     # price change%
     plt.subplot(2, 1, 2)
