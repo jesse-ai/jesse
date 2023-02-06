@@ -52,6 +52,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
             ).where(
                 Candle.exchange == exchange,
                 Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
                 Candle.timestamp.between(pre_start_date, pre_finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         )
@@ -65,7 +66,8 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         first_existing_candle = tuple(
             Candle.select(Candle.timestamp).where(
                 Candle.exchange == exchange,
-                Candle.symbol == symbol
+                Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null()
             ).order_by(Candle.timestamp.asc()).limit(1).tuples()
         )
 
@@ -79,7 +81,8 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         last_existing_candle = tuple(
             Candle.select(Candle.timestamp).where(
                 Candle.exchange == exchange,
-                Candle.symbol == symbol
+                Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null()
             ).order_by(Candle.timestamp.desc()).limit(1).tuples()
         )[0][0]
 
@@ -94,8 +97,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
 
         raise CandleNotFoundInDatabase(
             f'Not enough candles for {exchange} {symbol} exists to run backtest from {start_date_str} => {finish_date_str}. \n'
-            f'First available date is {jh.timestamp_to_date(first_backtestable_timestamp)}\n'
-            f'Last available date is {jh.timestamp_to_date(last_existing_candle)}'
+            f'Are you considering the warmup candles? For more info please read:\n https://jesse.trade/help/faq/i-imported-candles-but-keep-getting-not-enough-candles'
         )
 
     return candles

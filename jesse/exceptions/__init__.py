@@ -62,6 +62,10 @@ class InvalidTimeframe(Exception):
     pass
 
 
+class InvalidSymbol(Exception):
+    pass
+
+
 class NegativeBalance(Exception):
     pass
 
@@ -83,4 +87,8 @@ class InvalidExchangeApiKeys(Exception):
 
 
 class ExchangeError(Exception):
+    pass
+
+
+class NotSupportedError(Exception):
     pass

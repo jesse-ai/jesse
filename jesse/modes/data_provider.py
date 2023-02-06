@@ -1,12 +1,9 @@
 import json
-import os
 import numpy as np
 import peewee
-import requests
-
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
-from jesse.config import config
+from jesse.info import live_trading_exchanges, backtesting_exchanges
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -17,15 +14,29 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     from jesse.models.utils import fetch_candles_from_db
 
     symbol = symbol.upper()
-    num_candles = 210
+
+    # fetch the current value for warmup_candles from the database
+    from jesse.models.Option import Option
+    o = Option.get(Option.type == 'config')
+    db_config = json.loads(o.json)
+    warmup_candles_num = db_config['live']['warm_up_candles']
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
-    start_date = finish_date - (num_candles * one_min_count * 60_000)
+    start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
+
+    # fetch value of generate_candles_from_1m fresh from the database
+    o = Option.get(Option.type == 'config')
+    generate_candles_from_1m: bool = json.loads(o.json)['live']['generate_candles_from_1m']
 
     # fetch 1m candles from database
+    if generate_candles_from_1m:
+        timeframe_to_fetch = '1m'
+    else:
+        timeframe_to_fetch = timeframe
+
     candles = np.array(
-        fetch_candles_from_db(exchange, symbol, start_date, finish_date)
+        fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
     )
 
     # if there are no candles in the database, return []
@@ -33,27 +44,28 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
         database.close_connection()
         return []
 
-    # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
-    timeframe_duration = one_min_count*60_000
-    while candles[0][0] % timeframe_duration != 0:
-        candles = candles[1:]
+    if generate_candles_from_1m:
+        # leave out first candles until the timestamp of the first candle is the beginning of the timeframe
+        timeframe_duration = one_min_count * 60_000
+        while candles[0][0] % timeframe_duration != 0:
+            candles = candles[1:]
 
-    # generate bigger candles from 1m candles
-    if timeframe != '1m':
-        generated_candles = []
-        for i in range(len(candles)):
-            if (i + 1) % one_min_count == 0:
-                bigger_candle = generate_candle_from_one_minutes(
-                    timeframe,
-                    candles[(i - (one_min_count - 1)):(i + 1)],
-                    True
-                 )
-                generated_candles.append(bigger_candle)
+        # generate bigger candles from 1m candles
+        if timeframe != '1m':
+            generated_candles = []
+            for i in range(len(candles)):
+                if (i + 1) % one_min_count == 0:
+                    bigger_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles[(i - (one_min_count - 1)):(i + 1)],
+                        True
+                    )
+                    generated_candles.append(bigger_candle)
 
-        candles = generated_candles
+            candles = generated_candles
 
     database.close_connection()
-    
+
     return [
         {
             'time': int(c[0] / 1000),
@@ -64,52 +76,6 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             'volume': c[5],
         } for c in candles
     ]
-
-
-def get_general_info(has_live=False) -> dict:
-    from jesse.version import __version__ as jesse_version
-    system_info = {
-        'jesse_version': jesse_version
-    }
-
-    if has_live:
-        from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
-        live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
-        from jesse_live.version import __version__ as live_version
-        system_info['live_plugin_version'] = live_version
-    else:
-        live_exchanges = []
-
-    exchanges = jh.get_config('env.exchanges').copy()
-    del exchanges['Sandbox']
-    exchanges = list(exchanges.items())
-    strategies_path = os.getcwd() + "/strategies/"
-    strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
-
-    system_info['python_version'] = '{}.{}'.format(*jh.python_version())
-    system_info['operating_system'] = jh.get_os()
-    system_info['cpu_cores'] = jh.cpu_cores_count()
-    system_info['is_docker'] = jh.is_docker()
-
-    update_info = {}
-
-    try:
-        response = requests.get('https://pypi.org/pypi/jesse/json')
-        update_info['jesse_latest_version'] = response.json()['info']['version']
-        response = requests.get('https://jesse.trade/api/plugins/live/releases/info')
-        update_info['jesse_live_latest_version'] = response.json()[0]['version']
-        update_info['is_update_info_available'] = True
-    except Exception:
-        update_info['is_update_info_available'] = False
-
-    return {
-        'exchanges': exchanges,
-        'live_exchanges': live_exchanges,
-        'strategies': strategies,
-        'has_live_plugin_installed': has_live,
-        'system_info': system_info,
-        'update_info': update_info
-    }
 
 
 def get_config(client_config: dict, has_live=False) -> dict:
@@ -126,17 +92,14 @@ def get_config(client_config: dict, has_live=False) -> dict:
         data = jh.merge_dicts(client_config, json.loads(o.json))
 
         # make sure the list of BACKTEST exchanges is up to date
-        from jesse.modes.import_candles_mode.drivers import drivers
         for k in list(data['backtest']['exchanges'].keys()):
-            if k not in drivers:
+            if k not in backtesting_exchanges:
                 del data['backtest']['exchanges'][k]
 
         # make sure the list of LIVE exchanges is up to date
         if has_live:
-            from jesse_live.info import SUPPORTED_EXCHANGES_NAMES
-            live_exchanges = list(sorted(SUPPORTED_EXCHANGES_NAMES))
             for k in list(data['live']['exchanges'].keys()):
-                if k not in live_exchanges:
+                if k not in live_trading_exchanges:
                     del data['live']['exchanges'][k]
 
         o.updated_at = jh.now()

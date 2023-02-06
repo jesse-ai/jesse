@@ -87,6 +87,8 @@ def test_dashy_symbol():
     assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
     assert jh.dashy_symbol('BTCUSDT') == 'BTC-USDT'
     assert jh.dashy_symbol('BTC-USDT') == 'BTC-USDT'
+    assert jh.dashy_symbol('SBTCSUSDT') == 'SBTC-SUSDT'
+    assert jh.dashy_symbol('SEOSSUSDT') == 'SEOS-SUSDT'
 
 
 def test_date_diff_in_days():
@@ -392,7 +394,11 @@ def test_orderbook_trim_price():
 
 def test_prepare_qty():
     assert jh.prepare_qty(10, 'sell') == -10
+    assert jh.prepare_qty(10, 'short') == -10
+    assert jh.prepare_qty(0, 'short') == 0
     assert jh.prepare_qty(-10, 'buy') == 10
+    assert jh.prepare_qty(-10, 'long') == 10
+    assert jh.prepare_qty(0, 'long') == 0
     assert jh.prepare_qty(0, 'close') == 0.0
 
     with pytest.raises(ValueError):
@@ -450,6 +456,13 @@ def test_round_qty_for_live_mode():
         jh.round_qty_for_live_mode(np.array([0]), 3),
         np.array([0.001])
     )
+
+    # round one number only
+    to_round = 10.123456789
+    expected_result = 10.1234
+    res = jh.round_qty_for_live_mode(to_round, 4)
+    assert res == expected_result
+    assert type(res) == float
 
 
 def test_round_decimals_down():
@@ -608,3 +621,9 @@ def test_get_class_name():
 
     # if string is passed, it will return the string
     assert jh.get_class_name('TestClass') == 'TestClass'
+
+
+def test_round_or_none():
+    assert jh.round_or_none(1.23) == 1
+    assert jh.round_or_none(1.23456789, 2) == 1.23
+    assert jh.round_or_none(None) is None

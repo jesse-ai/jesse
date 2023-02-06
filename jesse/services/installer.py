@@ -5,7 +5,7 @@ import requests
 import subprocess
 import sys
 import click
-
+import os
 
 def _pip_install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -89,4 +89,4 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     _pip_install(filepath)
 
     # remove the raw installation file
-    subprocess.check_call(['rm', filepath])
+    os.remove(filepath)

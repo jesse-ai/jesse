@@ -5,7 +5,7 @@ import random
 import string
 import sys
 import uuid
-from typing import List, Tuple, Union, Any
+from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
@@ -112,6 +112,10 @@ def dashy_symbol(symbol: str) -> str:
         compare_symbol = dashless_symbol(s)
         if compare_symbol == symbol:
             return s
+
+    if len(symbol) > 7 and symbol.endswith('SUSDT'):
+        # ex: SETHSUSDT => SETH-SUSDT
+        return symbol[:-5] + '-' + symbol[-5:]
 
     return f"{symbol[0:3]}-{symbol[3:]}"
 
@@ -305,6 +309,11 @@ def get_config(keys: str, default: Any = None) -> Any:
                                          keys.split("."), config)
 
     return CACHED_CONFIG[keys]
+
+
+def get_store():
+    from jesse.store import store
+    return store
 
 
 def get_strategy_class(strategy_name: str):
@@ -612,6 +621,15 @@ def relative_to_absolute(path: str) -> str:
     return os.path.abspath(path)
 
 
+def round_or_none(x: Union[float, None], digits: int = 0) -> Optional[float]:
+    """
+    Rounds a number to a certain number of digits or returns None if the number is None
+    """
+    if x is None:
+        return None
+    return round(x, digits)
+
+
 def round_price_for_live_mode(price, precision: int) -> Union[float, np.ndarray]:
     """
     Rounds price(s) based on exchange requirements
@@ -631,6 +649,11 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
     :param precision: int
     :return: float | nd.array
     """
+    input_type = type(roundable_qty)
+    # if roundable_qty is a scalar, convert to nd.array
+    if not isinstance(roundable_qty, np.ndarray):
+        roundable_qty = np.array([roundable_qty])
+
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = round_decimals_down(roundable_qty, precision)
 
@@ -638,19 +661,21 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
         if q == 0.0:
             rounded[index] = 1 / 10 ** precision
 
+    if input_type in [float, np.float64]:
+        return float(rounded[0])
     return rounded
 
 
-def round_decimals_down(number: np.ndarray, decimals: int = 2) -> float:
+def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> float:
     """
     Returns a value rounded down to a specific number of decimal places.
     """
     if not isinstance(decimals, int):
-      raise TypeError("decimal places must be an integer")
+        raise TypeError("decimal places must be an integer")
     elif decimals < 0:
-      raise ValueError("decimal places has to be 0 or more")
+        raise ValueError("decimal places has to be 0 or more")
     elif decimals == 0:
-      return np.floor(number)
+        return np.floor(number)
 
     factor = 10 ** decimals
     return np.floor(number * factor) / factor
@@ -752,6 +777,9 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         timeframes.HOUR_8: 60 * 8,
         timeframes.HOUR_12: 60 * 12,
         timeframes.DAY_1: 60 * 24,
+        timeframes.DAY_3: 60 * 24 * 3,
+        timeframes.WEEK_1: 60 * 24 * 7,
+        timeframes.MONTH_1: 60 * 24 * 30,
     }
 
     try:
@@ -979,3 +1007,13 @@ def get_class_name(cls):
         return cls
     # else, return the class name
     return cls.__name__
+
+
+def next_candle_timestamp(candle: np.ndarray, timeframe: str) -> int:
+    return candle[0] + timeframe_to_one_minutes(timeframe) * 60_000
+
+
+def get_candle_start_timestamp_based_on_timeframe(timeframe: str, num_candles_to_fetch: int) -> int:
+    one_min_count = timeframe_to_one_minutes(timeframe)
+    finish_date = now(force_fresh=True)
+    return finish_date - (num_candles_to_fetch * one_min_count * 60_000)

@@ -1,12 +1,6 @@
 from playhouse.postgres_ext import PostgresqlExtDatabase
-from typing import Dict, List
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
-
-
-def store_candles(candles: List[Dict]) -> None:
-    from jesse.models import Candle
-    Candle.insert_many(candles).on_conflict_ignore().execute()
 
 
 # refactor above code into a class

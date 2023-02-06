@@ -8,7 +8,7 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
-from jesse.enums import sides, order_submitted_via
+from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
@@ -122,7 +122,6 @@ class Strategy(ABC):
         events. Note that it assumes that the position has already
         been affected by the executed order.
         """
-
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
 
@@ -131,41 +130,48 @@ class Strategy(ABC):
         before_qty = self.position.previous_qty
         after_qty = self.position.qty
 
-        # call the relevant strategy event handler:
         # if opening position
-        if before_qty == 0 and after_qty != 0:
+        if abs(before_qty) <= abs(self.position._min_qty) < abs(after_qty):
+            effect = 'opening_position'
+        # if closing position
+        elif abs(before_qty) > abs(self.position._min_qty) >= abs(after_qty):
+            effect = 'closing_position'
+        # if increasing position size
+        elif abs(after_qty) > abs(before_qty):
+            effect = 'increased_position'
+        # if reducing position size
+        else: # abs(after_qty) < abs(before_qty):
+            effect = 'reduced_position'
+
+        # call the relevant strategy event handler:
+        if effect == 'opening_position':
             txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_open_position(order)
-        # if closing position
-        elif before_qty != 0 and after_qty == 0:
+        elif effect == 'closing_position':
             txt = f"CLOSED Position for {self.symbol}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_close_position(order)
-        # if increasing position size
-        elif abs(after_qty) > abs(before_qty):
+        elif effect == 'increased_position':
             txt = f"INCREASED Position size to {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
-        # if reducing position size
-        elif abs(after_qty) < abs(before_qty):
+        else: # if effect == 'reduced_position':
             txt = f"REDUCED Position size to {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_reduced_position(order)
-        else:
-            pass
 
         self._is_handling_updated_order = False
 
@@ -221,29 +227,45 @@ class Strategy(ABC):
         self._submit_buy_orders()
 
     def _submit_buy_orders(self) -> None:
+        if jh.is_livetrading():
+            price_to_compare = jh.round_price_for_live_mode(
+                self.price,
+                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+            )
+        else:
+            price_to_compare = self.price
+
         for o in self._buy:
             # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
+            if abs(o[1] - price_to_compare) < 0.0001:
                 self.broker.buy_at_market(o[0])
             # STOP order
-            elif o[1] > self.price:
+            elif o[1] > price_to_compare:
                 self.broker.start_profit_at(sides.BUY, o[0], o[1])
             # LIMIT order
-            elif o[1] < self.price:
+            elif o[1] < price_to_compare:
                 self.broker.buy_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
 
     def _submit_sell_orders(self) -> None:
+        if jh.is_livetrading():
+            price_to_compare = jh.round_price_for_live_mode(
+                self.price,
+                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+            )
+        else:
+            price_to_compare = self.price
+
         for o in self._sell:
             # MARKET order
-            if abs(o[1] - self.price) < 0.0001:
+            if abs(o[1] - price_to_compare) < 0.0001:
                 self.broker.sell_at_market(o[0])
             # STOP order
-            elif o[1] < self.price:
+            elif o[1] < price_to_compare:
                 self.broker.start_profit_at(sides.SELL, o[0], o[1])
             # LIMIT order
-            elif o[1] > self.price:
+            elif o[1] > price_to_compare:
                 self.broker.sell_at(o[0], o[1])
             else:
                 raise ValueError(f'Invalid order price: o[1]:{o[1]}, self.price:{self.price}')
@@ -451,6 +473,7 @@ class Strategy(ABC):
             return
 
         try:
+            # if self.buy has been modified
             if self.is_long:
                 # prepare format
                 self._prepare_buy(make_copies=False)
@@ -466,6 +489,7 @@ class Strategy(ABC):
 
                     self._submit_buy_orders()
 
+            # if self.sell has been modified
             elif self.is_short:
                 # prepare format
                 self._prepare_sell(make_copies=False)
@@ -481,6 +505,7 @@ class Strategy(ABC):
 
                     self._submit_sell_orders()
 
+            # if self.take_profit has been modified
             if self.position.is_open and self.take_profit is not None:
                 self._validate_take_profit()
                 self._prepare_take_profit(False)
@@ -489,15 +514,38 @@ class Strategy(ABC):
                 if not np.array_equal(self.take_profit, self._take_profit):
                     self._take_profit = self.take_profit.copy()
 
-                    # cancel orders
+                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
+                    if len(self._take_profit) == 1:
+                        temp_current_price = self.price
+                    else:
+                        temp_current_price = None
+
+                    # CANCEL previous orders
                     for o in self.exit_orders:
-                        if o.is_take_profit and o.is_active or o.is_queued:
+                        if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
+
+                    # SUBMIT new orders
                     for o in self._take_profit:
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
+                        # to see if the position is still open. If it's closed, no further submitting is required.
+                        if self.position.is_close:
+                            logger.info(
+                                "Position got closed while submitting take-profit orders. Hence, skipping further submissions"
+                            )
+                            break
+
+                        # see if we need to override the take-profit price to be the current price to ensure a MARKET order
+                        if temp_current_price == o[1]:
+                            order_price = self.price
+                        else:
+                            order_price = o[1]
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
+            # if self.stop_loss has been modified
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
                 self._prepare_stop_loss(False)
@@ -507,19 +555,40 @@ class Strategy(ABC):
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
-                    # cancel orders
+                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
+                    if len(self._stop_loss) == 1:
+                        temp_current_price = self.price
+                    else:
+                        temp_current_price = None
+
+                    # CANCEL previous orders
                     for o in self.exit_orders:
-                        if o.is_stop_loss and o.is_active or o.is_queued:
+                        if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
-                    # remove canceled orders to optimize the loop
+
+                    # SUBMIT new orders
                     for o in self._stop_loss:
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
+                        # to see if the position is still open. If it's closed, no further submitting is required.
+                        if self.position.is_close:
+                            logger.info(
+                                "Position got closed while submitting stop-loss orders. Hence, skipping further submissions"
+                            )
+                            break
+
+                        # see if we need to override the stop-loss price to be the current price to ensure a MARKET order
+                        if temp_current_price == o[1]:
+                            order_price = self.price
+                        else:
+                            order_price = o[1]
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.STOP_LOSS
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
-                'Try running it with "--debug" in a backtest to see what was going on near the end, and fix it.'
+                'Try running it with the debug mode enabled in a backtest to see what was going on near the end, and fix it.'
             )
         except:
             raise
@@ -556,6 +625,7 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debugging():
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
+        # should cancel entry?
         if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
 
@@ -577,17 +647,35 @@ class Strategy(ABC):
                         'The exchange did not respond as expected for order cancellation'
                     )
 
+        # update position
         if self.position.is_open:
             self._update_position()
 
+            # sleep for 1 second if a MARKET order has been submitted but not executed yet (live trading only)
+            if jh.is_livetrading():
+                waiting_counter = 0
+                waiting_seconds = 1
+                while self._have_any_pending_market_exit_orders():
+                    if jh.is_debugging():
+                        logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
+                    waiting_counter += 1
+                    sleep(1)
+                    if waiting_counter > 10:
+                        raise exceptions.ExchangeNotResponding(
+                            'The exchange did not respond as expected for order execution'
+                        )
+
         self._simulate_market_order_execution()
 
+        # should_long and should_short
         if self.position.is_close and self.entry_orders == []:
+            self._reset()
+
             should_short = self.should_short()
             # validate that should_short is not True if the exchange_type is spot
             if self.exchange_type == 'spot' and should_short is True:
                 raise exceptions.InvalidStrategy(
-                    'should_short cannot be True if the exchange type os "spot".'
+                    'should_short cannot be True if the exchange type is "spot".'
                 )
 
             should_long = self.should_long()
@@ -603,12 +691,15 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
+    def _have_any_pending_market_exit_orders(self) -> bool:
+        return any(o.is_active and o.type == order_types.MARKET for o in self.exit_orders)
+
     @staticmethod
     def _simulate_market_order_execution() -> None:
         """
         Simulate market order execution in backtest mode
         """
-        if jh.is_backtesting() or jh.is_unit_testing():
+        if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
             store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
@@ -628,7 +719,7 @@ class Strategy(ABC):
                     logger.info(
                         'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
@@ -645,7 +736,7 @@ class Strategy(ABC):
                     logger.info(
                         'The stop-loss is below entry-price for a short position, so it will be replaced with a market order instead')
                 else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1])
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.STOP_LOSS
@@ -774,7 +865,7 @@ class Strategy(ABC):
         if not jh.should_execute_silently() or jh.is_debugging():
             logger.info(f"Terminating {self.symbol}...")
 
-        self.terminate()
+        self.before_terminate()
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -783,6 +874,7 @@ class Strategy(ABC):
             store.orders.execute_pending_market_orders()
 
         if jh.is_live():
+            self.terminate()
             return
 
         if self.position.is_open:
@@ -795,12 +887,18 @@ class Strategy(ABC):
             if self.exchange_type == 'spot':
                 self.broker.cancel_all_orders()
             # fake a closing (market) order so that the calculations would be correct
-            self.broker.reduce_position_at(self.position.qty, self.position.current_price)
+            self.broker.reduce_position_at(self.position.qty, self.position.current_price, self.price)
+            self.terminate()
             return
 
         if len(self.entry_orders):
             self._execute_cancel()
             logger.info('Canceled open-position orders because we reached the end of the backtest session.')
+
+        self.terminate()
+
+    def before_terminate(self):
+        pass
 
     def terminate(self):
         pass
@@ -831,7 +929,7 @@ class Strategy(ABC):
     @property
     def open(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the opening price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's OPEN price
@@ -856,12 +954,12 @@ class Strategy(ABC):
         Returns:
             [float] -- the current trading candle's current(close) price
         """
-        return self.position.current_price
+        return self.close
 
     @property
     def high(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the highest price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's HIGH price
@@ -871,7 +969,7 @@ class Strategy(ABC):
     @property
     def low(self) -> float:
         """
-        Returns the closing price of the current candle for this strategy.
+        Returns the lowest price of the current candle for this strategy.
         Just as a helper to use when writing super simple strategies.
         Returns:
             [float] -- the current trading candle's LOW price
@@ -986,7 +1084,7 @@ class Strategy(ABC):
         if arr[:, 1].min() <= 0:
             raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
 
-        if jh.is_live() and round_for_live_mode:
+        if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
             current_exchange = selectors.get_exchange(self.exchange)
 
@@ -1018,6 +1116,15 @@ class Strategy(ABC):
         else:
             return None
 
+        # if type of arr is not np.ndarray, then it's not ready yet. Return None
+        if type(arr) is not np.ndarray:
+            arr = None
+
+        if arr is None and self.position.is_open:
+            return self.position.entry_price
+        elif arr is None:
+            return None
+
         return (np.abs(arr[:, 0] * arr[:, 1])).sum() / np.abs(arr[:, 0]).sum()
 
     @property
@@ -1035,7 +1142,6 @@ class Strategy(ABC):
         # this property inside a filter.
         if self.entry_orders == [] and self.sell is not None:
             return True
-
         return self.entry_orders != [] and self.entry_orders[0].side == 'sell'
 
     def liquidate(self) -> None:
@@ -1165,3 +1271,19 @@ class Strategy(ABC):
     @property
     def daily_balances(self):
         return store.app.daily_balance
+
+    @property
+    def is_backtesting(self) -> bool:
+        return jh.is_backtesting()
+
+    @property
+    def is_livetrading(self) -> bool:
+        return jh.is_livetrading()
+
+    @property
+    def is_papertrading(self) -> bool:
+        return jh.is_paper_trading()
+
+    @property
+    def is_live(self) -> bool:
+        return jh.is_live()

@@ -173,10 +173,11 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     # load and add required warm-up candles for backtest
     if jh.is_backtesting():
         for c in config['app']['considering_candles']:
+            exchange, symbol = c[0], c[1]
             required_candles.inject_required_candles_to_store(
-                required_candles.load_required_candles(c[0], c[1], start_date_str, finish_date_str),
-                c[0],
-                c[1]
+                required_candles.load_required_candles(exchange, symbol, start_date_str, finish_date_str),
+                exchange,
+                symbol
             )
 
     # download candles for the duration of the backtest
@@ -197,6 +198,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
             ).where(
                 Candle.exchange == exchange,
                 Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
                 Candle.timestamp.between(start_date, finish_date)
             ).order_by(Candle.timestamp.asc()).tuples()
         # validate that there are enough candles for selected period

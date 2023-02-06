@@ -19,7 +19,7 @@ class Broker:
     @staticmethod
     def _validate_qty(qty: float) -> None:
         if qty == 0:
-            raise InvalidStrategy('qty cannot be 0')
+            raise InvalidStrategy('qty cannot be 0. \nRead more: https://jesse.trade/help/faq/i-keep-getting-invalidstrategy')
 
     def sell_at_market(self, qty: float) -> Union[Order, None]:
         self._validate_qty(qty)
@@ -75,14 +75,14 @@ class Broker:
             reduce_only=False
         )
 
-    def reduce_position_at(self, qty: float, price: float) -> Union[Order, None]:
+    def reduce_position_at(self, qty: float, price: float, current_price: float) -> Union[Order, None]:
         self._validate_qty(qty)
 
         qty = abs(qty)
 
         # validation
         if price < 0:
-            raise ValueError('price cannot be negative.')
+            raise ValueError(f'order price cannot be negative. You passed {price}')
 
         # validation
         if self.position.is_close:
@@ -92,7 +92,9 @@ class Broker:
 
         side = jh.opposite_side(jh.type_to_side(self.position.type))
 
-        if abs(price - self.position.current_price) < 0.0001:
+        # MARKET order
+        # if the price difference is bellow 0.01% of the current price, then we submit a market order
+        if abs(price - current_price) < 0.0001:
             return self.api.market_order(
                 self.exchange,
                 self.symbol,
@@ -102,8 +104,9 @@ class Broker:
                 reduce_only=True
             )
 
-        elif (side == 'sell' and self.position.type == 'long' and price > self.position.current_price) or (
-                side == 'buy' and self.position.type == 'short' and price < self.position.current_price):
+        # LIMIT order
+        elif (side == 'sell' and self.position.type == 'long' and price > current_price) or (
+                side == 'buy' and self.position.type == 'short' and price < current_price):
             return self.api.limit_order(
                 self.exchange,
                 self.symbol,
@@ -112,8 +115,10 @@ class Broker:
                 side,
                 reduce_only=True
             )
-        elif (side == 'sell' and self.position.type == 'long' and price < self.position.current_price) or (
-                side == 'buy' and self.position.type == 'short' and price > self.position.current_price):
+
+        # STOP order
+        elif (side == 'sell' and self.position.type == 'long' and price < current_price) or (
+                side == 'buy' and self.position.type == 'short' and price > current_price):
             return self.api.stop_order(
                 self.exchange,
                 self.symbol,

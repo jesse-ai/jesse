@@ -14,6 +14,17 @@ class SpotExchange(Exchange):
         self.stop_orders_sum = {}
         self.limit_orders_sum = {}
 
+        # # # # live-trading only # # # #
+        self._started_balance = 0
+        # # # # # # # # # # # # # # # # #
+
+    @property
+    def started_balance(self) -> float:
+        if jh.is_livetrading():
+            return self._started_balance
+
+        return self.starting_assets[jh.app_currency()]
+
     @property
     def wallet_balance(self) -> float:
         return self.assets[self.settlement_currency]
@@ -102,3 +113,14 @@ class SpotExchange(Exchange):
         # sell order
         else:
             self.assets[base_asset] = sum_floats(self.assets[base_asset], abs(order.qty))
+
+    def update_from_stream(self, data: dict) -> None:
+        """
+        Used for updating the exchange from the WS stream (only for live trading)
+        """
+        if not jh.is_livetrading():
+            raise Exception('This method is only for live trading')
+
+        self.assets[self.settlement_currency] = data['balance']
+        if self._started_balance == 0:
+            self._started_balance = data['balance']

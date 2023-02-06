@@ -41,8 +41,14 @@ class RouterClass:
         [{'exchange': 'Binance', 'symbol': 'BTC-USD', 'timeframe': '3m'}]
         """
         return [{
-                'exchange': r['exchange'], 'symbol': r['symbol'], 'timeframe': r['timeframe']
-            } for r in self.extra_candles]
+            'exchange': r['exchange'],
+            'symbol': r['symbol'],
+            'timeframe': r['timeframe']
+        } for r in self.extra_candles]
+
+    @property
+    def all_formatted_routes(self) -> list:
+        return self.formatted_routes + self.formatted_extra_routes
 
     def initiate(self, routes: list, extra_routes: list = None):
         if extra_routes is None:

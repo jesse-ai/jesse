@@ -121,13 +121,13 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.available_margin == 940
 
     # submit stop-loss order
-    stop_loss_order = broker.reduce_position_at(1, 40)
+    stop_loss_order = broker.reduce_position_at(1, 40, 60)
     assert stop_loss_order.reduce_only is True
     # balance should NOT have changed
     assert exchange.assets['USDT'] == 1000
     assert exchange.wallet_balance == 1000
     # submit take-profit order also
-    take_profit_order = broker.reduce_position_at(1, 80)
+    take_profit_order = broker.reduce_position_at(1, 80, 60)
     assert take_profit_order.reduce_only is True
     assert exchange.assets['USDT'] == 1000
 
@@ -163,7 +163,7 @@ def test_stop_loss():
     # even executed orders should not affect wallet_balance unless it's for reducing positon
     assert exchange.wallet_balance == 1000
 
-    order = broker.reduce_position_at(1, 40)
+    order = broker.reduce_position_at(1, 40, 50)
     assert order.type == order_types.STOP
     assert order.price == 40
     assert order.qty == -1
@@ -186,7 +186,7 @@ def test_should_not_submit_reduce_only_orders_when_position_is_closed():
     set_up_without_fee(is_futures_trading=True)
 
     with pytest.raises(OrderNotAllowed):
-        broker.reduce_position_at(1, 20)
+        broker.reduce_position_at(1, 20, 20)
 
     with pytest.raises(OrderNotAllowed):
-        broker.reduce_position_at(1, 20)
+        broker.reduce_position_at(1, 20, 20)

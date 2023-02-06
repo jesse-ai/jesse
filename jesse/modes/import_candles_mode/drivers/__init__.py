@@ -1,19 +1,22 @@
 from pydoc import locate
 from jesse.enums import exchanges
-from jesse.modes.import_candles_mode.drivers.BinanceSpot import BinanceSpot
-from jesse.modes.import_candles_mode.drivers.BinancePerpetualFutures import BinancePerpetualFutures
-from jesse.modes.import_candles_mode.drivers.BitfinexSpot import BitfinexSpot
-from jesse.modes.import_candles_mode.drivers.CoinbaseSpot import CoinbaseSpot
-from jesse.modes.import_candles_mode.drivers.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
-from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetual import BybitUSDTPerpetual
-from jesse.modes.import_candles_mode.drivers.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.FTXPerpetualFutures import FTXPerpetualFutures
-# from jesse.modes.import_candles_mode.drivers.ftx_spot import FTXSpot
+from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
+from jesse.modes.import_candles_mode.drivers.Binance.BinanceUSSpot import BinanceUSSpot
+from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import BinancePerpetualFutures
+from jesse.modes.import_candles_mode.drivers.Bitfinex.BitfinexSpot import BitfinexSpot
+from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import CoinbaseSpot
+from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.FTX.FTXPerpetualFutures import FTXPerpetualFutures
+from jesse.modes.import_candles_mode.drivers.FTX.FTXSpot import FTXSpot
+from jesse.modes.import_candles_mode.drivers.FTX.FTXUSSpot import FTXUSSpot
+from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetual import BitgetUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetualTestnet import BitgetUSDTPerpetualTestnet
 
 
-_builtin_drivers = {
+drivers = {
     # Perpetual Futures
-    exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_PERPETUAL_FUTURES: BinancePerpetualFutures,
     exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: BinancePerpetualFuturesTestnet,
     exchanges.BITFINEX_SPOT: BitfinexSpot,
@@ -21,15 +24,15 @@ _builtin_drivers = {
     exchanges.BYBIT_USDT_PERPETUAL: BybitUSDTPerpetual,
     exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
     exchanges.FTX_PERPETUAL_FUTURES: FTXPerpetualFutures,
+    exchanges.BITGET_USDT_PERPETUAL: BitgetUSDTPerpetual,
+    exchanges.BITGET_USDT_PERPETUAL_TESTNET: BitgetUSDTPerpetualTestnet,
 
-    # # SPOT
-    # 'FTX Spot': FTXSpot,
+    # Spot
+    exchanges.FTX_SPOT: FTXSpot,
+    exchanges.FTX_US_SPOT: FTXUSSpot,
+    exchanges.BINANCE_SPOT: BinanceSpot,
+    exchanges.BINANCE_US_SPOT: BinanceUSSpot
 }
 
-_local_drivers = locate('plugins.import_candles_drivers')
 
-# drivers must be a dict which is merge of _builtin_drivers and _local_drivers
-drivers = {}
-drivers.update(_builtin_drivers)
-if _local_drivers is not None:
-    drivers.update(_local_drivers)
+driver_names = list(drivers.keys())

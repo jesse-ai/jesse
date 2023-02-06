@@ -32,6 +32,9 @@ class timeframes:
     HOUR_8 = '8h'
     HOUR_12 = '12h'
     DAY_1 = '1D'
+    DAY_3 = '3D'
+    WEEK_1 = '1W'
+    MONTH_1 = '1M'
 
 
 class colors:
@@ -55,6 +58,7 @@ class exchanges:
     COINBASE_SPOT = 'Coinbase Spot'
     BITFINEX_SPOT = 'Bitfinex Spot'
     BINANCE_SPOT = 'Binance Spot'
+    BINANCE_US_SPOT = 'Binance US Spot'
     BINANCE_PERPETUAL_FUTURES = 'Binance Perpetual Futures'
     BINANCE_PERPETUAL_FUTURES_TESTNET = 'Binance Perpetual Futures Testnet'
     BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'
@@ -63,6 +67,10 @@ class exchanges:
     BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
     FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
     FTX_SPOT = 'FTX Spot'
+    FTX_US_SPOT = 'FTX US Spot'
+    BITGET_SPOT = 'Bitget Spot'
+    BITGET_USDT_PERPETUAL = 'Bitget USDT Perpetual'
+    BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
 
 
 class migration_actions:
@@ -72,6 +80,8 @@ class migration_actions:
     MODIFY_TYPE = 'modify_type'
     ALLOW_NULL = 'allow_null'
     DENY_NULL = 'deny_null'
+    ADD_INDEX = 'add_index'
+    DROP_INDEX = 'drop_index'
 
 
 class order_submitted_via:

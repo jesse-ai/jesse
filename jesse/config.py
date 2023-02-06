@@ -1,6 +1,7 @@
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
+from jesse.info import exchange_info, jesse_supported_timeframes
 
 
 config = {
@@ -23,6 +24,7 @@ config = {
             'balance_update': True,
         },
 
+        # fill it later in this file using data in info.py
         'exchanges': {
             exchanges.SANDBOX: {
                 'fee': 0,
@@ -32,83 +34,6 @@ config = {
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
                 'futures_leverage': 1,
                 'balance': 10_000,
-            },
-
-            exchanges.BYBIT_USDT_PERPETUAL: {
-                'fee': 0.00075,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            exchanges.BYBIT_USDT_PERPETUAL_TESTNET: {
-                'fee': 0.00075,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://ftx.com/markets/future
-            exchanges.FTX_PERPETUAL_FUTURES: {
-                'fee': 0.0006,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://ftx.com/markets/spot
-            exchanges.FTX_SPOT: {
-                'fee': 0.0007,
-                'type': 'spot',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.bitfinex.com
-            exchanges.BITFINEX_SPOT: {
-                'fee': 0.002,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.binance.com
-            exchanges.BINANCE_SPOT: {
-                'fee': 0.001,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://www.binance.com
-            exchanges.BINANCE_PERPETUAL_FUTURES: {
-                'fee': 0.0004,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://testnet.binancefuture.com
-            exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: {
-                'fee': 0.0004,
-                'type': 'futures',
-                'futures_leverage_mode': 'cross',
-                'futures_leverage': 1,
-                'balance': 10_000
-            },
-
-            # https://pro.coinbase.com
-            exchanges.COINBASE_SPOT: {
-                'fee': 0.005,
-                'type': 'futures',
-                'balance': 10_000
             },
         },
 
@@ -132,6 +57,7 @@ config = {
         'data': {
             # The minimum number of warmup candles that is loaded before each session.
             'warmup_candles_num': 240,
+            'generate_candles_from_1m': False,
             'persistency': True,
         },
     },
@@ -168,6 +94,16 @@ config = {
         'is_unit_testing': False,
     },
 }
+
+# set exchange config values based on the info
+for key in exchange_info:
+    config['env']['exchanges'][key] = {
+        'fee': exchange_info[key]['fee'],
+        'type': exchange_info[key]['type'],
+        'futures_leverage_mode': 'cross',
+        'futures_leverage': 1,
+        'balance': 10_000
+    }
 
 
 def set_config(conf: dict) -> None:
@@ -209,22 +145,10 @@ def set_config(conf: dict) -> None:
     if jh.is_live():
         config['env']['notifications'] = conf['notifications']
         config['env']['data']['persistency'] = conf['persistency']
+        config['env']['data']['generate_candles_from_1m'] = conf['generate_candles_from_1m']
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'
-
-    # # add sandbox because it isn't in the local config file but it is needed since we might have replaced it
-    # config['env']['exchanges']['Sandbox'] = {
-    #     'type': 'spot',
-    #     # used only in futures trading
-    #     'fee': 0,
-    #     'futures_leverage_mode': 'cross',
-    #     'futures_leverage': 1,
-    #     'assets': [
-    #         {'asset': 'USDT', 'balance': 10_000},
-    #         {'asset': 'BTC', 'balance': 0},
-    #     ],
-    # }
 
 
 def reset_config() -> None:

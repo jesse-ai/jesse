@@ -1,12 +1,11 @@
 from typing import List
-
 import numpy as np
-
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.libs import DynamicNumpyArray
 from jesse.models import store_trade_into_db
 from jesse.models.Trade import Trade
+from jesse.services import selectors
 
 
 class TradesState:
@@ -15,8 +14,9 @@ class TradesState:
         self.temp_storage = {}
 
     def init_storage(self) -> None:
-        for c in config['app']['considering_candles']:
-            key = jh.key(c[0], c[1])
+        for ar in selectors.get_all_routes():
+            exchange, symbol = ar['exchange'], ar['symbol']
+            key = jh.key(exchange, symbol)
             self.storage[key] = DynamicNumpyArray((60, 6), drop_at=120)
             self.temp_storage[key] = DynamicNumpyArray((100, 4))
 

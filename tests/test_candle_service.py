@@ -1,5 +1,6 @@
 from jesse.factories import range_candles
 from jesse.services.candle import *
+import numpy as np
 
 
 def test_candle_includes_price():
@@ -155,3 +156,22 @@ def test_split_candle():
             np.array([1111, 15, 20, 25, 15, 2222]),
         )
     )
+
+
+def test_candle_dict_to_np_array():
+    candle_dict = {
+        'close': 3,
+        'exchange': 'Bybit USDT Perpetual Testnet',
+        'high': 4,
+        'id': 'd2d139a7-13f6-446a-b2ea-f16152aeac5c',
+        'low': 1,
+        'open': 2,
+        'symbol': 'ETH-USDT',
+        'timestamp': 1660369080000,
+        'volume': 10
+    }
+    np.testing.assert_equal(
+        candle_dict_to_np_array(candle_dict),
+        np.array([1660369080000, 2, 3, 4, 1, 10])
+    )
+

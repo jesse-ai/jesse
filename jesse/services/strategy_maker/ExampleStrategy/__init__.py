@@ -7,14 +7,16 @@ class ExampleStrategy(Strategy):
     def should_long(self) -> bool:
         return False
 
-    def should_short(self) -> bool:
-        return False
-
-    def should_cancel_entry(self) -> bool:
-        return True
-
     def go_long(self):
         pass
 
+    def should_short(self) -> bool:
+        # For futures trading only
+        return False
+
     def go_short(self):
+        # For futures trading only
         pass
+
+    def should_cancel_entry(self) -> bool:
+        return True

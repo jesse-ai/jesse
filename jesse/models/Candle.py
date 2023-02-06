@@ -14,8 +14,9 @@ class Candle(peewee.Model):
     high = peewee.FloatField()
     low = peewee.FloatField()
     volume = peewee.FloatField()
-    symbol = peewee.CharField()
     exchange = peewee.CharField()
+    symbol = peewee.CharField()
+    timeframe = peewee.CharField()
 
     # partial candles: 5 * 1m candle = 5m candle while 1m == partial candle
     is_partial = True
@@ -25,7 +26,7 @@ class Candle(peewee.Model):
 
         database = database.db
         indexes = (
-            (('exchange', 'symbol', 'timestamp'), True),
+            (('exchange', 'symbol', 'timeframe', 'timestamp'), True),
         )
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
