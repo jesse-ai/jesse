@@ -44,7 +44,7 @@ class DydxPerpetualMain(CandleExchange):
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
-
+        start_timestamp = start_timestamp - 60000
         payload = {
             'resolution': timeframe_to_interval(timeframe),
             'fromISO': jh.timestamp_to_iso8601(start_timestamp),
@@ -55,7 +55,6 @@ class DydxPerpetualMain(CandleExchange):
         response = requests.get(self.endpoint + '/v3/candles/' + symbol, params=payload)
 
         self.validate_response(response)
-
         data = response.json()['candles']
 
         # reverse items of the list
