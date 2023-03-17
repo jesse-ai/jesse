@@ -14,7 +14,7 @@ class BinanceMain(CandleExchange):
     ) -> None:
         super().__init__(
             name=name,
-            count=1000,
+            count=499,
             rate_limit_per_second=2,
             backup_exchange_class=backup_exchange_class
         )
