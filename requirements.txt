@@ -28,3 +28,4 @@ uvicorn==0.14.0
 websockets==9.1.0
 python-dotenv==0.19.2
 aiofiles==0.7.0
+dydx-v3-python==2.0.1

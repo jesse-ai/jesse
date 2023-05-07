@@ -9,6 +9,7 @@ from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
+import numpy
 import numpy as np
 
 CACHED_CONFIG = dict()
@@ -785,6 +786,16 @@ def timestamp_to_time(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))
 
 
+def timestamp_to_iso8601(timestamp: int) -> str:
+    # example: 1609804800000 => '2021-01-05T00:00:00.000Z'
+    return arrow.get(timestamp / 1000).isoformat()
+
+
+def iso8601_to_timestamp(iso8601: str) -> int:
+    # example: '2021-01-05T00:00:00.000Z' -> 1609740800000
+    return int(arrow.get(iso8601, 'YYYY-MM-DDTHH:mm:ss.SSSZ').datetime.timestamp()) * 1000
+
+
 def today_to_timestamp() -> int:
     """
     returns today's (beginning) timestamp
@@ -924,6 +935,9 @@ def str_or_none(item, encoding='utf-8'):
         # return item if it's str, if not, decode it using encoding
         if isinstance(item, str):
             return item
+
+        if type(item) == numpy.float64:
+            return str(item)
 
         try:
             return str(item, encoding)
