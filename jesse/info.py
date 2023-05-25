@@ -175,7 +175,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
-        'required_live_plan': 'free'
+        'required_live_plan': 'premium'
     },
     # BITGET_USDT_PERPETUAL
     exchanges_enums.BITGET_USDT_PERPETUAL: {
@@ -189,7 +189,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
-        'required_live_plan': 'free'
+        'required_live_plan': 'premium'
     },
     # BITGET_SPOT
     exchanges_enums.BITGET_SPOT: {
@@ -204,7 +204,7 @@ exchange_info = {
             # disabled for now
             'live_trading': False,
         },
-        'required_live_plan': 'free'
+        'required_live_plan': 'premium'
     },
     # DyDx
     exchanges_enums.DYDX_PERPETUAL: {
