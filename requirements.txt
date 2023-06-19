@@ -13,7 +13,7 @@ pydash==5.1.0
 pytest==6.2.5
 PyWavelets==1.2.0
 quantstats==0.0.47
-requests==2.26.0
+requests==2.31.0
 scipy==1.8.0
 statsmodels==0.13.2
 TA-Lib==0.4.24
