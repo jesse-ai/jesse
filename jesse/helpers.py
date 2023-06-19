@@ -380,7 +380,7 @@ def is_unit_testing() -> bool:
     return "pytest" in sys.modules or config['app']['is_unit_testing']
 
 
-def is_valid_uuid(uuid_to_test:str, version: int = 4) -> bool:
+def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_to_test, version=version)
     except ValueError:
@@ -642,8 +642,13 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
     rounded = round_decimals_down(roundable_qty, precision)
 
     for index, q in enumerate(rounded):
+        # if the rounded value is 0, make it the minimum possible value
         if q == 0.0:
-            rounded[index] = 1 / 10 ** precision
+            # if the precision is bigger or equal 0, (for numbers like 2, 0.2, 0.02)
+            if precision >= 0:
+                rounded[index] = 1 / 10 ** precision
+            else:  # for numbers like 20, 200, 2000
+                raise ValueError('qty is too small')
 
     if input_type in [float, np.float64]:
         return float(rounded[0])
@@ -656,13 +661,15 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
     """
     if not isinstance(decimals, int):
         raise TypeError("decimal places must be an integer")
-    elif decimals < 0:
-        raise ValueError("decimal places has to be 0 or more")
     elif decimals == 0:
         return np.floor(number)
-
-    factor = 10 ** decimals
-    return np.floor(number * factor) / factor
+    elif decimals > 0:
+        factor = 10 ** decimals
+        return np.floor(number * factor) / factor
+    elif decimals < 0:
+        # for example, for decimals = -2, we want to round down to the nearest 100 if the number is 1234, we want to return 1200:
+        factor = 10 ** (decimals * -1)
+        return np.floor(number / factor) * factor
 
 
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
@@ -843,6 +850,7 @@ def merge_dicts(d1: dict, d2: dict) -> dict:
     :param d2: dict
     :return: dict
     """
+
     def inner(dict1, dict2):
         for k in set(dict1.keys()).union(dict2.keys()):
             if k in dict1 and k in dict2:

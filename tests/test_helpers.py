@@ -457,6 +457,9 @@ def test_round_qty_for_live_mode():
         np.array([0.001])
     )
 
+    with pytest.raises(ValueError):
+        jh.round_qty_for_live_mode(np.array([9]), -1)
+
     # round one number only
     to_round = 10.123456789
     expected_result = 10.1234
@@ -467,6 +470,9 @@ def test_round_qty_for_live_mode():
 
 def test_round_decimals_down():
     assert jh.round_decimals_down(100.329, 2) == 100.32
+    assert jh.round_decimals_down(115.329, -1) == 110
+    assert jh.round_decimals_down(115.329, -2) == 100
+    assert jh.round_decimals_down(115.329, 0) == 115
 
 
 def test_secure_hash():
