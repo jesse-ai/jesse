@@ -12,8 +12,8 @@ psycopg2-binary==2.9.4
 pydash==5.1.0
 pytest==6.2.5
 PyWavelets==1.2.0
-quantstats==0.0.59
-requests==2.26.0
+quantstats==0.0.47
+requests==2.31.0
 scipy==1.8.0
 statsmodels==0.13.2
 TA-Lib==0.4.24
@@ -28,3 +28,4 @@ uvicorn==0.14.0
 websockets==9.1.0
 python-dotenv==0.19.2
 aiofiles==0.7.0
+dydx-v3-python==2.0.1
