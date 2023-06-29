@@ -16,7 +16,7 @@ quantstats==0.0.47
 requests==2.26.0
 scipy==1.10.0
 statsmodels==0.13.2
-TA-Lib==0.4.24
+TA-Lib==0.4.25
 tabulate==0.8.9
 timeloop==1.0.2
 websocket-client==1.2.3
@@ -28,3 +28,4 @@ uvicorn==0.14.0
 websockets==9.1.0
 python-dotenv==0.19.2
 aiofiles==0.7.0
+dydx-v3-python==2.0.1

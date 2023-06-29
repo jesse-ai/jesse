@@ -60,6 +60,9 @@ class OrdersState:
         key = f'{exchange}-{symbol}'
         return self.storage.get(key, [])
 
+    def get_all_orders(self, exchange: str) -> List[Order]:
+        return [o for key in self.storage for o in self.storage[key] if o.exchange == exchange]
+
     def count_all_active_orders(self) -> int:
         c = 0
         for key in self.storage:
