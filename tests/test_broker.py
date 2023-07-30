@@ -15,7 +15,7 @@ exchange: Exchange = None
 broker: Broker = None
 
 
-def set_up_without_fee(is_futures_trading=False):
+def set_up_without_fee(is_futures_trading=False, current_price=50):
     reset_config()
     config['env']['exchanges'][exchanges.SANDBOX]['fee'] = 0
     config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 1000
@@ -34,7 +34,7 @@ def set_up_without_fee(is_futures_trading=False):
     global exchange
     global broker
     position = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
-    position.current_price = 50
+    position.current_price = current_price
     exchange = selectors.get_exchange(exchanges.SANDBOX)
     broker = Broker(position, exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)
 
@@ -144,6 +144,31 @@ def test_opening_and_closing_position_with_stop():
     assert position.entry_price is None
     assert position.exit_price == 40
 
+def test_opening_and_closing_position_with_take():
+    set_up_without_fee(is_futures_trading=True, current_price=0.00003)
+
+    assert position.current_price == 0.00003
+    assert position.is_close is True
+    assert exchange.assets['USDT'] == 1000
+    assert exchange.available_margin == 1000
+    assert exchange.wallet_balance == 1000
+    # open position
+    open_position_order = broker.start_profit_at('buy', 1, 0.00004)
+    open_position_order.execute()
+    position.current_price = 0.00004
+    assert position.is_open is True
+    assert position.entry_price == 0.00004
+    assert position.qty == 1
+    assert exchange.assets['USDT'] == 1000
+    assert exchange.wallet_balance == 1000
+    assert exchange.available_margin == 999.99996
+
+    # submit take-profit order also
+    take_profit_order = broker.reduce_position_at(1, 0.00008, 0.00004)
+    take_profit_order.execute()
+    assert take_profit_order.reduce_only is True
+    assert take_profit_order.type == order_types.LIMIT
+    assert exchange.assets['USDT'] == 1000.00004
 
 def test_stop_loss():
     set_up_without_fee(is_futures_trading=True)
