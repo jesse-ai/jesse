@@ -21,20 +21,24 @@ def start_notifier_loop():
         if len(MSG_QUEUE) > 0:
             msg = MSG_QUEUE.pop(0)
             if msg['type'] == 'info':
-                _telegram(msg['content'])
-                _discord(msg['content'])
-                _slack(msg['content'])
+                if msg['webhook'] is None:
+                    _telegram(msg['content'])
+                    _discord(msg['content'])
+                    _slack(msg['content'])
+                else:
+                    _custom_channel_notification(msg)
+
             elif msg['type'] == 'error':
                 _telegram_errors(msg['content'])
-                _discord_errors(msg['content'])
-                _slack_errors(msg['content'])
+                _discord(msg['content'], webhook_address=ENV_VALUES['ERROR_DISCORD_WEBHOOK'])
+                _slack(msg['content'], webhook_address=ENV_VALUES['ERROR_SLACK_WEBHOOK'])
             else:
                 raise ValueError(f'Unknown message type: {msg["type"]}')
 
     tl.start()
 
 
-def notify(msg: str) -> None:
+def notify(msg: str, webhook=None) -> None:
     """
     sends notifications to "main_telegram_bot" which is supposed to receive messages.
     """
@@ -45,7 +49,7 @@ def notify(msg: str) -> None:
     if len(msg) > 2000:
         msg = msg[-2000:]
 
-    MSG_QUEUE.append({'type': 'info', 'content': msg})
+    MSG_QUEUE.append({'type': 'info', 'content': msg, 'webhook': webhook})
 
 
 def notify_urgently(msg: str) -> None:
@@ -102,8 +106,9 @@ def _telegram_errors(msg: str) -> None:
         logger.error('Telegram ERROR: ConnectionError', send_notification=False)
 
 
-def _discord(msg: str) -> None:
-    webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
+def _discord(msg: str, webhook_address=None) -> None:
+    if webhook_address is None:
+        webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
 
     if not webhook_address or not jh.get_config('env.notifications.enabled'):
         return
@@ -119,44 +124,9 @@ def _discord(msg: str) -> None:
         logger.error('Discord ERROR: ConnectionError', send_notification=False)
 
 
-def _discord_errors(msg: str) -> None:
-    webhook_address = ENV_VALUES['ERROR_DISCORD_WEBHOOK']
-
-    if not webhook_address or not jh.get_config('env.notifications.enabled'):
-        return
-
-    try:
-        response = requests.post(webhook_address, {'content': msg})
-        if response.status_code // 100 != 2:
-            err_msg = f'Discord ERROR [{response.status_code}]: {response.text}'
-            if response.status_code // 100 == 4:
-                err_msg += f'\nParameters: {msg}'
-            logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Discord ERROR: ConnectionError', send_notification=False)
-
-
-def _slack(msg: str) -> None:
-    webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK']
-
-    if not webhook_address or not jh.get_config('env.notifications.enabled'):
-        return
-
-    payload = {
-        "text": msg
-    }
-
-    try:
-        response = requests.post(webhook_address, json=payload)
-        if response.status_code != 200:
-            err_msg = f'Slack ERROR [{response.status_code}]: {response.text}'
-            logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Slack ERROR: ConnectionError', send_notification=False)
-
-
-def _slack_errors(msg: str) -> None:
-    webhook_address = ENV_VALUES['ERROR_SLACK_WEBHOOK']
+def _slack(msg: str, webhook_address=None) -> None:
+    if webhook_address is None:
+        webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK']
 
     if not webhook_address or not jh.get_config('env.notifications.enabled'):
         return
@@ -174,6 +144,22 @@ def _slack_errors(msg: str) -> None:
             logger.error(err_msg, send_notification=False)
     except requests.exceptions.ConnectionError:
         logger.error('Slack ERROR: ConnectionError', send_notification=False)
+
+
+def _custom_channel_notification(msg: dict):
+    webhook = msg['webhook']
+    # if webhook is an environment variable and not hardcoded
+    if webhook in ENV_VALUES:
+        webhook = ENV_VALUES[webhook]
+
+    if webhook.startswith('https://hooks.slack.com'):
+        # a slack webhook
+        _slack(msg['content'], webhook)
+    elif webhook.startswith('https://discord.com/api/webhooks'):
+        # a discord webhook
+        _discord(msg['content'], webhook)
+    else:
+        raise ValueError(f'Custom Webhook {webhook}. seems to be neither a discord or slack webhook')
 
 
 def _format_msg(msg: str) -> str:
