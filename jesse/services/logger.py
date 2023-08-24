@@ -51,7 +51,7 @@ def create_logger_file(name):
     LOGGERS[name] = new_logger
 
 
-def info(msg: str, send_notification=False) -> None:
+def info(msg: str, send_notification=False, webhook=None) -> None:
     if jh.app_mode() not in LOGGERS and (jh.is_live() or (jh.is_backtesting() and jh.is_debugging())):
         _init_main_logger()
 
@@ -80,7 +80,7 @@ def info(msg: str, send_notification=False) -> None:
         store_log_into_db(log_dict, 'info')
 
     if send_notification:
-        notify(msg)
+        notify(msg, webhook=webhook)
 
 
 def error(msg: str, send_notification=True) -> None:

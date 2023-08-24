@@ -1191,11 +1191,11 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info', send_notification: bool = False) -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: str = None) -> None:
         msg = str(msg)
 
         if log_type == 'info':
-            logger.info(msg, send_notification=jh.is_live() and send_notification)
+            logger.info(msg, send_notification=jh.is_live() and send_notification, webhook=webhook)
         elif log_type == 'error':
             logger.error(msg, send_notification=jh.is_live() and send_notification)
         else:
