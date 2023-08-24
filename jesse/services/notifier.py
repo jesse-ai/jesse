@@ -31,7 +31,7 @@ def start_notifier_loop():
             elif msg['type'] == 'error':
                 _telegram_errors(msg['content'])
                 _discord(msg['content'], webhook_address=ENV_VALUES['ERROR_DISCORD_WEBHOOK'])
-                _slack(msg['content'], webhook_address=ENV_VALUES['ERROR_SLACK_WEBHOOK'])
+                _slack(msg['content'], webhook_address=ENV_VALUES['ERROR_SLACK_WEBHOOK'] if 'ERROR_SLACK_WEBHOOK' in ENV_VALUES else '')
             else:
                 raise ValueError(f'Unknown message type: {msg["type"]}')
 
@@ -126,7 +126,7 @@ def _discord(msg: str, webhook_address=None) -> None:
 
 def _slack(msg: str, webhook_address=None) -> None:
     if webhook_address is None:
-        webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK']
+        webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK'] if 'GENERAL_SLACK_WEBHOOK' in ENV_VALUES else ''
 
     if not webhook_address or not jh.get_config('env.notifications.enabled'):
         return
