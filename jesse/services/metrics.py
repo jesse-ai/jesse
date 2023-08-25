@@ -94,6 +94,9 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     fee = df['fee'].sum()
     net_profit = df['PNL'].sum()
     net_profit_percentage = (net_profit / starting_balance) * 100
+    avg_win_percentage = df.loc[df['PNL'] > 0, 'PNL_percentage'].sum() / len(winning_trades)
+    avg_loss_percentage = -df.loc[df['PNL'] < 0, 'PNL_percentage'].sum() / len(losing_trades)
+
     average_win = winning_trades['PNL'].mean()
     average_loss = abs(losing_trades['PNL'].mean())
     ratio_avg_win_loss = average_win / average_loss
@@ -147,6 +150,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
         'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
         'win_rate': np.nan if np.isnan(win_rate) else win_rate,
+        'avg_win_percentage': np.nan if np.isnan(avg_win_percentage) else avg_win_percentage,
+        'avg_loss_percentage': np.nan if np.isnan(avg_loss_percentage) else avg_loss_percentage,
         'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
         'longs_count': np.nan if np.isnan(longs_count) else longs_count,
         'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,
