@@ -9,6 +9,8 @@ RUN apt-get update \
 
 RUN pip3 install Cython numpy
 
+RUN pip3 install discord.py
+
 # Prepare environment
 RUN mkdir /jesse-docker
 WORKDIR /jesse-docker
