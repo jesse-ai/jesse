@@ -237,7 +237,7 @@ class Strategy(ABC):
 
         for o in self._buy:
             # MARKET order
-            if abs(o[1] - price_to_compare) < 0.0001:
+            if jh.is_price_near(o[1], price_to_compare):
                 self.broker.buy_at_market(o[0])
             # STOP order
             elif o[1] > price_to_compare:
@@ -259,7 +259,7 @@ class Strategy(ABC):
 
         for o in self._sell:
             # MARKET order
-            if abs(o[1] - price_to_compare) < 0.0001:
+            if jh.is_price_near(o[1], price_to_compare):
                 self.broker.sell_at_market(o[0])
             # STOP order
             elif o[1] < price_to_compare:

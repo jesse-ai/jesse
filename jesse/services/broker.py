@@ -94,7 +94,7 @@ class Broker:
 
         # MARKET order
         # if the price difference is bellow 0.01% of the current price, then we submit a market order
-        if abs(price - current_price) < 0.0001:
+        if jh.is_price_near(price, current_price):
             return self.api.market_order(
                 self.exchange,
                 self.symbol,
