@@ -1,6 +1,7 @@
 import hashlib
 import math
 import os
+from pathlib import Path
 import random
 import string
 import sys
@@ -375,9 +376,18 @@ def is_paper_trading() -> bool:
 
 
 def is_unit_testing() -> bool:
-    from jesse.config import config
-    # config['app']['is_unit_testing'] is only set in the live plugin unit tests
-    return "pytest" in sys.modules or config['app']['is_unit_testing']
+    """Returns True if the code is running by running pytest, False otherwise."""
+    # Check if the PYTEST_CURRENT_TEST environment variable is set.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+
+    # Check if the code is being executed from the pytest command-line tool.
+    script_name = os.path.basename(sys.argv[0])
+    if script_name in ["pytest", "py.test"]:
+        return True
+
+    # Otherwise, the code is not running by running pytest.
+    return False
 
 
 def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
