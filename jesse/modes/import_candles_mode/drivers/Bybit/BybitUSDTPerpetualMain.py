@@ -22,9 +22,13 @@ class BybitUSDTPerpetualMain(CandleExchange):
             'limit': 200,
             'start': 1514811660000
         }
+
         response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
         self.validate_response(response)
-        data = response.json()['list']
+        data = response.json()['result']['list']
+        # Reverse the data list
+        data = data[::-1]
+
         return int(data[1][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
@@ -39,7 +43,10 @@ class BybitUSDTPerpetualMain(CandleExchange):
         }
         response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
         self.validate_response(response)
-        data = response.json()['list']
+        data = response.json()['result']['list']
+        # Reverse the data list
+        data = data[::-1]
+
         return [
             {
                 'id': jh.generate_unique_id(),
