@@ -15,6 +15,7 @@ class order_statuses:
     PARTIALLY_FILLED = 'PARTIALLY FILLED'
     QUEUED = 'QUEUED'
     LIQUIDATED = 'LIQUIDATED'
+    REJECTED = 'REJECTED'
 
 
 class timeframes:
