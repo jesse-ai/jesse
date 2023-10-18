@@ -117,7 +117,7 @@ def test_forming_candles():
         1382 / 15)
 
 
-def test_increasing_position_size_after_opening():
+def test_increasing_long_position_size_after_opening():
     single_route_backtest('Test16')
 
     assert len(store.completed_trades.trades) == 1
@@ -127,6 +127,10 @@ def test_increasing_position_size_after_opening():
     assert t1.exit_price == 15
     assert t1.qty == 2
     assert t1.fee == 0
+
+
+def test_increasing_short_position_size_after_opening():
+    single_route_backtest('TestIncreasingShortPosition', trend='down')
 
 
 def test_is_smart_enough_to_open_positions_via_market_orders():
