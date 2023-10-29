@@ -1,5 +1,7 @@
-from typing import List, Dict
 import copy
+from typing import Dict, List
+
+from jesse.modes.backtest_mode import load_candles
 
 
 def backtest(
@@ -63,7 +65,6 @@ def backtest(
         generate_hyperparameters=generate_hyperparameters,
     )
 
-
 def _isolated_backtest(
         config: dict,
         routes: List[Dict[str, str]],
@@ -79,14 +80,14 @@ def _isolated_backtest(
         generate_equity_curve: bool = False,
         generate_hyperparameters: bool = False
 ) -> dict:
-    from jesse.services.validators import validate_routes
-    from jesse.modes.backtest_mode import simulator
-    from jesse.config import config as jesse_config, reset_config
-    from jesse.routes import router
-    from jesse.store import store
-    from jesse.config import set_config
-    from jesse.services import required_candles
     import jesse.helpers as jh
+    from jesse.config import config as jesse_config
+    from jesse.config import reset_config, set_config
+    from jesse.modes.backtest_mode import simulator
+    from jesse.routes import router
+    from jesse.services import required_candles
+    from jesse.services.validators import validate_routes
+    from jesse.store import store
 
     jesse_config['app']['trading_mode'] = 'backtest'
 
@@ -124,7 +125,7 @@ def _isolated_backtest(
         for c in jesse_config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             # update trading_candles
-            trading_candles[key]['candles'] = candles[key]['candles'][warm_up_num:]
+            trading_candles[key]['candles'] = candles[key]['candles']
             # inject warm-up candles
             required_candles.inject_required_candles_to_store(
                 candles[key]['candles'][:warm_up_num],
@@ -179,7 +180,6 @@ def _isolated_backtest(
 
     return result
 
-
 def _format_config(config):
     """
     Jesse's required format for user_config is different from what this function accepts (so it
@@ -214,3 +214,102 @@ def _format_config(config):
         },
         'warm_up_candles': config['warm_up_candles']
     }
+
+def backtest_with_dates(
+        config: dict,
+        routes: List[Dict[str, str]],
+        extra_routes: List[Dict[str, str]],
+        start_date: str,
+        finish_date: str,
+        hyperparameters: dict,
+        run_silently: bool = True,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        generate_hyperparameters: bool = False
+) -> dict:
+    import jesse.helpers as jh
+    from jesse.config import config as jesse_config
+    from jesse.config import reset_config, set_config
+    from jesse.modes.backtest_mode import simulator
+    from jesse.routes import router
+    from jesse.services import required_candles
+    from jesse.services.validators import validate_routes
+    from jesse.store import store
+
+    jesse_config['app']['trading_mode'] = 'backtest'
+
+    # inject (formatted) configuration values
+    set_config(_format_config(config))
+
+    # set routes
+    router.initiate(routes, extra_routes)
+
+    validate_routes(router)
+
+    # initiate candle store
+    store.candles.init_storage(5000)
+
+    candles = load_candles(start_date, finish_date)
+
+    # assert that the passed candles are 1m candles
+    for key, value in candles.items():
+        candle_set = value['candles']
+        if candle_set[1][0] - candle_set[0][0] != 60_000:
+            raise ValueError(
+                f'Candles passed to the research.backtest() must be 1m candles. '
+                f'\nIf you wish to trade other timeframes, notice that you need to pass it through '
+                f'the timeframe option in your routes. '
+                f'\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than '
+                f'the accepted 60000 milliseconds.'
+            )
+
+    # run backtest simulation
+    backtest_result = simulator(
+        candles,
+        run_silently,
+        hyperparameters=hyperparameters,
+        generate_charts=generate_charts,
+        generate_tradingview=generate_tradingview,
+        generate_quantstats=generate_quantstats,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        generate_hyperparameters=generate_hyperparameters
+    )
+
+    result = {
+        'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
+        'logs': None,
+    }
+
+    if backtest_result['metrics'] is None:
+        result['metrics'] = {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
+        result['logs'] = None
+    else:
+        result['metrics'] = backtest_result['metrics']
+        result['logs'] = store.logs.info
+
+    if generate_charts:
+        result['charts'] = backtest_result['charts']
+    if generate_tradingview:
+        result['tradingview'] = backtest_result['tradingview']
+    if generate_quantstats:
+        result['quantstats'] = backtest_result['quantstats']
+    if generate_csv:
+        result['csv'] = backtest_result['csv']
+    if generate_json:
+        result['json'] = backtest_result['json']
+    if generate_equity_curve:
+        result['equity_curve'] = backtest_result['equity_curve']
+    if generate_hyperparameters:
+        result['hyperparameters'] = backtest_result['hyperparameters']
+
+    # reset store and config so rerunning would be flawlessly possible
+    reset_config()
+    store.reset()
+
+    return result
