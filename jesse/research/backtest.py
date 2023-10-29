@@ -125,7 +125,7 @@ def _isolated_backtest(
         for c in jesse_config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             # update trading_candles
-            trading_candles[key]['candles'] = candles[key]['candles']
+            trading_candles[key]['candles'] = candles[key]['candles'][warm_up_num:]
             # inject warm-up candles
             required_candles.inject_required_candles_to_store(
                 candles[key]['candles'][:warm_up_num],
