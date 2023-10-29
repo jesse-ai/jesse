@@ -1,25 +1,25 @@
+import os
 from abc import ABC
 from datetime import timedelta
-from random import randint, choices
+from multiprocessing import Manager, Process, cpu_count
+from random import choices, randint
 
-from timeloop import Timeloop
-
-from jesse import sync_publish
-from jesse.services.redis import process_status
-from multiprocessing import Process, Manager
 import click
 import numpy as np
 import pydash
+from numpy import ndarray
+from pandas import json_normalize
+from timeloop import Timeloop
+
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.store import store
-import os
-from jesse import exceptions
-from jesse.modes.optimize_mode.fitness import get_and_add_fitness_to_the_bucket, create_baby
+from jesse import exceptions, sync_publish
+from jesse.modes.optimize_mode.fitness import (
+    create_baby, get_and_add_fitness_to_the_bucket)
 from jesse.routes import router
-from numpy import ndarray
-from multiprocessing import cpu_count
 from jesse.services.progressbar import Progressbar
+from jesse.services.redis import process_status
+from jesse.store import store
 
 
 class Optimizer(ABC):
@@ -316,11 +316,52 @@ class Optimizer(ABC):
 
                 i += 1
 
+                print('LOGGING CSV')
+                study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+
+                dna_json = {'snapshot': []}
+                index = f'{(i + 1) * self.cpu_cores}/{self.population_size}'
+                for i in range(30):
+                    dna_json['snapshot'].append(
+                        {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
+                            'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
+                            'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
+
+                path = f'./storage/genetics/{study_name}.txt'
+                os.makedirs('./storage/genetics', exist_ok=True)
+                txt = ''
+                with open(path, 'a', encoding="utf-8") as f:
+                    txt += '\n\n'
+                    txt += f'# iteration {index}'
+                    txt += '\n'
+
+                    for i in range(30):
+                        log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
+
+                        txt += '\n'
+                        txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
+
+                    f.write(txt)
+
+                path = f'storage/genetics/csv/{study_name}.csv'
+                os.makedirs('./storage/genetics/csv', exist_ok=True)
+                exists = os.path.exists(path)
+
+                df = json_normalize(dna_json['snapshot'])
+
+                with open(path, 'a', newline='', encoding="utf-8") as outfile:
+                    if not exists:
+                        # header of CSV file
+                        df.to_csv(outfile, header=True, index=False, encoding='utf-8')
+
+                    df.to_csv(outfile, header=False, index=False, encoding='utf-8')
+
         sync_publish('alert', {
             'message': f"Finished {self.iterations} iterations. Check your best DNA candidates, "
                        f"if you don't like any of them, try modifying your strategy.",
             'type': 'success'
         })
+
         return self.population
 
     def run(self) -> list:
