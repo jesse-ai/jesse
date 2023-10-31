@@ -316,7 +316,7 @@ class Optimizer(ABC):
 
                 i += 1
 
-                print('LOGGING CSV')
+                logger.log_optimize_mode('Saving to CSV file...')
                 study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
 
                 dna_json = {'snapshot': []}
