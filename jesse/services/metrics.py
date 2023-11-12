@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List, Any, Union
+from typing import Any, List, Union
 
 import numpy as np
 import pandas as pd
@@ -7,8 +7,8 @@ from quantstats import stats
 
 import jesse.helpers as jh
 from jesse.models import ClosedTrade
-from jesse.store import store
 from jesse.services import selectors
+from jesse.store import store
 
 
 def candles_info(candles_array: np.ndarray) -> dict:
@@ -188,9 +188,13 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
 def hyperparameters(routes_arr: list) -> list:
     if routes_arr[0].strategy.hp is None:
         return []
-
-    hp = []
     # only for the first route
+    hp = []
+
+    # add DNA
+    hp.append(['DNA', routes_arr[0].strategy.dna()])
+
+    # add hyperparameters
     for key in routes_arr[0].strategy.hp:
         hp.append([
             key, routes_arr[0].strategy.hp[key]
