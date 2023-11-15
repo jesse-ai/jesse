@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 import talib
-from scipy.ndimage.filters import maximum_filter1d, minimum_filter1d
+from scipy.ndimage import maximum_filter1d, minimum_filter1d
 
 from jesse.helpers import slice_candles
 

@@ -5,13 +5,12 @@ import numpy as np
 try:
     from numba import njit
 except ImportError:
-    njit = lambda a : a
+    njit = lambda a: a
 
 from jesse.helpers import get_candle_source, slice_candles, np_shift, same_length
 
 
-def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     Moving Average Adaptive Q
 
@@ -38,8 +37,8 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
     signal = np.abs(source - np_shift(source, period, np.nan))
     noise = talib.SUM(diff, period)
 
-    with np.errstate(divide='ignore'):
-        ratio = np.where(noise == 0, 0, signal / noise)
+    # Safely divide signal by noise
+    ratio = np.divide(signal, noise, out=np.zeros_like(signal), where=(noise != 0))
 
     fastSc = 2 / (fast_period + 1)
     slowSc = 2 / (slow_period + 1)
