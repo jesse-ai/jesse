@@ -1028,6 +1028,11 @@ class Strategy(ABC):
         return self.position.exchange.available_margin
 
     @property
+    def leveraged_available_margin(self) -> float:
+        """Current available margin considering leverage"""
+        return self.leverage * self.available_margin
+
+    @property
     def fee_rate(self) -> float:
         return selectors.get_exchange(self.exchange).fee_rate
 

@@ -1,33 +1,36 @@
 from jesse import utils
 from jesse.strategies import Strategy
+import jesse.helpers as jh
 
 
-# test_wallet_balance_for_futures_market
 class TestWalletBalance(Strategy):
     def before(self):
         if self.index == 0:
             assert self.position.exchange.wallet_balance == 10000 == self.balance
-            assert self.position.exchange.available_margin == 20000 == self.available_margin
+            assert self.position.exchange.available_margin == 10000 == self.available_margin
+            assert self.leveraged_available_margin == 20000
 
         if self.price == 11:
             # wallet balance should have stayed the same while we haven't spent from it yet
             assert self.position.exchange.wallet_balance == 10000 == self.balance
-            # but available_margin should have
-            assert round(self.position.exchange.available_margin) == 20000 - 4000 == round(self.available_margin)
+            # Adjusted available_margin calculation
+            assert round(self.position.exchange.available_margin) == 10000 - (4000 / 2) == round(self.available_margin)
+            assert round(self.leveraged_available_margin) == 20000 - 4000
 
         if self.price == 12:
             # wallet balance should have changed because of fees, but we have fee=0 in this test, so:
             assert self.position.exchange.wallet_balance == 10000 == self.balance
-            assert round(self.position.exchange.available_margin) == 20000 - 4000 == round(self.available_margin)
+            # Adjusted available_margin calculation
+            assert round(self.position.exchange.available_margin) == 10000 - (4000 / 2) == round(self.available_margin)
 
         if self.price == 21:
             # wallet balance must now equal to 10_000 + the profit we made from previous trade
             previous_trade = self.trades[0]
             assert self.position.exchange.wallet_balance == previous_trade.pnl + 10000
-            # now that position is closed, available_margin should equal to wallet_balance*leverage
-            assert self.position.exchange.available_margin == self.position.exchange.wallet_balance * 2 == self.available_margin
+            # now that position is closed, available_margin should equal to wallet_balance
+            assert self.position.exchange.available_margin == previous_trade.pnl + 10000 == self.available_margin
             assert self.balance == self.position.exchange.wallet_balance
-            assert self.balance * self.leverage == self.available_margin
+            assert self.balance == self.available_margin
 
     def should_long(self) -> bool:
         return self.price == 10

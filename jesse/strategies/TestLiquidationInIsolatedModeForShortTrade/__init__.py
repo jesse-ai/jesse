@@ -10,7 +10,8 @@ class TestLiquidationInIsolatedModeForShortTrade(Strategy):
         if self.index == 0:
             assert self.balance == 10000
             assert self.leverage == 2
-            assert self.available_margin == 20000
+            assert self.available_margin == 10000
+            assert self.leveraged_available_margin == 20000
 
         # the liquidation price is at $14.94 so at $15:
         if self.price == 15:

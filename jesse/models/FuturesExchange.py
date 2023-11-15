@@ -50,39 +50,35 @@ class FuturesExchange(Exchange):
         if jh.is_livetrading():
             return self._available_margin
 
-        # a temp which gets added to per each asset (remember that all future assets use the same currency for settlement)
-        temp_credits = self.assets[self.settlement_currency]
+        # In both live trading and backtesting/paper trading, we start with the balance
+        margin = self.wallet_balance
 
-        # we need to consider buy and sell orders of ALL pairs
-        # also, consider the value of all open positions
+        # Calculate the total spent amount considering leverage
+        # Here we need to calculate the total cost of all open positions and orders, considering leverage
+        total_spent = 0
         for asset in self.assets:
             if asset == self.settlement_currency:
                 continue
 
             position = selectors.get_position(self.name, f"{asset}-{self.settlement_currency}")
-            if position is None:
-                continue
-
-            if position.is_open:
+            if position and position.is_open:
+                # Adding the cost of open positions
+                total_spent += position.total_cost
                 # add unrealized PNL
-                temp_credits += position.pnl
+                total_spent -= position.pnl
 
-            # only which of these has actual values, so we can count all of them!
+            # Summing up the cost of open orders (buy and sell), considering leverage
             sum_buy_orders = (self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]).sum()
             sum_sell_orders = (self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]).sum()
 
-            if position.is_open:
-                temp_credits -= position.total_cost
-
-            # Subtract the amount we paid for open orders. Notice that this does NOT include
-            # reduce_only orders so either sum_buy_orders or sum_sell_orders is zero. We also
-            # care about the cost we actually paid for it which takes into account the leverage
-            temp_credits -= max(
+            total_spent += max(
                 abs(sum_buy_orders) / self.futures_leverage, abs(sum_sell_orders) / self.futures_leverage
             )
 
-        # count in the leverage
-        return temp_credits * self.futures_leverage
+        # Subtracting the total spent from the margin
+        margin -= total_spent
+
+        return margin
 
     def charge_fee(self, amount: float) -> None:
         if jh.is_livetrading():
@@ -113,10 +109,12 @@ class FuturesExchange(Exchange):
 
         # make sure we don't spend more than we're allowed considering current allowed leverage
         if not order.reduce_only:
-            order_size = abs(order.qty * order.price)
-            if order_size > self.available_margin:
+            # Calculate the effective order size considering leverage
+            effective_order_size = abs(order.qty * order.price) / self.futures_leverage
+
+            if effective_order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f'You cannot submit an order for ${round(order_size)} when your margin balance is ${round(self.available_margin)}')
+                    f'You cannot submit an order for ${round(order.qty * order.price)} when your effective margin balance is ${round(self.available_margin)} considering leverage')
 
         self.available_assets[base_asset] += order.qty
 
