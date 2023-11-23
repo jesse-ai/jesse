@@ -648,7 +648,8 @@ def test_round_or_none():
 
 def test_is_price_near():
     assert jh.is_price_near(0.007386, 0.007385) == True
-    assert jh.is_price_near(0.007386, 0.007396) == True
+    assert jh.is_price_near(0.007386, 0.007396) == False
+    assert jh.is_price_near(0.0250, 0.0249) == False
     assert jh.is_price_near(60000, 60000) == True
     assert jh.is_price_near(60000, 60000.1) == True
     assert jh.is_price_near(60000, 60100) == False
