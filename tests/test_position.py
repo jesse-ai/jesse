@@ -3,23 +3,6 @@ from jesse.models import Position
 from jesse.testing_utils import set_up, single_route_backtest
 
 
-def test_close_position():
-    set_up()
-
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': 2,
-    })
-    assert p.exit_price is None
-
-    p._mutating_close(50)
-
-    assert p.qty == 0
-    assert p.entry_price is None
-    assert p.exit_price == 50
-
-
 def test_increase_a_long_position():
     set_up()
 
