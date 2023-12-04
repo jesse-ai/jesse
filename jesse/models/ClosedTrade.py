@@ -7,7 +7,6 @@ from jesse.services.db import database
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
 from jesse.enums import trade_types
 
-
 if database.is_closed():
     database.open_connection()
 
@@ -168,6 +167,10 @@ class ClosedTrade(peewee.Model):
             return np.nan
 
         return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
+
+    @property
+    def is_open(self) -> bool:
+        return self.opened_at is not None
 
 
 # if database is open, create the table
