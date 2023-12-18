@@ -1292,3 +1292,10 @@ class Strategy(ABC):
     @property
     def is_live(self) -> bool:
         return jh.is_live()
+
+    @property
+    def min_qty(self) -> float:
+        if not jh.is_live():
+            raise ValueError('self.min_qty is only available in live modes')
+
+        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
