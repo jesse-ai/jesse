@@ -657,3 +657,5 @@ def test_is_price_near():
     assert jh.is_price_near(30000, 29800) == False
     assert jh.is_price_near(200, 200.01) == True
     assert jh.is_price_near(20, 20.001) == True
+    assert jh.is_price_near(0.0014458, 0.0014458*1.05) == False
+    assert jh.is_price_near(0.0014458, 0.0014458*1.10) == False
