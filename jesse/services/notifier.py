@@ -1,6 +1,5 @@
 import requests
 from jesse.services.env import ENV_VALUES
-from jesse.services import logger
 import jesse.helpers as jh
 from timeloop import Timeloop
 from datetime import timedelta
@@ -67,6 +66,8 @@ def notify_urgently(msg: str) -> None:
 
 
 def _telegram(msg: str) -> None:
+    from jesse.services import logger
+
     token = ENV_VALUES['GENERAL_TELEGRAM_BOT_TOKEN']
     chat_id: int = ENV_VALUES['GENERAL_TELEGRAM_BOT_CHAT_ID']
 
@@ -87,6 +88,8 @@ def _telegram(msg: str) -> None:
 
 
 def _telegram_errors(msg: str) -> None:
+    from jesse.services import logger
+
     token = ENV_VALUES['ERROR_TELEGRAM_BOT_TOKEN']
     chat_id: int = ENV_VALUES['ERROR_TELEGRAM_BOT_CHAT_ID']
 
@@ -107,6 +110,8 @@ def _telegram_errors(msg: str) -> None:
 
 
 def _discord(msg: str, webhook_address=None) -> None:
+    from jesse.services import logger
+
     if webhook_address is None:
         webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
 
@@ -125,6 +130,8 @@ def _discord(msg: str, webhook_address=None) -> None:
 
 
 def _slack(msg: str, webhook_address=None) -> None:
+    from jesse.services import logger
+
     if webhook_address is None:
         webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK'] if 'GENERAL_SLACK_WEBHOOK' in ENV_VALUES else ''
 
