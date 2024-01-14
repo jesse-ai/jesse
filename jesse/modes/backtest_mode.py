@@ -396,15 +396,16 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
-    if previous_candle[2] < candle[1]:
-        candle[1] = previous_candle[2]
-        candle[4] = min(previous_candle[2], candle[4])
-    elif previous_candle[2] > candle[1]:
-        candle[1] = previous_candle[2]
-        candle[3] = max(previous_candle[2], candle[3])
+    # avoid changing the original candle to prevent `assignment destination is read-only` error
+    candle_copy = candle.copy()
+    if previous_candle[2] < candle_copy[1]:
+        candle_copy[1] = previous_candle[2]
+        candle_copy[4] = min(previous_candle[2], candle_copy[4])
+    elif previous_candle[2] > candle_copy[1]:
+        candle_copy[1] = previous_candle[2]
+        candle_copy[3] = max(previous_candle[2], candle_copy[3])
 
-    return candle
-
+    return candle_copy
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
     orders = store.orders.get_orders(exchange, symbol)
