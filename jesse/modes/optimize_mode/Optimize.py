@@ -1,25 +1,25 @@
+import os
 from abc import ABC
 from datetime import timedelta
-from random import randint, choices
+from multiprocessing import Manager, Process, cpu_count
+from random import choices, randint
 
-from timeloop import Timeloop
-
-from jesse import sync_publish
-from jesse.services.redis import process_status
-from multiprocessing import Process, Manager
 import click
 import numpy as np
+import pandas as pd
 import pydash
+from numpy import ndarray
+from timeloop import Timeloop
+
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.store import store
-import os
-from jesse import exceptions
-from jesse.modes.optimize_mode.fitness import get_and_add_fitness_to_the_bucket, create_baby
+from jesse import exceptions, sync_publish
+from jesse.modes.optimize_mode.fitness import (
+    create_baby, get_and_add_fitness_to_the_bucket)
 from jesse.routes import router
-from numpy import ndarray
-from multiprocessing import cpu_count
 from jesse.services.progressbar import Progressbar
+from jesse.services.redis import process_status
+from jesse.store import store
 
 
 class Optimizer(ABC):
@@ -111,6 +111,8 @@ class Optimizer(ABC):
         """
         generates the initial population
         """
+        dna_df = pd.read_csv('best.csv', header=None, sep=';')[0].to_frame(name='dna')
+        dna_list = dna_df['dna'].tolist()
         length = int(self.population_size / self.cpu_cores)
 
         progressbar = Progressbar(length)
@@ -122,7 +124,8 @@ class Optimizer(ABC):
 
                 try:
                     for _ in range(self.cpu_cores):
-                        dna = ''.join(choices(self.charset, k=self.solution_len))
+                        # pop from dna_list or generate a random dna
+                        dna = dna_list.pop() if len(dna_list) > 0 else ''.join(choices(self.charset, k=self.solution_len))
                         w = Process(
                             target=get_and_add_fitness_to_the_bucket,
                             args=(
