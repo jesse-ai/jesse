@@ -48,7 +48,7 @@ class Cache:
 
     def get_value(self, key: str) -> Any:
         if self.driver is None:
-            return
+            raise ValueError('Caching driver is not set.')
 
         try:
             item = self.db[key]
