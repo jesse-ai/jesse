@@ -131,6 +131,7 @@ def _generate_quantstats_report(candles_dict: dict) -> str:
         if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
             candles = candles_dict[jh.key(exchange, symbol)]['candles']
 
+            # if timestamps is empty, fill it with the first candles timestamps because it's the same for all candles
             if timestamps == []:
                 timestamps = candles[:, 0]
             price_data.append(candles[:, 1])
