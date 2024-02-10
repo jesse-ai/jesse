@@ -4,7 +4,7 @@ click==8.0.3
 matplotlib==3.5.1
 mplfinance==0.12.8b6
 newtulipy==0.4.6
-numpy==1.26.4
+numpy==1.23.0
 numpy_groupies==0.9.14
 pandas==1.4.0
 peewee==3.14.8
@@ -15,7 +15,7 @@ PyWavelets==1.2.0
 quantstats==0.0.47
 requests==2.31.0
 scipy
-statsmodels==0.14.1
+statsmodels==0.14.0
 TA-Lib==0.4.28
 tabulate==0.8.9
 timeloop==1.0.2
