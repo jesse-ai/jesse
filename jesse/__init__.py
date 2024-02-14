@@ -371,7 +371,7 @@ def download_optimization_log(token: str = Query(...)):
     return data_provider.download_file('optimize', 'log')
 
 
-@fastapi_app.delete("/backtest")
+@fastapi_app.post("/cancel-backtest")
 def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
