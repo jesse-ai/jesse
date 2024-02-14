@@ -260,7 +260,7 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
-@fastapi_app.delete("/import-candles")
+@fastapi_app.post("/cancel-import-candles")
 def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
     from jesse.services.multiprocessing import process_manager
 
