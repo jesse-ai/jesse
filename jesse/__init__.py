@@ -333,7 +333,7 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)
 
 
-@fastapi_app.delete("/optimization")
+@fastapi_app.post("/cancel-optimization")
 def cancel_optimization(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
