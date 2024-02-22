@@ -428,7 +428,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
 
 
-    @fastapi_app.delete("/live")
+    @fastapi_app.post("/cancel-live")
     def cancel_backtest(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
