@@ -55,8 +55,18 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     candles = np.array(tuple(candles_tuple))
 
     # validate that there are enough candles for selected period
-    if len(candles) == 0 or candles[-1][0] != finish_date or candles[0][0] != start_date:
-        raise CandleNotFoundInDatabase(f'Not enough candles for {symbol}. Try importing candles first.')
+    if len(candles) == 0:
+        raise CandleNotFoundInDatabase(
+            f'No candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). Try importing candles first.'
+        )
+    elif candles[0][0] != start_date:
+        raise CandleNotFoundInDatabase(
+            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The first candle found is at {jh.timestamp_to_date(candles[0][0])}.'
+        )
+    elif candles[-1][0] != finish_date:
+        raise CandleNotFoundInDatabase(
+            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The last candle found is at {jh.timestamp_to_date(candles[-1][0])}.'
+        )
 
     if timeframe == '1m':
         return candles
