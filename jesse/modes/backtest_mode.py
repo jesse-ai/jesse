@@ -235,7 +235,12 @@ def simulator(
         generate_json: bool = False,
         generate_equity_curve: bool = False,
         generate_hyperparameters: bool = False,
+        generate_logs: bool = False
 ) -> dict:
+    # In case generating logs is specifically demanded, the debug mode must be enabled.
+    if generate_logs:
+        config['app']['debug_mode'] = True
+
     result = {}
     begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
@@ -385,6 +390,8 @@ def simulator(
         result['equity_curve'] = charts.equity_curve()
     if generate_quantstats:
         result['quantstats'] = _generate_quantstats_report(candles)
+    if generate_logs:
+        result['logs'] = f'storage/logs/backtest-mode/{jh.get_session_id()}.txt'
 
     return result
 
