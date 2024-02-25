@@ -7,6 +7,7 @@ def backtest(
         routes: List[Dict[str, str]],
         extra_routes: List[Dict[str, str]],
         candles: dict,
+        warmup_candles: dict = None,
         generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
@@ -14,6 +15,7 @@ def backtest(
         generate_equity_curve: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
+        generate_logs: bool = False,
         hyperparameters: dict = None
 ) -> dict:
     """
@@ -52,6 +54,7 @@ def backtest(
         routes,
         extra_routes,
         candles,
+        warmup_candles,
         run_silently=True,
         hyperparameters=hyperparameters,
         generate_charts=generate_charts,
@@ -61,6 +64,7 @@ def backtest(
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
         generate_hyperparameters=generate_hyperparameters,
+        generate_logs=generate_logs
     )
 
 
@@ -69,6 +73,7 @@ def _isolated_backtest(
         routes: List[Dict[str, str]],
         extra_routes: List[Dict[str, str]],
         candles: dict,
+        warmup_candles: dict = None,
         run_silently: bool = True,
         hyperparameters: dict = None,
         generate_charts: bool = False,
@@ -77,7 +82,8 @@ def _isolated_backtest(
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
-        generate_hyperparameters: bool = False
+        generate_hyperparameters: bool = False,
+        generate_logs: bool = False
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -121,16 +127,26 @@ def _isolated_backtest(
     trading_candles = copy.deepcopy(candles)
 
     if warm_up_num != 0:
-        for c in jesse_config['app']['considering_candles']:
-            key = jh.key(c[0], c[1])
-            # update trading_candles
-            trading_candles[key]['candles'] = candles[key]['candles'][warm_up_num:]
-            # inject warm-up candles
-            required_candles.inject_required_candles_to_store(
-                candles[key]['candles'][:warm_up_num],
-                c[0],
-                c[1]
-            )
+        if warmup_candles is None:  # if warmup_candles is not passed, split the candles
+            for c in jesse_config['app']['considering_candles']:
+                key = jh.key(c[0], c[1])
+                # update trading_candles
+                trading_candles[key]['candles'] = candles[key]['candles'][warm_up_num:]
+                # inject warm-up candles
+                required_candles.inject_required_candles_to_store(
+                    candles[key]['candles'][:warm_up_num],
+                    c[0],
+                    c[1]
+                )
+        else:  # if warmup_candles is passed, use it
+            for c in jesse_config['app']['considering_candles']:
+                key = jh.key(c[0], c[1])
+                # inject warm-up candles
+                required_candles.inject_required_candles_to_store(
+                    warmup_candles[key]['candles'],
+                    c[0],
+                    c[1]
+                )
 
     # run backtest simulation
     backtest_result = simulator(
@@ -143,7 +159,8 @@ def _isolated_backtest(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
-        generate_hyperparameters=generate_hyperparameters
+        generate_hyperparameters=generate_hyperparameters,
+        generate_logs=generate_logs
     )
 
     result = {
@@ -153,10 +170,8 @@ def _isolated_backtest(
 
     if backtest_result['metrics'] is None:
         result['metrics'] = {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
-        result['logs'] = None
     else:
         result['metrics'] = backtest_result['metrics']
-        result['logs'] = store.logs.info
 
     if generate_charts:
         result['charts'] = backtest_result['charts']
@@ -172,6 +187,8 @@ def _isolated_backtest(
         result['equity_curve'] = backtest_result['equity_curve']
     if generate_hyperparameters:
         result['hyperparameters'] = backtest_result['hyperparameters']
+    if generate_logs:
+        result['logs'] = backtest_result['logs']
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()
