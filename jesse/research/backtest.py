@@ -121,7 +121,6 @@ def _isolated_backtest(
                 f'the accepted 60000 milliseconds.'
             )
 
-    # divide candles into warm_up_candles and trading_candles and then inject warm_up_candles
     max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
     warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
     trading_candles = copy.deepcopy(candles)
