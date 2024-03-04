@@ -67,13 +67,13 @@ class Cache:
             item['expire_at'] = time() + item['expire_seconds']
             self._update_db()
 
-        with open(item['path'], 'rb') as f:
-            try:
+        try:
+            with open(item['path'], 'rb') as f:
                 cache_value = pickle.load(f)
-            except EOFError:
-                # File got broken
-                cache_value = False
-            return cache_value
+        except (EOFError, pickle.UnpicklingError):
+            cache_value = False
+
+        return cache_value
 
     def _update_db(self) -> None:
         # store/update database
