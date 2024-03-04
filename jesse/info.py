@@ -1,5 +1,7 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
 
+JESSE_API_URL = 'https://api1.jesse.trade/api'
+JESSE_WEBSITE_URL = 'https://jesse.trade'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
@@ -12,7 +14,7 @@ exchange_info = {
     # BYBIT_USDT_PERPETUAL
     exchanges_enums.BYBIT_USDT_PERPETUAL: {
         'name': exchanges_enums.BYBIT_USDT_PERPETUAL,
-        'url': 'https://jesse.trade/bybit',
+        'url': JESSE_WEBSITE_URL + '/bybit',
         'fee': 0.00075,
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
@@ -26,7 +28,7 @@ exchange_info = {
     # BYBIT_USDT_PERPETUAL_TESTNET
     exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET: {
         'name': exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET,
-        'url': 'https://jesse.trade/bybit',
+        'url': JESSE_WEBSITE_URL + '/bybit',
         'fee': 0.00075,
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
@@ -166,7 +168,7 @@ exchange_info = {
     # BITGET_USDT_PERPETUAL_TESTNET
     exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET: {
         'name': exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET,
-        'url': 'https://jesse.trade/bitget',
+        'url': JESSE_WEBSITE_URL + '/bitget',
         'fee': 0.0006,
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
@@ -180,7 +182,7 @@ exchange_info = {
     # BITGET_USDT_PERPETUAL
     exchanges_enums.BITGET_USDT_PERPETUAL: {
         'name': exchanges_enums.BITGET_USDT_PERPETUAL,
-        'url': 'https://jesse.trade/bitget',
+        'url': JESSE_WEBSITE_URL + '/bitget',
         'fee': 0.0006,
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
@@ -194,7 +196,7 @@ exchange_info = {
     # BITGET_SPOT
     exchanges_enums.BITGET_SPOT: {
         'name': exchanges_enums.BITGET_SPOT,
-        'url': 'https://jesse.trade/bitget',
+        'url': JESSE_WEBSITE_URL + '/bitget',
         'fee': 0.0006,
         'type': 'spot',
         'supported_leverage_modes': ['cross', 'isolated'],
@@ -209,7 +211,7 @@ exchange_info = {
     # DyDx
     exchanges_enums.DYDX_PERPETUAL: {
         'name': exchanges_enums.DYDX_PERPETUAL,
-        'url': 'https://jesse.trade/dydx',
+        'url': JESSE_WEBSITE_URL + '/dydx',
         'fee': 0.0005,
         'type': 'futures',
         'supported_leverage_modes': ['cross'],
