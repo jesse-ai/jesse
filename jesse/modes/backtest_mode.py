@@ -224,18 +224,23 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(
-        candles: dict,
-        run_silently: bool,
-        hyperparameters: dict = None,
-        generate_charts: bool = False,
-        generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_equity_curve: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_logs: bool = False
+def simulator(*args, **kwargs) -> dict:
+    return _step_simulator(*args, **kwargs)
+    # return _skip_simulator(*args, **kwargs)
+
+
+def _step_simulator(
+    candles: dict,
+    run_silently: bool,
+    hyperparameters: dict = None,
+    generate_charts: bool = False,
+    generate_tradingview: bool = False,
+    generate_quantstats: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_equity_curve: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_logs: bool = False,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -498,3 +503,301 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
 
         order.execute()
+
+
+def _skip_simulator(
+    candles: dict,
+    run_silently: bool,
+    hyperparameters: dict = None,
+    generate_charts: bool = False,
+    generate_tradingview: bool = False,
+    generate_quantstats: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_equity_curve: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_logs: bool = False,
+) -> dict:
+    # In case generating logs is specifically demanded, the debug mode must be enabled.
+    if generate_logs:
+        config["app"]["debug_mode"] = True
+
+    result = {}
+    begin_time_track = time.time()
+    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
+    first_candles_set = candles[key]["candles"]
+    length = len(first_candles_set)
+    # to preset the array size for performance
+    try:
+        store.app.starting_time = first_candles_set[0][0]
+    except IndexError:
+        raise IndexError('Check your "warm_up_candles" config value')
+    store.app.time = first_candles_set[0][0]
+
+    # initiate strategies
+    for r in router.routes:
+        # if the r.strategy is str read it from file
+        if isinstance(r.strategy_name, str):
+            StrategyClass = jh.get_strategy_class(r.strategy_name)
+        # else it is a class object so just use it
+        else:
+            StrategyClass = r.strategy_name
+
+        try:
+            r.strategy = StrategyClass()
+        except TypeError:
+            raise exceptions.InvalidStrategy(
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
+                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+            )
+        except:
+            raise
+
+        r.strategy.name = r.strategy_name
+        r.strategy.exchange = r.exchange
+        r.strategy.symbol = r.symbol
+        r.strategy.timeframe = r.timeframe
+
+        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
+        # first convert DNS string into hyperparameters
+        if len(r.strategy.dna()) > 0 and hyperparameters is None:
+            hyperparameters = jh.dna_to_hp(
+                r.strategy.hyperparameters(), r.strategy.dna()
+            )
+
+        # inject hyperparameters sent within the optimize mode
+        if hyperparameters is not None:
+            r.strategy.hp = hyperparameters
+
+        # init few objects that couldn't be initiated in Strategy __init__
+        # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
+        r.strategy._init_objects()
+
+        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+
+    # add initial balance
+    save_daily_portfolio_balance()
+
+    progressbar = Progressbar(length, step=60)
+    candles_step = _calculate_min_step()
+    for i in range(0, length, candles_step):
+        # update time moved to _simulate_price_change_effect__multiple_candles
+        # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
+
+        # add candles
+        for j in candles:
+            short_candles = candles[j]["candles"][i : i + candles_step]
+            if i != 0:
+                previous_short_candles = candles[j]["candles"][i - 1]
+                # work the same, the fix needs to be done only on the gap of 1m edge candles.
+                short_candles[0] = _get_fixed_jumped_candle(
+                    previous_short_candles, short_candles[0]
+                )
+            exchange = candles[j]["exchange"]
+            symbol = candles[j]["symbol"]
+
+            _simulate_price_change_effect__multiple_candles(
+                short_candles, exchange, symbol
+            )
+
+            # generate and add candles for bigger timeframes
+            for timeframe in config["app"]["considering_timeframes"]:
+                # for 1m, no work is needed
+                if timeframe == "1m":
+                    continue
+
+                count = jh.timeframe_to_one_minutes(timeframe)
+
+                if (i + candles_step) % count == 0:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles[j]["candles"][
+                            i - count + candles_step : i + candles_step
+                        ],
+                    )
+                    store.candles.add_candle(
+                        generated_candle,
+                        exchange,
+                        symbol,
+                        timeframe,
+                        with_execution=False,
+                        with_generation=False,
+                    )
+
+        # update progressbar
+        if not run_silently and i % 60 == 0:
+            progressbar.update()
+            sync_publish(
+                "progressbar",
+                {
+                    "current": progressbar.current,
+                    "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
+                },
+            )
+
+        # now that all new generated candles are ready, execute
+        for r in router.routes:
+            count = jh.timeframe_to_one_minutes(r.timeframe)
+            # 1m timeframe
+            if r.timeframe == timeframes.MINUTE_1:
+                r.strategy._execute()
+            elif (i + candles_step) % count == 0:
+                # print candle
+                if jh.is_debuggable("trading_candles"):
+                    print_candle(
+                        store.candles.get_current_candle(
+                            r.exchange, r.symbol, r.timeframe
+                        ),
+                        False,
+                        r.symbol,
+                    )
+                r.strategy._execute()
+
+        # now check to see if there's any MARKET orders waiting to be executed
+        store.orders.execute_pending_market_orders()
+
+        if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
+
+    if not run_silently:
+        # print executed time for the backtest session
+        finish_time_track = time.time()
+        result["execution_duration"] = round(finish_time_track - begin_time_track, 2)
+
+    for r in router.routes:
+        r.strategy._terminate()
+        store.orders.execute_pending_market_orders()
+
+    # now that backtest simulation is finished, add finishing balance
+    save_daily_portfolio_balance()
+
+    if generate_hyperparameters:
+        result["hyperparameters"] = stats.hyperparameters(router.routes)
+    result["metrics"] = report.portfolio_metrics()
+    # generate logs in json, csv and tradingview's pine-editor format
+    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
+    if generate_json:
+        result["json"] = logs_path["json"]
+    if generate_tradingview:
+        result["tradingview"] = logs_path["tradingview"]
+    if generate_csv:
+        result["csv"] = logs_path["csv"]
+    if generate_charts:
+        result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
+    if generate_equity_curve:
+        result["equity_curve"] = charts.equity_curve()
+    if generate_quantstats:
+        result["quantstats"] = _generate_quantstats_report(candles)
+    if generate_logs:
+        result["logs"] = f"storage/logs/backtest-mode/{jh.get_session_id()}.txt"
+
+    return result
+
+
+def _calculate_min_step():
+    """
+    Calculates the minimum step for update candles that will allow simple updates on the simulator.
+    """
+    # config["app"]["considering_timeframes"] use '1m' also even if not required by the user so take only what the user
+    # is requested.
+    consider_time_frames = [
+        jh.timeframe_to_one_minutes(route["timeframe"])
+        for route in router.all_formatted_routes
+    ]
+    return np.gcd.reduce(consider_time_frames)
+
+
+def _simulate_price_change_effect__multiple_candles(
+    short_timeframes_candles: np.ndarray, exchange: str, symbol: str
+) -> None:
+    real_candle = np.array(
+        [
+            short_timeframes_candles[0][0],
+            short_timeframes_candles[0][1],
+            short_timeframes_candles[-1][2],
+            short_timeframes_candles[:, 3].max(),
+            short_timeframes_candles[:, 4].min(),
+            short_timeframes_candles[:, 5].sum(),
+        ]
+    )
+    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+    if len(executing_orders) > 0:
+        for i in range(len(short_timeframes_candles)):
+            current_temp_candle = short_timeframes_candles[i].copy()
+            is_executed_order = False
+
+            while True:
+                if len(executing_orders) == 0:
+                    is_executed_order = False
+                else:
+                    for index, order in enumerate(executing_orders):
+                        if index == len(executing_orders) - 1 and not order.is_active:
+                            is_executed_order = False
+                        if not order.is_active:
+                            continue
+
+                        if candle_includes_price(current_temp_candle, order.price):
+                            storable_temp_candle, current_temp_candle = split_candle(
+                                current_temp_candle, order.price
+                            )
+                            store.candles.add_candle(
+                                storable_temp_candle,
+                                exchange,
+                                symbol,
+                                "1m",
+                                with_execution=False,
+                                with_generation=False,
+                            )
+                            p = selectors.get_position(exchange, symbol)
+                            p.current_price = storable_temp_candle[2]
+
+                            is_executed_order = True
+
+                            store.app.time = storable_temp_candle[0] + 60_000
+                            order.execute()
+                            executing_orders = _get_executing_orders(
+                                exchange, symbol, real_candle
+                            )
+
+                            # break from the for loop, we'll try again inside the while
+                            # loop with the new current_temp_candle
+                            break
+                        else:
+                            is_executed_order = False
+
+                if not is_executed_order:
+                    # add/update the real_candle to the store so we can move on
+                    store.candles.add_candle(
+                        current_temp_candle,
+                        exchange,
+                        symbol,
+                        "1m",
+                        with_execution=False,
+                        with_generation=False,
+                    )
+                    p = selectors.get_position(exchange, symbol)
+                    if p:
+                        p.current_price = current_temp_candle[2]
+                    break
+
+    store.candles.add_multiple_1m_candles(
+        short_timeframes_candles,
+        exchange,
+        symbol,
+    )
+    store.app.time = real_candle[0] + (60_000 * len(short_timeframes_candles))
+    _check_for_liquidations(real_candle, exchange, symbol)
+
+    p = selectors.get_position(exchange, symbol)
+    if p:
+        p.current_price = short_timeframes_candles[-1, 2]
+
+
+def _get_executing_orders(exchange, symbol, real_candle):
+    orders = store.orders.get_orders(exchange, symbol)
+    active_orders = [order for order in orders if order.is_active]
+    return [
+        order
+        for order in active_orders
+        if candle_includes_price(real_candle, order.price)
+    ]

@@ -44,6 +44,19 @@ class DynamicNumpyArray:
             return self.array[i]
 
     def __setitem__(self, i, item) -> None:
+        if isinstance(i, slice):
+            start = i.start
+            stop = i.stop
+            step = i.step
+            if start is not None and start < 0:
+                start = (self.index + 1) - abs(start)
+            if stop is None:
+                stop = start + len(item)
+            if stop < 0:
+                stop = (self.index + 1) - abs(stop)
+            self.array[slice(start, stop, step)] = item
+            return
+
         if i < 0:
             i = (self.index + 1) - abs(i)
 
@@ -94,3 +107,23 @@ class DynamicNumpyArray:
         self.index = -1
         self.array = np.zeros(self.shape)
         self.bucket_size = self.shape[0]
+
+    def append_multiple(self, items: np.ndarray) -> None:
+        self.index += len(items)
+
+        # expand if the arr will be greater than the maximum
+        if self.index != 0 and (self.index + 1) > len(self.array):
+            new_bucket = np.zeros(self.shape)
+            self.array = np.concatenate((self.array, new_bucket), axis=0)
+
+        # drop N% of the beginning values to free memory
+        if (
+            self.drop_at is not None
+            and self.index != 0
+            and (self.index + 1) % self.drop_at == 0
+        ):
+            shift_num = int(self.drop_at / 2)
+            self.index -= shift_num
+            self.array = np_shift(self.array, -shift_num)
+
+        self.array[self.index - len(items) + 1 : self.index + 1] = items

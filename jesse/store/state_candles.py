@@ -399,3 +399,50 @@ class CandlesState:
             return np.zeros((0, 6))
         else:
             return self.storage[long_key][-1]
+
+    def add_multiple_1m_candles(
+        self,
+        candles: np.ndarray,
+        exchange: str,
+        symbol: str,
+    ) -> None:
+        # assuming the functionality is only for '1m' candles for now
+        if jh.is_collecting_data():
+            raise NotImplemented("Collecting data is deactivated at the moment")
+            # make sure it's a complete (and not a forming) candle
+            # if jh.now_to_timestamp() >= (candle[0] + 60000):
+            #     store_candle_into_db(exchange, symbol, candle)
+            # return
+        if jh.is_live():
+            # For now it's only implemented for backtesting
+            return
+
+        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
+
+        # initial
+        if len(arr) == 0:
+            arr.append_multiple(candles)
+
+        # if it's new, add
+        elif candles[0, 0] > arr[-1][0]:
+            arr.append_multiple(candles)
+
+        # if it's the last candle again, update
+        elif candles[0, 0] >= arr[-len(candles)][0] and candles[-1, 0] >= arr[-1][0]:
+            override_candles = int(
+                len(candles) - ((candles[-1, 0] - arr[-1][0]) / 60000)
+            )
+            arr[-override_candles:] = candles
+
+        # yakir: Couldn't reach to this, couldn't figure what is it needed for.
+        # allow updating of the previous candle.
+        # elif candle[0] < arr[-1][0]:
+        #     # loop through the last 20 items in arr to find it. If so, update it.
+        #     for i in range(max(20, len(arr) - 1)):
+        #         if arr[-i][0] == candle[0]:
+        #             arr[-i] = candle
+        #             break
+        else:
+            logger.info(
+                f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
+            )
