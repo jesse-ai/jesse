@@ -406,7 +406,6 @@ class CandlesState:
         exchange: str,
         symbol: str,
     ) -> None:
-        # assuming the functionality is only for '1m' candles for now
         if jh.is_collecting_data():
             raise NotImplemented("Collecting data is deactivated at the moment")
             # make sure it's a complete (and not a forming) candle
@@ -417,7 +416,7 @@ class CandlesState:
             # For now it's only implemented for backtesting
             return
 
-        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, timeframe)
+        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
 
         # initial
         if len(arr) == 0:

@@ -224,9 +224,11 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
     return candles
 
 
-def simulator(*args, **kwargs) -> dict:
+def simulator(*args, fast_simulation: bool = False, **kwargs) -> dict:
+    if fast_simulation:
+        return _skip_simulator(*args, **kwargs)
+
     return _step_simulator(*args, **kwargs)
-    # return _skip_simulator(*args, **kwargs)
 
 
 def _step_simulator(
