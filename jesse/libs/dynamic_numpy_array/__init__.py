@@ -19,7 +19,7 @@ class DynamicNumpyArray:
         self.drop_at = drop_at
 
     def __str__(self) -> str:
-        return str(self.array[: self.index + 1])
+        return str(self.array[:self.index + 1])
 
     def __len__(self) -> int:
         return self.index + 1
@@ -39,9 +39,7 @@ class DynamicNumpyArray:
 
             # validation
             if self.index == -1 or i > self.index or i < 0:
-                raise IndexError(
-                    f"list assignment index out of range. self.index={self.index}, i={i}"
-                )
+                raise IndexError(f'list assignment index out of range. self.index={self.index}, i={i}')
 
             return self.array[i]
 
@@ -64,7 +62,7 @@ class DynamicNumpyArray:
 
         # validation
         if i > self.index or i < 0:
-            raise IndexError("list assignment index out of range")
+            raise IndexError('list assignment index out of range')
 
         self.array[i] = item
 
@@ -91,23 +89,17 @@ class DynamicNumpyArray:
     def get_last_item(self):
         # validation
         if self.index == -1:
-            raise IndexError(
-                "list assignment index out of range. array is empty which means no past item exists"
-            )
+            raise IndexError('list assignment index out of range. array is empty which means no past item exists')
 
         return self.array[self.index]
 
     def get_past_item(self, past_index) -> np.ndarray:
         # validation
         if self.index == -1:
-            raise IndexError(
-                "list assignment index out of range. array is empty which means no past item exists"
-            )
+            raise IndexError('list assignment index out of range. array is empty which means no past item exists')
         # validation
         if (self.index - past_index) < 0:
-            raise IndexError(
-                f"list assignment index out of range. Max allowed is self.index={self.index}, past_index={past_index}"
-            )
+            raise IndexError(f'list assignment index out of range. Max allowed is self.index={self.index}, past_index={past_index}')
 
         return self.array[self.index - past_index]
 
