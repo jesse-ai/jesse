@@ -6,17 +6,18 @@ from jesse import exceptions
 from .bybit_utils import timeframe_to_interval
 
 
-class BybitUSDTPerpetualMain(CandleExchange):
-    def __init__(self, name: str, rest_endpoint: str) -> None:
+class BybitMain(CandleExchange):
+    def __init__(self, name: str, rest_endpoint: str, category: str) -> None:
         from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 
         super().__init__(name=name, count=200, rate_limit_per_second=10, backup_exchange_class=BinanceSpot)
         self.endpoint = rest_endpoint
+        self.category = category
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
         payload = {
-            'category': 'linear',
+            'category': self.category,
             'symbol': dashless_symbol,
             'interval': 'W',
             'limit': 200,
@@ -35,7 +36,7 @@ class BybitUSDTPerpetualMain(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
         interval = timeframe_to_interval(timeframe)
         payload = {
-            'category': 'linear',
+            'category': self.category,
             'symbol': dashless_symbol,
             'interval': interval,
             'start': start_timestamp,

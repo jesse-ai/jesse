@@ -15,6 +15,7 @@ from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetual import B
 from jesse.modes.import_candles_mode.drivers.Bitget.BitgetUSDTPerpetualTestnet import BitgetUSDTPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.DyDx.DydxPerpetual import DydxPerpetual
 from jesse.modes.import_candles_mode.drivers.DyDx.DydxPerpetualTestnet import DydxPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import BybitSpotTestnet
 
 
 drivers = {
@@ -34,6 +35,7 @@ drivers = {
     exchanges.FTX_US_SPOT: FTXUSSpot,
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
+    exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
 
     # DEX
     exchanges.DYDX_PERPETUAL: DydxPerpetual,
