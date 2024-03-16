@@ -10,14 +10,14 @@ from jesse.models.Exchange import Exchange
 
 class FuturesExchange(Exchange):
     def __init__(
-        self,
-        name: str,
-        starting_balance: float,
-        fee_rate: float,
-        futures_leverage_mode: str,
-        futures_leverage: int,
+            self,
+            name: str,
+            starting_balance: float,
+            fee_rate: float,
+            futures_leverage_mode: str,
+            futures_leverage: int
     ):
-        super().__init__(name, starting_balance, fee_rate, "futures")
+        super().__init__(name, starting_balance, fee_rate, 'futures')
 
         # # # # live-trading only # # # #
         # in futures trading, margin is only with one asset, so:
@@ -60,9 +60,7 @@ class FuturesExchange(Exchange):
             if asset == self.settlement_currency:
                 continue
 
-            position = selectors.get_position(
-                self.name, f"{asset}-{self.settlement_currency}"
-            )
+            position = selectors.get_position(self.name, f"{asset}-{self.settlement_currency}")
             if position and position.is_open:
                 # Adding the cost of open positions
                 total_spent += position.total_cost
@@ -70,16 +68,11 @@ class FuturesExchange(Exchange):
                 total_spent -= position.pnl
 
             # Summing up the cost of open orders (buy and sell), considering leverage
-            sum_buy_orders = (
-                self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]
-            ).sum()
-            sum_sell_orders = (
-                self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]
-            ).sum()
+            sum_buy_orders = (self.buy_orders[asset][:][:, 0] * self.buy_orders[asset][:][:, 1]).sum()
+            sum_sell_orders = (self.sell_orders[asset][:][:, 0] * self.sell_orders[asset][:][:, 1]).sum()
 
             total_spent += max(
-                abs(sum_buy_orders) / self.futures_leverage,
-                abs(sum_sell_orders) / self.futures_leverage,
+                abs(sum_buy_orders) / self.futures_leverage, abs(sum_sell_orders) / self.futures_leverage
             )
 
         # Subtracting the total spent from the margin
@@ -95,7 +88,7 @@ class FuturesExchange(Exchange):
         new_balance = self.assets[self.settlement_currency] - fee_amount
         if fee_amount != 0:
             logger.info(
-                f"Charged {round(fee_amount, 2)} as fee. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}"
+                f'Charged {round(fee_amount, 2)} as fee. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}'
             )
         self.assets[self.settlement_currency] = new_balance
 
@@ -105,8 +98,7 @@ class FuturesExchange(Exchange):
 
         new_balance = self.assets[self.settlement_currency] + realized_pnl
         logger.info(
-            f"Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}"
-        )
+            f'Added realized PNL of {round(realized_pnl, 2)}. Balance for {self.settlement_currency} on {self.name} changed from {round(self.assets[self.settlement_currency], 2)} to {round(new_balance, 2)}')
         self.assets[self.settlement_currency] = new_balance
 
     def on_order_submission(self, order: Order) -> None:
@@ -122,8 +114,7 @@ class FuturesExchange(Exchange):
 
             if effective_order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f"You cannot submit an order for ${round(order.qty * order.price)} when your effective margin balance is ${round(self.available_margin)} considering leverage"
-                )
+                    f'You cannot submit an order for ${round(order.qty * order.price)} when your effective margin balance is ${round(self.available_margin)} considering leverage')
 
         self.available_assets[base_asset] += order.qty
 
@@ -182,9 +173,9 @@ class FuturesExchange(Exchange):
         Used for updating the exchange from the WS stream (only for live trading)
         """
         if not jh.is_livetrading():
-            raise Exception("This method is only for live trading")
+            raise Exception('This method is only for live trading')
 
-        self._available_margin = data["available_margin"]
-        self._wallet_balance = data["wallet_balance"]
+        self._available_margin = data['available_margin']
+        self._wallet_balance = data['wallet_balance']
         if self._started_balance == 0:
             self._started_balance = self._wallet_balance
