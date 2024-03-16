@@ -23,7 +23,7 @@ websocket-client==1.2.3
 simplejson==3.16.0
 aioredis==1.3.1
 redis==4.1.4
-fastapi==0.74.0
+fastapi==0.109.1
 uvicorn==0.23.2
 websockets>=10.0.0
 python-dotenv==0.19.2
