@@ -24,10 +24,10 @@ jobs:
         include:
         - os: ubuntu-latest
           path: ~/.cache/pip
-        - os: macos-latest-xlarge
-          path: ~/Library/Caches/pip
-        - os: windows-latest
-          path: ~\AppData\Local\pip\Cache
+        #- os: macos-latest-xlarge
+        #  path: ~/Library/Caches/pip
+        #- os: windows-latest
+        #  path: ~\AppData\Local\pip\Cache
         python-version: [3.8, 3.9, '3.10', 3.11]
 
 
