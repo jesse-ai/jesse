@@ -1,8 +1,7 @@
 import os
 import requests
 import jesse.helpers as jh
-from jesse.info import exchange_info, jesse_supported_timeframes
-from jesse.enums import exchanges
+from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL
 
 
 def get_general_info(has_live=False) -> dict:
@@ -24,10 +23,16 @@ def get_general_info(has_live=False) -> dict:
 
         if access_token:
             # get the account plan info via the access_token
-            uri = 'https://jesse.trade/api/user-info'
-            response = requests.post(
-                uri, headers={'Authorization': f'Bearer {access_token}'}
-            )
+            try:
+                response = requests.post(
+                    JESSE_API_URL + '/user-info',
+                    headers={'Authorization': f'Bearer {access_token}'}
+                )
+            except requests.exceptions.RequestException:
+                response = requests.post(
+                    'https://api1.jesse.trade/api/user-info',
+                    headers={'Authorization': f'Bearer {access_token}'}
+                )
             if response.status_code != 200:
                 raise Exception(
                     f"{response.status_code} error: {response.json()['message']}"
@@ -47,7 +52,14 @@ def get_general_info(has_live=False) -> dict:
     try:
         response = requests.get('https://pypi.org/pypi/jesse/json')
         update_info['jesse_latest_version'] = response.json()['info']['version']
-        response = requests.get('https://jesse.trade/api/plugins/live/releases/info')
+        try:
+            response = requests.get(
+                JESSE_API_URL + '/plugins/live/releases/info'
+            )
+        except requests.exceptions.RequestException:
+            response = requests.get(
+                'https://api1.jesse.trade/api/plugins/live/releases/info'
+            )
         update_info['jesse_live_latest_version'] = response.json()[0]['version']
         update_info['is_update_info_available'] = True
     except Exception:

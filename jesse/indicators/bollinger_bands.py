@@ -11,9 +11,16 @@ from jesse.helpers import get_candle_source, slice_candles
 BollingerBands = namedtuple('BollingerBands', ['upperband', 'middleband', 'lowerband'])
 
 
-def bollinger_bands(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, matype: int = 0, devtype: int = 0,
-                    source_type: str = "close",
-                    sequential: bool = False) -> BollingerBands:
+def bollinger_bands(
+        candles: np.ndarray,
+        period: int = 20,
+        devup: float = 2,
+        devdn: float = 2,
+        matype: int = 0,
+        devtype: int = 0,
+        source_type: str = "close",
+        sequential: bool = False
+) -> BollingerBands:
     """
     BBANDS - Bollinger Bands
 
@@ -33,16 +40,17 @@ def bollinger_bands(candles: np.ndarray, period: int = 20, devup: float = 2, dev
     source = get_candle_source(candles, source_type=source_type)
 
     if devtype == 0:
-       dev = talib.STDDEV(source, period)
+        dev = talib.STDDEV(source, period)
     elif devtype == 1:
-       dev = mean_ad(source, period, sequential=True)
+        dev = mean_ad(source, period, sequential=True)
     elif devtype == 2:
-       dev = median_ad(source, period, sequential=True)
+        dev = median_ad(source, period, sequential=True)
+    else:
+        raise ValueError("devtype not in (0, 1, 2)")
 
     middlebands = ma(source, period=period, matype=matype, sequential=True)
     upperbands = middlebands + devup * dev
     lowerbands = middlebands - devdn * dev
-
 
     if sequential:
         return BollingerBands(upperbands, middlebands, lowerbands)

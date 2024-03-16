@@ -24,7 +24,7 @@ Jesse is an advanced crypto trading framework that aims to **simplify** **resear
 In short, Jesse is more **accurate** than other solutions, and way more **simple**. 
 In fact, it is so simple that in case you already know Python, you can get started today, in **matter of minutes**, instead of **weeks and months**. 
 
-**[Here](https://docs.jesse.trade/docs/)** you can read more about Jesse's features and why you should use it. 
+**[Here](https://docs.jesse.trade)** you can read more about Jesse's features and why you should use it. 
 
 ## Getting Started
 Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 

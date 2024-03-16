@@ -3,13 +3,14 @@ from fastapi.responses import JSONResponse
 from jesse.services.auth import get_access_token
 import jesse.helpers as jh
 import json
+from jesse.info import JESSE_API_URL
 
 
 def feedback(description: str, email: str = None) -> JSONResponse:
     access_token = get_access_token()
 
     res = requests.post(
-        'https://jesse.trade/api/feedback', {
+        JESSE_API_URL + '/feedback', {
             'description': description,
             'email': email
         },
@@ -65,7 +66,7 @@ def report_exception(
         'info': json.dumps(info)
     }
     res = requests.post(
-        'https://jesse.trade/api/exception',
+        JESSE_API_URL + '/exception',
         data=params,
         files=files,
         headers={'Authorization': f'Bearer {access_token}'}

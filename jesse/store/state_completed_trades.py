@@ -75,6 +75,15 @@ class ClosedTrades:
 
     def close_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
+
+        # If the trade is not open yetWhere are you calling
+        if not t.is_open:
+            raise ValueError(
+                "Unable to close a trade that is not yet open. If you're getting this in the live mode, it is likely due"
+                " to an unstable connection to the exchange, either on your side or the exchange's side. Please submit a"
+                " report using the report button so that Jesse's support team can investigate the issue."
+            )
+
         t.closed_at = position.closed_at
         try:
             position.strategy.trades_count += 1

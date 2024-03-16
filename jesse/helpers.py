@@ -1042,3 +1042,4 @@ def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
     so low-priced orders can be properly compared within 0.01% range.
     """
     return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
+

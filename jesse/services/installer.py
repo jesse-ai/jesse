@@ -6,6 +6,7 @@ import subprocess
 import sys
 import click
 import os
+from jesse.info import JESSE_API_URL
 
 def _pip_install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -65,16 +66,28 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
 
     from jesse.version import __version__ as jesse_version
     print('Downloading the latest version of the live-trade plugin...')
-    url = 'https://jesse.trade/api/download-release'
-    headers = {
-        'Authorization': 'Bearer ' + access_token
-    }
-    response = requests.post(url, headers=headers, params={
-        'os': formatted_os_name,
-        'python_version': '{}.{}'.format(*jh.python_version()),
-        'beta': True,
-        'jesse_version': jesse_version
-    })
+    try:
+        response = requests.post(
+            JESSE_API_URL + '/download-release',
+            headers={'Authorization': 'Bearer ' + access_token},
+            params={
+                'os': formatted_os_name,
+                'python_version': '{}.{}'.format(*jh.python_version()),
+                'beta': True,
+                'jesse_version': jesse_version
+            }
+        )
+    except requests.exceptions.RequestException:
+        response = requests.post(
+            'https://api1.jesse.trade/api/download-release',
+            headers={'Authorization': 'Bearer ' + access_token},
+            params={
+                'os': formatted_os_name,
+                'python_version': '{}.{}'.format(*jh.python_version()),
+                'beta': True,
+                'jesse_version': jesse_version
+            }
+        )
     if response.status_code != 200:
         raise Exception('Error: ' + response.text)
 

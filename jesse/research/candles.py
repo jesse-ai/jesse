@@ -30,8 +30,8 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
 
     symbol = symbol.upper()
 
-    start_date = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
-    finish_date = jh.arrow_to_timestamp(arrow.get(finish_date, 'YYYY-MM-DD')) - 60000
+    start_date = jh.date_to_timestamp(start_date)
+    finish_date = jh.date_to_timestamp(finish_date) - 60_000
 
     # validate
     if start_date == finish_date:
@@ -48,15 +48,25 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     ).where(
         Candle.exchange == exchange,
         Candle.symbol == symbol,
-        Candle.timeframe == '1m',
+        Candle.timeframe == '1m' or Candle.timeframe.is_null(),
         Candle.timestamp.between(start_date, finish_date)
     ).order_by(Candle.timestamp.asc()).tuples()
 
     candles = np.array(tuple(candles_tuple))
 
     # validate that there are enough candles for selected period
-    if len(candles) == 0 or candles[-1][0] != finish_date or candles[0][0] != start_date:
-        raise CandleNotFoundInDatabase(f'Not enough candles for {symbol}. Try importing candles first.')
+    if len(candles) == 0:
+        raise CandleNotFoundInDatabase(
+            f'No candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). Try importing candles first.'
+        )
+    elif candles[0][0] != start_date:
+        raise CandleNotFoundInDatabase(
+            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The first candle found is at {jh.timestamp_to_date(candles[0][0])}.'
+        )
+    elif candles[-1][0] != finish_date:
+        raise CandleNotFoundInDatabase(
+            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The last candle found is at {jh.timestamp_to_date(candles[-1][0])}.'
+        )
 
     if timeframe == '1m':
         return candles
