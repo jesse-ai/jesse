@@ -1034,21 +1034,12 @@ def get_candle_start_timestamp_based_on_timeframe(timeframe: str, num_candles_to
     return finish_date - (num_candles_to_fetch * one_min_count * 60_000)
 
 
-def is_price_near(order_price, price_to_compare):
+def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
     """
-    Check if given order price is near the specified price.
-    This function checks a range of price values and applies the associated threshold.
-
-    :param order_price: float
-    :param price_to_compare: float
-    :return: bool
+    Check if the given order price is near the specified price.
+    Default percentage_threshold is 0.01% (0.0001)
+    We calculate percentage difference between the two prices rounded to 4 decimal places, 
+    so low-priced orders can be properly compared within 0.01% range.
     """
-    # Define the price ranges and associated thresholds
-    conditions = [order_price < 0.01, order_price < 1, order_price < 100, order_price < 10000, order_price >= 10000]
-    threshold_ratios = [0.015, 0.01, 0.005, 0.001, 0.0001]
+    return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
 
-    # Use np.select to choose the threshold ratio based on the conditions
-    threshold_ratio = np.select(conditions, threshold_ratios)
-
-    threshold = threshold_ratio * order_price
-    return abs(order_price - price_to_compare) <= threshold
