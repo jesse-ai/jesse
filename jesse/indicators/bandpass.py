@@ -1,14 +1,11 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
-
-from .high_pass import high_pass_fast
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
+
+from .high_pass import high_pass_fast
 
 BandPass = namedtuple('BandPass', ['bp', 'bp_normalized', 'signal', 'trigger'])
 

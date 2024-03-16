@@ -2,10 +2,9 @@ from collections import namedtuple
 
 import numpy as np
 import talib
-from jesse.indicators.ma import ma
-
 
 from jesse.helpers import get_candle_source, slice_candles
+from jesse.indicators.ma import ma
 
 MAB = namedtuple('MAB', ['upperband', 'middleband', 'lowerband'])
 

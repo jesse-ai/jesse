@@ -4,7 +4,7 @@ from typing import Union
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
-from jesse.helpers import get_candle_source, slice_candles, same_length
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def fwma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
