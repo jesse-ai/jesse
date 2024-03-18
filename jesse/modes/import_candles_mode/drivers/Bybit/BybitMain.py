@@ -39,11 +39,13 @@ class BybitMain(CandleExchange):
             'category': self.category,
             'symbol': dashless_symbol,
             'interval': interval,
-            'start': start_timestamp,
+            'start': int(start_timestamp),
             'limit': self.count
         }
         response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
-        self.validate_response(response)
+        
+        if response.json()['retMsg'] != 'OK':
+            raise exceptions.SymbolNotFound(response.json()['retMsg'])
         data = response.json()['result']['list']
         # Reverse the data list
         data = data[::-1]
