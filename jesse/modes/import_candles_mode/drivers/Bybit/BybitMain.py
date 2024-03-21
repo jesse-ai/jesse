@@ -11,10 +11,14 @@ class BybitMain(CandleExchange):
         from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 
         super().__init__(name=name, count=200, rate_limit_per_second=10, backup_exchange_class=BinanceSpot)
+        self.name = name
         self.endpoint = rest_endpoint
         self.category = category
 
     def get_starting_time(self, symbol: str) -> int:
+        if self.name == 'Bybit USDC Perpetual Testnet':
+            symbol = self.convert_usdc_to_perp(symbol)
+
         dashless_symbol = jh.dashless_symbol(symbol)
         payload = {
             'category': self.category,
@@ -33,6 +37,8 @@ class BybitMain(CandleExchange):
         return int(data[1][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
+        if self.name == 'Bybit USDC Perpetual Testnet':
+            symbol = self.convert_usdc_to_perp(symbol)
         dashless_symbol = jh.dashless_symbol(symbol)
         interval = timeframe_to_interval(timeframe)
         payload = {
@@ -42,6 +48,7 @@ class BybitMain(CandleExchange):
             'start': int(start_timestamp),
             'limit': self.count
         }
+
         response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
         
         if response.json()['retMsg'] != 'OK':
@@ -64,3 +71,9 @@ class BybitMain(CandleExchange):
                 'volume': float(d[5])
             } for d in data
         ]
+
+    @staticmethod
+    def convert_usdc_to_perp(symbol: str) -> str:
+        if 'USDC' in symbol:
+            return symbol.replace('USDC', 'PERP')
+        return symbol

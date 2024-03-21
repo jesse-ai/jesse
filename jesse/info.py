@@ -39,13 +39,27 @@ exchange_info = {
         },
         'required_live_plan': 'premium'
     },
+    # BYBIT_USDC_PERPETUAL_TESTNET
+    exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET,
+        'url': JESSE_WEBSITE_URL + '/bybit',
+        'fee': 0.00075,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BYBIT_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
     # BYBIT_SPOT_TESTNET
     exchanges_enums.BYBIT_SPOT_TESTNET: {
         'name': exchanges_enums.BYBIT_SPOT_TESTNET,
         'url': 'https://jesse.trade/bybit',
         'fee': 0.001,
         'type': 'spot',
-        'supported_leverage_modes': ['cross'],
+        'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': BYBIT_TIMEFRAMES,
         'modes': {
             'backtesting': True,

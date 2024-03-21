@@ -8,6 +8,7 @@ from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import Coinba
 from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetualTestnet import BybitUSDCPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.FTX.FTXPerpetualFutures import FTXPerpetualFutures
 from jesse.modes.import_candles_mode.drivers.FTX.FTXSpot import FTXSpot
 from jesse.modes.import_candles_mode.drivers.FTX.FTXUSSpot import FTXUSSpot
@@ -26,6 +27,7 @@ drivers = {
     exchanges.COINBASE_SPOT: CoinbaseSpot,
     exchanges.BYBIT_USDT_PERPETUAL: BybitUSDTPerpetual,
     exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
+    exchanges.BYBIT_USDC_PERPETUAL_TESTNET: BybitUSDCPerpetualTestnet,
     exchanges.FTX_PERPETUAL_FUTURES: FTXPerpetualFutures,
     exchanges.BITGET_USDT_PERPETUAL: BitgetUSDTPerpetual,
     exchanges.BITGET_USDT_PERPETUAL_TESTNET: BitgetUSDTPerpetualTestnet,
