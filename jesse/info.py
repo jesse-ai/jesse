@@ -1,7 +1,7 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
 
-JESSE_API_URL = 'https://api1.jesse.trade/api'
-JESSE_WEBSITE_URL = 'https://jesse.trade'
+JESSE_API_URL = 'http://127.0.0.1:8001/api'
+JESSE_WEBSITE_URL = 'http://127.0.0.1:8001'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
@@ -31,6 +31,7 @@ exchange_info = {
         'url': JESSE_WEBSITE_URL + '/bybit',
         'fee': 0.00075,
         'type': 'futures',
+        'settlement_currency': 'USDT',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': BYBIT_TIMEFRAMES,
         'modes': {
@@ -47,6 +48,7 @@ exchange_info = {
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': BYBIT_TIMEFRAMES,
+        'settlement_currency': 'USDC',
         'modes': {
             'backtesting': True,
             'live_trading': True,
