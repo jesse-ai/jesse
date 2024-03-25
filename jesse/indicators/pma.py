@@ -1,11 +1,7 @@
-import numpy as np
-
 from collections import namedtuple
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 

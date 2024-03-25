@@ -3,8 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source, np_shift
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, np_shift, slice_candles
 
 GATOR = namedtuple('GATOR', ['upper', 'lower', 'upper_change', 'lower_change'])
 

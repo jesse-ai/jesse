@@ -2,10 +2,10 @@ from typing import Union
 
 import numpy as np
 import talib
-from jesse.indicators.mean_ad import mean_ad
-from jesse.indicators.median_ad import median_ad
 
 from jesse.helpers import slice_candles
+from jesse.indicators.mean_ad import mean_ad
+from jesse.indicators.median_ad import median_ad
 
 
 def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, devtype: int = 0, direction: str = "long",

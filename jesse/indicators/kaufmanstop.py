@@ -2,8 +2,8 @@ from typing import Union
 
 import numpy as np
 
-from jesse.indicators.ma import ma
 from jesse.helpers import slice_candles
+from jesse.indicators.ma import ma
 
 
 def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, direction: str = "long", matype: int = 0,

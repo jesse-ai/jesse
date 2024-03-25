@@ -1,10 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 

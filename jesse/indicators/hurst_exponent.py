@@ -1,12 +1,9 @@
 import numpy as np
-
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
+from scipy import signal
 
 from jesse.helpers import get_candle_source, slice_candles
-from scipy import signal
+
 
 def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: int = 200, num_chunksize:int=5, method:int=1, source_type: str = "close") -> float:
     """

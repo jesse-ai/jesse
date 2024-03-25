@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from jesse.helpers import get_candle_source, slice_candles, same_length
+from jesse.helpers import get_candle_source, same_length, slice_candles
 from jesse.indicators.ma import ma
 
 MACDEXT = namedtuple('MACDEXT', ['macd', 'signal', 'hist'])

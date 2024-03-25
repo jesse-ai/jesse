@@ -1,10 +1,7 @@
-import numpy as np
 from typing import Union
 
-try:
-    from numba import njit, guvectorize
-except ImportError:
-    njit = lambda a: a
+import numpy as np
+from numba import guvectorize, njit
 
 from jesse.helpers import get_candle_source, slice_candles
 

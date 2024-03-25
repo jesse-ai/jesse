@@ -2,12 +2,12 @@ from typing import Union
 
 import numpy as np
 import talib
-from jesse.indicators.ma import ma
 
-from jesse.helpers import get_candle_source, same_length
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, same_length, slice_candles
+from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
+
 
 def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1, devtype: int = 0, source_type: str = "close",
         sequential: bool = False) -> Union[float, np.ndarray]:

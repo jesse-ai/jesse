@@ -2,11 +2,11 @@ from typing import Union
 
 import numpy as np
 import talib
+
+from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
-
-from jesse.helpers import get_candle_source, slice_candles
 
 
 def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 2, devdn: float = 2, matype: int = 0,

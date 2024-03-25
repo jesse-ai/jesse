@@ -2,10 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import talib
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import slice_candles
 

@@ -3,9 +3,9 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
+
 
 def stc(candles: np.ndarray, fast_period: int = 23, fast_matype: int = 1, slow_period: int = 50, slow_matype: int = 1,
         k_period: int = 10, d_period: int = 3,

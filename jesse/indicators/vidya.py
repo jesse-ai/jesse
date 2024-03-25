@@ -3,8 +3,7 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
-from jesse.helpers import get_candle_source, same_length
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def vidya(candles: np.ndarray, short_period: int = 2, long_period: int = 5, alpha: float = 0.2,

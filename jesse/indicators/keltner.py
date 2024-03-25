@@ -3,10 +3,8 @@ from collections import namedtuple
 import numpy as np
 import talib
 
+from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
-
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
 
 KeltnerChannel = namedtuple('KeltnerChannel', ['upperband', 'middleband', 'lowerband'])
 

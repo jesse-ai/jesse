@@ -3,8 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles
 
 
 def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: str = "close",

@@ -1,10 +1,9 @@
 from typing import Union
 
 import numpy as np
-from jesse.indicators.ma import ma
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles
+from jesse.indicators.ma import ma
 
 
 def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matype: int = 0, source_type: str = "close",

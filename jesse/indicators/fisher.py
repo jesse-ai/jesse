@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import tulipy as ti
 
-from jesse.helpers import slice_candles, same_length
+from jesse.helpers import same_length, slice_candles
 
 FisherTransform = namedtuple('FisherTransform', ['fisher', 'signal'])
 

@@ -2,12 +2,11 @@ from typing import Union
 
 import numpy as np
 import talib
+
+from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
-
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
 
 
 def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float = 1, devtype: int = 0, source_type: str = "close",

@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -13,7 +10,7 @@ def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
     float, np.ndarray]:
     """
     Relative Strength Xtra (rsx)
-   
+
     :param candles: np.ndarray
     :param period: int - default: 14
     :param source_type: str - default: "close"
