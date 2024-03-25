@@ -30,7 +30,7 @@ def get_general_info(has_live=False) -> dict:
                 )
             except requests.exceptions.RequestException:
                 response = requests.post(
-                    'https://api1.jesse.trade/api/user-info',
+                    'http://127.0.0.1:8001/api/user-info',
                     headers={'Authorization': f'Bearer {access_token}'}
                 )
             if response.status_code != 200:
@@ -58,7 +58,7 @@ def get_general_info(has_live=False) -> dict:
             )
         except requests.exceptions.RequestException:
             response = requests.get(
-                'https://api1.jesse.trade/api/plugins/live/releases/info'
+                'http://127.0.0.1:8001/api/plugins/live/releases/info'
             )
         update_info['jesse_live_latest_version'] = response.json()[0]['version']
         update_info['is_update_info_available'] = True
