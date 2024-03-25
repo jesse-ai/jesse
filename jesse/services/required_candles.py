@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import arrow
 import numpy as np
 
@@ -87,6 +89,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
         )[0][0]
 
         first_backtestable_timestamp = first_existing_candle + (pre_finish_date - pre_start_date) + (60_000 * 1440)
+        first_backtestable_datetime = datetime.fromtimestamp(first_backtestable_timestamp/1000)
 
         # if first backtestable timestamp is in the future, that means we have some but not enough candles
         if first_backtestable_timestamp > jh.today_to_timestamp():
@@ -96,7 +99,9 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
             )
 
         raise CandleNotFoundInDatabase(
-            f'Not enough candles for {exchange} {symbol} exists to run backtest from {start_date_str} => {finish_date_str}. \n'
+            f'Not enough candles for {exchange} {symbol} exists to run backtest from {start_date_str} => {finish_date_str} '
+            f'(first possible date is {first_backtestable_datetime.date()}). \n'
+
             f'Are you considering the warmup candles? For more info please read:\n https://jesse.trade/help/faq/i-imported-candles-but-keep-getting-not-enough-candles'
         )
 
