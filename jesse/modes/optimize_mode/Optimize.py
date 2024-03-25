@@ -206,7 +206,7 @@ class Optimizer(ABC):
             self.generate_initial_population()
 
             if len(self.population) < 0.5 * self.population_size:
-                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} indviduals from planned {self.population_size} are usable.'
+                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} individuals from planned {self.population_size} are usable.'
                 logger.log_optimize_mode(msg)
                 raise ValueError(msg)
 

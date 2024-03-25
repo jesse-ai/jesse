@@ -1,8 +1,7 @@
 import os
 import requests
 import jesse.helpers as jh
-from jesse.info import exchange_info, jesse_supported_timeframes
-from jesse.enums import exchanges
+from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL
 
 
 def get_general_info(has_live=False) -> dict:
@@ -26,7 +25,7 @@ def get_general_info(has_live=False) -> dict:
             # get the account plan info via the access_token
             try:
                 response = requests.post(
-                    'https://jesse.trade/api/user-info',
+                    JESSE_API_URL + '/user-info',
                     headers={'Authorization': f'Bearer {access_token}'}
                 )
             except requests.exceptions.RequestException:
@@ -55,7 +54,7 @@ def get_general_info(has_live=False) -> dict:
         update_info['jesse_latest_version'] = response.json()['info']['version']
         try:
             response = requests.get(
-                'https://jesse.trade/api/plugins/live/releases/info'
+                JESSE_API_URL + '/plugins/live/releases/info'
             )
         except requests.exceptions.RequestException:
             response = requests.get(
