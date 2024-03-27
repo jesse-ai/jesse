@@ -189,7 +189,12 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         key = jh.key(exchange, symbol)
 
         cache_key = f"{start_date_str}-{finish_date_str}-{key}"
+        print(f"Trying to load candles for {key} from {start_date_str} to {finish_date_str} from cache")
         cached_value = cache.get_value(cache_key)
+        if cached_value:
+            print(f"Loaded candles for {key} from cache")
+        else:
+            print(f"Couldn't load candles for {key} from cache. Fetching from database instead")
         # if cache exists use cache_value
         # not cached, get and cache for later calls in the next 5 minutes
         # fetch from database
@@ -214,6 +219,7 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
 
         # cache it for near future calls
         cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        print(f"Candle cache set for {key} from {start_date_str} to {finish_date_str}")
 
         candles[key] = {
             'exchange': exchange,

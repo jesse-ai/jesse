@@ -367,7 +367,6 @@ class Optimizer(ABC):
     def run(self) -> list:
         return self.evolve()
 
-
     @staticmethod
     def _handle_termination(manager, workers):
         logger.info('Terminating session...')

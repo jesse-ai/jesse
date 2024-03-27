@@ -46,28 +46,24 @@ def run(
 
     register_custom_exception_handler()
 
-    # clear the screen
-    if not jh.should_execute_silently():
-        click.clear()
-
     # validate routes
     validate_routes(router)
 
-    print('loading candles...')
-
     # load historical candles and divide them into training
     # and testing periods (15% for test, 85% for training)
+    print('Loading candles and dividing them into training and testing sets...')
     training_candles, testing_candles = _get_training_and_testing_candles(start_date, finish_date)
-
-    # clear the screen
-    click.clear()
 
     optimizer = Optimizer(
         training_candles, testing_candles, optimal_total, cpu_cores, csv, json, start_date, finish_date
     )
 
     # start the process
-    optimizer.run()
+    try:
+        optimizer.run()
+    except KeyboardInterrupt:
+        print('==> Optimization has been interrupted by the user.')
+        jh.terminate_app()
 
 
 def _get_training_and_testing_candles(start_date_str: str, finish_date_str: str) -> tuple:
