@@ -81,7 +81,11 @@ class ProcessManager:
         return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
 
     def cancel_process(self, client_id):
-        pid = self.get_pid(client_id)
+        try:
+            pid = self.get_pid(client_id)
+        except KeyError:
+            print(f'Process with client_id {client_id} not found to cancel. Ignoring...')
+            return
         pid = jh.string_after_character(pid, '|')
         self._set_process_status(pid, 'stopping')
 
