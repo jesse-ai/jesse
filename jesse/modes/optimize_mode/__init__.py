@@ -31,7 +31,10 @@ def run(
     # debug flag
     config['app']['debug_mode'] = debug_mode
 
-    cpu_cores = int(user_config['cpu_cores'])
+    try:
+        cpu_cores = int(user_config['cpu_cores'])
+    except ValueError:
+        raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
 
     # inject config
     set_config(user_config)
