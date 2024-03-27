@@ -757,6 +757,7 @@ def _print_error(msg: str) -> None:
     print('\n')
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
+    print(color('====================================', 'red'))
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:

@@ -231,6 +231,7 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     try:
         data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
     except Exception as e:
+        jh.error(str(e))
         return JSONResponse({
             'error': str(e)
         }, status_code=500)
