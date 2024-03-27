@@ -86,7 +86,7 @@ class Optimizer(ABC):
 
         self.options = {} if options is None else options
         os.makedirs('./storage/temp/optimize', exist_ok=True)
-        self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
+        # self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
 
         if fitness_goal > 1 or fitness_goal < 0:
             raise ValueError('fitness scores must be between 0 and 1')
@@ -206,7 +206,7 @@ class Optimizer(ABC):
             self.generate_initial_population()
 
             if len(self.population) < 0.5 * self.population_size:
-                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} individuals from planned {self.population_size} are usable.'
+                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} individuals from planned {self.population_size} are usable. Read more at https://jesse.trade/help/faq/bad-optimization-results-or-valueerror-too-many-errors-less-than-half-of-the-expected-population-size-could-be-generated'
                 logger.log_optimize_mode(msg)
                 raise ValueError(msg)
 
