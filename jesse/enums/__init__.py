@@ -63,6 +63,7 @@ class exchanges:
     BINANCE_PERPETUAL_FUTURES = 'Binance Perpetual Futures'
     BINANCE_PERPETUAL_FUTURES_TESTNET = 'Binance Perpetual Futures Testnet'
     BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'
+    BYBIT_USDC_PERPETUAL = 'Bybit USDC Perpetual'
     BYBIT_USDT_PERPETUAL_TESTNET = 'Bybit USDT Perpetual Testnet'
     BYBIT_USDC_PERPETUAL_TESTNET= 'Bybit USDC Perpetual Testnet'
     BYBIT_SPOT = 'Bybit Spot'
