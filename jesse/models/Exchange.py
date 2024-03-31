@@ -31,7 +31,7 @@ class Exchange(ABC):
         all_trading_routes = selectors.get_all_trading_routes()
         first_route = all_trading_routes[0]
         # check the settlement_currency is in the exchange info with name equal to the exchange name
-        if 'settlement_currency' in exchange_info[self.name]:
+        if self.name in exchange_info and 'settlement_currency' in exchange_info[self.name]:
             self.settlement_currency = exchange_info[self.name]['settlement_currency']
         else:
             self.settlement_currency = jh.quote_asset(first_route.symbol)

@@ -24,10 +24,7 @@ def save_daily_portfolio_balance() -> None:
     except ValueError:
         raise ValueError('Multiple exchange support is temporarily not supported. Will be implemented soon.')
     if e.type == 'futures':
-        try:
-            total_balances += e.assets[jh.app_currency()]
-        except KeyError:
-            raise ValueError('Invalid quote trading pair. Check your trading route\'s symbol')
+        total_balances += e.assets[jh.app_currency()]
 
     for key, pos in store.positions.storage.items():
         if pos.exchange_type == 'futures' and pos.is_open:
