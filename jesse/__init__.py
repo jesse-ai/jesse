@@ -139,6 +139,20 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
     return JSONResponse({'message': 'Updated configurations successfully'}, status_code=200)
 
 
+@fastapi_app.post("/clear-candles-database-cache")
+def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services.cache import cache
+    cache.flush()
+
+    return JSONResponse({
+        'status': 'success',
+        'message': 'Candles database cache cleared successfully',
+    }, status_code=200)
+
+
 @fastapi_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     from jesse.services.multiprocessing import process_manager
@@ -389,7 +403,9 @@ def shutdown_event():
     from jesse.services.db import database
     database.close_connection()
 
-
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Live Plugin Endpoints
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
 if HAS_LIVE_TRADE_PLUGIN:
     from jesse.services.web import fastapi_app, LiveRequestJson, LiveCancelRequestJson, GetCandlesRequestJson, \
         GetLogsRequestJson, GetOrdersRequestJson
