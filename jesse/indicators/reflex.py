@@ -39,7 +39,7 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
         return None if np.isnan(rf[-1]) else rf[-1]
 
 
-@njit
+@njit(cache=True)
 def reflex_fast(ssf, period):
     rf = np.full_like(ssf, 0)
     ms = np.full_like(ssf, 0)

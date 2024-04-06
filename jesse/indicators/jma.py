@@ -31,7 +31,7 @@ def jma(candles: np.ndarray, period:int=7, phase:float=50, power:int=2, source_t
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def jma_helper(src, phaseRatio, beta, alpha):
     jma_val = np.copy(src)
 

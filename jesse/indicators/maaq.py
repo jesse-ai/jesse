@@ -50,7 +50,7 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def maaq_fast(source, temp, period):
     newseries = np.copy(source)
     for i in range(period, source.shape[0]):

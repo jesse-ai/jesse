@@ -36,7 +36,7 @@ def epma(candles: np.ndarray, period: int = 11, offset: int = 4, source_type: st
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def epma_fast(source, period, offset):
     newseries = np.copy(source)
     for j in range(period + offset + 1 , source.shape[0]):

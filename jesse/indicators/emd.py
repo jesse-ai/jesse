@@ -42,7 +42,7 @@ def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequenti
         return EMD(avg_peak[-1], mean[-1], avg_valley[-1])
 
 
-@njit
+@njit(cache=True)
 def bp_fast(price, period, delta):
     # bandpass filter
     beta = np.cos(2 * np.pi / period)
@@ -58,7 +58,7 @@ def bp_fast(price, period, delta):
     return bp
 
 
-@njit
+@njit(cache=True)
 def peak_valley_fast(bp, price):
     peak = np.copy(bp)
     valley = np.copy(bp)

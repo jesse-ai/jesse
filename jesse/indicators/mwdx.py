@@ -38,7 +38,7 @@ def mwdx(candles: np.ndarray, factor: float = 0.2, source_type: str = "close", s
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def mwdx_fast(source, fac):
     newseries = np.copy(source)
     for i in range(1, source.shape[0]):
