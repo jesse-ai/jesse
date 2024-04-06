@@ -160,7 +160,7 @@ def test_stop_loss():
     assert position.entry_price == 50
     assert position.qty == 1
     assert exchange.available_margin == 950
-    # even executed orders should not affect wallet_balance unless it's for reducing positon
+    # even executed orders should not affect wallet_balance unless it's for reducing position
     assert exchange.wallet_balance == 1000
 
     order = broker.reduce_position_at(1, 40, 50)
