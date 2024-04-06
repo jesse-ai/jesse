@@ -24,7 +24,7 @@ def heikin_ashi_candles(candles: np.ndarray, sequential: bool = False) -> HA:
     else:
         return HA(open[-1], close[-1], high[-1], low[-1])
 
-@njit
+@njit(cache=True)
 def ha_fast(source):
 
     # index consts to facilitate reading the code

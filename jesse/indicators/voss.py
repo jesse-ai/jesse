@@ -34,7 +34,7 @@ def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: floa
         return VossFilter(voss_val[-1], filt[-1])
 
 
-@njit
+@njit(cache=True)
 def voss_fast(source, period, predict, bandwith):
     voss = np.full_like(source, 0)
     filt = np.full_like(source, 0)

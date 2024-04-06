@@ -26,7 +26,7 @@ def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def rsx_fast(source, period):
     # variables
     f0 = 0

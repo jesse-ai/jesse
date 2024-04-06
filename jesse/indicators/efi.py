@@ -31,7 +31,7 @@ def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", seque
     return res_with_nan if sequential else res_with_nan[-1]
 
 
-@njit
+@njit(cache=True)
 def efi_fast(source, volume):
     dif = np.zeros(source.size - 1)
     for i in range(1, source.size):

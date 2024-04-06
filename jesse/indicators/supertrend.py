@@ -32,7 +32,7 @@ def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequent
         return SuperTrend(super_trend[-1], changed[-1])
 
 
-@njit
+@njit(cache=True)
 def supertrend_fast(candles, atr, factor, period):
     # Calculation of SuperTrend
     upper_basic = (candles[:, 3] + candles[:, 4]) / 2 + (factor * atr)

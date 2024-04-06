@@ -46,7 +46,7 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
         return BandPass(bp[-1], bp_normalized[-1], signal[-1], trigger[-1])
 
 
-@njit
+@njit(cache=True)
 def bp_fast(source, hp, alpha, beta):  # Function is compiled to machine code when called the first time
 
     bp = np.copy(hp)

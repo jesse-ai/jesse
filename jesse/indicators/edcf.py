@@ -31,7 +31,7 @@ def edcf(candles: np.ndarray, period: int = 15, source_type: str = "hl2", sequen
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def edcf_fast(source, period):
     newseries = np.full_like(source, np.nan)
 

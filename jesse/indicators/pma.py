@@ -33,7 +33,7 @@ def pma(candles: np.ndarray, source_type: str = "hl2", sequential: bool = False)
         return PMA(predict[-1], trigger[-1])
 
 
-@njit
+@njit(cache=True)
 def pma_fast(source):
     predict = np.full_like(source, np.nan)
     trigger = np.full_like(source, np.nan)

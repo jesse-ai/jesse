@@ -33,7 +33,7 @@ def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close",
         return None if np.isnan(hpf[-1]) else hpf[-1]
 
 
-@njit
+@njit(cache=True)
 def high_pass_fast(source, period):  # Function is compiled to machine code when called the first time
     k = 1
     alpha = 1 + (np.sin(2 * np.pi * k / period) - 1) / np.cos(2 * np.pi * k / period)

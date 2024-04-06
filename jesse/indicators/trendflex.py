@@ -38,7 +38,7 @@ def trendflex(candles: np.ndarray, period: int = 20, source_type: str = "close",
         return None if np.isnan(tf[-1]) else tf[-1]
 
 
-@njit
+@njit(cache=True)
 def trendflex_fast(ssf, period):
     tf = np.full_like(ssf, 0)
     ms = np.full_like(ssf, 0)

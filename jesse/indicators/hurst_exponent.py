@@ -37,7 +37,7 @@ def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: i
     return None if np.isnan(h) else h
 
 
-@njit
+@njit(cache=True)
 def hurst_rs(x, min_chunksize, max_chunksize, num_chunksize):
     """Estimate the Hurst exponent using R/S method.
     Estimates the Hurst (H) exponent using the R/S method from the time series.
