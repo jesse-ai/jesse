@@ -42,7 +42,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
         return CC(realPart[-1], imagPart[-1], angle[-1], state[-1])
 
 
-@njit(cache=True)
+@njit
 def go_fast(source, period):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
     PIx2 = 4.0 * np.arcsin(1.0)

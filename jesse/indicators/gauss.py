@@ -39,7 +39,7 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
     return res if sequential else res[-1]
 
 
-@njit(cache=True)
+@njit
 def gauss_fast(source, period, poles):
     N = source.size
     source = source[~np.isnan(source)]

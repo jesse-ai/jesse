@@ -46,7 +46,7 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
         return DamianiVolatmeter(vol[-1], t[-1])
 
 
-@njit(cache=True)
+@njit
 def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std,
                             threshold):  # Function is compiled to machine code when called the first time
     lag_s = 0.5

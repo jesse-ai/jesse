@@ -13,7 +13,7 @@ def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
     float, np.ndarray]:
     """
     Relative Strength Xtra (rsx)
-
+   
     :param candles: np.ndarray
     :param period: int - default: 14
     :param source_type: str - default: "close"
@@ -29,7 +29,7 @@ def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
     return res if sequential else res[-1]
 
 
-@njit(cache=True)
+@njit
 def rsx_fast(source, period):
     # variables
     f0 = 0

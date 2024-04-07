@@ -40,7 +40,7 @@ def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1,
     return res if sequential else res[-1]
 
 
-@njit(cache=True)
+@njit
 def hwma_fast(source, na, nb, nc):
     last_a = last_v = 0
     last_f = source[0]

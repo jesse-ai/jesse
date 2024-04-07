@@ -34,7 +34,7 @@ def itrend(candles: np.ndarray, alpha: float = 0.07, source_type: str = "hl2", s
         return ITREND(signal[-1], it[-1], trigger[-1])
 
 
-@njit(cache=True)
+@njit
 def itrend_fast(source, alpha):
     it = np.copy(source)
     for i in range(2, 7):

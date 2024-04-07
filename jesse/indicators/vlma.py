@@ -56,7 +56,7 @@ def vlma(candles: np.ndarray, min_period: int = 5, max_period: int = 50, matype:
     return res if sequential else res[-1]
 
 
-@njit(cache=True)
+@njit
 def vlma_fast(source, a, b, c, d, min_period, max_period):
     newseries = np.copy(source)
     period = np.zeros_like(source)

@@ -32,7 +32,7 @@ def nma(candles: np.ndarray, period: int = 40, source_type: str = "close", seque
 
     return res if sequential else res[-1]
 
-@njit(cache=True)
+@njit
 def nma_fast(source, period):
     # Ensure source values are positive before taking log
     source = np.clip(source, a_min=1e-10, a_max=None)

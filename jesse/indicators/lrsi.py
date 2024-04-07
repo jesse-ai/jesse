@@ -29,7 +29,7 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
         return None if np.isnan(rsi[-1]) else rsi[-1]
 
 
-@njit(cache=True)
+@njit
 def lrsi_fast(alpha, candles):
     price = (candles[:, 3] + candles[:, 4]) / 2
     l0 = np.copy(price)
