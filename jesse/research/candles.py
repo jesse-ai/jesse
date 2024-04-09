@@ -42,7 +42,7 @@ def get_candles(
     finish_date = jh.date_to_timestamp(finish_date) - 60_000
 
     if warmup_candles > 0:
-        start_date -= warmup_candles * 60_000
+        start_date -= warmup_candles * jh.timeframe_to_one_minutes() * 60_000
 
     # validate
     if start_date == finish_date:
