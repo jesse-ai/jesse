@@ -73,14 +73,24 @@ def run(
     days_count = jh.date_diff_in_days(start_date, until_date)
     candles_count = days_count * 1440
 
+    already_existing_candles = Candle.select().where(
+        Candle.exchange == exchange,
+        Candle.symbol == symbol,
+        Candle.timestamp.between(start_timestamp, jh.now_to_timestamp())
+    ).count()
+    # depending on the time already passed for the current day and previous imports
+    # there might be more candles in the DB already
+    already_existing_candles = min(already_existing_candles, candles_count)
+
     try:
         driver: CandleExchange = drivers[exchange]()
     except KeyError:
         raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {driver_names}')
 
     loop_length = int(candles_count / driver.count) + 1
+    existing_loop_length = int(already_existing_candles / driver.count)
 
-    progressbar = Progressbar(loop_length)
+    progressbar = Progressbar(loop_length, completed=existing_loop_length)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000

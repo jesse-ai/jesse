@@ -4,9 +4,11 @@ from jesse.libs import DynamicNumpyArray
 
 
 class Progressbar:
-    def __init__(self, length: int, step=1):
+    def __init__(self, length: int, step=1, completed: int = 0):
         self.length = length
         self.index = 0
+        self.completed = completed
+
 
         # validation
         if self.length <= self.index:
@@ -40,7 +42,7 @@ class Progressbar:
     def remaining_index(self):
         if self.is_finished:
             return 0
-        return self.length - self.index
+        return max((self.length - self.index - self.completed), 0)
 
     @property
     def estimated_remaining_seconds(self):
