@@ -250,54 +250,13 @@ def _step_simulator(
 
     result = {}
     begin_time_track = time.time()
+
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-    first_candles_set = candles[key]['candles']
-    length = len(first_candles_set)
-    # to preset the array size for performance
-    try:
-        store.app.starting_time = first_candles_set[0][0]
-    except IndexError:
-        raise IndexError('Check your "warm_up_candles" config value')
-    store.app.time = first_candles_set[0][0]
+    first_candles_set = candles[key]["candles"]
 
-    # initiate strategies
-    for r in router.routes:
-        # if the r.strategy is str read it from file
-        if isinstance(r.strategy_name, str):
-            StrategyClass = jh.get_strategy_class(r.strategy_name)
-        # else it is a class object so just use it
-        else:
-            StrategyClass = r.strategy_name
-
-        try:
-            r.strategy = StrategyClass()
-        except TypeError:
-            raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
-                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
-            )
-        except:
-            raise
-
-        r.strategy.name = r.strategy_name
-        r.strategy.exchange = r.exchange
-        r.strategy.symbol = r.symbol
-        r.strategy.timeframe = r.timeframe
-
-        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
-        # first convert DNS string into hyperparameters
-        if len(r.strategy.dna()) > 0 and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(r.strategy.hyperparameters(), r.strategy.dna())
-
-        # inject hyperparameters sent within the optimize mode
-        if hyperparameters is not None:
-            r.strategy.hp = hyperparameters
-
-        # init few objects that couldn't be initiated in Strategy __init__
-        # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
-        r.strategy._init_objects()
-
-        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+    length = simulation_minutes_length(candles)
+    prepare_times_before_simulation(candles)
+    prepare_routes(hyperparameters)
 
     # add initial balance
     save_daily_portfolio_balance()
@@ -341,13 +300,7 @@ def _step_simulator(
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
-        # update progressbar
-        if not run_silently and i % 60 == 0:
-            progressbar.update()
-            sync_publish('progressbar', {
-                'current': progressbar.current,
-                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-            })
+        update_progress_bar(progressbar, run_silently, i)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
@@ -380,30 +333,101 @@ def _step_simulator(
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
 
-    if generate_hyperparameters:
-        result['hyperparameters'] = stats.hyperparameters(router.routes)
-    result['metrics'] = report.portfolio_metrics()
-    # generate logs in json, csv and tradingview's pine-editor format
-    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
-    if generate_json:
-        result['json'] = logs_path['json']
-    if generate_tradingview:
-        result['tradingview'] = logs_path['tradingview']
-    if generate_csv:
-        result['csv'] = logs_path['csv']
-    if generate_charts:
-        result['charts'] = charts.portfolio_vs_asset_returns(_get_study_name())
-    if generate_equity_curve:
-        result['equity_curve'] = charts.equity_curve()
-    if generate_quantstats:
-        result['quantstats'] = _generate_quantstats_report(candles)
-    if generate_logs:
-        result['logs'] = f'storage/logs/backtest-mode/{jh.get_session_id()}.txt'
-
+    result = generate_outputs(
+        candles,
+        generate_charts=generate_charts,
+        generate_tradingview=generate_tradingview,
+        generate_quantstats=generate_quantstats,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        generate_hyperparameters=generate_hyperparameters,
+        generate_logs=generate_logs,
+    )
     return result
 
 
-def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) -> np.ndarray:
+def simulation_minutes_length(candles: dict) -> int:
+    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
+    first_candles_set = candles[key]["candles"]
+    return len(first_candles_set)
+
+
+def prepare_times_before_simulation(candles: dict) -> None:
+    # result = {}
+    # begin_time_track = time.time()
+    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
+    first_candles_set = candles[key]["candles"]
+    # length = len(first_candles_set)
+    # to preset the array size for performance
+    try:
+        store.app.starting_time = first_candles_set[0][0]
+    except IndexError:
+        raise IndexError('Check your "warm_up_candles" config value')
+    store.app.time = first_candles_set[0][0]
+
+
+def prepare_routes(hyperparameters: dict = None) -> None:
+    # initiate strategies
+    for r in router.routes:
+        # if the r.strategy is str read it from file
+        if isinstance(r.strategy_name, str):
+            StrategyClass = jh.get_strategy_class(r.strategy_name)
+        # else it is a class object so just use it
+        else:
+            StrategyClass = r.strategy_name
+
+        try:
+            r.strategy = StrategyClass()
+        except TypeError:
+            raise exceptions.InvalidStrategy(
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
+                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+            )
+        except:
+            raise
+
+        r.strategy.name = r.strategy_name
+        r.strategy.exchange = r.exchange
+        r.strategy.symbol = r.symbol
+        r.strategy.timeframe = r.timeframe
+
+        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
+        # first convert DNS string into hyperparameters
+        if len(r.strategy.dna()) > 0 and hyperparameters is None:
+            hyperparameters = jh.dna_to_hp(
+                r.strategy.hyperparameters(), r.strategy.dna()
+            )
+
+        # inject hyperparameters sent within the optimize mode
+        if hyperparameters is not None:
+            r.strategy.hp = hyperparameters
+
+        # init few objects that couldn't be initiated in Strategy __init__
+        # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
+        r.strategy._init_objects()
+
+        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+
+
+def update_progress_bar(
+    progressbar: Progressbar, run_silently: bool, candle_index: int
+) -> None:
+    # update progressbar
+    if not run_silently and candle_index % 60 == 0:
+        progressbar.update()
+        sync_publish(
+            "progressbar",
+            {
+                "current": progressbar.current,
+                "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
+            },
+        )
+
+
+def _get_fixed_jumped_candle(
+    previous_candle: np.ndarray, candle: np.ndarray
+) -> np.ndarray:
     """
     A little workaround for the times that the price has jumped and the opening
     price of the current candle is not equal to the previous candle's close!
@@ -507,6 +531,40 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         order.execute()
 
 
+def generate_outputs(
+    candles: dict,
+    generate_charts: bool = False,
+    generate_tradingview: bool = False,
+    generate_quantstats: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_equity_curve: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_logs: bool = False,
+):
+    result = {}
+    if generate_hyperparameters:
+        result["hyperparameters"] = stats.hyperparameters(router.routes)
+    result["metrics"] = report.portfolio_metrics()
+    # generate logs in json, csv and tradingview's pine-editor format
+    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
+    if generate_json:
+        result["json"] = logs_path["json"]
+    if generate_tradingview:
+        result["tradingview"] = logs_path["tradingview"]
+    if generate_csv:
+        result["csv"] = logs_path["csv"]
+    if generate_charts:
+        result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
+    if generate_equity_curve:
+        result["equity_curve"] = charts.equity_curve()
+    if generate_quantstats:
+        result["quantstats"] = _generate_quantstats_report(candles)
+    if generate_logs:
+        result["logs"] = f"storage/logs/backtest-mode/{jh.get_session_id()}.txt"
+    return result
+
+
 def _skip_simulator(
     candles: dict,
     run_silently: bool,
@@ -526,56 +584,10 @@ def _skip_simulator(
 
     result = {}
     begin_time_track = time.time()
-    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-    first_candles_set = candles[key]["candles"]
-    length = len(first_candles_set)
-    # to preset the array size for performance
-    try:
-        store.app.starting_time = first_candles_set[0][0]
-    except IndexError:
-        raise IndexError('Check your "warm_up_candles" config value')
-    store.app.time = first_candles_set[0][0]
 
-    # initiate strategies
-    for r in router.routes:
-        # if the r.strategy is str read it from file
-        if isinstance(r.strategy_name, str):
-            StrategyClass = jh.get_strategy_class(r.strategy_name)
-        # else it is a class object so just use it
-        else:
-            StrategyClass = r.strategy_name
-
-        try:
-            r.strategy = StrategyClass()
-        except TypeError:
-            raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
-                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
-            )
-        except:
-            raise
-
-        r.strategy.name = r.strategy_name
-        r.strategy.exchange = r.exchange
-        r.strategy.symbol = r.symbol
-        r.strategy.timeframe = r.timeframe
-
-        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
-        # first convert DNS string into hyperparameters
-        if len(r.strategy.dna()) > 0 and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(
-                r.strategy.hyperparameters(), r.strategy.dna()
-            )
-
-        # inject hyperparameters sent within the optimize mode
-        if hyperparameters is not None:
-            r.strategy.hp = hyperparameters
-
-        # init few objects that couldn't be initiated in Strategy __init__
-        # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
-        r.strategy._init_objects()
-
-        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+    length = simulation_minutes_length(candles)
+    prepare_times_before_simulation(candles)
+    prepare_routes(hyperparameters)
 
     # add initial balance
     save_daily_portfolio_balance()
@@ -626,16 +638,7 @@ def _skip_simulator(
                         with_generation=False,
                     )
 
-        # update progressbar
-        if not run_silently and i % 60 == 0:
-            progressbar.update()
-            sync_publish(
-                "progressbar",
-                {
-                    "current": progressbar.current,
-                    "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
-                },
-            )
+        update_progress_bar(progressbar, run_silently, i)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
@@ -673,26 +676,17 @@ def _skip_simulator(
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
 
-    if generate_hyperparameters:
-        result["hyperparameters"] = stats.hyperparameters(router.routes)
-    result["metrics"] = report.portfolio_metrics()
-    # generate logs in json, csv and tradingview's pine-editor format
-    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
-    if generate_json:
-        result["json"] = logs_path["json"]
-    if generate_tradingview:
-        result["tradingview"] = logs_path["tradingview"]
-    if generate_csv:
-        result["csv"] = logs_path["csv"]
-    if generate_charts:
-        result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
-    if generate_equity_curve:
-        result["equity_curve"] = charts.equity_curve()
-    if generate_quantstats:
-        result["quantstats"] = _generate_quantstats_report(candles)
-    if generate_logs:
-        result["logs"] = f"storage/logs/backtest-mode/{jh.get_session_id()}.txt"
-
+    result = generate_outputs(
+        candles,
+        generate_charts=generate_charts,
+        generate_tradingview=generate_tradingview,
+        generate_quantstats=generate_quantstats,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        generate_hyperparameters=generate_hyperparameters,
+        generate_logs=generate_logs,
+    )
     return result
 
 
