@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 import numpy as np
+from gymnasium import Space, spaces
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -1299,3 +1300,38 @@ class Strategy(ABC):
             raise ValueError('self.min_qty is only available in live modes')
 
         return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+
+    def actions_space(self) -> list:
+        return [None]
+
+    def env_observation(self) -> Any:
+        return None
+
+    def reward(self) -> float:
+        # todo create a basic reward functionality
+        return 1
+
+    def _actions_space(self) -> Space:
+        return spaces.Discrete(len(self.actions_space()))
+
+    def _inject_agent_action(self, action: int) -> None:
+        self._current_action = self.actions_space()[action]
+
+    def _pre_action_execute(self) -> None:
+        """
+        similar to _execute function only that it split it to 2 so RL algorithms can inject action after the 'before' callback
+        """
+        # make sure we don't execute this strategy more than once at the same time.
+        if self._is_executing is True:
+            return
+
+        self._is_executing = True
+        self.before()
+
+    def _post_action_execute(self) -> None:
+        self._check()
+        self.after()
+        self._clear_cached_methods()
+
+        self._is_executing = False
+        self.index += 1
