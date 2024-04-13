@@ -26,7 +26,6 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
 
     source = get_candle_source(candles, source_type=source_type)
 
-
     hp = high_pass_fast(source, 4 * period / bandwidth)
 
     beta = np.cos(2 * np.pi / period)
