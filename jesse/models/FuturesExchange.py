@@ -155,13 +155,15 @@ class FuturesExchange(Exchange):
         if not order.reduce_only:
             if order.side == sides.BUY:
                 # find and set order to [0, 0] (same as removing it)
-                for index, item in enumerate(self.buy_orders[base_asset]):
+                for index in range(len(self.buy_orders[base_asset]) - 1, 0, -1):
+                    item = self.buy_orders[base_asset][index]
                     if item[0] == order.qty and item[1] == order.price:
                         self.buy_orders[base_asset][index] = np.array([0, 0])
                         break
             else:
                 # find and set order to [0, 0] (same as removing it)
-                for index, item in enumerate(self.sell_orders[base_asset]):
+                for index in range(len(self.sell_orders[base_asset]) - 1, 0, -1):
+                    item = self.sell_orders[base_asset][index]
                     if item[0] == order.qty and item[1] == order.price:
                         self.sell_orders[base_asset][index] = np.array([0, 0])
                         break
