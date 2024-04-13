@@ -3,8 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import np_shift
-from jesse.helpers import slice_candles
+from jesse.helpers import np_shift, slice_candles
 
 
 def safezonestop(candles: np.ndarray, period: int = 22, mult: float = 2.5, max_lookback: int = 3,
