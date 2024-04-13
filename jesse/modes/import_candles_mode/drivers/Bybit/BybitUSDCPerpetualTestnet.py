@@ -2,10 +2,10 @@ from .BybitMain import BybitMain
 from jesse.enums import exchanges
 
 
-class BybitUSDTPerpetual(BybitMain):
+class BybitUSDCPerpetualTestnet(BybitMain):
     def __init__(self) -> None:
         super().__init__(
-            name=exchanges.BYBIT_USDT_PERPETUAL,
-            rest_endpoint='https://api.bybit.com',
+            name=exchanges.BYBIT_USDC_PERPETUAL_TESTNET,
+            rest_endpoint='https://api-testnet.bybit.com',
             category='linear',
         )

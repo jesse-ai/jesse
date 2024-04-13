@@ -17,8 +17,12 @@ CACHED_CONFIG = dict()
 
 
 def app_currency() -> str:
+    from jesse.info import exchange_info
     from jesse.routes import router
-    return quote_asset(router.routes[0].symbol)
+    if router.routes[0].exchange in exchange_info and 'settlement_currency' in exchange_info[router.routes[0].exchange]:
+        return exchange_info[router.routes[0].exchange]['settlement_currency']
+    else:
+        return quote_asset(router.routes[0].symbol)
 
 
 def app_mode() -> str:

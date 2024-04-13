@@ -3,7 +3,7 @@ from jesse.models import Order
 from jesse.services import selectors
 import jesse.helpers as jh
 from jesse.libs import DynamicNumpyArray
-
+from jesse.info import exchange_info
 
 class Exchange(ABC):
     def __init__(self, name: str, starting_balance: float, fee_rate: float, exchange_type: str):
@@ -30,7 +30,11 @@ class Exchange(ABC):
 
         all_trading_routes = selectors.get_all_trading_routes()
         first_route = all_trading_routes[0]
-        self.settlement_currency = jh.quote_asset(first_route.symbol)
+        # check the settlement_currency is in the exchange info with name equal to the exchange name
+        if self.name in exchange_info and 'settlement_currency' in exchange_info[self.name]:
+            self.settlement_currency = exchange_info[self.name]['settlement_currency']
+        else:
+            self.settlement_currency = jh.quote_asset(first_route.symbol)
 
         # initiate dict keys for trading assets
         for r in all_trading_routes:
