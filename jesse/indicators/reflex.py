@@ -1,12 +1,10 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
+
 from .supersmoother import supersmoother_fast
 
 
@@ -39,7 +37,7 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
         return None if np.isnan(rf[-1]) else rf[-1]
 
 
-@njit
+@njit(cache=True)
 def reflex_fast(ssf, period):
     rf = np.full_like(ssf, 0)
     ms = np.full_like(ssf, 0)

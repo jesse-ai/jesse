@@ -3,8 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source
-from jesse.helpers import slice_candles
+from jesse.helpers import get_candle_source, slice_candles
 
 
 def ht_dcphase(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:

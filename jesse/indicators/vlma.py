@@ -1,17 +1,13 @@
 from typing import Union
-import talib
-import numpy as np
 
+import numpy as np
+import talib
+from numba import njit
+
+from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
-
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
-
-from jesse.helpers import get_candle_source, slice_candles
 
 
 def vlma(candles: np.ndarray, min_period: int = 5, max_period: int = 50, matype: int = 0, devtype: int = 0, source_type: str = "close", sequential: bool = False) -> Union[
@@ -56,7 +52,7 @@ def vlma(candles: np.ndarray, min_period: int = 5, max_period: int = 50, matype:
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def vlma_fast(source, a, b, c, d, min_period, max_period):
     newseries = np.copy(source)
     period = np.zeros_like(source)

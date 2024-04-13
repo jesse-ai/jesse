@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import slice_candles
 
@@ -29,7 +26,7 @@ def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> U
         return None if np.isnan(rsi[-1]) else rsi[-1]
 
 
-@njit
+@njit(cache=True)
 def lrsi_fast(alpha, candles):
     price = (candles[:, 3] + candles[:, 4]) / 2
     l0 = np.copy(price)

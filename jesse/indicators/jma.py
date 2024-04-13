@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -31,7 +28,7 @@ def jma(candles: np.ndarray, period:int=7, phase:float=50, power:int=2, source_t
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def jma_helper(src, phaseRatio, beta, alpha):
     jma_val = np.copy(src)
 
