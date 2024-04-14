@@ -3,7 +3,7 @@ from typing import SupportsFloat, Any
 import gymnasium as gym
 import jesse.helpers as jh
 
-from gymnasium import Space
+from gymnasium import Space, spaces
 from gymnasium.core import ActType, ObsType
 
 from jesse.modes.backtest_mode import (
@@ -39,7 +39,8 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.done = False
         self.observation = None
         self.strategy: Strategy = router.routes[0].strategy
-        self.action_space: Space = self.strategy._actions_space()
+        self.action_space: spaces.Discrete = self.strategy._actions_space()
+        self.env_space: Space = self.strategy.env_space()
 
     def reset(self, seed=None, options=None):
         # We need the following line to seed self.np_random

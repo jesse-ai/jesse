@@ -1304,6 +1304,9 @@ class Strategy(ABC):
     def actions_space(self) -> list:
         return [None]
 
+    def env_space(self) -> Space:
+        pass
+
     def env_observation(self) -> Any:
         return None
 
@@ -1311,7 +1314,7 @@ class Strategy(ABC):
         # todo create a basic reward functionality
         return 1
 
-    def _actions_space(self) -> Space:
+    def _actions_space(self) -> spaces.Discrete:
         return spaces.Discrete(len(self.actions_space()))
 
     def _inject_agent_action(self, action: int) -> None:
