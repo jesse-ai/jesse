@@ -406,15 +406,8 @@ class CandlesState:
         exchange: str,
         symbol: str,
     ) -> None:
-        if jh.is_collecting_data():
-            raise NotImplemented("Collecting data is deactivated at the moment")
-            # make sure it's a complete (and not a forming) candle
-            # if jh.now_to_timestamp() >= (candle[0] + 60000):
-            #     store_candle_into_db(exchange, symbol, candle)
-            # return
-        if jh.is_live():
-            # For now it's only implemented for backtesting
-            return
+        if not jh.is_backtesting():
+            raise Exception('add_multiple_1m_candles() is for backtesting only')
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
 
