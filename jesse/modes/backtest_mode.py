@@ -598,7 +598,7 @@ def _skip_simulator(
             exchange = candles[j]["exchange"]
             symbol = candles[j]["symbol"]
 
-            _simulate_price_change_effect__multiple_candles(
+            _simulate_price_change_effect_multiple_candles(
                 short_candles, exchange, symbol
             )
 
@@ -709,7 +709,7 @@ def _calculate_min_step():
     return np.gcd.reduce(consider_time_frames)
 
 
-def _simulate_price_change_effect__multiple_candles(
+def _simulate_price_change_effect_multiple_candles(
     short_timeframes_candles: np.ndarray, exchange: str, symbol: str
 ) -> None:
     real_candle = np.array(
