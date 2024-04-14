@@ -4,7 +4,14 @@ from jesse import factories
 from typing import Union
 
 
-def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, finish_date: str) -> np.ndarray:
+def get_candles(
+        exchange: str,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        finish_date: str,
+        warmup_candles: int = 0
+) -> np.ndarray:
     """
     Returns candles from the database in numpy format
 
@@ -13,7 +20,8 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
     :param timeframe: str
     :param start_date: str
     :param finish_date: str
-    
+    :param warmup_candles: int
+
     :return: np.ndarray
     """
     import arrow
@@ -32,6 +40,9 @@ def get_candles(exchange: str, symbol: str, timeframe: str, start_date: str, fin
 
     start_date = jh.date_to_timestamp(start_date)
     finish_date = jh.date_to_timestamp(finish_date) - 60_000
+
+    if warmup_candles > 0:
+        start_date -= warmup_candles * jh.timeframe_to_one_minutes(timeframe) * 60_000
 
     # validate
     if start_date == finish_date:
