@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from typing import Dict, Union, List
 
 import arrow
@@ -205,8 +206,18 @@ def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[st
         # validate that there are enough candles for selected period
         required_candles_count = (finish_date - start_date) / 60_000
         if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
+            message = f'Not enough candles for {symbol}.'
+            if len(candles_tuple) == 0:
+                message += ' You need to import candles.'
+
+            if candles_tuple[-1][0] != finish_date:
+                message += f' Last available candle: {datetime.fromtimestamp(candles_tuple[-1][0] / 1000)}'
+
+            if candles_tuple[0][0] != start_date:
+                message += f' First available candle: {datetime.fromtimestamp(candles_tuple[0][0] / 1000)}'
+
             raise exceptions.CandleNotFoundInDatabase(
-                f'Not enough candles for {symbol}. You need to import candles.'
+                message
             )
         elif len(candles_tuple) != required_candles_count + 1:
             raise exceptions.CandleNotFoundInDatabase(
