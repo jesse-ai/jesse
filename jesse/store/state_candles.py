@@ -433,15 +433,6 @@ class CandlesState:
             )
             arr[-override_candles:] = candles
 
-        # yakir: Couldn't reach to this, couldn't figure what is it needed for.
-        # allow updating of the previous candle.
-        # elif candle[0] < arr[-1][0]:
-        #     # loop through the last 20 items in arr to find it. If so, update it.
-        #     for i in range(max(20, len(arr) - 1)):
-        #         if arr[-i][0] == candle[0]:
-        #             arr[-i] = candle
-        #             break
+        # Otherwise,it's true and error.
         else:
-            logger.info(
-                f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
-            )
+            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. exchange: {exchange}, symbol: {symbol}")
