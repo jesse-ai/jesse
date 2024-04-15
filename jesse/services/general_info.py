@@ -35,6 +35,8 @@ def get_general_info(has_live=False) -> dict:
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
+    if "__pycache__" in strategies:
+        strategies.remove("__pycache__")
 
     system_info['python_version'] = '{}.{}'.format(*jh.python_version())
     system_info['operating_system'] = jh.get_os()
