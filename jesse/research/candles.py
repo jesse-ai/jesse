@@ -10,7 +10,8 @@ def get_candles(
         timeframe: str,
         start_date: str,
         finish_date: str,
-        warmup_candles: int = 0
+        warmup_candles: int = 0,
+        is_for_jesse: bool = False
 ) -> np.ndarray:
     """
     Returns candles from the database in numpy format
@@ -21,6 +22,7 @@ def get_candles(
     :param start_date: str
     :param finish_date: str
     :param warmup_candles: int
+    :param is_for_jesse: bool
 
     :return: np.ndarray
     """
@@ -38,18 +40,23 @@ def get_candles(
 
     symbol = symbol.upper()
 
-    start_date = jh.date_to_timestamp(start_date)
-    finish_date = jh.date_to_timestamp(finish_date) - 60_000
+    start_date_timestamp = jh.date_to_timestamp(start_date)
+    # make sure starting from the beginning of the day instead
+    start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor('day').int_timestamp * 1000
+    finish_date_timestamp = jh.date_to_timestamp(finish_date)
+    # make sure finishing until the beginning of the day instead then -1 candle to make sure it doesn't include the finishing date
+    finish_date_timestamp = (jh.timestamp_to_arrow(finish_date_timestamp).floor('day').int_timestamp * 1000) - 60_000
 
+    # warmup_candles
     if warmup_candles > 0:
-        start_date -= warmup_candles * jh.timeframe_to_one_minutes(timeframe) * 60_000
+        start_date_timestamp -= warmup_candles * jh.timeframe_to_one_minutes(timeframe) * 60_000
 
     # validate
-    if start_date == finish_date:
+    if start_date_timestamp == finish_date_timestamp:
         raise ValueError('start_date and finish_date cannot be the same.')
-    if start_date > finish_date:
+    if start_date_timestamp > finish_date_timestamp:
         raise ValueError('start_date cannot be bigger than finish_date.')
-    if finish_date > arrow.utcnow().int_timestamp * 1000:
+    if finish_date_timestamp > arrow.utcnow().int_timestamp * 1000:
         raise ValueError('Can\'t backtest the future!')
 
     # fetch from database
@@ -60,26 +67,34 @@ def get_candles(
         Candle.exchange == exchange,
         Candle.symbol == symbol,
         Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-        Candle.timestamp.between(start_date, finish_date)
+        Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
     ).order_by(Candle.timestamp.asc()).tuples()
 
     candles = np.array(tuple(candles_tuple))
+    needed_candles_count = int((finish_date_timestamp - start_date_timestamp) / 60_000) + 1
 
     # validate that there are enough candles for selected period
     if len(candles) == 0:
         raise CandleNotFoundInDatabase(
-            f'No candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). Try importing candles first.'
+            f'No candles found for {symbol} between {start_date_timestamp}({jh.timestamp_to_date(start_date_timestamp)}) and {finish_date_timestamp}({jh.timestamp_to_date(finish_date_timestamp)}). Try importing candles first.'
         )
-    elif candles[0][0] != start_date:
+    elif candles[0][0] != start_date_timestamp:
         raise CandleNotFoundInDatabase(
-            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The first candle found is at {jh.timestamp_to_date(candles[0][0])}.'
+            f'Not enough candles found for {symbol} between {start_date_timestamp}({jh.timestamp_to_date(start_date_timestamp)}) and {finish_date_timestamp}({jh.timestamp_to_date(finish_date_timestamp)}). The first candle found is at {jh.timestamp_to_date(candles[0][0])}.'
         )
-    elif candles[-1][0] != finish_date:
+    elif candles[-1][0] != finish_date_timestamp:
         raise CandleNotFoundInDatabase(
-            f'Not enough candles found for {symbol} between {start_date}({jh.timestamp_to_date(start_date)}) and {finish_date}({jh.timestamp_to_date(finish_date)}). The last candle found is at {jh.timestamp_to_date(candles[-1][0])}.'
+            f'Not enough candles found for {symbol} between {start_date_timestamp}({jh.timestamp_to_date(start_date_timestamp)}) and {finish_date_timestamp}({jh.timestamp_to_date(finish_date_timestamp)}). The last candle found is at {jh.timestamp_to_date(candles[-1][0])}.'
+        )
+    elif len(candles) != needed_candles_count:
+        raise CandleNotFoundInDatabase(
+            f'Not enough candles found for {symbol} between {start_date_timestamp}({jh.timestamp_to_date(start_date_timestamp)}) and {finish_date_timestamp}({jh.timestamp_to_date(finish_date_timestamp)}). Found {len(candles)} candles but needed {needed_candles_count}.\n'
+            f'Are you considering the warmup candles? For more info please read:\n https://jesse.trade/help/faq/i-imported-candles-but-keep-getting-not-enough-candles'
         )
 
-    if timeframe == '1m':
+    # if timeframe is 1m or is_for_jesse is True, return the candles as is because they
+    # are already 1m candles which is the accepted format for practicing with Jesse.
+    if timeframe == '1m' or is_for_jesse:
         return candles
 
     generated_candles = []
