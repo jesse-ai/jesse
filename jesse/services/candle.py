@@ -221,6 +221,7 @@ def get_candles(
         warmup_finish_timestamp = trading_start_date_timestamp
         warmup_start_timestamp = warmup_finish_timestamp - (
                 warmup_candles_num * jh.timeframe_to_one_minutes(timeframe) * 60_000)
+        warmup_finish_timestamp -= 60_000
         warmup_candles = _get_candles_from_db(exchange, symbol, warmup_start_timestamp, warmup_finish_timestamp,
                                               caching=caching)
     else:
