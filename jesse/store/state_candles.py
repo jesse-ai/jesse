@@ -1,8 +1,6 @@
-from time import time
 import numpy as np
 
 import jesse.helpers as jh
-import jesse.indicators
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import timeframes
