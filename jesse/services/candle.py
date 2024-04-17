@@ -275,9 +275,9 @@ def _get_candles_from_db(
     if start_date_timestamp == finish_date_timestamp:
         raise CandleNotFoundInDatabase('start_date and finish_date cannot be the same.')
     if start_date_timestamp > finish_date_timestamp:
-        raise CandleNotFoundInDatabase('start_date cannot be bigger than finish_date.')
+        raise CandleNotFoundInDatabase(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
     if start_date_timestamp > arrow.utcnow().int_timestamp * 1000:
-        raise CandleNotFoundInDatabase('Can\'t backtest the future!')
+        raise CandleNotFoundInDatabase(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(arrow.utcnow().int_timestamp * 1000)}).')
 
     if caching:
         # cache for 1 week it for near future calls
