@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import arrow
 from time import sleep
 from typing import List, Dict, Union
 
@@ -984,6 +985,36 @@ class Strategy(ABC):
         :return: np.ndarray
         """
         return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+
+    class Candle:
+        def __init__(self, data):
+            self.data = data
+            self.names = ['timestamp', 'open', 'close', 'high', 'low', 'volume']
+
+        def __getitem__(self, key):
+            if isinstance(key, str):
+                index = self.names.index(key)
+                return self.data[index]
+            else:
+                return self.data[key]
+
+        def __getattr__(self, name):
+            if name in self.names:
+                index = self.names.index(name)
+                return self.data[index]
+            else:
+                raise AttributeError(f"The candle object has no attribute '{name}'")
+
+        @property
+        def date(self):
+            return arrow.get(self.timestamp / 1000).to('UTC').format('YYYY-MM-DD HH:mm')
+
+        def __repr__(self):
+            return self.date
+
+    @property
+    def friendly_candles(self):
+        return [self.Candle(candle) for candle in self.candles]
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
