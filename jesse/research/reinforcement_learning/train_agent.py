@@ -1,6 +1,5 @@
-from typing import Any
+from typing import Sequence
 
-import jesse.helpers as jh
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
 )
@@ -8,18 +7,13 @@ from jesse.routes import router
 from jesse_tools.jesse_bulk import get_candles_with_cache  # type: ignore
 
 
-import os
 
 import numpy as np
-import torch
-from agilerl.algorithms.ppo import PPO
 from agilerl.hpo.mutation import Mutations
 from agilerl.hpo.tournament import TournamentSelection
-from agilerl.training.train_on_policy import train_on_policy
 from agilerl.utils.utils import (
     calculate_vectorized_scores,
     initialPopulation,
-    makeVectEnvs,
 )
 from tqdm import trange
 
@@ -74,16 +68,18 @@ def _get_mutation_parameters() -> dict:
     }
 
 
-def _create_pop(action_dim: int, state_dim: int, device: str = "cpu"):
+def _create_pop(
+    action_dim: int, state_dim: Sequence[int], one_hot: bool, device: str = "cpu"
+):
     INIT_HP = _get_init_hp()
     MUT_P = _get_mutation_parameters()
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
     net_config = {"arch": "mlp", "hidden_size": [64, 64]}
     pop = initialPopulation(
         algo="PPO",  # Algorithm
-        state_dim=state_dim,
+        state_dim=state_dim,            # type: ignore
         action_dim=action_dim,  # Action dimension
-        one_hot=False,
+        one_hot=one_hot,
         net_config=net_config,  # Network configuration
         INIT_HP=INIT_HP,
         population_size=INIT_HP["POP_SIZE"],
@@ -126,12 +122,15 @@ def train(
     extra_routes = extra_routes or []
     router.initiate(routes, extra_routes)
 
-    env = JesseGymSimulationEnvironment(candles)
-    action_dim = env.action_space.n
-    state_dim = env.env_space.shape
+    env = gym.vector.AsyncVectorEnv(
+        [lambda: JesseGymSimulationEnvironment(candles, routes, extra_routes)]
+    )
+    action_dim = env.action_space.shape[0]
+    state_dim = env.observation_space.shape  # Continuous observation space
+    one_hot = False  # Does not require one-hot encoding
 
     pop, tournament, mutations = _create_pop(
-        action_dim=action_dim, state_dim=len(state_dim)
+        action_dim=action_dim, state_dim=state_dim, one_hot=one_hot
     )
     total_steps = 0
     elite = pop[0]  # elite variable placeholder
@@ -140,8 +139,7 @@ def train(
 
     for episode in trange(episodes):
         for agent in pop:
-            state = env.reset()
-            score = 0
+            state = env.reset()[0]
 
             states = []
             actions = []

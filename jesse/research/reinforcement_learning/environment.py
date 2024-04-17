@@ -26,9 +26,15 @@ class JesseGymSimulationEnvironment(gym.Env):
     def __init__(
         self,
         candles: dict,
+        routes: list[dict],
+        extra_routes: list[dict] | None = None,
     ) -> None:
         # jesse simulation variables
+        router.initiate(routes, extra_routes)
+
         self.candles: dict = candles
+        self.routes: list[dict] = routes
+        self.extra_routes = extra_routes or []
         self.length = simulation_minutes_length(candles)
         self.candles_step = 0
         self.candle_index = 0
@@ -40,15 +46,25 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.observation = None
         self.strategy: Strategy = router.routes[0].strategy
         self.action_space: spaces.Discrete = self.strategy._actions_space()
-        self.env_space: Space = self.strategy.env_space()
+        self.observation_space: Space = self.strategy.env_space()
 
-    def reset(self, seed=None, options=None):
+    def reset(
+        self,
+        seed=None,
+        candles: dict | None = None,
+        routes: list[dict] | None = None,
+        extra_routes: list[dict] | None = None,
+    ):
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
+        self.candles = candles or self.candles
+        self.routes = routes or self.routes
+        self.extra_routes = extra_routes or self.extra_routes
         self.done = False
+
+        router.initiate(self.routes, self.extra_routes)
         prepare_times_before_simulation(self.candles)
         prepare_routes()
-        # initiate candle store
         store.candles.init_storage(5000)
 
         if len(router.routes) != 1:
@@ -64,7 +80,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         self._pre_action_execute()
         self.observation = self.strategy.env_observation()
 
-        return self.observation
+        return self.observation, {}
 
     def step(
         self, action: ActType
@@ -73,7 +89,6 @@ class JesseGymSimulationEnvironment(gym.Env):
             raise ValueError(
                 "Environment should be reset! the simulation has already finished."
             )
-
         # inject action to the strategy!
         self.strategy._inject_agent_action(action)
 

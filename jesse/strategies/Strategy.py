@@ -1318,7 +1318,7 @@ class Strategy(ABC):
         return spaces.Discrete(len(self.actions_space()))
 
     def _inject_agent_action(self, action: int) -> None:
-        self._current_action = self.actions_space()[action]
+        self.agent_action = self.actions_space()[action]
 
     def _pre_action_execute(self) -> None:
         """
