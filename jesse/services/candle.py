@@ -7,9 +7,9 @@ from jesse.services import logger
 
 
 def generate_candle_from_one_minutes(
-    timeframe: str,
-    candles: np.ndarray,
-    accept_forming_candles: bool = False
+        timeframe: str,
+        candles: np.ndarray,
+        accept_forming_candles: bool = False
 ) -> np.ndarray:
     if len(candles) == 0:
         raise ValueError('No candles were passed')
@@ -208,7 +208,7 @@ def get_candles(
 ) -> Tuple[np.ndarray, np.ndarray]:
     symbol = symbol.upper()
 
-    caching=False
+    caching = False
 
     # convert start_date and finish_date to timestamps
     trading_start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor(
@@ -262,17 +262,15 @@ def _get_candles_from_db(
     if cached_value:
         candles_tuple = cached_value
     else:
-        candles_tuple = np.array(
-            Candle.select(
-                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                Candle.volume
-            ).where(
-                Candle.exchange == exchange,
-                Candle.symbol == symbol,
-                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-                Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
-            ).order_by(Candle.timestamp.asc()).tuples()
-        )
+        candles_tuple = Candle.select(
+            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+            Candle.volume
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
+        ).order_by(Candle.timestamp.asc()).tuples()
 
     # validate the dates
     if start_date_timestamp == finish_date_timestamp:
@@ -284,7 +282,7 @@ def _get_candles_from_db(
 
     if caching:
         # cache for 1 week it for near future calls
-        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        cache.set_value(cache_key, candles_tuple, expire_seconds=60 * 60 * 24 * 7)
 
     return np.array(candles_tuple)
 
