@@ -208,8 +208,6 @@ def get_candles(
 ) -> Tuple[np.ndarray, np.ndarray]:
     symbol = symbol.upper()
 
-    caching = False
-
     # convert start_date and finish_date to timestamps
     trading_start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor(
         'day').int_timestamp * 1000
@@ -283,7 +281,7 @@ def _get_candles_from_db(
 
     if caching:
         # cache for 1 week it for near future calls
-        cache.set_value(cache_key, candles_tuple, expire_seconds=60 * 60 * 24 * 7)
+        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
 
     return np.array(candles_tuple)
 
