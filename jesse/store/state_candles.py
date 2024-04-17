@@ -329,7 +329,6 @@ class CandlesState:
         short_key = jh.key(exchange, symbol, '1m')
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
         current_1m_count = len(self.get_storage(exchange, symbol, '1m'))
-
         dif = current_1m_count % required_1m_to_complete_count
         return dif, long_key, short_key
 
@@ -387,7 +386,7 @@ class CandlesState:
         long_count = len(self.get_storage(exchange, symbol, timeframe))
         short_count = len(self.get_storage(exchange, symbol, '1m'))
 
-        # complete candle
+        # forming candle
         if dif != 0:
             return generate_candle_from_one_minutes(
                 timeframe, self.storage[short_key][short_count - dif:short_count],

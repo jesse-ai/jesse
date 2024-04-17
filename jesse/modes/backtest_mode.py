@@ -587,9 +587,6 @@ def _skip_simulator(
                         candles[j]["candles"][i - count + candles_step: i + candles_step],
                     )
 
-                    jh.dump('candles', jh.timestamp_to_time(candles[j]["candles"][i - count + candles_step: i + candles_step][0][0]))
-                    jh.dump('generated_candle', jh.timestamp_to_time(generated_candle[0]))
-
                     store.candles.add_candle(
                         generated_candle,
                         exchange,
@@ -613,6 +610,7 @@ def _skip_simulator(
         # now that all new generated candles are ready, execute
         for r in router.routes:
             count = jh.timeframe_to_one_minutes(r.timeframe)
+
             # 1m timeframe
             if r.timeframe == timeframes.MINUTE_1:
                 r.strategy._execute()
