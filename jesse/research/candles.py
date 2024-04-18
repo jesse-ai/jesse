@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union
+from typing import Union, Tuple
 from jesse import factories, utils
 import jesse.helpers as jh
 from jesse.services.candle import get_candles as _get_candles
@@ -9,18 +9,18 @@ def get_candles(
         exchange: str,
         symbol: str,
         timeframe: str,
-        start_date: str,
-        finish_date: str,
+        start_date_timestamp: int,
+        finish_date_timestamp: int,
         warmup_candles_num: int = 0,
         caching: bool = False,
         is_for_jesse: bool = False
-) -> (np.ndarray, np.ndarray):
+) -> Tuple[np.ndarray, np.ndarray]:
     if not jh.is_jesse_project():
         raise FileNotFoundError(
             'Invalid directory: ".env" file not found. To use Jesse inside notebooks, create notebooks inside the root of a Jesse project.'
         )
 
-    return _get_candles(exchange, symbol, timeframe, start_date, finish_date, warmup_candles_num, caching, is_for_jesse)
+    return _get_candles(exchange, symbol, timeframe, start_date_timestamp, finish_date_timestamp, warmup_candles_num, caching, is_for_jesse)
 
 
 def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
