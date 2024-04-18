@@ -82,17 +82,17 @@ def _get_training_and_testing_candles(
         start_date_str: str,
         finish_date_str: str,
 ) -> Tuple[dict, dict, dict, dict]:
-    start_date = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
-    finish_date = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD'))
+    start_date_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
+    finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(finish_date_str, 'YYYY-MM-DD'))
 
     # divide into training(85%) and testing(15%) sets
-    days_diff = jh.date_diff_in_days(jh.timestamp_to_arrow(start_date), jh.timestamp_to_arrow(finish_date))
-    training_start_date = start_date
-    training_finish_date = int(start_date + (days_diff * 0.85 * 86400))
+    days_diff = jh.date_diff_in_days(jh.timestamp_to_arrow(start_date_timestamp), jh.timestamp_to_arrow(finish_date_timestamp))
+    training_start_date = start_date_timestamp
+    training_finish_date = int(start_date_timestamp + (days_diff * 0.85 * 86400 * 1000))  # convert seconds to milliseconds
     # make sure starting from the beginning of the day instead
     training_finish_date = jh.timestamp_to_arrow(training_finish_date).ceil('day').int_timestamp * 1000
     testing_start_date = training_finish_date
-    testing_finish_date = finish_date
+    testing_finish_date = finish_date_timestamp
 
     training_warmup_candles, training_candles = load_candles(training_start_date, training_finish_date)
     testing_warmup_candles, testing_candles = load_candles(testing_start_date, testing_finish_date)
