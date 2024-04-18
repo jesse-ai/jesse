@@ -27,11 +27,12 @@ def backtest(
     Example `config`:
     {
         'starting_balance': 5_000,
-        'fee': 0.001,
+        'fee': 0.005,
         'type': 'futures',
         'futures_leverage': 3,
         'futures_leverage_mode': 'cross',
         'exchange': 'Binance',
+        'warm_up_candles': 0
     }
 
     Example `route`:
