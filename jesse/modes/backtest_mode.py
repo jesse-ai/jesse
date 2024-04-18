@@ -104,8 +104,7 @@ def run(
         generate_csv=csv,
         generate_json=json,
         generate_equity_curve=True,
-        generate_hyperparameters=True,
-        fast_mode=True
+        generate_hyperparameters=True
     )
 
     if not jh.should_execute_silently():
