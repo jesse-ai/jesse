@@ -3,9 +3,7 @@ from typing import Sequence
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
 )
-from jesse.routes import router
 from jesse_tools.jesse_bulk import get_candles_with_cache  # type: ignore
-
 
 
 import numpy as np
@@ -77,7 +75,7 @@ def _create_pop(
     net_config = {"arch": "mlp", "hidden_size": [64, 64]}
     pop = initialPopulation(
         algo="PPO",  # Algorithm
-        state_dim=state_dim,            # type: ignore
+        state_dim=state_dim,  # type: ignore
         action_dim=action_dim,  # Action dimension
         one_hot=one_hot,
         net_config=net_config,  # Network configuration
@@ -118,9 +116,6 @@ def train(
     max_step_per_episode=1000,
 ) -> None:
     INIT_HP = _get_init_hp()
-
-    extra_routes = extra_routes or []
-    router.initiate(routes, extra_routes)
 
     env = gym.vector.AsyncVectorEnv(
         [lambda: JesseGymSimulationEnvironment(candles, routes, extra_routes)]
@@ -217,3 +212,6 @@ def train(
             # Tournament selection and population mutation
             elite, pop = tournament.select(pop)
             pop = mutations.mutation(pop)
+
+
+# =================
