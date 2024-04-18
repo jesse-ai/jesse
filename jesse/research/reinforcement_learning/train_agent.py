@@ -1,5 +1,8 @@
 from typing import Sequence
 
+import joblib
+from agilerl.algorithms.ppo import PPO
+
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
 )
@@ -18,10 +21,10 @@ from tqdm import trange
 import gymnasium as gym
 
 
-def _get_init_hp() -> dict:
+def _get_init_hp(n_jobs: int) -> dict:
     # Initial hyperparameters
     return {
-        "POP_SIZE": 4,  # Population size
+        "POP_SIZE": n_jobs,  # Population size
         "DISCRETE_ACTIONS": True,  # Discrete action space
         "BATCH_SIZE": 128,  # Batch size
         "LR": 0.001,  # Learning rate
@@ -67,9 +70,13 @@ def _get_mutation_parameters() -> dict:
 
 
 def _create_pop(
-    action_dim: int, state_dim: Sequence[int], one_hot: bool, device: str = "cpu"
+    action_dim: int,
+    state_dim: Sequence[int],
+    one_hot: bool,
+    device: str = "cpu",
+    n_jobs: int = -1,
 ):
-    INIT_HP = _get_init_hp()
+    INIT_HP = _get_init_hp(n_jobs)
     MUT_P = _get_mutation_parameters()
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
     net_config = {"arch": "mlp", "hidden_size": [64, 64]}
@@ -108,86 +115,104 @@ def _create_pop(
     return pop, tournament, mutations
 
 
+def _agent_play(
+    agent: PPO, env: gym.vector.AsyncVectorEnv, max_step_per_episode: int
+) -> tuple[tuple, int]:
+    state = env.reset()[0]
+    next_state = None  # next_step variable placeholder
+    step = 0  # step variable placeholder
+
+    states = []
+    actions = []
+    log_probs = []
+    rewards = []
+    dones = []
+    values = []
+    for step in range(max_step_per_episode):
+        action, log_prob, _, value = agent.getAction(state)
+        next_state, reward, done, _, _ = env.step(action)
+
+        states.append(state)
+        actions.append(action)
+        log_probs.append(log_prob)
+        rewards.append(reward)
+        dones.append(done)
+        values.append(value)
+
+        state = next_state
+
+    scores = calculate_vectorized_scores(
+        np.array(rewards).transpose((1, 0)), np.array(dones).transpose((1, 0))
+    )
+    score = np.mean(scores)
+    agent.scores.append(score)
+
+    experiences = (
+        states,
+        actions,
+        log_probs,
+        rewards,
+        dones,
+        values,
+        next_state,
+    )
+    return experiences, step
+
+
 def train(
     candles: dict,
     routes: list[dict],
     extra_routes: list[dict] | None = None,
     episodes=1000,
     max_step_per_episode=1000,
+    n_jobs: int = -1,
 ) -> None:
-    INIT_HP = _get_init_hp()
+    if n_jobs == -1:
+        n_jobs = joblib.cpu_count()
 
-    env = gym.vector.AsyncVectorEnv(
-        [lambda: JesseGymSimulationEnvironment(candles, routes, extra_routes)]
-    )
-    action_dim = env.action_space.shape[0]
-    state_dim = env.observation_space.shape  # Continuous observation space
+    INIT_HP = _get_init_hp(n_jobs)
+
+    environments = [
+        gym.vector.AsyncVectorEnv(
+            [lambda: JesseGymSimulationEnvironment(candles, routes, extra_routes)]
+        )
+        for _ in range(n_jobs)
+    ]
+    action_dim = environments[0].action_space.shape[0]
+    state_dim = environments[0].observation_space.shape  # Continuous observation space
     one_hot = False  # Does not require one-hot encoding
 
     pop, tournament, mutations = _create_pop(
-        action_dim=action_dim, state_dim=state_dim, one_hot=one_hot
+        action_dim=action_dim,
+        state_dim=state_dim,
+        one_hot=one_hot,
+        n_jobs=n_jobs,
     )
-    total_steps = 0
     elite = pop[0]  # elite variable placeholder
-    step = 0  # step variable placeholder
-    next_state = None  # next_step variable placeholder
 
+    parallel = joblib.Parallel(n_jobs, require='sharedmem')
     for episode in trange(episodes):
-        for agent in pop:
-            state = env.reset()[0]
-
-            states = []
-            actions = []
-            log_probs = []
-            rewards = []
-            dones = []
-            values = []
-            for step in range(max_step_per_episode):
-                action, log_prob, _, value = agent.getAction(state)
-                next_state, reward, done, _, _ = env.step(action)
-
-                states.append(state)
-                actions.append(action)
-                log_probs.append(log_prob)
-                rewards.append(reward)
-                dones.append(done)
-                values.append(value)
-
-                state = next_state
-
-            scores = calculate_vectorized_scores(
-                np.array(rewards).transpose((1, 0)), np.array(dones).transpose((1, 0))
-            )
-            score = np.mean(scores)
-            agent.scores.append(score)
-
-            experiences = (
-                states,
-                actions,
-                log_probs,
-                rewards,
-                dones,
-                values,
-                next_state,
-            )
+        agent_results = parallel(
+            joblib.delayed(_agent_play)(agent, env, max_step_per_episode)
+            for agent, env in zip(pop, environments)
+        )
+        for agent, (experiences, steps) in zip(pop, agent_results):
             # Learn according to agent's RL algorithm
             agent.learn(experiences)
-
-            agent.steps[-1] += step + 1
-            total_steps += step + 1
+            agent.steps[-1] += steps + 1
 
         # Now evolve population if necessary
         if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
             # Evaluate population
-            fitnesses = [
-                agent.test(
+            fitnesses = parallel(
+                joblib.delayed(agent.test)(
                     env,
                     swap_channels=INIT_HP["CHANNELS_LAST"],
                     max_steps=INIT_HP["MAX_STEPS"],
                     loop=INIT_HP["EVO_LOOP"],
                 )
-                for agent in pop
-            ]
+                for agent, env in zip(pop, environments)
+            )
 
             fitness = ["%.2f" % fitness for fitness in fitnesses]
             avg_fitness = ["%.2f" % np.mean(agent.fitness[-100:]) for agent in pop]

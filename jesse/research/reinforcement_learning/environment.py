@@ -93,7 +93,6 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.strategy._inject_agent_action(action)
 
         self._post_action_execute()
-        self.strategy._post_action_execute()
         # now check to see if there's any MARKET orders waiting to be executed
         execute_market_orders()
         if self.candle_index != 0 and self.candle_index % 1440 == 0:
@@ -102,6 +101,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.candle_index += self.candles_step
         simulate_new_candles(self.candles, self.candle_index, self.candles_step)
 
+        self._pre_action_execute()
         self.observation = self.strategy.env_observation()
         return self.observation, self.strategy.reward(), self.done, False, {}
 
