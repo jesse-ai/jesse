@@ -18,16 +18,10 @@ import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
 import time
-import sentry_sdk
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# sentry init
-sentry_sdk.init("https://dc8510db989c46bbabdbd7211453d1f7@sentry.jesse.trade/7", traces_sample_rate=1.0)
-
-
-10 / 0
 
 # variable to know if the live trade plugin is installed
 HAS_LIVE_TRADE_PLUGIN = True
