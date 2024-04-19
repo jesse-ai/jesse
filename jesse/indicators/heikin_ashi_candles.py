@@ -1,11 +1,9 @@
-import numpy as np
 from collections import namedtuple
-from jesse.helpers import slice_candles
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+import numpy as np
+from numba import njit
+
+from jesse.helpers import slice_candles
 
 HA = namedtuple('HA', ['open', 'close', 'high', 'low'])
 
@@ -26,7 +24,7 @@ def heikin_ashi_candles(candles: np.ndarray, sequential: bool = False) -> HA:
     else:
         return HA(open[-1], close[-1], high[-1], low[-1])
 
-@njit
+@njit(cache=True)
 def ha_fast(source):
 
     # index consts to facilitate reading the code
@@ -44,7 +42,7 @@ def ha_fast(source):
         ha_candles[i][CLOSE] = (source[i][OPEN]+source[i][CLOSE]+source[i][HIGH]+source[i][LOW])/4
         # Using builtins Python min,max and not numpy one since we get this Error:
         # No implementation of function Function() found for signature:
-        # Still fast since numba supports it 
+        # Still fast since numba supports it
         ha_candles[i][HIGH] = max([source[i][HIGH], ha_candles[i][OPEN], ha_candles[i][CLOSE]])
         ha_candles[i][LOW] = min([source[i][LOW], ha_candles[i][OPEN], ha_candles[i][CLOSE]])
 

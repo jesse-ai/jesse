@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import slice_candles
 
@@ -39,7 +36,7 @@ def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, seq
         return res[-1]
 
 
-@njit
+@njit(cache=True)
 def frame_fast(candles, n, SC, FC):
     w = np.log(2.0 / (SC + 1))
 

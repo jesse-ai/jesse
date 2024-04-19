@@ -1,10 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import slice_candles
 
@@ -31,7 +28,7 @@ def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
         return VI(vpn_with_nan[-1], vmn_with_nan[-1])
 
 
-@njit
+@njit(cache=True)
 def vi_fast(candles, period):
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]

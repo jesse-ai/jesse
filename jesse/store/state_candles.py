@@ -1,8 +1,6 @@
-from time import time
 import numpy as np
 
 import jesse.helpers as jh
-import jesse.indicators
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import timeframes
@@ -331,7 +329,6 @@ class CandlesState:
         short_key = jh.key(exchange, symbol, '1m')
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
         current_1m_count = len(self.get_storage(exchange, symbol, '1m'))
-
         dif = current_1m_count % required_1m_to_complete_count
         return dif, long_key, short_key
 
@@ -389,7 +386,7 @@ class CandlesState:
         long_count = len(self.get_storage(exchange, symbol, timeframe))
         short_count = len(self.get_storage(exchange, symbol, '1m'))
 
-        # complete candle
+        # forming candle
         if dif != 0:
             return generate_candle_from_one_minutes(
                 timeframe, self.storage[short_key][short_count - dif:short_count],
@@ -399,3 +396,33 @@ class CandlesState:
             return np.zeros((0, 6))
         else:
             return self.storage[long_key][-1]
+
+    def add_multiple_1m_candles(
+        self,
+        candles: np.ndarray,
+        exchange: str,
+        symbol: str,
+    ) -> None:
+        if not jh.is_backtesting():
+            raise Exception('add_multiple_1m_candles() is for backtesting only')
+
+        arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
+
+        # initial
+        if len(arr) == 0:
+            arr.append_multiple(candles)
+
+        # if it's new, add
+        elif candles[0, 0] > arr[-1][0]:
+            arr.append_multiple(candles)
+
+        # if it's the last candle again, update
+        elif candles[0, 0] >= arr[-len(candles)][0] and candles[-1, 0] >= arr[-1][0]:
+            override_candles = int(
+                len(candles) - ((candles[-1, 0] - arr[-1][0]) / 60000)
+            )
+            arr[-override_candles:] = candles
+
+        # Otherwise,it's true and error.
+        else:
+            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. exchange: {exchange}, symbol: {symbol}")

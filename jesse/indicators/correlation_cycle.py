@@ -1,10 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
@@ -42,7 +39,7 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
         return CC(realPart[-1], imagPart[-1], angle[-1], state[-1])
 
 
-@njit
+@njit(cache=True)
 def go_fast(source, period):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
     PIx2 = 4.0 * np.arcsin(1.0)

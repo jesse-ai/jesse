@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
@@ -29,7 +26,7 @@ def cg(candles: np.ndarray, period: int = 10, source_type: str = "close", sequen
     return same_length(candles, res) if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def go_fast(source, period):  # Function is compiled to machine code when called the first time
     res = np.full_like(source, fill_value=np.nan)
     for i in range(source.size):

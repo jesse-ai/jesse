@@ -14,8 +14,7 @@ from timeloop import Timeloop
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse import exceptions, sync_publish
-from jesse.modes.optimize_mode.fitness import (
-    create_baby, get_and_add_fitness_to_the_bucket)
+from jesse.modes.optimize_mode.fitness import create_baby, get_and_add_fitness_to_the_bucket
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import process_status
@@ -25,8 +24,10 @@ from jesse.store import store
 class Optimizer(ABC):
     def __init__(
             self,
-            training_candles: ndarray,
-            testing_candles: ndarray,
+            training_warmup_candles: dict,
+            training_candles: dict,
+            testing_warmup_candles: dict,
+            testing_candles: dict,
             optimal_total: int,
             cpu_cores: int,
             csv: bool,
@@ -60,7 +61,9 @@ class Optimizer(ABC):
         self.fitness_goal = fitness_goal
         self.cpu_cores = 0
         self.optimal_total = optimal_total
+        self.training_warmup_candles = training_warmup_candles
         self.training_candles = training_candles
+        self.testing_warmup_candles = testing_warmup_candles
         self.testing_candles = testing_candles
         self.average_execution_seconds = 0
 
@@ -127,7 +130,7 @@ class Optimizer(ABC):
                             target=get_and_add_fitness_to_the_bucket,
                             args=(
                                 dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_extra_routes,
-                                self.strategy_hp, dna, self.training_candles, self.testing_candles,
+                                self.strategy_hp, dna, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
                                 self.optimal_total
                             )
                         )

@@ -2,9 +2,9 @@ from collections import namedtuple
 
 import numpy as np
 import talib
-from jesse.indicators.ma import ma
 
 from jesse.helpers import get_candle_source
+from jesse.indicators.ma import ma
 
 RSMK = namedtuple('RSMK', ['indicator', 'signal'])
 

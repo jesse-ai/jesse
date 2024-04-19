@@ -1,11 +1,7 @@
-import numpy as np
-
 from collections import namedtuple
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -37,7 +33,7 @@ def pma(candles: np.ndarray, source_type: str = "hl2", sequential: bool = False)
         return PMA(predict[-1], trigger[-1])
 
 
-@njit
+@njit(cache=True)
 def pma_fast(source):
     predict = np.full_like(source, np.nan)
     trigger = np.full_like(source, np.nan)
