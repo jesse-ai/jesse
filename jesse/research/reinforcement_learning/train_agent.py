@@ -2,6 +2,7 @@ from typing import Sequence
 
 import joblib
 from agilerl.algorithms.ppo import PPO
+from pydantic import BaseModel
 
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
@@ -19,6 +20,12 @@ from agilerl.utils.utils import (
 from tqdm import trange
 
 import gymnasium as gym
+
+
+class TrainConfig(BaseModel):
+    candles: dict
+    route: dict
+    extra_routes: list[dict] | None
 
 
 def _get_init_hp(n_jobs: int) -> dict:
@@ -116,7 +123,7 @@ def _create_pop(
 
 
 def _agent_play(
-    agent: PPO, env: gym.vector.AsyncVectorEnv, minutes_per_episode: int
+    agent: PPO, env: gym.vector.AsyncVectorEnv, candles_per_episode: int
 ) -> tuple[tuple, int]:
     state = env.reset()[0]
     next_state = None  # next_step variable placeholder
@@ -128,7 +135,7 @@ def _agent_play(
     rewards = []
     dones = []
     values = []
-    for step in range(minutes_per_episode):
+    for step in range(candles_per_episode):
         action, log_prob, _, value = agent.getAction(state)
         next_state, reward, done, _, _ = env.step(action)
 
@@ -160,11 +167,9 @@ def _agent_play(
 
 
 def train(
-    candles: list[dict] | dict,
-    routes: list[list[dict]] | list[dict],
-    extra_routes: list[dict] | None = None,
+    train_configs: list[TrainConfig],
     episodes=1000,
-    minutes_per_episode=1000,
+    candles_per_episode=1000,
     n_jobs: int = -1,
 ) -> None:
     if n_jobs == -1:
@@ -172,19 +177,14 @@ def train(
 
     INIT_HP = _get_init_hp(n_jobs)
 
-    if type(candles) is dict:
-        candles = [candles]
-    if type(routes[0]) is dict:
-        routes = [routes]
-
     environments = [
         gym.vector.AsyncVectorEnv(
             [
                 lambda: JesseGymSimulationEnvironment(
-                    candles[i % len(candles)],
-                    routes[i % len(candles)],
-                    extra_routes,
-                    minutes_per_episode,
+                    train_configs[i % len(train_configs)].candles,
+                    train_configs[i % len(train_configs)].route,
+                    train_configs[i % len(train_configs)].extra_routes,
+                    candles_per_episode,
                 )
             ]
         )
@@ -205,7 +205,7 @@ def train(
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         agent_results = parallel(
-            joblib.delayed(_agent_play)(agent, env, minutes_per_episode)
+            joblib.delayed(_agent_play)(agent, env, candles_per_episode)
             for agent, env in zip(pop, environments)
         )
         for agent, (experiences, steps) in zip(pop, agent_results):

@@ -27,24 +27,23 @@ class JesseGymSimulationEnvironment(gym.Env):
     def __init__(
         self,
         candles: dict,
-        routes: list[dict],
+        route: dict,
         extra_routes: list[dict] | None = None,
-        minutes_per_episode: int = -1,
+        candles_per_episode: int = -1,
     ) -> None:
         # jesse simulation variables
-        router.initiate(routes, extra_routes)
         self.candles: dict = candles
-        self.routes: list[dict] = routes
+        self.route: dict = route
         self.extra_routes = extra_routes or []
-        self.simulation_minutes_length = minutes_per_episode
         self.candles_step = 0
         self.candle_index = 0
         self.timeframe_in_minutes = jh.timeframe_to_one_minutes(
-            self.routes[0]["timeframe"]
+            self.route["timeframe"]
         )
+        self.candles_per_episode = candles_per_episode
         self.episode_candles = self.candles
 
-        self._validations()
+        router.initiate([route], extra_routes)
         prepare_routes()
 
         # rl variables
@@ -58,14 +57,14 @@ class JesseGymSimulationEnvironment(gym.Env):
         super().reset(seed=seed, options=options)
         options = options or {}
         self.candles = options.get("candles", None) or self.candles
-        self.routes = options.get("routes", None) or self.routes
+        self.route = options.get("route", None) or self.route
         self.extra_routes = options.get("extra_routes", None) or self.extra_routes
-        self.simulation_minutes_length = (
-            options.get("minutes_per_episode", None) or self.simulation_minutes_length
+        self.candles_per_episode = (
+            options.get("candles_per_episode", None) or self.candles_per_episode
         )
         self.done = False
         self._prepare_candles_for_episode()
-        router.initiate(self.routes, self.extra_routes)
+        router.initiate([self.route], self.extra_routes)
         prepare_times_before_simulation(self.episode_candles)
         prepare_routes()
         store.candles.init_storage(5000)
@@ -113,20 +112,23 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.observation = self.strategy.env_observation()
         return self.observation, self.strategy.reward(), self.done, False, {}
 
+    @property
+    def simulation_minutes_length(self):
+        return self.candles_per_episode * self.timeframe_in_minutes
+
     def _prepare_candles_for_episode(self):
-        max_simulation_length = simulation_minutes_length(self.candles)
+        max_candles_length = simulation_minutes_length(self.candles) // self.timeframe_in_minutes
         if self.simulation_minutes_length == -1:
-            self.simulation_minutes_length = max_simulation_length
+            self.candles_per_episode = max_candles_length
             starting_point = 0
         else:
-            self.simulation_minutes_length = min(
+            self.candles_per_episode = min(
                 self.simulation_minutes_length,
-                max_simulation_length,
+                max_candles_length,
             )
             starting_point = random.randint(
                 0,
-                (max_simulation_length - self.simulation_minutes_length)
-                // self.timeframe_in_minutes,
+                (max_candles_length - self.candles_per_episode)
             )
             starting_point *= self.timeframe_in_minutes
 
@@ -158,14 +160,3 @@ class JesseGymSimulationEnvironment(gym.Env):
         elif (self.candle_index + self.candles_step) % count == 0:
             # print candle
             self.strategy._post_action_execute()
-
-    def _validations(self):
-        if self.simulation_minutes_length > 0:
-            timeframe = self.routes[0]["timeframe"]
-            reminder = self.simulation_minutes_length % self.timeframe_in_minutes
-            if reminder != 0:
-                raise ValueError(
-                    f"minutes_per_episode have to be divided by {timeframe}, What about "
-                    f"{self.simulation_minutes_length + self.timeframe_in_minutes - reminder} instead of "
-                    f"{self.simulation_minutes_length} for minutes_per_episode"
-                )
