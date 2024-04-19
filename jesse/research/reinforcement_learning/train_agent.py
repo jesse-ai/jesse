@@ -116,7 +116,7 @@ def _create_pop(
 
 
 def _agent_play(
-    agent: PPO, env: gym.vector.AsyncVectorEnv, max_step_per_episode: int
+    agent: PPO, env: gym.vector.AsyncVectorEnv, minutes_per_episode: int
 ) -> tuple[tuple, int]:
     state = env.reset()[0]
     next_state = None  # next_step variable placeholder
@@ -128,7 +128,7 @@ def _agent_play(
     rewards = []
     dones = []
     values = []
-    for step in range(max_step_per_episode):
+    for step in range(minutes_per_episode):
         action, log_prob, _, value = agent.getAction(state)
         next_state, reward, done, _, _ = env.step(action)
 
@@ -160,11 +160,11 @@ def _agent_play(
 
 
 def train(
-    candles: dict,
-    routes: list[dict],
+    candles: list[dict] | dict,
+    routes: list[list[dict]] | list[dict],
     extra_routes: list[dict] | None = None,
     episodes=1000,
-    max_step_per_episode=1000,
+    minutes_per_episode=1000,
     n_jobs: int = -1,
 ) -> None:
     if n_jobs == -1:
@@ -172,11 +172,23 @@ def train(
 
     INIT_HP = _get_init_hp(n_jobs)
 
+    if type(candles) is dict:
+        candles = [candles]
+    if type(routes[0]) is dict:
+        routes = [routes]
+
     environments = [
         gym.vector.AsyncVectorEnv(
-            [lambda: JesseGymSimulationEnvironment(candles, routes, extra_routes)]
+            [
+                lambda: JesseGymSimulationEnvironment(
+                    candles[i % len(candles)],
+                    routes[i % len(candles)],
+                    extra_routes,
+                    minutes_per_episode,
+                )
+            ]
         )
-        for _ in range(n_jobs)
+        for i in range(n_jobs)
     ]
     action_dim = environments[0].action_space.shape[0]
     state_dim = environments[0].observation_space.shape  # Continuous observation space
@@ -190,10 +202,10 @@ def train(
     )
     elite = pop[0]  # elite variable placeholder
 
-    parallel = joblib.Parallel(n_jobs, require='sharedmem')
+    parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         agent_results = parallel(
-            joblib.delayed(_agent_play)(agent, env, max_step_per_episode)
+            joblib.delayed(_agent_play)(agent, env, minutes_per_episode)
             for agent, env in zip(pop, environments)
         )
         for agent, (experiences, steps) in zip(pop, agent_results):
