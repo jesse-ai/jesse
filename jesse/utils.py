@@ -335,3 +335,20 @@ def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str
     if len(signal) > len(raw):
         signal = np.delete(signal, -1)
     return signal
+
+
+def fibonacci_retracement(
+    zero_price: float | np.ndarray,
+    one_price: float | np.ndarray,
+    level: float,
+) -> float | np.ndarray:
+    return zero_price + (one_price - zero_price) * level
+
+
+def reverse_fibonacci_retracement(
+    zero_price: float | np.ndarray,
+    one_price: float | np.ndarray,
+    price: float,
+) -> float | np.ndarray:
+    return (price - zero_price) / (one_price - zero_price)
+
