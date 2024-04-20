@@ -1,8 +1,6 @@
-from time import time
 import numpy as np
 
 import jesse.helpers as jh
-import jesse.indicators
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.enums import timeframes
@@ -331,7 +329,6 @@ class CandlesState:
         short_key = jh.key(exchange, symbol, '1m')
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
         current_1m_count = len(self.get_storage(exchange, symbol, '1m'))
-
         dif = current_1m_count % required_1m_to_complete_count
         return dif, long_key, short_key
 
@@ -389,7 +386,7 @@ class CandlesState:
         long_count = len(self.get_storage(exchange, symbol, timeframe))
         short_count = len(self.get_storage(exchange, symbol, '1m'))
 
-        # complete candle
+        # forming candle
         if dif != 0:
             return generate_candle_from_one_minutes(
                 timeframe, self.storage[short_key][short_count - dif:short_count],
@@ -406,15 +403,8 @@ class CandlesState:
         exchange: str,
         symbol: str,
     ) -> None:
-        if jh.is_collecting_data():
-            raise NotImplemented("Collecting data is deactivated at the moment")
-            # make sure it's a complete (and not a forming) candle
-            # if jh.now_to_timestamp() >= (candle[0] + 60000):
-            #     store_candle_into_db(exchange, symbol, candle)
-            # return
-        if jh.is_live():
-            # For now it's only implemented for backtesting
-            return
+        if not jh.is_backtesting():
+            raise Exception('add_multiple_1m_candles() is for backtesting only')
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
 
@@ -433,15 +423,6 @@ class CandlesState:
             )
             arr[-override_candles:] = candles
 
-        # yakir: Couldn't reach to this, couldn't figure what is it needed for.
-        # allow updating of the previous candle.
-        # elif candle[0] < arr[-1][0]:
-        #     # loop through the last 20 items in arr to find it. If so, update it.
-        #     for i in range(max(20, len(arr) - 1)):
-        #         if arr[-i][0] == candle[0]:
-        #             arr[-i] = candle
-        #             break
+        # Otherwise,it's true and error.
         else:
-            logger.info(
-                f"Could not find the candle with timestamp {jh.timestamp_to_time(candle[0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. timeframe: {timeframe}, exchange: {exchange}, symbol: {symbol}"
-            )
+            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. exchange: {exchange}, symbol: {symbol}")

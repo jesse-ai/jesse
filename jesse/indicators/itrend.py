@@ -1,10 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -34,7 +31,7 @@ def itrend(candles: np.ndarray, alpha: float = 0.07, source_type: str = "hl2", s
         return ITREND(signal[-1], it[-1], trigger[-1])
 
 
-@njit
+@njit(cache=True)
 def itrend_fast(source, alpha):
     it = np.copy(source)
     for i in range(2, 7):

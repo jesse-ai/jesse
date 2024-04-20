@@ -3,8 +3,7 @@ from collections import namedtuple
 import numpy as np
 import talib
 
-from jesse.helpers import np_shift
-from jesse.helpers import slice_candles
+from jesse.helpers import np_shift, slice_candles
 
 IchimokuCloud = namedtuple('IchimokuCloud',
                            ['conversion_line', 'base_line', 'span_a', 'span_b', 'lagging_line', 'future_span_a',

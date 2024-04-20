@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -36,7 +33,7 @@ def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, sour
     return mg if sequential else mg[-1]
 
 
-@njit
+@njit(cache=True)
 def md_fast(source, k, period):
     mg = np.full_like(source, np.nan)
     for i in range(source.size):

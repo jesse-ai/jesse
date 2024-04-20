@@ -1,11 +1,7 @@
 from typing import Union
+
 import numpy as np
-
-
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -35,7 +31,7 @@ def sqwma(candles: np.ndarray, period: int = 14, source_type: str = "close", seq
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def sqwma_fast(source, period):
     newseries = np.copy(source)
     for j in range(period + 1, source.shape[0]):

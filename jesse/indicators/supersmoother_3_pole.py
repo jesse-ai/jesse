@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+
 try:
     from numba import njit
 except ImportError:
@@ -36,7 +37,7 @@ def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def supersmoother_fast(source, period):
     a = np.exp(-np.pi / period)
     b = 2 * a * np.cos(1.738 * np.pi / period)

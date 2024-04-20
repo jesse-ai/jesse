@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from jesse.helpers import get_candle_source, slice_candles, np_shift
+from jesse.helpers import get_candle_source, np_shift, slice_candles
 
 
 def jsa(candles: np.ndarray, period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[

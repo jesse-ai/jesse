@@ -5,7 +5,6 @@ import talib
 
 from jesse.helpers import slice_candles
 
-
 CKSP = namedtuple('CKSP', ['long', 'short'])
 
 def cksp(candles: np.ndarray, p: int = 10, x: float = 1.0,  q: int = 9, sequential: bool = False) -> CKSP:

@@ -179,12 +179,13 @@ def test_bandpass():
 
 def test_beta():
     # use the same candles as mama_candles
-    candles = np.array(test_candles_19)
+    candles = np.array(test_candles_sol)
+    benchmark_candles = np.array(test_candles_sol)
 
-    single = ta.beta(candles)
-    seq = ta.beta(candles, sequential=True)
+    single = ta.beta(candles, benchmark_candles)
+    seq = ta.beta(candles, benchmark_candles, sequential=True)
 
-    assert round(single, 2) == -0.31
+    assert round(single, 2) == 1.
     assert len(seq) == len(candles)
     assert seq[-1] == single
 

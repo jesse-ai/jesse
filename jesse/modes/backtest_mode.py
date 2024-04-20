@@ -1,25 +1,21 @@
 import time
-from typing import Dict, Union, List
-
-import arrow
+from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
-
 import jesse.helpers as jh
 import jesse.services.metrics as stats
-import jesse.services.required_candles as required_candles
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes, order_types
-from jesse.models import Candle, Order, Position
+from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import quantstats
 from jesse.services import report
-from jesse.services.cache import cache
-from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle
+from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle, \
+    get_candles, inject_warmup_candles_to_store
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
@@ -48,10 +44,12 @@ def run(
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
         status_checker = Timeloop()
+
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
             if process_status() != 'started':
                 raise exceptions.Termination
+
         status_checker.start()
 
     from jesse.config import config, set_config
@@ -79,7 +77,11 @@ def run(
 
     # load historical candles
     if candles is None:
-        candles = load_candles(start_date, finish_date)
+        warmup_candles, candles = load_candles(
+            jh.date_to_timestamp(start_date),
+            jh.date_to_timestamp(finish_date)
+        )
+        _handle_warmup_candles(warmup_candles)
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -102,7 +104,8 @@ def run(
         generate_csv=csv,
         generate_json=json,
         generate_equity_curve=True,
-        generate_hyperparameters=True
+        generate_hyperparameters=True,
+        fast_mode=False
     )
 
     if not jh.should_execute_silently():
@@ -158,91 +161,60 @@ def _get_study_name() -> str:
     return study_name
 
 
-def load_candles(start_date_str: str, finish_date_str: str) -> Dict[str, Dict[str, Union[str, np.ndarray]]]:
-    start_date = jh.date_to_timestamp(start_date_str)
-    finish_date = jh.date_to_timestamp(finish_date_str) - 60000
+def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
+    warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+    max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
 
-    # validate
-    if start_date == finish_date:
-        raise ValueError('start_date and finish_date cannot be the same.')
-    if start_date > finish_date:
-        raise ValueError('start_date cannot be bigger than finish_date.')
-    if finish_date > arrow.utcnow().int_timestamp * 1000:
-        raise ValueError(
-            "Can't load candle data from the future! The finish-date can be up to yesterday's date at most.")
-
-    # load and add required warm-up candles for backtest
-    if jh.is_backtesting():
-        for c in config['app']['considering_candles']:
-            exchange, symbol = c[0], c[1]
-            required_candles.inject_required_candles_to_store(
-                required_candles.load_required_candles(exchange, symbol, start_date_str, finish_date_str),
-                exchange,
-                symbol
-            )
-
-    # download candles for the duration of the backtest
-    candles = {}
+    # load and add required warm-up candles for backtest, and then Prepare trading candles
+    trading_candles = {}
+    warmup_candles = {}
     for c in config['app']['considering_candles']:
         exchange, symbol = c[0], c[1]
+        warmup_candles_arr, trading_candle_arr = get_candles(
+            exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
+        )
 
-        key = jh.key(exchange, symbol)
-
-        cache_key = f"{start_date_str}-{finish_date_str}-{key}"
-        cached_value = cache.get_value(cache_key)
-        # if cache exists use cache_value
-        # not cached, get and cache for later calls in the next 5 minutes
-        # fetch from database
-        candles_tuple = cached_value or Candle.select(
-                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-                Candle.volume
-            ).where(
-                Candle.exchange == exchange,
-                Candle.symbol == symbol,
-                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-                Candle.timestamp.between(start_date, finish_date)
-            ).order_by(Candle.timestamp.asc()).tuples()
-        # validate that there are enough candles for selected period
-        required_candles_count = (finish_date - start_date) / 60_000
-        if len(candles_tuple) == 0 or candles_tuple[-1][0] != finish_date or candles_tuple[0][0] != start_date:
-            raise exceptions.CandleNotFoundInDatabase(
-                f'Not enough candles for {symbol}. You need to import candles.'
-            )
-        elif len(candles_tuple) != required_candles_count + 1:
-            raise exceptions.CandleNotFoundInDatabase(
-                f'There are missing candles between {start_date_str} => {finish_date_str}')
-
-        # cache it for near future calls
-        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
-
-        candles[key] = {
+        # add trading candles
+        trading_candles[jh.key(exchange, symbol)] = {
             'exchange': exchange,
             'symbol': symbol,
-            'candles': np.array(candles_tuple)
+            'candles': trading_candle_arr
         }
 
-    return candles
+        warmup_candles[jh.key(exchange, symbol)] = {
+            'exchange': exchange,
+            'symbol': symbol,
+            'candles': warmup_candles_arr
+        }
+
+    return warmup_candles, trading_candles
 
 
-def simulator(*args, fast_simulation: bool = False, **kwargs) -> dict:
-    if fast_simulation:
+def _handle_warmup_candles(warmup_candles: dict) -> None:
+    for c in config['app']['considering_candles']:
+        exchange, symbol = c[0], c[1]
+        inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+
+
+def simulator(*args, fast_mode: bool = False, **kwargs) -> dict:
+    if fast_mode:
         return _skip_simulator(*args, **kwargs)
 
     return _step_simulator(*args, **kwargs)
 
 
 def _step_simulator(
-    candles: dict,
-    run_silently: bool,
-    hyperparameters: dict = None,
-    generate_charts: bool = False,
-    generate_tradingview: bool = False,
-    generate_quantstats: bool = False,
-    generate_csv: bool = False,
-    generate_json: bool = False,
-    generate_equity_curve: bool = False,
-    generate_hyperparameters: bool = False,
-    generate_logs: bool = False,
+        candles: dict,
+        run_silently: bool,
+        hyperparameters: dict = None,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        generate_hyperparameters: bool = False,
+        generate_logs: bool = False,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -251,7 +223,7 @@ def _step_simulator(
     begin_time_track = time.time()
 
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-    first_candles_set = candles[key]["candles"]
+    first_candles_set = candles[key]['candles']
 
     length = simulation_minutes_length(candles)
     prepare_times_before_simulation(candles)
@@ -295,7 +267,9 @@ def _step_simulator(
                 if (i + 1) % count == 0:
                     generated_candle = generate_candle_from_one_minutes(
                         timeframe,
-                        candles[j]['candles'][(i - (count - 1)):(i + 1)])
+                        candles[j]['candles'][(i - (count - 1)):(i + 1)]
+                    )
+
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
@@ -567,17 +541,17 @@ def generate_outputs(
 
 
 def _skip_simulator(
-    candles: dict,
-    run_silently: bool,
-    hyperparameters: dict = None,
-    generate_charts: bool = False,
-    generate_tradingview: bool = False,
-    generate_quantstats: bool = False,
-    generate_csv: bool = False,
-    generate_json: bool = False,
-    generate_equity_curve: bool = False,
-    generate_hyperparameters: bool = False,
-    generate_logs: bool = False,
+        candles: dict,
+        run_silently: bool,
+        hyperparameters: dict = None,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        generate_hyperparameters: bool = False,
+        generate_logs: bool = False,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -592,8 +566,8 @@ def _skip_simulator(
     # add initial balance
     save_daily_portfolio_balance()
 
-    progressbar = Progressbar(length, step=60)
     candles_step = calculate_minimum_candle_step()
+    progressbar = Progressbar(length, step=candles_step)
     for i in range(0, length, candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
@@ -664,7 +638,7 @@ def simulate_new_candles(candles: dict, candle_index: int, candles_step: int) ->
         exchange = candles[j]["exchange"]
         symbol = candles[j]["symbol"]
 
-        _simulate_price_change_effect__multiple_candles(
+        _simulate_price_change_effect_multiple_candles(
             short_candles, exchange, symbol
         )
 
@@ -680,9 +654,9 @@ def simulate_new_candles(candles: dict, candle_index: int, candles_step: int) ->
                 generated_candle = generate_candle_from_one_minutes(
                     timeframe,
                     candles[j]["candles"][
-                    i - count + candles_step: i + candles_step
-                    ],
+                    i - count + candles_step: i + candles_step],
                 )
+
                 store.candles.add_candle(
                     generated_candle,
                     exchange,
@@ -693,8 +667,8 @@ def simulate_new_candles(candles: dict, candle_index: int, candles_step: int) ->
                 )
 
 
-def _simulate_price_change_effect__multiple_candles(
-    short_timeframes_candles: np.ndarray, exchange: str, symbol: str
+def _simulate_price_change_effect_multiple_candles(
+        short_timeframes_candles: np.ndarray, exchange: str, symbol: str
 ) -> None:
     real_candle = np.array(
         [

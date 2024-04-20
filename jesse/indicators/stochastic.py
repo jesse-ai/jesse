@@ -2,9 +2,9 @@ from collections import namedtuple
 
 import numpy as np
 import talib
-from jesse.indicators.ma import ma
 
 from jesse.helpers import slice_candles
+from jesse.indicators.ma import ma
 
 Stochastic = namedtuple('Stochastic', ['k', 'd'])
 

@@ -1,11 +1,8 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-    from numpy_groupies import aggregate_nb as aggregate
-except ImportError:
-    from numpy_groupies import aggregate
+from numba import njit
+from numpy_groupies import aggregate_nb as aggregate
 
 from jesse.helpers import get_candle_source, slice_candles
 
