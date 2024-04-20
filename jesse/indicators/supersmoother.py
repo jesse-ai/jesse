@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -36,7 +33,7 @@ def supersmoother(candles: np.ndarray, period: int = 14, source_type: str = "clo
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def supersmoother_fast(source, period):
     a = np.exp(-1.414 * np.pi / period)
     b = 2 * a * np.cos(1.414 * np.pi / period)

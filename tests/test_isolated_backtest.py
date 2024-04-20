@@ -129,47 +129,6 @@ def test_can_pass_strategy_as_class_in_a_spot_exchange():
     assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
 
 
-def test_warm_up_candles_more_than_warmup_candles_config_raises_error_in_isolated_backtest():
-    class TestStrategy(Strategy):
-        def should_long(self):
-            return False
-
-        def should_cancel_entry(self):
-            return False
-
-        def go_long(self):
-            pass
-
-    fake_candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
-    exchange_name = 'Fake Exchange'
-    symbol = 'FAKE-USDT'
-    timeframe = '1m'
-    config = {
-        'starting_balance': 10_000,
-        'fee': 0,
-        'type': 'futures',
-        'futures_leverage': 2,
-        'futures_leverage_mode': 'cross',
-        'exchange': exchange_name,
-        'warm_up_candles': 100
-    }
-    routes = [
-        {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
-    ]
-    extra_routes = []
-    candles = {
-        jh.key(exchange_name, symbol): {
-            'exchange': exchange_name,
-            'symbol': symbol,
-            'candles': fake_candles,
-        },
-    }
-
-    # assert that it raises IndexError when warm_up_candles==100 and candles.length==10
-    with pytest.raises(IndexError):
-        research.backtest(config, routes, extra_routes, candles)
-
-
 def test_store_state_app_is_reset_properly_in_isolated_backtest():
     class TestStateApp(Strategy):
         def before(self) -> None:

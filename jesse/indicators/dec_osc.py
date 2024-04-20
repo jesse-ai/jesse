@@ -3,6 +3,7 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
+
 from .high_pass_2_pole import high_pass_2_pole_fast
 
 

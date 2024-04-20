@@ -1,13 +1,11 @@
 from typing import Union
-import talib
+
 import numpy as np
+import talib
+from numba import njit
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a: a
-
-from jesse.helpers import get_candle_source, slice_candles, np_shift, same_length
+from jesse.helpers import (get_candle_source, np_shift, same_length,
+                           slice_candles)
 
 
 def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
@@ -50,7 +48,7 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def maaq_fast(source, temp, period):
     newseries = np.copy(source)
     for i in range(period, source.shape[0]):

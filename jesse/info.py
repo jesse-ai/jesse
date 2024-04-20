@@ -1,7 +1,9 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
 
 JESSE_API_URL = 'https://api1.jesse.trade/api'
+# JESSE_API_URL = 'http://localhost:8040/api'
 JESSE_WEBSITE_URL = 'https://jesse.trade'
+# JESSE_WEBSITE_URL = 'http://localhost:8040'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
@@ -15,8 +17,9 @@ exchange_info = {
     exchanges_enums.BYBIT_USDT_PERPETUAL: {
         'name': exchanges_enums.BYBIT_USDT_PERPETUAL,
         'url': JESSE_WEBSITE_URL + '/bybit',
-        'fee': 0.00075,
+        'fee': 0.00055,
         'type': 'futures',
+        'settlement_currency': 'USDT',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': BYBIT_TIMEFRAMES,
         'modes': {
@@ -29,8 +32,67 @@ exchange_info = {
     exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET: {
         'name': exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET,
         'url': JESSE_WEBSITE_URL + '/bybit',
-        'fee': 0.00075,
+        'fee': 0.00055,
         'type': 'futures',
+        'settlement_currency': 'USDT',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BYBIT_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+    # BYBIT_USDT_PERPETUAL
+    exchanges_enums.BYBIT_USDC_PERPETUAL: {
+        'name': exchanges_enums.BYBIT_USDC_PERPETUAL,
+        'url': JESSE_WEBSITE_URL + '/bybit',
+        'fee': 0.00055,
+        'type': 'futures',
+        'settlement_currency': 'USDC',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BYBIT_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+    # BYBIT_USDC_PERPETUAL_TESTNET
+    exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET,
+        'url': JESSE_WEBSITE_URL + '/bybit',
+        'fee': 0.00055,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BYBIT_TIMEFRAMES,
+        'settlement_currency': 'USDC',
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+    # BYBIT_SPOT_TESTNET
+    exchanges_enums.BYBIT_SPOT: {
+        'name': exchanges_enums.BYBIT_SPOT,
+        'url': 'https://jesse.trade/bybit',
+        'fee': 0.001,
+        'type': 'spot',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': BYBIT_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+    # BYBIT_SPOT_TESTNET
+    exchanges_enums.BYBIT_SPOT_TESTNET: {
+        'name': exchanges_enums.BYBIT_SPOT_TESTNET,
+        'url': 'https://jesse.trade/bybit',
+        'fee': 0.001,
+        'type': 'spot',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': BYBIT_TIMEFRAMES,
         'modes': {
