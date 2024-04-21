@@ -17,6 +17,7 @@ from jesse.modes.backtest_mode import (
 )
 from jesse.store import store
 from jesse.routes import router
+from jesse.config import config
 from jesse.enums import timeframes
 from jesse.strategies import Strategy
 from jesse.modes.utils import save_daily_portfolio_balance
@@ -31,15 +32,15 @@ class JesseGymSimulationEnvironment(gym.Env):
         extra_routes: list[dict] | None = None,
         candles_per_episode: int = -1,
     ) -> None:
+        config["app"]["trading_mode"] = "backtest"
+
         # jesse simulation variables
         self.candles: dict = candles
         self.route: dict = route
         self.extra_routes = extra_routes or []
         self.candles_step = 0
         self.candle_index = 0
-        self.timeframe_in_minutes = jh.timeframe_to_one_minutes(
-            self.route["timeframe"]
-        )
+        self.timeframe_in_minutes = jh.timeframe_to_one_minutes(self.route["timeframe"])
         self.candles_per_episode = candles_per_episode
         self.episode_candles = self.candles
 
@@ -101,7 +102,10 @@ class JesseGymSimulationEnvironment(gym.Env):
         if self.candle_index != 0 and self.candle_index % 1440 == 0:
             save_daily_portfolio_balance()
 
-        if self.strategy.index * self.timeframe_in_minutes == self.simulation_minutes_length:
+        if (
+            self.strategy.index * self.timeframe_in_minutes
+            == self.simulation_minutes_length
+        ):
             self.done = True
             return self.observation, self.strategy.reward(), self.done, False, {}
 
@@ -117,7 +121,9 @@ class JesseGymSimulationEnvironment(gym.Env):
         return self.candles_per_episode * self.timeframe_in_minutes
 
     def _prepare_candles_for_episode(self):
-        max_candles_length = simulation_minutes_length(self.candles) // self.timeframe_in_minutes
+        max_candles_length = (
+            simulation_minutes_length(self.candles) // self.timeframe_in_minutes
+        )
         if self.simulation_minutes_length == -1:
             self.candles_per_episode = max_candles_length
             starting_point = 0
@@ -127,8 +133,7 @@ class JesseGymSimulationEnvironment(gym.Env):
                 max_candles_length,
             )
             starting_point = random.randint(
-                0,
-                (max_candles_length - self.candles_per_episode)
+                0, (max_candles_length - self.candles_per_episode)
             )
             starting_point *= self.timeframe_in_minutes
 

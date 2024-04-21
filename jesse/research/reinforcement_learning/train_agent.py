@@ -1,8 +1,10 @@
+import time
 from typing import Sequence
 
 import joblib
-from agilerl.algorithms.ppo import PPO
+import torch
 from pydantic import BaseModel
+from agilerl.algorithms.ppo import PPO
 
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
@@ -22,7 +24,7 @@ from tqdm import trange
 import gymnasium as gym
 
 
-class TrainConfig(BaseModel):
+class AgentConfig(BaseModel):
     candles: dict
     route: dict
     extra_routes: list[dict] | None
@@ -125,6 +127,7 @@ def _create_pop(
 def _agent_play(
     agent: PPO, env: gym.vector.AsyncVectorEnv, candles_per_episode: int
 ) -> tuple[tuple, int]:
+
     state = env.reset()[0]
     next_state = None  # next_step variable placeholder
     step = 0  # step variable placeholder
@@ -167,13 +170,16 @@ def _agent_play(
 
 
 def train(
-    train_configs: list[TrainConfig],
+    train_configs: list[AgentConfig],
     episodes=1000,
     candles_per_episode=1000,
     n_jobs: int = -1,
-) -> None:
+) -> str:
+    save_path = "storage/agile-rl/generation-{i}-{ts}"
     if n_jobs == -1:
         n_jobs = joblib.cpu_count()
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     INIT_HP = _get_init_hp(n_jobs)
 
@@ -199,9 +205,10 @@ def train(
         state_dim=state_dim,
         one_hot=one_hot,
         n_jobs=n_jobs,
+        device=device,
     )
     elite = pop[0]  # elite variable placeholder
-
+    saved_agent = ""  # saved_agent variable placeholder
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         agent_results = parallel(
@@ -250,5 +257,58 @@ def train(
             elite, pop = tournament.select(pop)
             pop = mutations.mutation(pop)
 
+            # Save the trained algorithm
+            saved_agent = save_path.format(i=episode + 1, ts=int(time.time()))
+            elite.saveCheckpoint(saved_agent)
 
-# =================
+    return saved_agent
+
+
+def test_agent(test_config: AgentConfig, agent_path: str):
+    INIT_HP = _get_init_hp(1)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    test_env = gym.vector.AsyncVectorEnv(
+        [
+            lambda: JesseGymSimulationEnvironment(
+                test_config.candles,
+                test_config.route,
+                test_config.extra_routes,
+            )
+        ]
+    )
+    ppo = PPO.load(agent_path, device=device)
+
+    rewards = []
+    frames = []
+    with torch.no_grad():
+        state = test_env.reset()[0]  # Reset environment at start of episode
+        score = 0
+
+        for step in range(INIT_HP["MAX_STEPS"]):
+            # If your state is an RGB image
+            if INIT_HP["CHANNELS_LAST"]:
+                state = np.moveaxis(state, [-1], [-3])
+
+            # Get next action from agent
+            action, *_ = ppo.getAction(state)
+            action = action.squeeze()
+
+            # Save the frame for this step and append to frames list
+            frame = test_env.render()
+            frames.append(frame)
+
+            # Take the action in the environment
+            state, reward, terminated, truncated, _ = test_env.step(
+                action
+            )  # Act in environment
+            # Collect the score
+            score += reward
+
+            # Break if environment 0 is done or truncated
+            if terminated or truncated:
+                break
+
+        # Collect and print episodic reward
+        rewards.append(score)
+        print("Episodic Reward: ", rewards[-1])
