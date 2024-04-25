@@ -22,8 +22,8 @@ class Process(mp.Process):
                 sync_publish('termination', {})
                 jh.terminate_app()
             else:
-                client_id = process_manager.get_client_id(self.pid)
-                jh.dump('client_id', client_id)
+                # client_id = process_manager.get_client_id(self.pid)
+                # jh.dump('client_id', client_id)
 
                 sync_publish(
                     'exception',
