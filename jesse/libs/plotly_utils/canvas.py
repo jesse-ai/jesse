@@ -1,3 +1,5 @@
+from typing import Literal
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -6,6 +8,11 @@ from plotly.subplots import make_subplots
 import io
 import plotly.io as pio
 from PIL import Image
+
+# pio.kaleido.scope.mathjax = None
+
+
+COLOR_FORMAT = Literal["grayscale", "rgb", "rgba"]
 
 
 class Canvas:
@@ -29,6 +36,8 @@ class Canvas:
                 close=candles[-count:, 2],
                 high=candles[-count:, 3],
                 low=candles[-count:, 4],
+                increasing={'line': {'color': 'green', 'width': 1}, 'fillcolor': 'green'},
+                decreasing={'line': {'color': 'red', 'width': 1}, 'fillcolor': 'red'},
             )
         )
         self.fig.update(layout_xaxis_rangeslider_visible=False)
@@ -60,15 +69,39 @@ class Canvas:
             )
         )
 
-    def to_array(self) -> np.ndarray:
+    def to_array(self, format: COLOR_FORMAT = "grayscale") -> np.ndarray:
         buf = io.BytesIO()
-        pio.write_image(self.fig, buf)
+        self.fig.write_image(
+            buf,
+            engine="kaleido",
+            format="png",
+        )
         img = Image.open(buf)
-        return np.asarray(img)
+        rgba = np.asarray(img)
+        if format == "rgba":
+            return rgba
+        rgb = rgba[..., :3]
+        alpha = rgba[..., 3]
+        background_color = np.array([255, 255, 255])  # White background
+        alpha = alpha[:, :, np.newaxis] / 255.0
+        rgb_res = rgb * alpha + background_color * (1 - alpha)
+        rgb_res = np.clip(rgb_res, 0, 255).astype(np.uint8)
+        if format == "rgb":
+            return rgb_res
+
+        red, green, blue = (
+            rgb_res[:, :, 0],
+            rgb_res[:, :, 1],
+            rgb_res[:, :, 2],
+        )
+
+        # Standard weights for converting to grayscale
+        gray_values = 0.2989 * red + 0.5870 * green + 0.1140 * blue
+        return gray_values
 
     def show(self) -> None:
         buf = io.BytesIO()
-        pio.write_image(self.fig, buf)
+        self.fig.write_image(buf)
         img = Image.open(buf)
         img.show()
 

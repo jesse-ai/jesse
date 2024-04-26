@@ -88,7 +88,14 @@ def _create_pop(
     INIT_HP = _get_init_hp(n_jobs)
     MUT_P = _get_mutation_parameters()
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
-    net_config = {"arch": "mlp", "hidden_size": [64, 64]}
+    net_config = {
+        "arch": "cnn",
+        "hidden_size": [128],
+        "channel_size": [32, 32],
+        "kernel_size": [8, 4],
+        "stride_size": [4, 2],
+        "normalize": True,
+    }
     pop = initialPopulation(
         algo="PPO",  # Algorithm
         state_dim=state_dim,  # type: ignore
@@ -211,14 +218,17 @@ def train(
     saved_agent = ""  # saved_agent variable placeholder
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
+        t1 = time.time()
         agent_results = parallel(
             joblib.delayed(_agent_play)(agent, env, candles_per_episode)
             for agent, env in zip(pop, environments)
         )
+        print(f'Finish simulations, now learn time.  {time.time() - t1}')
         for agent, (experiences, steps) in zip(pop, agent_results):
             # Learn according to agent's RL algorithm
             agent.learn(experiences)
             agent.steps[-1] += steps + 1
+        print(f'total time for {len(pop)} agents, {time.time() - t1} seconds')
 
         # Now evolve population if necessary
         if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
