@@ -21,13 +21,14 @@ from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, process_status
+from jesse.services.redis import sync_publish, is_process_active
 from timeloop import Timeloop
 from datetime import timedelta
 from jesse.services.progressbar import Progressbar
 
 
 def run(
+        client_id: str,
         debug_mode,
         user_config: dict,
         routes: List[Dict[str, str]],
@@ -47,7 +48,7 @@ def run(
 
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
-            if process_status() != 'started':
+            if is_process_active(client_id) is False:
                 raise exceptions.Termination
 
         status_checker.start()
@@ -65,7 +66,7 @@ def run(
     # set routes
     router.initiate(routes, extra_routes)
 
-    store.app.set_session_id()
+    store.app.set_session_id(client_id)
 
     register_custom_exception_handler()
 

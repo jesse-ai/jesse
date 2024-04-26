@@ -10,6 +10,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
+from jesse.services.multiprocessing import process_manager
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
@@ -21,7 +22,6 @@ import time
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
 
 # variable to know if the live trade plugin is installed
 HAS_LIVE_TRADE_PLUGIN = True
@@ -60,8 +60,6 @@ async def terminate_all(authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.multiprocessing import process_manager
-
     process_manager.flush()
     return JSONResponse({'message': 'terminating all tasks...'})
 
@@ -99,7 +97,8 @@ def feedback(json_request: FeedbackRequestJson, authorization: Optional[str] = H
 
 
 @fastapi_app.post("/report-exception")
-def report_exception(json_request: ReportExceptionRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def report_exception(json_request: ReportExceptionRequestJson,
+                     authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -155,7 +154,6 @@ def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
 
 @fastapi_app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
-    from jesse.services.multiprocessing import process_manager
     from jesse.services.env import ENV_VALUES
 
     if not authenticator.is_valid_token(token):
@@ -258,8 +256,6 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
 @fastapi_app.post('/import-candles')
 def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    from jesse.services.multiprocessing import process_manager
-
     validate_cwd()
 
     if not authenticator.is_valid_token(authorization):
@@ -268,7 +264,7 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, 'candles-' + str(request_json.id), request_json.exchange, request_json.symbol,
+        import_candles_mode.run, request_json.id, request_json.exchange, request_json.symbol,
         request_json.start_date
     )
 
@@ -277,20 +273,17 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
 @fastapi_app.post("/cancel-import-candles")
 def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
-    from jesse.services.multiprocessing import process_manager
-
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    process_manager.cancel_process('candles-' + request_json.id)
+    process_manager.cancel_process(request_json.id)
 
-    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'}, status_code=202)
+    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'},
+                        status_code=202)
 
 
 @fastapi_app.post("/backtest")
 def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
-    from jesse.services.multiprocessing import process_manager
-
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -300,7 +293,7 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
 
     process_manager.add_task(
         run_backtest,
-        'backtest-' + str(request_json.id),
+        request_json.id,
         request_json.debug_mode,
         request_json.config,
         request_json.routes,
@@ -323,15 +316,13 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.multiprocessing import process_manager
-
     validate_cwd()
 
     from jesse.modes.optimize_mode import run as run_optimization
 
     process_manager.add_task(
         run_optimization,
-        'optimize-' + str(request_json.id),
+        request_json.id,
         request_json.debug_mode,
         request_json.config,
         request_json.routes,
@@ -353,11 +344,10 @@ def cancel_optimization(request_json: CancelRequestJson, authorization: Optional
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.multiprocessing import process_manager
+    process_manager.cancel_process(request_json.id)
 
-    process_manager.cancel_process('optimize-' + request_json.id)
-
-    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'}, status_code=202)
+    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'},
+                        status_code=202)
 
 
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
@@ -391,17 +381,38 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.multiprocessing import process_manager
+    process_manager.cancel_process(request_json.id)
 
-    process_manager.cancel_process('backtest-' + request_json.id)
-
-    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'}, status_code=202)
+    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'},
+                        status_code=202)
 
 
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
     from jesse.services.db import database
     database.close_connection()
+
+
+@fastapi_app.post("/active-workers")
+def active_workers(authorization: Optional[str] = Header(None)):
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    return JSONResponse({
+        'data': list(process_manager.active_workers)
+    }, status_code=200)
+
+# def download_optimization_log(token: str = Query(...)):
+#     """
+#     Optimization logs don't have have session ID
+#     """
+#     if not authenticator.is_valid_token(token):
+#         return authenticator.unauthorized_response()
+#
+#     from jesse.modes import data_provider
+#
+#     return data_provider.download_file('optimize', 'log')
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Plugin Endpoints
@@ -410,6 +421,7 @@ if HAS_LIVE_TRADE_PLUGIN:
     from jesse.services.web import fastapi_app, LiveRequestJson, LiveCancelRequestJson, GetCandlesRequestJson, \
         GetLogsRequestJson, GetOrdersRequestJson
     from jesse.services import auth as authenticator
+
 
     @fastapi_app.post("/live")
     def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -425,13 +437,12 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         # execute live session
         from jesse_live import live_mode
-        from jesse.services.multiprocessing import process_manager
 
         trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
 
         process_manager.add_task(
             live_mode.run,
-            f'{trading_mode}-' + str(request_json.id),
+            request_json.id,
             request_json.debug_mode,
             dev_mode,
             request_json.config,
@@ -446,15 +457,11 @@ if HAS_LIVE_TRADE_PLUGIN:
 
 
     @fastapi_app.post("/cancel-live")
-    def cancel_backtest(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
+    def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
-        from jesse.services.multiprocessing import process_manager
-
-        trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
-
-        process_manager.cancel_process(f'{trading_mode}-' + request_json.id)
+        process_manager.cancel_process(request_json.id)
 
         return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
 
@@ -506,7 +513,6 @@ if HAS_LIVE_TRADE_PLUGIN:
             'id': json_request.id,
             'data': arr
         }, status_code=200)
-
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")

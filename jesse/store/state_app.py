@@ -1,5 +1,4 @@
 import arrow
-import jesse.helpers as jh
 
 
 class AppState:
@@ -16,9 +15,8 @@ class AppState:
         self.session_id = ''
         self.session_info = {}
 
-    def set_session_id(self) -> None:
-        """
-        Generated and sets session_id. Used to prevent overriding of the session_id
-        """
-        if self.session_id == '':
-            self.session_id = jh.generate_unique_id()
+    def set_session_id(self, session_id) -> None:
+        if self.session_id != '':
+            raise ValueError('session_id has already been set')
+
+        self.session_id = session_id

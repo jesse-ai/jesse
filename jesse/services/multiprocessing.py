@@ -22,9 +22,6 @@ class Process(mp.Process):
                 sync_publish('termination', {})
                 jh.terminate_app()
             else:
-                # client_id = process_manager.get_client_id(self.pid)
-                # jh.dump('client_id', client_id)
-
                 sync_publish(
                     'exception',
                     {
@@ -37,9 +34,6 @@ class Process(mp.Process):
                 print(traceback.format_exc())
 
                 terminate_session()
-
-                # jh.dump('==> delete crashed')
-                # process_manager.cancel_process(client_id)
 
 
 class ProcessManager:
@@ -66,7 +60,6 @@ class ProcessManager:
 
     def _add_process(self, client_id):
         sync_redis.sadd(self._active_workers_key, client_id)
-        jh.dump('CURRENT get_process_list', self.get_process_list())
 
     def add_task(self, function, *args):
         client_id = args[0]
@@ -75,13 +68,14 @@ class ProcessManager:
         w.start()
 
         self._pid_to_client_id_map[self._prefixed_pid(w.pid)] = self._prefixed_client_id(client_id)
-        jh.dump('0 self._pid_to_client_id_map', self._pid_to_client_id_map)
         self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)] = self._prefixed_pid(w.pid)
         self._add_process(client_id)
 
     def get_client_id(self, pid):
-        jh.dump('self._pid_to_client_id_map', self._pid_to_client_id_map)
-        client_id: str = self._pid_to_client_id_map[self._prefixed_pid(pid)]
+        try:
+            client_id: str = self._pid_to_client_id_map[self._prefixed_pid(pid)]
+        except KeyError:
+            return None
         # return after "|" because we add them before sending it to multiprocessing
         return jh.string_after_character(client_id, '|')
 
@@ -89,7 +83,6 @@ class ProcessManager:
         return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
 
     def cancel_process(self, client_id):
-        jh.dump('==> cancel_process', client_id)
         sync_redis.srem(self._active_workers_key, client_id)
 
     def flush(self):
@@ -99,11 +92,12 @@ class ProcessManager:
             w.close()
         process_manager._reset()
 
-    def get_process_list(self) -> List[str]:
+    @property
+    def active_workers(self) -> set:
         """
-        Returns the list of all the processes client_id  as a list of strings
+        Returns the set of all the processes client_id as a list of strings
         """
-        return [client_id.decode('utf-8') for client_id in sync_redis.smembers(self._active_workers_key)]
+        return {client_id.decode('utf-8') for client_id in sync_redis.smembers(self._active_workers_key)}
 
 
 process_manager = ProcessManager()

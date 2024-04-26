@@ -14,13 +14,14 @@ from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, process_status
+from jesse.services.redis import sync_publish, is_process_active
 from jesse.store import store
 from jesse import exceptions
 from jesse.services.progressbar import Progressbar
 
 
 def run(
+        client_id: str,
         exchange: str,
         symbol: str,
         start_date_str: str,
@@ -30,10 +31,7 @@ def run(
 ):
     if running_via_dashboard:
         config['app']['trading_mode'] = mode
-
-        # first, create and set session_id
-        store.app.set_session_id()
-
+        store.app.set_session_id(client_id)
         register_custom_exception_handler()
 
     # open database connection
@@ -46,7 +44,7 @@ def run(
 
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
-            if process_status() != 'started':
+            if is_process_active(client_id) is False:
                 raise exceptions.Termination
 
         status_checker.start()

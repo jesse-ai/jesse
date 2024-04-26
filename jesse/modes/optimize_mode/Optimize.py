@@ -17,7 +17,7 @@ from jesse import exceptions, sync_publish
 from jesse.modes.optimize_mode.fitness import create_baby, get_and_add_fitness_to_the_bucket
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
-from jesse.services.redis import process_status
+from jesse.services.redis import is_process_active
 from jesse.store import store
 
 
@@ -67,11 +67,12 @@ class Optimizer(ABC):
         self.testing_candles = testing_candles
         self.average_execution_seconds = 0
 
+        client_id = jh.get_session_id()
         # check for termination event once per second
         tl_0 = Timeloop()
         @tl_0.job(interval=timedelta(seconds=1))
         def check_for_termination():
-            if process_status() != 'started':
+            if is_process_active(client_id) is False:
                 raise exceptions.Termination
         tl_0.start()
 

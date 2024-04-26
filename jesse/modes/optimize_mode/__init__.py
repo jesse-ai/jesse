@@ -15,6 +15,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 def run(
+        client_id: str,
         debug_mode,
         user_config: dict,
         routes: List[Dict[str, str]],
@@ -38,14 +39,10 @@ def run(
 
     # inject config
     set_config(user_config)
-
     # set routes
     router.initiate(routes, extra_routes)
-
-    store.app.set_session_id()
-
+    store.app.set_session_id(client_id)
     register_custom_exception_handler()
-
     # validate routes
     validate_routes(router)
 
