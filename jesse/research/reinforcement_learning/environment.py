@@ -15,6 +15,7 @@ from jesse.modes.backtest_mode import (
     simulate_new_candles,
     execute_market_orders,
 )
+from jesse.services.candle import inject_warmup_candles_to_store
 from jesse.store import store
 from jesse.routes import router
 from jesse.config import config
@@ -31,6 +32,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         route: dict,
         extra_routes: list[dict] | None = None,
         candles_per_episode: int = -1,
+        num_warmup_candles: int = 0,
     ) -> None:
         config["app"]["trading_mode"] = "backtest"
 
@@ -40,9 +42,11 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.extra_routes = extra_routes or []
         self.candles_step = 0
         self.candle_index = 0
+        self.num_warmup_candles = num_warmup_candles
         self.timeframe_in_minutes = jh.timeframe_to_one_minutes(self.route["timeframe"])
         self.candles_per_episode = candles_per_episode
         self.episode_candles = self.candles
+        self.episode_warmup_candles = {}
 
         router.initiate([route], extra_routes)
         prepare_routes()
@@ -68,7 +72,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         router.initiate([self.route], self.extra_routes)
         prepare_times_before_simulation(self.episode_candles)
         prepare_routes()
-        store.candles.init_storage(5000)
+        self._initiate_candles()
 
         if len(router.routes) != 1:
             raise ValueError("Jesse currently supports agent with only one route.")
@@ -126,17 +130,21 @@ class JesseGymSimulationEnvironment(gym.Env):
         )
         if self.simulation_minutes_length == -1:
             self.candles_per_episode = max_candles_length
-            starting_point = 0
+            starting_point = self.num_warmup_candles
+            warmup_candles = 0
         else:
             self.candles_per_episode = min(
-                self.simulation_minutes_length,
+                self.simulation_minutes_length // self.timeframe_in_minutes,
                 max_candles_length,
             )
             starting_point = random.randint(
-                0, (max_candles_length - self.candles_per_episode)
+                self.num_warmup_candles,
+                (max_candles_length - self.candles_per_episode),
             )
-            starting_point *= self.timeframe_in_minutes
+            warmup_candles = starting_point - self.num_warmup_candles
+            warmup_candles *= self.timeframe_in_minutes
 
+        starting_point *= self.timeframe_in_minutes
         self.episode_candles = {
             candles_key: {
                 "exchange": candles_values["exchange"],
@@ -147,6 +155,34 @@ class JesseGymSimulationEnvironment(gym.Env):
             }
             for candles_key, candles_values in self.candles.items()
         }
+
+        self.episode_warmup_candles = {
+            candles_key: {
+                "exchange": candles_values["exchange"],
+                "symbol": candles_values["symbol"],
+                "candles": candles_values["candles"][
+                    starting_point - warmup_candles : starting_point
+                ],
+            }
+            for candles_key, candles_values in self.candles.items()
+        }
+
+    def _initiate_candles(self):
+        store.candles.init_storage(5000)
+        if self.num_warmup_candles:
+            routes = [self.route] + self.extra_routes
+            injected_routes = set([])
+            for route in routes:
+                key = jh.key(route["exchange"], route["symbol"])
+                if key in injected_routes:
+                    continue
+                injected_routes.add(key)
+                # inject warm-up candles
+                inject_warmup_candles_to_store(
+                    self.episode_warmup_candles[key]["candles"],
+                    route["exchange"],
+                    route["symbol"],
+                )
 
     def _pre_action_execute(self):
         count = jh.timeframe_to_one_minutes(self.strategy.timeframe)

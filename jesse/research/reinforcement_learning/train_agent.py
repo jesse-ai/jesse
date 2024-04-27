@@ -89,12 +89,8 @@ def _create_pop(
     MUT_P = _get_mutation_parameters()
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
     net_config = {
-        "arch": "cnn",
-        "hidden_size": [128],
-        "channel_size": [32, 32],
-        "kernel_size": [8, 4],
-        "stride_size": [4, 2],
-        "normalize": True,
+        "arch": "mlp",
+        "hidden_size": [64, 64],
     }
     pop = initialPopulation(
         algo="PPO",  # Algorithm
@@ -189,7 +185,7 @@ def train(
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     INIT_HP = _get_init_hp(n_jobs)
-
+    num_warmup_candles = 300
     environments = [
         gym.vector.AsyncVectorEnv(
             [
@@ -198,13 +194,14 @@ def train(
                     train_configs[i % len(train_configs)].route,
                     train_configs[i % len(train_configs)].extra_routes,
                     candles_per_episode,
+                    num_warmup_candles=num_warmup_candles,
                 )
             ]
         )
         for i in range(n_jobs)
     ]
     action_dim = environments[0].action_space.shape[0]
-    state_dim = environments[0].observation_space.shape  # Continuous observation space
+    state_dim = environments[0].observation_space.shape
     one_hot = False  # Does not require one-hot encoding
 
     pop, tournament, mutations = _create_pop(
@@ -223,12 +220,12 @@ def train(
             joblib.delayed(_agent_play)(agent, env, candles_per_episode)
             for agent, env in zip(pop, environments)
         )
-        print(f'Finish simulations, now learn time.  {time.time() - t1}')
+        print(f"Finish simulations, now learn time.  {time.time() - t1}")
         for agent, (experiences, steps) in zip(pop, agent_results):
             # Learn according to agent's RL algorithm
             agent.learn(experiences)
             agent.steps[-1] += steps + 1
-        print(f'total time for {len(pop)} agents, {time.time() - t1} seconds')
+        print(f"total time for {len(pop)} agents, {time.time() - t1} seconds")
 
         # Now evolve population if necessary
         if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
@@ -277,7 +274,6 @@ def train(
 def test_agent(test_config: AgentConfig, agent_path: str):
     INIT_HP = _get_init_hp(1)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
     test_env = gym.vector.AsyncVectorEnv(
         [
             lambda: JesseGymSimulationEnvironment(
