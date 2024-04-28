@@ -1,3 +1,4 @@
+import os
 import time
 from typing import Sequence
 
@@ -176,16 +177,15 @@ def train(
     train_configs: list[AgentConfig],
     episodes=1000,
     candles_per_episode=1000,
+    num_warmup_candles=3000,
     n_jobs: int = -1,
 ) -> str:
-    save_path = "storage/agile-rl/generation-{i}-{ts}"
     if n_jobs == -1:
         n_jobs = joblib.cpu_count()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     INIT_HP = _get_init_hp(n_jobs)
-    num_warmup_candles = 300
     environments = [
         gym.vector.AsyncVectorEnv(
             [
@@ -212,7 +212,9 @@ def train(
         device=device,
     )
     elite = pop[0]  # elite variable placeholder
-    saved_agent = ""  # saved_agent variable placeholder
+    save_path = "storage/agents/{strategy}-generation-{i}-{ts}"
+    os.makedirs("storage/agents", exist_ok=True)
+    saved_agent = ''
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         t1 = time.time()
@@ -265,56 +267,7 @@ def train(
             pop = mutations.mutation(pop)
 
             # Save the trained algorithm
-            saved_agent = save_path.format(i=episode + 1, ts=int(time.time()))
+            saved_agent = save_path.format(strategy=train_configs[0].route[0], i=episode + 1, ts=int(time.time()))
             elite.saveCheckpoint(saved_agent)
 
     return saved_agent
-
-
-def test_agent(test_config: AgentConfig, agent_path: str):
-    INIT_HP = _get_init_hp(1)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    test_env = gym.vector.AsyncVectorEnv(
-        [
-            lambda: JesseGymSimulationEnvironment(
-                test_config.candles,
-                test_config.route,
-                test_config.extra_routes,
-            )
-        ]
-    )
-    ppo = PPO.load(agent_path, device=device)
-
-    rewards = []
-    frames = []
-    with torch.no_grad():
-        state = test_env.reset()[0]  # Reset environment at start of episode
-        score = 0
-
-        for step in range(INIT_HP["MAX_STEPS"]):
-            # If your state is an RGB image
-            if INIT_HP["CHANNELS_LAST"]:
-                state = np.moveaxis(state, [-1], [-3])
-
-            # Get next action from agent
-            action, *_ = ppo.getAction(state)
-            action = action.squeeze()
-
-            # Save the frame for this step and append to frames list
-            frame = test_env.render()
-            frames.append(frame)
-
-            # Take the action in the environment
-            state, reward, terminated, truncated, _ = test_env.step(
-                action
-            )  # Act in environment
-            # Collect the score
-            score += reward
-
-            # Break if environment 0 is done or truncated
-            if terminated or truncated:
-                break
-
-        # Collect and print episodic reward
-        rewards.append(score)
-        print("Episodic Reward: ", rewards[-1])
