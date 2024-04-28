@@ -90,7 +90,7 @@ def _create_pop(
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
     net_config = {
         "arch": "mlp",
-        "hidden_size": [64, 64],
+        "hidden_size": [64],
     }
     pop = initialPopulation(
         algo="PPO",  # Algorithm
@@ -200,8 +200,8 @@ def train(
         )
         for i in range(n_jobs)
     ]
-    action_dim = environments[0].action_space.shape[0]
-    state_dim = environments[0].observation_space.shape
+    action_dim = environments[0].single_action_space.n
+    state_dim = environments[0].single_observation_space.shape
     one_hot = False  # Does not require one-hot encoding
 
     pop, tournament, mutations = _create_pop(

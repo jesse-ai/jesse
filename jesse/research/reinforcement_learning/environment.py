@@ -111,6 +111,7 @@ class JesseGymSimulationEnvironment(gym.Env):
             == self.simulation_minutes_length
         ):
             self.done = True
+            self.strategy._terminate()
             return self.observation, self.strategy.reward(), self.done, False, {}
 
         self.candle_index += self.candles_step
