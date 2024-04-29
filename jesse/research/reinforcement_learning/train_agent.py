@@ -267,7 +267,7 @@ def train(
             pop = mutations.mutation(pop)
 
             # Save the trained algorithm
-            saved_agent = save_path.format(strategy=train_configs[0].route[0], i=episode + 1, ts=int(time.time()))
+            saved_agent = save_path.format(strategy=train_configs[0].route['strategy'], i=episode + 1, ts=int(time.time()))
             elite.saveCheckpoint(saved_agent)
 
     return saved_agent
