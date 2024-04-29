@@ -126,9 +126,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         return self.candles_per_episode * self.timeframe_in_minutes
 
     def _prepare_candles_for_episode(self):
-        max_candles_length = (
-            simulation_minutes_length(self.candles) // self.timeframe_in_minutes
-        )
+        max_candles_length = len(self.candles) // self.timeframe_in_minutes
         if self.simulation_minutes_length == -1:
             self.candles_per_episode = max_candles_length
             starting_point = self.num_warmup_candles

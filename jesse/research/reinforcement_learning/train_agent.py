@@ -170,6 +170,9 @@ def _agent_play(
         values,
         next_state,
     )
+
+    agent.learn(experiences)
+    agent.steps[-1] += step + 1
     return experiences, step
 
 
@@ -214,7 +217,7 @@ def train(
     elite = pop[0]  # elite variable placeholder
     save_path = "storage/agents/{strategy}-generation-{i}-{ts}"
     os.makedirs("storage/agents", exist_ok=True)
-    saved_agent = ''
+    saved_agent = ""
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         t1 = time.time()
@@ -222,11 +225,11 @@ def train(
             joblib.delayed(_agent_play)(agent, env, candles_per_episode)
             for agent, env in zip(pop, environments)
         )
-        print(f"Finish simulations, now learn time.  {time.time() - t1}")
-        for agent, (experiences, steps) in zip(pop, agent_results):
-            # Learn according to agent's RL algorithm
-            agent.learn(experiences)
-            agent.steps[-1] += steps + 1
+        # print(f"Finish simulations, now learn time.  {time.time() - t1}")
+        # for agent, (experiences, steps) in zip(pop, agent_results):
+        #     # Learn according to agent's RL algorithm
+        #     agent.learn(experiences)
+        #     agent.steps[-1] += steps + 1
         print(f"total time for {len(pop)} agents, {time.time() - t1} seconds")
 
         # Now evolve population if necessary
@@ -267,7 +270,11 @@ def train(
             pop = mutations.mutation(pop)
 
             # Save the trained algorithm
-            saved_agent = save_path.format(strategy=train_configs[0].route['strategy'], i=episode + 1, ts=int(time.time()))
+            saved_agent = save_path.format(
+                strategy=train_configs[0].route["strategy"],
+                i=episode + 1,
+                ts=int(time.time()),
+            )
             elite.saveCheckpoint(saved_agent)
 
     return saved_agent
