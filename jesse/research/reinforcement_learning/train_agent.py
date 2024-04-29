@@ -221,15 +221,13 @@ def train(
     parallel = joblib.Parallel(n_jobs, require="sharedmem")
     for episode in trange(episodes):
         t1 = time.time()
-        agent_results = parallel(
-            joblib.delayed(_agent_play)(agent, env, candles_per_episode)
-            for agent, env in zip(pop, environments)
-        )
-        # print(f"Finish simulations, now learn time.  {time.time() - t1}")
-        # for agent, (experiences, steps) in zip(pop, agent_results):
-        #     # Learn according to agent's RL algorithm
-        #     agent.learn(experiences)
-        #     agent.steps[-1] += steps + 1
+        if n_jobs == 1:
+            _agent_play(pop[0], environments[0], candles_per_episode)
+        else:
+            parallel(
+                joblib.delayed(_agent_play)(agent, env, candles_per_episode)
+                for agent, env in zip(pop, environments)
+            )
         print(f"total time for {len(pop)} agents, {time.time() - t1} seconds")
 
         # Now evolve population if necessary
