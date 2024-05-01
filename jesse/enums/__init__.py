@@ -77,7 +77,7 @@ class exchanges:
     DYDX_PERPETUAL = "Dydx Perpetual"
     DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
     APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
-
+    APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
 
 class migration_actions:
     ADD = 'add'

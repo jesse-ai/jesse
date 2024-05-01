@@ -312,6 +312,20 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
+    },
+
+    exchanges_enums.APEX_PRO_PERPETUAL: {
+        'name': exchanges_enums.APEX_PRO_PERPETUAL,
+        'url': 'https://pro.apex.exchange/trade/BTCUSD',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': APEX_PRO_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
     }
 
 }

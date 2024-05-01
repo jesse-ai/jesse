@@ -20,6 +20,7 @@ from jesse.modes.import_candles_mode.drivers.DyDx.DydxPerpetualTestnet import Dy
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import BybitSpotTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
 
 
 drivers = {
@@ -36,6 +37,7 @@ drivers = {
     exchanges.BITGET_USDT_PERPETUAL: BitgetUSDTPerpetual,
     exchanges.BITGET_USDT_PERPETUAL_TESTNET: BitgetUSDTPerpetualTestnet,
     exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
+    exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,
