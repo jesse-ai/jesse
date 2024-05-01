@@ -1,9 +1,9 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
 
-JESSE_API_URL = 'https://api1.jesse.trade/api'
-# JESSE_API_URL = 'http://localhost:8040/api'
-JESSE_WEBSITE_URL = 'https://jesse.trade'
-# JESSE_WEBSITE_URL = 'http://localhost:8040'
+# JESSE_API_URL = 'https://api1.jesse.trade/api'
+JESSE_API_URL = 'http://localhost:8040/api'
+# JESSE_WEBSITE_URL = 'https://jesse.trade'
+JESSE_WEBSITE_URL = 'http://localhost:8040'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
@@ -11,6 +11,7 @@ BINANCE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUT
 COINBASE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.HOUR_1, timeframes.HOUR_6, timeframes.DAY_1]
 BITGET_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
+APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -297,7 +298,22 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
+    },
+
+    exchanges_enums.APEX_PRO_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.APEX_PRO_PERPETUAL_TESTNET,
+        'url': 'https://testnet.pro.apex.exchange/trade/BTCUSD',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': APEX_PRO_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
     }
+
 }
 
 # list of supported exchanges for backtesting
