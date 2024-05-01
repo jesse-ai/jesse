@@ -76,6 +76,7 @@ class exchanges:
     BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
     DYDX_PERPETUAL = "Dydx Perpetual"
     DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
+    APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
 
 
 class migration_actions:
