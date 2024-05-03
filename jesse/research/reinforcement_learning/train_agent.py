@@ -215,7 +215,7 @@ def train(
         device=device,
     )
     elite = pop[0]  # elite variable placeholder
-    save_path = "storage/agents/{strategy}-generation-{i}-{ts}"
+    save_path = "storage/agents/{strategy}-generation-{ts}-{i}"
     os.makedirs("storage/agents", exist_ok=True)
     saved_agent = ""
     parallel = joblib.Parallel(n_jobs, require="sharedmem")

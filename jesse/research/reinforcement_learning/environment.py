@@ -159,7 +159,7 @@ class JesseGymSimulationEnvironment(gym.Env):
                 "exchange": candles_values["exchange"],
                 "symbol": candles_values["symbol"],
                 "candles": candles_values["candles"][
-                    starting_point - warmup_candles : starting_point
+                    warmup_candles : starting_point
                 ],
             }
             for candles_key, candles_values in self.candles.items()
