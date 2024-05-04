@@ -33,7 +33,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         candles_per_episode: int = -1,
         num_warmup_candles: int = 0,
     ) -> None:
-        config["app"]["trading_mode"] = "backtest"
+        config["app"]["trading_mode"] = "learning"
 
         # jesse simulation variables
         self.candles: dict = candles
@@ -55,7 +55,7 @@ class JesseGymSimulationEnvironment(gym.Env):
         self.observation = None
         self.strategy: Strategy = router.routes[0].strategy
         self.action_space: spaces.Discrete = self.strategy._actions_space()
-        self.observation_space: Space = self.strategy.env_space()
+        self.observation_space: Space = self.strategy._agent_settings.env_space
 
     def reset(self, *, seed=None, options: dict | None = None):
         super().reset(seed=seed, options=options)

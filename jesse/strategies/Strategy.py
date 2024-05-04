@@ -3,6 +3,8 @@ from time import sleep
 from typing import List, Dict, Union, Any
 
 import numpy as np
+import torch
+from agilerl.algorithms.ppo import PPO
 from gymnasium import Space, spaces
 
 import jesse.helpers as jh
@@ -11,6 +13,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.research.reinforcement_learning.agent_settings import AgentSettings
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -63,6 +66,9 @@ class Strategy(ABC):
         self._cached_methods = {}
         self._cached_metrics = {}
 
+        self._agent_settings: AgentSettings | None = None
+        self.agent: PPO = None
+
     def _init_objects(self) -> None:
         """
         This method gets called after right creating the Strategy object. It
@@ -76,6 +82,11 @@ class Strategy(ABC):
             self.hp = {}
             for dna in self.hyperparameters():
                 self.hp[dna['name']] = dna['default']
+
+        self._agent_settings = self.agent_settings()
+        if self._agent_settings is not None and isinstance(self._agent_settings.agent_path, str):
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.agent = PPO.load(self._agent_settings.agent_path, device=device)
 
     @property
     def _price_precision(self) -> int:
@@ -618,6 +629,12 @@ class Strategy(ABC):
         """
         Based on the newly updated info, check if we should take action or not
         """
+        if not self.is_learning and self.agent is not None:
+            with torch.no_grad():
+                state = self.env_observation()[None, :]
+                action, *_ = self.agent.getAction(state)
+                self._inject_agent_action(action[0])
+
         if not self._is_initiated:
             self._is_initiated = True
 
@@ -700,7 +717,13 @@ class Strategy(ABC):
         """
         Simulate market order execution in backtest mode
         """
-        if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
+        if (
+                jh.is_backtesting()
+                or jh.is_unit_testing()
+                or jh.is_paper_trading()
+                or jh.is_learning()
+                or jh.is_optimizing()
+        ):
             store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
@@ -1295,30 +1318,30 @@ class Strategy(ABC):
         return jh.is_live()
 
     @property
+    def is_learning(self) -> bool:
+        return jh.is_learning()
+
+    @property
     def min_qty(self) -> float:
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
         return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
 
-    def actions_space(self) -> list:
-        return [None]
-
-    def env_space(self) -> Space:
-        pass
+    def agent_settings(self) -> AgentSettings | None:
+        return None
 
     def env_observation(self) -> Any:
         return None
 
     def reward(self) -> float:
-        # todo create a basic reward functionality
         return 1
 
     def _actions_space(self) -> spaces.Discrete:
-        return spaces.Discrete(len(self.actions_space()))
+        return spaces.Discrete(len(self._agent_settings.actions_space))
 
     def _inject_agent_action(self, action: int) -> None:
-        self.agent_action = self.actions_space()[action]
+        self.agent_action = self._agent_settings.actions_space[action]
 
     def _pre_action_execute(self) -> None:
         """

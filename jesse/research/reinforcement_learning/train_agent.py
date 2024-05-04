@@ -1,12 +1,16 @@
 import os
 import time
+
+import torch
+
+import jesse.helpers as jh
 from typing import Sequence
 
 import joblib
-import torch
 from pydantic import BaseModel
 from agilerl.algorithms.ppo import PPO
 
+from jesse.research.reinforcement_learning.agent_settings import AgentSettings
 from jesse.research.reinforcement_learning.environment import (
     JesseGymSimulationEnvironment,
 )
@@ -25,7 +29,7 @@ from tqdm import trange
 import gymnasium as gym
 
 
-class AgentConfig(BaseModel):
+class AgentTrainingConfig(BaseModel):
     candles: dict
     route: dict
     extra_routes: list[dict] | None
@@ -80,19 +84,18 @@ def _get_mutation_parameters() -> dict:
 
 
 def _create_pop(
+    agent_settings: AgentSettings,
     action_dim: int,
     state_dim: Sequence[int],
     one_hot: bool,
-    device: str = "cpu",
-    n_jobs: int = -1,
 ):
-    INIT_HP = _get_init_hp(n_jobs)
-    MUT_P = _get_mutation_parameters()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    INIT_HP = agent_settings.initial_hp
+    MUT_P = agent_settings.mutation_parameters
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
-    net_config = {
-        "arch": "mlp",
-        "hidden_size": [64],
-    }
+    net_config = agent_settings.net_config
+
     pop = initialPopulation(
         algo="PPO",  # Algorithm
         state_dim=state_dim,  # type: ignore
@@ -177,7 +180,7 @@ def _agent_play(
 
 
 def train(
-    train_configs: list[AgentConfig],
+    train_configs: list[AgentTrainingConfig],
     episodes=1000,
     candles_per_episode=1000,
     num_warmup_candles=3000,
@@ -186,9 +189,7 @@ def train(
     if n_jobs == -1:
         n_jobs = joblib.cpu_count()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    INIT_HP = _get_init_hp(n_jobs)
+    strategy = jh.get_strategy_class(train_configs[0].route["strategy"])
     environments = [
         gym.vector.AsyncVectorEnv(
             [
@@ -207,12 +208,13 @@ def train(
     state_dim = environments[0].single_observation_space.shape
     one_hot = False  # Does not require one-hot encoding
 
+    agent_settings = strategy().agent_settings()
+    INIT_HP = agent_settings.initial_hp
     pop, tournament, mutations = _create_pop(
+        agent_settings=agent_settings,
         action_dim=action_dim,
         state_dim=state_dim,
         one_hot=one_hot,
-        n_jobs=n_jobs,
-        device=device,
     )
     elite = pop[0]  # elite variable placeholder
     save_path = "storage/agents/{strategy}-generation-{ts}-{i}"
