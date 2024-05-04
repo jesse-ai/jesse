@@ -273,7 +273,7 @@ def _step_simulator(
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
-        update_progress_bar(progressbar, run_silently, i)
+        update_progress_bar(progressbar, run_silently, i, candle_step=60)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
@@ -386,10 +386,10 @@ def prepare_routes(hyperparameters: dict = None) -> None:
 
 
 def update_progress_bar(
-    progressbar: Progressbar, run_silently: bool, candle_index: int
+    progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int
 ) -> None:
     # update progressbar
-    if not run_silently and candle_index % 60 == 0:
+    if not run_silently and candle_index % candle_step == 0:
         progressbar.update()
         sync_publish(
             "progressbar",
@@ -573,7 +573,7 @@ def _skip_simulator(
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         simulate_new_candles(candles, i, candles_step)
 
-        update_progress_bar(progressbar, run_silently, i)
+        update_progress_bar(progressbar, run_silently, i, candles_step)
 
         execute_routes(i, candles_step)
 
