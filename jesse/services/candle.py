@@ -164,6 +164,9 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
 
 
 def inject_warmup_candles_to_store(candles: np.ndarray, exchange: str, symbol: str) -> None:
+    if candles is None or candles.size == 0:
+        raise ValueError(f'No candles were passed for "{exchange}" "{symbol}".')
+
     from jesse.config import config
     from jesse.store import store
 

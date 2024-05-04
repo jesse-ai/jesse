@@ -241,6 +241,10 @@ def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
 
+def generate_short_unique_id() -> str:
+    return str(uuid.uuid4())[:22]
+
+
 def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return timestamp_to_arrow(timestamp)
 
