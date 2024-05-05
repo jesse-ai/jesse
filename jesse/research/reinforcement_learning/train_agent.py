@@ -97,6 +97,14 @@ def _create_pop(
     # Define the network configuration of a simple mlp with two hidden layers, each with 64 nodes
     net_config = agent_settings.net_config
 
+    if isinstance(agent_settings.agent_path, str):
+        load_agents = [PPO.load(agent_settings.agent_path, device=device)]
+    elif isinstance(agent_settings.agent_path, list):
+        load_agents = [
+            PPO.load(path, device=device) for path in agent_settings.agent_path
+        ]
+    else:
+        load_agents = []
     pop = initialPopulation(
         algo="PPO",  # Algorithm
         state_dim=state_dim,  # type: ignore
@@ -104,9 +112,9 @@ def _create_pop(
         one_hot=one_hot,
         net_config=net_config,  # Network configuration
         INIT_HP=INIT_HP,
-        population_size=INIT_HP["POP_SIZE"],
+        population_size=max(0, INIT_HP["POP_SIZE"] - len(load_agents)),
         device=device,
-    )
+    ) + load_agents
 
     tournament = TournamentSelection(
         INIT_HP["TOURN_SIZE"],
@@ -237,15 +245,26 @@ def train(
         # Now evolve population if necessary
         if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
             # Evaluate population
-            fitnesses = parallel(
-                joblib.delayed(agent.test)(
-                    env,
-                    swap_channels=INIT_HP["CHANNELS_LAST"],
-                    max_steps=INIT_HP["MAX_STEPS"],
-                    loop=INIT_HP["EVO_LOOP"],
+            if n_jobs == 1:
+                fitnesses = [
+                    agent.test(
+                        environments[0],
+                        swap_channels=INIT_HP["CHANNELS_LAST"],
+                        max_steps=INIT_HP["MAX_STEPS"],
+                        loop=INIT_HP["EVO_LOOP"],
+                    )
+                    for agent in pop
+                ]
+            else:
+                fitnesses = parallel(
+                    joblib.delayed(agent.test)(
+                        env,
+                        swap_channels=INIT_HP["CHANNELS_LAST"],
+                        max_steps=INIT_HP["MAX_STEPS"],
+                        loop=INIT_HP["EVO_LOOP"],
+                    )
+                    for agent, env in zip(pop, environments)
                 )
-                for agent, env in zip(pop, environments)
-            )
 
             fitness = ["%.2f" % fitness for fitness in fitnesses]
             avg_fitness = ["%.2f" % np.mean(agent.fitness[-100:]) for agent in pop]
