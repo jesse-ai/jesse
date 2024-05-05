@@ -1,4 +1,5 @@
 import os
+import random
 import time
 
 import torch
@@ -194,15 +195,15 @@ def train(
         gym.vector.AsyncVectorEnv(
             [
                 lambda: JesseGymSimulationEnvironment(
-                    train_configs[i % len(train_configs)].candles,
-                    train_configs[i % len(train_configs)].route,
-                    train_configs[i % len(train_configs)].extra_routes,
+                    train_config.candles,
+                    train_config.route,
+                    train_config.extra_routes,
                     candles_per_episode,
                     num_warmup_candles=num_warmup_candles,
                 )
             ]
         )
-        for i in range(n_jobs)
+        for train_config in train_configs
     ]
     action_dim = environments[0].single_action_space.n
     state_dim = environments[0].single_observation_space.shape
@@ -224,7 +225,8 @@ def train(
     for episode in trange(episodes):
         t1 = time.time()
         if n_jobs == 1:
-            _agent_play(pop[0], environments[0], candles_per_episode)
+            for agent in pop:
+                _agent_play(agent, random.choice(environments), candles_per_episode)
         else:
             parallel(
                 joblib.delayed(_agent_play)(agent, env, candles_per_episode)
