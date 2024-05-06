@@ -716,13 +716,7 @@ class Strategy(ABC):
         """
         Simulate market order execution in backtest mode
         """
-        if (
-                jh.is_backtesting()
-                or jh.is_unit_testing()
-                or jh.is_paper_trading()
-                or jh.is_learning()
-                or jh.is_optimizing()
-        ):
+        if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
             store.orders.execute_pending_market_orders()
 
     def _on_open_position(self, order: Order) -> None:
@@ -1318,10 +1312,6 @@ class Strategy(ABC):
     @property
     def is_live(self) -> bool:
         return jh.is_live()
-
-    @property
-    def is_learning(self) -> bool:
-        return jh.is_learning()
 
     @property
     def min_qty(self) -> float:

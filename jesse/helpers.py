@@ -383,11 +383,6 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
-def is_learning() -> bool:
-    from jesse.config import config
-    return config['app']['trading_mode'] == 'learning'
-
-
 def is_unit_testing() -> bool:
     """Returns True if the code is running by running pytest, False otherwise."""
     # Check if the PYTEST_CURRENT_TEST environment variable is set.
