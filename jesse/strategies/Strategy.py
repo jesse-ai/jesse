@@ -17,6 +17,7 @@ from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchang
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
+from jesse.services.cache import cached
 from jesse.services import notifier
 
 
