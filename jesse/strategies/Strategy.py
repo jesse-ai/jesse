@@ -5,19 +5,18 @@ from typing import List, Dict, Union, Any
 import numpy as np
 import torch
 from agilerl.algorithms.ppo import PPO
-from gymnasium import Space, spaces
+from gymnasium import spaces
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
+from jesse.research.reinforcement_learning import AgentSettings
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.research.reinforcement_learning.agent_settings import AgentSettings
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
-from jesse.services.cache import cached
 from jesse.services import notifier
 
 
