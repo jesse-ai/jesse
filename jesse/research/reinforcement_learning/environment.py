@@ -111,14 +111,14 @@ class JesseGymSimulationEnvironment(gym.Env):
         ):
             self.done = True
             self.strategy._terminate()
-            return self.observation, self.strategy.reward(), self.done, False, {}
+            return self.observation, self.strategy.agent_reward(), self.done, False, {}
 
         self.candle_index += self.candles_step
         simulate_new_candles(self.episode_candles, self.candle_index, self.candles_step)
 
         self._pre_action_execute()
         self.observation = self.strategy.env_observation()
-        return self.observation, self.strategy.reward(), self.done, False, {}
+        return self.observation, self.strategy.agent_reward(), self.done, False, {}
 
     @property
     def simulation_minutes_length(self):

@@ -84,7 +84,9 @@ class Strategy(ABC):
                 self.hp[dna['name']] = dna['default']
 
         self._agent_settings = self.agent_settings()
-        if self._agent_settings is not None and isinstance(self._agent_settings.agent_path, str):
+        if self._agent_settings is not None and isinstance(
+            self._agent_settings.agent_path, str
+        ):
             device = "cuda" if torch.cuda.is_available() else "cpu"
             self.agent = PPO.load(self._agent_settings.agent_path, device=device)
 
@@ -629,14 +631,11 @@ class Strategy(ABC):
         """
         Based on the newly updated info, check if we should take action or not
         """
-        if not self.is_learning and self.agent is not None:
-            with torch.no_grad():
-                state = self.env_observation()[None, :]
-                action, *_ = self.agent.getAction(state)
-                self._inject_agent_action(action[0])
-
         if not self._is_initiated:
             self._is_initiated = True
+
+        if self.agent is not None:
+            self._check_agent_action()
 
         self._wait_until_executing_orders_are_fully_handled()
 
@@ -875,6 +874,9 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        # reward is not needed on live mode
+        if self.is_backtesting and self.agent is not None:
+            store.reinforce_learning.rewards.append([self.agent_reward()])
         self._clear_cached_methods()
 
         self._is_executing = False
@@ -1331,10 +1333,20 @@ class Strategy(ABC):
     def agent_settings(self) -> AgentSettings | None:
         return None
 
+    def _check_agent_action(self) -> None:
+        state = self.env_observation()[None, :]
+        action, log_prob, _, value = self.agent.getAction(state)
+        self._inject_agent_action(action[0])
+        if self.is_backtesting:
+            store.reinforce_learning.states.append(state)
+            store.reinforce_learning.actions.append(action)
+            store.reinforce_learning.log_probs.append(log_prob)
+            store.reinforce_learning.values.append(value)
+
     def env_observation(self) -> Any:
         return None
 
-    def reward(self) -> float:
+    def agent_reward(self) -> float:
         return 1
 
     def _actions_space(self) -> spaces.Discrete:
