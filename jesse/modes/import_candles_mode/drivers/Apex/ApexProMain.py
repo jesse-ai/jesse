@@ -57,8 +57,6 @@ class ApexProMain(CandleExchange):
             raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
         
         data = response.json()['data'][dashless_symbol]
-        # Reverse the data list
-        data = data[::-1]
 
         return [
             {
