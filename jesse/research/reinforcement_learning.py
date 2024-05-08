@@ -222,8 +222,8 @@ def train(
     save_path = "storage/agents/{strategy}-generation-{ts}-{i}"
     os.makedirs("storage/agents", exist_ok=True)
     for episode in trange(episodes):
-        evaluation_fitness = []
-        for agent in [pop[0]]:
+        evaluation_fitness = [[] for _ in range(len(pop))]
+        for i, agent in enumerate(pop):
             train_config_index = random.randint(0, len(train_configs) - 1)
             train_config = train_configs[train_config_index]
             warmup_candles, trading_candles = _prepare_candles_for_episode(
@@ -257,12 +257,10 @@ def train(
             agent.learn(result["experience"])
             agent.steps[-1] += candles_per_episode
 
-            if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
-                evaluation_fitness.append(np.mean(result["experience"][3]))
+            evaluation_fitness[i].append(np.array(result["experience"][3]).T[0].mean())
 
         if (episode + 1) % INIT_HP["EVO_EPOCHS"] == 0:
-            fitness = ["%.2f" % fitness for fitness in evaluation_fitness]
-            avg_fitness = ["%.2f" % np.mean(agent.fitness[-100:]) for agent in pop]
+            fitness = ["%.2f" % np.mean(fitness) for fitness in evaluation_fitness]
             avg_score = ["%.2f" % np.mean(agent.scores[-100:]) for agent in pop]
             agents = [agent.index for agent in pop]
             num_steps = [agent.steps[-1] for agent in pop]
@@ -272,7 +270,6 @@ def train(
                 f"""
                 --- Epoch {episode + 1} ---
                 Fitness:\t\t{fitness}
-                100 fitness avgs:\t{avg_fitness}
                 100 score avgs:\t{avg_score}
                 Agents:\t\t{agents}
                 Steps:\t\t{num_steps}
