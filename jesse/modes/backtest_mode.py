@@ -598,7 +598,7 @@ def _skip_simulator(
                     )
 
         # update progressbar
-        if not run_silently and i % 60 == 0:
+        if not run_silently and i % candles_step == 0:
             progressbar.update()
             sync_publish(
                 "progressbar",

@@ -403,8 +403,8 @@ class CandlesState:
         exchange: str,
         symbol: str,
     ) -> None:
-        if not jh.is_backtesting():
-            raise Exception('add_multiple_1m_candles() is for backtesting only')
+        if not (jh.is_backtesting() or jh.is_optimizing()):
+            raise Exception('add_multiple_1m_candles() is for backtesting or optimizing only')
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
 

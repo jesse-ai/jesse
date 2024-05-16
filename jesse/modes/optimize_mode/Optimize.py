@@ -239,7 +239,7 @@ class Optimizer(ABC):
                                 people_bucket, mommy, daddy, self.solution_len, self.charset,
                                 jh.get_config('env.optimization'), router.formatted_routes,
                                 router.formatted_extra_routes,
-                                self.strategy_hp, self.training_candles, self.testing_candles,
+                                self.strategy_hp, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
                                 self.optimal_total
                             )
                         )
