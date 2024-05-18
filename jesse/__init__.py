@@ -230,6 +230,7 @@ def run() -> None:
         port = 9000
 
     # run the main application
+    process_manager.flush()
     uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="info")
 
 
