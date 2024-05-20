@@ -1,7 +1,7 @@
 import hashlib
 import math
 import os
-from pathlib import Path
+from functools import lru_cache
 import random
 import string
 import sys
@@ -12,12 +12,15 @@ import arrow
 import click
 import numpy
 import numpy as np
+from jesse.exceptions import InvalidTimeframe
+from jesse.enums import trade_types, sides, timeframes
+from jesse.info import exchange_info
 
 CACHED_CONFIG = dict()
 
 
+@lru_cache
 def app_currency() -> str:
-    from jesse.info import exchange_info
     from jesse.routes import router
     if router.routes[0].exchange in exchange_info and 'settlement_currency' in exchange_info[router.routes[0].exchange]:
         return exchange_info[router.routes[0].exchange]['settlement_currency']
@@ -25,6 +28,7 @@ def app_currency() -> str:
         return quote_asset(router.routes[0].symbol)
 
 
+@lru_cache
 def app_mode() -> str:
     from jesse.config import config
     return config['app']['trading_mode']
@@ -367,12 +371,12 @@ def is_importing_candles() -> bool:
 def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
-
+@lru_cache
 def is_livetrading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
 
-
+@lru_cache
 def is_optimizing() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'optimize'
@@ -414,7 +418,6 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 
 
 def max_timeframe(timeframes_list: list) -> str:
-    from jesse.enums import timeframes
 
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
@@ -506,7 +509,6 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
 
 
 def opposite_side(s: str) -> str:
-    from jesse.enums import sides
 
     if s == sides.BUY:
         return sides.SELL
@@ -517,7 +519,6 @@ def opposite_side(s: str) -> str:
 
 
 def opposite_type(t: str) -> str:
-    from jesse.enums import trade_types
 
     if t == trade_types.LONG:
         return trade_types.SHORT
@@ -703,7 +704,6 @@ def should_execute_silently() -> bool:
 
 
 def side_to_type(s: str) -> str:
-    from jesse.enums import trade_types, sides
 
     # make sure string is lowercase
     s = s.lower()
@@ -768,8 +768,6 @@ def _print_error(msg: str) -> None:
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
 
     dic = {
         timeframes.MINUTE_1: 1,
