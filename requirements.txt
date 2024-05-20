@@ -10,6 +10,7 @@ pandas==1.4.0
 peewee==3.14.8
 psycopg2-binary==2.9.9
 pydash==6.0.0
+fnc==0.5.3
 pytest==6.2.5
 PyWavelets==1.2.0
 quantstats==0.0.47
