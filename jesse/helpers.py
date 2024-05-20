@@ -19,7 +19,6 @@ from jesse.info import exchange_info
 CACHED_CONFIG = dict()
 
 
-@lru_cache
 def app_currency() -> str:
     from jesse.routes import router
     if router.routes[0].exchange in exchange_info and 'settlement_currency' in exchange_info[router.routes[0].exchange]:
