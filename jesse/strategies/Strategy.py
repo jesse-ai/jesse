@@ -1344,22 +1344,3 @@ class Strategy(ABC):
 
     def _inject_agent_action(self, action: int) -> None:
         self.agent_action = self._agent_settings.actions_space[action]
-
-    def _pre_action_execute(self) -> None:
-        """
-        similar to _execute function only that it split it to 2 so RL algorithms can inject action after the 'before' callback
-        """
-        # make sure we don't execute this strategy more than once at the same time.
-        if self._is_executing is True:
-            return
-
-        self._is_executing = True
-        self.before()
-
-    def _post_action_execute(self) -> None:
-        self._check()
-        self.after()
-        self._clear_cached_methods()
-
-        self._is_executing = False
-        self.index += 1
