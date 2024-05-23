@@ -741,7 +741,7 @@ def _simulate_price_change_effect_multiple_candles(
                 if not is_executed_order:
                     # add/update the real_candle to the store so we can move on
                     store.candles.add_candle(
-                        current_temp_candle,
+                        short_timeframes_candles[i].copy(),
                         exchange,
                         symbol,
                         "1m",
