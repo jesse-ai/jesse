@@ -12,14 +12,12 @@ import arrow
 import click
 import numpy
 import numpy as np
-from jesse.exceptions import InvalidTimeframe
-from jesse.enums import trade_types, sides, timeframes
-from jesse.info import exchange_info
 
 CACHED_CONFIG = dict()
 
 
 def app_currency() -> str:
+    from jesse.info import exchange_info
     from jesse.routes import router
     if router.routes[0].exchange in exchange_info and 'settlement_currency' in exchange_info[router.routes[0].exchange]:
         return exchange_info[router.routes[0].exchange]['settlement_currency']
@@ -417,6 +415,7 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 
 
 def max_timeframe(timeframes_list: list) -> str:
+    from jesse.enums import timeframes
 
     if timeframes.DAY_1 in timeframes_list:
         return timeframes.DAY_1
@@ -507,7 +506,9 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
     return result
 
 
+@lru_cache
 def opposite_side(s: str) -> str:
+    from jesse.enums import sides
 
     if s == sides.BUY:
         return sides.SELL
@@ -516,8 +517,9 @@ def opposite_side(s: str) -> str:
     else:
         raise ValueError(f'{s} is not a valid input for side')
 
-
+@lru_cache
 def opposite_type(t: str) -> str:
+    from jesse.enums import trade_types
 
     if t == trade_types.LONG:
         return trade_types.SHORT
@@ -701,8 +703,9 @@ def secure_hash(msg: str) -> str:
 def should_execute_silently() -> bool:
     return is_optimizing() or is_unit_testing()
 
-
+@lru_cache
 def side_to_type(s: str) -> str:
+    from jesse.enums import trade_types, sides
 
     # make sure string is lowercase
     s = s.lower()
@@ -765,8 +768,10 @@ def _print_error(msg: str) -> None:
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
 
-
+@lru_cache
 def timeframe_to_one_minutes(timeframe: str) -> int:
+    from jesse.enums import timeframes
+    from jesse.exceptions import InvalidTimeframe
 
     dic = {
         timeframes.MINUTE_1: 1,
