@@ -45,3 +45,25 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
     return JSONResponse({
         'message': 'API key has been stored successfully.'
     }, status_code=200)
+
+
+def delete_api_keys(exchange_api_key_id: str):
+    from jesse.services.db import database
+    database.open_connection()
+
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+
+    try:
+        # delete the record
+        ExchangeApiKeys.delete().where(ExchangeApiKeys.id == exchange_api_key_id).execute()
+    except Exception as e:
+        database.close_connection()
+        return JSONResponse({
+            'error': str(e)
+        }, status_code=500)
+
+    database.close_connection()
+
+    return JSONResponse({
+        'message': 'API key has been deleted successfully.'
+    }, status_code=200)

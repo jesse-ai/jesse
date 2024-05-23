@@ -90,12 +90,16 @@ class GetOrdersRequestJson(BaseModel):
     session_id: str
 
 
-class ExchangeApiKeyRequestJson(BaseModel):
+class StoreExchangeApiKeyRequestJson(BaseModel):
     exchange: str
     name: str
     api_key: str
     api_secret: str
     additional_fields: Optional[dict] = None
+
+
+class DeleteExchangeApiKeyRequestJson(BaseModel):
+    id: str
 
 
 class ConfigRequestJson(BaseModel):

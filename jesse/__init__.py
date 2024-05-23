@@ -14,7 +14,7 @@ from jesse.services.multiprocessing import process_manager
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
-    ReportExceptionRequestJson, OptimizationRequestJson, ExchangeApiKeyRequestJson
+    ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, DeleteExchangeApiKeyRequestJson
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -525,13 +525,22 @@ if HAS_LIVE_TRADE_PLUGIN:
         return get_api_keys()
 
     @fastapi_app.post('/exchange-api-keys')
-    def exchange_api_keys(json_request: ExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    def exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
         from jesse.modes.exchange_api_keys import store_api_keys
 
         return store_api_keys(json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret, json_request.additional_fields)
+
+    @fastapi_app.post('/exchange-api-keys/delete')
+    def exchange_api_keys_delete(json_request: DeleteExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse.modes.exchange_api_keys import delete_api_keys
+
+        return delete_api_keys(json_request.id)
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
