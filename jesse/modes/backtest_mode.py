@@ -782,7 +782,7 @@ def _get_executing_orders(exchange, symbol, real_candle):
     ]
 
 
-def _sort_execution_orders(orders: list[Order], short_candles: np.ndarray):
+def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
     sorted_orders = []
     for i in range(len(short_candles)):
         included_orders = [
