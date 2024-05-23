@@ -90,6 +90,14 @@ class GetOrdersRequestJson(BaseModel):
     session_id: str
 
 
+class ExchangeApiKeyRequestJson(BaseModel):
+    exchange: str
+    name: str
+    api_key: str
+    api_secret: str
+    additional_fields: Optional[dict] = None
+
+
 class ConfigRequestJson(BaseModel):
     current_config: dict
 

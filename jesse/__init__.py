@@ -14,7 +14,7 @@ from jesse.services.multiprocessing import process_manager
 from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
-    ReportExceptionRequestJson, OptimizationRequestJson
+    ReportExceptionRequestJson, OptimizationRequestJson, ExchangeApiKeyRequestJson
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -514,6 +514,24 @@ if HAS_LIVE_TRADE_PLUGIN:
             'id': json_request.id,
             'data': arr
         }, status_code=200)
+
+    @fastapi_app.get('/exchange-api-keys')
+    def exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse.modes.exchange_api_keys import get_api_keys
+
+        return get_api_keys()
+
+    @fastapi_app.post('/exchange-api-keys')
+    def exchange_api_keys(json_request: ExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+        if not authenticator.is_valid_token(authorization):
+            return authenticator.unauthorized_response()
+
+        from jesse.modes.exchange_api_keys import store_api_keys
+
+        return store_api_keys(json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret, json_request.additional_fields)
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")

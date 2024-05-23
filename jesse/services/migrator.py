@@ -29,6 +29,7 @@ def run():
     _orderbook(migrator)
     _ticker(migrator)
     _trade(migrator)
+    _exchange_api_keys(migrator)
 
     # create initial tables
     from jesse.models import Candle, ClosedTrade, Log, Order, Option
@@ -112,6 +113,14 @@ def _trade(migrator):
     if 'trade' in database.db.get_tables():
         trade_columns = database.db.get_columns('trade')
         _migrate(migrator, fields, trade_columns, 'trade')
+
+
+def _exchange_api_keys(migrator):
+    fields = []
+
+    if 'exchange_api_keys' in database.db.get_tables():
+        exchange_api_keys_columns = database.db.get_columns('exchange_api_keys')
+        _migrate(migrator, fields, exchange_api_keys_columns, 'exchange_api_keys')
 
 
 def _migrate(migrator, fields, columns, table):
