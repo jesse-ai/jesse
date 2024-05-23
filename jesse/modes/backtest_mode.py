@@ -396,14 +396,13 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
-    orders = store.orders.get_orders(exchange, symbol)
-
     current_temp_candle = real_candle.copy()
     executed_order = False
 
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
     if len(executing_orders) > 1:
-        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle)
+        # extend the candle shape from (6,) to (1,6)
+        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
     while True:
         if len(executing_orders) == 0:
@@ -429,6 +428,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     executed_order = True
 
                     order.execute()
+                    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
