@@ -5,8 +5,18 @@ import jesse.helpers as jh
 
 
 def get_api_keys():
+    from jesse.services.db import database
+    database.open_connection()
+
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+
+    # fetch all the api keys
+    api_keys = ExchangeApiKeys.select().dicts()
+
+    database.close_connection()
+
     return JSONResponse({
-        'data': []
+        'api_keys': list(api_keys)
     }, status_code=200)
 
 
