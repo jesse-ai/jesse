@@ -13,7 +13,7 @@ class ExchangeApiKeys(peewee.Model):
     api_key = peewee.CharField(unique=True)
     api_secret = peewee.CharField(unique=True)
     additional_fields = peewee.TextField()
-    created_at = peewee.BigIntegerField()
+    created_at = peewee.TimestampField()
 
     class Meta:
         from jesse.services.db import database
