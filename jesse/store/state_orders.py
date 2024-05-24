@@ -108,17 +108,14 @@ class OrdersState:
         return fnc.find(lambda o: o.id == id, reversed(self.storage[key]))
 
     def get_entry_orders(self, exchange: str, symbol: str) -> List[Order]:
-        all_orders = self.get_orders(exchange, symbol)
-        # return empty if no orders
-        if len(all_orders) == 0:
-            return []
         # return all orders if position is not opened yet
         p = selectors.get_position(exchange, symbol)
         if p.is_close:
-            entry_orders = all_orders.copy()
-        else:
-            p_side = jh.type_to_side(p.type)
-            entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
+            return self.get_orders(exchange, symbol).copy()
+
+        all_orders = self.get_active_orders(exchange, symbol)
+        p_side = jh.type_to_side(p.type)
+        entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
 
         return entry_orders
 
