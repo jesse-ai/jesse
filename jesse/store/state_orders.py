@@ -14,11 +14,13 @@ class OrdersState:
         self.to_execute = []
 
         self.storage = {}
+        self.executed_storage = {}
 
         for exchange in config['app']['trading_exchanges']:
             for symbol in config['app']['trading_symbols']:
                 key = f'{exchange}-{symbol}'
                 self.storage[key] = []
+                self.executed_storage[key] = []
 
     def reset(self) -> None:
         """
@@ -122,5 +124,21 @@ class OrdersState:
         exit_orders = [o for o in exit_orders if not o.is_canceled]
 
         return exit_orders
+
+    def move_executed_orders(self, exchange: str, symbol: str):
+        executed_orders = []
+        active_orders = []
+
+        key = f'{exchange}-{symbol}'
+        for order in self.storage.get(key, []):
+            if order.is_canceled or order.is_executed:
+                executed_orders.append(order)
+            else:
+                active_orders.append(order)
+
+        self.storage[key] = active_orders
+        if key not in self.executed_storage:
+            self.executed_storage[key] = []
+        self.executed_storage[key] += executed_orders
 
 
