@@ -10,8 +10,8 @@ class ExchangeApiKeys(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
     exchange_name = peewee.CharField()
     name = peewee.CharField(unique=True)
-    api_key = peewee.CharField(unique=True)
-    api_secret = peewee.CharField(unique=True)
+    api_key = peewee.CharField()
+    api_secret = peewee.CharField()
     additional_fields = peewee.TextField()
     created_at = peewee.TimestampField()
 
