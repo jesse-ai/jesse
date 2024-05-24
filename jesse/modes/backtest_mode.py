@@ -336,6 +336,8 @@ def _step_simulator(
                                  r.symbol)
                 r.strategy._execute()
 
+            store.orders.move_executed_orders(r.exchange, r.symbol)
+
         # now check to see if there's any MARKET orders waiting to be executed
         store.orders.execute_pending_market_orders()
 
