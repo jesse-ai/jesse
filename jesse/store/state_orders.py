@@ -1,6 +1,6 @@
 from typing import List
 
-import pydash
+import fnc
 
 from jesse.config import config
 from jesse.models import Order
@@ -84,9 +84,9 @@ class OrdersState:
         key = f'{exchange}-{symbol}'
 
         if use_exchange_id:
-            return pydash.find(self.storage[key], lambda o: o.exchange_id == id)
+            return fnc.find(lambda o: o.exchange_id == id, self.storage[key])
 
-        return pydash.find(self.storage[key], lambda o: o.id == id)
+        return fnc.find(lambda o: o.id == id, reversed(self.storage[key]))
 
     def get_entry_orders(self, exchange: str, symbol: str) -> List[Order]:
         all_orders = self.get_orders(exchange, symbol)
@@ -98,10 +98,8 @@ class OrdersState:
         if p.is_close:
             entry_orders = all_orders.copy()
         else:
-            entry_orders = [o for o in all_orders if o.side == jh.type_to_side(p.type)]
-
-        # exclude cancelled orders
-        entry_orders = [o for o in entry_orders if not o.is_canceled]
+            p_side = jh.type_to_side(p.type)
+            entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
 
         return entry_orders
 
