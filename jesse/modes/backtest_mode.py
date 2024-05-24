@@ -398,7 +398,7 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
-    orders = store.orders.get_orders(exchange, symbol)
+    orders = store.orders.get_active_orders(exchange, symbol)
 
     current_temp_candle = real_candle.copy()
     executed_order = False
@@ -771,7 +771,7 @@ def _simulate_price_change_effect_multiple_candles(
 
 
 def _get_executing_orders(exchange, symbol, real_candle):
-    orders = store.orders.get_orders(exchange, symbol)
+    orders = store.orders.get_active_orders(exchange, symbol)
     active_orders = [order for order in orders if order.is_active]
     return [
         order
