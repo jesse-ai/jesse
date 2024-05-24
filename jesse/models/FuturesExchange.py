@@ -131,18 +131,17 @@ class FuturesExchange(Exchange):
         base_asset = jh.base_asset(order.symbol)
 
         if not order.reduce_only:
+            order_array = np.array([order.qty, order.price])
             if order.side == sides.BUY:
-                # find and set order to [0, 0] (same as removing it)
-                for index, item in enumerate(self.buy_orders[base_asset]):
-                    if item[0] == order.qty and item[1] == order.price:
-                        self.buy_orders[base_asset][index] = np.array([0, 0])
-                        break
+                item_index = np.where(np.all(self.buy_orders[base_asset].array == order_array, axis=1))[0]
+                if len(item_index) > 0:
+                    index = item_index[0]
+                    self.buy_orders[base_asset].delete(index, axis=0)
             else:
-                # find and set order to [0, 0] (same as removing it)
-                for index, item in enumerate(self.sell_orders[base_asset]):
-                    if item[0] == order.qty and item[1] == order.price:
-                        self.sell_orders[base_asset][index] = np.array([0, 0])
-                        break
+                item_index = np.where(np.all(self.sell_orders[base_asset].array == order_array, axis=1))[0]
+                if len(item_index) > 0:
+                    index = item_index[0]
+                    self.sell_orders[base_asset].delete(index, axis=0)
 
     def on_order_cancellation(self, order: Order) -> None:
         if jh.is_livetrading():
@@ -153,20 +152,17 @@ class FuturesExchange(Exchange):
         self.available_assets[base_asset] -= order.qty
         # self.available_assets[quote_asset] += order.qty * order.price
         if not order.reduce_only:
+            order_array = np.array([order.qty, order.price])
             if order.side == sides.BUY:
-                # find and set order to [0, 0] (same as removing it)
-                for index in range(len(self.buy_orders[base_asset]) - 1, -1, -1):
-                    item = self.buy_orders[base_asset][index]
-                    if item[0] == order.qty and item[1] == order.price:
-                        self.buy_orders[base_asset][index] = np.array([0, 0])
-                        break
+                item_index = np.where(np.all(self.buy_orders[base_asset].array == order_array, axis=1))[0]
+                if len(item_index) > 0:
+                    index = item_index[0]
+                    self.buy_orders[base_asset].delete(index, axis=0)
             else:
-                # find and set order to [0, 0] (same as removing it)
-                for index in range(len(self.sell_orders[base_asset]) - 1, -1, -1):
-                    item = self.sell_orders[base_asset][index]
-                    if item[0] == order.qty and item[1] == order.price:
-                        self.sell_orders[base_asset][index] = np.array([0, 0])
-                        break
+                item_index = np.where(np.all(self.sell_orders[base_asset].array == order_array, axis=1))[0]
+                if len(item_index) > 0:
+                    index = item_index[0]
+                    self.sell_orders[base_asset].delete(index, axis=0)
 
     def update_from_stream(self, data: dict) -> None:
         """
