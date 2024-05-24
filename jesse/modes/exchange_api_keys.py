@@ -23,7 +23,10 @@ def get_api_keys():
 def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, additional_fields: Optional[dict] = None):
     # validate the exchange
     if exchange not in live_trading_exchanges:
-        raise ValueError(f'Invalid exchange: {exchange}')
+        return JSONResponse({
+            'status': 'error',
+            'message': f'Invalid exchange: {exchange}'
+        }, status_code=400)
 
     from jesse.services.db import database
     database.open_connection()
@@ -32,7 +35,15 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
 
     # check if the api key already exists
     if ExchangeApiKeys.select().where(ExchangeApiKeys.name == name).exists():
-        raise ValueError(f'API key with the name "{name}" already exists. Please choose another name.')
+        database.close_connection()
+        return JSONResponse({
+            'status': 'error',
+            'message': f'API key with the name "{name}" already exists. Please choose another name.'
+        }, status_code=400)
+
+    # Ensure additional_fields is a dictionary
+    if additional_fields is None:
+        additional_fields = {}
 
     try:
         # create the record
@@ -45,6 +56,12 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
             additional_fields=additional_fields,
             created_at=jh.now(True)
         )
+    except ValueError as e:
+        database.close_connection()
+        return JSONResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status_code=400)
     except Exception as e:
         database.close_connection()
         return JSONResponse({
@@ -66,7 +83,6 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
             'additional_fields': additional_fields
         }
     }, status_code=200)
-
 
 def delete_api_keys(exchange_api_key_id: str):
     from jesse.services.db import database
