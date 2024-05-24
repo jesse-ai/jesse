@@ -1245,7 +1245,9 @@ class Strategy(ABC):
         """
         Returns all the orders submitted by for this strategy.
         """
-        return store.orders.get_orders(self.exchange, self.symbol)
+        executed_orders = store.orders.get_executed_orders(self.exchange, self.symbol)
+        active_orders = store.orders.get_orders(self.exchange, self.symbol)
+        return sorted(executed_orders + active_orders, key=lambda o: o.created_at)
 
     @property
     def entry_orders(self):

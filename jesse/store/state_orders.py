@@ -62,6 +62,14 @@ class OrdersState:
         key = f'{exchange}-{symbol}'
         return self.storage.get(key, [])
 
+    def get_active_orders(self) -> List[Order]:
+        key = f'{exchange}-{symbol}'
+        return self.storage.get(key, [])
+
+    def get_executed_orders(self, exchange, symbol) -> List[Order]:
+        key = f'{exchange}-{symbol}'
+        return self.executed_storage.get(key, [])
+
     def get_all_orders(self, exchange: str) -> List[Order]:
         return [o for key in self.storage for o in self.storage[key] if o.exchange == exchange]
 
