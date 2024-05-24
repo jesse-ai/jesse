@@ -396,17 +396,20 @@ def _get_fixed_jumped_candle(previous_candle: np.ndarray, candle: np.ndarray) ->
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
-    orders = store.orders.get_orders(exchange, symbol)
-
     current_temp_candle = real_candle.copy()
     executed_order = False
 
+    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+    if len(executing_orders) > 1:
+        # extend the candle shape from (6,) to (1,6)
+        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
+
     while True:
-        if len(orders) == 0:
+        if len(executing_orders) == 0:
             executed_order = False
         else:
-            for index, order in enumerate(orders):
-                if index == len(orders) - 1 and not order.is_active:
+            for index, order in enumerate(executing_orders):
+                if index == len(executing_orders) - 1 and not order.is_active:
                     executed_order = False
 
                 if not order.is_active:
@@ -425,6 +428,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     executed_order = True
 
                     order.execute()
+                    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
@@ -695,6 +699,9 @@ def _simulate_price_change_effect_multiple_candles(
     )
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
     if len(executing_orders) > 0:
+        if len(executing_orders) > 1:
+            executing_orders = _sort_execution_orders(executing_orders, short_timeframes_candles)
+
         for i in range(len(short_timeframes_candles)):
             current_temp_candle = short_timeframes_candles[i].copy()
             is_executed_order = False
@@ -768,9 +775,32 @@ def _simulate_price_change_effect_multiple_candles(
 
 def _get_executing_orders(exchange, symbol, real_candle):
     orders = store.orders.get_orders(exchange, symbol)
-    active_orders = [order for order in orders if order.is_active]
     return [
         order
-        for order in active_orders
-        if candle_includes_price(real_candle, order.price)
+        for order in orders
+        if order.is_active and candle_includes_price(real_candle, order.price)
     ]
+
+
+def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
+    sorted_orders = []
+    for i in range(len(short_candles)):
+        included_orders = [
+            order
+            for order in orders
+            if candle_includes_price(short_candles[i], order.price)
+        ]
+        if len(included_orders) == 1:
+            sorted_orders.append(included_orders[0])
+        elif len(included_orders) > 1:
+            # in case that the orders are above
+
+            # note: check the first is enough because I can assume all the orders in the same direction of the price,
+            # in case it doesn't than i cant really know how the price react in this 1 minute candle..
+            if short_candles[i, 3] > included_orders[0].price > short_candles[i, 1]:
+                sorted_orders += sorted(included_orders, key=lambda o: o.price)
+            else:
+                sorted_orders += sorted(included_orders, key=lambda o: o.price, reverse=True)
+        if len(sorted_orders) == len(orders):
+            break
+    return sorted_orders
