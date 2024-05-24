@@ -47,12 +47,14 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
     except Exception as e:
         database.close_connection()
         return JSONResponse({
-            'error': str(e)
+            'status': 'error',
+            'message': str(e)
         }, status_code=500)
 
     database.close_connection()
 
     return JSONResponse({
+        'status': 'success',
         'message': 'API key has been stored successfully.'
     }, status_code=200)
 
@@ -69,11 +71,13 @@ def delete_api_keys(exchange_api_key_id: str):
     except Exception as e:
         database.close_connection()
         return JSONResponse({
-            'error': str(e)
+            'status': 'error',
+            'message': str(e)
         }, status_code=500)
 
     database.close_connection()
 
     return JSONResponse({
+        'status': 'success',
         'message': 'API key has been deleted successfully.'
     }, status_code=200)
