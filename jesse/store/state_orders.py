@@ -14,13 +14,13 @@ class OrdersState:
         self.to_execute = []
 
         self.storage = {}
-        self.executed_storage = {}
+        self.active_storage = {}
 
         for exchange in config['app']['trading_exchanges']:
             for symbol in config['app']['trading_symbols']:
                 key = f'{exchange}-{symbol}'
                 self.storage[key] = []
-                self.executed_storage[key] = []
+                self.active_storage[key] = []
 
     def reset(self) -> None:
         """
@@ -28,6 +28,7 @@ class OrdersState:
         """
         for key in self.storage:
             self.storage[key].clear()
+            self.active_storage[key].clear()
 
     def reset_trade_orders(self, exchange: str, symbol: str) -> None:
         """
@@ -35,15 +36,20 @@ class OrdersState:
         """
         key = f'{exchange}-{symbol}'
         self.storage[key] = []
+        self.active_storage[key] = []
 
     def add_order(self, order: Order) -> None:
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
+        self.active_storage[key].append(order)
 
     def remove_order(self, order: Order) -> None:
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key] = [
             o for o in self.storage[key] if o.id != order.id
+        ]
+        self.active_storage[key] = [
+            o for o in self.active_storage[key] if o.id != order.id
         ]
 
     def execute_pending_market_orders(self) -> None:
@@ -62,28 +68,31 @@ class OrdersState:
         key = f'{exchange}-{symbol}'
         return self.storage.get(key, [])
 
-    def get_active_orders(self) -> List[Order]:
+    def get_active_orders(self, exchange, symbol) -> List[Order]:
         key = f'{exchange}-{symbol}'
-        return self.storage.get(key, [])
-
-    def get_executed_orders(self, exchange, symbol) -> List[Order]:
-        key = f'{exchange}-{symbol}'
-        return self.executed_storage.get(key, [])
+        return self.active_storage.get(key, [])
 
     def get_all_orders(self, exchange: str) -> List[Order]:
-        return [o for key in self.storage for o in self.storage[key] if o.exchange == exchange]
+        return [
+            o
+            for key in self.storage
+            for o in self.storage[key]
+            if o.exchange == exchange
+        ]
 
     def count_all_active_orders(self) -> int:
         c = 0
-        for key in self.storage:
-            if len(self.storage[key]):
-                for o in self.storage[key]:
-                    if o.is_active:
-                        c += 1
+        for key in self.active_storage:
+            if len(self.active_storage[key]) == 0:
+                continue
+
+            for o in self.active_storage[key]:
+                if o.is_active:
+                    c += 1
         return c
 
     def count_active_orders(self, exchange: str, symbol: str) -> int:
-        orders = self.get_orders(exchange, symbol)
+        orders = self.get_active_orders(exchange, symbol)
 
         return sum(bool(o.is_active) for o in orders)
 
@@ -133,20 +142,11 @@ class OrdersState:
 
         return exit_orders
 
-    def move_executed_orders(self, exchange: str, symbol: str):
-        executed_orders = []
-        active_orders = []
-
+    def update_active_orders(self, exchange: str, symbol: str):
         key = f'{exchange}-{symbol}'
-        for order in self.storage.get(key, []):
-            if order.is_canceled or order.is_executed:
-                executed_orders.append(order)
-            else:
-                active_orders.append(order)
-
-        self.storage[key] = active_orders
-        if key not in self.executed_storage:
-            self.executed_storage[key] = []
-        self.executed_storage[key] += executed_orders
-
-
+        active_orders = [
+            order
+            for order in self.get_active_orders(exchange, symbol)
+            if not order.is_canceled and not order.is_executed
+        ]
+        self.active_storage[key] = active_orders
