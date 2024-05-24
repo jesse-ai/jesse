@@ -36,7 +36,7 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
 
     try:
         # create the record
-        ExchangeApiKeys.create(
+        exchange_api_key: ExchangeApiKeys = ExchangeApiKeys.create(
             exchange_name=exchange,
             name=name,
             api_key=api_key,
@@ -55,7 +55,15 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
 
     return JSONResponse({
         'status': 'success',
-        'message': 'API key has been stored successfully.'
+        'message': 'API key has been stored successfully.',
+        'data': {
+            'id': exchange_api_key.id,
+            'exchange': exchange,
+            'name': name,
+            'api_key': api_key,
+            'api_secret': api_secret,
+            'additional_fields': additional_fields
+        }
     }, status_code=200)
 
 
