@@ -37,6 +37,7 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
     try:
         # create the record
         exchange_api_key: ExchangeApiKeys = ExchangeApiKeys.create(
+            id=jh.generate_unique_id(),
             exchange_name=exchange,
             name=name,
             api_key=api_key,
