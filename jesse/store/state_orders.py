@@ -139,6 +139,26 @@ class OrdersState:
 
         return exit_orders
 
+    def get_active_exit_orders(self, exchange: str, symbol: str) -> List[Order]:
+        """
+        excludes cancel orders but includes executed orders
+        """
+        all_orders = self.get_active_orders(exchange, symbol)
+        # return empty if no orders
+        if len(all_orders) == 0:
+            return []
+        # return empty if position is not opened yet
+        p = selectors.get_position(exchange, symbol)
+        if p.is_close:
+            return []
+        else:
+            exit_orders = [o for o in all_orders if o.side != jh.type_to_side(p.type)]
+
+        # exclude cancelled orders
+        exit_orders = [o for o in exit_orders if not o.is_canceled]
+
+        return exit_orders
+
     def update_active_orders(self, exchange: str, symbol: str):
         key = f'{exchange}-{symbol}'
         active_orders = [
