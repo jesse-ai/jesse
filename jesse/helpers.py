@@ -469,6 +469,11 @@ def now_to_timestamp(force_fresh=False) -> int:
     return arrow.utcnow().int_timestamp * 1000
 
 
+# for use with peewee
+def now_to_datetime():
+    return arrow.utcnow().datetime
+
+
 def current_1m_candle_timestamp():
     return arrow.utcnow().floor('minute').int_timestamp * 1000
 

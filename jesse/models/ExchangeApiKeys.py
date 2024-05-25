@@ -1,7 +1,6 @@
 import peewee
 from jesse.services.db import database
 
-
 if database.is_closed():
     database.open_connection()
 
@@ -13,7 +12,7 @@ class ExchangeApiKeys(peewee.Model):
     api_key = peewee.CharField()
     api_secret = peewee.CharField()
     additional_fields = peewee.TextField()
-    created_at = peewee.TimestampField()
+    created_at = peewee.DateTimeField()
 
     class Meta:
         from jesse.services.db import database

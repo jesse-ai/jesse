@@ -516,7 +516,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         }, status_code=200)
 
     @fastapi_app.get('/exchange-api-keys')
-    def exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
+    def get_exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
@@ -524,8 +524,8 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         return get_api_keys()
 
-    @fastapi_app.post('/exchange-api-keys')
-    def exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    @fastapi_app.post('/exchange-api-keys/store')
+    def store_exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
@@ -534,7 +534,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         return store_api_keys(json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret, json_request.additional_fields)
 
     @fastapi_app.post('/exchange-api-keys/delete')
-    def exchange_api_keys_delete(json_request: DeleteExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    def delete_exchange_api_keys(json_request: DeleteExchangeApiKeyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 

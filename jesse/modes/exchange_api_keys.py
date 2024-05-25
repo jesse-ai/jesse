@@ -2,16 +2,24 @@ from typing import Optional
 from starlette.responses import JSONResponse
 from jesse.info import live_trading_exchanges
 import jesse.helpers as jh
+from jesse.services import transformers
 
 
-def get_api_keys():
+def get_api_keys() -> JSONResponse:
     from jesse.services.db import database
     database.open_connection()
 
     from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 
-    # fetch all the api keys
-    api_keys = ExchangeApiKeys.select().dicts()
+    try:
+        # fetch all the api keys
+        api_keys = ExchangeApiKeys.select().dicts()
+    except Exception as e:
+        database.close_connection()
+        return JSONResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status_code=500)
 
     database.close_connection()
 
@@ -20,7 +28,13 @@ def get_api_keys():
     }, status_code=200)
 
 
-def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, additional_fields: Optional[dict] = None):
+def store_api_keys(
+        exchange: str,
+        name: str,
+        api_key: str,
+        api_secret: str,
+        additional_fields: Optional[dict] = None
+) -> JSONResponse:
     # validate the exchange
     if exchange not in live_trading_exchanges:
         return JSONResponse({
@@ -54,7 +68,7 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
             api_key=api_key,
             api_secret=api_secret,
             additional_fields=additional_fields,
-            created_at=jh.now(True)
+            created_at=jh.now_to_datetime()
         )
     except ValueError as e:
         database.close_connection()
@@ -74,17 +88,11 @@ def store_api_keys(exchange: str, name: str, api_key: str, api_secret: str, addi
     return JSONResponse({
         'status': 'success',
         'message': 'API key has been stored successfully.',
-        'data': {
-            'id': exchange_api_key.id,
-            'exchange': exchange,
-            'name': name,
-            'api_key': api_key,
-            'api_secret': api_secret,
-            'additional_fields': additional_fields
-        }
+        'data': transformers.get_exchange_api_key(exchange_api_key)
     }, status_code=200)
 
-def delete_api_keys(exchange_api_key_id: str):
+
+def delete_api_keys(exchange_api_key_id: str) -> JSONResponse:
     from jesse.services.db import database
     database.open_connection()
 
