@@ -1,15 +1,19 @@
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+import json
 
 
 def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     result = {
-        'id': exchange_api_key.id,
+        'id': str(exchange_api_key.id),
         'exchange': exchange_api_key.exchange_name,
         'name': exchange_api_key.name,
         'api_key': exchange_api_key.api_key[0:4] + '***...***' + exchange_api_key.api_key[-4:],
         'api_secret': exchange_api_key.api_secret[0:4] + '***...***' + exchange_api_key.api_secret[-4:],
         'created_at': exchange_api_key.created_at.isoformat()
     }
+
+    if type(exchange_api_key.additional_fields) == str:
+        exchange_api_key.additional_fields = json.loads(exchange_api_key.additional_fields)
 
     # additional fields
     if exchange_api_key.additional_fields:

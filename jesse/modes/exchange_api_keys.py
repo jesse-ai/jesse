@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 from starlette.responses import JSONResponse
 from jesse.info import live_trading_exchanges
@@ -13,7 +14,7 @@ def get_api_keys() -> JSONResponse:
 
     try:
         # fetch all the api keys
-        api_keys = ExchangeApiKeys.select().dicts()
+        api_keys = ExchangeApiKeys.select()
     except Exception as e:
         database.close_connection()
         return JSONResponse({
@@ -21,10 +22,13 @@ def get_api_keys() -> JSONResponse:
             'message': str(e)
         }, status_code=500)
 
+    # transform each api_key using transformers.get_exchange_api_key()
+    api_keys = [transformers.get_exchange_api_key(api_key) for api_key in api_keys]
+
     database.close_connection()
 
     return JSONResponse({
-        'api_keys': list(api_keys)
+        'data': api_keys
     }, status_code=200)
 
 
@@ -67,7 +71,7 @@ def store_api_keys(
             name=name,
             api_key=api_key,
             api_secret=api_secret,
-            additional_fields=additional_fields,
+            additional_fields=json.dumps(additional_fields),
             created_at=jh.now_to_datetime()
         )
     except ValueError as e:
