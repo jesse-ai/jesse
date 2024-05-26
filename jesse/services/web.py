@@ -98,7 +98,18 @@ class StoreExchangeApiKeyRequestJson(BaseModel):
     additional_fields: Optional[dict] = None
 
 
+class StoreNotificationApiKeyRequestJson(BaseModel):
+    name: str
+    type: str
+    driver: str
+    fields: dict
+
+
 class DeleteExchangeApiKeyRequestJson(BaseModel):
+    id: str
+
+
+class DeleteNotificationApiKeyRequestJson(BaseModel):
     id: str
 
 

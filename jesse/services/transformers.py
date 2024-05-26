@@ -1,6 +1,8 @@
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 import json
 
+from jesse.models.NotificationApiKeys import NotificationApiKeys
+
 
 def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     result = {
@@ -19,5 +21,24 @@ def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     if exchange_api_key.additional_fields:
         for key, value in exchange_api_key.additional_fields.items():
             result[key] = value[0:4] + '***...***' + value[-4:]
+
+    return result
+
+
+def get_notification_api_key(api_key: NotificationApiKeys) -> dict:
+    result = {
+        'id': str(api_key.id),
+        'name': api_key.name,
+        'type': api_key.type,
+        'driver': api_key.driver,
+        'created_at': api_key.created_at.isoformat()
+    }
+
+    # Parse the fields from the JSON string
+    fields = json.loads(api_key.fields)
+
+    # Add each field to the result
+    for key, value in fields.items():
+        result[key] = value[0:4] + '***...***' + value[-4:]
 
     return result
