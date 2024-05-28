@@ -572,7 +572,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         from jesse.modes.notification_api_keys import store_notification_api_keys
 
         return store_notification_api_keys(
-            json_request.type, json_request.name, json_request.driver, json_request.fields
+            json_request.name, json_request.driver, json_request.fields
         )
 
 

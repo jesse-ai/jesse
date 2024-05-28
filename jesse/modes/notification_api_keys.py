@@ -31,7 +31,6 @@ def get_notification_api_keys() -> JSONResponse:
 
 
 def store_notification_api_keys(
-        notifications_type: str,
         name: str,
         driver: str,
         fields: dict
@@ -54,7 +53,6 @@ def store_notification_api_keys(
         notification_api_key: NotificationApiKeys = NotificationApiKeys.create(
             id=jh.generate_unique_id(),
             name=name,
-            type=notifications_type,
             driver=driver,
             fields=json.dumps(fields),
             created_at=jh.now_to_datetime()

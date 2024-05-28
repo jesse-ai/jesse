@@ -37,7 +37,8 @@ def store_api_keys(
         name: str,
         api_key: str,
         api_secret: str,
-        additional_fields: Optional[dict] = None
+        additional_fields: Optional[dict] = None,
+        notifications_id: Optional[str] = None
 ) -> JSONResponse:
     # validate the exchange
     if exchange not in live_trading_exchanges:
@@ -72,7 +73,8 @@ def store_api_keys(
             api_key=api_key,
             api_secret=api_secret,
             additional_fields=json.dumps(additional_fields),
-            created_at=jh.now_to_datetime()
+            created_at=jh.now_to_datetime(),
+            notifications_id=notifications_id
         )
     except ValueError as e:
         database.close_connection()

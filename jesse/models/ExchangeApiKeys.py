@@ -13,6 +13,8 @@ class ExchangeApiKeys(peewee.Model):
     api_secret = peewee.CharField()
     additional_fields = peewee.TextField()
     created_at = peewee.DateTimeField()
+    general_notifications_id = peewee.UUIDField(null=True)
+    error_notifications_id = peewee.UUIDField(null=True)
 
     class Meta:
         from jesse.services.db import database

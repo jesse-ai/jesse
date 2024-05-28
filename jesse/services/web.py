@@ -96,11 +96,12 @@ class StoreExchangeApiKeyRequestJson(BaseModel):
     api_key: str
     api_secret: str
     additional_fields: Optional[dict] = None
+    general_notifications_id: Optional[str] = None
+    error_notifications_id: Optional[str] = None
 
 
 class StoreNotificationApiKeyRequestJson(BaseModel):
     name: str
-    type: str
     driver: str
     fields: dict
 

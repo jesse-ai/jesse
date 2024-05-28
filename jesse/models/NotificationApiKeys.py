@@ -8,7 +8,6 @@ if database.is_closed():
 class NotificationApiKeys(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
     name = peewee.CharField(unique=True)
-    type = peewee.CharField()  # type of the notification (general or error)
     driver = peewee.CharField()  # notification driver (Telegram, Discord, Slack)
     fields = peewee.TextField()  # for storing the fields as a JSON string
     created_at = peewee.DateTimeField()
