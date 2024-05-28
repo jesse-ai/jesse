@@ -536,8 +536,10 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         from jesse.modes.exchange_api_keys import store_api_keys
 
-        return store_api_keys(json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret,
-                              json_request.additional_fields)
+        return store_api_keys(
+            json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret,
+            json_request.additional_fields, json_request.general_notifications_id, json_request.error_notifications_id
+        )
 
 
     @fastapi_app.post('/exchange-api-keys/delete')
