@@ -22,7 +22,7 @@ fastapi_app.add_middleware(
 class BacktestRequestJson(BaseModel):
     id: str
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     config: dict
     start_date: str
     finish_date: str
@@ -37,7 +37,7 @@ class BacktestRequestJson(BaseModel):
 class OptimizationRequestJson(BaseModel):
     id: str
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     config: dict
     start_date: str
     finish_date: str
@@ -62,7 +62,7 @@ class LiveRequestJson(BaseModel):
     id: str
     config: dict
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     debug_mode: bool
     paper_mode: bool
 

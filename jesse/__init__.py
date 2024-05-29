@@ -299,7 +299,7 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         request_json.debug_mode,
         request_json.config,
         request_json.routes,
-        request_json.extra_routes,
+        request_json.data_routes,
         request_json.start_date,
         request_json.finish_date,
         None,
@@ -328,7 +328,7 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.debug_mode,
         request_json.config,
         request_json.routes,
-        request_json.extra_routes,
+        request_json.data_routes,
         request_json.start_date,
         request_json.finish_date,
         request_json.optimal_total,
@@ -450,7 +450,7 @@ if HAS_LIVE_TRADE_PLUGIN:
             dev_mode,
             request_json.config,
             request_json.routes,
-            request_json.extra_routes,
+            request_json.data_routes,
             trading_mode,
         )
 

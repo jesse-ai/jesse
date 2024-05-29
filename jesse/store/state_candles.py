@@ -241,7 +241,7 @@ class CandlesState:
         # get position object
         p = selectors.get_position(exchange, symbol)
 
-        # for extra_route candles, p == None, hence no further action is required
+        # for data_route candles, p == None, hence no further action is required
         if p is None:
             return
 

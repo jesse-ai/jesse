@@ -32,7 +32,7 @@ def run(
         debug_mode,
         user_config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         start_date: str,
         finish_date: str,
         candles: dict = None,
@@ -64,7 +64,7 @@ def run(
         set_config(user_config)
 
     # set routes
-    router.initiate(routes, extra_routes)
+    router.initiate(routes, data_routes)
 
     store.app.set_session_id(client_id)
 

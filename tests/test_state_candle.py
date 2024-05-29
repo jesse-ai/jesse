@@ -13,7 +13,7 @@ def set_up():
     router.set_routes([
         {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '1m', 'strategy': 'Test01'}
     ])
-    router.set_extra_candles([{'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '5m'}])
+    router.set_data_candles([{'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '5m'}])
     config['app']['considering_timeframes'] = ['1m', '5m']
     config['app']['considering_symbols'] = ['BTC-USD']
     config['app']['considering_exchanges'] = ['Sandbox']

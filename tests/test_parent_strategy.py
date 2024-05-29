@@ -97,7 +97,7 @@ def test_forming_candles():
     routes = [
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_5, 'strategy': 'Test19'}
     ] 
-    extra_routes = [
+    data_routes = [
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_15}
     ]
 
@@ -109,7 +109,7 @@ def test_forming_candles():
         'candles': test_candles_0
     }
 
-    backtest_mode.run(False, {}, routes, extra_routes, '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run(False, {}, routes, data_routes, '2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
     assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)) == math.ceil(1382 / 5)

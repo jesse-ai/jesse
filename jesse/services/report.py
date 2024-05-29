@@ -59,8 +59,8 @@ def candles() -> dict:
             'timeframe': e.timeframe
         })
 
-    # add extra_routes
-    for e in router.extra_candles:
+    # add data_routes
+    for e in router.data_candles:
         candle_keys.append({
             'exchange': e['exchange'],
             'symbol': e['symbol'],

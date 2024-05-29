@@ -22,7 +22,7 @@ def test_can_pass_strategy_as_string_in_futures_exchange():
     routes = [
         {'exchange': exchange_name, 'strategy': 'TestEmptyStrategy', 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -31,7 +31,7 @@ def test_can_pass_strategy_as_string_in_futures_exchange():
         },
     }
 
-    result = research.backtest(config, routes, extra_routes, candles)
+    result = research.backtest(config, routes, data_routes, candles)
 
     # result must have None values because the strategy makes no decisions
     assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
@@ -70,7 +70,7 @@ def test_can_pass_strategy_as_class_in_a_futures_exchange():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -79,7 +79,7 @@ def test_can_pass_strategy_as_class_in_a_futures_exchange():
         },
     }
 
-    result = research.backtest(config, routes, extra_routes, candles)
+    result = research.backtest(config, routes, data_routes, candles)
 
     # result must have None values because the strategy makes no decisions
     assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
@@ -114,7 +114,7 @@ def test_can_pass_strategy_as_class_in_a_spot_exchange():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -123,7 +123,7 @@ def test_can_pass_strategy_as_class_in_a_spot_exchange():
         },
     }
 
-    result = research.backtest(config, routes, extra_routes, candles)
+    result = research.backtest(config, routes, data_routes, candles)
 
     # result must have None values because the strategy makes no decisions
     assert result['metrics'] == {'net_profit_percentage': 0, 'total': 0, 'win_rate': 0}
@@ -161,7 +161,7 @@ def test_store_state_app_is_reset_properly_in_isolated_backtest():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStateApp, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -171,9 +171,9 @@ def test_store_state_app_is_reset_properly_in_isolated_backtest():
     }
 
     # run the backtest for the first time
-    research.backtest(config, routes, extra_routes, candles)
+    research.backtest(config, routes, data_routes, candles)
     # run the backtest for the second time and assert that the app.daily_balance is reset
-    research.backtest(config, routes, extra_routes, candles)
+    research.backtest(config, routes, data_routes, candles)
 
 
 def test_dna_method_works_in_isolated_backtest():
@@ -215,7 +215,7 @@ def test_dna_method_works_in_isolated_backtest():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStrategy1, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -224,7 +224,7 @@ def test_dna_method_works_in_isolated_backtest():
         },
     }
 
-    research.backtest(config, routes, extra_routes, candles)
+    research.backtest(config, routes, data_routes, candles)
 
     # now define the strategy with the dna method
     class TestStrategy2(Strategy):
@@ -256,7 +256,7 @@ def test_dna_method_works_in_isolated_backtest():
         {'exchange': exchange_name, 'strategy': TestStrategy2, 'symbol': symbol, 'timeframe': timeframe},
     ]
 
-    research.backtest(config, routes, extra_routes, candles)
+    research.backtest(config, routes, data_routes, candles)
 
 
 def test_backtest_function_only_accepts_candles_with_1m_time_difference():
@@ -292,7 +292,7 @@ def test_backtest_function_only_accepts_candles_with_1m_time_difference():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -303,7 +303,7 @@ def test_backtest_function_only_accepts_candles_with_1m_time_difference():
 
     # assert that it doesn't accept 1h candles
     with pytest.raises(ValueError):
-        research.backtest(config, routes, extra_routes, candles)
+        research.backtest(config, routes, data_routes, candles)
 
 
 def test_passed_candles_are_not_affected_by_running_isolated_backtests():
@@ -333,7 +333,7 @@ def test_passed_candles_are_not_affected_by_running_isolated_backtests():
     routes = [
         {'exchange': exchange_name, 'strategy': TestStrategy, 'symbol': symbol, 'timeframe': timeframe},
     ]
-    extra_routes = []
+    data_routes = []
     candles = {
         jh.key(exchange_name, symbol): {
             'exchange': exchange_name,
@@ -344,6 +344,6 @@ def test_passed_candles_are_not_affected_by_running_isolated_backtests():
 
     assert len(candles['Fake Exchange-FAKE-USDT']['candles']) == 10
 
-    research.backtest(config, routes, extra_routes, candles)
+    research.backtest(config, routes, data_routes, candles)
 
     assert len(candles['Fake Exchange-FAKE-USDT']['candles']) == 10
