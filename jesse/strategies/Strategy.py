@@ -598,6 +598,7 @@ class Strategy(ABC):
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
                 and np.array_equal(self.stop_loss, self.take_profit)
+                and self.stop_loss != []
         ):
             raise exceptions.InvalidStrategy(
                 'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
