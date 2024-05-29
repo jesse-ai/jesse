@@ -6,7 +6,7 @@ import jesse.helpers as jh
 from jesse.services import transformers
 
 
-def get_api_keys() -> JSONResponse:
+def get_exchange_api_keys() -> JSONResponse:
     from jesse.services.db import database
     database.open_connection()
 
@@ -32,7 +32,7 @@ def get_api_keys() -> JSONResponse:
     }, status_code=200)
 
 
-def store_api_keys(
+def store_exchange_api_keys(
         exchange: str,
         name: str,
         api_key: str,
@@ -100,7 +100,7 @@ def store_api_keys(
     }, status_code=200)
 
 
-def delete_api_keys(exchange_api_key_id: str) -> JSONResponse:
+def delete_exchange_api_keys(exchange_api_key_id: str) -> JSONResponse:
     from jesse.services.db import database
     database.open_connection()
 
