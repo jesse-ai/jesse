@@ -83,7 +83,7 @@ def single_route_backtest(
         raise ValueError
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
 
 def two_routes_backtest(
@@ -104,4 +104,4 @@ def two_routes_backtest(
     ]
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())
+    backtest_mode.run('000', False, {}, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())

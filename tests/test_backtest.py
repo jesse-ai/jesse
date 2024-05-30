@@ -25,7 +25,7 @@ def test_backtesting_one_route():
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     one_min = store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', '1m')
     five_min = store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', '5m')
@@ -82,7 +82,7 @@ def test_backtesting_three_routes():
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
 
     # there must be three positions present with the updated current_price
     assert len(store.positions.storage) == 3
