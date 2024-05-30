@@ -385,7 +385,7 @@ def is_paper_trading() -> bool:
 
 
 def is_unit_testing() -> bool:
-    """Returns True if the code is running by running pytest, False otherwise."""
+    """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
     # Check if the PYTEST_CURRENT_TEST environment variable is set.
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return True
@@ -395,7 +395,11 @@ def is_unit_testing() -> bool:
     if script_name in ["pytest", "py.test"]:
         return True
 
-    # Otherwise, the code is not running by running pytest.
+    # Check if the code is being executed from PyCharm's test runner.
+    if os.environ.get("PYCHARM_HOSTED"):
+        return True
+
+    # Otherwise, the code is not running by running pytest or PyCharm's test runner.
     return False
 
 
