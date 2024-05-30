@@ -34,3 +34,7 @@ class ExchangeApiKeys(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     ExchangeApiKeys.create_table()
+
+
+def get_exchange_api_key(exchange_api_key_id: str) -> ExchangeApiKeys:
+    return ExchangeApiKeys.get(ExchangeApiKeys.id == exchange_api_key_id)
