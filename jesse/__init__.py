@@ -433,9 +433,6 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         from jesse import validate_cwd
 
-        # dev_mode is used only by developers so it doesn't have to be a supported parameter
-        dev_mode: bool = False
-
         validate_cwd()
 
         # execute live session
@@ -447,7 +444,7 @@ if HAS_LIVE_TRADE_PLUGIN:
             live_mode.run,
             request_json.id,
             request_json.debug_mode,
-            dev_mode,
+            request_json.exchange,
             request_json.config,
             request_json.routes,
             request_json.data_routes,

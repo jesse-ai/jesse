@@ -61,6 +61,7 @@ class CancelRequestJson(BaseModel):
 class LiveRequestJson(BaseModel):
     id: str
     config: dict
+    exchange: str
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]
     debug_mode: bool
