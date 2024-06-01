@@ -21,6 +21,7 @@ fastapi_app.add_middleware(
 
 class BacktestRequestJson(BaseModel):
     id: str
+    exchange: str
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]
     config: dict

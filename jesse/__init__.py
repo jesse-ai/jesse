@@ -298,6 +298,7 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         request_json.id,
         request_json.debug_mode,
         request_json.config,
+        request_json.exchange,
         request_json.routes,
         request_json.data_routes,
         request_json.start_date,

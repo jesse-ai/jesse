@@ -29,8 +29,9 @@ from jesse.services.progressbar import Progressbar
 
 def run(
         client_id: str,
-        debug_mode,
+        debug_mode: bool,
         user_config: dict,
+        exchange: str,
         routes: List[Dict[str, str]],
         data_routes: List[Dict[str, str]],
         start_date: str,
@@ -62,7 +63,11 @@ def run(
     # inject config
     if not jh.is_unit_testing():
         set_config(user_config)
-
+    # add exchange to routes
+    for r in routes:
+        r['exchange'] = exchange
+    for r in data_routes:
+        r['exchange'] = exchange
     # set routes
     router.initiate(routes, data_routes)
 
