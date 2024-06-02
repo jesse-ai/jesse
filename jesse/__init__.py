@@ -328,6 +328,7 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.id,
         request_json.debug_mode,
         request_json.config,
+        request_json.exchange,
         request_json.routes,
         request_json.data_routes,
         request_json.start_date,
@@ -336,8 +337,6 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.export_csv,
         request_json.export_json
     )
-
-    # optimize_mode(start_date, finish_date, optimal_total, cpu, csv, json)
 
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)
 

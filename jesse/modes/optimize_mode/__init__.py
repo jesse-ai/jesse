@@ -2,7 +2,6 @@ import os
 from multiprocessing import cpu_count
 from typing import Dict, List, Tuple
 import arrow
-import click
 import jesse.helpers as jh
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
@@ -18,6 +17,7 @@ def run(
         client_id: str,
         debug_mode,
         user_config: dict,
+        exchange: str,
         routes: List[Dict[str, str]],
         data_routes: List[Dict[str, str]],
         start_date: str,
@@ -39,6 +39,11 @@ def run(
 
     # inject config
     set_config(user_config)
+    # add exchange to routes
+    for r in routes:
+        r['exchange'] = exchange
+    for r in data_routes:
+        r['exchange'] = exchange
     # set routes
     router.initiate(routes, data_routes)
     store.app.set_session_id(client_id)
