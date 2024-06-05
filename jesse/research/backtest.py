@@ -17,7 +17,7 @@ def backtest(
         generate_json: bool = False,
         generate_logs: bool = False,
         hyperparameters: dict = None,
-        fast_mode: bool = True
+        fast_mode: bool = False
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -86,7 +86,7 @@ def _isolated_backtest(
         generate_equity_curve: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
-        fast_mode: bool = True,
+        fast_mode: bool = False,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator

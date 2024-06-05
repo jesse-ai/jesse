@@ -403,8 +403,8 @@ class CandlesState:
         exchange: str,
         symbol: str,
     ) -> None:
-        if not jh.is_backtesting():
-            raise Exception('add_multiple_1m_candles() is for backtesting only')
+        if not (jh.is_backtesting() or jh.is_optimizing()):
+            raise Exception('add_multiple_1m_candles() is for backtesting or optimizing only')
 
         arr: DynamicNumpyArray = self.get_storage(exchange, symbol, '1m')
 
@@ -425,4 +425,4 @@ class CandlesState:
 
         # Otherwise,it's true and error.
         else:
-            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. exchange: {exchange}, symbol: {symbol}")
+            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1][0])}. exchange: {exchange}, symbol: {symbol}")
