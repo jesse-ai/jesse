@@ -37,4 +37,15 @@ if database.is_open():
 
 
 def get_exchange_api_key(exchange_api_key_id: str) -> ExchangeApiKeys:
-    return ExchangeApiKeys.get(ExchangeApiKeys.id == exchange_api_key_id)
+    from jesse.models import NotificationApiKeys
+
+    exchange_api_key = ExchangeApiKeys.get(ExchangeApiKeys.id == exchange_api_key_id)
+
+    if exchange_api_key.general_notifications_id:
+        general_notifications = NotificationApiKeys.get(NotificationApiKeys.id == exchange_api_key.general_notifications_id)
+    else:
+        general_notifications = None
+    if exchange_api_key.error_notifications_id:
+        error_notifications = NotificationApiKeys.get(NotificationApiKeys.id == exchange_api_key.error_notifications_id)
+
+

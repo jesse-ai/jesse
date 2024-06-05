@@ -431,20 +431,18 @@ if HAS_LIVE_TRADE_PLUGIN:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
-        from jesse import validate_cwd
-
         validate_cwd()
-
-        # execute live session
-        from jesse_live import live_mode
 
         trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
 
+        # execute live session
+        from jesse_live import live_mode
         process_manager.add_task(
             live_mode.run,
             request_json.id,
             request_json.debug_mode,
             request_json.exchange,
+            request_json.exchange_api_key_id,
             request_json.config,
             request_json.routes,
             request_json.data_routes,
@@ -452,7 +450,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         )
 
         mode = 'live' if request_json.paper_mode is False else 'paper'
-
         return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
 
 

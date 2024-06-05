@@ -64,6 +64,7 @@ class LiveRequestJson(BaseModel):
     id: str
     config: dict
     exchange: str
+    exchange_api_key_id: str
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]
     debug_mode: bool
