@@ -660,11 +660,12 @@ class Strategy(ABC):
                     if jh.is_debugging():
                         logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
                     waiting_counter += 1
-                    sleep(1)
-                    if waiting_counter > 10:
+                    if waiting_counter > 12:
                         raise exceptions.ExchangeNotResponding(
                             'The exchange did not respond as expected for order execution'
                         )
+                    else:
+                        sleep(1)
 
         self._simulate_market_order_execution()
 
