@@ -1,9 +1,9 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
 
-# JESSE_API_URL = 'https://api1.jesse.trade/api'
-JESSE_API_URL = 'http://localhost:8040/api'
-# JESSE_WEBSITE_URL = 'https://jesse.trade'
-JESSE_WEBSITE_URL = 'http://localhost:8040'
+JESSE_API_URL = 'https://api1.jesse.trade/api'
+# JESSE_API_URL = 'http://localhost:8040/api'
+JESSE_WEBSITE_URL = 'https://jesse.trade'
+# JESSE_WEBSITE_URL = 'http://localhost:8040'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
