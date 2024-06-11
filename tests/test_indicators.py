@@ -6,6 +6,7 @@ from .data.test_candles_indicators import *
 
 matypes = 39
 
+
 def test_acosc():
     candles = np.array(test_candles_19)
     single = ta.acosc(candles)
@@ -693,10 +694,11 @@ def test_gauss():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+
 def test_heikin_ashi_candles():
     candles = np.array(test_candles_19)
-    open_single,close_single,high_single,low_single  = ta.heikin_ashi_candles(candles)
-    open_seq,close_seq,high_seq,low_seq = ta.heikin_ashi_candles(candles, sequential=True)
+    open_single, close_single, high_single, low_single = ta.heikin_ashi_candles(candles)
+    open_seq, close_seq, high_seq, low_seq = ta.heikin_ashi_candles(candles, sequential=True)
     # SINGLES
     assert round(open_single, 2) == 197.68
     assert round(close_single, 2) == 149.8
@@ -708,6 +710,7 @@ def test_heikin_ashi_candles():
     assert close_seq[-1] == close_single
     assert high_seq[-1] == high_single
     assert low_seq[-1] == low_single
+
 
 def test_high_pass():
     candles = np.array(test_candles_19)
@@ -846,7 +849,8 @@ def test_ichimoku_cloud():
 
     assert type(ic).__name__ == 'IchimokuCloud'
 
-    assert (current_conversion_line, current_base_line, span_a, span_b) == (8861.59, 8861.59, 8466.385, 8217.45)
+    assert (current_conversion_line, current_base_line, span_a,
+            span_b) == (8861.59, 8861.59, 8466.385, 8217.45)
 
 
 def test_ichimoku_cloud_seq():
@@ -1158,7 +1162,8 @@ def test_macdext():
 
     for matype in range(matypes):
         if matype != 29:
-            single = ta.macdext(candles, fast_period=12, fast_matype=matype, slow_period=26, slow_matype=matype, signal_period=9, signal_matype=matype)
+            single = ta.macdext(candles, fast_period=12, fast_matype=matype, slow_period=26,
+                                slow_matype=matype, signal_period=9, signal_matype=matype)
             assert type(single).__name__ == 'MACDEXT'
             assert type(single.macd) == np.float64
             assert type(single.signal) == np.float64
@@ -1855,6 +1860,13 @@ def test_stddev():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
+    closes = candles[:, 2]
+    single = ta.stddev(closes)
+    seq = ta.stddev(closes, sequential=True)
+
+    assert round(single, 0) == 37
+    assert seq[-1] == single
+
 
 def test_stoch():
     candles = np.array(test_candles_3)
@@ -2322,3 +2334,20 @@ def test_zscore():
     assert round(single, 1) == -3.2
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_waddah_attr_explosion():
+    candles = np.array(test_candles_19)
+    single = ta.waddah_attr_explosion(candles)
+
+    assert round(single[0]) == 135
+    assert round(single[1]) == -827
+    assert round(single[2]) == -1
+
+
+def test_stiffness():
+    candles = np.array(test_candles_19)
+    single = ta.stiffness(candles)
+
+    assert round(single.stiffness) == 96
+    assert round(single.threshold) == 90
