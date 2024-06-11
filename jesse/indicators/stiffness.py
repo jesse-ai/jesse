@@ -8,7 +8,7 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 
-StiffnessTuple = namedtuple('StiffnessTuple', ['stiffness', 'threshold', 'use_stiffness'])
+StiffnessTuple = namedtuple('StiffnessTuple', ['stiffness', 'threshold'])
 
 
 def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60, stiff_smooth: int = 3, threshold: int = 90, source_type: str = "close") -> StiffnessTuple:
@@ -25,7 +25,7 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
     :param threshold: int - default: 90
     :param source_type: str - default: "close"
 
-    :return: StiffnessTuple(explosion_line, trend_power, trend_direction)
+    :return: StiffnessTuple(stiffness, threshold)
     """
     if len(candles.shape) == 1:
         source = candles
@@ -37,9 +37,8 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
         stddev(source, ma_length, sequential=True)
     sum_above_stiffness = _count_price_exceed_series(source, bound_stiffness, stiff_length)
     stiffness = ema(np.array(sum_above_stiffness) * 100 / stiff_length, period=stiff_smooth)
-    use_stiffness = 1 if stiffness > threshold else -1
 
-    return StiffnessTuple(stiffness, threshold, use_stiffness)
+    return StiffnessTuple(stiffness, threshold)
 
 
 def _count_price_exceed_series(close_prices, art_series, length):
