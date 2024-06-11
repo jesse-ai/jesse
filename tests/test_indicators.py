@@ -2334,3 +2334,12 @@ def test_zscore():
     assert round(single, 1) == -3.2
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+def test_waddah_attr_explosion():
+    candles = np.array(test_candles_19)
+    single = ta.waddah_attr_explosion(candles)
+
+    assert round(single[0]) == 135
+    assert round(single[1]) == -827
+    assert round(single[2]) == -1
