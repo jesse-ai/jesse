@@ -2343,3 +2343,12 @@ def test_waddah_attr_explosion():
     assert round(single[0]) == 135
     assert round(single[1]) == -827
     assert round(single[2]) == -1
+
+
+def test_stiffness():
+    candles = np.array(test_candles_19)
+    single = ta.stiffness(candles)
+
+    assert round(single.stiffness) == 96
+    assert round(single.threshold) == 90
+    assert round(single.use_stiffness) == 1
