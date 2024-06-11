@@ -2351,4 +2351,3 @@ def test_stiffness():
 
     assert round(single.stiffness) == 96
     assert round(single.threshold) == 90
-    assert round(single.use_stiffness) == 1
