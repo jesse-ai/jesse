@@ -15,7 +15,7 @@ WaddahATTRExplosionTuple = namedtuple('WaddahATTRExplosionTuple', [
 def waddah_attr_explosion(candles: np.ndarray, sensitivity: int = 150, fast_length: int = 20, slow_length: int = 40, channel_length: int = 20, mult: float = 2.0, source_type: str = "close") -> WaddahATTRExplosionTuple:
     """
     @author LazyBear 
-    credits: https://docs.google.com/document/d/15AGCufJZ8CIUvwFJ9W-IKns88gkWOKBCvByMEvm5MLo/edit
+    credits: https://www.tradingview.com/v/iu3kKWDI/
 
     WADDAH_ATTR_EXPLOSION - Waddah ATTR Explosion
 
@@ -40,18 +40,18 @@ def waddah_attr_explosion(candles: np.ndarray, sensitivity: int = 150, fast_leng
     t1 = (macd(source, fast_period=fast_length, slow_period=slow_length)[0] -
           macd(source[:-1], fast_period=fast_length, slow_period=slow_length)[0])*sensitivity
     trend = 1 if t1 >= 0 else -1
-    e1 = calc_BB_upper(source, channel_length, mult) - calc_BB_lower(source, channel_length, mult)
+    e1 = _calc_bb_upper(source, channel_length, mult) - _calc_bb_lower(source, channel_length, mult)
 
     return WaddahATTRExplosionTuple(e1, t1, trend)
 
 
-def calc_BB_upper(source, length, mult):
+def _calc_bb_upper(source, length, mult):
     basis = sma(source, length)
     dev = mult * stddev(source, length)
     return basis + dev
 
 
-def calc_BB_lower(source, length, mult):
+def _calc_bb_lower(source, length, mult):
     basis = sma(source, length)
     dev = mult * stddev(source, length)
     return basis - dev

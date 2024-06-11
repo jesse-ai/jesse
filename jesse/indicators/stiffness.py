@@ -33,17 +33,18 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
         candles = slice_candles(candles, False)
         source = get_candle_source(candles, source_type=source_type)
 
-    boundStiffness = sma(source, ma_length, sequential=True) - 0.2 * \
+    bound_stiffness = sma(source, ma_length, sequential=True) - 0.2 * \
         stddev(source, ma_length, sequential=True)
-    sumAboveStiffness = count_price_exceed_series(source, boundStiffness, stiff_length)
-    stiffness = ema(np.array(sumAboveStiffness) * 100 / stiff_length, period=stiff_smooth)
+    sum_above_stiffness = _count_price_exceed_series(source, bound_stiffness, stiff_length)
+    stiffness = ema(np.array(sum_above_stiffness) * 100 / stiff_length, period=stiff_smooth)
     use_stiffness = 1 if stiffness > threshold else -1
 
     return StiffnessTuple(stiffness, threshold, use_stiffness)
 
 
-def count_price_exceed_series(close_prices, art_series, length):
+def _count_price_exceed_series(close_prices, art_series, length):
     ex_counts = []
+
     for i in range(len(close_prices)):
         if i < length:
             ex_counts.append(0)
@@ -53,5 +54,7 @@ def count_price_exceed_series(close_prices, art_series, length):
         for j in range(i - length + 1, i + 1):
             if close_prices[j] > art_series[j]:
                 count += 1
+
         ex_counts.append(count)
+
     return ex_counts
