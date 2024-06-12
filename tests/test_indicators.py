@@ -2338,7 +2338,7 @@ def test_zscore():
 
 def test_waddah_attr_explosion():
     candles = np.array(test_candles_19)
-    single = ta.waddah_attr_explosion(candles)
+    single = ta.waddah_attar_explosion(candles)
 
     assert round(single[0]) == 135
     assert round(single[1]) == -827
