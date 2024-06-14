@@ -76,7 +76,7 @@ def info(msg: str, send_notification=False, webhook=None) -> None:
         msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
         logger = LOGGERS[jh.app_mode()]
         msg_without_emojis = emoji.replace_emoji(msg)
-        logger.info()
+        logger.info(msg_without_emojis)
 
     if jh.is_live():
         from jesse.models.utils import store_log_into_db
