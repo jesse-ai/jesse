@@ -1,3 +1,5 @@
+import emoji
+
 import jesse.helpers as jh
 from jesse.services.notifier import notify, notify_urgently
 from jesse.services.redis import sync_publish
@@ -73,7 +75,8 @@ def info(msg: str, send_notification=False, webhook=None) -> None:
     if jh.is_live() or (jh.is_backtesting() and jh.is_debugging()):
         msg = f"[INFO | {jh.timestamp_to_time(jh.now_to_timestamp())[:19]}] {msg}"
         logger = LOGGERS[jh.app_mode()]
-        logger.info(msg)
+        msg_without_emojis = emoji.replace_emoji(msg)
+        logger.info()
 
     if jh.is_live():
         from jesse.models.utils import store_log_into_db
