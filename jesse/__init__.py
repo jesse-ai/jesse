@@ -308,7 +308,8 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         request_json.export_tradingview,
         request_json.export_full_reports,
         request_json.export_csv,
-        request_json.export_json
+        request_json.export_json,
+        request_json.fast_mode
     )
 
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)

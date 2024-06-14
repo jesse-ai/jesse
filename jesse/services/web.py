@@ -33,6 +33,7 @@ class BacktestRequestJson(BaseModel):
     export_chart: bool
     export_tradingview: bool
     export_full_reports: bool
+    fast_mode: bool
 
 
 class OptimizationRequestJson(BaseModel):

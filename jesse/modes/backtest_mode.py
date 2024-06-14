@@ -41,7 +41,8 @@ def run(
         tradingview: bool = False,
         full_reports: bool = False,
         csv: bool = False,
-        json: bool = False
+        json: bool = False,
+        fast_mode: bool = False
 ) -> None:
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
@@ -111,7 +112,7 @@ def run(
         generate_json=json,
         generate_equity_curve=True,
         generate_hyperparameters=True,
-        fast_mode=False
+        fast_mode=fast_mode
     )
 
     if not jh.should_execute_silently():
