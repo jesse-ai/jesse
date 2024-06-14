@@ -63,7 +63,7 @@ def run(
     # inject config
     if not jh.is_unit_testing():
         set_config(user_config)
-    # add exchange to routes
+        # add exchange to routes
     for r in routes:
         r['exchange'] = exchange
     for r in data_routes:
