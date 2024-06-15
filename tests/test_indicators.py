@@ -2351,3 +2351,10 @@ def test_stiffness():
 
     assert round(single.stiffness) == 96
     assert round(single.threshold) == 90
+
+
+def test_TTMSqueeze():
+    candles = np.array(test_candles_19)
+    resule = ta.TTMSqueeze(candles)
+
+    assert resule.sqz_signal == True
