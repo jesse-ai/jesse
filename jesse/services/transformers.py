@@ -35,7 +35,7 @@ def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     return result
 
 
-def get_notification_api_key(api_key: NotificationApiKeys) -> dict:
+def get_notification_api_key(api_key: NotificationApiKeys, protect_sensitive_data=True) -> dict:
     result = {
         'id': str(api_key.id),
         'name': api_key.name,
@@ -48,6 +48,9 @@ def get_notification_api_key(api_key: NotificationApiKeys) -> dict:
 
     # Add each field to the result
     for key, value in fields.items():
-        result[key] = value[0:4] + '***...***' + value[-4:]
+        if protect_sensitive_data:
+            result[key] = value[0:4] + '***...***' + value[-4:]
+        else:
+            result[key] = value
 
     return result

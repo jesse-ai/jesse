@@ -1,8 +1,9 @@
 import requests
-from jesse.services.env import ENV_VALUES
 import jesse.helpers as jh
 from timeloop import Timeloop
 from datetime import timedelta
+from jesse import store
+from jesse.services.transformers import get_notification_api_key
 
 MSG_QUEUE = []
 
@@ -14,23 +15,32 @@ def start_notifier_loop():
     any, it sends them by calling _telegram() and _discord()
     """
     tl = Timeloop()
-
     @tl.job(interval=timedelta(seconds=0.5))
     def handle_time():
         if len(MSG_QUEUE) > 0:
             msg = MSG_QUEUE.pop(0)
+
+            general_notifications = get_notification_api_key(store.state_app.ExchangeApiKeys.general_notifications, protect_sensitive_data=False)
+            error_notifications = get_notification_api_key(store.state_app.ExchangeApiKeys.error_notifications, protect_sensitive_data=False)
+
             if msg['type'] == 'info':
                 if msg['webhook'] is None:
-                    _telegram(msg['content'])
-                    _discord(msg['content'])
-                    _slack(msg['content'])
+                    if general_notifications['driver'] == 'telegram':
+                        _telegram(msg['content'], general_notifications['bot_token'], general_notifications['chat_id'])
+                    elif general_notifications['driver'] == 'discord':
+                        _discord(msg['content'], webhook_address=general_notifications['webhook'])
+                    elif general_notifications['driver'] == 'slack':
+                        _slack(msg['content'], webhook_address=general_notifications['webhook'])
                 else:
                     _custom_channel_notification(msg)
 
             elif msg['type'] == 'error':
-                _telegram_errors(msg['content'])
-                _discord(msg['content'], webhook_address=ENV_VALUES['ERROR_DISCORD_WEBHOOK'])
-                _slack(msg['content'], webhook_address=ENV_VALUES['ERROR_SLACK_WEBHOOK'] if 'ERROR_SLACK_WEBHOOK' in ENV_VALUES else '')
+                if error_notifications['driver'] == 'telegram':
+                    _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
+                elif error_notifications['driver'] == 'discord':
+                    _discord(msg['content'], webhook_address=error_notifications['webhook'])
+                elif error_notifications['driver'] == 'slack':
+                    _slack(msg['content'], webhook_address=error_notifications['webhook'])
             else:
                 raise ValueError(f'Unknown message type: {msg["type"]}')
 
@@ -65,11 +75,8 @@ def notify_urgently(msg: str) -> None:
     MSG_QUEUE.append({'type': 'error', 'content': msg})
 
 
-def _telegram(msg: str) -> None:
+def _telegram(msg: str, token: str, chat_id: str) -> None:
     from jesse.services import logger
-
-    token = ENV_VALUES['GENERAL_TELEGRAM_BOT_TOKEN']
-    chat_id: int = ENV_VALUES['GENERAL_TELEGRAM_BOT_CHAT_ID']
 
     if not token or not jh.get_config('env.notifications.enabled'):
         return
@@ -87,13 +94,10 @@ def _telegram(msg: str) -> None:
         logger.error('Telegram ERROR: ConnectionError', send_notification=False)
 
 
-def _telegram_errors(msg: str) -> None:
+def _telegram_errors(msg: str, token: str, chat_id: str) -> None:
     from jesse.services import logger
 
-    token = ENV_VALUES['ERROR_TELEGRAM_BOT_TOKEN']
-    chat_id: int = ENV_VALUES['ERROR_TELEGRAM_BOT_CHAT_ID']
-
-    if not token or not jh.get_config('env.notifications.enabled'):
+    if not jh.get_config('env.notifications.enabled'):
         return
 
     try:
@@ -112,10 +116,7 @@ def _telegram_errors(msg: str) -> None:
 def _discord(msg: str, webhook_address=None) -> None:
     from jesse.services import logger
 
-    if webhook_address is None:
-        webhook_address = ENV_VALUES['GENERAL_DISCORD_WEBHOOK']
-
-    if not webhook_address or not jh.get_config('env.notifications.enabled'):
+    if not jh.get_config('env.notifications.enabled'):
         return
 
     try:
@@ -129,13 +130,10 @@ def _discord(msg: str, webhook_address=None) -> None:
         logger.error('Discord ERROR: ConnectionError', send_notification=False)
 
 
-def _slack(msg: str, webhook_address=None) -> None:
+def _slack(msg: str, webhook_address) -> None:
     from jesse.services import logger
 
-    if webhook_address is None:
-        webhook_address = ENV_VALUES['GENERAL_SLACK_WEBHOOK'] if 'GENERAL_SLACK_WEBHOOK' in ENV_VALUES else ''
-
-    if not webhook_address or not jh.get_config('env.notifications.enabled'):
+    if not jh.get_config('env.notifications.enabled'):
         return
 
     payload = {
@@ -155,9 +153,6 @@ def _slack(msg: str, webhook_address=None) -> None:
 
 def _custom_channel_notification(msg: dict):
     webhook = msg['webhook']
-    # if webhook is an environment variable and not hardcoded
-    if webhook in ENV_VALUES:
-        webhook = ENV_VALUES[webhook]
 
     if webhook.startswith('https://hooks.slack.com'):
         # a slack webhook
