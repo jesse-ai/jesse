@@ -1,4 +1,5 @@
 import arrow
+from jesse.models.ExchangeApiKeys import get_exchange_api_key, ExchangeApiKeys
 
 
 class AppState:
@@ -15,8 +16,14 @@ class AppState:
         self.session_id = ''
         self.session_info = {}
 
+        # live only
+        self.exchange_api_key: ExchangeApiKeys = None
+
     def set_session_id(self, session_id) -> None:
         if self.session_id != '':
             raise ValueError('session_id has already been set')
 
         self.session_id = session_id
+
+    def set_exchange_api_key(self, exchange_api_key_id: str) -> None:
+        self.exchange_api_key = get_exchange_api_key(exchange_api_key_id)
