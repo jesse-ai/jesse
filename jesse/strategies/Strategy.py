@@ -598,6 +598,7 @@ class Strategy(ABC):
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
                 and np.array_equal(self.stop_loss, self.take_profit)
+                and self.stop_loss != []
         ):
             raise exceptions.InvalidStrategy(
                 'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
@@ -659,11 +660,12 @@ class Strategy(ABC):
                     if jh.is_debugging():
                         logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
                     waiting_counter += 1
-                    sleep(1)
-                    if waiting_counter > 10:
+                    if waiting_counter > 12:
                         raise exceptions.ExchangeNotResponding(
                             'The exchange did not respond as expected for order execution'
                         )
+                    else:
+                        sleep(1)
 
         self._simulate_market_order_execution()
 
