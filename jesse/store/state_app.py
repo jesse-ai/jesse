@@ -17,7 +17,7 @@ class AppState:
         self.session_info = {}
 
         # live only
-        self.exchange_api_key: ExchangeApiKeys = None
+        self.exchange_api_key = None
 
     def set_session_id(self, session_id) -> None:
         if self.session_id != '':
@@ -26,4 +26,7 @@ class AppState:
         self.session_id = session_id
 
     def set_exchange_api_key(self, exchange_api_key_id: str) -> None:
+        if self.exchange_api_key is not None:
+            raise ValueError('exchange_api_key has already been set')
+
         self.exchange_api_key = get_exchange_api_key(exchange_api_key_id)

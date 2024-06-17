@@ -2,8 +2,6 @@ import requests
 import jesse.helpers as jh
 from timeloop import Timeloop
 from datetime import timedelta
-from jesse import store
-from jesse.services.transformers import get_notification_api_key
 
 MSG_QUEUE = []
 
@@ -14,17 +12,20 @@ def start_notifier_loop():
     checks for new messages in the msg_queue. If there are
     any, it sends them by calling _telegram() and _discord()
     """
+    from jesse.store import store
+    from jesse.services.transformers import get_notification_api_key
+
     tl = Timeloop()
     @tl.job(interval=timedelta(seconds=0.5))
     def handle_time():
         if len(MSG_QUEUE) > 0:
             msg = MSG_QUEUE.pop(0)
 
-            general_notifications = get_notification_api_key(store.state_app.ExchangeApiKeys.general_notifications, protect_sensitive_data=False)
-            error_notifications = get_notification_api_key(store.state_app.ExchangeApiKeys.error_notifications, protect_sensitive_data=False)
+            general_notifications = get_notification_api_key(store.app.exchange_api_key.general_notifications, protect_sensitive_data=False) if store.app.exchange_api_key.general_notifications else None
+            error_notifications = get_notification_api_key(store.app.exchange_api_key.error_notifications, protect_sensitive_data=False) if store.app.exchange_api_key.error_notifications else None
 
             if msg['type'] == 'info':
-                if msg['webhook'] is None:
+                if msg['webhook'] is None and general_notifications:
                     if general_notifications['driver'] == 'telegram':
                         _telegram(msg['content'], general_notifications['bot_token'], general_notifications['chat_id'])
                     elif general_notifications['driver'] == 'discord':
@@ -34,7 +35,7 @@ def start_notifier_loop():
                 else:
                     _custom_channel_notification(msg)
 
-            elif msg['type'] == 'error':
+            elif msg['type'] == 'error' and error_notifications:
                 if error_notifications['driver'] == 'telegram':
                     _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
                 elif error_notifications['driver'] == 'discord':
