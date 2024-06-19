@@ -86,7 +86,6 @@ class GetCandlesRequestJson(BaseModel):
 
 class GetLogsRequestJson(BaseModel):
     id: str
-    session_id: str
     type: str
 
 

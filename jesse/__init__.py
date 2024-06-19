@@ -490,7 +490,7 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         from jesse_live.services.data_provider import get_logs as gl
 
-        arr = gl(json_request.session_id, json_request.type)
+        arr = gl(json_request.id, json_request.type)
 
         return JSONResponse({
             'id': json_request.id,

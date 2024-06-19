@@ -90,9 +90,17 @@ def candles() -> dict:
 def livetrade():
     starting_balance = 0
     current_balance = 0
+    exchange_name = ''
+    leverage = 1
+    available_margin = 0
+    leverage_type = ''
     for e in store.exchanges.storage:
         starting_balance = round(store.exchanges.storage[e].started_balance, 2)
         current_balance = round(store.exchanges.storage[e].wallet_balance, 2)
+        exchange_name = e
+        leverage = store.exchanges.storage[e].futures_leverage
+        leverage_type = store.exchanges.storage[e].futures_leverage_mode
+        available_margin = store.exchanges.storage[e].available_margin
         # there's only one exchange, so we can break
         break
 
@@ -109,7 +117,6 @@ def livetrade():
 
     routes = [
         {
-            'exchange': r.exchange,
             'symbol': r.symbol,
             'timeframe': r.timeframe,
             'strategy': r.strategy_name
@@ -133,7 +140,11 @@ def livetrade():
         'count_trades': str(total),
         'count_winning_trades': str(winning_trades),
         'count_losing_trades': str(losing_trades),
-        'routes': routes
+        'routes': routes,
+        'exchange': exchange_name,
+        'leverage': leverage,
+        "leverage_type": leverage_type,
+        'available_margin': available_margin
     }
 
 
