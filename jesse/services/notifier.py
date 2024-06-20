@@ -21,27 +21,26 @@ def start_notifier_loop():
         if len(MSG_QUEUE) > 0:
             msg = MSG_QUEUE.pop(0)
 
-            general_notifications = get_notification_api_key(store.app.exchange_api_key.general_notifications, protect_sensitive_data=False) if store.app.exchange_api_key.general_notifications else None
-            error_notifications = get_notification_api_key(store.app.exchange_api_key.error_notifications, protect_sensitive_data=False) if store.app.exchange_api_key.error_notifications else None
+            notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False)
 
             if msg['type'] == 'info':
-                if msg['webhook'] is None and general_notifications:
-                    if general_notifications['driver'] == 'telegram':
-                        _telegram(msg['content'], general_notifications['bot_token'], general_notifications['chat_id'])
-                    elif general_notifications['driver'] == 'discord':
-                        _discord(msg['content'], webhook_address=general_notifications['webhook'])
-                    elif general_notifications['driver'] == 'slack':
-                        _slack(msg['content'], webhook_address=general_notifications['webhook'])
+                if msg['webhook'] is None and notification_keys:
+                    if notification_keys['driver'] == 'telegram':
+                        _telegram(msg['content'], notification_keys['bot_token'], notification_keys['chat_id'])
+                    elif notification_keys['driver'] == 'discord':
+                        _discord(msg['content'], webhook_address=notification_keys['webhook'])
+                    elif notification_keys['driver'] == 'slack':
+                        _slack(msg['content'], webhook_address=notification_keys['webhook'])
                 else:
                     _custom_channel_notification(msg)
 
-            elif msg['type'] == 'error' and error_notifications:
-                if error_notifications['driver'] == 'telegram':
-                    _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
-                elif error_notifications['driver'] == 'discord':
-                    _discord(msg['content'], webhook_address=error_notifications['webhook'])
-                elif error_notifications['driver'] == 'slack':
-                    _slack(msg['content'], webhook_address=error_notifications['webhook'])
+            # elif msg['type'] == 'error' and error_notifications:
+            #     if error_notifications['driver'] == 'telegram':
+            #         _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
+            #     elif error_notifications['driver'] == 'discord':
+            #         _discord(msg['content'], webhook_address=error_notifications['webhook'])
+            #     elif error_notifications['driver'] == 'slack':
+            #         _slack(msg['content'], webhook_address=error_notifications['webhook'])
             else:
                 raise ValueError(f'Unknown message type: {msg["type"]}')
 
@@ -62,43 +61,10 @@ def notify(msg: str, webhook=None) -> None:
     MSG_QUEUE.append({'type': 'info', 'content': msg, 'webhook': webhook})
 
 
-def notify_urgently(msg: str) -> None:
-    """
-    sends notifications to "errors_telegram_bot" which we usually do NOT mute
-    """
-    msg = _format_msg(msg)
-
-    # Notification drivers don't accept text with more than 2000 characters.
-    # So if that's the case limit it to the last 2000 characters.
-    if len(msg) > 2000:
-        msg = msg[-2000:]
-
-    MSG_QUEUE.append({'type': 'error', 'content': msg})
-
-
 def _telegram(msg: str, token: str, chat_id: str) -> None:
     from jesse.services import logger
 
     if not token or not jh.get_config('env.notifications.enabled'):
-        return
-
-    try:
-        response = requests.get(
-            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
-        )
-        if response.status_code // 100 != 2:
-            err_msg = f'Telegram ERROR [{response.status_code}]: {response.text}'
-            if response.status_code // 100 == 4:
-                err_msg += f'\nParameters: {msg}'
-            logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Telegram ERROR: ConnectionError', send_notification=False)
-
-
-def _telegram_errors(msg: str, token: str, chat_id: str) -> None:
-    from jesse.services import logger
-
-    if not jh.get_config('env.notifications.enabled'):
         return
 
     try:

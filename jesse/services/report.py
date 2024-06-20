@@ -100,7 +100,7 @@ def livetrade():
         exchange_name = e
         leverage = store.exchanges.storage[e].futures_leverage
         leverage_type = store.exchanges.storage[e].futures_leverage_mode
-        available_margin = store.exchanges.storage[e].available_margin
+        available_margin = round(store.exchanges.storage[e].available_margin, 2)
         # there's only one exchange, so we can break
         break
 

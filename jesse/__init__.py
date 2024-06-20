@@ -444,6 +444,7 @@ if HAS_LIVE_TRADE_PLUGIN:
             request_json.debug_mode,
             request_json.exchange,
             request_json.exchange_api_key_id,
+            request_json.notification_api_key_id,
             request_json.config,
             request_json.routes,
             request_json.data_routes,
