@@ -1,23 +1,26 @@
 from typing import List, Dict
 import copy
 
+from agilerl.algorithms.ppo import PPO
+
 
 def backtest(
-        config: dict,
-        routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
-        candles: dict,
-        warmup_candles: dict = None,
-        generate_charts: bool = False,
-        generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_equity_curve: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_logs: bool = False,
-        hyperparameters: dict = None,
-        fast_mode: bool = False
+    config: dict,
+    routes: List[Dict[str, str]],
+    extra_routes: List[Dict[str, str]],
+    candles: dict,
+    warmup_candles: dict = None,
+    generate_charts: bool = False,
+    generate_tradingview: bool = False,
+    generate_quantstats: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_equity_curve: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_logs: bool = False,
+    hyperparameters: dict = None,
+    fast_mode: bool = False,
+    agent: PPO | None = None,
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -67,26 +70,28 @@ def backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
+        agent=agent,
     )
 
 
 def _isolated_backtest(
-        config: dict,
-        routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
-        candles: dict,
-        warmup_candles: dict = None,
-        run_silently: bool = True,
-        hyperparameters: dict = None,
-        generate_charts: bool = False,
-        generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_equity_curve: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_logs: bool = False,
-        fast_mode: bool = False,
+    config: dict,
+    routes: List[Dict[str, str]],
+    extra_routes: List[Dict[str, str]],
+    candles: dict,
+    warmup_candles: dict = None,
+    run_silently: bool = True,
+    hyperparameters: dict = None,
+    generate_charts: bool = False,
+    generate_tradingview: bool = False,
+    generate_quantstats: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_equity_curve: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_logs: bool = False,
+    fast_mode: bool = False,
+    agent: PPO | None = None,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -153,6 +158,7 @@ def _isolated_backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
+        agent=agent,
     )
 
     result = {
@@ -181,6 +187,9 @@ def _isolated_backtest(
         result['hyperparameters'] = backtest_result['hyperparameters']
     if generate_logs:
         result['logs'] = backtest_result['logs']
+    if agent is not None:
+        result['scores'] = store.reinforce_learning.scores()
+        result['experience'] = store.reinforce_learning.experience()
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()
