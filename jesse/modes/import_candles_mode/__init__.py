@@ -80,6 +80,40 @@ def run(
 
     loop_length = int(candles_count / driver.count) + 1
 
+    # get all candles from DB so we only need to import the missing candles
+    candles_from_db = Candle.select().where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date.int_timestamp * 1000, until_date.int_timestamp * 1000)
+        )
+    
+    candles_from_db_count = candles_from_db.count()
+    print(f"Start date {start_date} until {until_date} | candles_count {candles_count}, candle_in_database_count {candles_from_db_count}, diff: {candles_count - candles_from_db_count}")
+    
+    # get first timestamp in database:
+    first_candle_timestamp = candles_from_db.order_by(Candle.timestamp.asc())[0].timestamp
+    
+    if start_date.int_timestamp * 1000 >= first_candle_timestamp:
+        # check if there are missing candles in between.
+        last_candle_timestamp = candles_from_db.order_by(Candle.timestamp.desc())[0].timestamp
+        if not candles_from_db_count == int((last_candle_timestamp-first_candle_timestamp) / 60000)+1:
+            print("The database has missing candles we need to fill the gaps")
+            msg = f'The database has missing candles we need to fill the gaps'
+            if running_via_dashboard:
+                sync_publish('alert', {
+                    'message': msg,
+                    'type': 'success'
+                })
+            else:
+                print(msg)
+        else:
+            # "We only need to download new candles since the last import"
+            start_date = arrow.get(last_candle_timestamp)
+            
+            # update loop length for progressbar
+            loop_length = int((candles_count - candles_from_db_count) / driver.count) + 1
+
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
