@@ -4,15 +4,6 @@ import json
 
 
 def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
-    if exchange_api_key.general_notifications_id:
-        general_notifications = NotificationApiKeys.get(NotificationApiKeys.id == exchange_api_key.general_notifications_id)
-    else:
-        general_notifications = None
-    if exchange_api_key.error_notifications_id:
-        error_notifications = NotificationApiKeys.get(NotificationApiKeys.id == exchange_api_key.error_notifications_id)
-    else:
-        error_notifications = None
-
     result = {
         'id': str(exchange_api_key.id),
         'exchange': exchange_api_key.exchange_name,
@@ -20,8 +11,6 @@ def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
         'api_key': exchange_api_key.api_key[0:4] + '***...***' + exchange_api_key.api_key[-4:],
         'api_secret': exchange_api_key.api_secret[0:4] + '***...***' + exchange_api_key.api_secret[-4:],
         'created_at': exchange_api_key.created_at.isoformat(),
-        'general_notifications': None if exchange_api_key.general_notifications_id is None else get_notification_api_key(general_notifications),
-        'error_notifications': None if exchange_api_key.error_notifications_id is None else get_notification_api_key(error_notifications)
     }
 
     if type(exchange_api_key.additional_fields) == str:
