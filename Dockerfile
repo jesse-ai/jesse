@@ -3,7 +3,7 @@ FROM python:3.9-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
 RUN apt-get update \
-    && apt-get -y install git build-essential libssl-dev \
+    && apt-get -y install git build-essential libssl-dev wget \
     && apt-get clean \
     && pip install --upgrade pip
 
