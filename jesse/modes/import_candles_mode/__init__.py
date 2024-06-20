@@ -98,21 +98,17 @@ def run(
         # check if there are missing candles in between.
         last_candle_timestamp = candles_from_db.order_by(Candle.timestamp.desc())[0].timestamp
         if not candles_from_db_count == int((last_candle_timestamp-first_candle_timestamp) / 60000)+1:
-            print("The database has missing candles we need to fill the gaps")
             msg = f'The database has missing candles we need to fill the gaps'
-            if running_via_dashboard:
-                sync_publish('alert', {
-                    'message': msg,
-                    'type': 'success'
-                })
-            else:
-                print(msg)
+            print(msg)
         else:
             # "We only need to download new candles since the last import"
             start_date = arrow.get(last_candle_timestamp)
             
             # update loop length for progressbar
             loop_length = int((candles_count - candles_from_db_count) / driver.count) + 1
+            
+            temp_start_time = jh.timestamp_to_time(start_date.int_timestamp * 1000)[:10]
+            print(f'Import Candles from {temp_start_time}, Candles before this date already exists in the database', loop_length)
 
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
@@ -196,6 +192,10 @@ def run(
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
+            time.sleep(driver.sleep_time)
+        
+        # fix for the webinterface progressbar. 
+        if loop_length == 1:
             time.sleep(driver.sleep_time)
 
     success_text = f'Successfully imported candles for {symbol} from {exchange} since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). '
