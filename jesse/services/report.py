@@ -45,13 +45,13 @@ def positions() -> list:
 
 
 def candles() -> dict:
-    arr = {}
+    candles_dict = {}
     candle_keys = []
 
     # add routes
     for e in router.routes:
         if e.strategy is None:
-            return
+            return {}
 
         candle_keys.append({
             'exchange': e.exchange,
@@ -59,19 +59,19 @@ def candles() -> dict:
             'timeframe': e.timeframe
         })
 
-    # add data_routes
-    for e in router.data_candles:
-        candle_keys.append({
-            'exchange': e['exchange'],
-            'symbol': e['symbol'],
-            'timeframe': e['timeframe']
-        })
+    # # add data_routes
+    # for e in router.data_candles:
+    #     candle_keys.append({
+    #         'exchange': e['exchange'],
+    #         'symbol': e['symbol'],
+    #         'timeframe': e['timeframe']
+    #     })
 
     for k in candle_keys:
         try:
             c = store.candles.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
             key = jh.key(k['exchange'], k['symbol'], k['timeframe'])
-            arr[key] = {
+            candles_dict[key] = {
                 'time': int(c[0] / 1000),
                 'open': c[1],
                 'close': c[2],
@@ -80,11 +80,11 @@ def candles() -> dict:
                 'volume': c[5],
             }
         except IndexError:
-            return
+            return {}
         except Exception:
             raise
 
-    return arr
+    return candles_dict
 
 
 def livetrade():
