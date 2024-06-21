@@ -92,15 +92,16 @@ def livetrade():
     current_balance = 0
     exchange_name = ''
     leverage = 1
+    leverage_type = 'spot'
     available_margin = 0
-    leverage_type = ''
     for e in store.exchanges.storage:
         starting_balance = round(store.exchanges.storage[e].started_balance, 2)
         current_balance = round(store.exchanges.storage[e].wallet_balance, 2)
         exchange_name = e
-        leverage = store.exchanges.storage[e].futures_leverage
-        leverage_type = store.exchanges.storage[e].futures_leverage_mode
-        available_margin = round(store.exchanges.storage[e].available_margin, 2)
+        if store.exchanges.storage[e].type == 'futures':
+            leverage = store.exchanges.storage[e].futures_leverage
+            leverage_type = store.exchanges.storage[e].futures_leverage_mode
+            available_margin = round(store.exchanges.storage[e].available_margin, 2)
         # there's only one exchange, so we can break
         break
 
