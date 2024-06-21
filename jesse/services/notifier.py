@@ -21,7 +21,7 @@ def start_notifier_loop():
         if len(MSG_QUEUE) > 0:
             msg = MSG_QUEUE.pop(0)
 
-            notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False)
+            notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False) if store.app.notifications_api_key else None
 
             if msg['type'] == 'info':
                 if msg['webhook'] is None and notification_keys:
@@ -31,7 +31,7 @@ def start_notifier_loop():
                         _discord(msg['content'], webhook_address=notification_keys['webhook'])
                     elif notification_keys['driver'] == 'slack':
                         _slack(msg['content'], webhook_address=notification_keys['webhook'])
-                else:
+                elif notification_keys:
                     _custom_channel_notification(msg)
 
             # elif msg['type'] == 'error' and error_notifications:

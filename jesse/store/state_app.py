@@ -37,4 +37,7 @@ class AppState:
         if self.notifications_api_key is not None:
             raise ValueError('notifications_api_key has already been set')
 
+        if notifications_api_key_id == '':
+            return
+
         self.notifications_api_key = NotificationApiKeys.get_or_none(NotificationApiKeys.id == notifications_api_key_id)
