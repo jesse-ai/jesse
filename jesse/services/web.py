@@ -57,6 +57,10 @@ class ImportCandlesRequestJson(BaseModel):
     start_date: str
 
 
+class ExchangeSupportedSymbolsRequestJson(BaseModel):
+    exchange: str
+
+
 class CancelRequestJson(BaseModel):
     id: str
 

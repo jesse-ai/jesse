@@ -15,7 +15,8 @@ from jesse.services.redis import async_redis, async_publish, sync_publish
 from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
     ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
-    DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson
+    DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
+    ExchangeSupportedSymbolsRequestJson
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -254,6 +255,15 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
         data,
         status_code=200
     )
+
+
+@fastapi_app.post('/exchange-supported-symbols')
+def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.controllers.exchange_info import get_exchange_supported_symbols
+    return get_exchange_supported_symbols(request_json.exchange)
 
 
 @fastapi_app.post('/import-candles')
