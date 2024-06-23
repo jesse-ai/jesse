@@ -84,3 +84,17 @@ class BitfinexSpot(CandleExchange):
             'low': d[4],
             'volume': d[5]
         } for d in data]
+
+    def get_available_symbols(self) -> list:
+        response = requests.get('https://api-pub.bitfinex.com/v2/conf/pub:list:pair:exchange')
+        self.validate_response(response)
+        data = response.json()[0]
+        arr = []
+        for s in data:
+            symbol = s
+            # if has : like CELO:USD, remove the : and make it CELOUSD
+            if ':' in symbol:
+                symbol = symbol.replace(':', '')
+            arr.append(jh.dashy_symbol(symbol))
+
+        return arr
