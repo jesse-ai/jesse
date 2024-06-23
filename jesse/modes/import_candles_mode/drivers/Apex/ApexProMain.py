@@ -86,4 +86,6 @@ class ApexProMain(CandleExchange):
         for p in data['usdcConfig']['perpetualContract']:
             usdc_pairs.append(p['symbol'])
 
-        return usdt_pairs + usdc_pairs
+        arr = usdt_pairs + usdc_pairs
+        # return sorted
+        return list(sorted(arr))
