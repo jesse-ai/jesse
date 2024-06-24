@@ -1,6 +1,6 @@
+import json
 import peewee
 from jesse.services.db import database
-from jesse.models import NotificationApiKeys
 
 if database.is_closed():
     database.open_connection()
@@ -28,6 +28,9 @@ class ExchangeApiKeys(peewee.Model):
 
         for a in attributes:
             setattr(self, a, attributes[a])
+
+    def get_additional_fields(self) -> dict:
+        return json.loads(self.additional_fields)
 
 
 # if database is open, create the table
