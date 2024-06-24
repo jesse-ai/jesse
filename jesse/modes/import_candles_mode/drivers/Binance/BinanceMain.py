@@ -79,4 +79,4 @@ class BinanceMain(CandleExchange):
 
         data = response.json()
 
-        return [d['symbol'] for d in data['symbols']]
+        return [jh.dashy_symbol(d['symbol']) for d in data['symbols']]
