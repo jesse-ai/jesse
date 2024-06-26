@@ -1,7 +1,7 @@
 import hashlib
 import math
 import os
-from pathlib import Path
+from functools import lru_cache
 import random
 import string
 import sys
@@ -25,6 +25,7 @@ def app_currency() -> str:
         return quote_asset(router.routes[0].symbol)
 
 
+@lru_cache
 def app_mode() -> str:
     from jesse.config import config
     return config['app']['trading_mode']
@@ -367,12 +368,12 @@ def is_importing_candles() -> bool:
 def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
-
+@lru_cache
 def is_livetrading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
 
-
+@lru_cache
 def is_optimizing() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'optimize'
@@ -505,6 +506,7 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
     return result
 
 
+@lru_cache
 def opposite_side(s: str) -> str:
     from jesse.enums import sides
 
@@ -515,7 +517,7 @@ def opposite_side(s: str) -> str:
     else:
         raise ValueError(f'{s} is not a valid input for side')
 
-
+@lru_cache
 def opposite_type(t: str) -> str:
     from jesse.enums import trade_types
 
@@ -701,7 +703,7 @@ def secure_hash(msg: str) -> str:
 def should_execute_silently() -> bool:
     return is_optimizing() or is_unit_testing()
 
-
+@lru_cache
 def side_to_type(s: str) -> str:
     from jesse.enums import trade_types, sides
 
@@ -766,7 +768,7 @@ def _print_error(msg: str) -> None:
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
 
-
+@lru_cache
 def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.enums import timeframes
     from jesse.exceptions import InvalidTimeframe

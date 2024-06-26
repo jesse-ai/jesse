@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Union
 
 import numpy as np
@@ -492,6 +493,7 @@ class Position:
         return self.exchange.vars['precisions'][self.symbol]['min_notional_size']
 
     @property
+    @lru_cache
     def _min_qty(self) -> float:
         if not (jh.is_livetrading() and self.exchange_type == 'spot'):
             return 0
