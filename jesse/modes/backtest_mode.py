@@ -336,8 +336,6 @@ def _step_simulator(
                                  r.symbol)
                 r.strategy._execute()
 
-            store.orders.update_active_orders(r.exchange, r.symbol)
-
         # now check to see if there's any MARKET orders waiting to be executed
         store.orders.execute_pending_market_orders()
 
@@ -431,8 +429,6 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
                     order.execute()
                     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
-                    if len(executing_orders) > 1:
-                        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
@@ -634,8 +630,6 @@ def _skip_simulator(
                     )
                 r.strategy._execute()
 
-            store.orders.update_active_orders(r.exchange, r.symbol)
-
         # now check to see if there's any MARKET orders waiting to be executed
         store.orders.execute_pending_market_orders()
 
@@ -744,8 +738,6 @@ def _simulate_price_change_effect_multiple_candles(
                             executing_orders = _get_executing_orders(
                                 exchange, symbol, real_candle
                             )
-                            if len(executing_orders) > 1:
-                                executing_orders = _sort_execution_orders(executing_orders, short_timeframes_candles)
 
                             # break from the for loop, we'll try again inside the while
                             # loop with the new current_temp_candle
@@ -782,18 +774,16 @@ def _simulate_price_change_effect_multiple_candles(
 
 
 def _get_executing_orders(exchange, symbol, real_candle):
-    orders = store.orders.get_active_orders(exchange, symbol)
-    active_orders = [order for order in orders if order.is_active]
+    orders = store.orders.get_orders(exchange, symbol)
     return [
         order
-        for order in active_orders
+        for order in orders
         if order.is_active and candle_includes_price(real_candle, order.price)
     ]
 
 
-def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray) -> list[Order]:
+def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
     sorted_orders = []
-    n_orders = len(orders)
     for i in range(len(short_candles)):
         included_orders = [
             order
@@ -801,47 +791,16 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray) -> li
             if candle_includes_price(short_candles[i], order.price)
         ]
         if len(included_orders) == 1:
-            included_price = included_orders[0].price
             sorted_orders.append(included_orders[0])
-            orders = [o for o in orders if o.price != included_price]
         elif len(included_orders) > 1:
             # in case that the orders are above
 
-            # the activation of the order is probably because we meet a new low or high,
-            # check what is the new price that we reach
-            # i do it by look backward when was the first time that i didnt find this price
-            is_determined_direction = False
-            for j in range(i -1, -1, -1):
-                is_new_high = short_candles[i, 3] > short_candles[j, 4]
-                is_new_low = short_candles[i, 4] < short_candles[j, 4]
-                if is_new_low and is_new_high:
-                    # we didnt find what is so special in this candle, maybe previous candle
-                    continue
-                if is_new_high:
-                    # found new high, we came from below. sort it from lower to higher prices
-                    sorted_orders += sorted(included_orders, key=lambda o: o.price)
-                    is_determined_direction = True
-
-                elif is_new_low:
-                    # found new low, we came from above. sort it from higher to lower prices
-                    sorted_orders += sorted(included_orders, key=lambda o: o.price, reverse=True)
-                    is_determined_direction = True
-
-                # in case we didnt find new high and new low, thats means the orders are new!
-                # we cant determine what is the real order by its prices
-
-                # todo: sort the order in these cases by position side!
-                # if its long, buy orders sort from higher to lower, if its take-profit than from lower to higher.
-                # opposite on short
-                # if the type of the orders is different than better heuristic needs to be made.. like how the price move until now and from now on..
-                # these casesare so rare that i leave it for now to sort it from low to high because crypto tend to go up so better chances it will be correct
-                break
-
-            if not is_determined_direction:
+            # note: check the first is enough because I can assume all the orders in the same direction of the price,
+            # in case it doesn't than i cant really know how the price react in this 1 minute candle..
+            if short_candles[i, 3] > included_orders[0].price > short_candles[i, 1]:
                 sorted_orders += sorted(included_orders, key=lambda o: o.price)
-
-            included_prices = set([o.price for o in included_orders])
-            orders = [o for o in orders if o.price not in included_prices]
-        if len(sorted_orders) == n_orders:
+            else:
+                sorted_orders += sorted(included_orders, key=lambda o: o.price, reverse=True)
+        if len(sorted_orders) == len(orders):
             break
     return sorted_orders
