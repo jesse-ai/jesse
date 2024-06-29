@@ -7,6 +7,7 @@ class AppState:
     def __init__(self):
         self.time = arrow.utcnow().int_timestamp * 1000
         self.starting_time = None
+        self.ending_time = None
         self.daily_balance = []
 
         # used as placeholders for detecting open trades metrics

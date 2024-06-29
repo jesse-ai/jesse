@@ -42,7 +42,8 @@ def run(
         full_reports: bool = False,
         csv: bool = False,
         json: bool = False,
-        fast_mode: bool = False
+        fast_mode: bool = False,
+        benchmark: bool = False
 ) -> None:
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
@@ -111,8 +112,9 @@ def run(
         generate_csv=csv,
         generate_json=json,
         generate_equity_curve=True,
+        benchmark=benchmark,
         generate_hyperparameters=True,
-        fast_mode=fast_mode
+        fast_mode=fast_mode,
     )
 
     if not jh.should_execute_silently():
@@ -220,6 +222,7 @@ def _step_simulator(
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
+        benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
 ) -> dict:
@@ -314,6 +317,9 @@ def _step_simulator(
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
 
+    # set the ending time for the backtest session
+    store.app.ending_time = store.app.time + 60_000
+
     result = generate_outputs(
         candles,
         generate_charts=generate_charts,
@@ -322,6 +328,7 @@ def _step_simulator(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
+        benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
     )
@@ -393,7 +400,7 @@ def prepare_routes(hyperparameters: dict = None) -> None:
 
 
 def update_progress_bar(
-    progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int
+        progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int
 ) -> None:
     # update progressbar
     if not run_silently and candle_index % candle_step == 0:
@@ -408,7 +415,7 @@ def update_progress_bar(
 
 
 def _get_fixed_jumped_candle(
-    previous_candle: np.ndarray, candle: np.ndarray
+        previous_candle: np.ndarray, candle: np.ndarray
 ) -> np.ndarray:
     """
     A little workaround for the times that the price has jumped and the opening
@@ -518,15 +525,16 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 
 
 def generate_outputs(
-    candles: dict,
-    generate_charts: bool = False,
-    generate_tradingview: bool = False,
-    generate_quantstats: bool = False,
-    generate_csv: bool = False,
-    generate_json: bool = False,
-    generate_equity_curve: bool = False,
-    generate_hyperparameters: bool = False,
-    generate_logs: bool = False,
+        candles: dict,
+        generate_charts: bool = False,
+        generate_tradingview: bool = False,
+        generate_quantstats: bool = False,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        benchmark: bool = False,
+        generate_hyperparameters: bool = False,
+        generate_logs: bool = False,
 ):
     result = {}
     if generate_hyperparameters:
@@ -543,7 +551,7 @@ def generate_outputs(
     if generate_charts:
         result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
     if generate_equity_curve:
-        result["equity_curve"] = charts.equity_curve()
+        result["equity_curve"] = charts.equity_curve(benchmark)
     if generate_quantstats:
         result["quantstats"] = _generate_quantstats_report(candles)
     if generate_logs:
@@ -561,6 +569,7 @@ def _skip_simulator(
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
+        benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
 ) -> dict:
@@ -607,6 +616,9 @@ def _skip_simulator(
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
 
+    # set the ending time for the backtest session
+    store.app.ending_time = store.app.time + 60_000
+
     result = generate_outputs(
         candles,
         generate_charts=generate_charts,
@@ -615,6 +627,7 @@ def _skip_simulator(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
+        benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
     )

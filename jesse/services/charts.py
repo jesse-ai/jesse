@@ -4,25 +4,49 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from pandas.plotting import register_matplotlib_converters
-
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
 from jesse.store import store
+from jesse.services.candle import get_candles
+from jesse.utils import prices_to_returns
 
 
-def equity_curve() -> list:
+def _calculate_equity_curve(name: str, daily_balance, start_date):
+    date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
+    eq = [{
+        'time': date.timestamp(),
+        'value': balance
+    } for date, balance in zip(date_list, daily_balance)]
+    return {
+        'name': name,
+        'data': eq
+    }
+
+
+def equity_curve(benchmark: bool = False) -> list:
     if store.completed_trades.count == 0:
         return None
 
+    result = []
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    date_list = [start_date + timedelta(days=x) for x in range(len(store.app.daily_balance))]
     daily_balance = store.app.daily_balance
 
-    return [{
-        'timestamp': date.timestamp(),
-        'balance': balance
-    } for date, balance in zip(date_list, daily_balance)]
+    result.append(_calculate_equity_curve('Portfolio', daily_balance, start_date))
+
+    if benchmark:
+        initial_balance = daily_balance[0]
+        for r in router.routes:
+            _, daily_candles = get_candles(
+                r.exchange, r.symbol, '1D', store.app.starting_time,
+                store.app.ending_time, is_for_jesse=False, warmup_candles_num=0, caching=True
+            )
+            daily_returns = prices_to_returns(daily_candles[:, 2])
+            daily_returns[0] = 0
+            daily_balance_benchmark = initial_balance * (1 + daily_returns/100).cumprod()
+            result.append(_calculate_equity_curve(r.symbol, daily_balance_benchmark, start_date))
+
+    return result
 
 
 def portfolio_vs_asset_returns(study_name: str = None) -> str:
@@ -47,10 +71,12 @@ def portfolio_vs_asset_returns(study_name: str = None) -> str:
         plt.title(f'Portfolio Daily Return - {study_name}')
     else:
         plt.title('Portfolio Daily Return')
-        
+
     start_balance_arr = np.full(len(store.app.daily_balance), store.app.daily_balance[0])
-    plt.fill_between(date_list, store.app.daily_balance, start_balance_arr, where=start_balance_arr < store.app.daily_balance, color='green', alpha=0.5)
-    plt.fill_between(date_list, start_balance_arr, store.app.daily_balance, where=start_balance_arr > store.app.daily_balance, color='red', alpha=0.7)
+    plt.fill_between(date_list, store.app.daily_balance, start_balance_arr,
+                     where=start_balance_arr < store.app.daily_balance, color='green', alpha=0.5)
+    plt.fill_between(date_list, start_balance_arr, store.app.daily_balance,
+                     where=start_balance_arr > store.app.daily_balance, color='red', alpha=0.7)
     plt.plot(date_list, store.app.daily_balance, linewidth='4')
 
     # price change%
