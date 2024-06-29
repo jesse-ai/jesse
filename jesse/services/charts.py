@@ -12,15 +12,17 @@ from jesse.services.candle import get_candles
 from jesse.utils import prices_to_returns
 
 
-def _calculate_equity_curve(name: str, daily_balance, start_date):
+def _calculate_equity_curve(daily_balance, start_date, name: str, color: str):
     date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
     eq = [{
         'time': date.timestamp(),
-        'value': balance
+        'value': balance,
+        'color': color
     } for date, balance in zip(date_list, daily_balance)]
     return {
         'name': name,
-        'data': eq
+        'data': eq,
+        'color': color,
     }
 
 
@@ -32,7 +34,7 @@ def equity_curve(benchmark: bool = False) -> list:
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     daily_balance = store.app.daily_balance
 
-    result.append(_calculate_equity_curve('Portfolio', daily_balance, start_date))
+    result.append(_calculate_equity_curve(daily_balance, start_date, 'Portfolio', '#818CF8',))
 
     if benchmark:
         initial_balance = daily_balance[0]
@@ -44,7 +46,7 @@ def equity_curve(benchmark: bool = False) -> list:
             daily_returns = prices_to_returns(daily_candles[:, 2])
             daily_returns[0] = 0
             daily_balance_benchmark = initial_balance * (1 + daily_returns/100).cumprod()
-            result.append(_calculate_equity_curve(r.symbol, daily_balance_benchmark, start_date))
+            result.append(_calculate_equity_curve(daily_balance_benchmark, start_date, r.symbol, '#fbbf24'))
 
     return result
 
