@@ -2358,3 +2358,15 @@ def test_ttm_squeeze():
     result = ta.ttm_squeeze(candles)
 
     assert result == True
+
+
+def test_support_resistance_with_breack():
+    candles = np.array(test_candles_19)
+    result = ta.support_resistance_with_break(candles)
+
+    assert result.support == 116.26
+    assert result.resistance == 288.41
+    assert result.red_break == False
+    assert result.green_break == False
+    assert result.bear_wick == False
+    assert result.bull_wick == False
