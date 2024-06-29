@@ -8,6 +8,6 @@ class BinancePerpetualFutures(BinanceMain):
 
         super().__init__(
             name=exchanges.BINANCE_PERPETUAL_FUTURES,
-            rest_endpoint='https://fapi.binance.com/fapi/v1/klines',
+            rest_endpoint='https://fapi.binance.com/fapi',
             backup_exchange_class=BinanceSpot
         )

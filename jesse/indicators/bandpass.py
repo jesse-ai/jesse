@@ -1,14 +1,11 @@
 from collections import namedtuple
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
-
-from .high_pass import high_pass_fast
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
+
+from .high_pass import high_pass_fast
 
 BandPass = namedtuple('BandPass', ['bp', 'bp_normalized', 'signal', 'trigger'])
 
@@ -29,7 +26,6 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
 
     source = get_candle_source(candles, source_type=source_type)
 
-
     hp = high_pass_fast(source, 4 * period / bandwidth)
 
     beta = np.cos(2 * np.pi / period)
@@ -49,7 +45,7 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
         return BandPass(bp[-1], bp_normalized[-1], signal[-1], trigger[-1])
 
 
-@njit
+@njit(cache=True)
 def bp_fast(source, hp, alpha, beta):  # Function is compiled to machine code when called the first time
 
     bp = np.copy(hp)

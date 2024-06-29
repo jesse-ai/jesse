@@ -5,7 +5,7 @@ import copy
 def backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         generate_charts: bool = False,
@@ -16,7 +16,8 @@ def backtest(
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_logs: bool = False,
-        hyperparameters: dict = None
+        hyperparameters: dict = None,
+        fast_mode: bool = False
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -26,18 +27,18 @@ def backtest(
     Example `config`:
     {
         'starting_balance': 5_000,
-        'fee': 0.001,
+        'fee': 0.005,
         'type': 'futures',
         'futures_leverage': 3,
         'futures_leverage_mode': 'cross',
         'exchange': 'Binance',
-        'warm_up_candles': 100
+        'warm_up_candles': 0
     }
 
     Example `route`:
     [{'exchange': 'Bybit USDT Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
 
-    Example `extra_route`:
+    Example `data_route`:
     [{'exchange': 'Bybit USDT Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
 
     Example `candles`:
@@ -52,7 +53,7 @@ def backtest(
     return _isolated_backtest(
         config,
         routes,
-        extra_routes,
+        data_routes,
         candles,
         warmup_candles,
         run_silently=True,
@@ -64,14 +65,15 @@ def backtest(
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
         generate_hyperparameters=generate_hyperparameters,
-        generate_logs=generate_logs
+        generate_logs=generate_logs,
+        fast_mode=fast_mode,
     )
 
 
 def _isolated_backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         run_silently: bool = True,
@@ -83,7 +85,8 @@ def _isolated_backtest(
         generate_json: bool = False,
         generate_equity_curve: bool = False,
         generate_hyperparameters: bool = False,
-        generate_logs: bool = False
+        generate_logs: bool = False,
+        fast_mode: bool = False,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -91,7 +94,7 @@ def _isolated_backtest(
     from jesse.routes import router
     from jesse.store import store
     from jesse.config import set_config
-    from jesse.services import required_candles
+    from jesse.services.candle import inject_warmup_candles_to_store
     import jesse.helpers as jh
 
     jesse_config['app']['trading_mode'] = 'backtest'
@@ -100,7 +103,7 @@ def _isolated_backtest(
     set_config(_format_config(config))
 
     # set routes
-    router.initiate(routes, extra_routes)
+    router.initiate(routes, data_routes)
 
     validate_routes(router)
     # TODO: further validate routes and allow only one exchange
@@ -121,35 +124,24 @@ def _isolated_backtest(
                 f'the accepted 60000 milliseconds.'
             )
 
-    max_timeframe = jh.max_timeframe(jesse_config['app']['considering_timeframes'])
-    warm_up_num = config['warm_up_candles'] * jh.timeframe_to_one_minutes(max_timeframe)
-    trading_candles = copy.deepcopy(candles)
+    # make a copy to make sure we don't mutate the past data causing some issues for multiprocessing tasks
+    trading_candles_dict = copy.deepcopy(candles)
+    warmup_candles_dict = copy.deepcopy(warmup_candles)
 
-    if warm_up_num != 0:
-        if warmup_candles is None:  # if warmup_candles is not passed, split the candles
-            for c in jesse_config['app']['considering_candles']:
-                key = jh.key(c[0], c[1])
-                # update trading_candles
-                trading_candles[key]['candles'] = candles[key]['candles'][warm_up_num:]
-                # inject warm-up candles
-                required_candles.inject_required_candles_to_store(
-                    candles[key]['candles'][:warm_up_num],
-                    c[0],
-                    c[1]
-                )
-        else:  # if warmup_candles is passed, use it
-            for c in jesse_config['app']['considering_candles']:
-                key = jh.key(c[0], c[1])
-                # inject warm-up candles
-                required_candles.inject_required_candles_to_store(
-                    warmup_candles[key]['candles'],
-                    c[0],
-                    c[1]
-                )
+    # if warmup_candles is passed, use it
+    if warmup_candles:
+        for c in jesse_config['app']['considering_candles']:
+            key = jh.key(c[0], c[1])
+            # inject warm-up candles
+            inject_warmup_candles_to_store(
+                warmup_candles_dict[key]['candles'],
+                c[0],
+                c[1]
+            )
 
     # run backtest simulation
     backtest_result = simulator(
-        trading_candles,
+        trading_candles_dict,
         run_silently,
         hyperparameters=hyperparameters,
         generate_charts=generate_charts,
@@ -159,7 +151,8 @@ def _isolated_backtest(
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
         generate_hyperparameters=generate_hyperparameters,
-        generate_logs=generate_logs
+        generate_logs=generate_logs,
+        fast_mode=fast_mode,
     )
 
     result = {
@@ -199,7 +192,7 @@ def _isolated_backtest(
 def _format_config(config):
     """
     Jesse's required format for user_config is different from what this function accepts (so it
-    would be easier to write for the researcher). Hence we need to reformat the config_dict:
+    would be easier to write for the researcher). Hence, we need to reformat the config_dict:
     """
     exchange_config = {
         'balance': config['starting_balance'],

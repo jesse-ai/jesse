@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import tulipy as ti
 
-from jesse.helpers import slice_candles, same_length
+from jesse.helpers import same_length, slice_candles
 
 
 def qstick(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:

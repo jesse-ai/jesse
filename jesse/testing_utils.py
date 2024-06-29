@@ -73,7 +73,7 @@ def single_route_backtest(
         fee=fee
     )
 
-    routes = [{'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': timeframe, 'strategy': strategy_name}]
+    routes = [{'symbol': 'BTC-USDT', 'timeframe': timeframe, 'strategy': strategy_name}]
 
     if trend == 'up':
         candles = get_btc_candles(candles_count)
@@ -83,7 +83,7 @@ def single_route_backtest(
         raise ValueError
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
 
 def two_routes_backtest(
@@ -99,9 +99,9 @@ def two_routes_backtest(
     )
 
     routes = [
-        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name1},
-        {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': '1m', 'strategy': strategy_name2},
+        {'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name1},
+        {'symbol': 'ETH-USDT', 'timeframe': '1m', 'strategy': strategy_name2},
     ]
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run(False, {}, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())
+    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())

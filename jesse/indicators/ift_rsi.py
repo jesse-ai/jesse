@@ -1,9 +1,9 @@
 from typing import Union
-import talib
 
 import numpy as np
+import talib
 
-from jesse.helpers import get_candle_source, slice_candles, same_length
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source_type: str = "close", sequential: bool = False) -> Union[

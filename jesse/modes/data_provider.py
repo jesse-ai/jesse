@@ -102,14 +102,14 @@ def get_config(client_config: dict, has_live=False) -> dict:
                 if k not in live_trading_exchanges:
                     del data['live']['exchanges'][k]
 
-        o.updated_at = jh.now()
+        o.updated_at = jh.now(True)
         o.save()
     except peewee.DoesNotExist:
         # if not found, that means it's the first time. Store in the DB and
         # then return what was sent from the client side without changing it
         o = Option({
             'id': jh.generate_unique_id(),
-            'updated_at': jh.now(),
+            'updated_at': jh.now(True),
             'type': 'config',
             'json': json.dumps(client_config)
         })
@@ -134,7 +134,7 @@ def update_config(client_config: dict):
     o = Option.get(Option.type == 'config')
 
     o.json = json.dumps(client_config)
-    o.updated_at = jh.now()
+    o.updated_at = jh.now(True)
 
     o.save()
 

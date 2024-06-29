@@ -8,6 +8,6 @@ class BinanceUSSpot(BinanceMain):
 
         super().__init__(
             name=exchanges.BINANCE_US_SPOT,
-            rest_endpoint='https://www.binance.us/api/v1/klines',
+            rest_endpoint='https://www.binance.us/api',
             backup_exchange_class=BinanceSpot
         )

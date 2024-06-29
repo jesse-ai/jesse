@@ -1,11 +1,7 @@
 from typing import Union
 
 import numpy as np
-
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a: a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -35,7 +31,7 @@ def edcf(candles: np.ndarray, period: int = 15, source_type: str = "hl2", sequen
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def edcf_fast(source, period):
     newseries = np.full_like(source, np.nan)
 

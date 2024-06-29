@@ -1,14 +1,15 @@
-import arrow
+from typing import Tuple
 import numpy as np
-
+import arrow
+from jesse.exceptions import CandleNotFoundInDatabase
 import jesse.helpers as jh
 from jesse.services import logger
 
 
 def generate_candle_from_one_minutes(
-    timeframe: str,
-    candles: np.ndarray,
-    accept_forming_candles: bool = False
+        timeframe: str,
+        candles: np.ndarray,
+        accept_forming_candles: bool = False
 ) -> np.ndarray:
     if len(candles) == 0:
         raise ValueError('No candles were passed')
@@ -160,3 +161,147 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
         ]), np.array([
             timestamp, price, c, h, price, v
         ])
+
+
+def inject_warmup_candles_to_store(candles: np.ndarray, exchange: str, symbol: str) -> None:
+    if candles is None or candles.size == 0:
+        raise ValueError(f'No candles were passed for "{exchange}" "{symbol}".')
+
+    from jesse.config import config
+    from jesse.store import store
+
+    # batch add 1m candles:
+    store.candles.batch_add_candle(candles, exchange, symbol, '1m', with_generation=False)
+
+    # loop to generate, and add candles (without execution)
+    for i in range(len(candles)):
+        for timeframe in config['app']['considering_timeframes']:
+            # skip 1m. already added
+            if timeframe == '1m':
+                continue
+
+            num = jh.timeframe_to_one_minutes(timeframe)
+
+            if (i + 1) % num == 0:
+                generated_candle = generate_candle_from_one_minutes(
+                    timeframe,
+                    candles[(i - (num - 1)):(i + 1)],
+                    True
+                )
+
+                store.candles.add_candle(
+                    generated_candle,
+                    exchange,
+                    symbol,
+                    timeframe,
+                    with_execution=False,
+                    with_generation=False
+                )
+
+
+def get_candles(
+        exchange: str,
+        symbol: str,
+        timeframe: str,
+        start_date_timestamp: int,
+        finish_date_timestamp: int,
+        warmup_candles_num: int = 0,
+        caching: bool = False,
+        is_for_jesse: bool = False
+) -> Tuple[np.ndarray, np.ndarray]:
+    symbol = symbol.upper()
+
+    # convert start_date and finish_date to timestamps
+    trading_start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor(
+        'day').int_timestamp * 1000
+    trading_finish_date_timestamp = (jh.timestamp_to_arrow(finish_date_timestamp).floor(
+        'day').int_timestamp * 1000) - 60_000
+
+    # if warmup_candles is set, calculate the warmup start and finish timestamps
+    if warmup_candles_num > 0:
+        warmup_finish_timestamp = trading_start_date_timestamp
+        warmup_start_timestamp = warmup_finish_timestamp - (
+                warmup_candles_num * jh.timeframe_to_one_minutes(timeframe) * 60_000)
+        warmup_finish_timestamp -= 60_000
+        warmup_candles = _get_candles_from_db(exchange, symbol, warmup_start_timestamp, warmup_finish_timestamp,
+                                              caching=caching)
+    else:
+        warmup_candles = None
+
+    # fetch trading candles from database
+    trading_candles = _get_candles_from_db(exchange, symbol, trading_start_date_timestamp,
+                                           trading_finish_date_timestamp, caching=caching)
+
+    # if timeframe is 1m or is_for_jesse is True, return the candles as is because they
+    # are already 1m candles which is the accepted format for practicing with Jesse.
+    if timeframe == '1m' or is_for_jesse:
+        return warmup_candles, trading_candles
+
+    # if the timeframe is not 1m, generate the candles for the requested timeframe
+    if warmup_candles_num > 0:
+        warmup_candles = _get_generated_candles(timeframe, warmup_candles)
+    else:
+        warmup_candles = None
+    trading_candles = _get_generated_candles(timeframe, trading_candles)
+
+    return warmup_candles, trading_candles
+
+
+def _get_candles_from_db(
+        exchange, symbol, start_date_timestamp, finish_date_timestamp, caching: bool = False
+) -> np.ndarray:
+    from jesse.models import Candle
+    from jesse.services.cache import cache
+
+    if caching:
+        key = jh.key(exchange, symbol)
+        cache_key = f"{start_date_timestamp}-{finish_date_timestamp}-{key}"
+        cached_value = cache.get_value(cache_key)
+    else:
+        cached_value = None
+
+    # if cache exists use cache_value
+    if cached_value:
+        candles_tuple = cached_value
+    else:
+        candles_tuple = Candle.select(
+            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+            Candle.volume
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
+        ).order_by(Candle.timestamp.asc()).tuples()
+
+    # validate the dates
+    if start_date_timestamp == finish_date_timestamp:
+        raise CandleNotFoundInDatabase('start_date and finish_date cannot be the same.')
+    if start_date_timestamp > finish_date_timestamp:
+        raise CandleNotFoundInDatabase(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
+    if start_date_timestamp > arrow.utcnow().int_timestamp * 1000:
+        raise CandleNotFoundInDatabase(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(arrow.utcnow().int_timestamp * 1000)}).')
+
+    if caching:
+        # cache for 1 week it for near future calls
+        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+
+    return np.array(candles_tuple)
+
+
+def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
+    # generate candles for the requested timeframe
+    generated_candles = []
+    for i in range(len(trading_candles)):
+        num = jh.timeframe_to_one_minutes(timeframe)
+
+        if (i + 1) % num == 0:
+            generated_candles.append(
+                generate_candle_from_one_minutes(
+                    timeframe,
+                    trading_candles[(i - (num - 1)):(i + 1)],
+                    True
+                )
+            )
+
+    return np.array(generated_candles)

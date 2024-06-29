@@ -21,8 +21,9 @@ fastapi_app.add_middleware(
 
 class BacktestRequestJson(BaseModel):
     id: str
+    exchange: str
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     config: dict
     start_date: str
     finish_date: str
@@ -32,12 +33,14 @@ class BacktestRequestJson(BaseModel):
     export_chart: bool
     export_tradingview: bool
     export_full_reports: bool
+    fast_mode: bool
 
 
 class OptimizationRequestJson(BaseModel):
     id: str
+    exchange: str
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     config: dict
     start_date: str
     finish_date: str
@@ -54,6 +57,10 @@ class ImportCandlesRequestJson(BaseModel):
     start_date: str
 
 
+class ExchangeSupportedSymbolsRequestJson(BaseModel):
+    exchange: str
+
+
 class CancelRequestJson(BaseModel):
     id: str
 
@@ -61,8 +68,11 @@ class CancelRequestJson(BaseModel):
 class LiveRequestJson(BaseModel):
     id: str
     config: dict
+    exchange: str
+    exchange_api_key_id: str
+    notification_api_key_id: str
     routes: List[Dict[str, str]]
-    extra_routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
     debug_mode: bool
     paper_mode: bool
 
@@ -81,13 +91,36 @@ class GetCandlesRequestJson(BaseModel):
 
 class GetLogsRequestJson(BaseModel):
     id: str
-    session_id: str
     type: str
 
 
 class GetOrdersRequestJson(BaseModel):
     id: str
     session_id: str
+
+
+class StoreExchangeApiKeyRequestJson(BaseModel):
+    exchange: str
+    name: str
+    api_key: str
+    api_secret: str
+    additional_fields: Optional[dict] = None
+    general_notifications_id: Optional[str] = None
+    error_notifications_id: Optional[str] = None
+
+
+class StoreNotificationApiKeyRequestJson(BaseModel):
+    name: str
+    driver: str
+    fields: dict
+
+
+class DeleteExchangeApiKeyRequestJson(BaseModel):
+    id: str
+
+
+class DeleteNotificationApiKeyRequestJson(BaseModel):
+    id: str
 
 
 class ConfigRequestJson(BaseModel):

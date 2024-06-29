@@ -63,7 +63,9 @@ class exchanges:
     BINANCE_PERPETUAL_FUTURES = 'Binance Perpetual Futures'
     BINANCE_PERPETUAL_FUTURES_TESTNET = 'Binance Perpetual Futures Testnet'
     BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'
+    BYBIT_USDC_PERPETUAL = 'Bybit USDC Perpetual'
     BYBIT_USDT_PERPETUAL_TESTNET = 'Bybit USDT Perpetual Testnet'
+    BYBIT_USDC_PERPETUAL_TESTNET= 'Bybit USDC Perpetual Testnet'
     BYBIT_SPOT = 'Bybit Spot'
     BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
     FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
@@ -74,7 +76,8 @@ class exchanges:
     BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
     DYDX_PERPETUAL = "Dydx Perpetual"
     DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
-
+    APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
+    APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
 
 class migration_actions:
     ADD = 'add'

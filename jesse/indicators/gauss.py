@@ -1,10 +1,7 @@
 from typing import Union
 
 import numpy as np
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a : a
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -39,7 +36,7 @@ def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: st
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def gauss_fast(source, period, poles):
     N = source.size
     source = source[~np.isnan(source)]

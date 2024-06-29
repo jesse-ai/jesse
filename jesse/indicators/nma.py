@@ -1,10 +1,7 @@
 from typing import Union
-import numpy as np
 
-try:
-    from numba import njit
-except ImportError:
-    njit = lambda a: a
+import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -32,7 +29,7 @@ def nma(candles: np.ndarray, period: int = 40, source_type: str = "close", seque
 
     return res if sequential else res[-1]
 
-@njit
+@njit(cache=True)
 def nma_fast(source, period):
     # Ensure source values are positive before taking log
     source = np.clip(source, a_min=1e-10, a_max=None)

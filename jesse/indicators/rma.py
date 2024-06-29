@@ -1,10 +1,7 @@
-import numpy as np
 from typing import Union
 
-try:
-    from numba import njit, guvectorize
-except ImportError:
-    njit = lambda a: a
+import numpy as np
+from numba import guvectorize, njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -37,7 +34,7 @@ def rma(candles: np.ndarray, length: int = 14, source_type="close", sequential=F
     return res if sequential else res[-1]
 
 
-@njit
+@njit(cache=True)
 def rma_fast(source, _length):
     alpha = 1 / _length
     newseries = np.copy(source)

@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import talib
 
-from jesse.helpers import get_candle_source, slice_candles, same_length
+from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def pfe(candles: np.ndarray, period: int = 10, smoothing: int = 5, source_type: str = "close", sequential: bool = False) -> Union[

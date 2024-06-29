@@ -29,6 +29,10 @@ class CandleExchange(ABC):
     def get_starting_time(self, symbol: str) -> int:
         pass
 
+    @abstractmethod
+    def get_available_symbols(self) -> list:
+        pass
+
     @staticmethod
     def validate_response(response: requests.Response) -> None:
         if response.status_code == 502:

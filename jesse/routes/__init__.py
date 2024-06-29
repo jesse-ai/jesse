@@ -3,19 +3,18 @@ from typing import List, Any
 
 import jesse.helpers as jh
 from jesse import exceptions
-from jesse.services import logger
 from jesse.models import Route
 
 
 class RouterClass:
     def __init__(self) -> None:
         self.routes = []
-        self.extra_candles = []
+        self.data_candles = []
         self.market_data = []
 
     def _reset(self) -> None:
         self.routes = []
-        self.extra_candles = []
+        self.data_candles = []
         self.market_data = []
 
     @property
@@ -35,7 +34,7 @@ class RouterClass:
         ]
 
     @property
-    def formatted_extra_routes(self) -> list:
+    def formatted_data_routes(self) -> list:
         """
         Example:
         [{'exchange': 'Binance', 'symbol': 'BTC-USD', 'timeframe': '3m'}]
@@ -44,17 +43,17 @@ class RouterClass:
             'exchange': r['exchange'],
             'symbol': r['symbol'],
             'timeframe': r['timeframe']
-        } for r in self.extra_candles]
+        } for r in self.data_candles]
 
     @property
     def all_formatted_routes(self) -> list:
-        return self.formatted_routes + self.formatted_extra_routes
+        return self.formatted_routes + self.formatted_data_routes
 
-    def initiate(self, routes: list, extra_routes: list = None):
-        if extra_routes is None:
-            extra_routes = []
+    def initiate(self, routes: list, data_routes: list = None):
+        if data_routes is None:
+            data_routes = []
         self.set_routes(routes)
-        self.set_extra_candles(extra_routes)
+        self.set_data_candles(data_routes)
         from jesse.store import store
         store.reset(force_install_routes=jh.is_unit_testing())
 
@@ -92,8 +91,8 @@ class RouterClass:
         for r in routes:
             self.market_data.append(Route(*r))
 
-    def set_extra_candles(self, extra_candles: list) -> None:
-        self.extra_candles = extra_candles
+    def set_data_candles(self, data_candles: list) -> None:
+        self.data_candles = data_candles
 
 
 router: RouterClass = RouterClass()

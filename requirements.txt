@@ -10,16 +10,18 @@ pandas==1.4.0
 peewee==3.14.8
 psycopg2-binary==2.9.9
 pydash==6.0.0
+fnc==0.5.3
 pytest==6.2.5
 PyWavelets==1.2.0
 quantstats==0.0.47
-requests==2.31.0
+requests==2.32.0
 scipy
 statsmodels==0.14.0
-TA-Lib==0.4.28
+TA-Lib==0.4.31
 tabulate==0.8.9
 timeloop==1.0.2
-websocket-client==1.2.3
+websocket-client==1.8.0
+wsaccel==0.6.6
 simplejson==3.16.0
 aioredis==1.3.1
 redis==4.1.4
@@ -29,3 +31,4 @@ websockets>=10.0.0
 python-dotenv==0.19.2
 aiofiles==0.7.0
 jesse-dydx-v3-python==1.0.4
+numba==0.58.1
