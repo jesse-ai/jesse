@@ -3,12 +3,12 @@ from collections import namedtuple
 import numpy as np
 from .ema import ema
 
-SupportResistance = namedtuple('SupportResistance', ['support', 'resistance', 'red_break', 'green_break', 'bear_wick', 'bull_wick'])
+SupportResistanceWithBreaks = namedtuple('SupportResistanceWithBreaks', ['support', 'resistance', 'red_break', 'green_break', 'bear_wick', 'bull_wick'])
 
 
-def support_resistance_with_break(candles: np.ndarray, left_bars: int = 15, right_bars: int = 15, vol_threshold: int = 20) -> SupportResistance:
+def support_resistance_with_breaks(candles: np.ndarray, left_bars: int = 15, right_bars: int = 15, vol_threshold: int = 20) -> SupportResistanceWithBreaks:
     """
-    SupportResistance
+    support_resistance_with_breaks
 
     @author LuxAlgo
     credits: https://www.tradingview.com/script/JDFoWQbL-Support-and-Resistance-Levels-with-Breaks-LuxAlgo
@@ -17,7 +17,7 @@ def support_resistance_with_break(candles: np.ndarray, left_bars: int = 15, righ
     :param left_bars: int - default: 15
     :param right_bars: int - default: 15
     :param vol_threshold: int - default: 20
-    :return: SupportResistance(support, resistance, red_break, green_break, bear_wick, bull_wick)
+    :return: SupportResistanceWithBreaks(support, resistance, red_break, green_break, bear_wick, bull_wick)
     """
     resistance = _resistance(candles[:, 3], left_bars, right_bars)
     support = _support(candles[:, 4], left_bars, right_bars)
@@ -36,24 +36,24 @@ def support_resistance_with_break(candles: np.ndarray, left_bars: int = 15, righ
     bull_wick = True if last_candles[2] > resistance and abs(last_candles[1] - last_candles[4]) > abs(last_candles[1] - last_candles[2]) else False
     bear_wick = True if last_candles[2] < support and abs(last_candles[1] - last_candles[2]) < abs(last_candles[1] - last_candles[3]) else False
 
-    return SupportResistance(support, resistance, red_break, green_break, bear_wick, bull_wick)
+    return SupportResistanceWithBreaks(support, resistance, red_break, green_break, bear_wick, bull_wick)
 
 
-def _resistance(source, leftBars, rightBars):
+def _resistance(source, left_bars, right_bars):
     pivot_highs = [None] * len(source)  # Initialize result list with None
 
-    for i in range(leftBars, len(source) - rightBars):
+    for i in range(left_bars, len(source) - right_bars):
         is_pivot_high = True
 
         # Check left bars for higher high
-        for j in range(1, leftBars + 1):
+        for j in range(1, left_bars + 1):
             if source[i] <= source[i - j]:
                 is_pivot_high = False
                 break
 
         # Check right bars for higher high
         if is_pivot_high:
-            for j in range(1, rightBars + 1):
+            for j in range(1, right_bars + 1):
                 if source[i] <= source[i + j]:
                     is_pivot_high = False
                     break
@@ -73,26 +73,26 @@ def _resistance(source, leftBars, rightBars):
             first_value = i if first_value is None else first_value
 
     pivot_highs[:first_value - 1] = [pivot_highs[first_value]] * len(pivot_highs[:first_value - 1])
-    pivot_highs[-rightBars:] = [pivot_highs[-rightBars - 1]] * len(pivot_highs[-rightBars:])
+    pivot_highs[-right_bars:] = [pivot_highs[-right_bars - 1]] * len(pivot_highs[-right_bars:])
 
     return pivot_highs[-1]
 
 
-def _support(source, leftBars, rightBars):
+def _support(source, left_bars, right_bars):
     pivot_lows = [None] * len(source)  # Initialize result list with None
 
-    for i in range(leftBars, len(source) - rightBars):
+    for i in range(left_bars, len(source) - right_bars):
         is_pivot_low = True
 
         # Check left bars for lower low
-        for j in range(1, leftBars + 1):
+        for j in range(1, left_bars + 1):
             if source[i] >= source[i - j]:
                 is_pivot_low = False
                 break
 
         # Check right bars for lower low
         if is_pivot_low:
-            for j in range(1, rightBars + 1):
+            for j in range(1, right_bars + 1):
                 if source[i] >= source[i + j]:
                     is_pivot_low = False
                     break
@@ -112,6 +112,6 @@ def _support(source, leftBars, rightBars):
             first_value = i if first_value is None else first_value
 
     pivot_lows[:first_value - 1] = [pivot_lows[first_value]] * len(pivot_lows[:first_value - 1])
-    pivot_lows[-rightBars:] = [pivot_lows[-rightBars - 1]] * len(pivot_lows[-rightBars:])
+    pivot_lows[-right_bars:] = [pivot_lows[-right_bars - 1]] * len(pivot_lows[-right_bars:])
 
     return pivot_lows[-1]
