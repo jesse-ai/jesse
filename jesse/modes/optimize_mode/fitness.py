@@ -43,7 +43,7 @@ def get_fitness(
             candles=training_candles,
             warmup_candles=training_warmup_candles,
             hyperparameters=hp,
-            fast_mode=True
+            fast_mode=False
         )['metrics']
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -121,7 +121,7 @@ def get_fitness(
             candles=testing_candles,
             warmup_candles=testing_warmup_candles,
             hyperparameters=hp,
-            fast_mode=True
+            fast_mode=False
         )['metrics']
 
         # log for debugging/monitoring
