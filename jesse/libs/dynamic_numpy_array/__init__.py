@@ -133,3 +133,13 @@ class DynamicNumpyArray:
             self.array = np_shift(self.array, -shift_num)
 
         self.array[self.index - len(items) + 1 : self.index + 1] = items
+
+    def delete(self, index: int, axis=None) -> None:
+        self.array = np.delete(self.array, index, axis=axis)
+        self.index -= 1
+        if self.index == -1:
+            new_bucket = np.zeros(self.shape)
+            self.array = np.concatenate((self.array, new_bucket), axis=0)
+
+
+
