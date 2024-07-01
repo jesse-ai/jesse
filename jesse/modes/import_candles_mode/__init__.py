@@ -80,6 +80,36 @@ def run(
 
     loop_length = int(candles_count / driver.count) + 1
 
+    # get all candles from DB so we only need to import the missing candles
+    candles_from_db = Candle.select().where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date.int_timestamp * 1000, until_date.int_timestamp * 1000)
+        )
+    
+    candles_from_db_count = candles_from_db.count()
+    print(f"Start date {start_date} until {until_date} | candles_count {candles_count}, candle_in_database_count {candles_from_db_count}, diff: {candles_count - candles_from_db_count}")
+    
+    # get first timestamp in database:
+    first_candle_timestamp = candles_from_db.order_by(Candle.timestamp.asc())[0].timestamp
+    
+    if start_date.int_timestamp * 1000 >= first_candle_timestamp:
+        # check if there are missing candles in between.
+        last_candle_timestamp = candles_from_db.order_by(Candle.timestamp.desc())[0].timestamp
+        if not candles_from_db_count == int((last_candle_timestamp-first_candle_timestamp) / 60000)+1:
+            msg = f'The database has missing candles we need to fill the gaps'
+            print(msg)
+        else:
+            # "We only need to download new candles since the last import"
+            start_date = arrow.get(last_candle_timestamp)
+            
+            # update loop length for progressbar
+            loop_length = int((candles_count - candles_from_db_count) / driver.count) + 1
+            
+            temp_start_time = jh.timestamp_to_time(start_date.int_timestamp * 1000)[:10]
+            print(f'Import Candles from {temp_start_time}, Candles before this date already exists in the database', loop_length)
+
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
@@ -162,6 +192,10 @@ def run(
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
+            time.sleep(driver.sleep_time)
+        
+        # fix for the webinterface progressbar. 
+        if loop_length == 1:
             time.sleep(driver.sleep_time)
 
     success_text = f'Successfully imported candles for {symbol} from {exchange} since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). '
