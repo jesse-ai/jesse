@@ -437,7 +437,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         GetLogsRequestJson, GetOrdersRequestJson
     from jesse.services import auth as authenticator
 
-
     @fastapi_app.post("/live")
     def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
@@ -465,7 +464,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         mode = 'live' if request_json.paper_mode is False else 'paper'
         return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
 
-
     @fastapi_app.post("/cancel-live")
     def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
         if not authenticator.is_valid_token(authorization):
@@ -474,7 +472,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         process_manager.cancel_process(request_json.id)
 
         return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
-
 
     @fastapi_app.post('/get-candles')
     def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -494,7 +491,6 @@ if HAS_LIVE_TRADE_PLUGIN:
             'data': arr
         }, status_code=200)
 
-
     @fastapi_app.post('/get-logs')
     def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
@@ -502,13 +498,12 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         from jesse_live.services.data_provider import get_logs as gl
 
-        arr = gl(json_request.id, json_request.type)
+        arr = gl(json_request.id, json_request.type, json_request.start_time)
 
         return JSONResponse({
             'id': json_request.id,
             'data': arr
         }, status_code=200)
-
 
     @fastapi_app.post('/get-orders')
     def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -524,7 +519,6 @@ if HAS_LIVE_TRADE_PLUGIN:
             'data': arr
         }, status_code=200)
 
-
     @fastapi_app.get('/exchange-api-keys')
     def get_exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
@@ -533,7 +527,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         from jesse.modes.exchange_api_keys import get_exchange_api_keys
 
         return get_exchange_api_keys()
-
 
     @fastapi_app.post('/exchange-api-keys/store')
     def store_exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson,
@@ -548,7 +541,6 @@ if HAS_LIVE_TRADE_PLUGIN:
             json_request.additional_fields, json_request.general_notifications_id, json_request.error_notifications_id
         )
 
-
     @fastapi_app.post('/exchange-api-keys/delete')
     def delete_exchange_api_keys(json_request: DeleteExchangeApiKeyRequestJson,
                                  authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -559,7 +551,6 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         return delete_exchange_api_keys(json_request.id)
 
-
     @fastapi_app.get('/notification-api-keys')
     def get_notification_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
@@ -568,7 +559,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         from jesse.modes.notification_api_keys import get_notification_api_keys
 
         return get_notification_api_keys()
-
 
     @fastapi_app.post('/notification-api-keys/store')
     def store_notification_api_keys(
@@ -583,7 +573,6 @@ if HAS_LIVE_TRADE_PLUGIN:
         return store_notification_api_keys(
             json_request.name, json_request.driver, json_request.fields
         )
-
 
     @fastapi_app.post('/notification-api-keys/delete')
     def delete_notification_api_keys(

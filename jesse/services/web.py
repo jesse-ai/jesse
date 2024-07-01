@@ -93,6 +93,7 @@ class GetCandlesRequestJson(BaseModel):
 class GetLogsRequestJson(BaseModel):
     id: str
     type: str
+    start_time: int
 
 
 class GetOrdersRequestJson(BaseModel):
