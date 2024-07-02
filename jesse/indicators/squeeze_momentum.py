@@ -14,7 +14,7 @@ def squeeze_momentum(candles: np.ndarray, length: int = 20, mult: float = 2.0, l
     @author lazyBear
     credits: https://www.tradingview.com/script/nqQ1DT5a-Squeeze-Momentum-Indicator-LazyBear/
 
-    SqueezeMomentum - squeeze_momentum
+    squeeze_momentum
 
     :param candles: np.ndarray
     :length: int - default: 20
@@ -53,14 +53,11 @@ def squeeze_momentum(candles: np.ndarray, length: int = 20, mult: float = 2.0, l
     momentum = linearreg(np.array(momentum), period=length_kc, sequential=True)
 
     momentum_signal = []
-    temp_val = momentum[::-1]
-    for i in range(len(temp_val) - 1):
-        if temp_val[i] > 0:
-            momentum_signal.append(1 if temp_val[i] > temp_val[i + 1] else 2)
+    for i in range(len(momentum) - 1):
+        if momentum[i + 1] > 0:
+            momentum_signal.append(1 if momentum[i + 1] > momentum[i] else 2)
         else:
-            momentum_signal.append(-1 if temp_val[i] < temp_val[i + 1] else -2)
-
-    momentum_signal = momentum_signal[::-1]
+            momentum_signal.append(-1 if momentum[i + 1] < momentum[i] else -2)
 
     if sequential:
         return SqueezeMomentum(sqz, momentum, momentum_signal)
