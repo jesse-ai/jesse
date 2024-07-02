@@ -2370,3 +2370,21 @@ def test_support_resistance_with_breaks():
     assert result.green_break == False
     assert result.bear_wick == False
     assert result.bull_wick == False
+
+
+def test_squeeze_momentum():
+    candles = np.array(test_candles_19)
+    result = ta.squeeze_momentum(candles, sequential=False)
+
+    assert result.squeeze == 1
+    assert result.momentum == -52.22875000000006
+    assert result.momentum_signal == -1
+
+    seq_result = ta.squeeze_momentum(candles)
+
+    assert seq_result.squeeze[0] == 0
+    assert seq_result.squeeze[-2] == 1
+    assert seq_result.momentum_signal[0] == -2
+    assert seq_result.momentum_signal[-2] == -1
+    assert seq_result.momentum[-10] == -37.97460714285718
+    assert seq_result.momentum[-2] == -40.97509285714294
