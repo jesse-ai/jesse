@@ -242,7 +242,7 @@ def _step_simulator(
     # add initial balance
     save_daily_portfolio_balance()
 
-    progressbar = Progressbar(length, step=60)
+    progressbar = Progressbar(length, step=420)
     for i in range(length):
         # update time
         store.app.time = first_candles_set[i][0] + 60_000
@@ -283,7 +283,7 @@ def _step_simulator(
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
-        update_progress_bar(progressbar, run_silently, i, candle_step=60)
+        update_progress_bar(progressbar, run_silently, i, candle_step=420)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
