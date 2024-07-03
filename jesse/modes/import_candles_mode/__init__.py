@@ -52,7 +52,8 @@ def run(
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
-        raise ValueError(f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
+        raise ValueError(
+            f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
 
     # more start_date validations
     today = arrow.utcnow().floor('day').int_timestamp * 1000
@@ -78,7 +79,7 @@ def run(
 
     loop_length = int(candles_count / driver.count) + 1
 
-    progressbar = Progressbar(loop_length)
+    progressbar = Progressbar(loop_length, step=2)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
@@ -136,7 +137,8 @@ def run(
                         })
                     else:
                         print(msg)
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
+                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
+                        running_via_dashboard, show_progressbar)
                     return
 
             # fill absent candles (if there's any)
@@ -148,7 +150,8 @@ def run(
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
 
-        progressbar.update()
+        if i % 2 == 0:
+            progressbar.update()
         if running_via_dashboard:
             sync_publish('progressbar', {
                 'current': progressbar.current,
@@ -156,7 +159,8 @@ def run(
             })
         elif show_progressbar:
             jh.clear_output()
-            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            print(
+                f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
@@ -300,7 +304,8 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         return total_candles
 
 
-def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> List[Dict[str, Union[str, Any]]]:
+def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> \
+List[Dict[str, Union[str, Any]]]:
     if not temp_candles:
         raise CandleNotFoundInExchange(
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
