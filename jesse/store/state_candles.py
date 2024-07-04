@@ -81,9 +81,7 @@ class CandlesState:
         try:
             return self.storage[key]
         except KeyError:
-            raise RouteNotFound(
-                f"Bellow route is required but missing in your routes:\n('{exchange}', '{symbol}', '{timeframe}')"
-            )
+            raise RouteNotFound(symbol, timeframe)
 
     def init_storage(self, bucket_size: int = 1000) -> None:
         for ar in selectors.get_all_routes():
