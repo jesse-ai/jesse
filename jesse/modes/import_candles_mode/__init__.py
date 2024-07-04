@@ -107,7 +107,8 @@ def run(
 
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
-            if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
+            time_diff = int((candles[0]['timestamp'] - temp_start_timestamp) / 1000) if len(candles) else 0
+            if not len(candles) or time_diff < 0 or time_diff > 60*100:
                 first_existing_timestamp = driver.get_starting_time(symbol)
 
                 # if driver can't provide accurate get_starting_time()
