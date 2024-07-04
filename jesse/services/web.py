@@ -49,6 +49,7 @@ class OptimizationRequestJson(BaseModel):
     debug_mode: bool
     export_csv: bool
     export_json: bool
+    fast_mode: bool
 
 
 class ImportCandlesRequestJson(BaseModel):
