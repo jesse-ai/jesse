@@ -4,6 +4,7 @@ from .bollinger_bands import bollinger_bands
 from .sma import sma
 from .trange import trange
 from .linearreg import linearreg
+from .stddev import stddev
 import numpy as np
 
 SqueezeMomentum = namedtuple('SqueezeMomentum', ['squeeze', 'momentum', 'momentum_signal'])
@@ -25,9 +26,11 @@ def squeeze_momentum(candles: np.ndarray, length: int = 20, mult: float = 2.0, l
 
     :return: SqueezeMomentum(squeeze, momentum, momentum_signal)
     """
-    bb_data = bollinger_bands(candles, length, mult_kc, sequential=True)
-    upper_bb = bb_data.upperband
-    lower_bb = bb_data.lowerband
+    # calculate bollinger bands
+    basis = sma(candles, length, sequential=True)
+    dev = mult_kc * stddev(candles, length, sequential=True)
+    upper_bb = basis + dev
+    lower_bb = basis - dev
 
     # calculate KC
     ma = sma(candles, length_kc, sequential=True)
