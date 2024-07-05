@@ -87,8 +87,9 @@ def test_dashy_symbol():
     assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
     assert jh.dashy_symbol('BTCUSDT') == 'BTC-USDT'
     assert jh.dashy_symbol('BTC-USDT') == 'BTC-USDT'
-    assert jh.dashy_symbol('SBTCSUSDT') == 'SBTC-SUSDT'
-    assert jh.dashy_symbol('SEOSSUSDT') == 'SEOS-SUSDT'
+    assert jh.dashy_symbol('BTCEUR') == 'BTC-EUR'
+    assert jh.dashy_symbol('1INCHUSDT') == '1INCH-USDT'
+    assert jh.dashy_symbol('SCUSDT') == 'SC-USDT'
 
 
 def test_date_diff_in_days():
