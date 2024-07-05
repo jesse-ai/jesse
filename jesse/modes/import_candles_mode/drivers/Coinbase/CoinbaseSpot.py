@@ -74,4 +74,9 @@ class CoinbaseSpot(CandleExchange):
         response = requests.get(self.endpoint)
         self.validate_response(response)
         data = response.json()['products']
-        return [s['product_id'] for s in data]
+        available_symbols = []
+        for s in data:
+            if len(s['alias_to']) == 0:
+                available_symbols.append(s['product_id'])
+
+        return available_symbols
