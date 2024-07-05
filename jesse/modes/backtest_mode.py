@@ -295,7 +295,7 @@ def _step_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    prepare_routes(hyperparameters)
+    _prepare_routes(hyperparameters)
 
     # add initial balance
     save_daily_portfolio_balance()
@@ -414,7 +414,7 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     store.app.time = first_candles_set[0][0]
 
 
-def prepare_routes(hyperparameters: dict = None) -> None:
+def _prepare_routes(hyperparameters: dict = None) -> None:
     # initiate strategies
     for r in router.routes:
         # if the r.strategy is str read it from file
@@ -639,7 +639,7 @@ def _skip_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    prepare_routes(hyperparameters)
+    _prepare_routes(hyperparameters)
 
     # add initial balance
     save_daily_portfolio_balance()
