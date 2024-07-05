@@ -293,8 +293,8 @@ def _step_simulator(
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
 
-    length = simulation_minutes_length(candles)
-    prepare_times_before_simulation(candles)
+    length = _simulation_minutes_length(candles)
+    _prepare_times_before_simulation(candles)
     prepare_routes(hyperparameters)
 
     # add initial balance
@@ -341,7 +341,7 @@ def _step_simulator(
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
-        update_progress_bar(progressbar, run_silently, i, candle_step=420)
+        _update_progress_bar(progressbar, run_silently, i, candle_step=420)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
@@ -357,7 +357,7 @@ def _step_simulator(
                 r.strategy._execute()
 
         # now check to see if there's any MARKET orders waiting to be executed
-        execute_market_orders()
+        _execute_market_orders()
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
@@ -370,7 +370,7 @@ def _step_simulator(
 
     for r in router.routes:
         r.strategy._terminate()
-        execute_market_orders()
+        _execute_market_orders()
 
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
@@ -378,7 +378,7 @@ def _step_simulator(
     # set the ending time for the backtest session
     store.app.ending_time = store.app.time + 60_000
 
-    result = generate_outputs(
+    result = _generate_outputs(
         candles,
         generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
@@ -394,13 +394,13 @@ def _step_simulator(
     return result
 
 
-def simulation_minutes_length(candles: dict) -> int:
+def _simulation_minutes_length(candles: dict) -> int:
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]["candles"]
     return len(first_candles_set)
 
 
-def prepare_times_before_simulation(candles: dict) -> None:
+def _prepare_times_before_simulation(candles: dict) -> None:
     # result = {}
     # begin_time_track = time.time()
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
@@ -457,7 +457,7 @@ def prepare_routes(hyperparameters: dict = None) -> None:
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
 
-def update_progress_bar(
+def _update_progress_bar(
         progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int
 ) -> None:
     # update progressbar
@@ -582,7 +582,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         order.execute()
 
 
-def generate_outputs(
+def _generate_outputs(
         candles: dict,
         generate_charts: bool = False,
         generate_tradingview: bool = False,
@@ -637,26 +637,26 @@ def _skip_simulator(
 
     begin_time_track = time.time()
 
-    length = simulation_minutes_length(candles)
-    prepare_times_before_simulation(candles)
+    length = _simulation_minutes_length(candles)
+    _prepare_times_before_simulation(candles)
     prepare_routes(hyperparameters)
 
     # add initial balance
     save_daily_portfolio_balance()
 
-    candles_step = calculate_minimum_candle_step()
+    candles_step = _calculate_minimum_candle_step()
     progressbar = Progressbar(length, step=candles_step)
     for i in range(0, length, candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
-        simulate_new_candles(candles, i, candles_step)
+        _simulate_new_candles(candles, i, candles_step)
 
-        update_progress_bar(progressbar, run_silently, i, candles_step)
+        _update_progress_bar(progressbar, run_silently, i, candles_step)
 
-        execute_routes(i, candles_step)
+        _execute_routes(i, candles_step)
 
         # now check to see if there's any MARKET orders waiting to be executed
-        execute_market_orders()
+        _execute_market_orders()
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
@@ -669,7 +669,7 @@ def _skip_simulator(
 
     for r in router.routes:
         r.strategy._terminate()
-        execute_market_orders()
+        _execute_market_orders()
 
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
@@ -677,7 +677,7 @@ def _skip_simulator(
     # set the ending time for the backtest session
     store.app.ending_time = store.app.time + 60_000
 
-    result = generate_outputs(
+    result = _generate_outputs(
         candles,
         generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
@@ -693,7 +693,7 @@ def _skip_simulator(
     return result
 
 
-def calculate_minimum_candle_step():
+def _calculate_minimum_candle_step():
     """
     Calculates the minimum step for update candles that will allow simple updates on the simulator.
     """
@@ -706,7 +706,7 @@ def calculate_minimum_candle_step():
     return np.gcd.reduce(consider_time_frames)
 
 
-def simulate_new_candles(candles: dict, candle_index: int, candles_step: int) -> None:
+def _simulate_new_candles(candles: dict, candle_index: int, candles_step: int) -> None:
     i = candle_index
     # add candles
     for j in candles:
@@ -838,7 +838,7 @@ def _simulate_price_change_effect_multiple_candles(
         p.current_price = short_timeframes_candles[-1, 2]
 
 
-def execute_routes(candle_index: int, candles_step: int) -> None:
+def _execute_routes(candle_index: int, candles_step: int) -> None:
     # now that all new generated candles are ready, execute
     for r in router.routes:
         count = jh.timeframe_to_one_minutes(r.timeframe)
@@ -858,7 +858,7 @@ def execute_routes(candle_index: int, candles_step: int) -> None:
             r.strategy._execute()
 
 
-def execute_market_orders():
+def _execute_market_orders():
     store.orders.execute_pending_market_orders()
 
 
