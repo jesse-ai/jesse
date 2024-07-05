@@ -7,7 +7,6 @@ from random import choices, randint
 import click
 import numpy as np
 import pydash
-from numpy import ndarray
 from pandas import json_normalize
 from timeloop import Timeloop
 
