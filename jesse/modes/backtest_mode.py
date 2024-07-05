@@ -1,4 +1,5 @@
 import time
+import re
 from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
@@ -56,16 +57,49 @@ def run(
 
         status_checker.start()
 
-    from jesse.config import config, set_config
+    from jesse.config import config
     config['app']['trading_mode'] = 'backtest'
 
     # debug flag
     config['app']['debug_mode'] = debug_mode
 
+    register_custom_exception_handler()
+
+    _execute_backtest(
+        client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles, chart,
+        tradingview, full_reports, csv, json, fast_mode, benchmark
+    )
+
+
+def _execute_backtest(
+        client_id: str,
+        debug_mode: bool,
+        user_config: dict,
+        exchange: str,
+        routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
+        start_date: str,
+        finish_date: str,
+        candles: dict = None,
+        chart: bool = False,
+        tradingview: bool = False,
+        full_reports: bool = False,
+        csv: bool = False,
+        json: bool = False,
+        fast_mode: bool = False,
+        benchmark: bool = False
+):
+    """
+    Executes the backtest that has been initiated from within the dashboard. The purpose of extracting these
+    functionalities into this function is so that in case it fails due to a missing data route, it can add
+    it and then re-execute itself.
+    """
+    from jesse.config import set_config
+
     # inject config
     if not jh.is_unit_testing():
         set_config(user_config)
-        # add exchange to routes
+    # add exchange to routes
     for r in routes:
         r['exchange'] = exchange
     for r in data_routes:
@@ -74,8 +108,6 @@ def run(
     router.initiate(routes, data_routes)
 
     store.app.set_session_id(client_id)
-
-    register_custom_exception_handler()
 
     # validate routes
     validate_routes(router)
@@ -103,21 +135,47 @@ def run(
         sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
-    result = simulator(
-        candles,
-        run_silently=jh.should_execute_silently(),
-        generate_charts=chart,
-        generate_tradingview=tradingview,
-        generate_quantstats=full_reports,
-        generate_csv=csv,
-        generate_json=json,
-        generate_equity_curve=True,
-        benchmark=benchmark,
-        generate_hyperparameters=True,
-        fast_mode=fast_mode,
-    )
+    try:
+        jh.dump('Starting backtest simulation')
+        result = simulator(
+            candles,
+            run_silently=jh.should_execute_silently(),
+            generate_charts=chart,
+            generate_tradingview=tradingview,
+            generate_quantstats=full_reports,
+            generate_csv=csv,
+            generate_json=json,
+            generate_equity_curve=True,
+            benchmark=benchmark,
+            generate_hyperparameters=True,
+            fast_mode=fast_mode,
+        )
+    except exceptions.RouteNotFound as e:
+        jh.dump(f'Route not found: {e}')
+        # Extract exchange, symbol, and timeframe using regular expressions
+        match = re.search(r"symbol='(.+?)', timeframe='(.+?)'", str(e))
+        if match:
+            symbol = match.group(1)
+            timeframe = match.group(2)
+            jh.dump(symbol, timeframe)
+            # Adjust data_routes to include the missing route
+            data_routes.append({
+                'exchange': exchange,
+                'symbol': symbol,
+                'timeframe': timeframe
+            })
+            jh.dump(f'Trying again with data_routes: {data_routes}')
+            # to prevent an issue with warmupcandles being None
+            candles = None
+            # retry the backtest simulation
+            _execute_backtest(
+                client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
+                chart, tradingview, full_reports, csv, json, fast_mode, benchmark
+            )
+        else:
+            raise e
 
-    if not jh.should_execute_silently():
+    if result and not jh.should_execute_silently():
         sync_publish('alert', {
             'message': f"Successfully executed backtest simulation in: {result['execution_duration']} seconds",
             'type': 'success'
