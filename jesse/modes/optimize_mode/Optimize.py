@@ -28,6 +28,7 @@ class Optimizer(ABC):
             training_candles: dict,
             testing_warmup_candles: dict,
             testing_candles: dict,
+            fast_mode: bool,
             optimal_total: int,
             cpu_cores: int,
             csv: bool,
@@ -59,6 +60,7 @@ class Optimizer(ABC):
         self.solution_len = solution_len
         self.charset = charset
         self.fitness_goal = fitness_goal
+        self.fast_mode = fast_mode
         self.cpu_cores = 0
         self.optimal_total = optimal_total
         self.training_warmup_candles = training_warmup_candles
@@ -132,7 +134,7 @@ class Optimizer(ABC):
                             args=(
                                 dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_data_routes,
                                 self.strategy_hp, dna, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total
+                                self.optimal_total, self.fast_mode
                             )
                         )
                         w.start()
@@ -240,7 +242,7 @@ class Optimizer(ABC):
                                 jh.get_config('env.optimization'), router.formatted_routes,
                                 router.formatted_data_routes,
                                 self.strategy_hp, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total
+                                self.optimal_total, self.fast_mode
                             )
                         )
                         w.start()

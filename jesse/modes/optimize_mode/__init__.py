@@ -24,7 +24,8 @@ def run(
         finish_date: str,
         optimal_total: int,
         csv: bool,
-        json: bool
+        json: bool,
+        fast_mode: bool
 ) -> None:
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
@@ -62,6 +63,7 @@ def run(
         training_candles,
         testing_warmup_candles,
         testing_candles,
+        fast_mode,
         optimal_total,
         cpu_cores,
         csv,

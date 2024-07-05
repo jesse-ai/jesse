@@ -26,7 +26,7 @@ def _formatted_inputs_for_isolated_backtest(user_config, routes):
 
 def get_fitness(
         optimization_config: dict, routes: list, data_routes: list, strategy_hp, dna: str, training_warmup_candles: dict, training_candles: dict,
-        testing_warmup_candles: dict, testing_candles: dict, optimal_total: int
+        testing_warmup_candles: dict, testing_candles: dict, optimal_total: int, fast_mode: bool
 ) -> tuple:
     """
     Notice that this function is likely to be executed inside workers, hence its inputs must
@@ -43,7 +43,7 @@ def get_fitness(
             candles=training_candles,
             warmup_candles=training_warmup_candles,
             hyperparameters=hp,
-            fast_mode=True
+            fast_mode=fast_mode
         )['metrics']
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -121,7 +121,7 @@ def get_fitness(
             candles=testing_candles,
             warmup_candles=testing_warmup_candles,
             hyperparameters=hp,
-            fast_mode=True
+            fast_mode=fast_mode
         )['metrics']
 
         # log for debugging/monitoring
@@ -148,7 +148,8 @@ def get_and_add_fitness_to_the_bucket(
         training_candles: dict,
         testing_warmup_candles: dict,
         testing_candles: dict,
-        optimal_total: int
+        optimal_total: int,
+        fast_mode: bool
 ) -> None:
     """
     Calculates the fitness and adds the result into the dna_bucket (which is the object passed among workers)
@@ -166,7 +167,8 @@ def get_and_add_fitness_to_the_bucket(
                 training_candles,
                 testing_warmup_candles,
                 testing_candles,
-                optimal_total
+                optimal_total,
+                fast_mode
             )
             dna_bucket.append((dna, fitness_score, fitness_log_training, fitness_log_testing))
         else:
@@ -178,7 +180,7 @@ def get_and_add_fitness_to_the_bucket(
 
 def make_love(
     mommy, daddy, solution_len,
-    optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+    optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
 ) -> dict:
     dna = ''.join(
         daddy['dna'][i] if i % 2 == 0 else mommy['dna'][i] for i in range(solution_len)
@@ -195,7 +197,8 @@ def make_love(
         training_candles,
         testing_warmup_candles,
         testing_candles,
-        optimal_total
+        optimal_total,
+        fast_mode
     )
 
     return {
@@ -208,7 +211,7 @@ def make_love(
 
 def mutate(
         baby, solution_len, charset,
-        optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+        optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
 ) -> dict:
     replace_at = randint(0, solution_len - 1)
     replace_with = choice(charset)
@@ -216,7 +219,7 @@ def mutate(
 
     # not found - so run the backtest
     fitness_score, fitness_log_training, fitness_log_testing = get_fitness(
-        optimization_config, routes, data_routes, strategy_hp, dna, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+        optimization_config, routes, data_routes, strategy_hp, dna, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
     )
 
     return {
@@ -229,18 +232,18 @@ def mutate(
 
 def create_baby(
     people_bucket: list, mommy, daddy, solution_len, charset,
-    optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+    optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
 ) -> None:
     try:
         # let's make a baby together 👀
         baby = make_love(
             mommy, daddy, solution_len,
-            optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+            optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
         )
         # let's mutate baby's genes, who knows, maybe we create a x-man or something
         baby = mutate(
             baby, solution_len, charset,
-            optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total
+            optimization_config, routes, data_routes, strategy_hp, training_warmup_candles, training_candles, testing_warmup_candles, testing_candles, optimal_total, fast_mode
         )
         people_bucket.append(baby)
     except Exception as e:
