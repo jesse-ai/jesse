@@ -22,7 +22,7 @@ def save_daily_portfolio_balance() -> None:
     try:
         e, = store.exchanges.storage.values()
     except ValueError:
-        raise ValueError('Multiple exchange support is temporarily not supported. Will be implemented soon.')
+        raise ValueError('Multiple exchange support is not supported at the moment')
     if e.type == 'futures':
         total_balances += e.assets[jh.app_currency()]
 
