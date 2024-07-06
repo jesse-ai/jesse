@@ -134,7 +134,6 @@ def _execute_backtest(
 
     # run backtest simulation
     try:
-        jh.dump('Starting backtest simulation')
         result = simulator(
             candles,
             run_silently=jh.should_execute_silently(),
@@ -149,20 +148,17 @@ def _execute_backtest(
             fast_mode=fast_mode,
         )
     except exceptions.RouteNotFound as e:
-        jh.dump(f'Route not found: {e}')
         # Extract exchange, symbol, and timeframe using regular expressions
         match = re.search(r"symbol='(.+?)', timeframe='(.+?)'", str(e))
         if match:
             symbol = match.group(1)
             timeframe = match.group(2)
-            jh.dump(symbol, timeframe)
             # Adjust data_routes to include the missing route
             data_routes.append({
                 'exchange': exchange,
                 'symbol': symbol,
                 'timeframe': timeframe
             })
-            jh.dump(f'Trying again with data_routes: {data_routes}')
             # to prevent an issue with warmupcandles being None
             candles = None
             # retry the backtest simulation
