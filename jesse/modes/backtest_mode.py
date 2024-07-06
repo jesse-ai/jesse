@@ -49,12 +49,10 @@ def run(
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
         status_checker = Timeloop()
-
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
             if is_process_active(client_id) is False:
                 raise exceptions.Termination
-
         status_checker.start()
 
     from jesse.config import config

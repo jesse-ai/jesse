@@ -117,8 +117,4 @@ class StoreClass:
         self.orderbooks = OrderbookState()
 
 
-# if not jh.is_unit_testing():
-#     install_routes()
-
 store = StoreClass()
-# store.reset()
