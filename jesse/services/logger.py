@@ -51,6 +51,10 @@ def create_logger_file(name):
     LOGGERS[name] = new_logger
 
 
+def reset():
+    LOGGERS.clear()
+
+
 def info(msg: str, send_notification=False, webhook=None) -> None:
     if jh.app_mode() not in LOGGERS and (jh.is_live() or (jh.is_backtesting() and jh.is_debugging())):
         _init_main_logger()

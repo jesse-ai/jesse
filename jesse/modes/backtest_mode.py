@@ -296,7 +296,7 @@ def _step_simulator(
     _prepare_routes(hyperparameters)
 
     # add initial balance
-    save_daily_portfolio_balance()
+    save_daily_portfolio_balance(is_initial=True)
 
     progressbar = Progressbar(length, step=420)
     for i in range(length):
@@ -640,7 +640,7 @@ def _skip_simulator(
     _prepare_routes(hyperparameters)
 
     # add initial balance
-    save_daily_portfolio_balance()
+    save_daily_portfolio_balance(is_initial=True)
 
     candles_step = _calculate_minimum_candle_step()
     progressbar = Progressbar(length, step=candles_step)

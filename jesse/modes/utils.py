@@ -3,7 +3,10 @@ from jesse.services import logger
 from jesse.info import exchange_info
 
 
-def save_daily_portfolio_balance() -> None:
+def save_daily_portfolio_balance(is_initial=False) -> None:
+    if is_initial:
+        logger.reset()
+
     from jesse.store import store
 
     # # store daily_balance of assets into database
