@@ -161,6 +161,11 @@ def _execute_backtest(
             })
             # to prevent an issue with warmupcandles being None
             candles = None
+            # notify the user about the missing data route and retry the backtest simulation
+            sync_publish('notification', {
+                'message': f'Missing data route for "{symbol}" with "{timeframe}" timeframe. Adding it and retrying...',
+                'type': 'error'
+            })
             # retry the backtest simulation
             _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
