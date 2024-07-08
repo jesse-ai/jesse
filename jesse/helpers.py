@@ -832,6 +832,7 @@ def today_to_timestamp() -> int:
     return arrow.utcnow().floor('day').int_timestamp * 1000
 
 
+@lru_cache
 def type_to_side(t: str) -> str:
     from jesse.enums import trade_types, sides
 

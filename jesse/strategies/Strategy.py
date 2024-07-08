@@ -521,7 +521,7 @@ class Strategy(ABC):
                         temp_current_price = None
 
                     # CANCEL previous orders
-                    for o in self.exit_orders:
+                    for o in self.active_exit_orders:
                         if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
 
@@ -562,7 +562,7 @@ class Strategy(ABC):
                         temp_current_price = None
 
                     # CANCEL previous orders
-                    for o in self.exit_orders:
+                    for o in self.active_exit_orders:
                         if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
 
@@ -1262,6 +1262,13 @@ class Strategy(ABC):
         Returns all the exit orders for this position.
         """
         return store.orders.get_exit_orders(self.exchange, self.symbol)
+
+    @property
+    def active_exit_orders(self):
+        """
+        Returns all the exit orders for this position.
+        """
+        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):
