@@ -21,13 +21,15 @@ class DydxPerpetualMain(CandleExchange):
 
         self.endpoint = rest_endpoint
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         payload = {
             'resolution': '1DAY',
             'limit': self.count,
             'fromISO': jh.timestamp_to_iso8601(1359291660000),
             'toISO': jh.timestamp_to_iso8601(jh.now_to_timestamp(force_fresh=True))
         }
+        if not start_timestamp is None:
+            payload['fromISO'] = jh.timestamp_to_iso8601(start_timestamp)
 
         response = requests.get(self.endpoint + '/v3/candles/' + symbol, params=payload)
 

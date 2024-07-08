@@ -21,7 +21,7 @@ class BinanceMain(CandleExchange):
 
         self.endpoint = rest_endpoint
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
@@ -29,6 +29,8 @@ class BinanceMain(CandleExchange):
             'symbol': dashless_symbol,
             'limit': 1500,
         }
+        if not start_timestamp is None:
+            payload['startTime'] = start_timestamp
 
         response = requests.get(self.endpoint, params=payload)
 
@@ -54,11 +56,14 @@ class BinanceMain(CandleExchange):
             'limit': self.count,
         }
 
+        print(f"nendpoint: {self.endpoint} \nPayload: {payload}")
         response = requests.get(self.endpoint, params=payload)
 
         self.validate_response(response)
-
+        print(f"Response of exchange: {response} \nendpoint: {self.endpoint} \n Payload: {payload} \n ")
         data = response.json()
+        if len(data) < 1000:
+            print(data)
         return [{
             'id': jh.generate_unique_id(),
             'exchange': self.name,

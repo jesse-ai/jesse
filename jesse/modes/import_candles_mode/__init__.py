@@ -135,12 +135,10 @@ def run(
 
             # fetch from market
             candles = driver.fetch(symbol, temp_start_timestamp, timeframe='1m')
-
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
-            if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
-                first_existing_timestamp = driver.get_starting_time(symbol)
-
+            if not len(candles) or len(candles) < 1 or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
+                first_existing_timestamp = driver.get_starting_time(symbol, start_timestamp=temp_start_timestamp)
                 # if driver can't provide accurate get_starting_time()
                 if first_existing_timestamp is None:
                     raise CandleNotFoundInExchange(

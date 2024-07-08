@@ -16,7 +16,7 @@ class CoinbaseSpot(CandleExchange):
 
         self.endpoint = 'https://api.pro.coinbase.com/products'
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         """
         Because Coinbase's API sucks and does not make this take easy for us,
         we do it manually for as much symbol as we can!
