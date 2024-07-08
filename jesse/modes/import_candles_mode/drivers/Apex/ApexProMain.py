@@ -14,7 +14,7 @@ class ApexProMain(CandleExchange):
         self.name = name
         self.endpoint = rest_endpoint
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
         payload = {
             'symbol': dashless_symbol,
@@ -22,6 +22,8 @@ class ApexProMain(CandleExchange):
             'limit': 200,
             'start': 1514811660
         }
+        if not start_timestamp is None:
+            payload['start'] = start_timestamp
 
         response = requests.get(self.endpoint + '/v2/klines', params=payload)
         self.validate_response(response)

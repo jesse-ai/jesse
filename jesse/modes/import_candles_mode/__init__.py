@@ -80,6 +80,54 @@ def run(
 
     loop_length = int(candles_count / driver.count) + 1
 
+    # get all candles from DB so we only need to import the missing candles
+    candles_from_db = Candle.select().where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date.int_timestamp * 1000, until_date.int_timestamp * 1000)
+        )
+    
+    candles_from_db_count = int(candles_from_db.count())
+    print(f"{symbol} | Start date {start_date} until {until_date} | candles_count {candles_count}, candle_in_database_count {candles_from_db_count}, diff: {candles_count - candles_from_db_count}")
+    
+    # get first timestamp in database:
+    if candles_from_db_count > 0:
+        # first_candle_timestamp = candles_from_db.order_by(Candle.timestamp.asc())[0].timestamp
+        first_candle_timestamp = Candle.select().where(
+                Candle.exchange == exchange,
+                Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+                # Candle.timestamp.between(start_date.int_timestamp * 1000, (start_date.int_timestamp + 600) * 1000)
+                Candle.timestamp.between(start_date.int_timestamp * 1000, until_date.int_timestamp * 1000)
+            ).order_by(Candle.timestamp.asc())[0].timestamp
+        print("start timestamp", arrow.get(first_candle_timestamp))
+        
+        if start_date.int_timestamp * 1000 >= first_candle_timestamp:
+            # check if there are missing candles in between.
+            last_candle_timestamp = Candle.select().where(
+                Candle.exchange == exchange,
+                Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+                #Candle.timestamp.between((start_date.int_timestamp + 60*(candles_from_db_count-1)) * 1000, until_date.int_timestamp * 1000)
+                Candle.timestamp.between(start_date.int_timestamp * 1000, until_date.int_timestamp * 1000)
+            ).order_by(Candle.timestamp.desc())[0].timestamp
+            #last_candle_timestamp = candles_from_db.order_by(Candle.timestamp.desc())[0].timestamp
+            print("last timestamp", arrow.get(last_candle_timestamp))
+            print(candles_from_db_count, int((last_candle_timestamp-first_candle_timestamp) / 60000)+1)
+            if not candles_from_db_count == int((last_candle_timestamp-first_candle_timestamp) / 60000)+1:
+                msg = f'The database has missing candles we need to fill the gaps'
+                print(msg)
+            else:
+                # "We only need to download new candles since the last import"
+                start_date = arrow.get(last_candle_timestamp)
+                
+                # update loop length for progressbar
+                loop_length = int((candles_count - candles_from_db_count) / driver.count) + 1
+                
+                temp_start_time = jh.timestamp_to_time(start_date.int_timestamp * 1000)[:10]
+                print(f'Import Candles from {temp_start_time}, Candles before this date already exists in the database', loop_length)
+
     progressbar = Progressbar(loop_length)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
@@ -105,12 +153,10 @@ def run(
 
             # fetch from market
             candles = driver.fetch(symbol, temp_start_timestamp, timeframe='1m')
-
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
-            if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
-                first_existing_timestamp = driver.get_starting_time(symbol)
-
+            if not len(candles) or len(candles) < 1 or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
+                first_existing_timestamp = driver.get_starting_time(symbol, start_timestamp=temp_start_timestamp)
                 # if driver can't provide accurate get_starting_time()
                 if first_existing_timestamp is None:
                     raise CandleNotFoundInExchange(
@@ -158,10 +204,14 @@ def run(
             })
         elif show_progressbar:
             jh.clear_output()
-            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            print(f"{exchange} | {symbol} | Importing candles from {start_date.shift(minutes=-driver.count).format('YYYY-MM-DD')} | Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
+            time.sleep(driver.sleep_time)
+        
+        # fix for the webinterface progressbar. 
+        if loop_length == 1:
             time.sleep(driver.sleep_time)
 
     success_text = f'Successfully imported candles for {symbol} from {exchange} since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). '

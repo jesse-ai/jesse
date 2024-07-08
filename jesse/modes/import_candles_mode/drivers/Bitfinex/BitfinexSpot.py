@@ -18,7 +18,7 @@ class BitfinexSpot(CandleExchange):
 
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         # hard-code few common symbols

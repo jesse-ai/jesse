@@ -22,13 +22,15 @@ class BitgetUSDTPerpetualMain(CandleExchange):
 
         self.endpoint = endpoint
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         payload = {
             'granularity': '1W',
             'symbol': self.jesse_symbol_to_bitget_usdt_contracts_symbol(symbol),
             'startTime': 1359291660000,
             'endTime': jh.now(force_fresh=True)
         }
+        if not start_timestamp is None:
+            payload['startTime'] = start_timestamp
 
         response = requests.get(self.endpoint, params=payload)
 

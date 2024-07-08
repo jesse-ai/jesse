@@ -26,7 +26,7 @@ class CandleExchange(ABC):
         pass
 
     @abstractmethod
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp: int=None) -> int:
         pass
 
     @staticmethod

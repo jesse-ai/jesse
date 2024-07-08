@@ -15,7 +15,7 @@ class BybitMain(CandleExchange):
         self.endpoint = rest_endpoint
         self.category = category
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str, start_timestamp:int=None) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
         payload = {
             'category': self.category,
@@ -24,6 +24,8 @@ class BybitMain(CandleExchange):
             'limit': 200,
             'start': 1514811660000
         }
+        if not start_timestamp is None:
+            payload['start'] = start_timestamp
 
         response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
         self.validate_response(response)
@@ -31,6 +33,8 @@ class BybitMain(CandleExchange):
         # Reverse the data list
         data = data[::-1]
 
+        if len(data) < 2:
+            raise exceptions.SymbolNotFound(response.json()['retMsg'])
         return int(data[1][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
