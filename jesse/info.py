@@ -34,6 +34,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BYBIT_USDT_PERPETUAL_TESTNET
     exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET: {
@@ -48,6 +49,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BYBIT_USDT_PERPETUAL
     exchanges_enums.BYBIT_USDC_PERPETUAL: {
@@ -62,6 +64,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BYBIT_USDC_PERPETUAL_TESTNET
     exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET: {
@@ -76,6 +79,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BYBIT_SPOT_TESTNET
     exchanges_enums.BYBIT_SPOT: {
@@ -89,6 +93,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BYBIT_SPOT_TESTNET
     exchanges_enums.BYBIT_SPOT_TESTNET: {
@@ -102,6 +107,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # FTX_PERPETUAL_FUTURES
     exchanges_enums.FTX_PERPETUAL_FUTURES: {
@@ -115,6 +121,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # FTX_SPOT
     exchanges_enums.FTX_SPOT: {
@@ -128,6 +135,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # FTX_US_SPOT
     exchanges_enums.FTX_US_SPOT: {
@@ -141,6 +149,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # BITFINEX_SPOT
     exchanges_enums.BITFINEX_SPOT: {
@@ -154,6 +163,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # BINANCE_SPOT
     exchanges_enums.BINANCE_SPOT: {
@@ -167,6 +177,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BINANCE_US_SPOT
     exchanges_enums.BINANCE_US_SPOT: {
@@ -180,6 +191,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BINANCE_PERPETUAL_FUTURES
     exchanges_enums.BINANCE_PERPETUAL_FUTURES: {
@@ -193,6 +205,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BINANCE_PERPETUAL_FUTURES_TESTNET
     exchanges_enums.BINANCE_PERPETUAL_FUTURES_TESTNET: {
@@ -206,6 +219,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # COINBASE_SPOT
     exchanges_enums.COINBASE_SPOT: {
@@ -219,6 +233,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BITGET_USDT_PERPETUAL_TESTNET
     exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET: {
@@ -232,6 +247,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # BITGET_USDT_PERPETUAL
     exchanges_enums.BITGET_USDT_PERPETUAL: {
@@ -245,6 +261,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # BITGET_SPOT
     exchanges_enums.BITGET_SPOT: {
@@ -259,6 +276,7 @@ exchange_info = {
             # disabled for now
             'live_trading': False,
         },
+        'required_live_plan': 'premium'
     },
     # DyDx
     exchanges_enums.DYDX_PERPETUAL: {
@@ -272,6 +290,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
     # DyDx Testnet
     exchanges_enums.DYDX_PERPETUAL_TESTNET: {
@@ -285,6 +304,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
 
     exchanges_enums.APEX_PRO_PERPETUAL_TESTNET: {
@@ -298,6 +318,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     },
 
     exchanges_enums.APEX_PRO_PERPETUAL: {
@@ -311,7 +332,9 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
+        'required_live_plan': 'premium'
     }
+
 }
 
 # list of supported exchanges for backtesting
