@@ -10,6 +10,7 @@ def get_general_info(has_live=False) -> dict:
         'jesse_version': jesse_version
     }
     plan_info = {'plan': 'guest'}
+    limits = {}
 
     if has_live:
         from jesse.services.auth import get_access_token
@@ -32,6 +33,7 @@ def get_general_info(has_live=False) -> dict:
                     f"{response.status_code} error: {response.json()['message']}"
                 )
             plan_info = response.json()
+            limits = plan_info['limits']
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
@@ -63,5 +65,12 @@ def get_general_info(has_live=False) -> dict:
         'has_live_plugin_installed': has_live,
         'system_info': system_info,
         'update_info': update_info,
-        'plan_info': plan_info
+        'plan': plan_info['plan'],
+        'limits': {
+            'ip_limit': limits['ip_limit'],
+            'trading_routes': limits['trading_routes'],
+            'data_routes': limits['data_routes'],
+            'timeframes': limits['timeframes'],
+            'exchanges': list(limits['exchanges'].keys()),
+        },
     }
