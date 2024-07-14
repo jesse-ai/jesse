@@ -68,6 +68,7 @@ def get_general_info(has_live=False) -> dict:
         'plan': plan_info['plan'],
         'limits': {
             'ip_limit': limits['ip_limit'],
+            'live_trading_tabs': limits['live_trading_tabs'],
             'trading_routes': limits['trading_routes'],
             'data_routes': limits['data_routes'],
             'timeframes': limits['timeframes'],
