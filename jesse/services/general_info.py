@@ -58,7 +58,7 @@ def get_general_info(has_live=False) -> dict:
     except Exception:
         update_info['is_update_info_available'] = False
 
-    return {
+    res = {
         'exchanges': exchange_info,
         'strategies': strategies,
         'jesse_supported_timeframes': jesse_supported_timeframes,
@@ -66,12 +66,16 @@ def get_general_info(has_live=False) -> dict:
         'system_info': system_info,
         'update_info': update_info,
         'plan': plan_info['plan'],
-        'limits': {
+    }
+
+    if has_live:
+        res['limits'] = {
             'ip_limit': limits['ip_limit'],
             'live_trading_tabs': limits['live_trading_tabs'],
             'trading_routes': limits['trading_routes'],
             'data_routes': limits['data_routes'],
             'timeframes': limits['timeframes'],
             'exchanges': list(limits['exchanges'].keys()),
-        },
-    }
+        }
+
+    return res
