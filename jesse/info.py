@@ -224,7 +224,7 @@ exchange_info = {
     # COINBASE_SPOT
     exchanges_enums.COINBASE_SPOT: {
         'name': exchanges_enums.COINBASE_SPOT,
-        'url': 'https://pro.coinbase.com',
+        'url': 'https://www.coinbase.com/advanced-trade/spot/BTC-USD',
         'fee': 0.0003,
         'type': 'spot',
         'supported_leverage_modes': ['cross', 'isolated'],

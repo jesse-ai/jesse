@@ -32,3 +32,5 @@ python-dotenv==0.19.2
 aiofiles==0.7.0
 jesse-dydx-v3-python==1.0.4
 numba==0.58.1
+PyJWT==2.8.0
+cryptography==42.0.5
