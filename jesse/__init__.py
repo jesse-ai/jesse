@@ -180,7 +180,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
 # create a Click group
 @click.group()
-@click.version_option(pkg_resources.get_distribution("jesse").version)
+# @click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli() -> None:
     pass
 
