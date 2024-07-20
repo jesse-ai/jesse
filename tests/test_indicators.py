@@ -2388,3 +2388,12 @@ def test_squeeze_momentum():
     assert seq_result.momentum_signal[-2] == -1
     assert seq_result.momentum[-10] == -37.97460714285718
     assert seq_result.momentum[-2] == -40.97509285714294
+
+
+def test_hull_suit():
+    candles = np.array(test_candles_19)
+    result = ta.hull_suit(candles, sequential=False)
+
+    assert result.s_hull == 243.7078927712581
+    assert result.m_hull == 230.5660333608274
+    assert result.signal == 'sell'
