@@ -49,10 +49,12 @@ def run(
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
         status_checker = Timeloop()
+
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
             if is_process_active(client_id) is False:
                 raise exceptions.Termination
+
         status_checker.start()
 
     from jesse.config import config
@@ -300,6 +302,7 @@ def _step_simulator(
     save_daily_portfolio_balance(is_initial=True)
 
     progressbar = Progressbar(length, step=420)
+    last_update_time = None
     for i in range(length):
         # update time
         store.app.time = first_candles_set[i][0] + 60_000
@@ -340,7 +343,8 @@ def _step_simulator(
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                              with_generation=False)
 
-        _update_progress_bar(progressbar, run_silently, i, candle_step=420)
+        last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
+                                                last_update_time=last_update_time)
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
@@ -360,6 +364,8 @@ def _step_simulator(
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
+
+    _finish_progress_bar(progressbar, run_silently)
 
     execution_duration = 0
     if not run_silently:
@@ -457,19 +463,40 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
 
 
 def _update_progress_bar(
-        progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int
-) -> None:
-    # update progressbar
+        progressbar: Progressbar, run_silently: bool, candle_index: int, candle_step: int, last_update_time: float
+) -> float:
+    throttle_interval = 0.5
+    current_time = time.time()
     if not run_silently and candle_index % candle_step == 0:
         progressbar.update()
-        sync_publish(
-            "progressbar",
-            {
-                "current": progressbar.current,
-                "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
-            },
-        )
 
+        if last_update_time is None or (current_time - last_update_time) >= throttle_interval:
+            sync_publish(
+                "progressbar",
+                {
+                    "current": progressbar.current,
+                    "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
+                },
+            )
+            # Update the last update time
+            last_update_time = current_time
+
+    # Return the last update time for future reference
+    return last_update_time
+
+
+def _finish_progress_bar(progressbar: Progressbar, run_silently: bool):
+    if run_silently:
+        return
+
+    progressbar.finish()
+    sync_publish(
+        "progressbar",
+        {
+            "current": 100,
+            "estimated_remaining_seconds": 0,
+        },
+    )
 
 def _get_fixed_jumped_candle(
         previous_candle: np.ndarray, candle: np.ndarray
@@ -645,12 +672,13 @@ def _skip_simulator(
 
     candles_step = _calculate_minimum_candle_step()
     progressbar = Progressbar(length, step=candles_step)
+    last_update_time = None
     for i in range(0, length, candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, i, candles_step)
 
-        _update_progress_bar(progressbar, run_silently, i, candles_step)
+        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step, last_update_time=last_update_time)
 
         _execute_routes(i, candles_step)
 
@@ -659,6 +687,8 @@ def _skip_simulator(
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
+
+    _finish_progress_bar(progressbar, run_silently)
 
     execution_duration = 0
     if not run_silently:
