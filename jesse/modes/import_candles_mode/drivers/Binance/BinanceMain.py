@@ -49,11 +49,10 @@ class BinanceMain(CandleExchange):
         payload = {
             'interval': interval,
             'symbol': dashless_symbol,
-            'startTime': start_timestamp,
-            'endTime': end_timestamp,
+            'startTime': int(start_timestamp),
+            'endTime': int(end_timestamp),
             'limit': self.count,
         }
-
         response = requests.get(self.endpoint, params=payload)
 
         self.validate_response(response)
