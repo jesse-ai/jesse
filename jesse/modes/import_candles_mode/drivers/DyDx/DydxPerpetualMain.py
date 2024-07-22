@@ -79,4 +79,5 @@ class DydxPerpetualMain(CandleExchange):
         response = requests.get(self.endpoint + '/v3/markets')
         self.validate_response(response)
         data = response.json()['markets']
-        return [s['market'] for s in data]
+
+        return [k for k, s in data.items()]
