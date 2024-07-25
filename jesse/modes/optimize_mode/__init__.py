@@ -2,7 +2,6 @@ import os
 from multiprocessing import cpu_count
 from typing import Dict, List, Tuple
 import arrow
-import click
 import jesse.helpers as jh
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
@@ -15,15 +14,18 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(cpu_count())
 
 
 def run(
+        client_id: str,
         debug_mode,
         user_config: dict,
+        exchange: str,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         start_date: str,
         finish_date: str,
         optimal_total: int,
         csv: bool,
-        json: bool
+        json: bool,
+        fast_mode: bool
 ) -> None:
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
@@ -31,26 +33,24 @@ def run(
     # debug flag
     config['app']['debug_mode'] = debug_mode
 
-    cpu_cores = int(user_config['cpu_cores'])
+    try:
+        cpu_cores = int(user_config['cpu_cores'])
+    except ValueError:
+        raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
 
     # inject config
     set_config(user_config)
-
+    # add exchange to routes
+    for r in routes:
+        r['exchange'] = exchange
+    for r in data_routes:
+        r['exchange'] = exchange
     # set routes
-    router.initiate(routes, extra_routes)
-
-    store.app.set_session_id()
-
+    router.initiate(routes, data_routes)
+    store.app.set_session_id(client_id)
     register_custom_exception_handler()
-
-    # clear the screen
-    if not jh.should_execute_silently():
-        click.clear()
-
     # validate routes
     validate_routes(router)
-
-    print('loading candles...')
 
     # load historical candles and divide them into training
     # and testing periods (15% for test, 85% for training)
@@ -58,14 +58,12 @@ def run(
         start_date, finish_date
     )
 
-    # clear the screen
-    click.clear()
-
     optimizer = Optimizer(
         training_warmup_candles,
         training_candles,
         testing_warmup_candles,
         testing_candles,
+        fast_mode,
         optimal_total,
         cpu_cores,
         csv,
@@ -75,7 +73,11 @@ def run(
     )
 
     # start the process
-    optimizer.run()
+    try:
+        optimizer.run()
+    except KeyboardInterrupt:
+        print('==> Optimization has been interrupted by the user.')
+        jh.terminate_app()
 
 
 def _get_training_and_testing_candles(

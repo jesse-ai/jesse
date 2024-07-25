@@ -74,3 +74,10 @@ class DydxPerpetualMain(CandleExchange):
                 'volume': float(d['baseTokenVolume'])
             } for d in data
         ]
+
+    def get_available_symbols(self) -> list:
+        response = requests.get(self.endpoint + '/v3/markets')
+        self.validate_response(response)
+        data = response.json()['markets']
+
+        return [k for k, s in data.items()]

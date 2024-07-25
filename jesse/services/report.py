@@ -45,13 +45,13 @@ def positions() -> list:
 
 
 def candles() -> dict:
-    arr = {}
+    candles_dict = {}
     candle_keys = []
 
     # add routes
     for e in router.routes:
         if e.strategy is None:
-            return
+            return {}
 
         candle_keys.append({
             'exchange': e.exchange,
@@ -59,19 +59,19 @@ def candles() -> dict:
             'timeframe': e.timeframe
         })
 
-    # add extra_routes
-    for e in router.extra_candles:
-        candle_keys.append({
-            'exchange': e['exchange'],
-            'symbol': e['symbol'],
-            'timeframe': e['timeframe']
-        })
+    # # add data_routes
+    # for e in router.data_candles:
+    #     candle_keys.append({
+    #         'exchange': e['exchange'],
+    #         'symbol': e['symbol'],
+    #         'timeframe': e['timeframe']
+    #     })
 
     for k in candle_keys:
         try:
             c = store.candles.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
             key = jh.key(k['exchange'], k['symbol'], k['timeframe'])
-            arr[key] = {
+            candles_dict[key] = {
                 'time': int(c[0] / 1000),
                 'open': c[1],
                 'close': c[2],
@@ -80,19 +80,28 @@ def candles() -> dict:
                 'volume': c[5],
             }
         except IndexError:
-            return
+            return {}
         except Exception:
             raise
 
-    return arr
+    return candles_dict
 
 
 def livetrade():
     starting_balance = 0
     current_balance = 0
+    exchange_name = ''
+    leverage = 1
+    leverage_type = 'spot'
+    available_margin = 0
     for e in store.exchanges.storage:
         starting_balance = round(store.exchanges.storage[e].started_balance, 2)
         current_balance = round(store.exchanges.storage[e].wallet_balance, 2)
+        exchange_name = e
+        if store.exchanges.storage[e].type == 'futures':
+            leverage = store.exchanges.storage[e].futures_leverage
+            leverage_type = store.exchanges.storage[e].futures_leverage_mode
+            available_margin = round(store.exchanges.storage[e].available_margin, 2)
         # there's only one exchange, so we can break
         break
 
@@ -109,7 +118,6 @@ def livetrade():
 
     routes = [
         {
-            'exchange': r.exchange,
             'symbol': r.symbol,
             'timeframe': r.timeframe,
             'strategy': r.strategy_name
@@ -133,7 +141,11 @@ def livetrade():
         'count_trades': str(total),
         'count_winning_trades': str(winning_trades),
         'count_losing_trades': str(losing_trades),
-        'routes': routes
+        'routes': routes,
+        'exchange': exchange_name,
+        'leverage': leverage,
+        "leverage_type": leverage_type,
+        'available_margin': available_margin
     }
 
 

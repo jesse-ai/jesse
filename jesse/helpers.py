@@ -120,6 +120,33 @@ def dashy_symbol(symbol: str) -> str:
         if compare_symbol == symbol:
             return s
 
+    if symbol.endswith('EUR'):
+        return symbol[:-3] + '-EUR'
+    if symbol.endswith('EUT'):
+        return symbol[:-3] + '-EUT'
+    if symbol.endswith('GBP'):
+        return symbol[:-3] + '-GBP'
+    if symbol.endswith('JPY'):
+        return symbol[:-3] + '-JPY'
+    if symbol.endswith('MIM'):
+        return symbol[:-3] + '-MIM'
+    if symbol.endswith('TRY'):
+        return symbol[:-3] + '-TRY'
+    if symbol.endswith('USD'):
+        return symbol[:-3] + '-USD'
+    if symbol.endswith('UST'):
+        return symbol[:-3] + '-UST'
+    if symbol.endswith('USDT'):
+        return symbol[:-4] + '-USDT'
+    if symbol.endswith('USDC'):
+        return symbol[:-4] + '-USDC'
+    if symbol.endswith('USDS'):
+        return symbol[:-4] + '-USDS'
+    if symbol.endswith('USDP'):
+        return symbol[:-4] + '-USDP'
+    if symbol.endswith('USDU'):
+        return symbol[:-4] + '-USDU'
+
     if len(symbol) > 7 and symbol.endswith('SUSDT'):
         # ex: SETHSUSDT => SETH-SUSDT
         return symbol[:-5] + '-' + symbol[-5:]
@@ -385,7 +412,7 @@ def is_paper_trading() -> bool:
 
 
 def is_unit_testing() -> bool:
-    """Returns True if the code is running by running pytest, False otherwise."""
+    """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
     # Check if the PYTEST_CURRENT_TEST environment variable is set.
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return True
@@ -395,7 +422,11 @@ def is_unit_testing() -> bool:
     if script_name in ["pytest", "py.test"]:
         return True
 
-    # Otherwise, the code is not running by running pytest.
+    # Check if the code is being executed from PyCharm's test runner.
+    if os.environ.get("PYCHARM_HOSTED"):
+        return True
+
+    # Otherwise, the code is not running by running pytest or PyCharm's test runner.
     return False
 
 
@@ -467,6 +498,11 @@ def now_to_timestamp(force_fresh=False) -> int:
         return store.app.time
 
     return arrow.utcnow().int_timestamp * 1000
+
+
+# for use with peewee
+def now_to_datetime():
+    return arrow.utcnow().datetime
 
 
 def current_1m_candle_timestamp():
@@ -767,6 +803,7 @@ def _print_error(msg: str) -> None:
     print('\n')
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
+    print(color('====================================', 'red'))
 
 @lru_cache
 def timeframe_to_one_minutes(timeframe: str) -> int:

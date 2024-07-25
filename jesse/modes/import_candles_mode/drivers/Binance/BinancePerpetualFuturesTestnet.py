@@ -8,6 +8,6 @@ class BinancePerpetualFuturesTestnet(BinanceMain):
 
         super().__init__(
             name=exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
-            rest_endpoint='https://testnet.binancefuture.com/fapi/v1/klines',
+            rest_endpoint='https://testnet.binancefuture.com/fapi',
             backup_exchange_class=BinanceSpot
         )

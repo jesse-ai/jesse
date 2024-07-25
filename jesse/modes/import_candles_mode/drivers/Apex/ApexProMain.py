@@ -30,11 +30,11 @@ class ApexProMain(CandleExchange):
             raise exceptions.ExchangeInMaintenance(response.json()['msg'])
         elif response.json()['data'] == {}:
             raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
-        
+
         data = response.json()['data'][dashless_symbol]
         # Reverse the data list
         data = data[::-1]
-        
+
         return int(data[1]['t'])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
@@ -72,3 +72,20 @@ class ApexProMain(CandleExchange):
                 'volume': float(d['v'])
             } for d in data
         ]
+
+    def get_available_symbols(self) -> list:
+        response = requests.get(self.endpoint + '/v2/symbols')
+        self.validate_response(response)
+        data = response.json()['data']
+
+        usdt_pairs = []
+        for p in data['usdtConfig']['perpetualContract']:
+            usdt_pairs.append(p['symbol'])
+
+        usdc_pairs = []
+        for p in data['usdcConfig']['perpetualContract']:
+            usdc_pairs.append(p['symbol'])
+
+        arr = usdt_pairs + usdc_pairs
+        # return sorted
+        return list(sorted(arr))

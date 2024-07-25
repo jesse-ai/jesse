@@ -11,7 +11,7 @@ def test_routes():
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USD', 'timeframe': timeframes.MINUTE_15, 'strategy': 'Test19'},
     ])
 
-    router.set_extra_candles([
+    router.set_data_candles([
         {'exchange': exchanges.BITFINEX_SPOT, 'symbol': 'EOS-USD', 'timeframe': timeframes.HOUR_3},
         {'exchange': exchanges.BITFINEX_SPOT, 'symbol': 'EOS-USD', 'timeframe': timeframes.HOUR_1},
     ])

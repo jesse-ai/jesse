@@ -15,7 +15,7 @@ pytest==6.2.5
 PyWavelets==1.2.0
 quantstats==0.0.47
 requests==2.32.0
-scipy
+scipy==1.12.0
 statsmodels==0.14.0
 TA-Lib==0.4.31
 tabulate==0.8.9
@@ -32,3 +32,5 @@ python-dotenv==0.19.2
 aiofiles==0.7.0
 jesse-dydx-v3-python==1.0.4
 numba==0.58.1
+PyJWT==2.8.0
+cryptography==42.0.5

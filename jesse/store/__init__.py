@@ -61,7 +61,7 @@ def install_routes() -> None:
     considering_timeframes = trading_timeframes.copy()
     considering_symbols = trading_symbols.copy()
 
-    for e in router.extra_candles:
+    for e in router.data_candles:
         considering_candles.add((e['exchange'], e['symbol']))
         considering_exchanges.add(e['exchange'])
         considering_symbols.add(e['symbol'])
@@ -117,8 +117,4 @@ class StoreClass:
         self.orderbooks = OrderbookState()
 
 
-# if not jh.is_unit_testing():
-#     install_routes()
-
 store = StoreClass()
-# store.reset()

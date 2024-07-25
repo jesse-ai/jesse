@@ -3,7 +3,10 @@ from jesse.services import logger
 from jesse.info import exchange_info
 
 
-def save_daily_portfolio_balance() -> None:
+def save_daily_portfolio_balance(is_initial=False) -> None:
+    if is_initial:
+        logger.reset()
+
     from jesse.store import store
 
     # # store daily_balance of assets into database
@@ -22,7 +25,7 @@ def save_daily_portfolio_balance() -> None:
     try:
         e, = store.exchanges.storage.values()
     except ValueError:
-        raise ValueError('Multiple exchange support is temporarily not supported. Will be implemented soon.')
+        raise ValueError('Multiple exchange support is not supported at the moment')
     if e.type == 'futures':
         total_balances += e.assets[jh.app_currency()]
 

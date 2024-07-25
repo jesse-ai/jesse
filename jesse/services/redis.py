@@ -50,17 +50,11 @@ async def async_publish(event: str, msg):
     )
 
 
-def process_status(pid=None) -> str:
+def is_process_active(client_id: str) -> bool:
     if jh.is_unit_testing():
-        raise EnvironmentError('process_status() is not meant to be called in unit tests')
+        return False
 
-    if pid is None:
-        pid = jh.get_pid()
+    # print them for debugging
+    from jesse.services.multiprocessing import process_manager
 
-    key = f"{ENV_VALUES['APP_PORT']}|process-status:{pid}"
-
-    res: str = jh.str_or_none(sync_redis.get(key))
-    if res is None:
-        raise ValueError(f'No value exists in Redis for process ID of: {pid}')
-
-    return jh.string_after_character(res, ':')
+    return sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)

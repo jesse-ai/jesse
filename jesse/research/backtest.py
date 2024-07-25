@@ -5,7 +5,7 @@ import copy
 def backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         generate_charts: bool = False,
@@ -38,7 +38,7 @@ def backtest(
     Example `route`:
     [{'exchange': 'Bybit USDT Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
 
-    Example `extra_route`:
+    Example `data_route`:
     [{'exchange': 'Bybit USDT Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
 
     Example `candles`:
@@ -53,7 +53,7 @@ def backtest(
     return _isolated_backtest(
         config,
         routes,
-        extra_routes,
+        data_routes,
         candles,
         warmup_candles,
         run_silently=True,
@@ -73,7 +73,7 @@ def backtest(
 def _isolated_backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         run_silently: bool = True,
@@ -103,7 +103,7 @@ def _isolated_backtest(
     set_config(_format_config(config))
 
     # set routes
-    router.initiate(routes, extra_routes)
+    router.initiate(routes, data_routes)
 
     validate_routes(router)
     # TODO: further validate routes and allow only one exchange
