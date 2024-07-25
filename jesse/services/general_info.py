@@ -25,7 +25,7 @@ def get_general_info(has_live=False) -> dict:
         if access_token:
             # get the account plan info via the access_token
             response = requests.post(
-                JESSE_API_URL + '/user-info',
+                JESSE_API_URL + '/v2/user-info',
                 headers={'Authorization': f'Bearer {access_token}'}
             )
             if response.status_code != 200:
