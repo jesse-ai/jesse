@@ -359,6 +359,8 @@ def _step_simulator(
                                  r.symbol)
                 r.strategy._execute()
 
+            store.orders.update_active_orders(r.exchange, r.symbol)
+
         # now check to see if there's any MARKET orders waiting to be executed
         _execute_market_orders()
 
@@ -885,6 +887,8 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
                     r.symbol,
                 )
             r.strategy._execute()
+
+        store.orders.update_active_orders(r.exchange, r.symbol)
 
 
 def _execute_market_orders():
