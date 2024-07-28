@@ -896,7 +896,7 @@ def _execute_market_orders():
 
 
 def _get_executing_orders(exchange, symbol, real_candle):
-    orders = store.orders.get_orders(exchange, symbol)
+    orders = store.orders.get_active_orders(exchange, symbol)
     return [
         order
         for order in orders

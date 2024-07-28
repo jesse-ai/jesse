@@ -1,4 +1,6 @@
 import numpy as np
+from numba import njit
+
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.enums import sides, order_types
@@ -150,18 +152,15 @@ class FuturesExchange(Exchange):
         base_asset = jh.base_asset(order.symbol)
 
         self.available_assets[base_asset] -= order.qty
-        # self.available_assets[quote_asset] += order.qty * order.price
         if not order.reduce_only:
             order_array = np.array([order.qty, order.price])
             if order.side == sides.BUY:
-                item_index = np.where(np.all(self.buy_orders[base_asset].array == order_array, axis=1))[0]
-                if len(item_index) > 0:
-                    index = item_index[0]
+                index = find_order_index(self.buy_orders[base_asset].array, order_array)
+                if index != -1:
                     self.buy_orders[base_asset].delete(index, axis=0)
             else:
-                item_index = np.where(np.all(self.sell_orders[base_asset].array == order_array, axis=1))[0]
-                if len(item_index) > 0:
-                    index = item_index[0]
+                index = find_order_index(self.sell_orders[base_asset].array, order_array)
+                if index != -1:
                     self.sell_orders[base_asset].delete(index, axis=0)
 
     def update_from_stream(self, data: dict) -> None:
@@ -175,3 +174,11 @@ class FuturesExchange(Exchange):
         self._wallet_balance = data['wallet_balance']
         if self._started_balance == 0:
             self._started_balance = self._wallet_balance
+
+
+@njit(cache=True)
+def find_order_index(orders, order_array):
+    for i in range(len(orders)):
+        if np.all(orders[i] == order_array):
+            return i
+    return -1
