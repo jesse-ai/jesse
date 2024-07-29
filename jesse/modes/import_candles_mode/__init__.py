@@ -28,11 +28,13 @@ def run(
         mode: str = 'candles',
         running_via_dashboard: bool = True,
         show_progressbar: bool = False,
+        store_session_id: bool = True
 ):
     if running_via_dashboard:
         config['app']['trading_mode'] = mode
-        store.app.set_session_id(client_id)
         register_custom_exception_handler()
+        if store_session_id:
+            store.app.set_session_id(client_id)
 
     # open database connection
     from jesse.services.db import database
@@ -139,7 +141,7 @@ def run(
                     else:
                         print(msg)
                     run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
-                        running_via_dashboard, show_progressbar)
+                        running_via_dashboard, show_progressbar, store_session_id=False)
                     return
 
             # fill absent candles (if there's any)
@@ -306,7 +308,7 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
 
 
 def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> \
-List[Dict[str, Union[str, Any]]]:
+        List[Dict[str, Union[str, Any]]]:
     if not temp_candles:
         raise CandleNotFoundInExchange(
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
