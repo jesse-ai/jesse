@@ -500,6 +500,7 @@ def _finish_progress_bar(progressbar: Progressbar, run_silently: bool):
         },
     )
 
+
 def _get_fixed_jumped_candle(
         previous_candle: np.ndarray, candle: np.ndarray
 ) -> np.ndarray:
@@ -542,11 +543,8 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
                 if candle_includes_price(current_temp_candle, order.price):
                     storable_temp_candle, current_temp_candle = split_candle(current_temp_candle, order.price)
-                    store.candles.add_candle(
-                        storable_temp_candle, exchange, symbol, '1m',
-                        with_execution=False,
-                        with_generation=False
-                    )
+                    _update_all_routes_a_partial_candle(exchange, symbol, storable_temp_candle)
+
                     p = selectors.get_position(exchange, symbol)
                     p.current_price = storable_temp_candle[2]
 
@@ -816,13 +814,10 @@ def _simulate_price_change_effect_multiple_candles(
                             storable_temp_candle, current_temp_candle = split_candle(
                                 current_temp_candle, order.price
                             )
-                            store.candles.add_candle(
-                                storable_temp_candle,
+                            _update_all_routes_a_partial_candle(
                                 exchange,
                                 symbol,
-                                "1m",
-                                with_execution=False,
-                                with_generation=False,
+                                storable_temp_candle,
                             )
                             p = selectors.get_position(exchange, symbol)
                             p.current_price = storable_temp_candle[2]
@@ -867,6 +862,51 @@ def _simulate_price_change_effect_multiple_candles(
     p = selectors.get_position(exchange, symbol)
     if p:
         p.current_price = short_timeframes_candles[-1, 2]
+
+
+def _update_all_routes_a_partial_candle(
+    exchange: str,
+    symbol: str,
+    storable_temp_candle: np.ndarray,
+) -> None:
+    """
+    This function get called when an order is getting executed you need to update the other timeframe how their last
+    candles looks like
+    Args:
+        short_timeframes_candles: 1m candles until storable_temp_candle
+        storable_temp_candle: storable_temp_candle the last 1m candle but not yet closed
+    """
+    store.candles.add_candle(
+        storable_temp_candle,
+        exchange,
+        symbol,
+        "1m",
+        with_execution=False,
+        with_generation=False,
+    )
+
+    for route in router.all_formatted_routes:
+        timeframe = route['timeframe']
+        if route['exchange'] != exchange or route['symbol'] != symbol:
+            continue
+        if timeframe == '1m':
+            continue
+        tf_minutes = jh.timeframe_to_one_minutes(timeframe)
+        number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
+        candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        generated_candle = generate_candle_from_one_minutes(
+            timeframe,
+            candles_1m,
+            accept_forming_candles=True
+        )
+        store.candles.add_candle(
+            generated_candle,
+            exchange,
+            symbol,
+            timeframe,
+            with_execution=False,
+            with_generation=False,
+        )
 
 
 def _execute_routes(candle_index: int, candles_step: int) -> None:
