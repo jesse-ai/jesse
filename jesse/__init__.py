@@ -47,8 +47,7 @@ def validate_cwd() -> None:
         os._exit(1)
 
 
-# print(os.path.dirname(jesse))
-JESSE_DIR = os.path.dirname(os.path.realpath(__file__))
+JESSE_DIR = pkg_resources.resource_filename(__name__, '')
 
 
 # load homepage
