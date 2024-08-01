@@ -48,6 +48,7 @@ def validate_cwd() -> None:
 
 
 JESSE_DIR = pkg_resources.resource_filename(__name__, '')
+print('JESSE_DIR:', JESSE_DIR)
 
 
 # load homepage

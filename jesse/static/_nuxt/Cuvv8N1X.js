@@ -1,0 +1,1 @@
+import{g as n,a1 as r,ah as c,o as i,c as p}from"./BLm-LuZL.js";const _=n({__name:"index",setup(u){const o=r(),e=c(),t=Object.keys(e.tabs);if(t.length>0){const s=t[0],a=e.tabs[s];o.push({path:`/live/${a.id}`})}else e.addTab();return(s,a)=>(i(),p("div"))}});export{_ as default};
