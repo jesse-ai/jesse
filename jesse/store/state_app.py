@@ -23,9 +23,6 @@ class AppState:
         self.notifications_api_key = None
 
     def set_session_id(self, session_id) -> None:
-        if self.session_id != '':
-            raise ValueError('session_id has already been set')
-
         self.session_id = session_id
 
     def set_exchange_api_key(self, exchange_api_key_id: str) -> None:

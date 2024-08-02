@@ -28,13 +28,11 @@ def run(
         mode: str = 'candles',
         running_via_dashboard: bool = True,
         show_progressbar: bool = False,
-        store_session_id: bool = True
 ):
     if running_via_dashboard:
         config['app']['trading_mode'] = mode
         register_custom_exception_handler()
-        if store_session_id:
-            store.app.set_session_id(client_id)
+        store.app.set_session_id(client_id)
 
     # open database connection
     from jesse.services.db import database
@@ -141,7 +139,7 @@ def run(
                     else:
                         print(msg)
                     run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
-                        running_via_dashboard, show_progressbar, store_session_id=False)
+                        running_via_dashboard, show_progressbar)
                     return
 
             # fill absent candles (if there's any)
