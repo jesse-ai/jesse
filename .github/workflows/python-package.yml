@@ -24,7 +24,7 @@ jobs:
         # - os: ubuntu-latest
         #   path: ~/.cache/pip
         - os: macos-latest-xlarge
-          path: ~/Library/Caches/pip
+          # path: ~/Library/Caches/pip
         #- os: windows-latest
         #  path: ~\AppData\Local\pip\Cache
 
