@@ -535,7 +535,7 @@ class Strategy(ABC):
                         temp_current_price = None
 
                     # CANCEL previous orders
-                    for o in self.exit_orders:
+                    for o in self.active_exit_orders:
                         if o.is_take_profit and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
 
@@ -576,7 +576,7 @@ class Strategy(ABC):
                         temp_current_price = None
 
                     # CANCEL previous orders
-                    for o in self.exit_orders:
+                    for o in self.active_exit_orders:
                         if o.is_stop_loss and (o.is_active or o.is_queued):
                             self.broker.cancel_order(o.id)
 
@@ -612,6 +612,7 @@ class Strategy(ABC):
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
                 and np.array_equal(self.stop_loss, self.take_profit)
+                and self.stop_loss != []
         ):
             raise exceptions.InvalidStrategy(
                 'stop-loss and take-profit should not be exactly the same. Just use either one of them and it will do.')
@@ -676,11 +677,12 @@ class Strategy(ABC):
                     if jh.is_debugging():
                         logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
                     waiting_counter += 1
-                    sleep(1)
-                    if waiting_counter > 10:
+                    if waiting_counter > 12:
                         raise exceptions.ExchangeNotResponding(
                             'The exchange did not respond as expected for order execution'
                         )
+                    else:
+                        sleep(1)
 
         self._simulate_market_order_execution()
 
@@ -1280,6 +1282,13 @@ class Strategy(ABC):
         Returns all the exit orders for this position.
         """
         return store.orders.get_exit_orders(self.exchange, self.symbol)
+
+    @property
+    def active_exit_orders(self):
+        """
+        Returns all the exit orders for this position.
+        """
+        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):

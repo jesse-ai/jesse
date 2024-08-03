@@ -85,7 +85,10 @@ class Cache:
             return
 
         for key, item in self.db.items():
-            os.remove(item['path'])
+            try:
+                os.remove(item['path'])
+            except FileNotFoundError:
+                pass
         self.db = {}
 
 

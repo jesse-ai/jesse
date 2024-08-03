@@ -87,9 +87,9 @@ def get_all_trading_routes() -> List[Any]:
     return router.routes
 
 
-def get_all_extra_routes() -> List[Any]:
+def get_all_data_routes() -> List[Any]:
     from jesse.routes import router
-    return router.formatted_extra_routes
+    return router.formatted_data_routes
 
 
 def get_all_routes() -> List[Any]:

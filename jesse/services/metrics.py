@@ -31,6 +31,7 @@ def candles_info(candles_array: np.ndarray) -> dict:
         'starting_time': candles_array[0][0],
         'finishing_time': (candles_array[-1][0] + 60_000),
         'exchange_type': trading_exchange.type,
+        'exchange': trading_exchange.name,
     }
 
     # if the exchange type is futures, also display leverage

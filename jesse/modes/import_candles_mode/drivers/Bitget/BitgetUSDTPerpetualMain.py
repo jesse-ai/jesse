@@ -30,7 +30,7 @@ class BitgetUSDTPerpetualMain(CandleExchange):
             'endTime': jh.now(force_fresh=True)
         }
 
-        response = requests.get(self.endpoint, params=payload)
+        response = requests.get(self.endpoint + '/api/mix/v1/market/candles', params=payload)
 
         self.validate_bitget_response(response)
 
@@ -50,7 +50,7 @@ class BitgetUSDTPerpetualMain(CandleExchange):
             'endTime': int(end_timestamp)
         }
 
-        response = requests.get(self.endpoint, params=payload)
+        response = requests.get(self.endpoint + '/api/mix/v1/market/candles', params=payload)
 
         self.validate_bitget_response(response)
 
@@ -90,3 +90,16 @@ class BitgetUSDTPerpetualMain(CandleExchange):
             raise exceptions.SymbolNotFound(msg)
 
         self.validate_response(response)
+
+    def get_available_symbols(self) -> list:
+        if self.name == exchanges.BITGET_USDT_PERPETUAL:
+            product = 'umcbl'
+        elif self.name == exchanges.BITGET_USDT_PERPETUAL_TESTNET:
+            product = 'sumcbl'
+        else:
+            raise NotImplemented('Invalid exchange: {}'.format(self.name))
+
+        response = requests.get(self.endpoint + '/api/mix/v1/market/contracts?productType=' + product)
+        self.validate_bitget_response(response)
+        data = response.json()['data']
+        return [jh.dashy_symbol(s['symbolName']) for s in data]

@@ -31,7 +31,9 @@ class SymbolNotFound(Exception):
 
 
 class RouteNotFound(Exception):
-    pass
+    def __init__(self, symbol, timeframe):
+        message = f"Date route is required but missing: symbol='{symbol}', timeframe='{timeframe}'"
+        super().__init__(message)
 
 
 class InvalidRoutes(Exception):

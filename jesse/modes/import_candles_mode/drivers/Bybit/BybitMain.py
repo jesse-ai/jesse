@@ -66,3 +66,10 @@ class BybitMain(CandleExchange):
                 'volume': float(d[5])
             } for d in data
         ]
+
+    def get_available_symbols(self) -> list:
+        response = requests.get(self.endpoint + '/v5/market/instruments-info?category=' + self.category)
+        self.validate_response(response)
+        data = response.json()['result']['list']
+
+        return [jh.dashy_symbol(d['symbol']) for d in data]

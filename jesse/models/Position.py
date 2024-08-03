@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Union
 
 import numpy as np
@@ -410,7 +411,7 @@ class Position:
             reducing_position = self._min_qty < after_qty < before_qty
             if reducing_position:
                 self._mutating_reduce(qty, price)
-        else: # backtest (both futures and spot)
+        else:  # backtest (both futures and spot)
             qty = order.qty
             price = order.price
 
@@ -461,7 +462,7 @@ class Position:
         if self.exchange_type == 'futures':
             self.entry_price = data['entry_price']
             self._liquidation_price = data['liquidation_price']
-        else: # spot
+        else:  # spot
             if after_qty > self._min_qty and self.entry_price is None:
                 self.entry_price = self.current_price
 
@@ -492,14 +493,13 @@ class Position:
         return self.exchange.vars['precisions'][self.symbol]['min_notional_size']
 
     @property
+    @lru_cache
     def _min_qty(self) -> float:
         if not (jh.is_livetrading() and self.exchange_type == 'spot'):
             return 0
 
-        min_notional_size = self._min_notional_size
-
-        # few exchanges like FTX have min_qty instead of min_notional_size, hence:
-        if min_notional_size is None:
+        # first check exchange return min_qty or not
+        if 'min_qty' in self.exchange.vars['precisions'][self.symbol]:
             return self.exchange.vars['precisions'][self.symbol]['min_qty']
 
         if self._min_notional_size and self.current_price:

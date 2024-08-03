@@ -14,13 +14,14 @@ from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, process_status
+from jesse.services.redis import sync_publish, is_process_active
 from jesse.store import store
 from jesse import exceptions
 from jesse.services.progressbar import Progressbar
 
 
 def run(
+        client_id: str,
         exchange: str,
         symbol: str,
         start_date_str: str,
@@ -30,11 +31,8 @@ def run(
 ):
     if running_via_dashboard:
         config['app']['trading_mode'] = mode
-
-        # first, create and set session_id
-        store.app.set_session_id()
-
         register_custom_exception_handler()
+        store.app.set_session_id(client_id)
 
     # open database connection
     from jesse.services.db import database
@@ -46,7 +44,7 @@ def run(
 
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
-            if process_status() != 'started':
+            if is_process_active(client_id) is False:
                 raise exceptions.Termination
 
         status_checker.start()
@@ -54,7 +52,8 @@ def run(
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
     except:
-        raise ValueError(f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
+        raise ValueError(
+            f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
 
     # more start_date validations
     today = arrow.utcnow().floor('day').int_timestamp * 1000
@@ -80,7 +79,7 @@ def run(
 
     loop_length = int(candles_count / driver.count) + 1
 
-    progressbar = Progressbar(loop_length)
+    progressbar = Progressbar(loop_length, step=2)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
@@ -108,7 +107,8 @@ def run(
 
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
-            if not len(candles) or arrow.get(candles[0]['timestamp'] / 1000) > start_date:
+            time_diff = int((candles[0]['timestamp'] - temp_start_timestamp) / 1000) if len(candles) else 0
+            if not len(candles) or time_diff < 0 or time_diff > 60*100:
                 first_existing_timestamp = driver.get_starting_time(symbol)
 
                 # if driver can't provide accurate get_starting_time()
@@ -138,7 +138,8 @@ def run(
                         })
                     else:
                         print(msg)
-                    run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
+                    run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
+                        running_via_dashboard, show_progressbar)
                     return
 
             # fill absent candles (if there's any)
@@ -150,7 +151,8 @@ def run(
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
 
-        progressbar.update()
+        if i % 2 == 0:
+            progressbar.update()
         if running_via_dashboard:
             sync_publish('progressbar', {
                 'current': progressbar.current,
@@ -158,7 +160,8 @@ def run(
             })
         elif show_progressbar:
             jh.clear_output()
-            print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            print(
+                f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
@@ -302,7 +305,8 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         return total_candles
 
 
-def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> List[Dict[str, Union[str, Any]]]:
+def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_timestamp: int, end_timestamp: int) -> \
+        List[Dict[str, Union[str, Any]]]:
     if not temp_candles:
         raise CandleNotFoundInExchange(
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'

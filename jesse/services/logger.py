@@ -1,5 +1,5 @@
 import jesse.helpers as jh
-from jesse.services.notifier import notify, notify_urgently
+from jesse.services.notifier import notify
 from jesse.services.redis import sync_publish
 import logging
 import os
@@ -49,6 +49,10 @@ def create_logger_file(name):
     # should add to the end of file
     new_logger.addHandler(logging.FileHandler(log_file, mode='a'))
     LOGGERS[name] = new_logger
+
+
+def reset():
+    LOGGERS.clear()
 
 
 def info(msg: str, send_notification=False, webhook=None) -> None:
@@ -101,8 +105,6 @@ def error(msg: str, send_notification=True) -> None:
     }
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True) and send_notification:
-        # notify_urgently(f"ERROR at \"{jh.get_config('env.identifier')}\" account:\n{msg}")
-        notify_urgently(f"ERROR:\n{msg}")
         notify(f'ERROR:\n{msg}')
     if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data() or jh.is_live():
         sync_publish('error_log', log_dict)

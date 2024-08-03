@@ -81,9 +81,7 @@ class CandlesState:
         try:
             return self.storage[key]
         except KeyError:
-            raise RouteNotFound(
-                f"Bellow route is required but missing in your routes:\n('{exchange}', '{symbol}', '{timeframe}')"
-            )
+            raise RouteNotFound(symbol, timeframe)
 
     def init_storage(self, bucket_size: int = 1000) -> None:
         for ar in selectors.get_all_routes():
@@ -241,7 +239,7 @@ class CandlesState:
         # get position object
         p = selectors.get_position(exchange, symbol)
 
-        # for extra_route candles, p == None, hence no further action is required
+        # for data_route candles, p == None, hence no further action is required
         if p is None:
             return
 
@@ -425,4 +423,4 @@ class CandlesState:
 
         # Otherwise,it's true and error.
         else:
-            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1])}. exchange: {exchange}, symbol: {symbol}")
+            raise IndexError(f"Could not find the candle with timestamp {jh.timestamp_to_time(candles[0, 0])} in the storage. Last candle's timestamp: {jh.timestamp_to_time(arr[-1][0])}. exchange: {exchange}, symbol: {symbol}")

@@ -75,7 +75,7 @@ def load_required_candles(exchange: str, symbol: str, start_date_str: str, finis
 
         if not len(first_existing_candle):
             raise CandleNotFoundInDatabase(
-                f'No candle for {exchange} {symbol} is present in the database. Try importing candles.'
+                f'No candle for "{exchange}" "{symbol}" is present in the database. Try importing candles.'
             )
 
         first_existing_candle = first_existing_candle[0][0]

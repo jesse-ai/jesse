@@ -23,9 +23,13 @@ def macd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, sign
 
     :return: MACD(macd, signal, hist)
     """
-    candles = slice_candles(candles, sequential)
 
-    source = get_candle_source(candles, source_type=source_type)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
+
     macd_val, macdsignal, macdhist = talib.MACD(source, fastperiod=fast_period, slowperiod=slow_period,
                                                 signalperiod=signal_period)
 

@@ -175,3 +175,9 @@ from .wma import wma
 from .wt import wt
 from .zlema import zlema
 from .zscore import zscore
+from .waddah_attr_explosion import waddah_attar_explosion
+from .stiffness import stiffness
+from .ttm_squeeze import ttm_squeeze
+from .support_resistance_with_break import support_resistance_with_breaks
+from .squeeze_momentum import squeeze_momentum
+from .hull_suit import hull_suit

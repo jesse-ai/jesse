@@ -14,7 +14,7 @@ class CoinbaseSpot(CandleExchange):
             backup_exchange_class=None
         )
 
-        self.endpoint = 'https://api.pro.coinbase.com/products'
+        self.endpoint = 'https://api.coinbase.com/api/v3/brokerage/market/products'
 
     def get_starting_time(self, symbol: str) -> int:
         """
@@ -42,8 +42,8 @@ class CoinbaseSpot(CandleExchange):
 
         payload = {
             'granularity': timeframe_to_interval(timeframe),
-            'start': jh.timestamp_to_time(start_timestamp),
-            'end': jh.timestamp_to_time(end_timestamp),
+            'start': int(start_timestamp / 1000),
+            'end': int(end_timestamp / 1000),
         }
 
         response = requests.get(
@@ -53,18 +53,30 @@ class CoinbaseSpot(CandleExchange):
 
         self.validate_response(response)
 
-        data = response.json()
+        data = response.json()['candles']
+        data = data[::-1]
         return [
             {
                 'id': jh.generate_unique_id(),
                 'exchange': self.name,
                 'symbol': symbol,
                 'timeframe': timeframe,
-                'timestamp': int(d[0]) * 1000,
-                'open': float(d[3]),
-                'close': float(d[4]),
-                'high': float(d[2]),
-                'low': float(d[1]),
-                'volume': float(d[5])
+                'timestamp': int(d['start']) * 1000,
+                'open': float(d['open']),
+                'close': float(d['close']),
+                'high': float(d['high']),
+                'low': float(d['low']),
+                'volume': float(d['volume'])
             } for d in data
         ]
+
+    def get_available_symbols(self) -> list:
+        response = requests.get(self.endpoint)
+        self.validate_response(response)
+        data = response.json()['products']
+        available_symbols = []
+        for s in data:
+            if len(s['alias_to']) == 0:
+                available_symbols.append(s['product_id'])
+
+        return available_symbols

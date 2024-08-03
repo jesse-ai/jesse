@@ -63,7 +63,7 @@ class Sandbox(Exchange):
 
     def cancel_all_orders(self, symbol: str) -> None:
         orders = filter(lambda o: o.is_new,
-                        store.orders.get_orders(self.name, symbol))
+                        store.orders.get_active_orders(self.name, symbol))
 
         for o in orders:
             o.cancel()
