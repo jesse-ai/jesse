@@ -37,9 +37,9 @@ cryptography==42.0.5
 
 
 plotly==5.21.0
-kaleido==0.1.0
+kaleido
 
 gymnasium==0.27.1
-agilerl
+agilerl==0.1.5
 
 
