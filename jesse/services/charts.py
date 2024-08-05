@@ -74,6 +74,7 @@ def equity_curve(benchmark: bool = False) -> list:
 
     return result
 
+
 def portfolio_vs_asset_returns(study_name: str = None) -> str:
     if jh.is_unit_testing():
         return 'charts'
