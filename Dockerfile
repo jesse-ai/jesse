@@ -2,12 +2,16 @@ ARG TEST_BUILD=0
 FROM python:3.11-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
-# Install necessary packages and add missing GPG keys
+# Install necessary packages
 RUN apt-get update && apt-get install -y \
-    gnupg2 \
-    && echo "deb http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys \
-    0E98404D386FA1D9 6ED0E7B82643E131 54404762BBB6E853 BDE6D2B9216EC7A8 \
+    gnupg2 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add missing GPG keys
+RUN curl -fsSL https://deb.debian.org/debian/archive-key.asc | gpg --dearmor -o /usr/share/keyrings/debian-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
+    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list.d/bookworm.list \
+    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list.d/bookworm.list \
     && apt-get update
 
 # Install additional packages
