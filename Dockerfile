@@ -2,8 +2,12 @@ ARG TEST_BUILD=0
 FROM python:3.11-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update \
-    && apt-get -y install git build-essential libssl-dev \
+# Add missing GPG keys
+RUN apt-get update && apt-get install -y gnupg2 \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131 54404762BBB6E853 BDE6D2B9216EC7A8 \
+    && apt-get update
+
+RUN apt-get -y install git build-essential libssl-dev \
     && apt-get clean \
     && pip install --upgrade pip
 
