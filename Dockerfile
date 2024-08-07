@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 # Add missing GPG keys directly
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://ftp-master.debian.org/keys/release-11.asc | tee /etc/apt/keyrings/debian-archive-keyring.gpg \
+    && curl -fsSL https://ftp-master.debian.org/keys/release-11.asc | gpg --dearmor -o /etc/apt/keyrings/debian-archive-keyring.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
     && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list.d/bookworm.list \
     && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list.d/bookworm.list \
