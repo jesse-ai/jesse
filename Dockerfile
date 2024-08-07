@@ -1,23 +1,9 @@
 ARG TEST_BUILD=0
-FROM python:3.11-slim AS jesse_basic_env
+FROM python:3.11.9-slim AS jesse_basic_env
 ENV PYTHONUNBUFFERED 1
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
-    gnupg2 curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Add missing GPG keys directly
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://ftp-master.debian.org/keys/release-11.asc | tee /etc/apt/keyrings/debian-archive-keyring.gpg \
-    && curl -fsSL https://ftp-master.debian.org/keys/release-11.asc | gpg --dearmor -o /etc/apt/keyrings/debian-archive-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
-    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list.d/bookworm.list \
-    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list.d/bookworm.list \
-    && apt-get update
-
-# Install additional packages
-RUN apt-get -y install git build-essential libssl-dev \
+RUN apt-get update \
+    && apt-get -y install git build-essential libssl-dev \
     && apt-get clean \
     && pip install --upgrade pip
 
@@ -47,4 +33,4 @@ FROM jesse_basic_env AS jesse_with_test_1
 RUN pip3 install codecov pytest-cov
 ENTRYPOINT pytest --cov=./ # && codecov
 
-FROM jesse_basic_env AS jesse_final
+FROM jesse_with_test_${TEST_BUILD} AS jesse_final
