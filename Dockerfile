@@ -7,11 +7,12 @@ RUN apt-get update && apt-get install -y \
     gnupg2 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Add missing GPG keys
-RUN curl -fsSL https://deb.debian.org/debian/archive-key.asc | gpg --dearmor -o /usr/share/keyrings/debian-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
-    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list.d/bookworm.list \
-    && echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list.d/bookworm.list \
+# Add missing GPG keys directly
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://ftp-master.debian.org/keys/release-11.asc | tee /etc/apt/keyrings/debian-archive-keyring.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list.d/bookworm.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list.d/bookworm.list \
     && apt-get update
 
 # Install additional packages
