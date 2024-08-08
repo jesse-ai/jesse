@@ -3,6 +3,9 @@ import re
 from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
+from agilerl.algorithms.ppo import PPO
+
+
 import jesse.helpers as jh
 import jesse.services.metrics as stats
 import jesse.services.selectors as selectors
@@ -284,6 +287,7 @@ def _step_simulator(
         benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
+        agent: PPO | None = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -422,6 +426,7 @@ def _prepare_times_before_simulation(candles: dict) -> None:
 
 
 def _prepare_routes(hyperparameters: dict = None) -> None:
+
     # initiate strategies
     for r in router.routes:
         # if the r.strategy is str read it from file
@@ -460,6 +465,10 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
+
+        # override agent in case it passed in the simulation
+        # if agent is not None:
+        #     r.strategy.agent = agent
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
@@ -656,6 +665,7 @@ def _skip_simulator(
         benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
+        agent: PPO | None = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:

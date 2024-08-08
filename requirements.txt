@@ -4,9 +4,9 @@ click==8.0.3
 matplotlib==3.7.4
 mplfinance==0.12.8b6
 newtulipy==0.4.6
-numpy==1.23.0
+numpy
 numpy_groupies==0.9.14
-pandas==1.4.0
+pandas
 peewee==3.14.8
 psycopg2-binary==2.9.9
 pydash==6.0.0
@@ -24,7 +24,7 @@ websocket-client==1.8.0
 wsaccel==0.6.6
 simplejson==3.16.0
 aioredis==1.3.1
-redis==4.1.4
+redis
 fastapi==0.111.1
 uvicorn==0.29.0
 websockets>=10.0.0
@@ -34,3 +34,10 @@ jesse-dydx-v3-python==1.0.4
 numba==0.58.1
 PyJWT==2.8.0
 cryptography==42.0.5
+
+
+plotly==5.21.0
+kaleido
+
+gymnasium==0.28.1
+agilerl==1.0.0
