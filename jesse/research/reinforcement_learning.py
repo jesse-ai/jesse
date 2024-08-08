@@ -14,7 +14,7 @@ from jesse.research import backtest
 from agilerl.algorithms.ppo import PPO
 from agilerl.hpo.mutation import Mutations
 from agilerl.hpo.tournament import TournamentSelection
-from agilerl.utils.utils import initialPopulation
+# from agilerl.utils.algo_utils import initialPopulation
 
 
 
@@ -117,16 +117,16 @@ def _create_pop(
     else:
         load_agents = []
     pop = (
-        initialPopulation(
-            algo="PPO",  # Algorithm
-            state_dim=state_dim,  # type: ignore
-            action_dim=action_dim,  # Action dimension
-            one_hot=one_hot,
-            net_config=net_config,  # Network configuration
-            INIT_HP=INIT_HP,
-            population_size=max(0, INIT_HP["POP_SIZE"] - len(load_agents)),
-            device=device,
-        )
+        # initialPopulation(
+        #     algo="PPO",  # Algorithm
+        #     state_dim=state_dim,  # type: ignore
+        #     action_dim=action_dim,  # Action dimension
+        #     one_hot=one_hot,
+        #     net_config=net_config,  # Network configuration
+        #     INIT_HP=INIT_HP,
+        #     population_size=max(0, INIT_HP["POP_SIZE"] - len(load_agents)),
+        #     device=device,
+        # )
         + load_agents
     )
 

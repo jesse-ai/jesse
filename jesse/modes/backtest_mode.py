@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from agilerl.algorithms.ppo import PPO
 
+
 import jesse.helpers as jh
 import jesse.services.metrics as stats
 import jesse.services.selectors as selectors
@@ -466,8 +467,8 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
         r.strategy._init_objects()
 
         # override agent in case it passed in the simulation
-        if agent is not None:
-            r.strategy.agent = agent
+        # if agent is not None:
+        #     r.strategy.agent = agent
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 

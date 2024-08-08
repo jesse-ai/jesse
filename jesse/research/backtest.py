@@ -67,7 +67,7 @@ def backtest(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
-        benchmark=benchmark,
+        # benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
@@ -156,11 +156,11 @@ def _isolated_backtest(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
-        benchmark=benchmark,
+        # benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
-        agent=agent,
+        # agent=agent,
     )
 
     result = {
