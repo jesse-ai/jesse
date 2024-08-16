@@ -7,6 +7,7 @@ import pandas as pd
 
 import jesse.helpers as jh
 from jesse.enums import timeframes
+import statsmodels.api as sm
 
 
 def anchor_timeframe(timeframe: str) -> str:
@@ -335,3 +336,12 @@ def wavelet_denoising(raw: np.ndarray, wavelet='haar', level: int = 1, mode: str
     if len(signal) > len(raw):
         signal = np.delete(signal, -1)
     return signal
+
+
+def calculate_alpha_beta(returns1: np.ndarray, returns2: np.ndarray) -> tuple:
+    # Add a constant to the independent variable (returns2)
+    X = sm.add_constant(returns2)  # Independent variable
+    model = sm.OLS(returns1, X).fit()  # Fit the model
+    alpha = model.params[0]  # Intercept (alpha)
+    beta = model.params[1]  # Slope (beta)
+    return alpha, beta
