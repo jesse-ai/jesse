@@ -16,7 +16,7 @@ from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRe
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
     ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
     DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
-    ExchangeSupportedSymbolsRequestJson
+    ExchangeSupportedSymbolsRequestJson, SaveStrategyRequestJson, GetStrategyRequestJson, DeleteStrategyRequestJson
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -84,8 +84,8 @@ def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services import strategy_maker
-    return strategy_maker.generate(json_request.name)
+    from jesse.services import strategy_handler
+    return strategy_handler.generate(json_request.name)
 
 
 @fastapi_app.post("/feedback")
@@ -488,6 +488,51 @@ def delete_notification_api_keys(
     from jesse.modes.notification_api_keys import delete_notification_api_keys
 
     return delete_notification_api_keys(json_request.id)
+
+
+@fastapi_app.get('/get-strategies')
+def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_handler
+    return strategy_handler.get_strategies()
+
+
+@fastapi_app.post('/get-strategy')
+def get_strategy(
+        json_request: GetStrategyRequestJson,
+        authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_handler
+    return strategy_handler.get_strategy(json_request.name)
+
+
+@fastapi_app.post('/save-strategy')
+def save_strategy(
+        json_request: SaveStrategyRequestJson,
+        authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_handler
+    return strategy_handler.save_strategy(json_request.name, json_request.content)
+
+
+@fastapi_app.post('/delete-strategy')
+def delete_strategy(
+        json_request: DeleteStrategyRequestJson,
+        authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_handler
+    return strategy_handler.delete_strategy(json_request.name)
 
 
 # def download_optimization_log(token: str = Query(...)):

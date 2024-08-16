@@ -143,6 +143,19 @@ class NewStrategyRequestJson(BaseModel):
     name: str
 
 
+class GetStrategyRequestJson(BaseModel):
+    name: str
+
+
+class SaveStrategyRequestJson(BaseModel):
+    name: str
+    content: str
+
+
+class DeleteStrategyRequestJson(BaseModel):
+    name: str
+
+
 class FeedbackRequestJson(BaseModel):
     description: str
     email: Optional[str] = None
