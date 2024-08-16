@@ -1,0 +1,1 @@
+import{u as s,bm as u}from"./DbTgESvQ.js";function f(e,a){const{title:r,titleTemplate:m,...n}=e;return s({title:r,titleTemplate:m,_flatMeta:n},{...a,transform(t){const o=u({...t._flatMeta});return delete t._flatMeta,{...t,meta:o}}})}export{f as u};
