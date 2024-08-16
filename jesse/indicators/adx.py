@@ -16,7 +16,10 @@ def adx(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
 
     res = talib.ADX(candles[:, 3], candles[:, 4], candles[:, 2], timeperiod=period)
 
