@@ -105,7 +105,7 @@ class OrdersState:
         if use_exchange_id:
             return fnc.find(lambda o: o.exchange_id == id, self.storage[key])
 
-        return fnc.find(lambda o: o.id == id, reversed(self.storage[key]))
+        return fnc.find(lambda o: id in o.id, reversed(self.storage[key]))
 
     def get_entry_orders(self, exchange: str, symbol: str) -> List[Order]:
         # return all orders if position is not opened yet
