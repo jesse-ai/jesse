@@ -52,6 +52,8 @@ class Strategy(ABC):
         self.trade: ClosedTrade = None
         self.trades_count = 0
 
+        self._executed_orders = []
+
         self._is_executing = False
         self._is_initiated = False
         self._is_handling_updated_order = False
@@ -116,6 +118,15 @@ class Strategy(ABC):
 
             r.strategy._detect_and_handle_entry_and_exit_modifications()
 
+    def _handle_executed_order_for_chart(self, order: Order):
+        self._executed_orders.append({
+            'time': int(self.current_candle[0] / 1000),
+            'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
+            'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
+            'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
+            'text': order.side.upper(),
+        })
+
     def _on_updated_position(self, order: Order) -> None:
         """
         Handles the after-effect of the executed order to execute strategy
@@ -124,6 +135,8 @@ class Strategy(ABC):
         """
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
+
+        self._handle_executed_order_for_chart(order)
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:

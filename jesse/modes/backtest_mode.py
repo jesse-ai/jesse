@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import re
 from typing import Dict, List, Tuple
 import numpy as np
@@ -135,6 +136,7 @@ def _execute_backtest(
         sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
+    result = None
     try:
         result = simulator(
             candles,
@@ -184,10 +186,45 @@ def _execute_backtest(
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
         sync_publish('equity_curve', result['equity_curve'])
+        sync_publish('candles_chart', _get_formatted_candles_for_frontend())
+        sync_publish('orders_chart', _get_formatted_orders_for_frontend())
 
     # close database connection
     from jesse.services.db import database
     database.close_connection()
+
+
+def _get_formatted_candles_for_frontend():
+    arr = []
+    for r in router.routes:
+        candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        candles = [{
+            'time': int(c[0]/1000),
+            'open': c[1],
+            'close': c[2],
+            'high': c[3],
+            'low': c[4],
+            'volume': c[5]
+        } for c in candles_arr]
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'candles': candles
+        })
+    return arr
+
+
+def _get_formatted_orders_for_frontend():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'orders': r.strategy._executed_orders
+        })
+    return arr
 
 
 def _generate_quantstats_report(candles_dict: dict) -> str:
@@ -678,7 +715,8 @@ def _skip_simulator(
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, i, candles_step)
 
-        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step, last_update_time=last_update_time)
+        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
+                                                last_update_time=last_update_time)
 
         _execute_routes(i, candles_step)
 
@@ -865,9 +903,9 @@ def _simulate_price_change_effect_multiple_candles(
 
 
 def _update_all_routes_a_partial_candle(
-    exchange: str,
-    symbol: str,
-    storable_temp_candle: np.ndarray,
+        exchange: str,
+        symbol: str,
+        storable_temp_candle: np.ndarray,
 ) -> None:
     """
     This function get called when an order is getting executed you need to update the other timeframe how their last
