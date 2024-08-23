@@ -15,6 +15,7 @@ from jesse.services.broker import Broker
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
+from jesse.services.color import generate_unique_hex_color
 
 
 class Strategy(ABC):
@@ -53,6 +54,8 @@ class Strategy(ABC):
         self.trades_count = 0
 
         self._executed_orders = []
+        self._add_line_to_candle_chart_values = {}
+        self._add_extra_line_chart_values = {}
 
         self._is_executing = False
         self._is_initiated = False
@@ -63,6 +66,38 @@ class Strategy(ABC):
 
         self._cached_methods = {}
         self._cached_metrics = {}
+
+    def add_line_to_candle_chart(self, name: str, value: float, color=None) -> None:
+        if name not in self._add_line_to_candle_chart_values:
+            self._add_line_to_candle_chart_values[name] = {
+                'data': [],
+                'color': color if color is not None else generate_unique_hex_color(),
+            }
+        self._add_line_to_candle_chart_values[name]['data'].append({
+            'time': int(self.current_candle[0] / 1000),
+            'value': value,
+            'color': color if color is not None else (self._add_line_to_candle_chart_values[name]['color'])
+        })
+
+    def add_extra_line_chart(self, name: str, value: float, color=None) -> None:
+        if name not in self._add_extra_line_chart_values:
+            self._add_extra_line_chart_values[name] = {
+                'data': [],
+                'color': color if color is not None else generate_unique_hex_color(),
+            }
+        self._add_extra_line_chart_values[name]['data'].append({
+            'time': int(self.current_candle[0] / 1000),
+            'value': value,
+            'color': color if color is not None else (self._add_extra_line_chart_values[name]['color'])
+        })
+
+        # _executed_orders.append({
+        #     'time': int(self.current_candle[0] / 1000),
+        #     'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
+        #     'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
+        #     'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
+        #     'text': order.side.upper(),
+        # })
 
     def _init_objects(self) -> None:
         """

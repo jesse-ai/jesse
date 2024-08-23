@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 import re
 from typing import Dict, List, Tuple
 import numpy as np
@@ -141,7 +140,6 @@ def _execute_backtest(
         result = simulator(
             candles,
             run_silently=jh.should_execute_silently(),
-            generate_charts=chart,
             generate_tradingview=tradingview,
             generate_quantstats=full_reports,
             generate_csv=csv,
@@ -186,8 +184,11 @@ def _execute_backtest(
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
         sync_publish('equity_curve', result['equity_curve'])
-        sync_publish('candles_chart', _get_formatted_candles_for_frontend())
-        sync_publish('orders_chart', _get_formatted_orders_for_frontend())
+        if chart:
+            sync_publish('candles_chart', _get_formatted_candles_for_frontend())
+            sync_publish('orders_chart', _get_formatted_orders_for_frontend())
+            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart())
+            sync_publish('add_extra_line_chart', _get_add_extra_line_chart())
 
     # close database connection
     from jesse.services.db import database
@@ -198,6 +199,13 @@ def _get_formatted_candles_for_frontend():
     arr = []
     for r in router.routes:
         candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        # Find the index where the starting time actually begins.
+        starting_index = 0
+        for i, c in enumerate(candles_arr):
+            if c[0] >= store.app.starting_time:
+                starting_index = i
+                break
+
         candles = [{
             'time': int(c[0]/1000),
             'open': c[1],
@@ -205,7 +213,7 @@ def _get_formatted_candles_for_frontend():
             'high': c[3],
             'low': c[4],
             'volume': c[5]
-        } for c in candles_arr]
+        } for c in candles_arr[starting_index:]]
         arr.append({
             'exchange': r.exchange,
             'symbol': r.symbol,
@@ -223,6 +231,30 @@ def _get_formatted_orders_for_frontend():
             'symbol': r.symbol,
             'timeframe': r.timeframe,
             'orders': r.strategy._executed_orders
+        })
+    return arr
+
+
+def _get_add_line_to_candle_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_line_to_candle_chart_values
+        })
+    return arr
+
+
+def _get_add_extra_line_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_extra_line_chart_values
         })
     return arr
 
@@ -312,7 +344,6 @@ def _step_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -424,7 +455,6 @@ def _step_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -647,7 +677,6 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 
 def _generate_outputs(
         candles: dict,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -669,8 +698,6 @@ def _generate_outputs(
         result["tradingview"] = logs_path["tradingview"]
     if generate_csv:
         result["csv"] = logs_path["csv"]
-    if generate_charts:
-        result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
     if generate_equity_curve:
         result["equity_curve"] = charts.equity_curve(benchmark)
     if generate_quantstats:
@@ -684,7 +711,6 @@ def _skip_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -746,7 +772,6 @@ def _skip_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -910,9 +935,6 @@ def _update_all_routes_a_partial_candle(
     """
     This function get called when an order is getting executed you need to update the other timeframe how their last
     candles looks like
-    Args:
-        short_timeframes_candles: 1m candles until storable_temp_candle
-        storable_temp_candle: storable_temp_candle the last 1m candle but not yet closed
     """
     store.candles.add_candle(
         storable_temp_candle,
