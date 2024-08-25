@@ -140,7 +140,7 @@ class Strategy(ABC):
         elif abs(after_qty) > abs(before_qty):
             effect = 'increased_position'
         # if reducing position size
-        else: # abs(after_qty) < abs(before_qty):
+        else:  # abs(after_qty) < abs(before_qty):
             effect = 'reduced_position'
 
         # call the relevant strategy event handler:
@@ -165,7 +165,7 @@ class Strategy(ABC):
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
-        else: # if effect == 'reduced_position':
+        else:  # if effect == 'reduced_position':
             txt = f"REDUCED Position size to {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
@@ -660,7 +660,7 @@ class Strategy(ABC):
                     if jh.is_debugging():
                         logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
                     waiting_counter += 1
-                    if waiting_counter > 12:
+                    if waiting_counter > 22:
                         raise exceptions.ExchangeNotResponding(
                             'The exchange did not respond as expected for order execution'
                         )
