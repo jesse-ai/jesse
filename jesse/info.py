@@ -19,6 +19,8 @@ DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_1
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                        timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
+MEXC_PERPETUAL_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                             timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -333,7 +335,22 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
-    }
+    },
+
+    # BINANCE_PERPETUAL_FUTURES
+    exchanges_enums.MEXC_PERPETUAL_FUTURES: {
+        'name': exchanges_enums.MEXC_PERPETUAL_FUTURES,
+        'url': 'https://futures.mexc.com',
+        'fee': 0.0001,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': MEXC_PERPETUAL_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
 
 }
 
