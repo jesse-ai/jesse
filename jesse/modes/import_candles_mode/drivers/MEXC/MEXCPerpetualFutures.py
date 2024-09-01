@@ -64,7 +64,6 @@ class MEXCPerpetualFutures(CandleExchange):
         data = response.json()['data']
         available_symbols = []
         for s in data:
-            jh.dump(jh.underline_to_dashy_symbol(s['symbol']))
             available_symbols.append(jh.underline_to_dashy_symbol(s['symbol']))
 
         return available_symbols

@@ -3,7 +3,6 @@ from jesse.enums import timeframes
 
 def timeframe_to_interval(timeframe: str) -> str:
     # 1m
-    # 3m
     # 5m
     # 15m
     # 30m
@@ -12,11 +11,7 @@ def timeframe_to_interval(timeframe: str) -> str:
     # 4h
     # 6h
     # 8h
-    # 12h
     # 1d
-    # 3d
-    # 1w
-    # 1M
     if timeframe == timeframes.MINUTE_1:
         return 'Min1'
     elif timeframe == timeframes.MINUTE_5:
@@ -33,36 +28,26 @@ def timeframe_to_interval(timeframe: str) -> str:
         return 'Hour8'
     elif timeframe == timeframes.DAY_1:
         return 'Day1'
-    elif timeframe == timeframes.WEEK_1:
-        return 'Week1'
-    elif timeframe == timeframes.MONTH_1:
-        return 'Month1'
     else:
         raise ValueError('Invalid timeframe: {}'.format(timeframe))
 
 
 def interval_to_timeframe(interval: str) -> str:
-    if interval == '1m':
+    if interval == 'Min1':
         return timeframes.MINUTE_1
-    elif interval == '5m':
+    elif interval == 'Min4':
         return timeframes.MINUTE_5
-    elif interval == '15m':
+    elif interval == 'Min15':
         return timeframes.MINUTE_15
-    elif interval == '30m':
+    elif interval == 'Min30':
         return timeframes.MINUTE_30
-    elif interval == '1h':
+    elif interval == 'Min60':
         return timeframes.HOUR_1
-    elif interval == '4h':
+    elif interval == 'Hour4':
         return timeframes.HOUR_4
-    elif interval == '8h':
+    elif interval == 'Hour8':
         return timeframes.HOUR_8
-    elif interval == '12h':
-        return timeframes.HOUR_12
-    elif interval == '1d':
+    elif interval == 'Day1':
         return timeframes.DAY_1
-    elif interval == '1w':
-        return timeframes.WEEK_1
-    elif interval == '1M':
-        return timeframes.MONTH_1
     else:
         raise ValueError('Invalid interval: {}'.format(interval))
