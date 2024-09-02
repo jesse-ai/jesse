@@ -6,7 +6,7 @@ from jesse import exceptions
 from .gate_utils import timeframe_to_interval
 
 
-class GateMain(CandleExchange):
+class GateUSDTMain(CandleExchange):
     def __init__(self, name: str, rest_endpoint: str) -> None:
         super().__init__(name=name, count=200, rate_limit_per_second=10, backup_exchange_class=None)
         self.name = name
@@ -21,9 +21,8 @@ class GateMain(CandleExchange):
             'limit': 1000,
             'from': 1514811660
         }
-        # get settlement
-        settlement = symbol.split('_')[-1].lower()
-        response = requests.get(f"{self.endpoint}/{settlement}/candlesticks", params=payload)
+
+        response = requests.get(f"{self.endpoint}/usdt/candlesticks", params=payload)
         self.validate_response(response)
 
         if response.json() == []:
@@ -46,9 +45,7 @@ class GateMain(CandleExchange):
             'to': int(end_timestamp / 1000),
         }
 
-        settlement = symbol.split("_")[-1].lower()
-
-        response = requests.get(f"{self.endpoint}/{settlement}/candlesticks", params=payload)
+        response = requests.get(f"{self.endpoint}/usdt/candlesticks", params=payload)
         self.validate_response(response)
 
         if response.json() == []:
@@ -71,13 +68,11 @@ class GateMain(CandleExchange):
         return data
 
     def get_available_symbols(self) -> list:
-        settle = ['usdt', 'btc', 'usd']
         pairs = []
-        for s in settle:
-            response = requests.get(f"{self.endpoint}/{s}/contracts")
-            self.validate_response(response)
-            data = response.json()
-            for p in data:
-                pairs.append(jh.underline_to_dashy_symbol(p['name']))
+        response = requests.get(f"{self.endpoint}/usdt/contracts")
+        self.validate_response(response)
+        data = response.json()
+        for p in data:
+            pairs.append(jh.underline_to_dashy_symbol(p['name']))
 
         return pairs

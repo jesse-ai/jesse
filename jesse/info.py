@@ -337,8 +337,8 @@ exchange_info = {
         'required_live_plan': 'premium'
     },
 
-    exchanges_enums.GATE_PERPETUAL_FUTURES: {
-        'name': exchanges_enums.GATE_PERPETUAL_FUTURES,
+    exchanges_enums.GATE_USDT_PERPETUAL: {
+        'name': exchanges_enums.GATE_USDT_PERPETUAL,
         'url': 'https://www.gate.io/futures/USDT/BTC_USDT',
         'fee': 0.0005,
         'type': 'futures',
@@ -350,8 +350,8 @@ exchange_info = {
         },
         'required_live_plan': 'premium'
     },
-    exchanges_enums.GATE_PERPETUAL_FUTURES_TESTNET: {
-        'name': exchanges_enums.GATE_PERPETUAL_FUTURES_TESTNET,
+    exchanges_enums.GATE_USDT_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.GATE_USDT_PERPETUAL_TESTNET,
         'url': 'https://www.gate.io/testnet/futures_trade/USDT/BTC_USDT',
         'fee': 0.0005,
         'type': 'futures',
