@@ -48,36 +48,36 @@ if database.is_closed():
 #         database = database.db
 #         indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 #
-#     def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
-#         Model.__init__(self, attributes=attributes, **kwargs)
-#
-#         if attributes is None:
-#             attributes = {}
-#
-#         for a, value in attributes.items():
-#             setattr(self, a, value)
-#
-#         if self.created_at is None:
-#             self.created_at = jh.now_to_timestamp()
-#
-#         # if jh.is_live():
-#         #     from jesse.store import store
-#             # self.session_id = store.app.session_id
-#             # self.save(force_insert=True)
-#
-#         if not should_silent:
-#             if jh.is_live():
-#                 self.notify_submission()
-#
-#             if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
-#                 txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-#                 if self.price:
-#                     txt += f', ${self.price}'
-#                 logger.info(txt)
-#
-#         # handle exchange balance for ordered asset
-#         e = selectors.get_exchange(self.exchange)
-#         e.on_order_submission(self)
+    # def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
+    #     Model.__init__(self, attributes=attributes, **kwargs)
+    #
+    #     if attributes is None:
+    #         attributes = {}
+    #
+    #     for a, value in attributes.items():
+    #         setattr(self, a, value)
+    #
+    #     if self.created_at is None:
+    #         self.created_at = jh.now_to_timestamp()
+    #
+    #     # if jh.is_live():
+    #     #     from jesse.store import store
+    #         # self.session_id = store.app.session_id
+    #         # self.save(force_insert=True)
+    #
+    #     if not should_silent:
+    #         if jh.is_live():
+    #             self.notify_submission()
+    #
+    #         if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
+    #             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+    #             if self.price:
+    #                 txt += f', ${self.price}'
+    #             logger.info(txt)
+    #
+    #     # handle exchange balance for ordered asset
+    #     e = selectors.get_exchange(self.exchange)
+    #     e.on_order_submission(self)
 
 def get_session_id():
     from jesse.store import store
@@ -107,6 +107,30 @@ class Order:
     # This attribute is not stored in the database, so you can define it
     # as an instance variable without the need for a field
     submitted_via: str | None = None
+    should_silent: bool = True
+
+    def __post_init__(self) -> None:
+        if self.created_at is None:
+            self.created_at = jh.now_to_timestamp()
+
+        # if jh.is_live():
+        #     from jesse.store import store
+            # self.session_id = store.app.session_id
+            # self.save(force_insert=True)
+
+        if not self.should_silent:
+            if jh.is_live():
+                self.notify_submission()
+
+            if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
+                txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+                if self.price:
+                    txt += f', ${self.price}'
+                logger.info(txt)
+
+        # handle exchange balance for ordered asset
+        e = selectors.get_exchange(self.exchange)
+        e.on_order_submission(self)
 
     def notify_submission(self) -> None:
         if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
