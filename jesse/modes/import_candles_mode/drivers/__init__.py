@@ -22,6 +22,7 @@ from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GatePerpetualFutures import GatePerpetualFutures
+from jesse.modes.import_candles_mode.drivers.Gate.GatePerpetualFuturesTestnet import GatePerpetualFuturesTestnet
 
 
 drivers = {
@@ -40,6 +41,7 @@ drivers = {
     exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
     exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
     exchanges.GATE_PERPETUAL_FUTURES: GatePerpetualFutures,
+    exchanges.GATE_PERPETUAL_FUTURES_TESTNET: GatePerpetualFuturesTestnet,
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,

@@ -79,6 +79,7 @@ class exchanges:
     APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
     APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
     GATE_PERPETUAL_FUTURES = 'Gate Perpetual Futures'
+    GATE_PERPETUAL_FUTURES_TESTNET = 'Gate Perpetual Futures Testnet'
 
 
 class migration_actions:

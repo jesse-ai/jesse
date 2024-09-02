@@ -349,6 +349,19 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
+    },
+    exchanges_enums.GATE_PERPETUAL_FUTURES_TESTNET: {
+        'name': exchanges_enums.GATE_PERPETUAL_FUTURES_TESTNET,
+        'url': 'https://www.gate.io/testnet/futures_trade/USDT/BTC_USDT',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': GATE_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
     }
 
 }
