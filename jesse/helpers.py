@@ -154,6 +154,14 @@ def dashy_symbol(symbol: str) -> str:
     return f"{symbol[0:3]}-{symbol[3:]}"
 
 
+def underline_to_dashy_symbol(symbol: str) -> str:
+    return symbol.replace('_', '-')
+
+
+def dashy_to_underline(symbol: str) -> str:
+    return symbol.replace('-', '_')
+
+
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
@@ -395,10 +403,12 @@ def is_importing_candles() -> bool:
 def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
+
 @lru_cache
 def is_livetrading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
+
 
 @lru_cache
 def is_optimizing() -> bool:
@@ -552,6 +562,7 @@ def opposite_side(s: str) -> str:
         return sides.BUY
     else:
         raise ValueError(f'{s} is not a valid input for side')
+
 
 @lru_cache
 def opposite_type(t: str) -> str:
@@ -739,6 +750,7 @@ def secure_hash(msg: str) -> str:
 def should_execute_silently() -> bool:
     return is_optimizing() or is_unit_testing()
 
+
 @lru_cache
 def side_to_type(s: str) -> str:
     from jesse.enums import trade_types, sides
@@ -804,6 +816,7 @@ def _print_error(msg: str) -> None:
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
     print(color('====================================', 'red'))
+
 
 @lru_cache
 def timeframe_to_one_minutes(timeframe: str) -> int:
@@ -1090,4 +1103,3 @@ def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
     so low-priced orders can be properly compared within 0.01% range.
     """
     return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
-
