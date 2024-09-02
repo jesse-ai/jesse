@@ -2,6 +2,7 @@ import threading
 import numpy as np
 
 import jesse.helpers as jh
+from jesse.models import OrderModel
 from jesse.services import logger
 
 
@@ -171,7 +172,7 @@ def store_order_into_db(order) -> None:
     }
 
     def async_save() -> None:
-        Order.insert(**d).execute()
+        OrderModel.insert(**d).execute()
         if jh.is_debugging():
             logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
 

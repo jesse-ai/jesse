@@ -588,16 +588,16 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
         closing_order_side = jh.closing_side(p.type)
 
         # create the market order that is used as the liquidation order
-        order = Order({
-            'id': jh.generate_unique_id(),
-            'symbol': symbol,
-            'exchange': exchange,
-            'side': closing_order_side,
-            'type': order_types.MARKET,
-            'reduce_only': True,
-            'qty': jh.prepare_qty(p.qty, closing_order_side),
-            'price': p.bankruptcy_price
-        })
+        order = Order(
+            id=jh.generate_unique_id(),
+            symbol=symbol,
+            exchange=exchange,
+            side=closing_order_side,
+            type=order_types.MARKET,
+            reduce_only=True,
+            qty=jh.prepare_qty(p.qty, closing_order_side),
+            price=p.bankruptcy_price
+        )
 
         store.orders.add_order(order)
 

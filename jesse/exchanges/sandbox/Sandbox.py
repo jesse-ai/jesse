@@ -12,16 +12,6 @@ class Sandbox(Exchange):
         self.name = name
 
     def market_order(self, symbol: str, qty: float, current_price: float, side: str, reduce_only: bool) -> Order:
-        # order = Order({
-        #     'id': jh.generate_unique_id(),
-        #     'symbol': symbol,
-        #     'exchange': self.name,
-        #     'side': side,
-        #     'type': order_types.MARKET,
-        #     'reduce_only': reduce_only,
-        #     'qty': jh.prepare_qty(qty, side),
-        #     'price': current_price,
-        # })
         order = Order(
             id=jh.generate_unique_id(),
             symbol=symbol,
@@ -40,16 +30,6 @@ class Sandbox(Exchange):
         return order
 
     def limit_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
-        # order = Order({
-        #     'id': jh.generate_unique_id(),
-        #     'symbol': symbol,
-        #     'exchange': self.name,
-        #     'side': side,
-        #     'type': order_types.LIMIT,
-        #     'reduce_only': reduce_only,
-        #     'qty': jh.prepare_qty(qty, side),
-        #     'price': price,
-        # })
         order = Order(
             id=jh.generate_unique_id(),
             symbol=symbol,
@@ -66,16 +46,6 @@ class Sandbox(Exchange):
         return order
 
     def stop_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
-        # order = Order({
-        #     'id': jh.generate_unique_id(),
-        #     'symbol': symbol,
-        #     'exchange': self.name,
-        #     'side': side,
-        #     'type': order_types.STOP,
-        #     'reduce_only': reduce_only,
-        #     'qty': jh.prepare_qty(qty, side),
-        #     'price': price,
-        # })
         order = Order(
             id=jh.generate_unique_id(),
             symbol=symbol,
