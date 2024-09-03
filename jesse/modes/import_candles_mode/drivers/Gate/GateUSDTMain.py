@@ -58,7 +58,7 @@ class GateUSDTMain(CandleExchange):
                 'exchange': self.name,
                 'symbol': jh.underline_to_dashy_symbol(symbol),
                 'timeframe': timeframe,
-                'timestamp': int(d['t']),
+                'timestamp': int(d['t']) * 1000,
                 'open': float(d['o']),
                 'close': float(d['c']),
                 'high': float(d['h']),

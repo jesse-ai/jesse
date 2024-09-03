@@ -348,7 +348,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'free'
     },
     exchanges_enums.GATE_USDT_PERPETUAL_TESTNET: {
         'name': exchanges_enums.GATE_USDT_PERPETUAL_TESTNET,
@@ -361,7 +361,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'free'
     }
 
 }
