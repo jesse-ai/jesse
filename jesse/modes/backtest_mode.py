@@ -189,6 +189,8 @@ def _execute_backtest(
             sync_publish('orders_chart', _get_formatted_orders_for_frontend())
             sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart())
             sync_publish('add_extra_line_chart', _get_add_extra_line_chart())
+            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart())
+            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart())
 
     # close database connection
     from jesse.services.db import database
@@ -220,6 +222,10 @@ def _get_formatted_candles_for_frontend():
             'timeframe': r.timeframe,
             'candles': candles
         })
+    import json
+    json_data = json.dumps(arr)
+    size_of_json = len(json_data.encode('utf-8'))  # Size in bytes
+    jh.dump('candles', size_of_json/ (1024 * 1024))
     return arr
 
 
@@ -254,7 +260,41 @@ def _get_add_extra_line_chart():
             'exchange': r.exchange,
             'symbol': r.symbol,
             'timeframe': r.timeframe,
-            'lines': r.strategy._add_extra_line_chart_values
+            'charts': r.strategy._add_extra_line_chart_values
+        })
+    import json
+    import gzip
+    json_data = json.dumps(arr).encode('utf-8')
+    # size_of_json = len(json_data)  # Size in bytes
+    # Compress the JSON string
+    compressed_data = gzip.compress(json_data)
+    size_of_json = len(compressed_data)  # Size in bytes
+
+    jh.dump('extra', size_of_json/ (1024 * 1024))
+
+    return arr
+
+
+def _get_add_horizontal_line_to_candle_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_horizontal_line_to_candle_chart_values
+        })
+    return arr
+
+
+def _get_add_horizontal_line_to_extra_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_horizontal_line_to_extra_chart_values
         })
     return arr
 
