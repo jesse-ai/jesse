@@ -1,6 +1,8 @@
 import hashlib
 import math
 import os
+import gzip
+import json
 from functools import lru_cache
 import random
 import string
@@ -1091,3 +1093,9 @@ def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
     """
     return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
 
+
+def gzip_compress(data):
+    """Compress data using gzip."""
+    json_data = json.dumps(data).encode('utf-8')
+    # Compress the JSON string
+    return gzip.compress(json_data)
