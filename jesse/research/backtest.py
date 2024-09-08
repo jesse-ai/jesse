@@ -8,7 +8,6 @@ def backtest(
         data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_hyperparameters: bool = False,
@@ -59,7 +58,6 @@ def backtest(
         warmup_candles,
         run_silently=True,
         hyperparameters=hyperparameters,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -80,7 +78,6 @@ def _isolated_backtest(
         warmup_candles: dict = None,
         run_silently: bool = True,
         hyperparameters: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -147,7 +144,6 @@ def _isolated_backtest(
         trading_candles_dict,
         run_silently,
         hyperparameters=hyperparameters,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -169,8 +165,6 @@ def _isolated_backtest(
     else:
         result['metrics'] = backtest_result['metrics']
 
-    if generate_charts:
-        result['charts'] = backtest_result['charts']
     if generate_tradingview:
         result['tradingview'] = backtest_result['tradingview']
     if generate_quantstats:
