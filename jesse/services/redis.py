@@ -5,6 +5,7 @@ import asyncio
 import jesse.helpers as jh
 from jesse.libs.custom_json import NpEncoder
 import os
+import base64
 from jesse.services.env import ENV_VALUES
 
 
@@ -27,24 +28,39 @@ if jh.is_jesse_project():
         )
 
 
-def sync_publish(event: str, msg):
+def sync_publish(event: str, msg, compression: bool = False):
     if jh.is_unit_testing():
         raise EnvironmentError('sync_publish() should be NOT called during testing. There must be something wrong')
+
+    if compression:
+        msg = jh.gzip_compress(msg)
+        # Encode the compressed message using Base64
+        msg = base64.b64encode(msg).decode('utf-8')
 
     sync_redis.publish(
         f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
             'id': os.getpid(),
             'event': f'{jh.app_mode()}.{event}',
+            'is_compressed': compression,
             'data': msg
         }, ignore_nan=True, cls=NpEncoder)
     )
 
 
-async def async_publish(event: str, msg):
+async def async_publish(event: str, msg, compression: bool = False):
+    if jh.is_unit_testing():
+        raise EnvironmentError('sync_publish() should be NOT called during testing. There must be something wrong')
+
+    if compression:
+        msg = jh.gzip_compress(msg)
+        # Encode the compressed message using Base64
+        msg = base64.b64encode(msg).decode('utf-8')
+
     await async_redis.publish(
         f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
             'id': os.getpid(),
             'event': f'{jh.app_mode()}.{event}',
+            'is_compressed': compression,
             'data': msg
         }, ignore_nan=True, cls=NpEncoder)
     )
