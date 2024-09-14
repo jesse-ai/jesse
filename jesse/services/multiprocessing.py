@@ -1,3 +1,5 @@
+import threading
+import time
 from typing import List
 import multiprocessing as mp
 import traceback
@@ -42,6 +44,8 @@ class ProcessManager:
         self._pid_to_client_id_map = {}
         self.client_id_to_pid_to_map = {}
         self._active_workers_key = f"{ENV_VALUES['APP_PORT']}|active-processes"
+        self._cleanup_thread = threading.Thread(target=self._cleanup_finished_workers, daemon=True)
+        self._cleanup_thread.start()
 
     def _reset(self):
         self._workers = []
@@ -76,7 +80,6 @@ class ProcessManager:
             client_id: str = self._pid_to_client_id_map[self._prefixed_pid(pid)]
         except KeyError:
             return None
-        # return after "|" because we add them before sending it to multiprocessing
         return jh.string_after_character(client_id, '|')
 
     def get_pid(self, client_id):
@@ -90,7 +93,16 @@ class ProcessManager:
             w.terminate()
             w.join()
             w.close()
-        process_manager._reset()
+        self._reset()
+
+    def _cleanup_finished_workers(self):
+        while True:
+            for w in self._workers:
+                if not w.is_alive():
+                    w.join()
+                    w.close()
+                    self._workers.remove(w)
+            time.sleep(5)
 
     @property
     def active_workers(self) -> set:
