@@ -350,11 +350,12 @@ exchange_info = {
         },
         'required_live_plan': 'free'
     },
-    exchanges_enums.GATE_USDT_PERPETUAL_TESTNET: {
-        'name': exchanges_enums.GATE_USDT_PERPETUAL_TESTNET,
-        'url': 'https://www.gate.io/testnet/futures_trade/USDT/BTC_USDT',
+
+    exchanges_enums.GATE_SPOT: {
+        'name': exchanges_enums.GATE_SPOT,
+        'url': 'https://www.gate.io/trade/BTC_USDT',
         'fee': 0.0005,
-        'type': 'futures',
+        'type': 'spot',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': GATE_TIMEFRAMES,
         'modes': {
@@ -362,8 +363,7 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'free'
-    }
-
+    },
 }
 
 # list of supported exchanges for backtesting
