@@ -1,8 +1,8 @@
-from .GateUSDTMain import GateUSDTMain
+from .GateSpotMain import GateSpotMain
 from jesse.enums import exchanges
 
 
-class GateSpot(GateUSDTMain):
+class GateSpot(GateSpotMain):
     def __init__(self) -> None:
         super().__init__(
             name=exchanges.GATE_SPOT,
