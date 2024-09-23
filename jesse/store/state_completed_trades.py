@@ -1,8 +1,11 @@
+import time
+
 import numpy as np
-from jesse.models import Position, ClosedTrade, Order
+
 import jesse.helpers as jh
-from jesse.models.utils import store_completed_trade_into_db
 from jesse.enums import sides
+from jesse.models import ClosedTrade, Order, Position
+from jesse.models.utils import store_completed_trade_into_db
 from jesse.services import logger
 
 
@@ -73,34 +76,47 @@ class ClosedTrades:
         t.symbol = position.symbol
         t.type = position.type
 
-    def close_trade(self, position: Position) -> None:
+    def close_trade(self, position: Position, max_retries=3, retry_delay=1) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
 
-        # If the trade is not open yet where are you calling
-        if not t.is_open:
-            raise ValueError(
-                "Unable to close a trade that is not yet open. If you're getting this in the live mode, it is likely due"
-                " to an unstable connection to the exchange, either on your side or the exchange's side. Please submit a"
-                " report using the report button so that Jesse's support team can investigate the issue."
-            )
+        for attempt in range(max_retries):
+            try:
+                if not t.is_open:
+                    raise ValueError(
+                        "Unable to close a trade that is not yet open. Retrying..."
+                    )
 
-        t.closed_at = position.closed_at
-        try:
-            position.strategy.trades_count += 1
-        except AttributeError:
-            if not jh.is_unit_testing():
-                raise
+                t.closed_at = position.closed_at
+                try:
+                    position.strategy.trades_count += 1
+                except AttributeError:
+                    if not jh.is_unit_testing():
+                        raise
 
-        if jh.is_livetrading():
-            store_completed_trade_into_db(t)
-        # store the trade into the list
-        self.trades.append(t)
-        if not jh.is_unit_testing():
-            logger.info(
-                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {round(t.entry_price, 2)}, exit_price: {round(t.exit_price, 2)}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
-            )
-        # at the end, reset the trade variable
-        self._reset_current_trade(position.exchange_name, position.symbol)
+                if jh.is_livetrading():
+                    store_completed_trade_into_db(t)
+                # store the trade into the list
+                self.trades.append(t)
+                if not jh.is_unit_testing():
+                    logger.info(
+                        f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {round(t.entry_price, 2)}, exit_price: {round(t.exit_price, 2)}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
+                    )
+                # at the end, reset the trade variable
+                self._reset_current_trade(position.exchange_name, position.symbol)
+
+                return
+
+            except ValueError as e:
+                logger.error(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("Max retries reached. Unable to close trade.")
+                    raise ValueError(
+                        "Unable to close a trade that is not yet open. If you're getting this in the live mode, it is likely due"
+                        " to an unstable connection to the exchange, either on your side or the exchange's side. Please submit a"
+                        " report using the report button so that Jesse's support team can investigate the issue."
+                    )
 
     @property
     def count(self) -> int:
