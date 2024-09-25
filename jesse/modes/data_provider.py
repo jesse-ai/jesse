@@ -145,9 +145,6 @@ def download_file(mode: str, file_type: str, session_id: str = None):
     if mode == 'backtest' and file_type == 'log':
         path = f'storage/logs/backtest-mode/{session_id}.txt'
         filename = f'backtest-{session_id}.txt'
-    elif mode == 'backtest' and file_type == 'chart':
-        path = f'storage/charts/{session_id}.png'
-        filename = f'backtest-{session_id}.png'
     elif mode == 'backtest' and file_type == 'csv':
         path = f'storage/csv/{session_id}.csv'
         filename = f'backtest-{session_id}.csv'
