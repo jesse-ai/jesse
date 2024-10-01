@@ -52,6 +52,10 @@ class ExchangeRejectedOrder(Exception):
     pass
 
 
+class ExchangeOrderNotFind(Exception):
+    pass
+
+
 class InvalidShape(Exception):
     pass
 
