@@ -8,10 +8,8 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 
-Stiffness = namedtuple('Stiffness', ['stiffness', 'threshold'])
 
-
-def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60, stiff_smooth: int = 3, threshold: int = 90, source_type: str = "close") -> Stiffness:
+def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60, stiff_smooth: int = 3, source_type: str = "close") -> float:
     """
     @author daviddtech
     credits: https://www.tradingview.com/script/MOw6mUQl-Stiffness-Indicator-DaviddTech
@@ -22,7 +20,6 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
     :param ma_length: int - default: 100
     :param stiff_length: int - default: 60
     :param stiff_smooth: int - default: 3
-    :param threshold: int - default: 90
     :param source_type: str - default: "close"
 
     :return: Stiffness(stiffness, threshold)
@@ -36,9 +33,7 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
     bound_stiffness = sma(source, ma_length, sequential=True) - 0.2 * \
         stddev(source, ma_length, sequential=True)
     sum_above_stiffness = _count_price_exceed_series(source, bound_stiffness, stiff_length)
-    stiffness = ema(np.array(sum_above_stiffness) * 100 / stiff_length, period=stiff_smooth)
-
-    return Stiffness(stiffness, threshold)
+    return ema(np.array(sum_above_stiffness) * 100 / stiff_length, period=stiff_smooth)
 
 
 def _count_price_exceed_series(close_prices, art_series, length):

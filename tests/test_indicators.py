@@ -2347,10 +2347,8 @@ def test_waddah_attr_explosion():
 
 def test_stiffness():
     candles = np.array(test_candles_19)
-    single = ta.stiffness(candles)
 
-    assert round(single.stiffness) == 96
-    assert round(single.threshold) == 90
+    assert round(ta.stiffness(candles)) == 96
 
 
 def test_ttm_squeeze():
