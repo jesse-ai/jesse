@@ -46,6 +46,3 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, devup: float = 
         return (upperbands - lowerbands) / middlebands
     else:
         return (upperbands[-1] - lowerbands[-1]) / middlebands[-1]
-
-
-
