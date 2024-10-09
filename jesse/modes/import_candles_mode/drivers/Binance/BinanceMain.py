@@ -30,7 +30,7 @@ class BinanceMain(CandleExchange):
             'limit': 1500,
         }
 
-        response = requests.get(self.endpoint + '/v1/klines', params=payload)
+        response = requests.get(self.endpoint + '/v3/klines', params=payload)
 
         self.validate_response(response)
 
@@ -54,7 +54,7 @@ class BinanceMain(CandleExchange):
             'limit': self.count,
         }
 
-        response = requests.get(self.endpoint + '/v1/klines', params=payload)
+        response = requests.get(self.endpoint + '/v3/klines', params=payload)
 
         self.validate_response(response)
 
@@ -73,7 +73,7 @@ class BinanceMain(CandleExchange):
         } for d in data]
 
     def get_available_symbols(self) -> list:
-        response = requests.get(self.endpoint + '/v1/exchangeInfo')
+        response = requests.get(self.endpoint + '/v3/exchangeInfo')
 
         self.validate_response(response)
 
