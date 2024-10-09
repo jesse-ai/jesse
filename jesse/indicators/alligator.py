@@ -33,7 +33,7 @@ def alligator(candles: np.ndarray, source_type: str = "close", sequential: bool 
 
 def numpy_ewma(data: np.ndarray, window: int):
     """
-
+    Numpy version of the exponential weighted moving average.
     :param data:
     :param window:
     :return:

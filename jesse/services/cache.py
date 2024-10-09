@@ -21,7 +21,7 @@ class Cache:
                 with open(f"{self.path}cache_database.pickle", 'rb') as f:
                     try:
                         self.db = pickle.load(f)
-                    except EOFError:
+                    except (EOFError, pickle.UnpicklingError):
                         # File got broken
                         self.db = {}
             # if not, create a dict object. We'll create the file when using set_value()
