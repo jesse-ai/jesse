@@ -211,12 +211,22 @@ class Strategy(ABC):
             r.strategy._detect_and_handle_entry_and_exit_modifications()
 
     def _handle_executed_order_for_chart(self, order: Order):
+        position_type = ''
+        if self.position.is_long:
+            position_type = 'LONG'
+        elif self.position.is_short:
+            position_type = 'SHORT'
+        elif self.position.is_close and self.position.previous_qty > 0:
+            position_type = 'LONG'
+        elif self.position.is_close and self.position.previous_qty < 0:
+            position_type = 'SHORT'
+
         self._executed_orders.append({
             'time': int(self.current_candle[0] / 1000),
             'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
             'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
             'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
-            'text': order.side.upper(),
+            'text': f'{order.side.upper()} • {position_type}'
         })
 
     def _on_updated_position(self, order: Order) -> None:
