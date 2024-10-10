@@ -70,6 +70,10 @@ class Strategy(ABC):
         self._cached_metrics = {}
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
         if title not in self._add_line_to_candle_chart_values:
             self._add_line_to_candle_chart_values[title] = {
                 'data': [],
@@ -82,6 +86,10 @@ class Strategy(ABC):
         })
 
     def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
         if line_style == 'solid':
             lineStyle = 0
         elif line_style == 'dotted':
@@ -106,6 +114,10 @@ class Strategy(ABC):
             }
 
     def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
         if line_style == 'solid':
             lineStyle = 0
         elif line_style == 'dotted':
@@ -125,6 +137,10 @@ class Strategy(ABC):
         }
 
     def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
         if chart_name not in self._add_extra_line_chart_values:
             self._add_extra_line_chart_values[chart_name] = {}
 
@@ -139,13 +155,6 @@ class Strategy(ABC):
             'value': value,
             'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
         })
-        # _executed_orders.append({
-        #     'time': int(self.current_candle[0] / 1000),
-        #     'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
-        #     'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
-        #     'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
-        #     'text': order.side.upper(),
-        # })
 
     def _init_objects(self) -> None:
         """
