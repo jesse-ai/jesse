@@ -97,7 +97,9 @@ class ClosedTrades:
         self.trades.append(t)
         if not jh.is_unit_testing():
             logger.info(
-                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty}, entry_price: {round(t.entry_price, 2)}, exit_price: {round(t.exit_price, 2)}, PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
+                f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty},"
+                f" entry_price: {t.entry_price}, exit_price: {t.exit_price}, "
+                f"PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
             )
         # at the end, reset the trade variable
         self._reset_current_trade(position.exchange_name, position.symbol)
