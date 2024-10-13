@@ -36,7 +36,7 @@ def get_general_info(has_live=False) -> dict:
             limits = plan_info['limits']
 
     strategies_path = os.getcwd() + "/strategies/"
-    strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))
+    strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name) and not name.startswith('.')]))
     if "__pycache__" in strategies:
         strategies.remove("__pycache__")
 
