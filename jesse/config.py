@@ -1,7 +1,7 @@
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
-from jesse.info import exchange_info, jesse_supported_timeframes
+from jesse.info import exchange_info
 
 
 config = {
@@ -22,6 +22,7 @@ config = {
             'shorter_period_candles': False,
             'trading_candles': True,
             'balance_update': True,
+            'exchange_ws_reconnection': False
         },
 
         # fill it later in this file using data in info.py
