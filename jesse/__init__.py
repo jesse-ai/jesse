@@ -166,17 +166,20 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     ch, = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
 
     async def echo(q):
-        while True:
-            msg = await q.get()
-            msg = json.loads(msg)
-            msg['id'] = process_manager.get_client_id(msg['id'])
-            await websocket.send_json(
-                msg
-            )
+        try:
+            while True:
+                msg = await q.get()
+                msg = json.loads(msg)
+                msg['id'] = process_manager.get_client_id(msg['id'])
+                await websocket.send_json(msg)
+        except WebSocketDisconnect:
+            await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
+            print(jh.color('WebSocket disconnected', 'yellow'))
+        except Exception as e:
+            print(jh.color(str(e), 'red'))
 
     async def reader(channel, q):
         async for ch, message in channel.iter():
-            # modify id and set the one that the font-end knows
             await q.put(message)
 
     asyncio.get_running_loop().create_task(reader(ch, queue))
@@ -184,12 +187,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
     try:
         while True:
-            # just so WebSocketDisconnect would be raised on connection close
             await websocket.receive_text()
     except WebSocketDisconnect:
         await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
-        print('Websocket disconnected')
-
+        print(jh.color('WebSocket disconnected', 'yellow'))
 
 # create a Click group
 @click.group()
