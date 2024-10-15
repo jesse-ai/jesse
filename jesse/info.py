@@ -19,6 +19,8 @@ DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_1
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                        timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
+GATE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                   timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -333,8 +335,35 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
-    }
+    },
 
+    exchanges_enums.GATE_USDT_PERPETUAL: {
+        'name': exchanges_enums.GATE_USDT_PERPETUAL,
+        'url': 'https://www.gate.io/futures/USDT/BTC_USDT',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': GATE_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'free'
+    },
+
+    exchanges_enums.GATE_SPOT: {
+        'name': exchanges_enums.GATE_SPOT,
+        'url': 'https://www.gate.io/trade/BTC_USDT',
+        'fee': 0.0005,
+        'type': 'spot',
+        'supported_leverage_modes': ['cross', 'isolated'],
+        'supported_timeframes': GATE_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        },
+        'required_live_plan': 'free'
+    },
 }
 
 # list of supported exchanges for backtesting
