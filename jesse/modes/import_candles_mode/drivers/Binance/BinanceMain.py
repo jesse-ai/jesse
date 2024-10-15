@@ -30,7 +30,7 @@ class BinanceMain(CandleExchange):
             'limit': 1500,
         }
 
-        response = requests.get(self.endpoint + '/v3/klines', params=payload)
+        response = requests.get(self.endpoint + self._prefix_address + 'klines', params=payload)
 
         self.validate_response(response)
 
@@ -54,7 +54,7 @@ class BinanceMain(CandleExchange):
             'limit': self.count,
         }
 
-        response = requests.get(self.endpoint + '/v3/klines', params=payload)
+        response = requests.get(self.endpoint + self._prefix_address + 'klines', params=payload)
 
         self.validate_response(response)
 
@@ -73,10 +73,16 @@ class BinanceMain(CandleExchange):
         } for d in data]
 
     def get_available_symbols(self) -> list:
-        response = requests.get(self.endpoint + '/v3/exchangeInfo')
+        response = requests.get(self.endpoint + self._prefix_address + 'exchangeInfo')
 
         self.validate_response(response)
 
         data = response.json()
 
         return [jh.dashy_symbol(d['symbol']) for d in data['symbols']]
+
+    @property
+    def _prefix_address(self):
+        if self.name.startswith('Binance Perpetual Futures'):
+            return '/v1/'
+        return '/v3/'
