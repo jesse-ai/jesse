@@ -22,7 +22,7 @@ config = {
             'shorter_period_candles': False,
             'trading_candles': True,
             'balance_update': True,
-            'exchange_ws_reconnection': False
+            'exchange_ws_reconnection': True
         },
 
         # fill it later in this file using data in info.py
