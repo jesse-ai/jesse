@@ -852,3 +852,18 @@ def test_terminate():
 
     from jesse.store import store
     assert store.app.starting_time == 1
+
+
+def test_chart_values():
+    with pytest.raises(ValueError):
+        single_route_backtest('TestAddHorizontalLineToCandleChart')
+
+    with pytest.raises(ValueError):
+        single_route_backtest('TestAddLineToCandleChart')
+
+    with pytest.raises(ValueError):
+        single_route_backtest('TestAddHorizontalLineToExtraChart')
+
+    with pytest.raises(ValueError):
+        single_route_backtest('TestAddLineToExtraChart')
+

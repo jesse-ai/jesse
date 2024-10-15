@@ -1,0 +1,1 @@
+import{h as o,a3 as c,U as r,o as d,c as i}from"./CuiefXbU.js";const u=o({__name:"index",setup(l){const e=c(),n=r(),s=Object.keys(e.tabs);if(s.length>0){const t=s[0],a=e.tabs[t];n.push({path:`/candles/${a.id}`})}else e.addTab();return(t,a)=>(d(),i("div"))}});export{u as default};
