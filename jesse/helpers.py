@@ -134,8 +134,10 @@ def dashy_symbol(symbol: str) -> str:
         return symbol[:-3] + '-MIM'
     if symbol.endswith('TRY'):
         return symbol[:-3] + '-TRY'
-    if symbol.endswith('USD'):
-        return symbol[:-3] + '-USD'
+    if symbol.endswith('FDUSD'):
+        return symbol[:-5] + '-FDUSD'
+    if symbol.endswith('TUSD'):
+        return symbol[:-4] + '-TUSD'
     if symbol.endswith('UST'):
         return symbol[:-3] + '-UST'
     if symbol.endswith('USDT'):
@@ -148,6 +150,8 @@ def dashy_symbol(symbol: str) -> str:
         return symbol[:-4] + '-USDP'
     if symbol.endswith('USDU'):
         return symbol[:-4] + '-USDU'
+    if symbol.endswith('USD'):
+        return symbol[:-3] + '-USD'
 
     if len(symbol) > 7 and symbol.endswith('SUSDT'):
         # ex: SETHSUSDT => SETH-SUSDT
