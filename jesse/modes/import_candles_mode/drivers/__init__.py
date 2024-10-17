@@ -1,4 +1,3 @@
-from pydoc import locate
 from jesse.enums import exchanges
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceUSSpot import BinanceUSSpot
