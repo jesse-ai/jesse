@@ -393,7 +393,10 @@ def is_collecting_data() -> bool:
 
 def is_debuggable(debug_item) -> bool:
     from jesse.config import config
-    return is_debugging() and config['env']['logging'][debug_item]
+    try:
+        return is_debugging() and config['env']['logging'][debug_item]
+    except KeyError:
+        return True
 
 
 def is_debugging() -> bool:
