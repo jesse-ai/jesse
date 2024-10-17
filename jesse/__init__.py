@@ -231,9 +231,14 @@ def run() -> None:
     else:
         port = 9000
 
+    if 'APP_HOST' in ENV_VALUES:
+        host = ENV_VALUES['APP_HOST']
+    else:
+        host = "0.0.0.0"
+
     # run the main application
     process_manager.flush()
-    uvicorn.run(fastapi_app, host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
 
 
 @fastapi_app.post('/general-info')
