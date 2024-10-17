@@ -339,13 +339,13 @@ exchange_info = {
 
     exchanges_enums.GATE_USDT_PERPETUAL: {
         'name': exchanges_enums.GATE_USDT_PERPETUAL,
-        'url': 'https://www.gate.io/futures/USDT/BTC_USDT',
+        'url': 'https://jesse.trade/gate',
         'fee': 0.0005,
         'type': 'futures',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': GATE_TIMEFRAMES,
         'modes': {
-            'backtesting': True,
+            'backtesting': False,
             'live_trading': True,
         },
         'required_live_plan': 'free'
@@ -353,14 +353,14 @@ exchange_info = {
 
     exchanges_enums.GATE_SPOT: {
         'name': exchanges_enums.GATE_SPOT,
-        'url': 'https://www.gate.io/trade/BTC_USDT',
+        'url': 'https://jesse.trade/gate',
         'fee': 0.0005,
         'type': 'spot',
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': GATE_TIMEFRAMES,
         'modes': {
             'backtesting': False,
-            'live_trading': False,
+            'live_trading': True,
         },
         'required_live_plan': 'free'
     },
