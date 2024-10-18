@@ -2,7 +2,7 @@ from .Candle import Candle
 from .ClosedTrade import ClosedTrade
 from .Exchange import Exchange
 from .FuturesExchange import FuturesExchange
-from .Order import Order
+from .Order import Order, OrderModel
 from .Position import Position
 from .Route import Route
 from .SpotExchange import SpotExchange

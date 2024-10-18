@@ -27,14 +27,14 @@ def fake_order(attributes: dict = None) -> Order:
     status = order_statuses.ACTIVE
     created_at = first_timestamp
 
-    return Order({
-        "id": jh.generate_unique_id(),
-        'symbol': attributes.get('symbol', symbol),
-        'exchange': attributes.get('exchange', exchange),
-        'side': attributes.get('side', side),
-        'type': attributes.get('type', order_type),
-        'qty': attributes.get('qty', qty),
-        'price': attributes.get('price', price),
-        'status': attributes.get('status', status),
-        'created_at': attributes.get('created_at', created_at),
-    })
+    return Order(
+        id=jh.generate_unique_id(),
+        symbol=attributes.get('symbol', symbol),
+        exchange=attributes.get('exchange', exchange),
+        side=attributes.get('side', side),
+        type=attributes.get('type', order_type),
+        qty=attributes.get('qty', qty),
+        price=attributes.get('price', price),
+        status=attributes.get('status', status),
+        created_at=attributes.get('created_at', created_at),
+    )
