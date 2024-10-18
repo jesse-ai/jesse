@@ -80,6 +80,8 @@ class exchanges:
     APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
     GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
     GATE_SPOT = 'Gate Spot'
+    CRYPTO_COM_EXCHANGE_SPOT = 'CryptoDotCom Exchange Spot'
+    CRYPTO_COM_EXCHANGE_PERPETUAL_FUTURES = 'CryptoDotCom Exchange Perpetual Futures'
 
 
 class migration_actions:

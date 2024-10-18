@@ -21,6 +21,9 @@ APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINU
                        timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 GATE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1]
+CRYPTO_COM_EXCHANGE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                   timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1]
+
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -361,6 +364,34 @@ exchange_info = {
         'modes': {
             'backtesting': False,
             'live_trading': True,
+        },
+        'required_live_plan': 'free'
+    },
+
+    exchanges_enums.CRYPTO_COM_EXCHANGE_SPOT: {
+        'name': exchanges_enums.CRYPTO_COM_EXCHANGE_SPOT,
+        'url': 'https://crypto.com/exchange/trade/BTC_USD',
+        'fee': 0.00075,
+        'type': 'spot',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': CRYPTO_COM_EXCHANGE_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': False,
+        },
+        'required_live_plan': 'free'
+    },
+
+    exchanges_enums.CRYPTO_COM_EXCHANGE_PERPETUAL_FUTURES: {
+        'name': exchanges_enums.CRYPTO_COM_EXCHANGE_PERPETUAL_FUTURES,
+        'url': 'https://crypto.com/exchange/trade/BTC_USD',
+        'fee': 0.00075,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': CRYPTO_COM_EXCHANGE_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': False,
         },
         'required_live_plan': 'free'
     },

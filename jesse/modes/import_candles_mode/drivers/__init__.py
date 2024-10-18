@@ -22,6 +22,8 @@ from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
+from jesse.modes.import_candles_mode.drivers.CryptoCom.CryptoComExchangeSpot import CryptoComExchangeSpot
+from jesse.modes.import_candles_mode.drivers.CryptoCom.CryptoComExchangePerpetualFutures import CryptoComExchangePerpetualFutures
 
 
 drivers = {
@@ -41,6 +43,7 @@ drivers = {
     exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
     exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
     exchanges.GATE_SPOT: GateSpot,
+    exchanges.CRYPTO_COM_EXCHANGE_PERPETUAL_FUTURES: CryptoComExchangePerpetualFutures,
 
     # Spot
     exchanges.FTX_SPOT: FTXSpot,
@@ -49,6 +52,7 @@ drivers = {
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+    exchanges.CRYPTO_COM_EXCHANGE_SPOT: CryptoComExchangeSpot,
 
     # DEX
     exchanges.DYDX_PERPETUAL: DydxPerpetual,
