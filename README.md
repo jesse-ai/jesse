@@ -37,6 +37,7 @@ documentation is **short yet very informative**.
 - [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
 - [🛟 Help center](https://jesse.trade/help)
 - [💬 Discord community](https://jesse.trade/discord)
+- [🤖 Jesse Guru](https://gurubase.io/g/jesse)
 
 ## Screenshots
 
