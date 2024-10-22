@@ -338,7 +338,7 @@ exchange_info = {
     },
 
     exchanges_enums.APEX_OMNI_PERPETUAL: {
-        'name': exchanges_enums.APEX_PRO_PERPETUAL,
+        'name': exchanges_enums.APEX_OMNI_PERPETUAL,
         'url': 'https://omni.apex.exchange/trade/BTCUSD',
         'fee': 0.0005,
         'type': 'futures',
