@@ -20,6 +20,7 @@ from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import Bybit
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
+from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet import ApexOmniPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import ApexOmniPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
@@ -40,6 +41,7 @@ drivers = {
     exchanges.BITGET_USDT_PERPETUAL_TESTNET: BitgetUSDTPerpetualTestnet,
     exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
     exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
+    exchanges.APEX_OMNI_PERPETUAL_TESTNET: ApexOmniPerpetualTestnet,
     exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
     exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
     exchanges.GATE_SPOT: GateSpot,
