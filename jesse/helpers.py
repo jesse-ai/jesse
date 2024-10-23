@@ -12,7 +12,6 @@ from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
-import numpy
 import numpy as np
 
 CACHED_CONFIG = dict()
@@ -1024,7 +1023,7 @@ def str_or_none(item, encoding='utf-8'):
         if isinstance(item, str):
             return item
 
-        if type(item) == numpy.float64:
+        if type(item) == np.float64:
             return str(item)
 
         try:
@@ -1111,7 +1110,7 @@ def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
     We calculate percentage difference between the two prices rounded to 4 decimal places, 
     so low-priced orders can be properly compared within 0.01% range.
     """
-    return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
+    return abs(1 - (order_price / price_to_compare)) <= percentage_threshold
 
 
 def gzip_compress(data):
