@@ -345,7 +345,7 @@ exchange_info = {
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': GATE_TIMEFRAMES,
         'modes': {
-            'backtesting': False,
+            'backtesting': True,
             'live_trading': True,
         },
         'required_live_plan': 'free'
