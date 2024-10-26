@@ -320,7 +320,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'free'
     },
 
     exchanges_enums.APEX_PRO_PERPETUAL: {
@@ -348,7 +348,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': False,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'free'
     },
 
     exchanges_enums.APEX_OMNI_PERPETUAL: {
