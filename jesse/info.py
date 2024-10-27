@@ -320,12 +320,40 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'free'
     },
 
     exchanges_enums.APEX_PRO_PERPETUAL: {
         'name': exchanges_enums.APEX_PRO_PERPETUAL,
         'url': 'https://pro.apex.exchange/trade/BTCUSD',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': APEX_PRO_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+
+    exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET: {
+        'name': exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET,
+        'url': 'https://testnet.omni.apex.exchange/trade/BTCUSD',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': APEX_PRO_TIMEFRAMES,
+        'modes': {
+            'backtesting': False,
+            'live_trading': False,
+        },
+        'required_live_plan': 'free'
+    },
+
+    exchanges_enums.APEX_OMNI_PERPETUAL: {
+        'name': exchanges_enums.APEX_OMNI_PERPETUAL,
+        'url': 'https://omni.apex.exchange/trade/BTCUSD',
         'fee': 0.0005,
         'type': 'futures',
         'supported_leverage_modes': ['cross'],
@@ -345,7 +373,7 @@ exchange_info = {
         'supported_leverage_modes': ['cross', 'isolated'],
         'supported_timeframes': GATE_TIMEFRAMES,
         'modes': {
-            'backtesting': False,
+            'backtesting': True,
             'live_trading': True,
         },
         'required_live_plan': 'free'

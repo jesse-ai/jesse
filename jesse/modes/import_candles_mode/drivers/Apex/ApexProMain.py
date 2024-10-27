@@ -23,7 +23,7 @@ class ApexProMain(CandleExchange):
             'start': 1514811660
         }
 
-        response = requests.get(self.endpoint + '/v2/klines', params=payload)
+        response = requests.get(self.endpoint + '/klines', params=payload)
         self.validate_response(response)
 
         if 'data' not in response.json():
@@ -48,14 +48,14 @@ class ApexProMain(CandleExchange):
             'limit': self.count
         }
 
-        response = requests.get(self.endpoint + '/v2/klines', params=payload)
+        response = requests.get(self.endpoint + '/klines', params=payload)
         # check data exist in response.json
 
         if 'data' not in response.json():
             raise exceptions.ExchangeInMaintenance(response.json()['msg'])
         elif response.json()['data'] == {}:
             raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
-        
+
         data = response.json()['data'][dashless_symbol]
 
         return [
@@ -74,9 +74,15 @@ class ApexProMain(CandleExchange):
         ]
 
     def get_available_symbols(self) -> list:
-        response = requests.get(self.endpoint + '/v2/symbols')
+        response = requests.get(self.endpoint + '/symbols')
         self.validate_response(response)
         data = response.json()['data']
+
+        if 'usdtConfig' not in data:
+            symbols = []
+            for p in data['contractConfig']['perpetualContract']:
+                symbols.append(p['symbol'])
+            return list(sorted(symbols))
 
         usdt_pairs = []
         for p in data['usdtConfig']['perpetualContract']:
