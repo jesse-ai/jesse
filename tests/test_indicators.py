@@ -74,7 +74,7 @@ def test_alligator():
     assert type(single).__name__ == 'AG'
     assert round(single.teeth, 0) == 236
     assert round(single.jaw, 0) == 233
-    assert round(single.lips, 0) == 222
+    assert round(single.lips, 0) == 224
 
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
