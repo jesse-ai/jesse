@@ -117,7 +117,7 @@ def set_config(conf: dict) -> None:
         # exchange info (only one because the optimize mode supports only one trading route at the moment)
         config['env']['optimization']['exchange'] = conf['exchange']
         # warm_up_candles
-        config['env']['optimization']['warmup_candles_num'] = int(conf['warm_up_candles'])
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
 
     # backtest and live
     if jh.is_backtesting() or jh.is_live():
