@@ -644,7 +644,10 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     executed_order = True
 
                     order.execute()
-                    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+                    executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
+                    if len(executing_orders) > 1:
+                        # extend the candle shape from (6,) to (1,6)
+                        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
@@ -887,6 +890,9 @@ def _simulate_price_change_effect_multiple_candles(
 
         for i in range(len(short_timeframes_candles)):
             current_temp_candle = short_timeframes_candles[i].copy()
+            if i > 0:
+                current_temp_candle[3] = max(current_temp_candle[3], short_timeframes_candles[i-1, 2])
+                current_temp_candle[4] = min(current_temp_candle[4], short_timeframes_candles[i-1, 2])
             is_executed_order = False
 
             while True:
@@ -1042,13 +1048,23 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
             sorted_orders.append(included_orders[0])
         elif len(included_orders) > 1:
             # in case that the orders are above
-
-            # note: check the first is enough because I can assume all the orders in the same direction of the price,
-            # in case it doesn't than i cant really know how the price react in this 1 minute candle..
-            if short_candles[i, 3] > included_orders[0].price > short_candles[i, 1]:
-                sorted_orders += sorted(included_orders, key=lambda o: o.price)
+            is_red = short_candles[i, 1] > short_candles[i, 2]
+            above_open, on_open, below_open = [], [], []
+            open_price = short_candles[i, 1]
+            for order in included_orders:
+                if order.price == open_price:
+                    on_open.append(order)
+                if order.price > open_price:
+                    above_open.append(order)
+                else:
+                    below_open.append(order)
+            sorted_orders += on_open
+            if is_red:
+                # heuristic that first the price goes up and then down, so this is the order execution sort
+                sorted_orders += sorted(above_open, key=lambda o: o.price) + sorted(below_open, key=lambda o: o.price, reverse=True)
             else:
-                sorted_orders += sorted(included_orders, key=lambda o: o.price, reverse=True)
+                sorted_orders += sorted(below_open, key=lambda o: o.price, reverse=True) + sorted(above_open, key=lambda o: o.price)
+
         if len(sorted_orders) == len(orders):
             break
     return sorted_orders

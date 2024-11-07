@@ -12,7 +12,6 @@ from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
-import numpy
 import numpy as np
 
 CACHED_CONFIG = dict()
@@ -1024,7 +1023,7 @@ def str_or_none(item, encoding='utf-8'):
         if isinstance(item, str):
             return item
 
-        if type(item) == numpy.float64:
+        if type(item) == np.float64:
             return str(item)
 
         try:
@@ -1104,14 +1103,14 @@ def get_candle_start_timestamp_based_on_timeframe(timeframe: str, num_candles_to
     return finish_date - (num_candles_to_fetch * one_min_count * 60_000)
 
 
-def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
+def is_price_near(order_price, price_to_compare, percentage_threshold=0.00015):
     """
     Check if the given order price is near the specified price.
-    Default percentage_threshold is 0.01% (0.0001)
+    Default percentage_threshold is 0.015% (0.00015)
     We calculate percentage difference between the two prices rounded to 4 decimal places, 
-    so low-priced orders can be properly compared within 0.01% range.
+    so low-priced orders can be properly compared within 0.015% range.
     """
-    return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
+    return abs(1 - (order_price / price_to_compare)) <= percentage_threshold
 
 
 def gzip_compress(data):
