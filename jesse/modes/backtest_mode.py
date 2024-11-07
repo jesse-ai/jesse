@@ -890,6 +890,9 @@ def _simulate_price_change_effect_multiple_candles(
 
         for i in range(len(short_timeframes_candles)):
             current_temp_candle = short_timeframes_candles[i].copy()
+            if i > 0:
+                current_temp_candle[3] = max(current_temp_candle[3], short_timeframes_candles[i-1, 2])
+                current_temp_candle[4] = min(current_temp_candle[4], short_timeframes_candles[i-1, 2])
             is_executed_order = False
 
             while True:
