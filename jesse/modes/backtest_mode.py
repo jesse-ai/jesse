@@ -528,8 +528,8 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
             r.strategy = StrategyClass()
         except TypeError:
             raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
-                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(). "
+                "\nIf you need working examples, check out: https://jesse.trade/strategies"
             )
         except:
             raise

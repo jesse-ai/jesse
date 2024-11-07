@@ -17,6 +17,3 @@ class ExampleStrategy(Strategy):
     def go_short(self):
         # For futures trading only
         pass
-
-    def should_cancel_entry(self) -> bool:
-        return True

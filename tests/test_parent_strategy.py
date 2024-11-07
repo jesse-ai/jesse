@@ -867,3 +867,6 @@ def test_chart_values():
     with pytest.raises(ValueError):
         single_route_backtest('TestAddLineToExtraChart')
 
+
+def test_without_cancel_method():
+    single_route_backtest('TestWithoutCancelMethod')

@@ -556,9 +556,12 @@ class Strategy(ABC):
     def should_short(self) -> bool:
         return False
 
-    @abstractmethod
     def should_cancel_entry(self) -> bool:
-        pass
+        """
+        Whether to cancel the active  entry orders or not. By default, it will cancel the
+        entry orders when a new candle is formed and the position is still not open.
+        """
+        return True
 
     def before(self) -> None:
         """
