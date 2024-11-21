@@ -242,30 +242,24 @@ def run() -> None:
 
 
 @fastapi_app.post('/general-info')
-async def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    # Validate authorization
+def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services.general_info import get_general_info
 
     try:
-        # Get general info with proper typing
-        data: dict = await get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
-        
-        return JSONResponse(
-            content=data,
-            status_code=200
-        )
-        
+        data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
     except Exception as e:
-        # Log the error and return a more detailed error response
-        jh.error(f"Failed to get general info: {str(e)}")
+        jh.error(str(e))
         return JSONResponse({
-            'error': str(e),
-            'message': 'Failed to retrieve general information',
-            'status': 'error'
+            'error': str(e)
         }, status_code=500)
+
+    return JSONResponse(
+        data,
+        status_code=200
+    )
 
 
 @fastapi_app.post('/exchange-supported-symbols')
