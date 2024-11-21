@@ -376,7 +376,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
-        'required_live_plan': 'free'
+        'required_live_plan': 'premium'
     },
 
     exchanges_enums.GATE_SPOT: {
@@ -390,7 +390,7 @@ exchange_info = {
             'backtesting': False,
             'live_trading': True,
         },
-        'required_live_plan': 'free'
+        'required_live_plan': 'premium'
     },
 }
 

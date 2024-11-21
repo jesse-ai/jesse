@@ -468,6 +468,23 @@ def test_round_qty_for_live_mode():
     assert res == expected_result
     assert type(res) == float
 
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([102]), -2),
+        np.array([100])
+    )
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([123]), -2),
+        np.array([100])
+    )
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([163]), -2),
+        np.array([100])
+    )
+    np.testing.assert_equal(
+        jh.round_qty_for_live_mode(np.array([1263]), -2),
+        np.array([1200])
+    )
+
 
 def test_round_decimals_down():
     assert jh.round_decimals_down(100.329, 2) == 100.32
