@@ -352,9 +352,47 @@ def get_store():
 
 def get_strategy_class(strategy_name: str):
     from pydoc import locate
+    import os
+    import re
 
     if not is_unit_testing():
-        return locate(f'strategies.{strategy_name}.{strategy_name}')
+        strategy_class = locate(f'strategies.{strategy_name}.{strategy_name}')
+        if strategy_class is None:
+            # Try to find any class that inherits from Strategy in the module
+            module = locate(f'strategies.{strategy_name}')
+            if module:
+                strategy_file = os.path.join('strategies', strategy_name, '__init__.py')
+                if os.path.exists(strategy_file):
+                    with open(strategy_file, 'r') as f:
+                        content = f.read()
+                    
+                    # Find the class definition
+                    class_pattern = r'class\s+(\w+)'
+                    match = re.search(class_pattern, content)
+                    if match:
+                        old_class_name = match.group(1)
+                        if old_class_name != strategy_name:
+                            # Replace the class name in the file
+                            new_content = re.sub(f'class {old_class_name}', f'class {strategy_name}', content)
+                            with open(strategy_file, 'w') as f:
+                                f.write(new_content)
+                            
+                            # Reload the module to get the updated class
+                            import importlib
+                            module_path = f'strategies.{strategy_name}'
+                            if module_path in sys.modules:
+                                del sys.modules[module_path]
+                            strategy_class = locate(f'strategies.{strategy_name}.{strategy_name}')
+                            return strategy_class
+
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if isinstance(attr, type) and attr.__module__ == f'strategies.{strategy_name}':
+                        # Create a new class with the correct name as fallback
+                        strategy_class = type(strategy_name, (attr,), {})
+                        break
+        return strategy_class
+
     path = sys.path[0]
     # live plugin
     if path.endswith('jesse-live'):
