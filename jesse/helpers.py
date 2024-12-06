@@ -545,7 +545,7 @@ def now(force_fresh=False) -> int:
     """
     Always returns the current time in milliseconds but rounds time in matter of seconds
     """
-    return now_to_timestamp(force_fresh)
+    return int(now_to_timestamp(force_fresh))
 
 
 def now_to_timestamp(force_fresh=False) -> int:
@@ -1038,6 +1038,22 @@ def dump(*item):
     print(
         color('====================================\n', 'yellow')
     )
+
+
+def debug(*item):
+    """
+    Used for debugging when developing Jesse. Prints the item in pretty format in both
+    the terminal and the log file.
+    """
+    if len(item) == 1:
+        dump(f"==> {item[0]}")
+    else:
+        dump(f"==> {', '.join(str(x) for x in item)}")
+    from jesse.services import logger
+    if len(item) == 1:
+        logger.info(f"==> {item[0]}")
+    else:
+        logger.info(f"==> {', '.join(str(x) for x in item)}")
 
 
 def float_or_none(item):
