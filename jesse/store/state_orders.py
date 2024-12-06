@@ -105,6 +105,10 @@ class OrdersState:
         if use_exchange_id:
             return fnc.find(lambda o: o.exchange_id == id, self.storage[key])
 
+        # make sure id (client_id) is not and empty string
+        if id == '':
+            return None
+
         return fnc.find(lambda o: id in o.id, reversed(self.storage[key]))
 
     def get_entry_orders(self, exchange: str, symbol: str) -> List[Order]:
