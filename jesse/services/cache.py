@@ -57,7 +57,16 @@ class Cache:
 
         # if expired, remove file, and database record
         if item['expire_at'] is not None and time() > item['expire_at']:
-            os.remove(item['path'])
+            try:
+                os.remove(item['path'])
+            except FileNotFoundError:
+                pass
+            del self.db[key]
+            self._update_db()
+            return False
+
+        # If the cache file doesn't exist, remove the database record
+        if not os.path.exists(item['path']):
             del self.db[key]
             self._update_db()
             return False
@@ -70,8 +79,15 @@ class Cache:
         try:
             with open(item['path'], 'rb') as f:
                 cache_value = pickle.load(f)
-        except (EOFError, pickle.UnpicklingError):
-            cache_value = False
+        except (EOFError, pickle.UnpicklingError, FileNotFoundError):
+            # If there's any error reading the file, remove the record and return False
+            try:
+                os.remove(item['path'])
+            except FileNotFoundError:
+                pass
+            del self.db[key]
+            self._update_db()
+            return False
 
         return cache_value
 
@@ -84,12 +100,19 @@ class Cache:
         if self.driver is None:
             return
 
-        for key, item in self.db.items():
+        # Create a list of keys to remove to avoid modifying dict during iteration
+        keys_to_remove = list(self.db.keys())
+        
+        for key in keys_to_remove:
+            item = self.db[key]
             try:
                 os.remove(item['path'])
             except FileNotFoundError:
                 pass
-        self.db = {}
+            del self.db[key]
+        
+        # Update the database file after clearing
+        self._update_db()
 
 
 cache = Cache("storage/temp/")
