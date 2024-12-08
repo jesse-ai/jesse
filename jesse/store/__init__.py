@@ -17,14 +17,6 @@ from .state_trades import TradesState
 def install_routes() -> None:
     considering_candles = set()
 
-    # when importing market data, considering_candles is all we need
-    if jh.is_collecting_data():
-        for r in router.market_data:
-            considering_candles.add((r.exchange, r.symbol))
-
-        config['app']['considering_candles'] = tuple(considering_candles)
-        return
-
     # validate routes for duplicates:
     # each exchange-symbol pair can be traded only once.
     for r in router.routes:

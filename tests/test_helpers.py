@@ -11,7 +11,7 @@ def test_app_currency():
     from jesse.routes import router
     from jesse.enums import exchanges, timeframes
     router.initiate(
-        [{'exchange': exchanges.BITFINEX_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
+        [{'exchange': exchanges.BINANCE_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'
 
 
@@ -244,10 +244,6 @@ def test_insert_list():
 
 def test_is_backtesting():
     assert jh.is_backtesting() is True
-
-
-def test_is_collecting_data():
-    assert jh.is_collecting_data() is False
 
 
 def test_is_debuggable():

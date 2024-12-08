@@ -45,10 +45,7 @@ class TradesState:
                 len(sell_arr)
             ])
 
-            if jh.is_collecting_data():
-                store_trade_into_db(exchange, symbol, generated)
-            else:
-                self.storage[key].append(generated)
+            self.storage[key].append(generated)
 
             self.temp_storage[key].flush()
         self.temp_storage[key].append(trade)

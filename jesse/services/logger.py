@@ -17,8 +17,6 @@ def _init_main_logger():
 
     if jh.is_live():
         filename = f'storage/logs/live-mode/{session_id}.txt'
-    elif jh.is_collecting_data():
-        filename = f'storage/logs/collect-mode/{session_id}.txt'
     elif jh.is_optimizing():
         filename = f'storage/logs/optimize-mode/{session_id}.txt'
     elif jh.is_backtesting():
@@ -71,7 +69,7 @@ def info(msg: str, send_notification=False, webhook=None) -> None:
 
     store.logs.info.append(log_dict)
 
-    if jh.is_collecting_data() or jh.is_live():
+    if jh.is_live():
         sync_publish('info_log', log_dict)
 
     if jh.is_live() or (jh.is_backtesting() and jh.is_debugging()):
@@ -106,7 +104,7 @@ def error(msg: str, send_notification=True) -> None:
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True) and send_notification:
         notify(f'ERROR:\n{msg}')
-    if (jh.is_backtesting() and jh.is_debugging()) or jh.is_collecting_data() or jh.is_live():
+    if (jh.is_backtesting() and jh.is_debugging()) or jh.is_live():
         sync_publish('error_log', log_dict)
 
     store.logs.errors.append(log_dict)

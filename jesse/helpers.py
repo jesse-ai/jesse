@@ -423,11 +423,6 @@ def is_backtesting() -> bool:
     return config['app']['trading_mode'] == 'backtest'
 
 
-def is_collecting_data() -> bool:
-    from jesse.config import config
-    return config['app']['trading_mode'] == 'collect'
-
-
 def is_debuggable(debug_item) -> bool:
     from jesse.config import config
     try:
@@ -549,7 +544,7 @@ def now(force_fresh=False) -> int:
 
 
 def now_to_timestamp(force_fresh=False) -> int:
-    if not force_fresh and (not (is_live() or is_collecting_data() or is_importing_candles())):
+    if not force_fresh and (not (is_live() or is_importing_candles())):
         from jesse.store import store
         return store.app.time
 

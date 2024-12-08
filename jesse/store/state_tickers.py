@@ -25,10 +25,6 @@ class TickersState:
         if len(self.storage[key][:]) == 0 or jh.now_to_timestamp() - self.storage[key][-1][0] >= 1000:
             self.storage[key].append(ticker)
 
-            if jh.is_collecting_data():
-                store_ticker_into_db(exchange, symbol, ticker)
-                return
-
     def get_tickers(self, exchange: str, symbol: str) -> List[Ticker]:
         key = jh.key(exchange, symbol)
         return self.storage[key][:]

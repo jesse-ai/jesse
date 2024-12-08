@@ -107,13 +107,6 @@ class CandlesState:
             with_generation: bool = True,
             with_skip: bool = True
     ) -> None:
-        if jh.is_collecting_data():
-            raise NotImplemented("Collecting data is deactivated at the moment")
-            # make sure it's a complete (and not a forming) candle
-            # if jh.now_to_timestamp() >= (candle[0] + 60000):
-            #     store_candle_into_db(exchange, symbol, candle)
-            # return
-
         # overwrite with_generation based on the config value for live sessions
         if jh.is_live() and not jh.get_config('env.data.generate_candles_from_1m'):
             with_generation = False

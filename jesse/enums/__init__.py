@@ -68,14 +68,6 @@ class exchanges:
     BYBIT_USDC_PERPETUAL_TESTNET = 'Bybit USDC Perpetual Testnet'
     BYBIT_SPOT = 'Bybit Spot'
     BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
-    FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
-    FTX_SPOT = 'FTX Spot'
-    FTX_US_SPOT = 'FTX US Spot'
-    BITGET_SPOT = 'Bitget Spot'
-    BITGET_USDT_PERPETUAL = 'Bitget USDT Perpetual'
-    BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
-    DYDX_PERPETUAL = "Dydx Perpetual"
-    DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
     APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
     APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
     APEX_OMNI_PERPETUAL_TESTNET = 'Apex Omni Perpetual Testnet'
