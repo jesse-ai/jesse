@@ -7,6 +7,8 @@ from jesse.services.redis import sync_publish, sync_redis
 from jesse.services.failure import terminate_session
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
+import os
+import signal
 
 # set multiprocessing process type to spawn
 mp.set_start_method('spawn', force=True)
@@ -95,18 +97,36 @@ class ProcessManager:
 
     def flush(self):
         for w in self._workers:
-            w.terminate()
-            w.join()
-            w.close()
+            try:
+                # Try terminate first
+                w.terminate()
+                # Give it a moment to terminate gracefully
+                w.join(timeout=3)
+                
+                # If still alive, wait a brief moment then force kill
+                if w.is_alive():
+                    time.sleep(0.5)  # Give terminate a chance to complete
+                    os.kill(w.pid, signal.SIGKILL)
+                    
+                w.close()
+            except Exception as e:
+                jh.debug(f"Error while terminating process: {str(e)}")
+                
         self._reset()
 
     def _cleanup_finished_workers(self):
         while True:
-            for w in self._workers:
-                if not w.is_alive():
-                    w.join()
-                    w.close()
-                    self._workers.remove(w)
+            try:
+                for w in self._workers[:]:  # Create a copy of the list to avoid modification during iteration
+                    if not w.is_alive():
+                        try:
+                            w.join(timeout=1)
+                            w.close()
+                            self._workers.remove(w)
+                        except Exception as e:
+                            jh.debug(f"Error during worker cleanup: {str(e)}")
+            except Exception as e:
+                jh.debug(f"Error in cleanup thread: {str(e)}")
             time.sleep(5)
 
     @property
