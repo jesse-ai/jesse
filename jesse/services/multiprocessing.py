@@ -43,7 +43,12 @@ class ProcessManager:
         self._workers: List[Process] = []
         self._pid_to_client_id_map = {}
         self.client_id_to_pid_to_map = {}
-        self._active_workers_key = f"{ENV_VALUES['APP_PORT']}|active-processes"
+        try:
+            port = ENV_VALUES.get('APP_PORT', '9000')
+        except:
+            port = '9000'
+            
+        self._active_workers_key = f"{port}|active-processes"
         self._cleanup_thread = threading.Thread(target=self._cleanup_finished_workers, daemon=True)
         self._cleanup_thread.start()
 
