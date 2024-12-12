@@ -70,7 +70,4 @@ def is_process_active(client_id: str) -> bool:
     if jh.is_unit_testing():
         return False
 
-    # print them for debugging
-    from jesse.services.multiprocessing import process_manager
-
     return sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)
