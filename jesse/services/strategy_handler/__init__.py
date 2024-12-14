@@ -12,7 +12,7 @@ def generate(name: str) -> JSONResponse:
         return JSONResponse({
             'status': 'error',
             'message': f'Strategy "{name}" already exists.'
-        }, status_code=400)
+        }, status_code=409)
 
     # generate from ExampleStrategy
     dirname, filename = os.path.split(os.path.abspath(__file__))
