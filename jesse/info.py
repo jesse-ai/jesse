@@ -42,7 +42,7 @@ exchange_info = {
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": BYBIT_TIMEFRAMES,
         "modes": {
-            "backtesting": True,
+            "backtesting": False,
             "live_trading": True,
         },
         "required_live_plan": "premium",
@@ -72,7 +72,7 @@ exchange_info = {
         "supported_timeframes": BYBIT_TIMEFRAMES,
         "settlement_currency": "USDC",
         "modes": {
-            "backtesting": True,
+            "backtesting": False,
             "live_trading": True,
         },
         "required_live_plan": "premium",
@@ -100,7 +100,7 @@ exchange_info = {
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": BYBIT_TIMEFRAMES,
         "modes": {
-            "backtesting": True,
+            "backtesting": False,
             "live_trading": True,
         },
         "required_live_plan": "premium",
@@ -180,7 +180,7 @@ exchange_info = {
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": BINANCE_TIMEFRAMES,
         "modes": {
-            "backtesting": True,
+            "backtesting": False,
             "live_trading": True,
         },
         "required_live_plan": "premium",
