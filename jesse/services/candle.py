@@ -257,22 +257,19 @@ def _get_candles_from_db(
         key = jh.key(exchange, symbol)
         cache_key = f"{start_date_timestamp}-{finish_date_timestamp}-{key}"
         cached_value = cache.get_value(cache_key)
-    else:
-        cached_value = None
+        if cached_value:
+            return np.array(cached_value)
 
-    # if cache exists use cache_value
-    if cached_value:
-        candles_tuple = cached_value
-    else:
-        candles_tuple = Candle.select(
-            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-            Candle.volume
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol,
-            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-            Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
-        ).order_by(Candle.timestamp.asc()).tuples()
+    # Always materialize the database results immediately
+    candles_tuple = list(Candle.select(
+        Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+        Candle.volume
+    ).where(
+        Candle.exchange == exchange,
+        Candle.symbol == symbol,
+        Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+        Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
+    ).order_by(Candle.timestamp.asc()).tuples())
 
     # validate the dates
     if start_date_timestamp == finish_date_timestamp:
@@ -284,7 +281,7 @@ def _get_candles_from_db(
 
     if caching:
         # cache for 1 week it for near future calls
-        cache.set_value(cache_key, tuple(candles_tuple), expire_seconds=60 * 60 * 24 * 7)
+        cache.set_value(cache_key, candles_tuple, expire_seconds=60 * 60 * 24 * 7)
 
     return np.array(candles_tuple)
 
