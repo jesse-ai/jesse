@@ -4,6 +4,9 @@ from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
 from jesse import exceptions
 from .gate_utils import timeframe_to_interval
+import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class GateUSDTMain(CandleExchange):
@@ -12,6 +15,15 @@ class GateUSDTMain(CandleExchange):
         self.name = name
         self.limit = 2000
         self.endpoint = rest_endpoint
+        
+        # Setup session with retries
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504]
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
     def get_starting_time(self, symbol: str) -> int:
         symbol = jh.dashy_to_underline(symbol)
@@ -45,8 +57,23 @@ class GateUSDTMain(CandleExchange):
             'to': int(end_timestamp / 1000),
         }
 
-        response = requests.get(f"{self.endpoint}/usdt/candlesticks", params=payload)
-        self.validate_response(response)
+        max_retries = 3
+        retry_delay = 5  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(
+                    f"{self.endpoint}/usdt/candlesticks", 
+                    params=payload, 
+                    timeout=30
+                )
+                self.validate_response(response)
+                break
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
 
         if response.json() == []:
             raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')

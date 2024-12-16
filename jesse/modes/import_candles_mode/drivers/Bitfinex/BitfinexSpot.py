@@ -1,4 +1,6 @@
 import requests
+import time
+from requests.exceptions import ConnectionError, RequestException
 
 import jesse.helpers as jh
 from jesse import exceptions
@@ -17,6 +19,21 @@ class BitfinexSpot(CandleExchange):
         )
 
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
+        self.max_retries = 5
+        self.base_delay = 3  # Base delay in seconds
+
+    def _make_request(self, url: str, params: dict = None) -> requests.Response:
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.get(url, params=params)
+                return response
+            except (ConnectionError, RequestException) as e:
+                if attempt == self.max_retries - 1:  # Last attempt
+                    raise e
+                
+                # Exponential backoff with jitter
+                delay = (self.base_delay * 2 ** attempt) + (jh.random_uniform(0, 1))
+                time.sleep(delay)
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -32,7 +49,7 @@ class BitfinexSpot(CandleExchange):
             'limit': 5000,
         }
 
-        response = requests.get(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
+        response = self._make_request(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
 
         self.validate_response(response)
 
@@ -64,7 +81,7 @@ class BitfinexSpot(CandleExchange):
 
         dashless_symbol = jh.dashless_symbol(symbol)
 
-        response = requests.get(
+        response = self._make_request(
             f"{self.endpoint}/trade:{interval}:t{dashless_symbol}/hist",
             params=payload
         )
@@ -86,7 +103,7 @@ class BitfinexSpot(CandleExchange):
         } for d in data]
 
     def get_available_symbols(self) -> list:
-        response = requests.get('https://api-pub.bitfinex.com/v2/conf/pub:list:pair:exchange')
+        response = self._make_request('https://api-pub.bitfinex.com/v2/conf/pub:list:pair:exchange')
         self.validate_response(response)
         data = response.json()[0]
         arr = []
