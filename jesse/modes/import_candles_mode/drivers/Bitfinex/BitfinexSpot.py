@@ -58,7 +58,7 @@ class BitfinexSpot(CandleExchange):
         # wrong symbol entered
         if not len(data):
             raise exceptions.SymbolNotFound(
-                f"No candle exists for {symbol} in Bitfinex. You're probably misspelling the symbol name."
+                f"No candle exists for {symbol} in Bitfinex."
             )
 
         # since the first timestamp doesn't include all the 1m
