@@ -80,6 +80,11 @@ def run(
     loop_length = int(candles_count / driver.count) + 1
 
     progressbar = Progressbar(loop_length, step=2)
+    frontend_update_counter = 0
+    frontend_update_threshold = 100  # Only notify frontend after this many updates when skipping existing candles
+    skipped_minutes = 0
+    imported_minutes = 0
+    
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
@@ -97,7 +102,10 @@ def run(
         ).count()
         already_exists = count == driver.count
 
-        if not already_exists:
+        if already_exists:
+            skipped_minutes += driver.count
+        else:
+            imported_minutes += driver.count
             # it's today's candles if temp_end_timestamp < now
             if temp_end_timestamp > jh.now_to_timestamp():
                 temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
@@ -153,21 +161,41 @@ def run(
 
         if i % 2 == 0:
             progressbar.update()
-        if running_via_dashboard:
-            sync_publish('progressbar', {
-                'current': progressbar.current,
-                'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-            })
-        elif show_progressbar:
-            jh.clear_output()
-            print(
-                f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+            
+            # For existing candles, throttle frontend updates
+            if already_exists:
+                frontend_update_counter += 1
+                if frontend_update_counter >= frontend_update_threshold:
+                    frontend_update_counter = 0
+                    if running_via_dashboard:
+                        sync_publish('progressbar', {
+                            'current': progressbar.current,
+                            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+                        })
+            # For new candles being fetched, update frontend normally
+            else:
+                if running_via_dashboard:
+                    sync_publish('progressbar', {
+                        'current': progressbar.current,
+                        'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+                    })
+            
+            if show_progressbar:
+                jh.clear_output()
+                print(
+                    f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
             time.sleep(driver.sleep_time)
 
-    success_text = f'Successfully imported candles for {symbol} from {exchange} since {jh.timestamp_to_date(start_timestamp)} until today ({days_count} days). '
+    skipped_days = round(skipped_minutes / 1440, 1)
+    imported_days = round(imported_minutes / 1440, 1)
+    
+    success_text = (
+        f'Successfully imported candles for "{symbol}" from "{exchange}" since "{jh.timestamp_to_date(start_timestamp)}" until today '
+        f'({imported_days} days imported, {skipped_days} days already existed in the database). '
+    )
 
     # stop the status_checker time loop
     if running_via_dashboard:
