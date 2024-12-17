@@ -541,18 +541,6 @@ def delete_strategy(
     return strategy_handler.delete_strategy(json_request.name)
 
 
-# def download_optimization_log(token: str = Query(...)):
-#     """
-#     Optimization logs don't have have session ID
-#     """
-#     if not authenticator.is_valid_token(token):
-#         return authenticator.unauthorized_response()
-#
-#     from jesse.modes import data_provider
-#
-#     return data_provider.download_file('optimize', 'log')
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Plugin Endpoints
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #

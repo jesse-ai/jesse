@@ -193,7 +193,7 @@ def run(
     imported_days = round(imported_minutes / 1440, 1)
     
     success_text = (
-        f'Successfully imported candles for "{symbol}" from "{exchange}" since "{jh.timestamp_to_date(start_timestamp)}" until today '
+        f'Successfully imported candles since "{jh.timestamp_to_date(start_timestamp)}" until today '
         f'({imported_days} days imported, {skipped_days} days already existed in the database). '
     )
 
