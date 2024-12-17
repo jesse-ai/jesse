@@ -168,3 +168,8 @@ class ReportExceptionRequestJson(BaseModel):
     attach_logs: bool
     session_id: Optional[str] = None
     email: Optional[str] = None
+
+
+class DeleteCandlesRequestJson(BaseModel):
+    exchange: str
+    symbol: str

@@ -16,7 +16,8 @@ from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRe
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
     ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
     DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
-    ExchangeSupportedSymbolsRequestJson, SaveStrategyRequestJson, GetStrategyRequestJson, DeleteStrategyRequestJson
+    ExchangeSupportedSymbolsRequestJson, SaveStrategyRequestJson, GetStrategyRequestJson, DeleteStrategyRequestJson, \
+    DeleteCandlesRequestJson
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -630,6 +631,32 @@ if HAS_LIVE_TRADE_PLUGIN:
             'id': json_request.id,
             'data': arr
         }, status_code=200)
+
+@fastapi_app.post("/existing-candles")
+def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services.candle import get_existing_candles
+    
+    try:
+        data = get_existing_candles()
+        return JSONResponse({'data': data}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+@fastapi_app.post("/delete-candles")
+def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services.candle import delete_candles
+    
+    try:
+        delete_candles(json_request.exchange, json_request.symbol)
+        return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")

@@ -4,6 +4,8 @@ import arrow
 from jesse.exceptions import CandleNotFoundInDatabase
 import jesse.helpers as jh
 from jesse.services import logger
+from jesse.models import Candle
+from typing import List, Dict
 
 
 def generate_candle_from_one_minutes(
@@ -302,3 +304,55 @@ def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
             )
 
     return np.array(generated_candles)
+
+
+def get_existing_candles() -> List[Dict]:
+    """
+    Returns a list of all existing candles grouped by exchange and symbol
+    """
+    results = []
+    
+    # Get unique exchange-symbol combinations
+    pairs = Candle.select(
+        Candle.exchange, 
+        Candle.symbol
+    ).distinct().tuples()
+
+    for exchange, symbol in pairs:
+        # Get first and last candle for this pair
+        first = Candle.select(
+            Candle.timestamp
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol
+        ).order_by(
+            Candle.timestamp.asc()
+        ).first()
+
+        last = Candle.select(
+            Candle.timestamp
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol
+        ).order_by(
+            Candle.timestamp.desc()
+        ).first()
+
+        if first and last:
+            results.append({
+                'exchange': exchange,
+                'symbol': symbol,
+                'start_date': arrow.get(first.timestamp / 1000).format('YYYY-MM-DD'),
+                'end_date': arrow.get(last.timestamp / 1000).format('YYYY-MM-DD')
+            })
+
+    return results
+
+def delete_candles(exchange: str, symbol: str) -> None:
+    """
+    Deletes all candles for the given exchange and symbol
+    """
+    Candle.delete().where(
+        Candle.exchange == exchange,
+        Candle.symbol == symbol
+    ).execute()
