@@ -98,3 +98,7 @@ class ExchangeError(Exception):
 
 class NotSupportedError(Exception):
     pass
+
+
+class CandlesNotFound(Exception):
+    pass

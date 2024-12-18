@@ -117,11 +117,26 @@ def _execute_backtest(
 
     # load historical candles
     if candles is None:
-        warmup_candles, candles = load_candles(
-            jh.date_to_timestamp(start_date),
-            jh.date_to_timestamp(finish_date)
-        )
-        _handle_warmup_candles(warmup_candles)
+        try:
+            warmup_candles, candles = load_candles(
+                jh.date_to_timestamp(start_date),
+                jh.date_to_timestamp(finish_date)
+            )
+            _handle_warmup_candles(warmup_candles, start_date)
+        except exceptions.CandlesNotFound as e:
+            # Extract symbol and exchange from error message
+            match = re.search(r"for (.*?) on (.*?)$", str(e))
+            if match:
+                symbol, exchange = match.groups()
+                jh.debug(f"Missing candles for {symbol} on {exchange} from {start_date}")
+                raise exceptions.CandlesNotFound({
+                    'message': str(e),
+                    'symbol': symbol,
+                    'exchange': exchange,
+                    'start_date': start_date,
+                    'type': 'missing_candles'
+                })
+            raise e
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -353,10 +368,38 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     return warmup_candles, trading_candles
 
 
-def _handle_warmup_candles(warmup_candles: dict) -> None:
-    for c in config['app']['considering_candles']:
-        exchange, symbol = c[0], c[1]
-        inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
+    try:
+        for c in config['app']['considering_candles']:
+            exchange, symbol = c[0], c[1]
+            inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+    except ValueError as e:
+        # Extract exchange and symbol from error message
+        match = re.search(r"for (.*?)/(.*?)\?", str(e))
+        if match:
+            exchange, symbol = match.groups()
+            
+            # Calculate warmup start date using the same logic as load_candles()
+            warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+            max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
+            # Convert max_timeframe to minutes and multiply by warmup_num
+            warmup_minutes = jh.timeframe_to_one_minutes(max_timeframe) * warmup_num
+            warmup_start_timestamp = jh.date_to_timestamp(start_date) - (warmup_minutes * 60_000)
+            warmup_start_date = jh.timestamp_to_date(warmup_start_timestamp)
+            # Publish the missing candles error to the frontend
+            # This will trigger the alert in the BacktestTab.vue component
+            # so that the user can import the missing candles
+            sync_publish(
+                "missing_candles",
+                {
+                    "message": f'Missing warmup candles for {symbol} on {exchange} from {warmup_start_date}',
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "start_date": warmup_start_date,
+                },
+            )
+            raise exceptions.CandlesNotFound(str(e))
+        raise e
 
 
 def simulator(*args, fast_mode: bool = False, **kwargs) -> dict:
