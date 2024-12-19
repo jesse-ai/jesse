@@ -138,9 +138,9 @@ def set_config(conf: dict) -> None:
             }
             if config['env']['exchanges'][e['name']]['type'] == 'futures':
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
-                config['env']['exchanges'][e['name']]['futures_leverage'] = int(e['futures_leverage'])
+                config['env']['exchanges'][e['name']]['futures_leverage'] = int(e.get('futures_leverage', 1))
                 # accepted values are: 'cross' and 'isolated'
-                config['env']['exchanges'][e['name']]['futures_leverage_mode'] = e['futures_leverage_mode']
+                config['env']['exchanges'][e['name']]['futures_leverage_mode'] = e.get('futures_leverage_mode', 'cross')
 
     # live mode only
     if jh.is_live():
