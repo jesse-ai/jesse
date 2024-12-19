@@ -1339,12 +1339,18 @@ class Strategy(ABC):
 
         # in spot mode, self.balance does not include open order's value, so:
         if self.is_spot_trading:
+            # Add value of active entry orders
+            entry_orders_value = 0
             for o in self.entry_orders:
                 if o.is_active:
-                    total_position_values += o.value
+                    entry_orders_value += o.value
 
+            # Add value of all positions
+            positions_value = 0
             for key, p in self.all_positions.items():
-                total_position_values += p.value
+                positions_value += p.value
+
+            total_position_values = entry_orders_value + positions_value
 
         # in futures mode, it's simpler:
         elif self.is_futures_trading:

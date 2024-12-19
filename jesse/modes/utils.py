@@ -26,18 +26,22 @@ def save_daily_portfolio_balance(is_initial=False) -> None:
         e, = store.exchanges.storage.values()
     except ValueError:
         raise ValueError('Multiple exchange support is not supported at the moment')
+    
     if e.type == 'futures':
-        total_balances += e.assets[jh.app_currency()]
-
-    for key, pos in store.positions.storage.items():
-        if pos.exchange_type == 'futures' and pos.is_open:
-            total_balances += pos.pnl
-        elif pos.exchange_type == 'spot':
-            total_balances += pos.strategy.portfolio_value
+        # For futures, add wallet balance and sum of all PNLs
+        total_balances = e.assets[jh.app_currency()]
+        for key, pos in store.positions.storage.items():
+            if pos.is_open:
+                total_balances += pos.pnl
+    else:
+        # For spot, just get portfolio_value from any strategy (they all share the same wallet)
+        # Get the first strategy we can find
+        for key, pos in store.positions.storage.items():
+            total_balances = pos.strategy.portfolio_value
+            break
 
     store.app.daily_balance.append(total_balances)
 
-    # TEMP: disable storing in database for now
     if not jh.is_livetrading():
         logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')
 
