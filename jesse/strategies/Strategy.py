@@ -793,7 +793,7 @@ class Strategy(ABC):
 
             should_short = self.should_short()
             # validate that should_short is not True if the exchange_type is spot
-            if self.exchange_type == 'spot' and should_short is True:
+            if self.exchange_type == 'spot' and should_short:
                 raise exceptions.InvalidStrategy(
                     'should_short cannot be True if the exchange type is "spot".'
                 )
@@ -963,7 +963,7 @@ class Strategy(ABC):
         Handles the execution permission for the strategy.
         """
         # make sure we don't execute this strategy more than once at the same time.
-        if self._is_executing is True:
+        if self._is_executing:
             return
 
         self._is_executing = True
