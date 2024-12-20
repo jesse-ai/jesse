@@ -128,7 +128,6 @@ def _execute_backtest(
             match = re.search(r"for (.*?) on (.*?)$", str(e))
             if match:
                 symbol, exchange = match.groups()
-                jh.debug(f"Missing candles for {symbol} on {exchange} from {start_date}")
                 raise exceptions.CandlesNotFound({
                     'message': str(e),
                     'symbol': symbol,

@@ -56,8 +56,8 @@ class SpotExchange(Exchange):
                 )
         # sell order
         else:
-            # sell order's qty cannot be bigger than the amount of existing base asset
             base_balance = self.assets[base_asset]
+            # sell order's qty cannot be bigger than the amount of existing base asset
             if order.type == order_types.MARKET:
                 order_qty = sum_floats(abs(order.qty), self.limit_orders_sum.get(order.symbol, 0))
             elif order.type == order_types.STOP:
@@ -90,10 +90,19 @@ class SpotExchange(Exchange):
             self.assets[base_asset] = sum_floats(self.assets[base_asset], abs(order.qty) * (1 - self.fee_rate))
         # sell order
         else:
+            current_balance = self.assets[base_asset]
+            if abs(order.qty) > current_balance:
+                adjusted_qty = current_balance
+                order_qty = abs(adjusted_qty)
+            else:
+                order_qty = abs(order.qty)
+
             # settlement currency's balance is increased by the amount of the order's qty after fees are deducted
-            self.assets[self.settlement_currency] = sum_floats(self.assets[self.settlement_currency], (abs(order.qty) * order.price) * (1 - self.fee_rate))
+            self.assets[self.settlement_currency] = sum_floats(
+                self.assets[self.settlement_currency], (order_qty * order.price) * (1 - self.fee_rate)
+            )
             # now reduce base asset's balance by the amount of the order's qty
-            self.assets[base_asset] = subtract_floats(self.assets[base_asset], abs(order.qty))
+            self.assets[base_asset] = subtract_floats(self.assets[base_asset], order_qty)
 
     def on_order_cancellation(self, order: Order) -> None:
         if jh.is_livetrading():
@@ -112,7 +121,11 @@ class SpotExchange(Exchange):
             self.assets[self.settlement_currency] = sum_floats(self.assets[self.settlement_currency], abs(order.qty) * order.price)
         # sell order
         else:
-            self.assets[base_asset] = sum_floats(self.assets[base_asset], abs(order.qty))
+            if order.type == order_types.STOP:
+                self.stop_orders_sum[order.symbol] = subtract_floats(self.stop_orders_sum[order.symbol], abs(order.qty))
+            elif order.type == order_types.LIMIT:
+                self.limit_orders_sum[order.symbol] = subtract_floats(self.limit_orders_sum[order.symbol], abs(order.qty))
+
 
     def update_from_stream(self, data: dict) -> None:
         """

@@ -870,3 +870,7 @@ def test_chart_values():
 
 def test_without_cancel_method():
     single_route_backtest('TestWithoutCancelMethod')
+
+
+def test_proper_balance_handling_in_spot_after_order_cancellation():
+    single_route_backtest('TestProperBalanceHanldingInSpotAfterOrderCancellation', is_futures_trading=False, trend='down')

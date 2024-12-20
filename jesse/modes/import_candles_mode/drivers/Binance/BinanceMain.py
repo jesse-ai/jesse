@@ -43,7 +43,6 @@ class BinanceMain(CandleExchange):
                 return response
             except (requests.exceptions.ConnectionError, OSError) as e:
                 if "Cannot allocate memory" in str(e):
-                    jh.debug(f"Memory allocation error, attempt {attempt + 1}/{max_retries}")
                     # Force garbage collection and wait
                     import gc
                     gc.collect()
