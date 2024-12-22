@@ -30,21 +30,12 @@ def _init_main_logger():
     LOGGERS[jh.app_mode()] = new_logger
 
 
-def create_disposable_logger(name):
-    log_file = f"storage/logs/{name}.txt"
-    os.makedirs('storage/logs', exist_ok=True)
-    new_logger = logging.getLogger(name)
-    new_logger.setLevel(logging.INFO)
-    new_logger.addHandler(logging.FileHandler(log_file, mode='w'))
-    LOGGERS[name] = new_logger
-
-
 def create_logger_file(name):
+    """Creates a logger file that appends to existing logs"""
     log_file = f"storage/logs/{name}.txt"
-    os.makedirs('storage/logs', exist_ok=True)
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
     new_logger = logging.getLogger(name)
     new_logger.setLevel(logging.INFO)
-    # should add to the end of file
     new_logger.addHandler(logging.FileHandler(log_file, mode='a'))
     LOGGERS[name] = new_logger
 
@@ -127,10 +118,19 @@ def log_exchange_message(exchange, message):
     formatted_time = jh.timestamp_to_time(jh.now())[:19]
     message = f'[{formatted_time} - {exchange}]: ' + message
 
-    if 'exchange-streams' not in LOGGERS:
-        create_disposable_logger('exchange-streams')
+    session_id = jh.get_session_id()
+    logger_name = f'live-mode/{session_id}-raw-exchange-logs'
 
-    LOGGERS['exchange-streams'].info(message)
+    if logger_name not in LOGGERS:
+        # Create the logger with write mode to clear previous session's logs
+        log_file = f"storage/logs/{logger_name}.txt"
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        new_logger = logging.getLogger(logger_name)
+        new_logger.setLevel(logging.INFO)
+        new_logger.addHandler(logging.FileHandler(log_file, mode='w'))
+        LOGGERS[logger_name] = new_logger
+
+    LOGGERS[logger_name].info(message)
 
 
 def log_optimize_mode(message):
