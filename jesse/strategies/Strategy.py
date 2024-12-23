@@ -69,6 +69,9 @@ class Strategy(ABC):
         self._cached_methods = {}
         self._cached_metrics = {}
 
+        # Add cached price
+        self._cached_price = None
+
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
         if not isinstance(value, (int, float)):
@@ -967,12 +970,17 @@ class Strategy(ABC):
             return
 
         self._is_executing = True
-
+        
+        # Cache the current price at the start of execution
+        self._cached_price = self.close
+        
         self.before()
         self._check()
         self.after()
         self._clear_cached_methods()
 
+        # Clear the cached price
+        self._cached_price = None
         self._is_executing = False
         self.index += 1
 
@@ -1070,10 +1078,15 @@ class Strategy(ABC):
     def price(self) -> float:
         """
         Same as self.close, except in livetrade, this is rounded as the exchanges require it.
+        During strategy execution cycles, returns cached price to ensure consistency.
 
         Returns:
             [float] -- the current trading candle's current(close) price
         """
+        # Return cached price if we're executing
+        if self._is_executing and self._cached_price is not None:
+            return self._cached_price
+            
         return self.close
 
     @property
