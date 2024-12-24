@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "jesse.fullname" . }}
+  labels:
+    {{- include "jesse.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "jesse.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "jesse.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "jesse.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: git-clone
+          image: alpine/git:latest
+          command:
+            - sh
+            - -c
+            - |
+              git clone https://github.com/jesse-ai/project-template.git /home
+          volumeMounts:
+            - name: home-volume
+              mountPath: /home
+        - name: wait-for-dependencies
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+                echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+              until nc -z ${REDIS_HOST} ${REDIS_PORT}; do
+                echo "Waiting for Redis at ${REDIS_HOST}:${REDIS_PORT}..."
+                sleep 2
+              done
+              echo "Redis is ready."
+          env:
+            - name: POSTGRES_HOST
+              value: {{ .Values.postgresql.fullnameOverride }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgresql.containerPorts.postgresql | quote }}
+            - name: REDIS_HOST
+              value: {{ .Values.redis.fullnameOverride }}-master
+            - name: REDIS_PORT
+              value: {{ .Values.redis.master.containerPorts.redis | quote }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - jesse install-live --no-strict && jesse run
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "jesse.fullname" . }}-config
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: home-volume
+              mountPath: /home
+            - name: env-volume
+              mountPath: /home/.env
+              subPath: .env
+          {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: env-volume
+          secret:
+            secretName: {{ include "jesse.fullname" . }}-config
+        - name: home-volume
+          emptyDir: {}
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
