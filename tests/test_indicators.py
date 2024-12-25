@@ -2395,3 +2395,20 @@ def test_hull_suit():
     assert result.s_hull == 243.7078927712581
     assert result.m_hull == 230.5660333608274
     assert result.signal == 'sell'
+
+
+def test_volume():
+    candles = np.array(fake_test_candles, dtype=np.float64)
+    single = ta.volume(candles, period=5)
+    seq = ta.volume(candles, period=5, sequential=True)
+
+    assert type(single).__name__ == 'Volume'
+    assert round(single.volume, 0) == 22
+    assert round(single.ma, 0) == 20
+
+    assert seq.volume[-1] == single.volume
+    assert seq.ma[-1] == single.ma
+    assert len(seq.volume) == len(candles)
+    assert len(seq.ma) == len(candles)
+
+

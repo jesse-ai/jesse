@@ -181,3 +181,4 @@ from .ttm_squeeze import ttm_squeeze
 from .support_resistance_with_break import support_resistance_with_breaks
 from .squeeze_momentum import squeeze_momentum
 from .hull_suit import hull_suit
+from .volume import volume
