@@ -142,7 +142,7 @@ def run(
                     if running_via_dashboard:
                         sync_publish('alert', {
                             'message': msg,
-                            'type': 'success'
+                            'type': 'info'
                         })
                     else:
                         print(msg)
