@@ -1,0 +1,1 @@
+import{h as n,W as r,b5 as c,o as i,c as p}from"./Dg-Ek6CB.js";const _=n({__name:"index",setup(u){const a=r(),e=c(),t=Object.keys(e.tabs);if(t.length>0){const s=t[0],o=e.tabs[s];a.push({path:`/live/${o.id}`})}else e.addTab();return(s,o)=>(i(),p("div"))}});export{_ as default};
