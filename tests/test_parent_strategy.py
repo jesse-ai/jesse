@@ -712,7 +712,7 @@ def test_positions():
 
 
 def test_portfolio_value():
-    set_up()
+    set_up(leverage=2)
 
     routes = [
         {'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': 'TestPortfolioValue'},

@@ -1,15 +1,17 @@
 from jesse.strategies import Strategy
 from jesse import utils
 
-
 class TestPortfolioValue(Strategy):
     def before(self):
         if self.index == 0:
             # starting capital
+            assert self.leverage == 2
             assert self.portfolio_value == 10_000
 
         if self.index == 10:
-            assert round(self.portfolio_value) == round((self.balance + self.all_positions['ETH-USDT'].pnl + self.all_positions['BTC-USDT'].pnl) * self.leverage)
+            assert round(self.portfolio_value) == round(
+                ((self.all_positions['ETH-USDT'].pnl + self.all_positions['BTC-USDT'].pnl) * self.leverage) + self.balance
+            )
 
     def should_long(self) -> bool:
         return self.index == 0 and self.symbol == 'ETH-USDT'

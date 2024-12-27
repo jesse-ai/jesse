@@ -1370,7 +1370,7 @@ class Strategy(ABC):
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
-        return (total_position_values + self.balance) * self.leverage
+        return (total_position_values * self.leverage) + self.balance
 
     @property
     def trades(self) -> List[ClosedTrade]:
