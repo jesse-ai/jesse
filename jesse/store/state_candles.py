@@ -346,8 +346,8 @@ class CandlesState:
         # complete candle
         if dif == 0 or self.storage[long_key][:long_count][-1][0] == self.storage[short_key][short_count - dif][0]:
             return self.storage[long_key][:long_count]
-        # generate forming
-        else:
+        # generate forming candle only if NOT in live mode
+        elif not jh.is_live():
             return np.concatenate(
                 (
                     self.storage[long_key][:long_count],
@@ -362,6 +362,9 @@ class CandlesState:
                     )
                 ), axis=0
             )
+        # in live mode, just return the complete candles
+        else:
+            return self.storage[long_key][:long_count]
 
     def get_current_candle(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         # no need to worry for forming candles when timeframe == 1m
