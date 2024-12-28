@@ -8,6 +8,8 @@ image:
   pullPolicy: IfNotPresent
   # -- image.tag overrides the image tag whose default is the chart appVersion.
   tag: ""
+  # -- image.command overrides the default command to run in the jesse container.
+  command: ""
 
 # -- imagePullSecrets is for the secretes for pulling an image from a private repository more information can be found [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
 imagePullSecrets: []

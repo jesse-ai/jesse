@@ -148,4 +148,4 @@ testing-*.py
 /storage/logs/*
 
 # Helm chart dependencies
-charts/**.tgz
+charts/**/*.tgz

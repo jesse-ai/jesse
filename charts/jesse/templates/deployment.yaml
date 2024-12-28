@@ -73,8 +73,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
-          args:
-            - jesse run
+          args: 
+            - {{ .Values.image.command | default "jesse install-live --no-strict && jesse run" }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

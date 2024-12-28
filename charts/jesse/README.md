@@ -1,6 +1,6 @@
 # jesse
 
-![Version: 0.0.1](https://img.shields.io/badge/Version-0.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.4.0](https://img.shields.io/badge/AppVersion-1.4.0-informational?style=flat-square)
+![Version: 0.0.1](https://img.shields.io/badge/Version-0.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: latest](https://img.shields.io/badge/AppVersion-latest-informational?style=flat-square)
 
 A Helm chart for Jesse trade bot
 
@@ -36,6 +36,7 @@ A Helm chart for Jesse trade bot
 | autoscaling.targetCPUUtilizationPercentage | int | `80` | autoscaling.targetCPUUtilizationPercentage sets CPU threshold that triggers the autoscaling. |
 | config | string | `"PASSWORD=test\nAPP_PORT=9000\n\nPOSTGRES_HOST=postgresql\nPOSTGRES_NAME=jesse_db\nPOSTGRES_PORT=5432\nPOSTGRES_USERNAME=jesse_user\nPOSTGRES_PASSWORD=pg-password\n\nREDIS_HOST=redis-master\nREDIS_PORT=6379\nREDIS_PASSWORD=redis-password\n\nLICENSE_API_TOKEN=<MY_TOKEN>"` | config contains all the configuration variables for Jesse, more information can be found [here](https://docs.jesse.trade/docs/configuration#environment-variables). |
 | fullnameOverride | string | `""` | fullnameOverride is to fully override the chart name. |
+| image.command | string | `""` | image.command overrides the default command to run in the jesse container. |
 | image.pullPolicy | string | `"IfNotPresent"` | image.pullPolicy sets the pull policy for images. |
 | image.repository | string | `"salehmir/jesse"` | image.repository sets the container image more information can be found [here](https://kubernetes.io/docs/concepts/containers/images/). |
 | image.tag | string | `""` | image.tag overrides the image tag whose default is the chart appVersion. |

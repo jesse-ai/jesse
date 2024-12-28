@@ -19,7 +19,7 @@ maintainers:
     url: https://jesse.trade/
 icon: https://jesse.trade/_nuxt/w-01.BBPhGRey.png
 version: 0.0.1
-appVersion: "1.4.0"
+appVersion: "latest"
 dependencies:
   - name: postgresql
     version: "16.3.3"
