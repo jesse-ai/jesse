@@ -859,39 +859,6 @@ def _print_error(msg: str) -> None:
     print(color('====================================', 'red'))
 
 
-@lru_cache
-def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
-
-    dic = {
-        timeframes.MINUTE_1: 1,
-        timeframes.MINUTE_3: 3,
-        timeframes.MINUTE_5: 5,
-        timeframes.MINUTE_15: 15,
-        timeframes.MINUTE_30: 30,
-        timeframes.MINUTE_45: 45,
-        timeframes.HOUR_1: 60,
-        timeframes.HOUR_2: 60 * 2,
-        timeframes.HOUR_3: 60 * 3,
-        timeframes.HOUR_4: 60 * 4,
-        timeframes.HOUR_6: 60 * 6,
-        timeframes.HOUR_8: 60 * 8,
-        timeframes.HOUR_12: 60 * 12,
-        timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
-        timeframes.MONTH_1: 60 * 24 * 30,
-    }
-
-    try:
-        return dic[timeframe]
-    except KeyError:
-        all_timeframes = [timeframe for timeframe in class_iter(timeframes)]
-        raise InvalidTimeframe(
-            f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.')
-
-
 def timestamp_to_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return arrow.get(timestamp / 1000)
 

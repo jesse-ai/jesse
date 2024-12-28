@@ -180,3 +180,18 @@ def test_wavelet_denoising():
     candles = np.array(test_candles_19)
     denoised = utils.wavelet_denoising(candles[:, 2], wavelet="sym4", level=1, mode='symmetric', smoothing_factor=2)
     assert len(candles) == len(denoised)
+
+
+def test_timeframe_to_one_minutes():
+    assert utils.timeframe_to_one_minutes("1m") == 1
+    assert utils.timeframe_to_one_minutes("3m") == 3
+    assert utils.timeframe_to_one_minutes("5m") == 5
+    assert utils.timeframe_to_one_minutes("15m") == 15
+    assert utils.timeframe_to_one_minutes("30m") == 30
+    assert utils.timeframe_to_one_minutes("1h") == 60
+    assert utils.timeframe_to_one_minutes("2h") == 60 * 2
+    assert utils.timeframe_to_one_minutes("3h") == 60 * 3
+    assert utils.timeframe_to_one_minutes("4h") == 60 * 4
+    assert utils.timeframe_to_one_minutes("6h") == 60 * 6
+    assert utils.timeframe_to_one_minutes("8h") == 60 * 8
+    assert utils.timeframe_to_one_minutes("1D") == 60 * 24

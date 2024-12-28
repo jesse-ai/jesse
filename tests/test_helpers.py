@@ -521,21 +521,6 @@ def test_terminate_app():
     pass
 
 
-def test_timeframe_to_one_minutes():
-    assert jh.timeframe_to_one_minutes('1m') == 1
-    assert jh.timeframe_to_one_minutes('3m') == 3
-    assert jh.timeframe_to_one_minutes('5m') == 5
-    assert jh.timeframe_to_one_minutes('15m') == 15
-    assert jh.timeframe_to_one_minutes('30m') == 30
-    assert jh.timeframe_to_one_minutes('1h') == 60
-    assert jh.timeframe_to_one_minutes('2h') == 60 * 2
-    assert jh.timeframe_to_one_minutes('3h') == 60 * 3
-    assert jh.timeframe_to_one_minutes('4h') == 60 * 4
-    assert jh.timeframe_to_one_minutes('6h') == 60 * 6
-    assert jh.timeframe_to_one_minutes('8h') == 60 * 8
-    assert jh.timeframe_to_one_minutes('1D') == 60 * 24
-
-
 def test_timestamp_to_arrow():
     arrow_time = arrow.get('2015-08-01')
     assert jh.timestamp_to_arrow(1438387200000) == arrow_time
