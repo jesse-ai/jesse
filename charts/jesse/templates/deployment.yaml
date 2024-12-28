@@ -74,7 +74,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
-            - jesse install-live --no-strict && jesse run
+            - jesse run
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
