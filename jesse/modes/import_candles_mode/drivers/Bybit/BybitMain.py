@@ -1,4 +1,6 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
@@ -14,6 +16,16 @@ class BybitMain(CandleExchange):
         self.name = name
         self.endpoint = rest_endpoint
         self.category = category
+        
+        # Setup session with retry strategy
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[408, 429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "POST"]
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries, pool_maxsize=100))
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
@@ -25,12 +37,11 @@ class BybitMain(CandleExchange):
             'start': 1514811660000
         }
 
-        response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
+        response = self.session.get(self.endpoint + '/v5/market/kline', params=payload, timeout=10)
         self.validate_response(response)
         data = response.json()['result']['list']
         # Reverse the data list
         data = data[::-1]
-
         return int(data[1][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
@@ -44,7 +55,7 @@ class BybitMain(CandleExchange):
             'limit': self.count
         }
 
-        response = requests.get(self.endpoint + '/v5/market/kline', params=payload)
+        response = self.session.get(self.endpoint + '/v5/market/kline', params=payload, timeout=10)
         
         if response.json()['retMsg'] != 'OK':
             raise exceptions.SymbolNotFound(response.json()['retMsg'])
@@ -68,8 +79,7 @@ class BybitMain(CandleExchange):
         ]
 
     def get_available_symbols(self) -> list:
-        response = requests.get(self.endpoint + '/v5/market/instruments-info?category=' + self.category)
+        response = self.session.get(self.endpoint + '/v5/market/instruments-info?category=' + self.category, timeout=10)
         self.validate_response(response)
         data = response.json()['result']['list']
-
         return [jh.dashy_symbol(d['symbol']) for d in data]
