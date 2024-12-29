@@ -1134,3 +1134,8 @@ def gzip_compress(data):
     json_data = json.dumps(data).encode('utf-8')
     # Compress the JSON string
     return gzip.compress(json_data)
+
+
+def timeframe_to_one_minutes(timeframe: str) -> int:
+    from jesse.utils import timeframe_to_one_minutes
+    return timeframe_to_one_minutes(timeframe)
