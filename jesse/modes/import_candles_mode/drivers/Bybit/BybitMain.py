@@ -16,7 +16,7 @@ class BybitMain(CandleExchange):
         self.name = name
         self.endpoint = rest_endpoint
         self.category = category
-        
+
         # Setup session with retry strategy
         self.session = requests.Session()
         retries = Retry(
@@ -56,7 +56,7 @@ class BybitMain(CandleExchange):
         }
 
         response = self.session.get(self.endpoint + '/v5/market/kline', params=payload, timeout=10)
-        
+
         if response.json()['retMsg'] != 'OK':
             raise exceptions.SymbolNotFound(response.json()['retMsg'])
         data = response.json()['result']['list']
@@ -79,7 +79,7 @@ class BybitMain(CandleExchange):
         ]
 
     def get_available_symbols(self) -> list:
-        response = self.session.get(self.endpoint + '/v5/market/instruments-info?category=' + self.category, timeout=10)
+        response = self.session.get(self.endpoint + '/v5/market/instruments-info?limit=1000&category=' + self.category, timeout=10)
         self.validate_response(response)
         data = response.json()['result']['list']
         return [jh.dashy_symbol(d['symbol']) for d in data]
