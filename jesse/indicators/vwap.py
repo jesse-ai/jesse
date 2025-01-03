@@ -1,9 +1,6 @@
 from typing import Union
-
 import numpy as np
 from numba import njit
-from numpy_groupies import aggregate_nb as aggregate
-
 from jesse.helpers import get_candle_source, slice_candles
 
 
@@ -21,14 +18,44 @@ def vwap(
     :return: float | np.ndarray
     """
     candles = slice_candles(candles, sequential)
-
     source = get_candle_source(candles, source_type=source_type)
-
-    group_idx = candles[:, 0].astype('datetime64[ms]').astype(f'datetime64[{anchor}]').astype('int')
-    vwap_values = aggregate(group_idx, candles[:, 5] * source, func='cumsum')
-    vwap_values /= aggregate(group_idx, candles[:, 5], func='cumsum')
+    
+    # Convert timestamps to period indices
+    timestamps = candles[:, 0].astype('datetime64[ms]').astype(f'datetime64[{anchor}]')
+    group_indices = np.zeros(len(timestamps), dtype=np.int64)
+    
+    # Mark the start of each new period
+    group_indices[1:] = (timestamps[1:] != timestamps[:-1]).astype(np.int64)
+    group_indices = np.cumsum(group_indices)
+    
+    vwap_values = _calculate_vwap(source, candles[:, 5], group_indices)
 
     if sequential:
         return vwap_values
     else:
         return None if np.isnan(vwap_values[-1]) else vwap_values[-1]
+
+
+@njit
+def _calculate_vwap(source: np.ndarray, volume: np.ndarray, group_indices: np.ndarray) -> np.ndarray:
+    """
+    Calculate VWAP values using Numba for optimization
+    """
+    vwap_values = np.zeros_like(source)
+    cum_vol = 0.0
+    cum_vol_price = 0.0
+    current_group = group_indices[0]
+    
+    for i in range(len(source)):
+        if group_indices[i] != current_group:
+            cum_vol = 0.0
+            cum_vol_price = 0.0
+            current_group = group_indices[i]
+            
+        vol_price = volume[i] * source[i]
+        cum_vol_price += vol_price
+        cum_vol += volume[i]
+        
+        vwap_values[i] = cum_vol_price / cum_vol if cum_vol != 0 else np.nan
+        
+    return vwap_values
