@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
-from typing import Any, List, Union
+from datetime import datetime
+from typing import List
 
 import numpy as np
 import pandas as pd
-from quantstats import stats
 
 import jesse.helpers as jh
 from jesse.models import ClosedTrade
@@ -49,6 +48,210 @@ def routes(routes_arr: list) -> list:
             'timeframe': r.timeframe,
             'strategy_name': r.strategy_name,
         } for r in routes_arr]
+
+
+def _prepare_returns(returns, rf=0.0, periods=252):
+    """
+    Helper function to prepare returns data by converting to pandas Series and 
+    adjusting for risk-free rate if provided
+    """
+    if rf != 0:
+        returns = returns - (rf / periods)
+    
+    if isinstance(returns, pd.DataFrame):
+        returns = returns[returns.columns[0]]
+        
+    return returns
+
+def sharpe_ratio(returns, rf=0.0, periods=365, annualize=True, smart=False):
+    """
+    Calculates the sharpe ratio of access returns
+    """
+    returns = _prepare_returns(returns, rf, periods)
+    divisor = returns.std(ddof=1)
+    
+    if smart:
+        divisor = divisor * autocorr_penalty(returns)
+        
+    res = returns.mean() / divisor
+    
+    if annualize:
+        res = res * np.sqrt(1 if periods is None else periods)
+    
+    # Always convert to pandas Series    
+    return pd.Series([res])
+
+
+def sortino_ratio(returns, rf=0, periods=365, annualize=True, smart=False):
+    """
+    Calculates the sortino ratio of access returns
+    """
+    returns = _prepare_returns(returns, rf, periods)
+    
+    downside = np.sqrt((returns[returns < 0] ** 2).sum() / len(returns))
+    
+    # Handle division by zero
+    if downside == 0:
+        res = np.inf if returns.mean() > 0 else -np.inf
+    else:
+        if smart:
+            downside = downside * autocorr_penalty(returns)
+            
+        res = returns.mean() / downside
+        
+        if annualize:
+            res = res * np.sqrt(1 if periods is None else periods)
+    
+    # Always convert to pandas Series
+    return pd.Series([res])
+
+
+def autocorr_penalty(returns):
+    """
+    Calculates the autocorrelation penalty for returns
+    """
+    num = len(returns)
+    coef = np.abs(np.corrcoef(returns[:-1], returns[1:])[0, 1])
+    corr = [((num - x) / num) * coef**x for x in range(1, num)]
+    return np.sqrt(1 + 2 * np.sum(corr))
+
+
+def calmar_ratio(returns):
+    """
+    Calculates the calmar ratio (CAGR% / MaxDD%)
+    """
+    # Get daily returns
+    returns = _prepare_returns(returns)
+    
+    # Calculate CAGR exactly as in cagr() function
+    first_value = 1
+    last_value = (1 + returns).prod()
+    days = (returns.index[-1] - returns.index[0]).days
+    years = float(days) / 365
+    
+    if years == 0:
+        return pd.Series([0.0])
+        
+    cagr_ratio = (last_value / first_value) ** (1 / years) - 1
+    
+    # Calculate Max Drawdown using cumulative returns
+    cum_returns = (1 + returns).cumprod()
+    rolling_max = cum_returns.expanding(min_periods=1).max()
+    drawdown = cum_returns / rolling_max - 1
+    max_dd = abs(drawdown.min())
+    
+    # Calculate Calmar
+    result = cagr_ratio / max_dd if max_dd != 0 else 0
+    
+    # Always convert to pandas Series
+    return pd.Series([result])
+
+
+def max_drawdown(returns):
+    """
+    Calculates the maximum drawdown
+    """
+    prices = (returns + 1).cumprod()
+    result = (prices / prices.expanding(min_periods=0).max()).min() - 1
+    
+    # Always convert to pandas Series
+    return pd.Series([result])
+
+
+def cagr(returns, rf=0.0, compounded=True, periods=365):
+    """
+    Calculates the communicative annualized growth return (CAGR%)
+    """
+    returns = _prepare_returns(returns, rf)
+    
+    # Get first and last values of cumulative returns
+    first_value = 1
+    last_value = (1 + returns).prod()
+    
+    # Calculate years exactly as quantstats does
+    days = (returns.index[-1] - returns.index[0]).days
+    years = float(days) / 365
+    
+    # Handle edge case
+    if years == 0:
+        return pd.Series([0.0])
+        
+    # Calculate CAGR using quantstats formula
+    result = (last_value / first_value) ** (1 / years) - 1
+    
+    return pd.Series([result])
+
+
+def omega_ratio(returns, rf=0.0, required_return=0.0, periods=365):
+    """
+    Determines the Omega ratio of a strategy
+    """
+    returns = _prepare_returns(returns, rf, periods)
+    
+    if periods == 1:
+        return_threshold = required_return
+    else:
+        return_threshold = (1 + required_return) ** (1.0 / periods) - 1
+        
+    returns_less_thresh = returns - return_threshold
+    numer = returns_less_thresh[returns_less_thresh > 0.0].sum()
+    denom = -1.0 * returns_less_thresh[returns_less_thresh < 0.0].sum()
+    
+    result = numer / denom if denom > 0.0 else np.nan
+    
+    # Always convert to pandas Series
+    return pd.Series([result])
+
+
+def serenity_index(returns, rf=0):
+    """
+    Calculates the serenity index score
+    """
+    dd = to_drawdown_series(returns)
+    pitfall = -conditional_value_at_risk(dd) / returns.std()
+    result = (returns.sum() - rf) / (ulcer_index(returns) * pitfall)
+    
+    # Always convert to pandas Series
+    return pd.Series([result])
+
+
+def ulcer_index(returns):
+    """
+    Calculates the ulcer index score (downside risk measurement)
+    """
+    dd = to_drawdown_series(returns)
+    return np.sqrt(np.divide((dd**2).sum(), returns.shape[0] - 1))
+
+
+def to_drawdown_series(returns):
+    """
+    Convert returns series to drawdown series
+    """
+    prices = (1 + returns).cumprod()
+    dd = prices / np.maximum.accumulate(prices) - 1.0
+    return dd.replace([np.inf, -np.inf, -0], 0)
+
+
+def conditional_value_at_risk(returns, sigma=1, confidence=0.95):
+    """
+    Calculates the conditional daily value-at-risk (aka expected shortfall)
+    """
+    if len(returns) < 2:
+        return 0
+        
+    returns = _prepare_returns(returns)
+    # Sort returns from worst to best
+    sorted_returns = np.sort(returns)
+    # Find the index based on confidence level
+    index = int((1 - confidence) * len(sorted_returns))
+    
+    # Handle empty slice warning
+    if index == 0:
+        return sorted_returns[0] if len(sorted_returns) > 0 else 0
+        
+    # Calculate CVaR as the mean of worst losses
+    c_var = sorted_returns[:index].mean()
+    return c_var if ~np.isnan(c_var) else 0
 
 
 def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
@@ -117,72 +320,65 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
+    # Helper function to safely convert values
+    def safe_convert(value, convert_type=float):
+        try:
+            if isinstance(value, pd.Series):
+                value = value.iloc[0]
+            if np.isnan(value):
+                return np.nan
+            return convert_type(value)
+        except:
+            return np.nan
 
-    max_drawdown = np.nan
-    annual_return = np.nan
-    sharpe_ratio = np.nan
-    calmar_ratio = np.nan
-    sortino_ratio = np.nan
-    omega_ratio = np.nan
-    serenity_index = np.nan
-    smart_sharpe = np.nan
-    smart_sortino = np.nan
-
-    if len(daily_return) > 2:
-        max_drawdown = stats.max_drawdown(daily_return).values[0] * 100
-        annual_return = stats.cagr(daily_return).values[0] * 100
-        sharpe_ratio = stats.sharpe(daily_return, periods=365).values[0]
-        calmar_ratio = stats.calmar(daily_return).values[0]
-        sortino_ratio = stats.sortino(daily_return, periods=365).values[0]
-        omega_ratio = stats.omega(daily_return, periods=365)
-        serenity_index = stats.serenity_index(daily_return).values[0]
-        # As those calculations are slow they are only done for the final report and not at self.metrics in the strategy.
-        if final:
-            smart_sharpe = stats.smart_sharpe(daily_return, periods=365).values[0]
-            smart_sortino = stats.smart_sortino(daily_return, periods=365).values[0]
+    # Calculate metrics using 365 days for crypto markets
+    max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
+    annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
+    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
+    calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
+    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
+    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
+    serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
 
     return {
-        'total': np.nan if np.isnan(total_completed) else total_completed,
-        'total_winning_trades': np.nan if np.isnan(total_winning_trades) else total_winning_trades,
-        'total_losing_trades': np.nan if np.isnan(total_losing_trades) else total_losing_trades,
-        'starting_balance': np.nan if np.isnan(starting_balance) else starting_balance,
-        'finishing_balance': np.nan if np.isnan(current_balance) else current_balance,
-        'win_rate': np.nan if np.isnan(win_rate) else win_rate,
-        'ratio_avg_win_loss': np.nan if np.isnan(ratio_avg_win_loss) else ratio_avg_win_loss,
-        'longs_count': np.nan if np.isnan(longs_count) else longs_count,
-        'longs_percentage': np.nan if np.isnan(longs_percentage) else longs_percentage,
-        'shorts_percentage': np.nan if np.isnan(shorts_percentage) else shorts_percentage,
-        'shorts_count': np.nan if np.isnan(shorts_count) else shorts_count,
-        'fee': np.nan if np.isnan(fee) else fee,
-        'net_profit': np.nan if np.isnan(net_profit) else net_profit,
-        'net_profit_percentage': np.nan if np.isnan(net_profit_percentage) else net_profit_percentage,
-        'average_win': np.nan if np.isnan(average_win) else average_win,
-        'average_loss': np.nan if np.isnan(average_loss) else average_loss,
-        'expectancy': np.nan if np.isnan(expectancy) else expectancy,
-        'expectancy_percentage': np.nan if np.isnan(expectancy_percentage) else expectancy_percentage,
-        'expected_net_profit_every_100_trades': np.nan if np.isnan(
-            expected_net_profit_every_100_trades) else expected_net_profit_every_100_trades,
-        'average_holding_period': average_holding_period,
-        'average_winning_holding_period': average_winning_holding_period,
-        'average_losing_holding_period': average_losing_holding_period,
-        'gross_profit': gross_profit,
-        'gross_loss': gross_loss,
-        'max_drawdown': np.nan if np.isnan(max_drawdown) else max_drawdown,
-        'annual_return': np.nan if np.isnan(annual_return) else annual_return,
-        'sharpe_ratio': np.nan if np.isnan(sharpe_ratio) else sharpe_ratio,
-        'calmar_ratio': np.nan if np.isnan(calmar_ratio) else calmar_ratio,
-        'sortino_ratio': np.nan if np.isnan(sortino_ratio) else sortino_ratio,
-        'omega_ratio': np.nan if np.isnan(omega_ratio) else omega_ratio,
-        'serenity_index': np.nan if np.isnan(serenity_index) else serenity_index,
-        'smart_sharpe': np.nan if np.isnan(smart_sharpe) else smart_sharpe,
-        'smart_sortino': np.nan if np.isnan(smart_sortino) else smart_sortino,
-        'total_open_trades': total_open_trades,
-        'open_pl': open_pl,
-        'winning_streak': winning_streak,
-        'losing_streak': losing_streak,
-        'largest_losing_trade': largest_losing_trade,
-        'largest_winning_trade': largest_winning_trade,
-        'current_streak': current_streak[-1],
+        'total': safe_convert(total_completed, int),
+        'total_winning_trades': safe_convert(total_winning_trades, int),
+        'total_losing_trades': safe_convert(total_losing_trades, int),
+        'starting_balance': safe_convert(starting_balance),
+        'finishing_balance': safe_convert(current_balance),
+        'win_rate': safe_convert(win_rate),
+        'ratio_avg_win_loss': safe_convert(ratio_avg_win_loss),
+        'longs_count': safe_convert(longs_count, int),
+        'longs_percentage': safe_convert(longs_percentage),
+        'shorts_percentage': safe_convert(shorts_percentage),
+        'shorts_count': safe_convert(shorts_count, int),
+        'fee': safe_convert(fee),
+        'net_profit': safe_convert(net_profit),
+        'net_profit_percentage': safe_convert(net_profit_percentage),
+        'average_win': safe_convert(average_win),
+        'average_loss': safe_convert(average_loss),
+        'expectancy': safe_convert(expectancy),
+        'expectancy_percentage': safe_convert(expectancy_percentage),
+        'expected_net_profit_every_100_trades': safe_convert(expected_net_profit_every_100_trades),
+        'average_holding_period': safe_convert(average_holding_period),
+        'average_winning_holding_period': safe_convert(average_winning_holding_period),
+        'average_losing_holding_period': safe_convert(average_losing_holding_period),
+        'gross_profit': safe_convert(gross_profit),
+        'gross_loss': safe_convert(gross_loss),
+        'max_drawdown': safe_convert(max_dd),
+        'annual_return': safe_convert(annual_return),
+        'sharpe_ratio': safe_convert(sharpe),
+        'calmar_ratio': safe_convert(calmar),
+        'sortino_ratio': safe_convert(sortino),
+        'omega_ratio': safe_convert(omega),
+        'serenity_index': safe_convert(serenity),
+        'total_open_trades': safe_convert(total_open_trades, int),
+        'open_pl': safe_convert(open_pl),
+        'winning_streak': safe_convert(winning_streak, int),
+        'losing_streak': safe_convert(losing_streak, int),
+        'largest_losing_trade': safe_convert(largest_losing_trade),
+        'largest_winning_trade': safe_convert(largest_winning_trade),
+        'current_streak': safe_convert(current_streak[-1], int),
     }
 
 
