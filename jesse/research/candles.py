@@ -66,15 +66,6 @@ def store_candles(candles: np.ndarray, exchange: str, symbol: str) -> None:
         store_candles_from_list(arr)
 
 
-def candlestick_chart(candles: np.ndarray):
-    """
-    Displays a candlestick chart from the numpy array
-    """
-    import mplfinance as mpf
-    df = utils.numpy_candles_to_dataframe(candles)
-    mpf.plot(df, type='candle')
-
-
 def fake_candle(attributes: dict = None, reset: bool = False) -> np.ndarray:
     """
     Generates a fake candle.

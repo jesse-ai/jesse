@@ -304,15 +304,15 @@ def _generate_quantstats_report(candles_dict: dict) -> str:
         return None
 
     price_data = []
-    timestamps = []
+    timestamps = None
     # load close candles for Buy and hold and calculate pct_change
     for index, c in enumerate(config['app']['considering_candles']):
         exchange, symbol = c[0], c[1]
         if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
             candles = candles_dict[jh.key(exchange, symbol)]['candles']
 
-            # if timestamps is empty, fill it with the first candles timestamps because it's the same for all candles
-            if timestamps == []:
+            # if timestamps is None, initialize it with the first candles timestamps
+            if timestamps is None:
                 timestamps = candles[:, 0]
             price_data.append(candles[:, 1])
 

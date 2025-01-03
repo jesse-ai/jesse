@@ -1,11 +1,4 @@
-import os
 from datetime import datetime, timedelta
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-from pandas.plotting import register_matplotlib_converters
-import jesse.helpers as jh
-from jesse.config import config
 from jesse.routes import router
 from jesse.store import store
 from jesse.services.candle import get_candles
