@@ -4,7 +4,7 @@ click~=8.0.3
 matplotlib~=3.10.0
 mplfinance~=0.12.8b6
 newtulipy~=0.4.6
-numpy~=1.24.3
+numpy~=1.26.4
 pandas~=2.0.3
 peewee~=3.14.8
 psycopg2-binary~=2.9.9
@@ -12,7 +12,7 @@ pydash~=6.0.0
 fnc~=0.5.3
 pytest~=6.2.5
 PyWavelets~=1.2.0
-quantstats==0.0.47
+quantstats~=0.0.64
 requests~=2.32.0
 scipy~=1.15.0
 statsmodels~=0.14.4
