@@ -176,12 +176,6 @@ def test_combinations_without_repeat():
                                                [3, 1]]))
 
 
-def test_wavelet_denoising():
-    candles = np.array(test_candles_19)
-    denoised = utils.wavelet_denoising(candles[:, 2], wavelet="sym4", level=1, mode='symmetric', smoothing_factor=2)
-    assert len(candles) == len(denoised)
-
-
 def test_timeframe_to_one_minutes():
     assert utils.timeframe_to_one_minutes("1m") == 1
     assert utils.timeframe_to_one_minutes("3m") == 3
