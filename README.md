@@ -18,38 +18,34 @@ Algo-trading was 😵‍💫, we made it 🤩
 
 ---
 
-Jesse is an advanced crypto trading framework that aims to **simplify** **researching** and defining **YOUR OWN trading strategies**.
+Jesse is an advanced crypto trading framework that aims to **simplify** **researching** and defining **YOUR OWN trading strategies** for backtesting, optimizing, and live trading.
+
+## What is Jesse?
+[![Jesse Overview](https://img.youtube.com/vi/0EqN3OOqeJM/0.jpg)](https://www.youtube.com/watch?v=0EqN3OOqeJM)
 
 ## Why Jesse?
 In short, Jesse is more **accurate** than other solutions, and way more **simple**. 
 In fact, it is so simple that in case you already know Python, you can get started today, in **matter of minutes**, instead of **weeks and months**. 
 
-**[Here](https://docs.jesse.trade)** you can read more about Jesse's features and why you should use it. 
+## Key Features
 
-## Getting Started
-Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
-documentation is **short yet very informative**. 
+- 📝 **Simple Syntax**: Define both simple and advanced trading strategies with the simplest syntax in the fastest time.
+- 📊 **Comprehensive Indicator Library**: Access a complete library of technical indicators with easy-to-use syntax.
+- 📈 **Smart Ordering**: Supports market, limit, and stop orders, automatically choosing the best one for you.
+- ⏰ **Multiple Timeframes and Symbols**: Backtest and livetrade multiple timeframes and symbols simultaneously without look-ahead bias.
+- 🔒 **Self-Hosted and Privacy-First**: Designed with your privacy in mind, fully self-hosted to ensure your trading strategies and data remain secure.
+- 🛡️ **Risk Management**: Built-in helper functions for robust risk management.
+- 📋 **Metrics System**: A comprehensive metrics system to evaluate your trading strategy's performance.
+- 🔍 **Debug Mode**: Observe your strategy in action with a detailed debug mode.
+- 🔧 **Optimize Mode**: Fine-tune your strategies using AI, without needing a technical background.
+- 📈 **Leveraged and Short-Selling**: First-class support for leveraged trading and short-selling.
+- 🔀 **Partial Fills**: Supports entering and exiting positions in multiple orders, allowing for greater flexibility.
+- 🔔 **Advanced Alerts**: Create real-time alerts within your strategies for effective monitoring.
+- 🤖 **JesseGPT**: Jesse has its own GPT, JesseGPT, that can help you write strategies, optimize them, debug them, and much more.
+- 🔧 **Built-in Code Editor**: Write, edit, and debug your strategies with a built-in code editor.
+- 📺 **Youtube Channel**: Jesse has a Youtube channel with screencast tutorials that go through example strategies step by step.
 
-## Resources
-
-- [⚡️ Website](https://jesse.trade)
-- [🎓 Documentation](https://docs.jesse.trade)
-- [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
-- [🛟 Help center](https://jesse.trade/help)
-- [💬 Discord community](https://jesse.trade/discord)
-- [🤖 Jesse Guru](https://gurubase.io/g/jesse)
-
-## Screenshots
-
-Check out Jesse's [Youtube channel](https://jesse.trade/youtube) for tutorials that go through example strategies step by step. 
-
-Here are a few screenshots just to get you excited:
-
-**Backtest results:**
-
-![image](assets/screenshots/quantstats.png)
-
-**Example strategy code:**
+## Example Strategy
 
 ```py
 class SMACrossover(Strategy):
@@ -93,44 +89,22 @@ class SMACrossover(Strategy):
             self.liquidate()
 ```
 
-**Live trading (requires [live plugin](https://docs.jesse.trade/docs/livetrade.html)):**
+## Getting Started
+Head over to the "getting started" section of the [documentation](https://docs.jesse.trade/docs/getting-started). The 
+documentation is **short yet very informative**. 
 
-![image](assets/screenshots/live-mode.jpg)
+## Resources
 
+- [⚡️ Website](https://jesse.trade)
+- [🎓 Documentation](https://docs.jesse.trade)
+- [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
+- [🛟 Help center](https://jesse.trade/help)
+- [💬 Discord community](https://jesse.trade/discord)
+- [🤖 JesseGPT](https://jesse.trade/gpt) (Requires a free account)
 
 ## What's next?
 
 You can see the project's **[roadmap here](https://docs.jesse.trade/docs/roadmap.html)**. **Subscribe** to our mailing list at [jesse.trade](https://jesse.trade) to get the good stuff as soon they're released. Don't worry, We won't send you spam—Pinky promise.
-
-## How to contribute
-
-Thank you for your interest in contributing to the project. The best way to contribute is by **participating in the community** and **helping other users**. 
-
-You can also contribute by submitting **bug reports** and **feature requests** or writing code (submitting PRs) which can be incorporated into Jesse itself.
-
-In that case, here's what you need to know:
-
-- Before starting to work on a PR, please **reach out** to make sure it **aligns** with the **project's roadmap** and **vision**.
-- If your PR makes changes to the source code, please make sure to **add unit tests**. If you're not sure how to do that, just check out some of the already existing [tests](https://github.com/jesse-ai/jesse/tree/master/tests).
-
-First, you need to install Jesse from the repository instead of PyPi:
-
-```sh
-# first, make sure that the PyPi version is not installed
-pip uninstall jesse
-
-# now install Jesse from the repository
-git clone https://github.com/jesse-ai/jesse.git
-cd jesse
-pip install -e .
-```
-
-Now every change you make to the code will be affected immediately.
-
-After every change, **make sure** your changes did not **break** any functionality by **running tests**:
-```
-pytest
-```
 
 ## Disclaimer
 This software is for educational purposes only. USE THE SOFTWARE AT **YOUR OWN RISK**. THE AUTHORS AND ALL AFFILIATES ASSUME **NO RESPONSIBILITY FOR YOUR TRADING RESULTS**. **Do not risk money that you are afraid to lose**. There might be **bugs** in the code - this software DOES NOT come with **ANY warranty**.
