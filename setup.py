@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = "1.4.3"
+VERSION = "1.4.4"
 DESCRIPTION = "A trading framework for cryptocurrencies"
 with open("requirements.txt", "r", encoding="utf-8") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
@@ -35,7 +35,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     include_package_data=True,
     package_data={
         '': ['*.dll', '*.dylib', '*.so', '*.json'],
