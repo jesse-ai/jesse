@@ -21,6 +21,8 @@ Algo-trading was 😵‍💫, we made it 🤩
 Jesse is an advanced crypto trading framework that aims to **simplify** **researching** and defining **YOUR OWN trading strategies** for backtesting, optimizing, and live trading.
 
 ## What is Jesse?
+Watch this video to get a quick overview of Jesse:
+
 [![Jesse Overview](https://img.youtube.com/vi/0EqN3OOqeJM/0.jpg)](https://www.youtube.com/watch?v=0EqN3OOqeJM)
 
 ## Why Jesse?
@@ -64,9 +66,6 @@ class SMACrossover(Strategy):
     def should_short(self) -> bool:
         # Fast SMA below Slow SMA
         return self.fast_sma < self.slow_sma
-
-    def should_cancel_entry(self) -> bool:
-        return False
 
     def go_long(self):
         # Open long position and use entire balance to buy
