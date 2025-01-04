@@ -2,7 +2,6 @@ import time
 import re
 from typing import Dict, List, Tuple
 import numpy as np
-import pandas as pd
 import jesse.helpers as jh
 import jesse.services.metrics as stats
 import jesse.services.selectors as selectors
@@ -13,7 +12,6 @@ from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
 from jesse.services import charts
-from jesse.services import quantstats
 from jesse.services import report
 from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle, \
     get_candles, inject_warmup_candles_to_store
@@ -155,7 +153,6 @@ def _execute_backtest(
             candles,
             run_silently=jh.should_execute_silently(),
             generate_tradingview=tradingview,
-            generate_quantstats=full_reports,
             generate_csv=csv,
             generate_json=json,
             generate_equity_curve=True,
@@ -299,34 +296,6 @@ def _get_add_horizontal_line_to_extra_chart():
     return arr
 
 
-def _generate_quantstats_report(candles_dict: dict) -> str:
-    if store.completed_trades.count == 0:
-        return None
-
-    price_data = []
-    timestamps = None
-    # load close candles for Buy and hold and calculate pct_change
-    for index, c in enumerate(config['app']['considering_candles']):
-        exchange, symbol = c[0], c[1]
-        if exchange in config['app']['trading_exchanges'] and symbol in config['app']['trading_symbols']:
-            candles = candles_dict[jh.key(exchange, symbol)]['candles']
-
-            # if timestamps is None, initialize it with the first candles timestamps
-            if timestamps is None:
-                timestamps = candles[:, 0]
-            price_data.append(candles[:, 1])
-
-    price_data = np.transpose(price_data)
-    price_df = pd.DataFrame(
-        price_data, index=pd.to_datetime(timestamps, unit="ms"), dtype=float
-    ).resample('D').mean()
-    price_pct_change = price_df.pct_change(1).fillna(0)
-    buy_and_hold_daily_returns_all_routes = price_pct_change.mean(1)
-    study_name = _get_study_name()
-    res = quantstats.quantstats_tearsheet(buy_and_hold_daily_returns_all_routes, study_name)
-    return res
-
-
 def _get_study_name() -> str:
     routes_count = len(router.routes)
     more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
@@ -413,7 +382,6 @@ def _step_simulator(
         run_silently: bool,
         hyperparameters: dict = None,
         generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -524,7 +492,6 @@ def _step_simulator(
     result = _generate_outputs(
         candles,
         generate_tradingview=generate_tradingview,
-        generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -749,7 +716,6 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 def _generate_outputs(
         candles: dict,
         generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -771,8 +737,6 @@ def _generate_outputs(
         result["csv"] = logs_path["csv"]
     if generate_equity_curve:
         result["equity_curve"] = charts.equity_curve(benchmark)
-    if generate_quantstats:
-        result["quantstats"] = _generate_quantstats_report(candles)
     if generate_logs:
         result["logs"] = f"storage/logs/backtest-mode/{jh.get_session_id()}.txt"
     return result
@@ -783,7 +747,6 @@ def _skip_simulator(
         run_silently: bool,
         hyperparameters: dict = None,
         generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -844,7 +807,6 @@ def _skip_simulator(
     result = _generate_outputs(
         candles,
         generate_tradingview=generate_tradingview,
-        generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,

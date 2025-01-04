@@ -9,7 +9,6 @@ def backtest(
         candles: dict,
         warmup_candles: dict = None,
         generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
         generate_hyperparameters: bool = False,
         generate_equity_curve: bool = False,
         benchmark: bool = False,
@@ -59,7 +58,6 @@ def backtest(
         run_silently=True,
         hyperparameters=hyperparameters,
         generate_tradingview=generate_tradingview,
-        generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -79,7 +77,6 @@ def _isolated_backtest(
         run_silently: bool = True,
         hyperparameters: dict = None,
         generate_tradingview: bool = False,
-        generate_quantstats: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -145,7 +142,6 @@ def _isolated_backtest(
         run_silently,
         hyperparameters=hyperparameters,
         generate_tradingview=generate_tradingview,
-        generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -167,8 +163,6 @@ def _isolated_backtest(
 
     if generate_tradingview:
         result['tradingview'] = backtest_result['tradingview']
-    if generate_quantstats:
-        result['quantstats'] = backtest_result['quantstats']
     if generate_csv:
         result['csv'] = backtest_result['csv']
     if generate_json:
