@@ -56,7 +56,7 @@ class BinanceMain(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1d',
+            'interval': '1w',
             'symbol': dashless_symbol,
             'limit': 1500,
         }
