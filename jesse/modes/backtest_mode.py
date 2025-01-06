@@ -38,7 +38,6 @@ def run(
         candles: dict = None,
         chart: bool = False,
         tradingview: bool = False,
-        full_reports: bool = False,
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
@@ -65,7 +64,7 @@ def run(
 
     _execute_backtest(
         client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles, chart,
-        tradingview, full_reports, csv, json, fast_mode, benchmark
+        tradingview, csv, json, fast_mode, benchmark
     )
 
 
@@ -81,7 +80,6 @@ def _execute_backtest(
         candles: dict = None,
         chart: bool = False,
         tradingview: bool = False,
-        full_reports: bool = False,
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
@@ -182,7 +180,7 @@ def _execute_backtest(
             # retry the backtest simulation
             _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
-                chart, tradingview, full_reports, csv, json, fast_mode, benchmark
+                chart, tradingview, csv, json, fast_mode, benchmark
             )
         else:
             raise e
