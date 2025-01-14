@@ -76,7 +76,7 @@ class ClosedTrades:
     def close_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
 
-        # If the trade is not open yet where are you calling
+        # If the trade is not open yet we are calling the close_trade function
         if not t.is_open:
             logger.info(
                 "Unable to close a trade that is not yet open. If you're getting this in the live mode, it is likely due"
