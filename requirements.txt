@@ -12,7 +12,7 @@ pytest~=6.2.5
 requests~=2.32.0
 scipy~=1.15.0
 statsmodels~=0.14.4
-TA-Lib==0.4.31
+TA-Lib~=0.4.31
 tabulate~=0.8.9
 timeloop~=1.0.2
 websocket-client~=1.8.0
