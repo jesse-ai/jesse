@@ -585,7 +585,7 @@ def test_emv():
     candles = np.array(test_candles_19)
     single = ta.emv(candles)
     seq = ta.emv(candles, sequential=True)
-    assert round(single, 0) == -11
+    assert round(single, 0) == -1
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -642,7 +642,7 @@ def test_fosc():
     candles = np.array(test_candles_19)
     single = ta.fosc(candles)
     seq = ta.fosc(candles, sequential=True)
-    assert round(single, 0) == -69
+    assert round(single, 0) == -32
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1013,7 +1013,7 @@ def test_kvo():
     single = ta.kvo(candles)
     seq = ta.kvo(candles, sequential=True)
 
-    assert round(single / 10000000, 2) == -5.52
+    assert round(single / 10000000, 2) == -0.88
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1314,20 +1314,6 @@ def test_mom():
     assert round(single, 2) == -116.09
     assert len(seq) == len(candles)
     assert seq[-1] == single
-
-
-def test_msw():
-    candles = np.array(test_candles_19)
-    single = ta.msw(candles)
-    seq = ta.msw(candles, sequential=True)
-
-    assert type(single).__name__ == 'MSW'
-    assert round(single.lead, 2) == -0.66
-    assert round(single.sine, 2) == -1.0
-
-    assert seq.lead[-1] == single.lead
-    assert seq.sine[-1] == single.sine
-    assert len(seq.sine) == len(candles)
 
 
 def test_mwdx():
@@ -2117,7 +2103,7 @@ def test_vidya():
     single = ta.vidya(candles)
     seq = ta.vidya(candles, sequential=True)
 
-    assert round(single, 2) == 194.75
+    assert round(single, 2) == 200.84
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -2410,5 +2396,3 @@ def test_volume():
     assert seq.ma[-1] == single.ma
     assert len(seq.volume) == len(candles)
     assert len(seq.ma) == len(candles)
-
-

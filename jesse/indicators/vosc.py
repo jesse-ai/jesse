@@ -1,13 +1,9 @@
 from typing import Union
-
+from jesse.indicators.sma import sma
 import numpy as np
-import tulipy as ti
-
-from jesse.helpers import same_length, slice_candles
 
 
-def vosc(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def vosc(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     VOSC - Volume Oscillator
 
@@ -18,8 +14,16 @@ def vosc(candles: np.ndarray, short_period: int = 2, long_period: int = 5, seque
 
     :return: float | np.ndarray
     """
+    from jesse.helpers import same_length, slice_candles
+
     candles = slice_candles(candles, sequential)
+    volume = candles[:, 5]
 
-    res = ti.vosc(np.ascontiguousarray(candles[:, 5]), short_period=short_period, long_period=long_period)
+    short_sma = sma(volume, short_period, sequential=True)
+    long_sma = sma(volume, long_period, sequential=True)
 
-    return same_length(candles, res) if sequential else res[-1]
+    vosc_values = (short_sma - long_sma) / long_sma * 100
+
+    vosc_result = same_length(candles, vosc_values)
+
+    return vosc_result if sequential else vosc_result[-1]

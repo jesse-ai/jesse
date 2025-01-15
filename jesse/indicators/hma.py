@@ -1,13 +1,24 @@
 from typing import Union
-
 import numpy as np
-import tulipy as ti
-
+from numba import njit
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def hma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+@njit
+def _wma(arr: np.ndarray, period: int) -> np.ndarray:
+    """
+    Weighted Moving Average - optimized with Numba
+    """
+    weights = np.arange(1, period + 1)
+    wma = np.zeros_like(arr)
+
+    for i in range(period - 1, len(arr)):
+        wma[i] = np.sum(arr[i - period + 1:i + 1] * weights) / np.sum(weights)
+
+    return wma
+
+
+def hma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
     Hull Moving Average
 
@@ -25,6 +36,18 @@ def hma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    res = ti.hma(np.ascontiguousarray(source), period=period)
+    # Calculate components for HMA
+    half_length = int(period / 2)
+    sqrt_length = int(np.sqrt(period))
 
-    return same_length(candles, res) if sequential else res[-1]
+    # Calculate WMAs
+    wma_half = _wma(source, half_length)
+    wma_full = _wma(source, period)
+
+    # Calculate 2 * WMA(n/2) - WMA(n)
+    raw_hma = 2 * wma_half - wma_full
+
+    # Calculate final HMA
+    hma = _wma(raw_hma, sqrt_length)
+
+    return same_length(candles, hma) if sequential else hma[-1]
