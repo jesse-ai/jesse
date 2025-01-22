@@ -657,5 +657,28 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 
+
+@fastapi_app.get("/logs/backtest/{session_id}")
+def get_logs(session_id: str, token: str = Query(...)):
+    """
+    Get logs as text for a specific session. Similar to download but returns text content instead of file.
+    """
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    try:
+        path = f'storage/logs/backtest-mode/{session_id}.txt'
+
+        if not os.path.exists(path):
+            return JSONResponse({'error': 'Log file not found'}, status_code=404)
+
+        with open(path, 'r') as f:
+            content = f.read()
+
+        return JSONResponse({'content': content}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
