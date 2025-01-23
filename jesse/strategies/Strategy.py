@@ -229,7 +229,8 @@ class Strategy(ABC):
             'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
             'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
             'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
-            'text': f'{order.side.upper()} • {position_type}'
+            'text': f'{order.side.upper()} • {position_type}',
+            'order_id': order.id,
         })
 
     def _on_updated_position(self, order: Order) -> None:
