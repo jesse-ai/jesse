@@ -193,6 +193,7 @@ def _execute_backtest(
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
         sync_publish('equity_curve', result['equity_curve'], compression=True)
+        sync_publish('trades', result['trades'], compression=True)
         if chart:
             sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
             sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
@@ -725,6 +726,7 @@ def _generate_outputs(
     if generate_hyperparameters:
         result["hyperparameters"] = stats.hyperparameters(router.routes)
     result["metrics"] = report.portfolio_metrics()
+    result["trades"] = report.trades()
     # generate logs in json, csv and tradingview's pine-editor format
     logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
     if generate_json:
