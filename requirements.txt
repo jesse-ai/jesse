@@ -1,7 +1,6 @@
 arrow~=1.2.1
 blinker~=1.4
 click~=8.0.3
-newtulipy~=0.4.6
 numpy~=1.26.4
 pandas~=2.2.3
 peewee~=3.14.8
