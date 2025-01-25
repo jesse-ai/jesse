@@ -1,27 +1,49 @@
 from typing import Union
-
 import numpy as np
-import tulipy as ti
+from jesse.helpers import slice_candles
+from jesse.indicators import ema
 
-from jesse.helpers import same_length, slice_candles
 
-
-def kvo(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def kvo(candles: np.ndarray, short_period: int = 34, long_period: int = 55, sequential: bool = False) -> Union[float, np.ndarray]:
     """
     KVO - Klinger Volume Oscillator
 
     :param candles: np.ndarray
-    :param short_period: int - default: 2
-    :param long_period: int - default: 5
+    :param short_period: int - default: 34
+    :param long_period: int - default: 55
     :param sequential: bool - default: False
 
     :return: float | np.ndarray
     """
     candles = slice_candles(candles, sequential)
 
-    res = ti.kvo(np.ascontiguousarray(candles[:, 3]), np.ascontiguousarray(candles[:, 4]),
-                 np.ascontiguousarray(candles[:, 2]), np.ascontiguousarray(candles[:, 5]), short_period=short_period,
-                 long_period=long_period)
+    # Calculate HLC3
+    hlc3 = (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
 
-    return same_length(candles, res) if sequential else res[-1]
+    # Calculate momentum (change in HLC3)
+    mom = np.diff(hlc3, prepend=hlc3[0])
+
+    # Calculate trend
+    trend = np.zeros_like(mom)
+    trend[1:] = np.where(mom[1:] > 0, 1, np.where(mom[1:] < 0, -1, trend[:-1]))
+
+    # Daily Measurement (High - Low)
+    dm = candles[:, 3] - candles[:, 4]
+
+    # Cumulative Measurement
+    cm = np.zeros_like(dm)
+    for i in range(1, len(trend)):
+        if trend[i] == trend[i-1]:
+            cm[i] = cm[i-1] + dm[i]
+        else:
+            cm[i] = dm[i] + dm[i-1]
+
+    # Volume Force
+    volume = candles[:, 5]
+    vf = np.where(cm != 0, 100 * volume * trend * np.abs(2 * dm / cm - 1), 0)
+
+    # Calculate EMAs
+    fast_ema = ema(vf, period=short_period, sequential=True)
+    slow_ema = ema(vf, period=long_period, sequential=True)
+    res = fast_ema - slow_ema
+    return res if sequential else res[-1]
