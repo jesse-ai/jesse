@@ -73,8 +73,9 @@ jobs:
       - name: Install ta-lib Linux
         if: steps.talib-cache.outputs.cache-hit != 'true'
         run: |
-            wget https://github.com/TA-Lib/ta-lib/releases/download/v0.6.1/ta-lib-0.6.1-src.tar.gz -q && tar -xzf ta-lib-0.6.1-src.tar.gz
-            cd ta-lib/
+            wget https://github.com/TA-Lib/ta-lib/releases/download/v0.6.1/ta-lib-0.6.1-src.tar.gz -q
+            tar -xzf ta-lib-0.6.1-src.tar.gz
+            cd ta-lib-0.6.1/
             ./configure --prefix=$HOME/.local/ta-lib
             make
             sudo make install
