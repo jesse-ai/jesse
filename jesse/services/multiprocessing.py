@@ -47,7 +47,7 @@ class ProcessManager:
         self.client_id_to_pid_to_map = {}
         try:
             port = ENV_VALUES.get('APP_PORT', '9000')
-        except:
+        except Exception:
             port = '9000'
             
         self._active_workers_key = f"{port}|active-processes"

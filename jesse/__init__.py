@@ -223,7 +223,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         while not queue.empty():
             try:
                 queue.get_nowait()
-            except:
+            except Exception:
                 pass
 
 # create a Click group
