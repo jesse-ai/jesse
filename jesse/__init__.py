@@ -164,34 +164,67 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     await websocket.accept()
 
     queue = Queue()
-    ch, = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
+    tasks = []
+    
+    try:
+        ch, = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
 
-    async def echo(q):
+        async def echo(q):
+            while True:
+                try:
+                    msg = await q.get()
+                    msg = json.loads(msg)
+                    client_id = process_manager.get_client_id(msg['id'])
+                    if client_id:  # Only send if process exists
+                        msg['id'] = client_id
+                        await websocket.send_json(msg)
+                except WebSocketDisconnect:
+                    break
+                except Exception as e:
+                    print(jh.color(str(e), 'red'))
+                    break
+
+        async def reader(channel, q):
+            try:
+                async for ch, message in channel.iter():
+                    await q.put(message)
+            except Exception as e:
+                print(jh.color(f"Reader error: {str(e)}", 'red'))
+
+        # Create the tasks
+        echo_task = asyncio.create_task(echo(queue))
+        reader_task = asyncio.create_task(reader(ch, queue))
+        tasks.extend([echo_task, reader_task])
+
         try:
             while True:
-                msg = await q.get()
-                msg = json.loads(msg)
-                msg['id'] = process_manager.get_client_id(msg['id'])
-                await websocket.send_json(msg)
+                await websocket.receive_text()
         except WebSocketDisconnect:
-            await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
-            print(jh.color('WebSocket disconnected', 'yellow'))
-        except Exception as e:
-            print(jh.color(str(e), 'red'))
+            raise
 
-    async def reader(channel, q):
-        async for ch, message in channel.iter():
-            await q.put(message)
-
-    asyncio.get_running_loop().create_task(reader(ch, queue))
-    asyncio.get_running_loop().create_task(echo(queue))
-
-    try:
-        while True:
-            await websocket.receive_text()
     except WebSocketDisconnect:
-        await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
         print(jh.color('WebSocket disconnected', 'yellow'))
+    except Exception as e:
+        print(jh.color(f'Error in websocket: {str(e)}', 'red'))
+    finally:
+        # Cleanup
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        
+        # Unsubscribe from Redis
+        await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
+        
+        # Clear the queue
+        while not queue.empty():
+            try:
+                queue.get_nowait()
+            except:
+                pass
 
 # create a Click group
 @click.group()
@@ -290,14 +323,15 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
 
 @fastapi_app.post("/cancel-import-candles")
-def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+async def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    process_manager.cancel_process(request_json.id)
+    await process_manager.cancel_process_with_cleanup(request_json.id)
 
-    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
+    return JSONResponse({
+        'message': f'Candles process with ID of {request_json.id} was terminated'
+    }, status_code=202)
 
 
 @fastapi_app.post("/backtest")

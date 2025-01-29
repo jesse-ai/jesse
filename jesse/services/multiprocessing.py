@@ -135,6 +135,42 @@ class ProcessManager:
         Returns the set of all the processes client_id as a list of strings
         """
         return {client_id.decode('utf-8') for client_id in sync_redis.smembers(self._active_workers_key)}
+    
+    async def cancel_process_with_cleanup(self, client_id):
+        """Cancel a process and clean up associated resources"""
+        try:
+            # Get the process PID
+            try:
+                pid = self.get_pid(client_id)
+            except KeyError:
+                # Process might already be gone
+                pass
+            else:
+                # Find the process
+                process = next((w for w in self._workers if w.pid == int(pid.split('|')[1])), None)
+                if process and process.is_alive():
+                    process.terminate()
+                    process.join(timeout=1)
+                    if process.is_alive():
+                        os.kill(process.pid, signal.SIGKILL)
+                    process.close()
+                    
+            # Remove from active workers
+            self.cancel_process(client_id)
+            
+            # Clean up Redis subscriptions
+            channel_pattern = f"{ENV_VALUES['APP_PORT']}:channel:{client_id}"
+            await sync_redis.delete(channel_pattern)
+            
+            # Clean up mappings
+            prefixed_client_id = self._prefixed_client_id(client_id)
+            if prefixed_client_id in self.client_id_to_pid_to_map:
+                pid = self.client_id_to_pid_to_map[prefixed_client_id]
+                del self._pid_to_client_id_map[pid]
+                del self.client_id_to_pid_to_map[prefixed_client_id]
+                
+        except Exception as e:
+            jh.debug(f"Error in cancel_process_with_cleanup: {str(e)}")
 
 
 process_manager = ProcessManager()
