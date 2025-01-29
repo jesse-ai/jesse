@@ -1,6 +1,6 @@
 ARG TEST_BUILD=0
 FROM python:3.11-slim-bullseye AS jesse_basic_env
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update \
     && apt-get -y install git build-essential libssl-dev \
@@ -15,8 +15,17 @@ WORKDIR /jesse-docker
 
 # Install TA-lib
 COPY docker_build_helpers/* /tmp/
-RUN cd /tmp && /tmp/install_ta-lib.sh && rm -r /tmp/*ta-lib*
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+ARG TARGETARCH
+ENV TARGETARCH=${TARGETARCH}
+
+RUN case "$TARGETARCH" in \
+      "amd64") BUILD_TRIPLET=x86_64-unknown-linux-gnu ;; \
+      "arm64") BUILD_TRIPLET=aarch64-unknown-linux-gnu ;; \
+      *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    echo "Detected architecture: $TARGETARCH, Build triplet: $BUILD_TRIPLET" && \
+    cd /tmp && /tmp/install_ta-lib.sh /usr/local ${BUILD_TRIPLET} && rm -r /tmp/*ta-lib*
 
 # Install dependencies
 COPY requirements.txt /jesse-docker
