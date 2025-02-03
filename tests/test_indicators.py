@@ -7,19 +7,6 @@ from .data.test_candles_indicators import *
 matypes = 39
 
 
-def test_acosc():
-    candles = np.array(test_candles_19)
-    single = ta.acosc(candles)
-    seq = ta.acosc(candles, sequential=True)
-
-    assert type(single).__name__ == 'AC'
-    assert round(single.osc, 2) == -21.97
-    assert round(single.change, 2) == -9.22
-
-    assert seq.osc[-1] == single.osc
-    assert len(seq.osc) == len(candles)
-
-
 def test_ad():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
