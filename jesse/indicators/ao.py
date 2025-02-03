@@ -1,12 +1,17 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import slice_candles
+from .sma import sma
 
 AO = namedtuple('AO', ['osc', 'change'])
 
+def momentum(arr):
+    ret = np.full(arr.shape, np.nan)
+    if len(arr) > 1:
+        ret[1:] = arr[1:] - arr[:-1]
+    return ret
 
 def ao(candles: np.ndarray, sequential: bool = False) -> AO:
     """
@@ -19,12 +24,17 @@ def ao(candles: np.ndarray, sequential: bool = False) -> AO:
     """
     candles = slice_candles(candles, sequential)
 
-    med = talib.MEDPRICE(candles[:, 3], candles[:, 4])
-    res = talib.SMA(med, 5) - talib.SMA(med, 34)
+    # Calculate hl2 as (high+low)/2
+    hl2 = (candles[:, 3] + candles[:, 4]) / 2
+    # Calculate simple moving averages on hl2 for periods 5 and 34
+    sma5 = sma(hl2, 5, sequential=True)
+    sma34 = sma(hl2, 34, sequential=True)
+    ao = sma5 - sma34
 
-    mom = talib.MOM(res, timeperiod=1)
+    # Calculate momentum as the difference between consecutive values
+    mom = momentum(ao)
 
     if sequential:
-        return AO(res, mom)
+        return AO(ao, mom)
     else:
-        return AO(res[-1], mom[-1])
+        return AO(ao[-1], mom[-1])

@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
@@ -27,14 +26,19 @@ def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequ
         volume = candles[:, 5]
 
     # Calculate price * volume
-    weighted_price = source * volume
+    weighted = source * volume
+    
+    # Compute cumulative sums for weighted price and volume
+    cumsum_weighted = np.cumsum(weighted)
+    cumsum_volume = np.cumsum(volume)
 
-    # Use sliding window to calculate sums
-    price_sum = np.sum(sliding_window_view(weighted_price, period), axis=1)
-    volume_sum = np.sum(sliding_window_view(volume, period), axis=1)
+    # Allocate array for VWMA values
+    vwma_vals = np.empty_like(source, dtype=float)
 
-    # Calculate VWMA and handle division by zero
-    res = np.zeros_like(source)
-    res[period-1:] = price_sum / np.where(volume_sum == 0, 1, volume_sum)
+    # For initial indices where full period is not available, use cumulative sums
+    vwma_vals[:period] = cumsum_weighted[:period] / np.where(cumsum_volume[:period] == 0, 1, cumsum_volume[:period])
 
-    return same_length(candles, res) if sequential else res[-1]
+    # For indices with a complete period, use the rolling difference of cumulative sums
+    vwma_vals[period:] = (cumsum_weighted[period:] - cumsum_weighted[:-period]) / np.where((cumsum_volume[period:] - cumsum_volume[:-period]) == 0, 1, (cumsum_volume[period:] - cumsum_volume[:-period]))
+
+    return same_length(candles, vwma_vals) if sequential else vwma_vals[-1]

@@ -1,9 +1,8 @@
 from collections import namedtuple
 
-import numpy as np
-import talib as ta
-
 from jesse.helpers import get_candle_source, slice_candles
+
+import numpy as np
 
 Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', 'wtOversold', 'wtOverbought', 'wtVwap'])
 
@@ -16,6 +15,30 @@ Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', '
 #
 # See https://github.com/ysdede/lazarus3/blob/partialexit/strategies/lazarus3/__init__.py for working jesse.ai example.
 
+
+def ema(x: np.ndarray, period: int) -> np.ndarray:
+    """Compute Exponential Moving Average (EMA) using a vectorized triangular matrix approach."""
+    alpha = 2 / (period + 1)
+    n = len(x)
+    # Create a matrix of differences using outer subtraction
+    diff = np.subtract.outer(np.arange(n), np.arange(n))
+    # Compute weights: for each t, weight = alpha * (1-alpha)^(t - i) for i<=t, else 0
+    weights = alpha * np.power(1 - alpha, diff)
+    weights = np.tril(weights)
+    return weights.dot(x)
+
+def sma(x: np.ndarray, period: int) -> np.ndarray:
+    """Compute Simple Moving Average (SMA) using cumulative sum for a trailing window."""
+    x = np.asarray(x, dtype=float)
+    n = len(x)
+    ret = np.empty(n, dtype=float)
+    if period > 1:
+        cumsum = np.cumsum(x)
+        ret[:period-1] = cumsum[:period-1] / np.arange(1, period)
+        ret[period-1:] = (cumsum[period-1:] - np.r_[0.0, cumsum[:-period]]) / period
+    else:
+        ret = x
+    return ret
 
 def wt(candles: np.ndarray,
        wtchannellen: int = 9,
@@ -44,11 +67,11 @@ def wt(candles: np.ndarray,
     src = get_candle_source(candles, source_type=source_type)
 
     # wt
-    esa = ta.EMA(src, wtchannellen)
-    de = ta.EMA(abs(src - esa), wtchannellen)
+    esa = ema(src, wtchannellen)
+    de = ema(abs(src - esa), wtchannellen)
     ci = (src - esa) / (0.015 * de)
-    wt1 = ta.EMA(ci, wtaveragelen)
-    wt2 = ta.SMA(wt1, wtmalen)
+    wt1 = ema(ci, wtaveragelen)
+    wt2 = sma(wt1, wtmalen)
 
     wtVwap = wt1 - wt2
     wtOversold = wt2 <= oslevel

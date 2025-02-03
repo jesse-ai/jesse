@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
@@ -30,8 +29,15 @@ def gatorosc(candles: np.ndarray, source_type: str = "close", sequential: bool =
     upper = np.abs(jaw - teeth)
     lower = -np.abs(teeth - lips)
 
-    upper_change = talib.MOM(upper, timeperiod=1)
-    lower_change = -talib.MOM(lower, timeperiod=1)
+    # Calculate momentum for upper: difference from previous value, first element is np.nan
+    upper_change = np.empty_like(upper)
+    upper_change[0] = np.nan
+    upper_change[1:] = np.diff(upper)
+
+    # Calculate momentum for lower: negative difference from previous value, first element is np.nan
+    lower_change = np.empty_like(lower)
+    lower_change[0] = np.nan
+    lower_change[1:] = -np.diff(lower)
 
     if sequential:
         return GATOR(upper, lower, upper_change, lower_change)

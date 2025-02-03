@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 from numba import njit
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
@@ -40,6 +39,42 @@ def _calculate_stoch(data, period_stoch, k_period, d_period):
     return k, d
 
 
+@njit
+def _calculate_rsi(source, period):
+    n = len(source)
+    rsi = np.full(n, np.nan)  # initialize all values as NaN
+    if n <= period:
+        return rsi
+
+    # Vectorized computation of price differences
+    delta = source[1:] - source[:-1]
+
+    # Compute ups and downs using numpy where
+    ups = np.where(delta > 0, delta, 0.0)
+    downs = np.where(delta < 0, -delta, 0.0)
+
+    # Initial average gain and loss
+    avg_gain = np.mean(ups[:period])
+    avg_loss = np.mean(downs[:period])
+
+    # First RSI value at index 'period'
+    if avg_loss == 0:
+        rsi[period] = 100.0
+    else:
+        rsi[period] = 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
+
+    # Recursive calculation for subsequent RSI values
+    for i in range(period, len(ups)):
+        avg_gain = (avg_gain * (period - 1) + ups[i]) / period
+        avg_loss = (avg_loss * (period - 1) + downs[i]) / period
+        if avg_loss == 0:
+            rsi[i + 1] = 100.0
+        else:
+            rsi[i + 1] = 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
+    
+    return rsi
+
+
 def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int = 3, d: int = 3,
          source_type: str = "close", sequential: bool = False) -> StochasticRSI:
     """
@@ -58,7 +93,7 @@ def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int =
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    rsi_np = talib.RSI(source, timeperiod=period)
+    rsi_np = _calculate_rsi(source, period)
     rsi_np = rsi_np[np.logical_not(np.isnan(rsi_np))]
 
     # Calculate stochastic values
