@@ -1,10 +1,9 @@
 from typing import Union
-
+from jesse.indicators.wma import wma
+from jesse.indicators.rsi import rsi
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
-
 
 def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
@@ -20,13 +19,11 @@ def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source
     :return: float | np.ndarray
     """
 
-
     candles = slice_candles(candles, sequential)
     source = get_candle_source(candles, source_type=source_type)
 
-    v1 = 0.1 * (talib.RSI(source, rsi_period) - 50)
-
-    v2 = talib.WMA(v1, wma_period)
+    v1 = 0.1 * (rsi(source, rsi_period, sequential=True) - 50)
+    v2 = wma(v1, wma_period, sequential=True)
 
     res = (((2*v2) ** 2 - 1) / ((2*v2) ** 2 + 1))
 

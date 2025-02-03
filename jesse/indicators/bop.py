@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import slice_candles
 
@@ -17,6 +16,11 @@ def bop(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarra
     """
     candles = slice_candles(candles, sequential)
 
-    res = talib.BOP(candles[:, 1], candles[:, 3], candles[:, 4], candles[:, 2])
+    open_prices = candles[:, 1]
+    high_prices = candles[:, 3]
+    low_prices = candles[:, 4]
+    close_prices = candles[:, 2]
+    denominator = high_prices - low_prices
+    bop_values = np.where(denominator != 0, (close_prices - open_prices) / denominator, 0)
 
-    return res if sequential else res[-1]
+    return bop_values if sequential else bop_values[-1]

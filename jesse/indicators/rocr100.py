@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -21,6 +20,7 @@ def rocr100(candles: np.ndarray, period: int = 10, source_type: str = "close", s
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.ROCR100(source, timeperiod=period)
-
+    # Vectorized calculation: for indices >= period, ROCR100 = (source[i] / source[i - period]) * 100; first period set to np.nan
+    res = np.full(source.shape, np.nan, dtype=float)
+    res[period:] = (source[period:] / source[:-period]) * 100
     return res if sequential else res[-1]

@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import slice_candles
 from jesse.indicators.ma import ma
@@ -29,9 +28,9 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]
     candles_low = candles[:, 4]
-
-    hh = talib.MAX(candles_high, fastk_period)
-    ll = talib.MIN(candles_low, fastk_period)
+    
+    hh = _rolling_max(candles_high, fastk_period)
+    ll = _rolling_min(candles_low, fastk_period)
 
     stoch_val = 100 * (candles_close - ll) / (hh - ll)
     k = ma(stoch_val, period=slowk_period, matype=slowk_matype, sequential=True)
@@ -41,3 +40,19 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
         return Stochastic(k, d)
     else:
         return Stochastic(k[-1], d[-1])
+
+def _rolling_max(x, window):
+    if len(x) < window:
+        return np.full(x.shape, np.nan, dtype=np.float64)
+    windows = np.lib.stride_tricks.sliding_window_view(x, window_shape=window)
+    result = np.full(x.shape, np.nan, dtype=np.float64)
+    result[window - 1:] = np.max(windows, axis=1)
+    return result
+
+def _rolling_min(x, window):
+    if len(x) < window:
+        return np.full(x.shape, np.nan, dtype=np.float64)
+    windows = np.lib.stride_tricks.sliding_window_view(x, window_shape=window)
+    result = np.full(x.shape, np.nan, dtype=np.float64)
+    result[window - 1:] = np.min(windows, axis=1)
+    return result

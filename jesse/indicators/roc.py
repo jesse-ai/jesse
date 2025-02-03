@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -18,9 +17,15 @@ def roc(candles: np.ndarray, period: int = 10, source_type: str = "close", seque
 
     :return: float | np.ndarray
     """
-    candles = slice_candles(candles, sequential)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
-    source = get_candle_source(candles, source_type=source_type)
-    res = talib.ROC(source, timeperiod=period)
+    n = len(source)
+    res = np.full(n, np.nan, dtype=float)
+    if n > period:
+        res[period:] = (source[period:] / source[:-period] - 1) * 100
 
     return res if sequential else res[-1]
