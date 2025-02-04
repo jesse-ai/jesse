@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -24,6 +23,17 @@ def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    res = talib.EMA(source, timeperiod=period)
+    if len(source) < period:
+        result = np.full_like(source, np.nan, dtype=float)
+    else:
+        alpha = 2 / (period + 1)
+        result = np.empty_like(source, dtype=float)
+        for i in range(len(source)):
+            if i < period - 1:
+                result[i] = np.nan
+            elif i == period - 1:
+                result[i] = np.mean(source[:period])
+            else:
+                result[i] = alpha * source[i] + (1 - alpha) * result[i-1]
 
-    return res if sequential else res[-1]
+    return result if sequential else result[-1]
