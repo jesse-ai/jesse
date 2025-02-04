@@ -11,6 +11,8 @@ VWMACD = namedtuple('VWMACD', ['macd', 'signal', 'hist'])
 def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9,
            sequential: bool = False) -> VWMACD:
     """
+    @author David.
+    credits: https://www.tradingview.com/script/33Y1LzRq-Volume-Weighted-Moving-Average-Convergence-Divergence-MACD/
     VWMACD - Volume Weighted Moving Average Convergence/Divergence
 
     :param candles: np.ndarray
