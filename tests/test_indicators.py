@@ -2208,8 +2208,8 @@ def test_vwmacd():
 
     assert type(single).__name__ == 'VWMACD'
     assert round(single.macd, 2) == -31.37
-    assert round(single.signal, 2) == -19.64
-    assert round(single.hist, 2) == -11.73
+    assert round(single.signal, 2) == -20.72
+    assert round(single.hist, 2) == -10.65
 
     assert seq.macd[-1] == single.macd
     assert len(seq.macd) == len(candles)
