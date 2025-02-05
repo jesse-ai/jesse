@@ -1376,30 +1376,6 @@ def test_obv():
     assert seq[-1] == single
 
 
-def test_pattern_recognizion():
-    candles = np.array(test_candles_6)
-    res = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER")
-    seq = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER", sequential=True)
-    assert len(seq) == len(candles)
-    assert res == 0
-
-    candles = np.array(test_candles_9)
-    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
-    assert res == 0
-
-    candles = np.array(test_candles_8)
-    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
-    assert res == 0
-
-    candles = np.array(test_candles_7)
-    res = ta.pattern_recognition(candles, pattern_type="CDLHAMMER")
-    assert res == 0
-
-    candles = np.array(test_candles_5)
-    res = ta.pattern_recognition(candles, pattern_type="CDLDOJI")
-    assert res == 1
-
-
 def test_pfe():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)

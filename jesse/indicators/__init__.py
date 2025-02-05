@@ -105,7 +105,6 @@ from .natr import natr
 from .nma import nma
 from .nvi import nvi
 from .obv import obv
-from .pattern_recognition import pattern_recognition
 from .pfe import pfe
 from .pivot import pivot
 from .pma import pma
