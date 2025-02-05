@@ -37,8 +37,16 @@ def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     # First ATR value is the simple average of the first 'period' true ranges
     atr_values[period-1] = np.mean(tr[:period])
 
-    # Compute subsequent ATR values using Wilder's smoothing method
-    for i in range(period, len(tr)):
-        atr_values[i] = ((atr_values[i-1] * (period - 1)) + tr[i]) / period
+    # Compute subsequent ATR values using Wilder's smoothing method (vectorized implementation)
+    y0 = atr_values[period-1]  # initial ATR value (simple average of first period true ranges)
+    n_rest = len(tr) - period
+    if n_rest > 0:
+        alpha = 1.0 / period
+        beta = (period - 1) / period  # equivalent to 1 - alpha
+        indices = np.arange(1, n_rest + 1)
+        first_term = y0 * (beta ** indices)
+        # Create a lower-triangular matrix where L[i, j] = beta^(i - j) for j<=i
+        L = np.tril(beta ** (np.subtract.outer(np.arange(n_rest), np.arange(n_rest))))
+        atr_values[period:] = first_term + alpha * np.dot(L, tr[period:])
 
     return atr_values if sequential else atr_values[-1]

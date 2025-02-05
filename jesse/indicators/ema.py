@@ -27,13 +27,23 @@ def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         result = np.full_like(source, np.nan, dtype=float)
     else:
         alpha = 2 / (period + 1)
-        result = np.empty_like(source, dtype=float)
-        for i in range(len(source)):
-            if i < period - 1:
-                result[i] = np.nan
-            elif i == period - 1:
-                result[i] = np.mean(source[:period])
-            else:
-                result[i] = alpha * source[i] + (1 - alpha) * result[i-1]
+        
+        # Compute EMA using vectorized operations
+        f = period - 1  # the index at which EMA calculation begins
+        initial = np.mean(source[:period])
+        L = len(source) - f  # number of points from the start of EMA calculation
+        if L > 1:
+            # X contains the source values after the initial period
+            X = source[f+1:]
+            # Create a lower-triangular matrix T of shape (L, L-1) where T[m, j] = (1-alpha)**(m-1-j) for j < m, else 0
+            m_idx, j_idx = np.indices((L, L-1))
+            T = np.where(j_idx < m_idx, (1 - alpha)**(m_idx - 1 - j_idx), 0)
+            dot_sums = T.dot(X)
+        else:
+            dot_sums = np.zeros(L)
+        m_vec = np.arange(L)
+        y = (1 - alpha)**m_vec * initial + alpha * dot_sums
+        result = np.full_like(source, np.nan, dtype=float)
+        result[f:] = y
 
     return result if sequential else result[-1]

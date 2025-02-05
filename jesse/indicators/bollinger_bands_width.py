@@ -20,18 +20,13 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2
 
     if sequential:
         n = len(source)
-        bbw = np.empty(n, dtype=float)
-        # For indices where a full window isn't available, fill with NaN
-        for i in range(n):
-            if i < period - 1:
-                bbw[i] = np.nan
-            else:
-                window = source[i - period + 1:i + 1]
-                basis = np.mean(window)
-                std = np.std(window, ddof=0)
-                upper = basis + mult * std
-                lower = basis - mult * std
-                bbw[i] = ((upper - lower) / basis) * 100
+        bbw = np.full(n, np.nan)
+        if n >= period:
+            windows = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
+            basis = np.mean(windows, axis=1)
+            std = np.std(windows, axis=1, ddof=0)
+            # Compute Bollinger Bands Width using vectorized operation
+            bbw[period - 1:] = (( (basis + mult * std) - (basis - mult * std) ) / basis) * 100
         return bbw
     else:
         window = source[-period:]
