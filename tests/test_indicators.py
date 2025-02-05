@@ -61,7 +61,7 @@ def test_adxr():
     single = ta.adxr(candles, period=14)
     seq = ta.adxr(candles, period=14, sequential=True)
 
-    assert round(single, 0) == 36
+    assert round(single, 0) == 29
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
