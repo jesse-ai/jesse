@@ -21,18 +21,14 @@ def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AR
     lows = candles[:, 4]
 
     if sequential:
-        # Initialize result arrays with NaN
         aroon_up = np.full(highs.shape, np.nan, dtype=float)
         aroon_down = np.full(lows.shape, np.nan, dtype=float)
-        
-        # Compute indicator for each valid index (starting from period index)
-        for i in range(period, len(highs)):
-            window_high = highs[i - period:i + 1]  # period+1 values
-            window_low = lows[i - period:i + 1]
-            # np.argmax returns the index of the first occurrence of the max value in the window.
-            # When maximum is at the current bar, np.argmax(window_high) == period, yielding 100 * (period/period) = 100.
-            aroon_up[i] = 100 * (np.argmax(window_high) / period)
-            aroon_down[i] = 100 * (np.argmin(window_low) / period)
+        if len(highs) >= period + 1:
+            # Create sliding window view of period+1 elements for highs and lows
+            windows_high = np.lib.stride_tricks.sliding_window_view(highs, window_shape=period+1)
+            windows_low = np.lib.stride_tricks.sliding_window_view(lows, window_shape=period+1)
+            aroon_up[period:] = 100 * (np.argmax(windows_high, axis=1) / period)
+            aroon_down[period:] = 100 * (np.argmin(windows_low, axis=1) / period)
         return AROON(down=aroon_down, up=aroon_up)
     else:
         if len(highs) < period + 1:
