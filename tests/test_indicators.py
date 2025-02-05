@@ -214,7 +214,7 @@ def test_bollinger_bands_width():
     single = ta.bollinger_bands_width(candles)
     seq = ta.bollinger_bands_width(candles, sequential=True)
 
-    assert round(single, 4) == 0.0771
+    assert round(single, 4) == 7.7147
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
