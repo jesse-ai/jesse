@@ -9,7 +9,7 @@ AROON = namedtuple('AROON', ['down', 'up'])
 
 def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AROON:
     """
-    AROON indicator without using talib.
+    AROON indicator
 
     Calculation:
         For each window of period+1 candles:
