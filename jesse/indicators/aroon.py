@@ -11,15 +11,6 @@ def aroon(candles: np.ndarray, period: int = 14, sequential: bool = False) -> AR
     """
     AROON indicator
 
-    Calculation:
-        For each window of period+1 candles:
-            aroon_up   = 100 * (np.argmax(window_high) / period)
-            aroon_down = 100 * (np.argmin(window_low)  / period)
-        This mimics the PineScript formulas:
-            upper = 100 * (ta.highestbars(high, period + 1) + period)/period
-            lower = 100 * (ta.lowestbars(low, period + 1) + period)/period
-        where ta.highestbars returns a negative offset such that (np.argmax + period) equals the number of periods since the highest high.
-
     :param candles: np.ndarray, expected to have at least 5 columns, with high at index 3 and low at index 4.
     :param period: int - period for the indicator (default: 14)
     :param sequential: bool - whether to return the whole series (default: False)
