@@ -35,7 +35,6 @@ def aroonosc(candles: np.ndarray, period: int = 14, sequential: bool = False) ->
         # oscillator = Aroon Up - Aroon Down = 100*(idx_max - idx_min)/period
         aroonosc_values = 100 * (idx_max - idx_min) / period
 
-        # Pad the initial period-1 elements with NaN to match output of talib implementation
         result = np.concatenate((np.full(period - 1, np.nan), aroonosc_values))
 
     return result if sequential else result[-1]
