@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
@@ -9,6 +8,16 @@ from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
 BollingerBands = namedtuple('BollingerBands', ['upperband', 'middleband', 'lowerband'])
+
+
+def moving_std(source, period):
+    # Compute moving standard deviation for each window of 'period' elements
+    result = np.empty_like(source, dtype=float)
+    result[:period-1] = float('nan')
+    for i in range(period - 1, len(source)):
+        window = source[i - period + 1: i + 1]
+        result[i] = np.std(window)
+    return result
 
 
 def bollinger_bands(
@@ -42,7 +51,7 @@ def bollinger_bands(
         source = get_candle_source(candles, source_type=source_type)
 
     if devtype == 0:
-        dev = talib.STDDEV(source, period)
+        dev = moving_std(source, period)
     elif devtype == 1:
         dev = mean_ad(source, period, sequential=True)
     elif devtype == 2:
