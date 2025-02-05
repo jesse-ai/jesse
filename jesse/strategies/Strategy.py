@@ -626,46 +626,6 @@ class Strategy(ABC):
 
                     self._submit_sell_orders()
 
-            # if self.take_profit has been modified
-            if self.position.is_open and self.take_profit is not None:
-                self._validate_take_profit()
-                self._prepare_take_profit(False)
-
-                # if _take_profit has been modified
-                if not np.array_equal(self.take_profit, self._take_profit):
-                    self._take_profit = self.take_profit.copy()
-
-                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
-                    if len(self._take_profit) == 1:
-                        temp_current_price = self.price
-                    else:
-                        temp_current_price = None
-
-                    # CANCEL previous orders
-                    for o in self.active_exit_orders:
-                        if o.is_take_profit and (o.is_active or o.is_queued):
-                            self.broker.cancel_order(o.id)
-
-                    # SUBMIT new orders
-                    for o in self._take_profit:
-                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
-                        # to see if the position is still open. If it's closed, no further submitting is required.
-                        if self.position.is_close:
-                            logger.info(
-                                "Position got closed while submitting take-profit orders. Hence, skipping further submissions"
-                            )
-                            break
-
-                        # see if we need to override the take-profit price to be the current price to ensure a MARKET order
-                        if temp_current_price == o[1]:
-                            order_price = self.price
-                        else:
-                            order_price = o[1]
-
-                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
-                        if submitted_order:
-                            submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
-
             # if self.stop_loss has been modified
             if self.position.is_open and self.stop_loss is not None:
                 self._validate_stop_loss()
@@ -706,6 +666,49 @@ class Strategy(ABC):
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
                             submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+
+                        # if self.take_profit has been modified
+
+            # if self.take_profit has been modified
+            if self.position.is_open and self.take_profit is not None:
+                self._validate_take_profit()
+                self._prepare_take_profit(False)
+
+                # if _take_profit has been modified
+                if not np.array_equal(self.take_profit, self._take_profit):
+                    self._take_profit = self.take_profit.copy()
+
+                    # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
+                    if len(self._take_profit) == 1:
+                        temp_current_price = self.price
+                    else:
+                        temp_current_price = None
+
+                    # CANCEL previous orders
+                    for o in self.active_exit_orders:
+                        if o.is_take_profit and (o.is_active or o.is_queued):
+                            self.broker.cancel_order(o.id)
+
+                    # SUBMIT new orders
+                    for o in self._take_profit:
+                        # sometimes while submitting orders, the position gets closed (in live mode). Hence, check again
+                        # to see if the position is still open. If it's closed, no further submitting is required.
+                        if self.position.is_close:
+                            logger.info(
+                                "Position got closed while submitting take-profit orders. Hence, skipping further submissions"
+                            )
+                            break
+
+                        # see if we need to override the take-profit price to be the current price to ensure a MARKET order
+                        if temp_current_price == o[1]:
+                            order_price = self.price
+                        else:
+                            order_price = o[1]
+
+                        submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
+                        if submitted_order:
+                            submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
+    
         except TypeError:
             raise exceptions.InvalidStrategy(
                 'Something odd is going on within your strategy causing a TypeError exception. '
@@ -830,23 +833,6 @@ class Strategy(ABC):
 
         self._broadcast('route-open-position')
 
-        if self.take_profit is not None:
-            for o in self._take_profit:
-                # validation: make sure take-profit will exit with profit, if not, close the position
-                if self.is_long and o[1] <= self.position.entry_price:
-                    submitted_order: Order = self.broker.sell_at_market(o[0])
-                    logger.info(
-                        'The take-profit is below entry-price for long position, so it will be replaced with a market order instead')
-                elif self.is_short and o[1] >= self.position.entry_price:
-                    submitted_order: Order = self.broker.buy_at_market(o[0])
-                    logger.info(
-                        'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
-                else:
-                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
-
-                if submitted_order:
-                    submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
-
         if self.stop_loss is not None:
             for o in self._stop_loss:
                 # validation: make sure stop-loss will exit with profit, if not, close the position
@@ -863,6 +849,23 @@ class Strategy(ABC):
 
                 if submitted_order:
                     submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+
+        if self.take_profit is not None:
+            for o in self._take_profit:
+                # validation: make sure take-profit will exit with profit, if not, close the position
+                if self.is_long and o[1] <= self.position.entry_price:
+                    submitted_order: Order = self.broker.sell_at_market(o[0])
+                    logger.info(
+                        'The take-profit is below entry-price for long position, so it will be replaced with a market order instead')
+                elif self.is_short and o[1] >= self.position.entry_price:
+                    submitted_order: Order = self.broker.buy_at_market(o[0])
+                    logger.info(
+                        'The take-profit is above entry-price for a short position, so it will be replaced with a market order instead')
+                else:
+                    submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
+
+                if submitted_order:
+                    submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
