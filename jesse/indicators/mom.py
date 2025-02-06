@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -21,6 +20,11 @@ def mom(candles: np.ndarray, period: int = 10, source_type: str = "close", seque
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.MOM(source, timeperiod=period)
+    res = np.empty_like(source, dtype=float)
+    if len(source) >= period:
+        res[:period] = np.nan
+        res[period:] = source[period:] - source[:-period]
+    else:
+        res[:] = np.nan
 
     return res if sequential else res[-1]

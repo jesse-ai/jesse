@@ -1,8 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
-
 from jesse.helpers import get_candle_source, slice_candles
 
 
@@ -21,6 +19,8 @@ def rocp(candles: np.ndarray, period: int = 10, source_type: str = "close", sequ
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.ROCP(source, timeperiod=period)
+    res = np.full(source.shape, np.nan, dtype=float)
+    if len(source) > period:
+        res[period:] = (source[period:] - source[:-period]) / source[:-period]
 
     return res if sequential else res[-1]

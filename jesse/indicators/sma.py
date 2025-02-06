@@ -24,7 +24,6 @@ def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    # calculate simple moving average (SMA) manually without talib
     res = np.full(source.shape, np.nan)
     if len(source) >= period:
         res[period-1:] = np.convolve(source, np.ones(period, dtype=float)/period, mode='valid')
