@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source
 from jesse.indicators.ma import ma
@@ -35,7 +34,8 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
     source_compare = get_candle_source(candles_compare, source_type=source_type)
 
     a = np.log(source / source_compare)
-    b = talib.MOM(a, timeperiod=lookback)
+    b = np.full_like(a, np.nan)
+    b[lookback:] = a[lookback:] - a[:-lookback]
 
     res = ma(b, period=period, matype=matype, sequential=True) * 100
 
