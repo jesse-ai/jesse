@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
@@ -33,7 +32,7 @@ def mab(candles: np.ndarray, fast_period: int = 10, slow_period: int = 50, devup
 
     fastEma = ma(source, period=fast_period, matype=fast_matype, sequential=True)
     slowEma = ma(source, period=slow_period, matype=slow_matype, sequential=True)
-    sqAvg = talib.SUM(np.power(fastEma - slowEma, 2), fast_period) / fast_period
+    sqAvg = np.sum(np.power(fastEma - slowEma, 2)[-fast_period:]) / fast_period
     dev = np.sqrt(sqAvg)
 
     middlebands = fastEma
