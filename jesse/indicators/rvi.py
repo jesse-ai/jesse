@@ -1,13 +1,12 @@
 from typing import Union
 
 import numpy as np
-import talib
+from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
-
 
 def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1, devtype: int = 0, source_type: str = "close",
         sequential: bool = False) -> Union[float, np.ndarray]:
@@ -27,7 +26,7 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     source = get_candle_source(candles, source_type=source_type)
 
     if devtype == 0:
-      dev = talib.STDDEV(source, period)
+      dev = _rolling_std(source, period)
     elif devtype == 1:
       dev = mean_ad(source, period, sequential=True)
     elif devtype == 2:
@@ -45,3 +44,11 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     result = 100 * (up_avg / (up_avg + down_avg))
 
     return result if sequential else result[-1]
+
+
+def _rolling_std(arr: np.ndarray, window: int) -> np.ndarray:
+    if len(arr) < window:
+        return np.full(len(arr), np.nan)
+    windows = sliding_window_view(arr, window_shape=window)
+    stds = np.std(windows, axis=1, ddof=0)
+    return np.concatenate((np.full(window - 1, np.nan), stds))
