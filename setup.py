@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from jesse.version import __version__
+from .jesse.version import __version__
 
 # also change in version.py
 VERSION = __version__
