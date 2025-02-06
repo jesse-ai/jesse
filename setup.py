@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+from jesse.version import __version__
 
 # also change in version.py
-VERSION = "1.6.3"
+VERSION = __version__
 DESCRIPTION = "A trading framework for cryptocurrencies"
 with open("requirements.txt", "r", encoding="utf-8") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
