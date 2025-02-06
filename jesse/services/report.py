@@ -189,7 +189,15 @@ def watch_list() -> List[List[Union[str, str]]]:
     if not store.candles.are_all_initiated:
         return []
 
-    watch_list_array = strategy.watch_list()
+    try:
+        watch_list_array = strategy.watch_list()
+    except Exception as e:
+        import traceback
+
+        watch_list_array = [
+            ('', "The watch list is not available because an error occurred while getting it. Please check your strategy code's watch_list() method."),
+            ('', f'ERROR: ```{traceback.format_exc()}```')
+        ]
 
     # loop through the watch list and convert each item into a string
     for index, value in enumerate(watch_list_array):

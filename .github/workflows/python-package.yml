@@ -61,20 +61,21 @@ jobs:
           path: |
               ~/.local/ta-lib/lib
               ~/.local/ta-lib/include
-          key: talib-cache-v0.4.0
+          key: talib-cache-v0.6.0
       - name: Install ta-lib mac / windows
         run: |
           if ([ "$RUNNER_OS" = "macOS" ]); then
             brew install ta-lib
           fi
           if ([ "$RUNNER_OS" = "Windows" ]); then
-            curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
+            curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.6.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
           fi
       - name: Install ta-lib Linux
         if: steps.talib-cache.outputs.cache-hit != 'true'
         run: |
-            wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz
-            cd ta-lib/
+            wget https://github.com/TA-Lib/ta-lib/releases/download/v0.6.1/ta-lib-0.6.1-src.tar.gz -q
+            tar -xzf ta-lib-0.6.1-src.tar.gz
+            cd ta-lib-0.6.1/
             ./configure --prefix=$HOME/.local/ta-lib
             make
             sudo make install

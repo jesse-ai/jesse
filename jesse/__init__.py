@@ -667,13 +667,11 @@ def get_logs(session_id: str, token: str = Query(...)):
         return authenticator.unauthorized_response()
 
     try:
-        path = f'storage/logs/backtest-mode/{session_id}.txt'
+        from jesse.modes.data_provider import get_backtest_logs
+        content = get_backtest_logs(session_id)
 
-        if not os.path.exists(path):
+        if content is None:
             return JSONResponse({'error': 'Log file not found'}, status_code=404)
-
-        with open(path, 'r') as f:
-            content = f.read()
 
         return JSONResponse({'content': content}, status_code=200)
     except Exception as e:

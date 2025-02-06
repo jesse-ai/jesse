@@ -585,7 +585,7 @@ def test_emv():
     candles = np.array(test_candles_19)
     single = ta.emv(candles)
     seq = ta.emv(candles, sequential=True)
-    assert round(single, 0) == -11
+    assert round(single, 0) == -1
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -642,7 +642,7 @@ def test_fosc():
     candles = np.array(test_candles_19)
     single = ta.fosc(candles)
     seq = ta.fosc(candles, sequential=True)
-    assert round(single, 0) == -69
+    assert round(single, 0) == -32
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1013,7 +1013,7 @@ def test_kvo():
     single = ta.kvo(candles)
     seq = ta.kvo(candles, sequential=True)
 
-    assert round(single / 10000000, 2) == -5.52
+    assert round(single / 10000000, 2) == -0.88
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -1314,20 +1314,6 @@ def test_mom():
     assert round(single, 2) == -116.09
     assert len(seq) == len(candles)
     assert seq[-1] == single
-
-
-def test_msw():
-    candles = np.array(test_candles_19)
-    single = ta.msw(candles)
-    seq = ta.msw(candles, sequential=True)
-
-    assert type(single).__name__ == 'MSW'
-    assert round(single.lead, 2) == -0.66
-    assert round(single.sine, 2) == -1.0
-
-    assert seq.lead[-1] == single.lead
-    assert seq.sine[-1] == single.sine
-    assert len(seq.sine) == len(candles)
 
 
 def test_mwdx():
@@ -2117,7 +2103,7 @@ def test_vidya():
     single = ta.vidya(candles)
     seq = ta.vidya(candles, sequential=True)
 
-    assert round(single, 2) == 194.75
+    assert round(single, 2) == 200.84
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -2375,7 +2361,7 @@ def test_squeeze_momentum():
     result = ta.squeeze_momentum(candles, sequential=False)
 
     assert result.squeeze == 1
-    assert result.momentum == -52.22875000000006
+    assert round(result.momentum, 2) == -52.23
     assert result.momentum_signal == -1
 
     seq_result = ta.squeeze_momentum(candles)
@@ -2384,16 +2370,16 @@ def test_squeeze_momentum():
     assert seq_result.squeeze[-2] == 1
     assert seq_result.momentum_signal[0] == -2
     assert seq_result.momentum_signal[-2] == -1
-    assert seq_result.momentum[-10] == -37.97460714285718
-    assert seq_result.momentum[-2] == -40.97509285714294
+    assert round(seq_result.momentum[-10], 2) == -37.97
+    assert round(seq_result.momentum[-2], 2) == -40.98
 
 
 def test_hull_suit():
     candles = np.array(test_candles_19)
     result = ta.hull_suit(candles, sequential=False)
 
-    assert result.s_hull == 243.7078927712581
-    assert result.m_hull == 230.5660333608274
+    assert round(result.s_hull, 2) == 243.71
+    assert round(result.m_hull, 2) == 230.57
     assert result.signal == 'sell'
 
 
@@ -2410,5 +2396,3 @@ def test_volume():
     assert seq.ma[-1] == single.ma
     assert len(seq.volume) == len(candles)
     assert len(seq.ma) == len(candles)
-
-
