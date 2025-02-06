@@ -52,7 +52,7 @@ class ExchangeRejectedOrder(Exception):
     pass
 
 
-class ExchangeOrderNotFind(Exception):
+class ExchangeOrderNotFound(Exception):
     pass
 
 
