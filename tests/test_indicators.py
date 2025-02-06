@@ -518,9 +518,15 @@ def test_dx():
     single = ta.dx(candles)
     seq = ta.dx(candles, sequential=True)
 
-    assert round(single, 0) == 67
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
+    assert round(single.adx, 2) == 83.12
+    assert round(single.plusDI, 2) == 5.59
+    assert round(single.minusDI, 2) == 58.93
+    assert len(seq.adx) == len(candles)
+    assert len(seq.plusDI) == len(candles)
+    assert len(seq.minusDI) == len(candles)
+    assert seq.adx[-1] == single.adx
+    assert seq.plusDI[-1] == single.plusDI
+    assert seq.minusDI[-1] == single.minusDI
 
 
 def test_edcf():
