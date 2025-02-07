@@ -678,5 +678,20 @@ def get_logs(session_id: str, token: str = Query(...)):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
+@fastapi_app.get("/download/backtest/log/{session_id}")
+def download_backtest_log(session_id: str, token: str = Query(...)):
+    """
+    Download log file for a specific backtest session
+    """
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    try:
+        from jesse.modes.data_provider import download_backtest_log
+        return download_backtest_log(session_id)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
 fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
