@@ -178,3 +178,20 @@ def get_backtest_logs(session_id: str):
         content = f.read()
 
     return jh.compressed_response(content)
+
+
+def download_backtest_log(session_id: str):
+    """
+    Returns the log file for a specific backtest session as a downloadable file
+    """
+    path = f'storage/logs/backtest-mode/{session_id}.txt'
+    
+    if not os.path.exists(path):
+        raise Exception('Log file not found')
+        
+    filename = f'backtest-{session_id}.txt'
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type='text/plain'
+    )
