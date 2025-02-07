@@ -86,25 +86,10 @@ class ClosedTrade(peewee.Model):
         }
 
     @property
-    def chart_to_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'strategy_name': jh.get_class_name(self.strategy_name),
-            'symbol': self.symbol,
-            'exchange': self.exchange,
-            'type': self.type,
-            'entry_price': self.entry_price,
-            'exit_price': self.exit_price,
-            'qty': self.qty,
-            'opened_at': self.opened_at,
-            'closed_at': self.closed_at,
-            "fee": self.fee,
-            "size": self.size,
-            "PNL": self.pnl,
-            "PNL_percentage": self.pnl_percentage,
-            "holding_period": self.holding_period,
-            "orders": [order.to_dict for order in self.orders]
-        }
+    def to_dict_with_orders(self) -> dict:
+        data = self.to_dict
+        data['orders'] = [order.to_dict for order in self.orders]
+        return data
 
     @property
     def fee(self) -> float:

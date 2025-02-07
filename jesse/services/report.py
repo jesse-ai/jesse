@@ -159,7 +159,7 @@ def portfolio_metrics() -> Union[dict, None]:
 def trades() -> List[dict]:
     if store.completed_trades.count == 0:
         return []
-    return [t.chart_to_dict for t in store.completed_trades.trades]
+    return [t.to_dict_with_orders for t in store.completed_trades.trades]
 
 
 def info() -> List[List[Union[str, Any]]]:
