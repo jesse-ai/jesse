@@ -177,4 +177,4 @@ def get_backtest_logs(session_id: str):
     with open(path, "r") as f:
         content = f.read()
 
-    return content
+    return jh.compressed_response(content)
