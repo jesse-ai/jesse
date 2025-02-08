@@ -23,7 +23,7 @@ def linearreg_intercept(candles: np.ndarray, period: int = 14, source_type: str 
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    # Compute linear regression intercept manually without talib
+    # Compute linear regression intercept using vectorized operations (no TA-Lib required)
     if len(source) < period:
         if sequential:
             return np.full_like(source, np.nan, dtype=float)
@@ -38,13 +38,13 @@ def linearreg_intercept(candles: np.ndarray, period: int = 14, source_type: str 
         # Compute rolling windows using a vectorized approach
         windows = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
         means = windows.mean(axis=1)
-        slopes = ((windows - means[:, None]) * (x - x_mean)).sum(axis=1) / sxx
+        slopes = np.dot(windows - means[:, None], (x - x_mean)) / sxx
         intercepts = means - slopes * x_mean
         result = np.concatenate((np.full(period - 1, np.nan), intercepts))
         return result
     else:
         window = source[-period:]
         mean_val = window.mean()
-        slope = ((window - mean_val) * (x - x_mean)).sum() / sxx
+        slope = np.dot(window - mean_val, (x - x_mean)) / sxx
         intercept = mean_val - slope * x_mean
         return intercept
