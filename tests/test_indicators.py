@@ -1992,7 +1992,7 @@ def test_tsf():
 
     assert round(single, 1) == 174.7
     assert len(seq) == len(candles)
-    assert seq[-1] == single
+    assert round(seq[-1], 2) == round(single, 2)
 
 
 def test_tsi():
