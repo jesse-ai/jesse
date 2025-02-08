@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-#from import talib removed
 
 from jesse.helpers import get_candle_source, slice_candles
 
