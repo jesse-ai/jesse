@@ -42,13 +42,15 @@ class OptimizationRequestJson(BaseModel):
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]
     config: dict
-    start_date: str
-    finish_date: str
+    training_start_date: str
+    training_finish_date: str
+    testing_start_date: str
+    testing_finish_date: str
     optimal_total: int
     debug_mode: bool
-    export_csv: bool
-    export_json: bool
     fast_mode: bool
+    cpu_cores: int
+    
 
 
 class ImportCandlesRequestJson(BaseModel):

@@ -28,3 +28,4 @@ numba~=0.61.0rc2
 PyJWT~=2.8.0
 cryptography~=42.0.5
 ecdsa>=0.16.0
+optuna~=4.2.0

@@ -30,21 +30,8 @@ class Optimizer(ABC):
             fast_mode: bool,
             optimal_total: int,
             cpu_cores: int,
-            csv: bool,
-            export_json: bool,
-            start_date: str,
-            finish_date: str,
-            charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
-            fitness_goal: float = 1,
     ) -> None:
-        if len(router.routes) != 1:
-            raise NotImplementedError('optimize_mode mode only supports one route at the moment')
-
-        self.strategy_name = router.routes[0].strategy_name
-        self.exchange = router.routes[0].exchange
-        self.symbol = router.routes[0].symbol
-        self.timeframe = router.routes[0].timeframe
-        strategy_class = jh.get_strategy_class(self.strategy_name)
+        strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
         self.strategy_hp = strategy_class.hyperparameters(None)
         solution_len = len(self.strategy_hp)
 
@@ -57,8 +44,6 @@ class Optimizer(ABC):
         self.iterations = 2000 * solution_len
         self.population_size = solution_len * 100
         self.solution_len = solution_len
-        self.charset = charset
-        self.fitness_goal = fitness_goal
         self.fast_mode = fast_mode
         self.cpu_cores = 0
         self.optimal_total = optimal_total
@@ -79,14 +64,7 @@ class Optimizer(ABC):
 
         options = {
             'strategy_name': self.strategy_name,
-            'exchange': self.exchange,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe,
             'strategy_hp': self.strategy_hp,
-            'csv': csv,
-            'json': export_json,
-            'start_date': start_date,
-            'finish_date': finish_date,
         }
 
         self.options = {} if options is None else options

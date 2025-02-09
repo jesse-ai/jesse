@@ -112,10 +112,8 @@ def set_config(conf: dict) -> None:
 
     # optimization mode only
     if jh.is_optimizing():
-        # ratio
-        config['env']['optimization']['ratio'] = conf['ratio']
-        # exchange info (only one because the optimize mode supports only one trading route at the moment)
-        config['env']['optimization']['exchange'] = conf['exchange']
+        # objective function
+        config['env']['optimization']['objective_function'] = conf['objective_function']
         # warm_up_candles
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
 
