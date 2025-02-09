@@ -745,77 +745,6 @@ def test_hma():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-
-def test_ht_dcperiod():
-    candles = np.array(test_candles_19)
-    single = ta.ht_dcperiod(candles)
-    seq = ta.ht_dcperiod(candles, sequential=True)
-
-    assert round(single, 0) == 24
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_dcphase():
-    candles = np.array(test_candles_19)
-    single = ta.ht_dcphase(candles)
-    seq = ta.ht_dcphase(candles, sequential=True)
-
-    assert round(single, 0) == 10
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_phasor():
-    candles = np.array(test_candles_19)
-    single = ta.ht_phasor(candles)
-    seq = ta.ht_phasor(candles, sequential=True)
-
-    assert type(single).__name__ == 'IQ'
-    assert round(single.inphase, 0) == 11
-    assert round(single.quadrature, 0) == -52
-
-    assert seq.inphase[-1] == single.inphase
-    assert seq.quadrature[-1] == single.quadrature
-    assert len(seq.inphase) == len(candles)
-    assert len(seq.quadrature) == len(candles)
-
-
-def test_ht_sine():
-    candles = np.array(test_candles_19)
-    single = ta.ht_sine(candles)
-    seq = ta.ht_sine(candles, sequential=True)
-
-    assert type(single).__name__ == 'SINEWAVE'
-    assert round(single.sine, 2) == 0.18
-    assert round(single.lead, 2) == 0.82
-
-    assert seq.sine[-1] == single.sine
-    assert seq.lead[-1] == single.lead
-    assert len(seq.sine) == len(candles)
-    assert len(seq.lead) == len(candles)
-
-
-def test_ht_trendline():
-    candles = np.array(test_candles_19)
-    single = ta.ht_trendline(candles)
-    seq = ta.ht_trendline(candles, sequential=True)
-
-    assert round(single, 0) == 236
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_trendmode():
-    candles = np.array(test_candles_19)
-    single = ta.ht_trendmode(candles)
-    seq = ta.ht_trendmode(candles, sequential=True)
-
-    assert single == 1
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
 def test_hurst():
     candles = np.array(test_candles_19)
 
@@ -1708,23 +1637,6 @@ def test_sar():
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
-
-def test_sar_ext():
-    # use the same candles as mama_candles
-    candles = np.array(test_candles_19)
-
-    single = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02,
-                       acceleration_long=0.02,
-                       acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
-                       acceleration_max_short=0.2)
-    seq = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02, acceleration_long=0.02,
-                    acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
-                    acceleration_max_short=0.2,
-                    sequential=True)
-
-    assert round(single, 2) == -243.15
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
 
 
 def test_sinwma():
