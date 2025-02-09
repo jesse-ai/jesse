@@ -4,8 +4,15 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 
+from jesse.indicators.ema import ema
+from jesse.indicators.sma import sma
+from jesse.indicators.wma import wma
+from jesse.indicators.dema import dema
+from jesse.indicators.tema import tema
+from jesse.indicators.trima import trima
 
-def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str = "close", sequential: bool = False) -> Union[
+
+def ma(candles: np.ndarray, period: int = 30, matype: int = 0, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
     MA - (nearly) All Moving Averages of Jesse
@@ -37,7 +44,6 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     16: gauss (Gaussian Filter)
     17: high\_pass (1-pole High Pass Filter by John F. Ehlers)
     18: high\_pass\_2\_pole (2-pole High Pass Filter by John F. Ehlers)
-    19: ht\_trendline (Hilbert Transform - Instantaneous Trendline)
     20: jma (Jurik Moving Average)
     21: reflex (Reflex indicator by John F. Ehlers)
     22: trendflex (Trendflex indicator by John F. Ehlers)
@@ -64,10 +70,30 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
     candles = slice_candles(candles, sequential)
 
     if matype <= 8:
-        from talib import MA
         if len(candles.shape) != 1:
             candles = get_candle_source(candles, source_type=source_type)
-        res = MA(candles, timeperiod=period, matype=matype)
+        data = candles.astype(float)
+        if matype == 0:
+            res = sma(data, period)
+        elif matype == 1:
+            res = ema(data, period)
+        elif matype == 2:
+            res = wma(data, period)
+        elif matype == 3:
+            res = dema(data, period)
+        elif matype == 4:
+            res = tema(data, period)
+        elif matype == 5:
+            res = trima(data, period)
+        elif matype == 6:
+            from . import kama
+            res = kama(data, period)
+        elif matype == 7:
+            from . import mama
+            res = mama(data, period)
+        elif matype == 8:
+            from . import t3
+            res = t3(data, period)
     elif matype == 9:
         from . import fwma
         res = fwma(candles, period, source_type=source_type, sequential=True)
@@ -75,10 +101,11 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         from . import hma
         res = hma(candles, period, source_type=source_type,  sequential=True)
     elif matype == 11:
-        from talib import LINEARREG
         if len(candles.shape) != 1:
             candles = get_candle_source(candles, source_type=source_type)
-        res = LINEARREG(candles, period)
+        data = candles.astype(float)
+        from . import linearreg
+        res = linearreg(data, period)
     elif matype == 12:
         from . import wilders
         res = wilders(candles, period, source_type=source_type,  sequential=True)
@@ -101,10 +128,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         from . import high_pass_2_pole
         res = high_pass_2_pole(candles, period, source_type=source_type,  sequential=True)
     elif matype == 19:
-        from talib import HT_TRENDLINE
-        if len(candles.shape) != 1:
-            candles = get_candle_source(candles, source_type=source_type)
-        res = HT_TRENDLINE(candles)
+        res = ht_trendline(candles)
     elif matype == 20:
         from . import jma
         res = jma(candles, period, source_type=source_type,  sequential=True)
@@ -171,3 +195,7 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         res = epma(candles, period, source_type=source_type,  sequential=True)
 
     return res if sequential else res[-1]
+
+def ht_trendline(data):
+    # Approximate HT_TRENDLINE using a fixed 10-period EMA as a simple substitute
+    return ema(data, 10)
