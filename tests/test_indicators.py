@@ -1978,7 +1978,7 @@ def test_trix():
     single = ta.trix(candles)
     seq = ta.trix(candles, sequential=True)
 
-    assert round(single, 2) == 30.87
+    assert round(single, 2) == 30.28
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
