@@ -38,7 +38,6 @@ def atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int) -
     atr_array[timeperiod - 1:] = ema_vector
     return atr_array
 
-@njit(cache=True)
 def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20, sed_atr: int = 40, sed_std: int = 100,
                        threshold: float = 1.4, source_type: str = "close",
                        sequential: bool = False) -> DamianiVolatmeter:
@@ -56,10 +55,11 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
 
     :return: float | np.ndarray
     """
-
-    candles = slice_candles(candles, sequential)
-
-    source = get_candle_source(candles, source_type=source_type)
+    if len(candles.shape) == 1:
+        source = candles
+    else:
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
     atrvis = atr(candles[:, 3], candles[:, 4], candles[:, 2], vis_atr)
     atrsed = atr(candles[:, 3], candles[:, 4], candles[:, 2], sed_atr)
@@ -70,7 +70,6 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
         return DamianiVolatmeter(vol, t)
     else:
         return DamianiVolatmeter(vol[-1], t[-1])
-
 
 def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std, threshold):
     from scipy.signal import lfilter

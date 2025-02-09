@@ -11,8 +11,8 @@ def weighted_moving_average_custom(source: np.ndarray, period: int) -> np.ndarra
     result = np.full(len(source), np.nan, dtype=float)
     if len(source) < period:
         return result
-    for i in range(period - 1, len(source)):
-        result[i] = np.dot(source[i - period + 1: i + 1], weights) / weight_sum
+    windowed = np.lib.stride_tricks.sliding_window_view(source, period)
+    result[period-1:] = np.dot(windowed, weights) / weight_sum
     return result
 
 
