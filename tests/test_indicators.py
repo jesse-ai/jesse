@@ -1074,36 +1074,6 @@ def test_macd():
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
 
-
-def test_macdext():
-    candles = np.array(test_candles_19)
-
-    single = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
-                        signal_matype=0)
-    seq = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
-                     signal_matype=0,
-                     sequential=True)
-
-    assert type(single).__name__ == 'MACDEXT'
-    assert round(single.macd, 2) == -23.12
-    assert round(single.signal, 2) == -18.51
-    assert round(single.hist, 2) == -4.61
-
-    assert seq.macd[-1] == single.macd
-    assert len(seq.macd) == len(candles)
-    assert len(seq.signal) == len(candles)
-    assert len(seq.hist) == len(candles)
-
-    for matype in range(matypes):
-        if matype != 29:
-            single = ta.macdext(candles, fast_period=12, fast_matype=matype, slow_period=26,
-                                slow_matype=matype, signal_period=9, signal_matype=matype)
-            assert type(single).__name__ == 'MACDEXT'
-            assert type(single.macd) == np.float64
-            assert type(single.signal) == np.float64
-            assert type(single.hist) == np.float64
-
-
 def test_mama():
     candles = np.array(test_candles_19)
 

@@ -81,7 +81,6 @@ from .ma import ma
 from .maaq import maaq
 from .mab import mab
 from .macd import macd
-from .macdext import macdext
 from .mama import mama
 from .marketfi import marketfi
 from .mass import mass
