@@ -8,8 +8,7 @@ RSMK = namedtuple('RSMK', ['indicator', 'signal'])
 
 
 def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, period: int = 3, signal_period: int = 20,
-         matype: int = 1,
-         signal_matype: int = 1, source_type: str = "close", sequential: bool = False) -> RSMK:
+        source_type: str = "close", sequential: bool = False) -> RSMK:
     """
     RSMK - Relative Strength
 
@@ -18,8 +17,6 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
     :param lookback: int - default: 90
     :param period: int - default: 3
     :param signal_period: int - default: 20
-    :param matype: int - default: 1
-    :param signal_matype: int - default: 1
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
