@@ -26,7 +26,7 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2
             basis = np.mean(windows, axis=1)
             std = np.std(windows, axis=1, ddof=0)
             # Compute Bollinger Bands Width using vectorized operation
-            bbw[period - 1:] = (( (basis + mult * std) - (basis - mult * std) ) / basis) * 100
+            bbw[period - 1:] = (( (basis + mult * std) - (basis - mult * std) ) / basis)
         return bbw
     else:
         window = source[-period:]
@@ -34,4 +34,4 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2
         std = np.std(window, ddof=0)
         upper = basis + mult * std
         lower = basis - mult * std
-        return ((upper - lower) / basis) * 100
+        return ((upper - lower) / basis)
