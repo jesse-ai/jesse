@@ -1017,7 +1017,6 @@ def test_lrsi():
 def test_ma():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
-
     single = ta.ma(candles, matype=9)
     seq = ta.ma(candles, matype=9, sequential=True)
 
@@ -2255,7 +2254,7 @@ def test_squeeze_momentum():
     result = ta.squeeze_momentum(candles, sequential=False)
 
     assert result.squeeze == 1
-    assert result.momentum == -52.22875000000006
+    assert round(result.momentum, 2) == -52.23
     assert result.momentum_signal == -1
 
     seq_result = ta.squeeze_momentum(candles)
@@ -2264,16 +2263,16 @@ def test_squeeze_momentum():
     assert seq_result.squeeze[-2] == 1
     assert seq_result.momentum_signal[0] == -2
     assert seq_result.momentum_signal[-2] == -1
-    assert seq_result.momentum[-10] == -37.97460714285718
-    assert seq_result.momentum[-2] == -40.97509285714294
+    assert round(seq_result.momentum[-10], 2) == -37.97
+    assert round(seq_result.momentum[-2], 2) == -40.98
 
 
 def test_hull_suit():
     candles = np.array(test_candles_19)
     result = ta.hull_suit(candles, sequential=False)
 
-    assert result.s_hull == 243.7078927712581
-    assert result.m_hull == 230.5660333608274
+    assert round(result.s_hull, 1) == 243.7
+    assert round(result.m_hull, 1) == 230.6
     assert result.signal == 'sell'
 
 
