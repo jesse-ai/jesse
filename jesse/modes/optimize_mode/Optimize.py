@@ -137,18 +137,56 @@ class Optimizer:
         return score
 
     def study_callback(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
-        # Called after each trial to update the dashboard with the best candidate so far
-        best_trial = study.best_trial
-        best_candidate = {
-            'trial': best_trial.number,
-            'params': best_trial.params,
-            'fitness': round(best_trial.value, 4) if best_trial.value is not None else None,
-        }
-        sync_publish('best_candidates', [best_candidate])
-        # If a solution with a very high fitness score is reached, send an alert to the dashboard
-        if best_trial.value and best_trial.value >= 1:
+        # Get the current trial's value
+        current_value = trial.value if trial.value is not None else float('-inf')
+        
+        # Get the study's trials attribute directly (more efficient than creating a new list)
+        trials = study.trials
+        
+        # Initialize or get the cached best trials from study user attributes
+        best_trials = study.user_attrs.get('best_trials', [])
+        
+        # Only process if the current trial is complete and has a value
+        if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
+            # Create trial info dict
+            current_trial_info = {
+                'trial': trial.number,
+                'params': trial.params,
+                'fitness': round(current_value, 4),
+                'value': current_value  # Used for sorting, not sent to frontend
+            }
+            
+            # Insert into best_trials maintaining sorted order
+            insert_idx = 0
+            for idx, t in enumerate(best_trials):
+                if current_value > t['value']:
+                    insert_idx = idx
+                    break
+                else:
+                    insert_idx = idx + 1
+            
+            if insert_idx < 20:
+                best_trials.insert(insert_idx, current_trial_info)
+                # Keep only top 20
+                best_trials = best_trials[:20]
+                # Update cache in study user attributes
+                study.set_user_attr('best_trials', best_trials)
+        
+        # Format for dashboard (exclude 'value' key used for sorting)
+        best_candidates = [{
+            'rank': f"#{idx + 1}",
+            'trial': f"Trial {t['trial']}",
+            'params': t['params'],
+            'fitness': t['fitness']
+        } for idx, t in enumerate(best_trials)]
+            
+        # Send to dashboard
+        sync_publish('best_candidates', best_candidates)
+        
+        # If a solution with a very high fitness score is reached, send an alert
+        if study.best_trial.value and study.best_trial.value >= 1:
             sync_publish('alert', {
-                'message': f'Fitness goal reached at trial {best_trial.number}',
+                'message': f'Fitness goal reached at trial {study.best_trial.number}',
                 'type': 'success'
             })
 
