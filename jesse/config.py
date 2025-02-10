@@ -3,7 +3,8 @@ from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
 from jesse.info import exchange_info
 
-
+# Main configuration used by the Jesse framework. These values are modified
+# at runtime based on the mode (backtest, live, or optimize) and user settings.
 config = {
     # these values are related to the user's environment
     'env': {
@@ -39,14 +40,14 @@ config = {
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # Optimize mode
+        # Optimize mode (using Optuna)
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         #
         # Below configurations are related to the optimize mode
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         'optimization': {
-            # sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
-            'ratio': 'sharpe',
+            # available ratio options: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
+            'objective_function': 'sharpe',
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -113,7 +114,8 @@ def set_config(conf: dict) -> None:
     # optimization mode only
     if jh.is_optimizing():
         # objective function
-        config['env']['optimization']['objective_function'] = conf['objective_function']
+        if 'objective_function' in conf:
+            config['env']['optimization']['objective_function'] = conf['objective_function']
         # warm_up_candles
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
 

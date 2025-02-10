@@ -47,7 +47,6 @@ class OptimizationRequestJson(BaseModel):
     testing_start_date: str
     testing_finish_date: str
     optimal_total: int
-    debug_mode: bool
     fast_mode: bool
     cpu_cores: int
     

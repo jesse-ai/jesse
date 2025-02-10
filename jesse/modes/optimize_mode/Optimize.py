@@ -1,28 +1,21 @@
 import os
-from abc import ABC
 from datetime import timedelta
-from multiprocessing import Manager, Process, cpu_count
-from random import choices, randint
-
-import click
-import numpy as np
-import pydash
-from pandas import json_normalize
-from timeloop import Timeloop
-
+from multiprocessing import cpu_count
+import optuna
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse import exceptions, sync_publish
-from jesse.modes.optimize_mode.fitness import create_baby, get_and_add_fitness_to_the_bucket
+from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
 from jesse.store import store
 
-
-class Optimizer(ABC):
+# Optimizer class that uses Optuna for hyperparameter optimization
+class Optimizer:
     def __init__(
             self,
+            user_config: dict,
             training_warmup_candles: dict,
             training_candles: dict,
             testing_warmup_candles: dict,
@@ -31,444 +24,161 @@ class Optimizer(ABC):
             optimal_total: int,
             cpu_cores: int,
     ) -> None:
+        # Retrieve the target strategy and its hyperparameter configuration
         strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
+        
         self.strategy_hp = strategy_class.hyperparameters(None)
-        solution_len = len(self.strategy_hp)
-
-        if solution_len == 0:
+        
+        if not self.strategy_hp:
             raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyperparameters() method.')
 
-        self.started_index = 0
+        self.solution_len = len(self.strategy_hp)
         self.start_time = jh.now_to_timestamp()
-        self.population = []
-        self.iterations = 2000 * solution_len
-        self.population_size = solution_len * 100
-        self.solution_len = solution_len
         self.fast_mode = fast_mode
-        self.cpu_cores = 0
         self.optimal_total = optimal_total
         self.training_warmup_candles = training_warmup_candles
         self.training_candles = training_candles
         self.testing_warmup_candles = testing_warmup_candles
         self.testing_candles = testing_candles
-        self.average_execution_seconds = 0
+        self.user_config = user_config
 
+        # Validate and set the number of CPU cores to use
+        if cpu_cores < 1:
+            raise ValueError('cpu_cores must be an integer value greater than 0.')
+        available = cpu_count()
+        self.cpu_cores = cpu_cores if cpu_cores <= available else available
+
+        # Determine number of trials based on the number of hyperparameters
+        self.n_trials = self.solution_len * 100
+        
+        # Create a progress bar instance to update the front end about optimization progress
+        self.progressbar = Progressbar(self.n_trials)
+
+        # Setup a periodic termination check in case the user ends the session
         client_id = jh.get_session_id()
-        # check for termination event once per second
-        tl_0 = Timeloop()
-        @tl_0.job(interval=timedelta(seconds=1))
+        from timeloop import Timeloop
+        self.tl = Timeloop()
+        @self.tl.job(interval=timedelta(seconds=1))
         def check_for_termination():
             if is_process_active(client_id) is False:
                 raise exceptions.Termination
-        tl_0.start()
+        self.tl.start()
 
-        options = {
-            'strategy_name': self.strategy_name,
-            'strategy_hp': self.strategy_hp,
-        }
-
-        self.options = {} if options is None else options
-        os.makedirs('./storage/temp/optimize', exist_ok=True)
-        # self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
-
-        if fitness_goal > 1 or fitness_goal < 0:
-            raise ValueError('fitness scores must be between 0 and 1')
-
-        if not optimal_total > 0:
-            raise ValueError('optimal_total must be bigger than 0')
-
-        # # if temp file exists, load data to resume previous session
-        # if jh.file_exists(self.temp_path) and click.confirm(
-        #         'Previous session detected. Do you want to resume?', default=True
-        # ):
-        #     self.load_progress()
-
-        if cpu_cores > cpu_count():
-            raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
-        elif cpu_cores == 0:
-            self.cpu_cores = cpu_count()
-        else:
-            self.cpu_cores = cpu_cores
-
-    def generate_initial_population(self) -> None:
-        """
-        generates the initial population
-        """
-        length = int(self.population_size / self.cpu_cores)
-
-        progressbar = Progressbar(length)
-        for i in range(length):
-            people = []
-            with Manager() as manager:
-                dna_bucket = manager.list([])
-                workers = []
-
-                try:
-                    for _ in range(self.cpu_cores):
-                        dna = ''.join(choices(self.charset, k=self.solution_len))
-                        w = Process(
-                            target=get_and_add_fitness_to_the_bucket,
-                            args=(
-                                dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_data_routes,
-                                self.strategy_hp, dna, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total, self.fast_mode
-                            )
-                        )
-                        w.start()
-                        workers.append(w)
-
-                    # join workers
-                    for w in workers:
-                        w.join()
-                        if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {w.exitcode}')
-                except exceptions.Termination:
-                    self._handle_termination(manager, workers)
-
-                for d in dna_bucket:
-                    people.append({
-                        'dna': d[0],
-                        'fitness': d[1],
-                        'training_log': d[2],
-                        'testing_log': d[3]
-                    })
-
-            # update dashboard
-            self.update_progressbar(progressbar)
-
-            # general_info streams
-            general_info = {
-                'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                'index': f'{(i + 1) * self.cpu_cores}/{self.population_size}',
-                'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
-                'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
-                'average_execution_seconds': self.average_execution_seconds
-            }
-            if jh.is_debugging():
-                general_info['population_size'] = self.population_size
-                general_info['iterations'] = self.iterations
-                general_info['solution_length'] = self.solution_len
-            sync_publish('general_info', general_info)
-
-            for p in people:
-                self.population.append(p)
-
-        sync_publish('progressbar', {
-            'current': 100,
-            'estimated_remaining_seconds': 0
-        })
-        # sort the population
-        self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
-
-    def select_person(self) -> dict:
-        # len(self.population) instead of self.population_size because some DNAs might not have been created due to errors
-        # to fix an issue with being less than 100 population_len (which means there's only on hyperparameter in the strategy)
-        population_len = len(self.population)
-        if population_len == 0:
-            raise IndexError('population is empty')
-        count = int(population_len / 100)
-        if count == 0:
-            count = 1
-        random_index = np.random.choice(population_len, count, replace=False)
-        chosen_ones = [self.population[r] for r in random_index]
-        return pydash.max_by(chosen_ones, 'fitness')
-
-    def evolve(self) -> list:
-        """
-        the main method, that runs the evolutionary algorithm
-        """
-        # clear the logs to start from a clean slate
-        jh.clear_file('storage/logs/optimize-mode.txt')
-
-        logger.log_optimize_mode('Optimization session started')
-
-        if self.started_index == 0:
-            logger.log_optimize_mode(
-                f"Generating {self.population_size} population size (random DNAs) using {self.cpu_cores} CPU cores"
-            )
-            self.generate_initial_population()
-
-            if len(self.population) < 0.5 * self.population_size:
-                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} individuals from planned {self.population_size} are usable. Read more at https://jesse.trade/help/faq/bad-optimization-results-or-valueerror-too-many-errors-less-than-half-of-the-expected-population-size-could-be-generated'
-                logger.log_optimize_mode(msg)
-                raise ValueError(msg)
-
-            # if even our best individual is too weak, then we better not continue
-            if self.population[0]['fitness'] == 0.0001:
-                msg = 'Cannot continue because no individual with the minimum fitness-score was found. Your strategy seems to be flawed or maybe it requires modifications. '
-                logger.log_optimize_mode(msg)
-                raise exceptions.InvalidStrategy(msg)
-
-        loop_length = int(self.iterations / self.cpu_cores)
-
-        i = self.started_index
-        progressbar = Progressbar(loop_length)
-        while i < loop_length:
-            with Manager() as manager:
-                people_bucket = manager.list([])
-                workers = []
-
-                try:
-                    for _ in range(self.cpu_cores):
-                        mommy = self.select_person()
-                        daddy = self.select_person()
-                        w = Process(
-                            target=create_baby,
-                            args=(
-                                people_bucket, mommy, daddy, self.solution_len, self.charset,
-                                jh.get_config('env.optimization'), router.formatted_routes,
-                                router.formatted_data_routes,
-                                self.strategy_hp, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total, self.fast_mode
-                            )
-                        )
-                        w.start()
-                        workers.append(w)
-
-                    for w in workers:
-                        w.join()
-                        if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {w.exitcode}')
-                except exceptions.Termination:
-                    self._handle_termination(manager, workers)
-
-                # update dashboard
-                click.clear()
-                self.update_progressbar(progressbar)
-                # general_info streams
-                general_info = {
-                    'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                    'index': f'{(i + 1) * self.cpu_cores}/{self.iterations}',
-                    'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
-                    'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
-                    'average_execution_seconds': self.average_execution_seconds
-                }
-                if jh.is_debugging():
-                    general_info['population_size'] = self.population_size
-                    general_info['iterations'] = self.iterations
-                    general_info['solution_length'] = self.solution_len
-                sync_publish('general_info', general_info)
-
-                if self.population_size > 50:
-                    number_of_ind_to_show = 40
-                elif self.population_size > 20:
-                    number_of_ind_to_show = 15
-                elif self.population_size > 9:
-                    number_of_ind_to_show = 9
+    def objective(self, trial: optuna.trial.Trial) -> float:
+        # Build a hyperparameters dictionary using trial suggestions
+        hp = {}
+        for param in self.strategy_hp:
+            param_name = str(param['name'])
+            param_type = param['type']
+            # Convert to string whether input is type class or string
+            if isinstance(param_type, type):
+                param_type = param_type.__name__
+            else:
+                # Remove quotes if they exist
+                param_type = param_type.strip("'").strip('"')
+            if param_type == 'int':
+                hp[param_name] = trial.suggest_int(
+                    param_name, param['min'], param['max'], step=param.get('step', 1)
+                )
+            elif param_type == 'float':
+                if 'step' in param and param['step'] is not None:
+                    hp[param_name] = trial.suggest_float(
+                        param_name, param['min'], param['max'], step=param['step']
+                    )
                 else:
-                    raise ValueError('self.population_size cannot be less than 10')
+                    hp[param_name] = trial.suggest_float(
+                        param_name, param['min'], param['max']
+                    )
+            elif param_type == 'categorical':
+                hp[param_name] = trial.suggest_categorical(param_name, param['options'])
+            else:
+                raise ValueError(f"Unsupported hyperparameter type: {param_type}")
 
-                best_candidates = [{
-                        'rank': j + 1,
-                        'dna': self.population[j]['dna'],
-                        'fitness': round(self.population[j]['fitness'], 4),
-                        'training_win_rate': self.population[j]['training_log']['win-rate'],
-                        'training_total_trades': self.population[j]['training_log']['total'],
-                        'training_pnl': self.population[j]['training_log']['PNL'],
-                        'testing_win_rate': self.population[j]['testing_log']['win-rate'],
-                        'testing_total_trades': self.population[j]['testing_log']['total'],
-                        'testing_pnl': self.population[j]['testing_log']['PNL'],
-                    } for j in range(number_of_ind_to_show)]
-                sync_publish('best_candidates', best_candidates)
+        try:
+            # Calculate the fitness score using the provided hyperparameters
+            score, training_log, testing_log = get_fitness(
+                self.user_config,
+                router.formatted_routes,
+                router.formatted_data_routes,
+                self.strategy_hp,
+                hp,
+                self.training_warmup_candles,
+                self.training_candles,
+                self.testing_warmup_candles,
+                self.testing_candles,
+                self.optimal_total,
+                self.fast_mode
+            )
+        except Exception as e:
+            logger.log_optimize_mode(f"Trial evaluation failed: {e}")
+            score = 0.0001
+            training_log = {}
+            testing_log = {}
 
-                # one person has to die and be replaced with the newborn baby
-                for baby in people_bucket:
-                    # never kill our best performer
-                    random_index = randint(1, len(self.population) - 1)
-                    self.population[random_index] = baby
-                    self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
+        # Update the dashboard with general information about the progress
+        trial_number = trial.number + 1
+        general_info = {
+            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+            'trial': f'{trial_number}/{self.n_trials}',
+        }
+        sync_publish('general_info', general_info)
 
-                    # reaching the fitness goal could also end the process
-                    if baby['fitness'] >= self.fitness_goal:
-                        self.update_progressbar(progressbar, finished=True)
-                        sync_publish('alert', {
-                            'message': f'Fitness goal reached after iteration {i*self.cpu_cores}',
-                            'type': 'success'
-                        })
-                        return baby
+        # Update the progress bar and publish the current progress to the dashboard
+        self.progressbar.update()
+        sync_publish('progressbar', {
+            'current': self.progressbar.current,
+            'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
+        })
 
-                # TODO: bring back progress resumption
-                # # save progress after every n iterations
-                # if i != 0 and int(i * self.cpu_cores) % 50 == 0:
-                #     self.save_progress(i)
+        # Log the trial details if debugging is enabled
+        if jh.is_debugging():
+            logger.log_optimize_mode(f"Trial {trial_number}: Score={score}, Params={hp}")
 
-                # TODO: bring back
-                # # store a take_snapshot of the fittest individuals of the population
-                # if i != 0 and i % int(100 / self.cpu_cores) == 0:
-                #     self.take_snapshot(i * self.cpu_cores)
+        return score
 
-                i += 1
+    def study_callback(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
+        # Called after each trial to update the dashboard with the best candidate so far
+        best_trial = study.best_trial
+        best_candidate = {
+            'trial': best_trial.number,
+            'params': best_trial.params,
+            'fitness': round(best_trial.value, 4) if best_trial.value is not None else None,
+        }
+        sync_publish('best_candidates', [best_candidate])
+        # If a solution with a very high fitness score is reached, send an alert to the dashboard
+        if best_trial.value and best_trial.value >= 1:
+            sync_publish('alert', {
+                'message': f'Fitness goal reached at trial {best_trial.number}',
+                'type': 'success'
+            })
 
-                logger.log_optimize_mode('Saving to CSV file...')
-                study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+    def run(self) -> optuna.trial.FrozenTrial:
+        # Log the start of the optimization session
+        logger.log_optimize_mode("Optimization session started with Optuna")
+        
+        # Create SQLite storage so that multiple processes can work concurrently on the study
+        os.makedirs('./storage/temp/optuna', exist_ok=True)
+        storage_url = "sqlite:///./storage/temp/optuna/optuna_study.db"
+        
+        # Create or load the study
+        study = optuna.create_study(
+            direction='maximize',
+            storage=storage_url,
+            study_name=f"{router.routes[0].strategy_name}_optuna",
+            load_if_exists=True
+        )
+        # Run the optimization using multiple processes
+        study.optimize(
+            self.objective,
+            n_trials=self.n_trials,
+            n_jobs=self.cpu_cores,
+            callbacks=[self.study_callback]
+        )
 
-                dna_json = {'snapshot': []}
-                index = f'{(i + 1) * self.cpu_cores}/{self.population_size}'
-                for i in range(30):
-                    dna_json['snapshot'].append(
-                        {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-                            'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
-                            'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
-
-                path = f'./storage/genetics/{study_name}.txt'
-                os.makedirs('./storage/genetics', exist_ok=True)
-                txt = ''
-                with open(path, 'a', encoding="utf-8") as f:
-                    txt += '\n\n'
-                    txt += f'# iteration {index}'
-                    txt += '\n'
-
-                    for i in range(30):
-                        log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
-
-                        txt += '\n'
-                        txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
-
-                    f.write(txt)
-
-                path = f'storage/genetics/csv/{study_name}.csv'
-                os.makedirs('./storage/genetics/csv', exist_ok=True)
-                exists = os.path.exists(path)
-
-                df = json_normalize(dna_json['snapshot'])
-
-                with open(path, 'a', newline='', encoding="utf-8") as outfile:
-                    if not exists:
-                        # header of CSV file
-                        df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-
-                    df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-
+        # Publish a completion alert to the dashboard
         sync_publish('alert', {
-            'message': f"Finished {self.iterations} iterations. Check your best DNA candidates, "
-                       f"if you don't like any of them, try modifying your strategy.",
+            'message': f"Finished {self.n_trials} trials. Check your best hyperparameter candidate.",
             'type': 'success'
         })
 
-        return self.population
-
-    def run(self) -> list:
-        return self.evolve()
-
-    @staticmethod
-    def _handle_termination(manager, workers):
-        logger.info('Terminating session...')
-
-        # terminate all workers
-        for w in workers:
-            w.terminate()
-
-        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-        manager.shutdown()
-
-        # now we can terminate the main session safely
-        raise exceptions.Termination
-
-    def update_progressbar(self, progressbar, finished=False):
-        if finished:
-            progressbar.finish()
-        else:
-            progressbar.update()
-        self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
-        sync_publish('progressbar', {
-            'current': progressbar.current,
-            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-        })
-
-
-    # def save_progress(self, iterations_index: int) -> None:
-    #     """
-    #     pickles data so we can later resume optimizing
-    #     """
-    #     data = {
-    #         'population': self.population,
-    #         'iterations': self.iterations,
-    #         'iterations_index': iterations_index,
-    #         'population_size': self.population_size,
-    #         'solution_len': self.solution_len,
-    #         'charset': self.charset,
-    #         'fitness_goal': self.fitness_goal,
-    #         'options': self.options,
-    #     }
-    #
-    #     with open(self.temp_path, 'wb') as f:
-    #         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # def load_progress(self) -> None:
-    #     """
-    #     Unpickles data to resume from previous optimizing session population
-    #     """
-    #     with open(self.temp_path, 'rb') as f:
-    #         data = pickle.load(f)
-    #
-    #     self.population = data['population']
-    #     self.iterations = data['iterations']
-    #     self.started_index = data['iterations_index']
-    #     self.population_size = data['population_size']
-    #     self.solution_len = data['solution_len']
-    #     self.charset = data['charset']
-    #     self.fitness_goal = data['fitness_goal']
-    #     self.options = data['options']
-
-    # def take_snapshot(self, index: int) -> None:
-    #     """
-    #     stores a snapshot of the fittest population members into a file.
-    #     """
-    #     study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
-    #
-    #     dna_json = {'snapshot': []}
-    #     for i in range(30):
-    #         dna_json['snapshot'].append(
-    #             {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-    #              'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
-    #              'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
-    #
-    #     path = f'./storage/genetics/{study_name}.txt'
-    #     os.makedirs('./storage/genetics', exist_ok=True)
-    #     txt = ''
-    #     with open(path, 'a', encoding="utf-8") as f:
-    #         txt += '\n\n'
-    #         txt += f'# iteration {index}'
-    #         txt += '\n'
-    #
-    #         for i in range(30):
-    #             log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
-    #
-    #             txt += '\n'
-    #             txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
-    #
-    #         f.write(txt)
-    #
-    #     if self.options['csv']:
-    #         path = f'storage/genetics/csv/{study_name}.csv'
-    #         os.makedirs('./storage/genetics/csv', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         df = json_normalize(dna_json['snapshot'])
-    #
-    #         with open(path, 'a', newline='', encoding="utf-8") as outfile:
-    #             if not exists:
-    #                 # header of CSV file
-    #                 df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-    #
-    #             df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-    #
-    #     if self.options['json']:
-    #         path = f'storage/genetics/json/{study_name}.json'
-    #         os.makedirs('./storage/genetics/json', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         mode = 'r+' if exists else 'w'
-    #         with open(path, mode, encoding="utf-8") as file:
-    #             if not exists:
-    #                 snapshots = {"snapshots": []}
-    #                 snapshots["snapshots"].append(dna_json['snapshot'])
-    #                 json.dump(snapshots, file, ensure_ascii=False)
-    #             else:
-    #                 # file exists - append
-    #                 file.seek(0)
-    #                 data = json.load(file)
-    #                 data["snapshots"].append(dna_json['snapshot'])
-    #                 file.seek(0)
-    #                 json.dump(data, file, ensure_ascii=False)
-    #             file.write('\n')
+        return study.best_trial

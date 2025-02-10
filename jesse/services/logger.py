@@ -147,6 +147,13 @@ def log_optimize_mode(message):
 
     LOGGERS[file_name].info(message)
 
+    # also, publish to redis
+    sync_publish('log', {
+        'id': jh.generate_unique_id(),
+        'timestamp': jh.now_to_timestamp(),
+        'message': message
+    })
+
 
 def broadcast_error_without_logging(msg: str):
     msg = str(msg)

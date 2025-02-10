@@ -282,7 +282,10 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, request_json.id, request_json.exchange, request_json.symbol,
+        import_candles_mode.run, 
+        request_json.id, 
+        request_json.exchange, 
+        request_json.symbol,
         request_json.start_date
     )
 
@@ -343,17 +346,17 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
     process_manager.add_task(
         run_optimization,
         request_json.id,
-        request_json.debug_mode,
         request_json.config,
         request_json.exchange,
         request_json.routes,
         request_json.data_routes,
-        request_json.start_date,
-        request_json.finish_date,
+        request_json.training_start_date,
+        request_json.training_finish_date,
+        request_json.testing_start_date,
+        request_json.testing_finish_date,
         request_json.optimal_total,
-        request_json.export_csv,
-        request_json.export_json,
         request_json.fast_mode,
+        request_json.cpu_cores
     )
 
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)

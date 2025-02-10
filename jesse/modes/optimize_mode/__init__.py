@@ -12,7 +12,6 @@ from jesse.routes import router
 
 def run(
         client_id: str,
-        debug_mode,
         user_config: dict,
         exchange: str,
         routes: List[Dict[str, str]],
@@ -27,9 +26,6 @@ def run(
 ) -> None:
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
-
-    # debug flag
-    config['app']['debug_mode'] = debug_mode
 
     # validate cpu_cores
     if cpu_cores < 1:
@@ -62,6 +58,7 @@ def run(
     )
 
     optimizer = Optimizer(
+        user_config,
         training_warmup_candles,
         training_candles,
         testing_warmup_candles,
