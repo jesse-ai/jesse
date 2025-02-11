@@ -55,7 +55,8 @@ def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: b
 
     Val1 = 100 * xuXA
     Val2 = xuXAAbs
-    dti_val = np.where(Val2 != 0, Val1 / Val2, 0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        dti_val = np.divide(Val1, Val2, out=np.zeros_like(Val1, dtype=float), where=Val2 != 0)
 
     if sequential:
         return dti_val

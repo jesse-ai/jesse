@@ -28,7 +28,10 @@ def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, sour
     ema_abs_mom = _ema(np.abs(mom), long_period)
     double_ema_abs_mom = _ema(ema_abs_mom, short_period)
 
-    r = 100 * double_ema_mom / double_ema_abs_mom
+    # Avoid division by zero and invalid results
+    with np.errstate(divide='ignore', invalid='ignore'):
+        r = 100 * double_ema_mom / double_ema_abs_mom
+        r[~np.isfinite(r)] = 0
 
     return r if sequential else r[-1]
 

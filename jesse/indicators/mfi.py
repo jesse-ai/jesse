@@ -41,7 +41,8 @@ def mfi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     roll_neg = np.convolve(neg_flow, np.ones(period), mode='valid')
 
     # Compute Money Flow Ratio; handle division by zero by treating as infinity
-    ratio = np.where(roll_neg == 0, np.inf, roll_pos / roll_neg)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratio = np.divide(roll_pos, roll_neg, out=np.full_like(roll_pos, np.inf, dtype=float), where=roll_neg != 0)
 
     # Compute MFI
     mfi_values = 100 - (100 / (1 + ratio))

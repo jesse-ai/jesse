@@ -55,7 +55,8 @@ def adxr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
     DI_plus = np.where(STR != 0, (S_DMP / STR) * 100, 0.0)
     DI_minus = np.where(STR != 0, (S_DMM / STR) * 100, 0.0)
     denom = DI_plus + DI_minus
-    DX = np.where(denom != 0, np.abs(DI_plus - DI_minus) / denom * 100, 0.0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        DX = np.divide(np.abs(DI_plus - DI_minus) * 100, denom, out=np.zeros_like(denom), where=denom != 0)
 
     # Compute ADX as a simple moving average of DX over 'period' values using convolution
     ADX = np.full(n, np.nan)
