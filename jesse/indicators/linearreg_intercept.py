@@ -23,7 +23,7 @@ def linearreg_intercept(candles: np.ndarray, period: int = 14, source_type: str 
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    # Compute linear regression intercept using vectorized operations (no TA-Lib required)
+    # Compute linear regression intercept using vectorized operations 
     if len(source) < period:
         if sequential:
             return np.full_like(source, np.nan, dtype=float)
