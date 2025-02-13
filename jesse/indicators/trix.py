@@ -1,20 +1,24 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def ema(data: np.ndarray, period: int) -> np.ndarray:
-    alpha = 2 / (period + 1)
+@njit
+def _ema_numba(data, period):
     N = len(data)
-    t = np.arange(N).reshape(-1, 1)  # Shape (N, 1) for time index
-    i = np.arange(N).reshape(1, -1)  # Shape (1, N) for index of data
-    # Compute weights for positions where i <= t
-    weights = np.where(i <= t, alpha * (1 - alpha)**(t - i), 0.0)
-    # Override the weight for i==0 to account for the initial condition: EMA[0] = data[0]
-    weights[:, 0] = (1 - alpha)**(t[:, 0])
-    return weights.dot(data)
+    result = np.empty(N, dtype=np.float64)
+    alpha = 2.0 / (period + 1)
+    result[0] = data[0]
+    for i in range(1, N):
+        result[i] = alpha * data[i] + (1 - alpha) * result[i - 1]
+    return result
+
+
+def ema(data: np.ndarray, period: int) -> np.ndarray:
+    return _ema_numba(data, period)
 
 
 def trix(candles: np.ndarray, period: int = 18, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
