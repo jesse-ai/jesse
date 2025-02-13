@@ -1,13 +1,42 @@
 from typing import Union
-
 import numpy as np
-
+from numba import njit
 from jesse.helpers import slice_candles
+
+
+@njit
+def _atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int) -> np.ndarray:
+    """
+    Calculate ATR using Numba
+    """
+    n = len(close)
+    tr = np.empty(n)
+    atr_values = np.full(n, np.nan)
+    
+    # Calculate True Range
+    tr[0] = high[0] - low[0]
+    for i in range(1, n):
+        hl = high[i] - low[i]
+        hc = abs(high[i] - close[i-1])
+        lc = abs(low[i] - close[i-1])
+        tr[i] = max(max(hl, hc), lc)
+    
+    if n < period:
+        return atr_values
+        
+    # First ATR value is the simple average of the first 'period' true ranges
+    atr_values[period-1] = np.mean(tr[:period])
+    
+    # Calculate subsequent ATR values using Wilder's smoothing
+    for i in range(period, n):
+        atr_values[i] = (atr_values[i-1] * (period - 1) + tr[i]) / period
+        
+    return atr_values
 
 
 def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
-    ATR - Average True Range
+    ATR - Average True Range using Numba for optimization
 
     :param candles: np.ndarray
     :param period: int - default: 14
@@ -21,32 +50,6 @@ def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     low = candles[:, 4]
     close = candles[:, 2]
 
-    # Compute previous close by shifting the close array; for the first element, use itself
-    prev_close = np.empty_like(close)
-    prev_close[0] = close[0]
-    prev_close[1:] = close[:-1]
-
-    # Calculate True Range
-    tr = np.maximum(high - low, np.maximum(np.abs(high - prev_close), np.abs(low - prev_close)))
-    tr[0] = high[0] - low[0]  # ensure first element is high - low
-
-    # Initialize ATR array
-    atr_values = np.empty_like(tr)
-    # For indices with insufficient data, set to NaN
-    atr_values[:period-1] = np.nan
-    # First ATR value is the simple average of the first 'period' true ranges
-    atr_values[period-1] = np.mean(tr[:period])
-
-    # Compute subsequent ATR values using Wilder's smoothing method (vectorized implementation)
-    y0 = atr_values[period-1]  # initial ATR value (simple average of first period true ranges)
-    n_rest = len(tr) - period
-    if n_rest > 0:
-        alpha = 1.0 / period
-        beta = (period - 1) / period  # equivalent to 1 - alpha
-        indices = np.arange(1, n_rest + 1)
-        first_term = y0 * (beta ** indices)
-        # Create a lower-triangular matrix where L[i, j] = beta^(i - j) for j<=i
-        L = np.tril(beta ** (np.subtract.outer(np.arange(n_rest), np.arange(n_rest))))
-        atr_values[period:] = first_term + alpha * np.dot(L, tr[period:])
-
-    return atr_values if sequential else atr_values[-1]
+    result = _atr(high, low, close, period)
+    
+    return result if sequential else result[-1]

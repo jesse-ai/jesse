@@ -1,11 +1,51 @@
 from typing import Union
 import numpy as np
+from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
+
+
+@njit
+def _bb_width(source: np.ndarray, period: int, mult: float) -> np.ndarray:
+    """
+    Calculate Bollinger Bands Width using Numba
+    """
+    n = len(source)
+    bbw = np.full(n, np.nan)
+    
+    if n < period:
+        return bbw
+        
+    # Pre-calculate sum and sum of squares for optimization
+    sum_x = np.zeros(n - period + 1)
+    sum_x2 = np.zeros(n - period + 1)
+    
+    # Initial window
+    sum_x[0] = np.sum(source[:period])
+    sum_x2[0] = np.sum(source[:period] ** 2)
+    
+    # Rolling window calculations
+    for i in range(1, n - period + 1):
+        sum_x[i] = sum_x[i-1] - source[i-1] + source[i+period-1]
+        sum_x2[i] = sum_x2[i-1] - source[i-1]**2 + source[i+period-1]**2
+    
+    # Calculate mean and standard deviation
+    mean = sum_x / period
+    std = np.sqrt((sum_x2 / period) - (mean ** 2))
+    
+    # Calculate BBW
+    for i in range(period - 1, n):
+        idx = i - period + 1
+        basis = mean[idx]
+        upper = basis + mult * std[idx]
+        lower = basis - mult * std[idx]
+        bbw[i] = (upper - lower) / basis
+        
+    return bbw
 
 
 def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2.0, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """
-    BBW - Bollinger Bands Width - Bollinger Bands Bandwidth
+    BBW - Bollinger Bands Width - Bollinger Bands Bandwidth using Numba for optimization
 
     :param candles: np.ndarray
     :param period: int - default: 20
@@ -13,25 +53,11 @@ def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2
     :param source_type: str - default: "close"
     :param sequential: bool - default: False
 
-    :return: BollingerBands(upperband, middleband, lowerband)
+    :return: float | np.ndarray
     """
     candles = slice_candles(candles, sequential)
     source = get_candle_source(candles, source_type=source_type)
-
-    if sequential:
-        n = len(source)
-        bbw = np.full(n, np.nan)
-        if n >= period:
-            windows = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
-            basis = np.mean(windows, axis=1)
-            std = np.std(windows, axis=1, ddof=0)
-            # Compute Bollinger Bands Width using vectorized operation
-            bbw[period - 1:] = (( (basis + mult * std) - (basis - mult * std) ) / basis)
-        return bbw
-    else:
-        window = source[-period:]
-        basis = np.mean(window)
-        std = np.std(window, ddof=0)
-        upper = basis + mult * std
-        lower = basis - mult * std
-        return ((upper - lower) / basis)
+    
+    result = _bb_width(source, period, mult)
+    
+    return result if sequential else result[-1]
