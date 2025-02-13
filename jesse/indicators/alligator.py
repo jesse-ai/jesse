@@ -1,15 +1,26 @@
 from collections import namedtuple
 import numpy as np
-from scipy.signal import lfilter
+from numba import njit
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
 AG = namedtuple('AG', ['jaw', 'teeth', 'lips'])
 
 def smma(source: np.ndarray, length: int) -> np.ndarray:
-    alpha = 1 / length
-    initial_value = np.mean(source[:length])
-    smma, _ = lfilter([alpha], [1, -(1 - alpha)], source, zi=[initial_value * (1 - alpha)])
-    return smma
+    return _smma_numba(source, length)
+
+@njit
+def _smma_numba(source, length):
+    alpha = 1.0 / length
+    total = 0.0
+    for i in range(length):
+        total += source[i]
+    init_val = total / length
+    N = len(source)
+    result = np.empty(N, dtype=np.float64)
+    result[0] = alpha * source[0] + (init_val * (1 - alpha))
+    for i in range(1, N):
+        result[i] = alpha * source[i] + (1 - alpha) * result[i-1]
+    return result
 
 def alligator(candles: np.ndarray, source_type: str = "hl2", sequential: bool = False) -> AG:
     candles = slice_candles(candles, sequential)
