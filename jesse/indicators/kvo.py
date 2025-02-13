@@ -40,7 +40,10 @@ def kvo(candles: np.ndarray, short_period: int = 34, long_period: int = 55, sequ
 
     # Volume Force
     volume = candles[:, 5]
-    vf = np.where(cm != 0, 100 * volume * trend * np.abs(2 * dm / cm - 1), 0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        expr = np.abs(np.divide(2 * dm, cm, out=np.zeros_like(dm, dtype=float), where=cm != 0) - 1)
+    vf = 100 * volume * trend * expr
+    vf[cm == 0] = 0
 
     # Calculate EMAs
     fast_ema = ema(vf, period=short_period, sequential=True)

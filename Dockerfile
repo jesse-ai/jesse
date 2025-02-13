@@ -13,11 +13,6 @@ RUN pip3 install Cython numpy
 RUN mkdir /jesse-docker
 WORKDIR /jesse-docker
 
-# Install TA-lib
-COPY docker_build_helpers/* /tmp/
-RUN cd /tmp && /tmp/install_ta-lib.sh && rm -r /tmp/*ta-lib*
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-
 # Install dependencies
 COPY requirements.txt /jesse-docker
 RUN pip3 install -r requirements.txt

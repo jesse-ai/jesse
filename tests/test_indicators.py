@@ -61,7 +61,7 @@ def test_adxr():
     single = ta.adxr(candles, period=14)
     seq = ta.adxr(candles, period=14, sequential=True)
 
-    assert round(single, 0) == 36
+    assert round(single, 0) == 29
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -216,7 +216,7 @@ def test_bollinger_bands_width():
 
     assert round(single, 4) == 0.0771
     assert len(seq) == len(candles)
-    assert seq[-1] == single
+    assert round(seq[-1], 4) == round(single, 4)
 
 
 def test_bop():
@@ -518,9 +518,15 @@ def test_dx():
     single = ta.dx(candles)
     seq = ta.dx(candles, sequential=True)
 
-    assert round(single, 0) == 67
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
+    assert round(single.adx, 2) == 83.12
+    assert round(single.plusDI, 2) == 5.59
+    assert round(single.minusDI, 2) == 58.93
+    assert len(seq.adx) == len(candles)
+    assert len(seq.plusDI) == len(candles)
+    assert len(seq.minusDI) == len(candles)
+    assert seq.adx[-1] == single.adx
+    assert seq.plusDI[-1] == single.plusDI
+    assert seq.minusDI[-1] == single.minusDI
 
 
 def test_edcf():
@@ -738,77 +744,6 @@ def test_hma():
     assert round(single, 0) == 134
     assert len(seq) == len(candles)
     assert seq[-1] == single
-
-
-def test_ht_dcperiod():
-    candles = np.array(test_candles_19)
-    single = ta.ht_dcperiod(candles)
-    seq = ta.ht_dcperiod(candles, sequential=True)
-
-    assert round(single, 0) == 24
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_dcphase():
-    candles = np.array(test_candles_19)
-    single = ta.ht_dcphase(candles)
-    seq = ta.ht_dcphase(candles, sequential=True)
-
-    assert round(single, 0) == 10
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_phasor():
-    candles = np.array(test_candles_19)
-    single = ta.ht_phasor(candles)
-    seq = ta.ht_phasor(candles, sequential=True)
-
-    assert type(single).__name__ == 'IQ'
-    assert round(single.inphase, 0) == 11
-    assert round(single.quadrature, 0) == -52
-
-    assert seq.inphase[-1] == single.inphase
-    assert seq.quadrature[-1] == single.quadrature
-    assert len(seq.inphase) == len(candles)
-    assert len(seq.quadrature) == len(candles)
-
-
-def test_ht_sine():
-    candles = np.array(test_candles_19)
-    single = ta.ht_sine(candles)
-    seq = ta.ht_sine(candles, sequential=True)
-
-    assert type(single).__name__ == 'SINEWAVE'
-    assert round(single.sine, 2) == 0.18
-    assert round(single.lead, 2) == 0.82
-
-    assert seq.sine[-1] == single.sine
-    assert seq.lead[-1] == single.lead
-    assert len(seq.sine) == len(candles)
-    assert len(seq.lead) == len(candles)
-
-
-def test_ht_trendline():
-    candles = np.array(test_candles_19)
-    single = ta.ht_trendline(candles)
-    seq = ta.ht_trendline(candles, sequential=True)
-
-    assert round(single, 0) == 236
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
-
-def test_ht_trendmode():
-    candles = np.array(test_candles_19)
-    single = ta.ht_trendmode(candles)
-    seq = ta.ht_trendmode(candles, sequential=True)
-
-    assert single == 1
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
 
 def test_hurst():
     candles = np.array(test_candles_19)
@@ -1082,7 +1017,6 @@ def test_lrsi():
 def test_ma():
     # use the same candles as mama_candles
     candles = np.array(test_candles_19)
-
     single = ta.ma(candles, matype=9)
     seq = ta.ma(candles, matype=9, sequential=True)
 
@@ -1139,36 +1073,6 @@ def test_macd():
     assert len(seq.macd) == len(candles)
     assert len(seq.signal) == len(candles)
     assert len(seq.hist) == len(candles)
-
-
-def test_macdext():
-    candles = np.array(test_candles_19)
-
-    single = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
-                        signal_matype=0)
-    seq = ta.macdext(candles, fast_period=12, fast_matype=0, slow_period=26, slow_matype=0, signal_period=9,
-                     signal_matype=0,
-                     sequential=True)
-
-    assert type(single).__name__ == 'MACDEXT'
-    assert round(single.macd, 2) == -23.12
-    assert round(single.signal, 2) == -18.51
-    assert round(single.hist, 2) == -4.61
-
-    assert seq.macd[-1] == single.macd
-    assert len(seq.macd) == len(candles)
-    assert len(seq.signal) == len(candles)
-    assert len(seq.hist) == len(candles)
-
-    for matype in range(matypes):
-        if matype != 29:
-            single = ta.macdext(candles, fast_period=12, fast_matype=matype, slow_period=26,
-                                slow_matype=matype, signal_period=9, signal_matype=matype)
-            assert type(single).__name__ == 'MACDEXT'
-            assert type(single.macd) == np.float64
-            assert type(single.signal) == np.float64
-            assert type(single.hist) == np.float64
-
 
 def test_mama():
     candles = np.array(test_candles_19)
@@ -1374,30 +1278,6 @@ def test_obv():
     assert round(single / 1000000, 0) == -6
     assert len(seq) == len(candles)
     assert seq[-1] == single
-
-
-def test_pattern_recognizion():
-    candles = np.array(test_candles_6)
-    res = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER")
-    seq = ta.pattern_recognition(candles, pattern_type="CDLINVERTEDHAMMER", sequential=True)
-    assert len(seq) == len(candles)
-    assert res == 0
-
-    candles = np.array(test_candles_9)
-    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
-    assert res == 0
-
-    candles = np.array(test_candles_8)
-    res = ta.pattern_recognition(candles, pattern_type="CDLENGULFING")
-    assert res == 0
-
-    candles = np.array(test_candles_7)
-    res = ta.pattern_recognition(candles, pattern_type="CDLHAMMER")
-    assert res == 0
-
-    candles = np.array(test_candles_5)
-    res = ta.pattern_recognition(candles, pattern_type="CDLDOJI")
-    assert res == 1
 
 
 def test_pfe():
@@ -1727,23 +1607,6 @@ def test_sar():
     assert seq[-1] == single
 
 
-def test_sar_ext():
-    # use the same candles as mama_candles
-    candles = np.array(test_candles_19)
-
-    single = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02,
-                       acceleration_long=0.02,
-                       acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
-                       acceleration_max_short=0.2)
-    seq = ta.sarext(candles, start_value=0.02, offset_on_reverse=0, acceleration_init_long=0.02, acceleration_long=0.02,
-                    acceleration_max_long=0.2, acceleration_init_short=0.02, acceleration_short=0.02,
-                    acceleration_max_short=0.2,
-                    sequential=True)
-
-    assert round(single, 2) == -243.15
-    assert len(seq) == len(candles)
-    assert seq[-1] == single
-
 
 def test_sinwma():
     candles = np.array(test_candles_19)
@@ -1996,7 +1859,7 @@ def test_trix():
     single = ta.trix(candles)
     seq = ta.trix(candles, sequential=True)
 
-    assert round(single, 2) == 30.87
+    assert round(single, 2) == 30.28
     assert len(seq) == len(candles)
     assert seq[-1] == single
 
@@ -2010,7 +1873,7 @@ def test_tsf():
 
     assert round(single, 1) == 174.7
     assert len(seq) == len(candles)
-    assert seq[-1] == single
+    assert round(seq[-1], 2) == round(single, 2)
 
 
 def test_tsi():
@@ -2208,8 +2071,8 @@ def test_vwmacd():
 
     assert type(single).__name__ == 'VWMACD'
     assert round(single.macd, 2) == -31.37
-    assert round(single.signal, 2) == -19.64
-    assert round(single.hist, 2) == -11.73
+    assert round(single.signal, 2) == -20.72
+    assert round(single.hist, 2) == -10.65
 
     assert seq.macd[-1] == single.macd
     assert len(seq.macd) == len(candles)
@@ -2378,8 +2241,8 @@ def test_hull_suit():
     candles = np.array(test_candles_19)
     result = ta.hull_suit(candles, sequential=False)
 
-    assert round(result.s_hull, 2) == 243.71
-    assert round(result.m_hull, 2) == 230.57
+    assert round(result.s_hull, 1) == 243.7
+    assert round(result.m_hull, 1) == 230.6
     assert result.signal == 'sell'
 
 

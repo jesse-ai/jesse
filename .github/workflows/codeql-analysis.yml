@@ -46,22 +46,6 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
          ${{ runner.os }}-pip-
-    - name: Install ta-lib
-      run: |
-        if ([ "$RUNNER_OS" = "macOS" ]); then
-          brew install ta-lib
-        fi
-        if ([ "$RUNNER_OS" = "Linux" ]); then
-          if [ ! -f "$GITHUB_WORKSPACE/ta-lib/src" ]; then wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -q && tar -xzf ta-lib-0.4.0-src.tar.gz; fi
-          cd ta-lib/
-          ./configure --prefix=/usr
-          if [ ! -f "$HOME/ta-lib/src" ]; then make; fi
-          sudo make install
-          cd
-        fi
-        if ([ "$RUNNER_OS" = "Windows" ]); then
-          curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
-        fi
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip

@@ -32,27 +32,23 @@ def hull_suit(candles: np.ndarray, mode_switch: str = 'Hma', length: int = 55, l
 
     mode_len = int(length * length_mult)
     if mode_switch == 'Hma':
-        mode = wma(2*wma(source, mode_len / 2, sequential=True) - wma(source,
-                   mode_len, sequential=True), round(mode_len ** 0.5), sequential=True)
+        mode = wma(2*wma(source, int(mode_len / 2), sequential=True) - wma(source, mode_len, sequential=True), round(mode_len ** 0.5), sequential=True)
     elif mode_switch == 'Ehma':
-        mode = ema(2*ema(source, mode_len / 2, sequential=True) - ema(source,
+        mode = ema(2*ema(source, int(mode_len / 2), sequential=True) - ema(source,
                    mode_len, sequential=True), round(mode_len ** 0.5), sequential=True)
     elif mode_switch == 'Thma':
-        mode = wma(3*wma(source, mode_len / 6, sequential=True) - wma(source, mode_len / 4, sequential=True) -
-                   wma(source, mode_len / 2, sequential=True), mode_len / 2, sequential=True)
+        mode = wma(3*wma(source, int(mode_len / 6), sequential=True) - wma(source, int(mode_len / 4), sequential=True) -
+                   wma(source, int(mode_len / 2), sequential=True), int(mode_len / 2), sequential=True)
 
-    s_hull = []
-    m_hull = []
-    signal = []
-    for i in range(len(mode)):
-        if i > 1:
-            s_hull.append(mode[i - 2])
-            m_hull.append(mode[i])
-            signal.append('buy' if mode[i - 2] < mode[i] else 'sell')
-        else:
-            s_hull.append(None)
-            m_hull.append(None)
-            signal.append(None)
+    # Vectorized computation for s_hull, m_hull, and signal
+    n = len(mode)
+    s_hull = np.full(n, None, dtype=object)
+    m_hull = np.full(n, None, dtype=object)
+    signal = np.full(n, None, dtype=object)
+    if n > 2:
+        s_hull[2:] = mode[:-2]
+        m_hull[2:] = mode[2:]
+        signal[2:] = np.where(mode[:-2] < mode[2:], 'buy', 'sell')
 
     if sequential:
         return HullSuit(s_hull, m_hull, signal)

@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import slice_candles
 
@@ -17,6 +16,6 @@ def medprice(candles: np.ndarray, sequential: bool = False) -> Union[float, np.n
     """
     candles = slice_candles(candles, sequential)
 
-    res = talib.MEDPRICE(candles[:, 3], candles[:, 4])
+    res = (candles[:, 3] + candles[:, 4]) / 2
 
     return res if sequential else res[-1]

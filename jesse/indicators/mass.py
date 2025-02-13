@@ -4,7 +4,6 @@ import numpy as np
 from numba import njit
 
 from jesse.helpers import same_length, slice_candles
-from jesse.indicators.ema import ema
 
 
 def mass(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
@@ -26,10 +25,10 @@ def mass(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Unio
     high_low_range = candles[:, 3] - candles[:, 4]  # high - low
 
     # Calculate 9-period EMA of high-low range
-    ema1 = ema(high_low_range, period=9, sequential=True)
+    ema1 = calc_ema(high_low_range, 9)
 
     # Calculate 9-period EMA of the first EMA
-    ema2 = ema(ema1, period=9, sequential=True)
+    ema2 = calc_ema(ema1, 9)
 
     # Calculate EMA ratio
     ratio = np.divide(ema1, ema2, out=np.zeros_like(ema1), where=ema2 != 0)
@@ -47,3 +46,14 @@ def mass_sum(ratio: np.ndarray, period: int) -> np.ndarray:
     for i in range(period - 1, len(ratio)):
         result[i] = np.sum(ratio[i-period+1:i+1])
     return result
+
+
+@njit(cache=True)
+def calc_ema(data, n):
+    alpha = 2.0 / (n + 1)
+    result = np.empty(data.shape[0])
+    result[0] = data[0]
+    for i in range(1, data.shape[0]):
+        result[i] = alpha * data[i] + (1 - alpha) * result[i-1]
+    return result
+

@@ -19,7 +19,8 @@ jobs:
     strategy:
       matrix:
         # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
+        # os: [ubuntu-latest]
         include:
         - os: ubuntu-latest
           path: ~/.cache/pip
@@ -29,7 +30,6 @@ jobs:
         #  path: ~\AppData\Local\pip\Cache
         # python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         python-version: ['3.10', '3.11', '3.12', '3.13']
-
 
     steps:
       - name: Checkout
@@ -46,41 +46,8 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
            ${{ runner.os }}-pip-
-      - name: Set up ta-lib dir
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-            mkdir -p $HOME/.local/ta-lib
-            echo "LD_LIBRARY_PATH=$HOME/.local/ta-lib/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-            echo "TA_INCLUDE_PATH=$HOME/.local/ta-lib/include" >> $GITHUB_ENV
-            echo "TA_LIBRARY_PATH=$HOME/.local/ta-lib/lib" >> $GITHUB_ENV
-      - name: Set up ta-lib cache
-        if: ${{ runner.os == 'Linux' }}
-        uses: actions/cache@v2
-        id: talib-cache
-        with:
-          path: |
-              ~/.local/ta-lib/lib
-              ~/.local/ta-lib/include
-          key: talib-cache-v0.6.0
-      - name: Install ta-lib mac / windows
-        run: |
-          if ([ "$RUNNER_OS" = "macOS" ]); then
-            brew install ta-lib
-          fi
-          if ([ "$RUNNER_OS" = "Windows" ]); then
-            curl -sL http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.6.0-msvc.zip -o $GITHUB_WORKSPACE/ta-lib.zip --create-dirs && 7z x $GITHUB_WORKSPACE/ta-lib.zip -o/c/ta-lib && mv /c/ta-lib/ta-lib/* /c/ta-lib/ && rm -rf /c/ta-lib/ta-lib && cd /c/ta-lib/c/make/cdr/win32/msvc && nmake
-          fi
-      - name: Install ta-lib Linux
-        if: steps.talib-cache.outputs.cache-hit != 'true'
-        run: |
-            wget https://github.com/TA-Lib/ta-lib/releases/download/v0.6.1/ta-lib-0.6.1-src.tar.gz -q
-            tar -xzf ta-lib-0.6.1-src.tar.gz
-            cd ta-lib-0.6.1/
-            ./configure --prefix=$HOME/.local/ta-lib
-            make
-            sudo make install
-            cd
       - name: Install dependencies
+        shell: bash
         run: |
           python -m ensurepip --upgrade
           python -m pip install --upgrade pip
@@ -88,13 +55,8 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ ! ${{ matrix.python-version }} = "3.10" ]; then pip install numba; fi
           pip install -e . -U
-     # - name: Lint with flake8
-       # run: |
-          # stop the build if there are Python syntax errors or undefined names
-          # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          # flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
+        shell: bash
         run: |
           pip install pytest
           pytest

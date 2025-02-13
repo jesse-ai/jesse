@@ -1,9 +1,10 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
+from .roc import roc
+from .wma import wma
 
 
 def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, roc_long_period: int = 14,
@@ -24,7 +25,9 @@ def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, ro
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    res = talib.WMA(talib.ROC(source, timeperiod=roc_long_period) + talib.ROC(source, timeperiod=roc_short_period),
-                    timeperiod=wma_period)
+    roc_long = roc(source, roc_long_period, sequential=True)
+    roc_short = roc(source, roc_short_period, sequential=True)
+    roc_sum = roc_long + roc_short
+    res = wma(roc_sum, wma_period, sequential=True)
 
     return res if sequential else res[-1]

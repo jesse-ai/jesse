@@ -1,8 +1,7 @@
 from typing import Union
 
 import numpy as np
-import talib
-
+from jesse.indicators.ema import ema
 from jesse.helpers import slice_candles
 
 
@@ -20,7 +19,27 @@ def adosc(candles: np.ndarray, fast_period: int = 3, slow_period: int = 10, sequ
     """
     candles = slice_candles(candles, sequential)
 
-    res = talib.ADOSC(candles[:, 3], candles[:, 4], candles[:, 2], candles[:, 5], fastperiod=fast_period,
-                      slowperiod=slow_period)
+    # Extract candle data: high, low, close, volume
+    high = candles[:, 3]
+    low = candles[:, 4]
+    close = candles[:, 2]
+    volume = candles[:, 5]
 
-    return res if sequential else res[-1]
+    # Compute Money Flow Multiplier; avoid division by zero
+    range_array = high - low
+    multiplier = np.where(range_array != 0, ((close - low) - (high - close)) / range_array, 0.0)
+
+    # Money Flow Volume
+    mf_volume = multiplier * volume
+
+    # AD line is the cumulative sum of Money Flow Volume
+    ad_line = np.cumsum(mf_volume)
+
+    # Compute fast and slow exponential moving averages of the AD line
+    fast_ema = ema(ad_line, fast_period, sequential=True)
+    slow_ema = ema(ad_line, slow_period, sequential=True)
+
+    # AD Oscillator is the difference between fast EMA and slow EMA
+    adosc_vals = fast_ema - slow_ema
+
+    return adosc_vals if sequential else adosc_vals[-1]

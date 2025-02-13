@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -20,12 +19,28 @@ def ui(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: 
     """
     candles = slice_candles(candles, sequential)
     source = get_candle_source(candles, source_type=source_type)
+    n = source.shape[0]
 
-    highest_close = talib.MAX(source, period)
-    downside = scalar * (source - highest_close)
-    downside /= highest_close
-    d2 = downside * downside
+    # Compute rolling maximum over the period
+    if n < period:
+        highest_close = np.full_like(source, np.nan)
+    else:
+        # sliding_window_view creates a rolling window view: shape (n-period+1, period)
+        highest_window = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
+        highest_max = np.max(highest_window, axis=1)
+        highest_close = np.concatenate((np.full(period - 1, np.nan), highest_max))
 
-    res = np.sqrt(talib.SUM(d2, period) / period)
+    # Calculate downside percentage
+    downside = scalar * (source - highest_close) / highest_close
+    d2 = downside ** 2
+
+    # Compute rolling sum of squared downside values
+    if n < period:
+        rolling_d2_sum = np.full_like(d2, np.nan)
+    else:
+        rolling_sum_valid = np.convolve(d2, np.ones(period), mode='valid')
+        rolling_d2_sum = np.concatenate((np.full(period - 1, np.nan), rolling_sum_valid))
+
+    res = np.sqrt(rolling_d2_sum / period)
 
     return res if sequential else res[-1]

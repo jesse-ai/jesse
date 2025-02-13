@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-import talib
 
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -25,6 +24,8 @@ def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    res = talib.SMA(source, timeperiod=period)
+    res = np.full(source.shape, np.nan)
+    if len(source) >= period:
+        res[period-1:] = np.convolve(source, np.ones(period, dtype=float)/period, mode='valid')
 
     return res if sequential else res[-1]
