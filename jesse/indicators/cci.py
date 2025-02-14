@@ -1,8 +1,37 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import slice_candles
+
+@njit(cache=True)
+def calculate_cci_loop(tp, period):
+    n = tp.shape[0]
+    result = np.empty(n)
+    # initialize result with NaNs
+    for i in range(n):
+        result[i] = np.nan
+    if n < period:
+        return result
+    for i in range(period - 1, n):
+        sum_tp = 0.0
+        for j in range(i - period + 1, i + 1):
+            sum_tp += tp[j]
+        sma = sum_tp / period
+        sum_diff = 0.0
+        for j in range(i - period + 1, i + 1):
+            # Calculate absolute deviation
+            if tp[j] >= sma:
+                sum_diff += tp[j] - sma
+            else:
+                sum_diff += sma - tp[j]
+        md = sum_diff / period
+        if md == 0.0:
+            result[i] = 0.0
+        else:
+            result[i] = (tp[i] - sma) / (0.015 * md)
+    return result
 
 
 def cci(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
@@ -22,18 +51,5 @@ def cci(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     close = candles[:, 2]
     tp = (high + low + close) / 3.0
 
-    result = np.full(tp.shape, np.nan)
-    if tp.shape[0] < period:
-        if sequential:
-            return result
-        else:
-            return np.nan
-
-    # Compute rolling window of typical prices
-    windows = np.lib.stride_tricks.sliding_window_view(tp, window_shape=period)
-    sma = np.mean(windows, axis=1)
-    md = np.mean(np.abs(windows - sma[:, None]), axis=1)
-    cci_values = np.where(md == 0, 0, (tp[period - 1:] - sma) / (0.015 * md))
-    result[period - 1:] = cci_values
-
+    result = calculate_cci_loop(tp, period)
     return result if sequential else result[-1]
