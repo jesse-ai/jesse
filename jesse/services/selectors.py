@@ -1,3 +1,4 @@
+from jesse.store import store
 from typing import List, ValuesView, Optional, Any
 
 
@@ -13,7 +14,6 @@ def get_position(exchange: str, symbol: str) -> Any:
     if exchange is None or symbol is None:
         raise ValueError(f"exchange and symbol cannot be None. exchange: {exchange}, symbol: {symbol}")
 
-    from jesse.store import store
     key = f'{exchange}-{symbol}'
     return store.positions.storage.get(key, None)
 
