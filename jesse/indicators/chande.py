@@ -2,10 +2,12 @@ from typing import Union
 
 import numpy as np
 from scipy.ndimage import maximum_filter1d, minimum_filter1d
+from numba import njit
 
 from jesse.helpers import slice_candles
 
 
+@njit(cache=True)
 def custom_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int) -> np.ndarray:
     """Compute the Average True Range (ATR) using Wilder's smoothing method."""
     # Compute previous close

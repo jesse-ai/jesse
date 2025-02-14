@@ -10,113 +10,118 @@ SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
 
 def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequential: bool = False) -> SuperTrend:
     """
-    SuperTrend
-    :param candles: np.ndarray
-    :param period: int - default=14
-    :param factor: float - default=3
-    :param sequential: bool - default=False
-    :return: SuperTrend(trend, changed)
+    SuperTrend indicator optimized with numba and loop-based calculations.
+    :param candles: np.ndarray - candle data
+    :param period: period for ATR calculation
+    :param factor: multiplier for the bands
+    :param sequential: if True, returns full arrays; else, returns last value
+    :return: SuperTrend named tuple with trend and changed arrays/values
     """
-
     candles = slice_candles(candles, sequential)
-
-    atr = atr_np(candles[:, 3], candles[:, 4], candles[:, 2], period)
-
+    atr = atr_loop(candles[:, 3], candles[:, 4], candles[:, 2], period)
     super_trend, changed = supertrend_fast(candles, atr, factor, period)
-
     if sequential:
         return SuperTrend(super_trend, changed)
     else:
         return SuperTrend(super_trend[-1], changed[-1])
 
 
-def atr_np(high, low, close, period):
-    # Compute true range
+@njit(cache=True)
+def atr_loop(high, low, close, period):
     n = len(close)
     tr = np.empty(n, dtype=np.float64)
     tr[0] = high[0] - low[0]
-    if n > 1:
-        diff1 = high[1:] - low[1:]
-        diff2 = np.abs(high[1:] - close[:-1])
-        diff3 = np.abs(low[1:] - close[:-1])
-        tr[1:] = np.maximum(np.maximum(diff1, diff2), diff3)
+    for i in range(1, n):
+        diff1 = high[i] - low[i]
+        diff2 = np.abs(high[i] - close[i-1])
+        diff3 = np.abs(low[i] - close[i-1])
+        # manual max of the three differences
+        if diff1 >= diff2 and diff1 >= diff3:
+            tr[i] = diff1
+        elif diff2 >= diff1 and diff2 >= diff3:
+            tr[i] = diff2
+        else:
+            tr[i] = diff3
 
-    # Initialize ATR array; first period-1 values set to nan
     atr = np.empty(n, dtype=np.float64)
-    atr[:period-1] = np.nan
-    if n >= period:
-        init = np.mean(tr[:period])
-        atr[period-1] = init
-        alpha = 1.0 / period
-        L = n - period
-        if L > 0:
-            # Create lower-triangular weights matrix where each row i contains weights (1 - alpha)^(i - j) for j=0..i
-            weights = np.tril(np.power(1 - alpha, np.subtract.outer(np.arange(L), np.arange(L))))
-            # Compute the weighted sum for TR values from index period to n-1
-            weighted_sum = alpha * (weights @ tr[period:])
-            # Compute the offset from the initial ATR
-            offset = init * np.power(1 - alpha, np.arange(1, L+1))
-            atr[period:] = offset + weighted_sum
+    # Set initial values to NaN for indices before period-1
+    for i in range(period - 1):
+        atr[i] = np.nan
+    # First ATR value is the simple average of the first 'period' TR values
+    sum_init = 0.0
+    for i in range(period):
+        sum_init += tr[i]
+    atr[period - 1] = sum_init / period
+    # Recursive ATR calculation
+    for i in range(period, n):
+        atr[i] = ((atr[i-1] * (period - 1)) + tr[i]) / period
     return atr
 
 
 @njit(cache=True)
 def supertrend_fast(candles, atr, factor, period):
-    # Calculation of SuperTrend
-    upper_basic = (candles[:, 3] + candles[:, 4]) / 2 + (factor * atr)
-    lower_basic = (candles[:, 3] + candles[:, 4]) / 2 - (factor * atr)
-    upper_band = upper_basic.copy()
-    lower_band = lower_basic.copy()
-    super_trend = np.zeros(len(candles))
-    changed = np.zeros(len(candles))
+    n = len(candles)
+    super_trend = np.zeros(n, dtype=np.float64)
+    changed = np.zeros(n, dtype=np.int8)
 
-    # calculate the bands:
-    # in an UPTREND, lower band does not decrease
-    # in a DOWNTREND, upper band does not increase
-    for i in range(period, len(candles)):
-        # if currently in DOWNTREND (i.e. price is below upper band)
-        prevClose = candles[i - 1, 2]
-        prevUpperBand = upper_band[i - 1]
-        currUpperBasic = upper_basic[i]
-        if prevClose <= prevUpperBand:
-            # upper band will DECREASE in value only
-            upper_band[i] = min(currUpperBasic, prevUpperBand)
+    # Precompute basic bands and initialize band arrays
+    upper_basic = np.empty(n, dtype=np.float64)
+    lower_basic = np.empty(n, dtype=np.float64)
+    upper_band = np.empty(n, dtype=np.float64)
+    lower_band = np.empty(n, dtype=np.float64)
 
-        # if currently in UPTREND (i.e. price is above lower band)
-        prevLowerBand = lower_band[i - 1]
-        currLowerBasic = lower_basic[i]
-        if prevClose >= prevLowerBand:
-            # lower band will INCREASE in value only
-            lower_band[i] = max(currLowerBasic, prevLowerBand)
+    for i in range(n):
+        mid = (candles[i, 3] + candles[i, 4]) / 2.0
+        upper_basic[i] = mid + factor * atr[i]
+        lower_basic[i] = mid - factor * atr[i]
+        upper_band[i] = upper_basic[i]
+        lower_band[i] = lower_basic[i]
 
-        # >>>>>>>> previous period SuperTrend <<<<<<<<
-        if prevClose <= prevUpperBand:
-            super_trend[i - 1] = prevUpperBand
+    # Set the initial supertrend for index period-1
+    idx = period - 1
+    if candles[idx, 2] <= upper_band[idx]:
+        super_trend[idx] = upper_band[idx]
+    else:
+        super_trend[idx] = lower_band[idx]
+    changed[idx] = 0
+
+    # Combined loop: update bands and compute supertrend
+    for i in range(period, n):
+        p = i - 1
+        prevClose = candles[p, 2]
+        
+        # Update upper_band
+        if prevClose <= upper_band[p]:
+            if upper_basic[i] < upper_band[p]:
+                upper_band[i] = upper_basic[i]
+            else:
+                upper_band[i] = upper_band[p]
         else:
-            super_trend[i - 1] = prevLowerBand
-        prevSuperTrend = super_trend[i - 1]
+            upper_band[i] = upper_basic[i]
 
-    for i in range(period, len(candles)):
-        prevClose = candles[i - 1, 2]
-        prevUpperBand = upper_band[i - 1]
-        currUpperBand = upper_band[i]
-        prevLowerBand = lower_band[i - 1]
-        currLowerBand = lower_band[i]
-        prevSuperTrend = super_trend[i - 1]
+        # Update lower_band
+        if prevClose >= lower_band[p]:
+            if lower_basic[i] > lower_band[p]:
+                lower_band[i] = lower_basic[i]
+            else:
+                lower_band[i] = lower_band[p]
+        else:
+            lower_band[i] = lower_basic[i]
 
-        # >>>>>>>>> current period SuperTrend <<<<<<<<<
-        if prevSuperTrend == prevUpperBand:  # if currently in DOWNTREND
-            if candles[i, 2] <= currUpperBand:
-                super_trend[i] = currUpperBand
-                changed[i] = False
+        # Compute current supertrend based on previous supertrend value
+        if super_trend[p] == upper_band[p]:
+            if candles[i, 2] <= upper_band[i]:
+                super_trend[i] = upper_band[i]
+                changed[i] = 0
             else:
-                super_trend[i] = currLowerBand
-                changed[i] = True
-        elif prevSuperTrend == prevLowerBand:  # if currently in UPTREND
-            if candles[i, 2] >= currLowerBand:
-                super_trend[i] = currLowerBand
-                changed[i] = False
+                super_trend[i] = lower_band[i]
+                changed[i] = 1
+        else:  # super_trend[p] equals lower_band[p]
+            if candles[i, 2] >= lower_band[i]:
+                super_trend[i] = lower_band[i]
+                changed[i] = 0
             else:
-                super_trend[i] = currUpperBand
-                changed[i] = True
+                super_trend[i] = upper_band[i]
+                changed[i] = 1
+
     return super_trend, changed

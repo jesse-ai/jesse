@@ -1,8 +1,39 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 
 from jesse.helpers import slice_candles
+
+@njit(cache=True)
+def _compute_aroonosc_nb(high: np.ndarray, low: np.ndarray, period: int) -> np.ndarray:
+    n = high.shape[0]
+    result = np.empty(n, dtype=np.float64)
+    if n < period:
+        for i in range(n):
+            result[i] = np.nan
+        return result
+    
+    for i in range(period - 1):
+        result[i] = np.nan
+    
+    for i in range(period - 1, n):
+        start = i - period + 1
+        best_val = high[start]
+        best_idx = 0
+        worst_val = low[start]
+        worst_idx = 0
+        for j in range(period):
+            cur_high = high[start + j]
+            cur_low = low[start + j]
+            if cur_high > best_val:
+                best_val = cur_high
+                best_idx = j
+            if cur_low < worst_val:
+                worst_val = cur_low
+                worst_idx = j
+        result[i] = 100.0 * (best_idx - worst_idx) / period
+    return result
 
 
 def aroonosc(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
@@ -18,23 +49,5 @@ def aroonosc(candles: np.ndarray, period: int = 14, sequential: bool = False) ->
     candles = slice_candles(candles, sequential)
     high = candles[:, 3]
     low = candles[:, 4]
-    n = len(high)
-
-    if n < period:
-        result = np.full(n, np.nan)
-    else:
-        # Use sliding_window_view for vectorized window computation
-        windows_high = np.lib.stride_tricks.sliding_window_view(high, window_shape=period)
-        windows_low = np.lib.stride_tricks.sliding_window_view(low, window_shape=period)
-
-        # Find the index of the highest high and the lowest low in each window
-        idx_max = np.argmax(windows_high, axis=1)
-        idx_min = np.argmin(windows_low, axis=1)
-
-        # Calculate Aroon Oscillator: Aroon Up = ((idx_max + 1) / period) * 100, Aroon Down = ((idx_min + 1) / period) * 100
-        # oscillator = Aroon Up - Aroon Down = 100*(idx_max - idx_min)/period
-        aroonosc_values = 100 * (idx_max - idx_min) / period
-
-        result = np.concatenate((np.full(period - 1, np.nan), aroonosc_values))
-
+    result = _compute_aroonosc_nb(high, low, period)
     return result if sequential else result[-1]
