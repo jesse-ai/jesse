@@ -6,7 +6,7 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-@njit
+@njit(cache=True)
 def _ema(source: np.ndarray, period: int) -> np.ndarray:
     """
     Compute the Exponential Moving Average using a loop.

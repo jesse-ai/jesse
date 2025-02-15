@@ -4,9 +4,73 @@ from typing import Union
 
 import numpy as np
 from jesse.helpers import slice_candles
-from jesse.indicators.rma import rma
+from numba import njit
 
 DX = namedtuple('DX', ['adx', 'plusDI', 'minusDI'])
+
+@njit(cache=True)
+def _rma(src, length):
+    alpha = 1.0 / length
+    output = np.zeros_like(src)
+    output[0] = src[0]
+    for i in range(1, len(src)):
+        output[i] = alpha * src[i] + (1 - alpha) * output[i-1]
+    return output
+
+@njit(cache=True)
+def _dx(high, low, close, di_length, adx_smoothing):
+    n = len(high)
+    
+    # Pre-allocate arrays
+    plusDM = np.zeros(n)
+    minusDM = np.zeros(n)
+    tr = np.zeros(n)
+    
+    # Calculate True Range and Directional Movement
+    for i in range(1, n):
+        high_diff = high[i] - high[i-1]
+        low_diff = low[i-1] - low[i]
+        
+        # +DM
+        if high_diff > low_diff and high_diff > 0:
+            plusDM[i] = high_diff
+        
+        # -DM
+        if low_diff > high_diff and low_diff > 0:
+            minusDM[i] = low_diff
+            
+        # True Range
+        tr[i] = max(
+            high[i] - low[i],
+            abs(high[i] - close[i-1]),
+            abs(low[i] - close[i-1])
+        )
+    
+    # Calculate smoothed values
+    tr_rma = _rma(tr, di_length)
+    plus_rma = _rma(plusDM, di_length)
+    minus_rma = _rma(minusDM, di_length)
+    
+    # Calculate +DI and -DI
+    plusDI = np.zeros(n)
+    minusDI = np.zeros(n)
+    
+    for i in range(n):
+        if tr_rma[i] != 0:
+            plusDI[i] = 100 * plus_rma[i] / tr_rma[i]
+            minusDI[i] = 100 * minus_rma[i] / tr_rma[i]
+    
+    # Calculate DX
+    dx_values = np.zeros(n)
+    for i in range(n):
+        di_sum = plusDI[i] + minusDI[i]
+        if di_sum != 0:
+            dx_values[i] = 100 * abs(plusDI[i] - minusDI[i]) / di_sum
+    
+    # Calculate ADX
+    adx = _rma(dx_values, adx_smoothing)
+    
+    return adx, plusDI, minusDI
 
 def dx(candles: np.ndarray, di_length: int = 14, adx_smoothing: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
@@ -20,46 +84,14 @@ def dx(candles: np.ndarray, di_length: int = 14, adx_smoothing: int = 14, sequen
     :return: DX(adx, plusDI, minusDI)
     """
     candles = slice_candles(candles, sequential)
-    high = candles[:, 3]
-    low = candles[:, 4]
-    close = candles[:, 2]
-    n = len(candles)
     
-    up = np.zeros(n)
-    down = np.zeros(n)
-    plusDM = np.zeros(n)
-    minusDM = np.zeros(n)
-    true_range = np.zeros(n)
-    
-    for i in range(n):
-        if i == 0:
-            up[i] = 0
-            down[i] = 0
-            plusDM[i] = 0
-            minusDM[i] = 0
-            true_range[i] = high[i] - low[i]
-        else:
-            up[i] = high[i] - high[i - 1]
-            down[i] = low[i - 1] - low[i]
-            plusDM[i] = up[i] if (up[i] > down[i] and up[i] > 0) else 0
-            minusDM[i] = down[i] if (down[i] > up[i] and down[i] > 0) else 0
-            a = high[i] - low[i]
-            b = abs(high[i] - close[i - 1])
-            c = abs(low[i] - close[i - 1])
-            true_range[i] = max(a, b, c)
-    
-    tr_rma = rma(true_range, di_length, sequential=True)
-    plus_rma = rma(plusDM, di_length, sequential=True)
-    minus_rma = rma(minusDM, di_length, sequential=True)
-    
-    # Compute +DI and -DI, avoiding division by zero
-    plusDI = np.where(tr_rma == 0, 0, 100 * plus_rma / tr_rma)
-    minusDI = np.where(tr_rma == 0, 0, 100 * minus_rma / tr_rma)
-    
-    di_sum = plusDI + minusDI
-    di_diff = np.abs(plusDI - minusDI)
-    directional_index = di_diff / np.where(di_sum == 0, 1, di_sum)
-    adx = 100 * rma(directional_index, adx_smoothing, sequential=True)
+    adx, plusDI, minusDI = _dx(
+        candles[:, 3],  # high
+        candles[:, 4],  # low
+        candles[:, 2],  # close
+        di_length,
+        adx_smoothing
+    )
     
     if sequential:
         return DX(adx, plusDI, minusDI)

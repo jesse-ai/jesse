@@ -1,8 +1,86 @@
 from typing import Union
 
 import numpy as np
+from numba import njit
 from jesse.helpers import slice_candles
 
+
+@njit(cache=True)
+def _adxr(high, low, close, period):
+    n = len(high)
+    TR = np.zeros(n)
+    DMP = np.zeros(n)
+    DMM = np.zeros(n)
+    
+    # First value initialization
+    TR[0] = high[0] - low[0]
+    
+    # Calculate TR, DMP, DMM
+    for i in range(1, n):
+        hl = high[i] - low[i]
+        hc = abs(high[i] - close[i-1])
+        lc = abs(low[i] - close[i-1])
+        TR[i] = max(hl, hc, lc)
+        
+        up_move = high[i] - high[i-1]
+        down_move = low[i-1] - low[i]
+        
+        if up_move > down_move and up_move > 0:
+            DMP[i] = up_move
+        else:
+            DMP[i] = 0
+            
+        if down_move > up_move and down_move > 0:
+            DMM[i] = down_move
+        else:
+            DMM[i] = 0
+    
+    # Smoothed TR, DMP, DMM
+    STR = np.zeros(n)
+    S_DMP = np.zeros(n)
+    S_DMM = np.zeros(n)
+    
+    # Initialize first value
+    STR[0] = TR[0]
+    S_DMP[0] = DMP[0]
+    S_DMM[0] = DMM[0]
+    
+    # Calculate smoothed values
+    for i in range(1, n):
+        STR[i] = STR[i-1] - (STR[i-1] / period) + TR[i]
+        S_DMP[i] = S_DMP[i-1] - (S_DMP[i-1] / period) + DMP[i]
+        S_DMM[i] = S_DMM[i-1] - (S_DMM[i-1] / period) + DMM[i]
+    
+    # Calculate DI+ and DI-
+    DI_plus = np.zeros(n)
+    DI_minus = np.zeros(n)
+    DX = np.zeros(n)
+    
+    for i in range(n):
+        if STR[i] != 0:
+            DI_plus[i] = (S_DMP[i] / STR[i]) * 100
+            DI_minus[i] = (S_DMM[i] / STR[i]) * 100
+            
+            denom = DI_plus[i] + DI_minus[i]
+            if denom != 0:
+                DX[i] = (abs(DI_plus[i] - DI_minus[i]) / denom) * 100
+    
+    # Calculate ADX
+    ADX = np.zeros(n)
+    if n >= period:
+        # First ADX value
+        ADX[period-1] = np.mean(DX[:period])
+        # Rest of ADX values
+        for i in range(period, n):
+            ADX[i] = ((ADX[i-1] * (period-1)) + DX[i]) / period
+    
+    # Calculate ADXR
+    ADXR = np.zeros(n)
+    if n > period:
+        for i in range(period, n):
+            ADXR[i] = (ADX[i] + ADX[i-period]) / 2
+            
+    return ADXR
 
 def adxr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """
@@ -21,53 +99,7 @@ def adxr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
     high = candles[:, 3]
     low = candles[:, 4]
     close = candles[:, 2]
-    n = len(candles)
-
-    # Vectorized computation of True Range (TR), Directional Movement Plus (DMP) and Minus (DMM)
-    TR = np.empty(n)
-    DMP = np.empty(n)
-    DMM = np.empty(n)
-    TR[0] = high[0] - low[0]
-    DMP[0] = 0.0
-    DMM[0] = 0.0
-    if n > 1:
-        diff_high_low = high[1:] - low[1:]
-        diff_high_prev_close = np.abs(high[1:] - close[:-1])
-        diff_low_prev_close = np.abs(low[1:] - close[:-1])
-        TR[1:] = np.maximum.reduce([diff_high_low, diff_high_prev_close, diff_low_prev_close])
-
-        up_move = high[1:] - high[:-1]
-        down_move = low[:-1] - low[1:]
-        DMP[1:] = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
-        DMM[1:] = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
-
-    # Wilder smoothing via vectorized matrix multiplication
-    # The recursive formula: S[i] = S[i-1]*(1 - 1/period) + X[i] can be written in closed-form as:
-    # S[i] = X[0]*(1 - 1/period)**i + sum_{j=1}^{i} X[j]*(1 - 1/period)**(i - j)
-    r = 1 - 1/period
-    exponents = np.subtract.outer(np.arange(n), np.arange(n))  # shape (n, n), exponents[i,j] = i - j
-    weights = np.where(exponents >= 0, r ** exponents, 0.0)
-    STR = weights.dot(TR)
-    S_DMP = weights.dot(DMP)
-    S_DMM = weights.dot(DMM)
-
-    # Vectorized calculation of DI+ and DI-
-    DI_plus = np.where(STR != 0, (S_DMP / STR) * 100, 0.0)
-    DI_minus = np.where(STR != 0, (S_DMM / STR) * 100, 0.0)
-    denom = DI_plus + DI_minus
-    with np.errstate(divide='ignore', invalid='ignore'):
-        DX = np.divide(np.abs(DI_plus - DI_minus) * 100, denom, out=np.zeros_like(denom), where=denom != 0)
-
-    # Compute ADX as a simple moving average of DX over 'period' values using convolution
-    ADX = np.full(n, np.nan)
-    if n >= period:
-        kernel = np.ones(period) / period
-        valid_adx = np.convolve(DX, kernel, mode='valid')
-        ADX[period-1:] = valid_adx
-
-    # Compute ADXR: (current ADX + ADX from 'period' bars ago) / 2, vectorized
-    ADXR = np.full(n, np.nan)
-    if n > period:
-        ADXR[period:] = 0.5 * (ADX[period:] + ADX[:-period])
-
-    return ADXR if sequential else ADXR[-1]
+    
+    res = _adxr(high, low, close, period)
+    
+    return res if sequential else res[-1]

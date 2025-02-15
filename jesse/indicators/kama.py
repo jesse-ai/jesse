@@ -4,7 +4,7 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-@njit
+@njit(cache=True)
 def _calculate_kama(src: np.ndarray, period: int, fast_length: int, slow_length: int) -> np.ndarray:
     """
     Core KAMA calculation using Numba
