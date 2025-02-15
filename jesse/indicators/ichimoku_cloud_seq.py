@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
+from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import np_shift, slice_candles
 
@@ -46,6 +46,26 @@ def ichimoku_cloud_seq(candles: np.ndarray, conversion_line_period: int = 9, bas
                              span_a_pre[-1], span_b_pre[-1])
 
 def _line_helper(candles, period):
-    small_ph = talib.MAX(candles[:, 3], period)
-    small_pl = talib.MIN(candles[:, 4], period)
+    small_ph = _rolling_max(candles[:, 3], period)
+    small_pl = _rolling_min(candles[:, 4], period)
     return (small_ph + small_pl) / 2
+
+def _rolling_max(a, period):
+    n = len(a)
+    if n < period:
+        return np.full(n, np.nan)
+    windows = sliding_window_view(a, window_shape=period)
+    r = np.empty(n, dtype=a.dtype)
+    r[:period-1] = np.nan
+    r[period-1:] = np.max(windows, axis=-1)
+    return r
+
+def _rolling_min(a, period):
+    n = len(a)
+    if n < period:
+        return np.full(n, np.nan)
+    windows = sliding_window_view(a, window_shape=period)
+    r = np.empty(n, dtype=a.dtype)
+    r[:period-1] = np.nan
+    r[period-1:] = np.min(windows, axis=-1)
+    return r

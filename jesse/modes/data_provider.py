@@ -1,4 +1,5 @@
 import json
+import os
 import numpy as np
 import peewee
 from fastapi.responses import FileResponse
@@ -165,3 +166,32 @@ def download_file(mode: str, file_type: str, session_id: str = None):
         raise Exception(f'Unknown file type: {file_type} or mode: {mode}')
 
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
+
+
+def get_backtest_logs(session_id: str):
+    path = f"storage/logs/backtest-mode/{session_id}.txt"
+
+    if not os.path.exists(path):
+        return None
+
+    with open(path, "r") as f:
+        content = f.read()
+
+    return jh.compressed_response(content)
+
+
+def download_backtest_log(session_id: str):
+    """
+    Returns the log file for a specific backtest session as a downloadable file
+    """
+    path = f'storage/logs/backtest-mode/{session_id}.txt'
+    
+    if not os.path.exists(path):
+        raise Exception('Log file not found')
+        
+    filename = f'backtest-{session_id}.txt'
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type='text/plain'
+    )

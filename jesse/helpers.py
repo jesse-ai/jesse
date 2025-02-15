@@ -13,6 +13,8 @@ from pprint import pprint
 import arrow
 import click
 import numpy as np
+import base64
+
 
 CACHED_CONFIG = dict()
 
@@ -1141,3 +1143,20 @@ def gzip_compress(data):
 def timeframe_to_one_minutes(timeframe: str) -> int:
     from jesse.utils import timeframe_to_one_minutes
     return timeframe_to_one_minutes(timeframe)
+
+
+def compressed_response(content: str) -> dict:
+    """
+    Helper function to handle compression for HTTP responses. 
+    Returns a dict with compression info and content.
+    
+    :param content: string content to potentially compress
+    :return: dict with is_compressed flag and content
+    """
+    # check if content is large enough to warrant compression
+    compressed = gzip_compress(content)
+    # encode as base64 string for safe transmission
+    return {
+        'is_compressed': True,
+        'data': base64.b64encode(compressed).decode('utf-8')
+    }

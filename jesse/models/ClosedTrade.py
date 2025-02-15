@@ -86,6 +86,12 @@ class ClosedTrade(peewee.Model):
         }
 
     @property
+    def to_dict_with_orders(self) -> dict:
+        data = self.to_dict
+        data['orders'] = [order.to_dict for order in self.orders]
+        return data
+
+    @property
     def fee(self) -> float:
         trading_fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
         return trading_fee * self.qty * (self.entry_price + self.exit_price)

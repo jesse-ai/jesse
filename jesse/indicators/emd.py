@@ -1,9 +1,8 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
 from numba import njit
-
+from jesse.indicators.sma import sma
 from jesse.helpers import slice_candles
 
 EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
@@ -27,11 +26,11 @@ def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequenti
 
     bp = bp_fast(price, period, delta)
 
-    mean = talib.SMA(bp, timeperiod=2 * period)
+    mean = sma(bp, 2 * period, sequential=True)
     peak, valley = peak_valley_fast(bp, price)
 
-    avg_peak = fraction * talib.SMA(peak, timeperiod=50)
-    avg_valley = fraction * talib.SMA(valley, timeperiod=50)
+    avg_peak = fraction * sma(peak, 50, sequential=True)
+    avg_valley = fraction * sma(valley, 50, sequential=True)
 
     if sequential:
         return EMD(avg_peak, mean, avg_valley)

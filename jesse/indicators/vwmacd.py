@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-import talib
+from .vwma import vwma
 
 from jesse.helpers import slice_candles
 
@@ -11,6 +11,8 @@ VWMACD = namedtuple('VWMACD', ['macd', 'signal', 'hist'])
 def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9,
            sequential: bool = False) -> VWMACD:
     """
+    @author David.
+    credits: https://www.tradingview.com/script/33Y1LzRq-Volume-Weighted-Moving-Average-Convergence-Divergence-MACD/
     VWMACD - Volume Weighted Moving Average Convergence/Divergence
 
     :param candles: np.ndarray
@@ -21,15 +23,14 @@ def vwmacd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, si
 
     :return: VWMACD(macd, signal, hist)
     """
-    candles = slice_candles(candles, sequential)
+    fastWMA = vwma(candles, fast_period, sequential=True)
+    slowWMA = vwma(candles, slow_period, sequential=True)
 
-    vwma_slow = talib.SMA(candles[:, 2] * candles[:, 5], slow_period) / talib.SMA(candles[:, 5], slow_period)
-    vwma_fast = talib.SMA(candles[:, 2] * candles[:, 5], fast_period) / talib.SMA(candles[:, 5], fast_period)
-    vwmacd_val = vwma_fast - vwma_slow
-    signal = talib.EMA(vwmacd_val, signal_period)
-    hist = vwmacd_val - signal
+    macd_val = fastWMA - slowWMA
+    signal = vwma(macd_val, signal_period, sequential=True)
+    hist = macd_val - signal
 
     if sequential:
-        return VWMACD(vwmacd_val, signal, hist)
+        return VWMACD(macd_val, signal, hist)
     else:
-        return VWMACD(vwmacd_val[-1], signal[-1], hist[-1])
+        return VWMACD(macd_val[-1], signal[-1], hist[-1])

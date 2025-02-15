@@ -1,7 +1,6 @@
 arrow~=1.2.1
 blinker~=1.4
 click~=8.0.3
-newtulipy~=0.4.6
 numpy~=1.26.4
 pandas~=2.2.3
 peewee~=3.14.8
@@ -12,7 +11,6 @@ pytest~=6.2.5
 requests~=2.32.0
 scipy~=1.15.0
 statsmodels~=0.14.4
-TA-Lib==0.4.31
 tabulate~=0.8.9
 timeloop~=1.0.2
 websocket-client~=1.8.0

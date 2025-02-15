@@ -1,13 +1,12 @@
 from typing import Union
 
 import numpy as np
-import tulipy as ti
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+        float, np.ndarray]:
     """
     VWMA - Volume Weighted Moving Average
 
@@ -20,10 +19,26 @@ def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequ
     """
     if len(candles.shape) == 1:
         source = candles
+        volume = np.ones_like(candles)
     else:
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
+        volume = candles[:, 5]
 
-    res = ti.vwma(np.ascontiguousarray(source), np.ascontiguousarray(candles[:, 5]), period=period)
+    # Calculate price * volume
+    weighted = source * volume
+    
+    # Compute cumulative sums for weighted price and volume
+    cumsum_weighted = np.cumsum(weighted)
+    cumsum_volume = np.cumsum(volume)
 
-    return same_length(candles, res) if sequential else res[-1]
+    # Allocate array for VWMA values
+    vwma_vals = np.empty_like(source, dtype=float)
+
+    # For initial indices where full period is not available, use cumulative sums
+    vwma_vals[:period] = cumsum_weighted[:period] / np.where(cumsum_volume[:period] == 0, 1, cumsum_volume[:period])
+
+    # For indices with a complete period, use the rolling difference of cumulative sums
+    vwma_vals[period:] = (cumsum_weighted[period:] - cumsum_weighted[:-period]) / np.where((cumsum_volume[period:] - cumsum_volume[:-period]) == 0, 1, (cumsum_volume[period:] - cumsum_volume[:-period]))
+
+    return same_length(candles, vwma_vals) if sequential else vwma_vals[-1]

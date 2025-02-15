@@ -1,10 +1,35 @@
 from typing import Union
 
 import numpy as np
-import talib
 from scipy.ndimage import maximum_filter1d, minimum_filter1d
+from numba import njit
 
 from jesse.helpers import slice_candles
+
+
+@njit(cache=True)
+def custom_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int) -> np.ndarray:
+    """Compute the Average True Range (ATR) using Wilder's smoothing method."""
+    # Compute previous close
+    prev_close = np.empty_like(close)
+    prev_close[0] = close[0]
+    prev_close[1:] = close[:-1]
+
+    # Compute True Range (TR)
+    range1 = high - low
+    range2 = np.abs(high - prev_close)
+    range3 = np.abs(low - prev_close)
+    tr = np.maximum(range1, range2)
+    tr = np.maximum(tr, range3)
+
+    atr = np.full(len(close), np.nan, dtype=close.dtype)
+    if len(close) >= period:
+        initial_atr = np.mean(tr[:period])
+        atr[period - 1] = initial_atr
+        alpha = 1.0 / period
+        for i in range(period, len(close)):
+            atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period
+    return atr
 
 
 def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",
@@ -26,7 +51,7 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
     candles_high = candles[:, 3]
     candles_low = candles[:, 4]
 
-    atr = talib.ATR(candles_high, candles_low, candles_close, timeperiod=period)
+    atr = custom_atr(candles_high, candles_low, candles_close, period)
 
     if direction == 'long':
         maxp = filter1d_same(candles_high, period, 'max')
