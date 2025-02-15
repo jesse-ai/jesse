@@ -1,8 +1,7 @@
 from collections import namedtuple
-
-from jesse.helpers import get_candle_source, slice_candles
-
 import numpy as np
+from numba import jit
+from jesse.helpers import get_candle_source, slice_candles
 
 Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', 'wtOversold', 'wtOverbought', 'wtVwap'])
 
@@ -15,39 +14,64 @@ Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', '
 #
 # See https://github.com/ysdede/lazarus3/blob/partialexit/strategies/lazarus3/__init__.py for working jesse.ai example.
 
+@jit(cache=True)
+def _ema(arr: np.ndarray, period: int) -> np.ndarray:
+    """
+    Calculate EMA using Numba-optimized implementation
+    """
+    alpha = 2.0 / (period + 1.0)
+    result = np.zeros_like(arr)
+    result[0] = arr[0]
+    
+    for i in range(1, len(arr)):
+        result[i] = alpha * arr[i] + (1 - alpha) * result[i-1]
+    
+    return result
 
-def ema(x: np.ndarray, period: int) -> np.ndarray:
-    """Compute Exponential Moving Average (EMA) using a vectorized triangular matrix approach."""
-    alpha = 2 / (period + 1)
-    n = len(x)
-    # Create a matrix of differences using outer subtraction
-    diff = np.subtract.outer(np.arange(n), np.arange(n))
-    # Compute weights: for each t, weight = alpha * (1-alpha)^(t - i) for i<=t, else 0
-    weights = alpha * np.power(1 - alpha, diff)
-    weights = np.tril(weights)
-    return weights.dot(x)
+@jit(cache=True)
+def _sma(arr: np.ndarray, period: int) -> np.ndarray:
+    """
+    Calculate SMA using Numba-optimized implementation
+    """
+    result = np.zeros_like(arr)
+    
+    # Handle first period-1 elements
+    cumsum = 0.0
+    for i in range(period-1):
+        cumsum += arr[i]
+        result[i] = cumsum / (i + 1)
+    
+    # Handle remaining elements with sliding window
+    cumsum = sum(arr[0:period])
+    result[period-1] = cumsum / period
+    
+    for i in range(period, len(arr)):
+        cumsum = cumsum - arr[i-period] + arr[i]
+        result[i] = cumsum / period
+    
+    return result
 
-def sma(x: np.ndarray, period: int) -> np.ndarray:
-    """Compute Simple Moving Average (SMA) using cumulative sum for a trailing window."""
-    x = np.asarray(x, dtype=float)
-    n = len(x)
-    ret = np.empty(n, dtype=float)
-    if period > 1:
-        cumsum = np.cumsum(x)
-        ret[:period-1] = cumsum[:period-1] / np.arange(1, period)
-        ret[period-1:] = (cumsum[period-1:] - np.r_[0.0, cumsum[:-period]]) / period
-    else:
-        ret = x
-    return ret
+@jit(cache=True)
+def _fast_wt(src: np.ndarray, wtchannellen: int, wtaveragelen: int, wtmalen: int) -> tuple:
+    """
+    Calculate Wavetrend components using Numba
+    """
+    esa = _ema(src, wtchannellen)
+    
+    # Calculate absolute difference
+    abs_diff = np.abs(src - esa)
+    de = _ema(abs_diff, wtchannellen)
+    
+    # Avoid division by zero
+    de = np.where(de == 0, 1e-10, de)
+    ci = (src - esa) / (0.015 * de)
+    
+    wt1 = _ema(ci, wtaveragelen)
+    wt2 = _sma(wt1, wtmalen)
+    
+    return wt1, wt2
 
-def wt(candles: np.ndarray,
-       wtchannellen: int = 9,
-       wtaveragelen: int = 12,
-       wtmalen: int = 3,
-       oblevel: int = 53,
-       oslevel: int = -53,
-       source_type: str = "hlc3",
-       sequential: bool = False) -> Wavetrend:
+def wt(candles: np.ndarray, wtchannellen: int = 9, wtaveragelen: int = 12, wtmalen: int = 3, oblevel: int = 53, oslevel: int = -53, source_type: str = "hlc3", sequential: bool = False) -> Wavetrend:
     """
     Wavetrend indicator
 
@@ -63,16 +87,15 @@ def wt(candles: np.ndarray,
     :return: Wavetrend
     """
     candles = slice_candles(candles, sequential)
-
     src = get_candle_source(candles, source_type=source_type)
-
-    # wt
-    esa = ema(src, wtchannellen)
-    de = ema(abs(src - esa), wtchannellen)
-    ci = (src - esa) / (0.015 * de)
-    wt1 = ema(ci, wtaveragelen)
-    wt2 = sma(wt1, wtmalen)
-
+    
+    # Convert inputs to float64 for better numerical stability
+    src = src.astype(np.float64)
+    
+    # Calculate main components
+    wt1, wt2 = _fast_wt(src, wtchannellen, wtaveragelen, wtmalen)
+    
+    # Calculate additional components
     wtVwap = wt1 - wt2
     wtOversold = wt2 <= oslevel
     wtOverbought = wt2 >= oblevel
