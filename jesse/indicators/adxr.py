@@ -1,8 +1,8 @@
 from typing import Union
 
 import numpy as np
-from numba import njit
 from jesse.helpers import slice_candles
+from numba import njit
 
 
 @njit(cache=True)
@@ -12,7 +12,7 @@ def _adxr(high, low, close, period):
     DMP = np.zeros(n)
     DMM = np.zeros(n)
     
-    # First value initialization
+    # First value
     TR[0] = high[0] - low[0]
     
     # Calculate TR, DMP, DMM
@@ -54,28 +54,29 @@ def _adxr(high, low, close, period):
     # Calculate DI+ and DI-
     DI_plus = np.zeros(n)
     DI_minus = np.zeros(n)
-    DX = np.zeros(n)
-    
     for i in range(n):
         if STR[i] != 0:
             DI_plus[i] = (S_DMP[i] / STR[i]) * 100
             DI_minus[i] = (S_DMM[i] / STR[i]) * 100
-            
-            denom = DI_plus[i] + DI_minus[i]
-            if denom != 0:
-                DX[i] = (abs(DI_plus[i] - DI_minus[i]) / denom) * 100
+    
+    # Calculate DX
+    DX = np.zeros(n)
+    for i in range(n):
+        denom = DI_plus[i] + DI_minus[i]
+        if denom != 0:
+            DX[i] = (abs(DI_plus[i] - DI_minus[i]) / denom) * 100
     
     # Calculate ADX
-    ADX = np.zeros(n)
+    ADX = np.full(n, np.nan)
     if n >= period:
-        # First ADX value
-        ADX[period-1] = np.mean(DX[:period])
-        # Rest of ADX values
-        for i in range(period, n):
-            ADX[i] = ((ADX[i-1] * (period-1)) + DX[i]) / period
+        for i in range(period-1, n):
+            sum_dx = 0
+            for j in range(period):
+                sum_dx += DX[i-j]
+            ADX[i] = sum_dx / period
     
     # Calculate ADXR
-    ADXR = np.zeros(n)
+    ADXR = np.full(n, np.nan)
     if n > period:
         for i in range(period, n):
             ADXR[i] = (ADX[i] + ADX[i-period]) / 2
@@ -95,11 +96,11 @@ def adxr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
     :return: ADXR as float or np.ndarray
     """
     candles = slice_candles(candles, sequential)
-
+    
     high = candles[:, 3]
     low = candles[:, 4]
     close = candles[:, 2]
     
-    res = _adxr(high, low, close, period)
+    ADXR = _adxr(high, low, close, period)
     
-    return res if sequential else res[-1]
+    return ADXR if sequential else ADXR[-1]
