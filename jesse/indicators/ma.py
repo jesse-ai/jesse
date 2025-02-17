@@ -90,8 +90,6 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
         res = hma(candles, period, source_type=source_type,  sequential=True)
     elif matype == 11:
         from . import linearreg
-        if len(candles.shape) != 1:
-            candles = get_candle_source(candles, source_type=source_type)
         res = linearreg(candles, period, source_type=source_type, sequential=True)
     elif matype == 12:
         from . import wilders

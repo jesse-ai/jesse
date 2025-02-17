@@ -26,7 +26,10 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    means = ma(source, period=period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        means = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        means = ma(source, period=period, matype=matype, sequential=True)
 
     if devtype == 0:
         if len(source) < period:

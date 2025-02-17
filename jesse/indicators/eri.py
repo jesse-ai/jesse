@@ -25,7 +25,11 @@ def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str
 
     source = get_candle_source(candles, source_type=source_type)
 
-    ema = ma(source, period=period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        ema = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        ema = ma(source, period=period, matype=matype, sequential=True)
+
     bull = candles[:, 3] - ema
     bear = candles[:, 4] - ema
 
