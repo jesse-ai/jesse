@@ -140,9 +140,6 @@ class Optimizer:
         # Get the current trial's value
         current_value = trial.value if trial.value is not None else float('-inf')
         
-        # Get the study's trials attribute directly (more efficient than creating a new list)
-        trials = study.trials
-        
         # Initialize or get the cached best trials from study user attributes
         best_trials = study.user_attrs.get('best_trials', [])
         
@@ -179,6 +176,8 @@ class Optimizer:
             'params': t['params'],
             'fitness': t['fitness']
         } for idx, t in enumerate(best_trials)]
+        jh.debug(f"best_candidates: {best_candidates}")
+
             
         # Send to dashboard
         sync_publish('best_candidates', best_candidates)
@@ -202,7 +201,7 @@ class Optimizer:
         study = optuna.create_study(
             direction='maximize',
             storage=storage_url,
-            study_name=f"{router.routes[0].strategy_name}_optuna",
+            study_name=f"{router.routes[0].strategy_name}_optuna2",
             load_if_exists=True
         )
         # Run the optimization using multiple processes
