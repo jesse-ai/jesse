@@ -96,7 +96,7 @@ class Optimizer:
 
         try:
             # Calculate the fitness score using the provided hyperparameters
-            score, training_log, testing_log = get_fitness(
+            score, training_metrics, testing_metrics = get_fitness(
                 self.user_config,
                 router.formatted_routes,
                 router.formatted_data_routes,
@@ -111,14 +111,14 @@ class Optimizer:
             )
             
             # Store logs in trial user attributes for later use in callback
-            trial.set_user_attr('training_log', training_log)
-            trial.set_user_attr('testing_log', testing_log)
+            trial.set_user_attr('training_metrics', training_metrics)
+            trial.set_user_attr('testing_metrics', testing_metrics)
             
         except Exception as e:
             logger.log_optimize_mode(f"Trial evaluation failed: {e}")
             score = 0.0001
-            trial.set_user_attr('training_log', {})
-            trial.set_user_attr('testing_log', {})
+            trial.set_user_attr('training_metrics', {})
+            trial.set_user_attr('testing_metrics', {})
 
         # Update the dashboard with general information about the progress
         trial_number = trial.number + 1
@@ -163,8 +163,8 @@ class Optimizer:
                 'fitness': round(current_value, 4),
                 'value': current_value,  # Used for sorting, not sent to frontend
                 'dna': dna,
-                'training_log': trial.user_attrs.get('training_log', {}),
-                'testing_log': trial.user_attrs.get('testing_log', {})
+                'training_metrics': trial.user_attrs.get('training_metrics', {}),
+                'testing_metrics': trial.user_attrs.get('testing_metrics', {})
             }
             
             # Insert into best_trials maintaining sorted order
@@ -197,8 +197,8 @@ class Optimizer:
                 'params': t['params'],
                 'fitness': t['fitness'],
                 'dna': t['dna'],
-                'training_log': t.get('training_log', {}),
-                'testing_log': t.get('testing_log', {})
+                'training_metrics': t.get('training_metrics', {}),
+                'testing_metrics': t.get('testing_metrics', {})
             })
         
         jh.debug(f"best_candidates: {best_candidates}")
@@ -225,7 +225,7 @@ class Optimizer:
         study = optuna.create_study(
             direction='maximize',
             storage=storage_url,
-            study_name=f"{router.routes[0].strategy_name}_optuna2",
+            study_name=f"{router.routes[0].strategy_name}_optuna3",
             load_if_exists=True
         )
         # Run the optimization using multiple processes
