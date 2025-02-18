@@ -109,11 +109,16 @@ class Optimizer:
                 self.optimal_total,
                 self.fast_mode
             )
+            
+            # Store logs in trial user attributes for later use in callback
+            trial.set_user_attr('training_log', training_log)
+            trial.set_user_attr('testing_log', testing_log)
+            
         except Exception as e:
             logger.log_optimize_mode(f"Trial evaluation failed: {e}")
             score = 0.0001
-            training_log = {}
-            testing_log = {}
+            trial.set_user_attr('training_log', {})
+            trial.set_user_attr('testing_log', {})
 
         # Update the dashboard with general information about the progress
         trial_number = trial.number + 1
@@ -145,12 +150,21 @@ class Optimizer:
         
         # Only process if the current trial is complete and has a value
         if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
+            # Convert parameters to DNA (base64)
+            import json
+            import base64
+            params_str = json.dumps(trial.params, sort_keys=True)
+            dna = base64.b64encode(params_str.encode()).decode()
+            
             # Create trial info dict
             current_trial_info = {
                 'trial': trial.number,
                 'params': trial.params,
                 'fitness': round(current_value, 4),
-                'value': current_value  # Used for sorting, not sent to frontend
+                'value': current_value,  # Used for sorting, not sent to frontend
+                'dna': dna,
+                'training_log': trial.user_attrs.get('training_log', {}),
+                'testing_log': trial.user_attrs.get('testing_log', {})
             }
             
             # Insert into best_trials maintaining sorted order
@@ -168,17 +182,27 @@ class Optimizer:
                 best_trials = best_trials[:20]
                 # Update cache in study user attributes
                 study.set_user_attr('best_trials', best_trials)
-        
-        # Format for dashboard (exclude 'value' key used for sorting)
-        best_candidates = [{
-            'rank': f"#{idx + 1}",
-            'trial': f"Trial {t['trial']}",
-            'params': t['params'],
-            'fitness': t['fitness']
-        } for idx, t in enumerate(best_trials)]
-        jh.debug(f"best_candidates: {best_candidates}")
 
+        # Format for dashboard (exclude 'value' key used for sorting)
+        best_candidates = []
+        for idx, t in enumerate(best_trials):
+            # Generate DNA for existing trials if they don't have it
+            if 'dna' not in t:
+                params_str = json.dumps(t['params'], sort_keys=True)
+                t['dna'] = base64.b64encode(params_str.encode()).decode()
             
+            best_candidates.append({
+                'rank': f"#{idx + 1}",
+                'trial': f"Trial {t['trial']}",
+                'params': t['params'],
+                'fitness': t['fitness'],
+                'dna': t['dna'],
+                'training_log': t.get('training_log', {}),
+                'testing_log': t.get('testing_log', {})
+            })
+        
+        jh.debug(f"best_candidates: {best_candidates}")
+        
         # Send to dashboard
         sync_publish('best_candidates', best_candidates)
         
