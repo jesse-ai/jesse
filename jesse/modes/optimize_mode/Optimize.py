@@ -188,14 +188,39 @@ class Optimizer:
                 # Update cache in study user attributes
                 study.set_user_attr('best_trials', best_trials)
 
-        # Format for dashboard (exclude 'value' key used for sorting)
+        # Get the objective function configuration and determine which metric to display
+        objective_function_config = jh.get_config('env.optimization.objective_function', 'sharpe').lower()
+        mapping = {
+            'sharpe': 'sharpe_ratio',
+            'calmar': 'calmar_ratio',
+            'sortino': 'sortino_ratio',
+            'omega': 'omega_ratio',
+            'serenity': 'serenity_index',
+            'smart sharpe': 'smart_sharpe',
+            'smart sortino': 'smart_sortino'
+        }
+        metric_key = mapping.get(objective_function_config, objective_function_config)
+
         best_candidates = []
         for idx, t in enumerate(best_trials):
-            # Generate DNA for existing trials if they don't have it
+            # Generate DNA if missing
             if 'dna' not in t:
                 params_str = json.dumps(t['params'], sort_keys=True)
                 t['dna'] = base64.b64encode(params_str.encode()).decode()
-            
+
+            train_value = t.get('training_metrics', {}).get(metric_key, None)
+            test_value = t.get('testing_metrics', {}).get(metric_key, None)
+            if isinstance(train_value, (int, float)):
+                train_value = round(train_value, 2)
+            if isinstance(test_value, (int, float)):
+                test_value = round(test_value, 2)
+            if train_value is None:
+                train_value = "N/A"
+            if test_value is None:
+                test_value = "N/A"
+
+            candidate_objective_metric = f"{train_value} / {test_value}"
+
             best_candidates.append({
                 'rank': f"#{idx + 1}",
                 'trial': f"Trial {t['trial']}",
@@ -203,7 +228,8 @@ class Optimizer:
                 'fitness': t['fitness'],
                 'dna': t['dna'],
                 'training_metrics': t.get('training_metrics', {}),
-                'testing_metrics': t.get('testing_metrics', {})
+                'testing_metrics': t.get('testing_metrics', {}),
+                'objective_metric': candidate_objective_metric
             })
         
         jh.debug(f"best_candidates: {best_candidates}")
