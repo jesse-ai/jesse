@@ -129,6 +129,7 @@ class Optimizer:
             'exchange_type': self.user_config['exchange']['type'],
             'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
             'leverage': self.user_config['exchange']['futures_leverage'],
+            'cpu_cores': self.cpu_cores,
         }
         sync_publish('general_info', general_info)
 
