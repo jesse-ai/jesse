@@ -125,6 +125,10 @@ class Optimizer:
         general_info = {
             'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
             'trial': f'{trial_number}/{self.n_trials}',
+            'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
+            'exchange_type': self.user_config['exchange']['type'],
+            'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
+            'leverage': self.user_config['exchange']['futures_leverage'],
         }
         sync_publish('general_info', general_info)
 
