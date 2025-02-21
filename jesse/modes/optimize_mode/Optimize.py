@@ -54,6 +54,9 @@ class Optimizer:
         # Create a progress bar instance to update the front end about optimization progress
         self.progressbar = Progressbar(self.n_trials)
 
+        # Buffer to accumulate objective curve data points (one point per trial)
+        self.objective_curve_buffer = []
+
         # Setup a periodic termination check in case the user ends the session
         client_id = jh.get_session_id()
         from timeloop import Timeloop
@@ -232,11 +235,25 @@ class Optimizer:
                 'objective_metric': candidate_objective_metric
             })
         
-        jh.debug(f"best_candidates: {best_candidates}")
-        
-        # Send to dashboard
+        # Send top candidates to the dashboard
         sync_publish('best_candidates', best_candidates)
-        
+
+        # --- NEW: Publish objective curve data in batches ---
+        if trial.state == optuna.trial.TrialState.COMPLETE:
+            # Retrieve full metrics for the trial
+            data_point = {
+                'trial': trial.number + 1,
+                'training': trial.user_attrs.get('training_metrics', {}),
+                'testing': trial.user_attrs.get('testing_metrics', {})
+            }
+            self.objective_curve_buffer.append(data_point)
+
+            # Publish a batch every (cpu_cores) completed trials
+            if (trial.number + 1) % self.cpu_cores == 0:
+                jh.debug(f"Publishing objective curve batch: {self.objective_curve_buffer}")
+                sync_publish('objective_curve', self.objective_curve_buffer)
+                self.objective_curve_buffer = []
+
         # If a solution with a very high fitness score is reached, send an alert
         if study.best_trial.value and study.best_trial.value >= 1:
             sync_publish('alert', {
@@ -256,7 +273,7 @@ class Optimizer:
         study = optuna.create_study(
             direction='maximize',
             storage=storage_url,
-            study_name=f"{router.routes[0].strategy_name}_optuna3",
+            study_name=f"{router.routes[0].strategy_name}_optuna4",
             load_if_exists=True
         )
         # Run the optimization using multiple processes
