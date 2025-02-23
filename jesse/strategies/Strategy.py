@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 import numpy as np
 
@@ -10,6 +10,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.pipelines.candles import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -71,6 +72,9 @@ class Strategy(ABC):
 
         # Add cached price
         self._cached_price = None
+
+    def get_candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
+        return None
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
