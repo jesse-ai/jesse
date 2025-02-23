@@ -1,2 +1,4 @@
 from .base_candles import BaseCandlesPipeline
+from .multiple_pipelines import MultipleCandlesPipeline
 from .gaussian_noise import GaussianNoiseCandlesPipeline
+from .gaussian_resampler import GaussianResamplerCandlesPipeline

@@ -3,27 +3,18 @@ import numpy as np
 from jesse.pipelines.candles import BaseCandlesPipeline
 
 
-class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
+class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
 
     def __init__(self, batch_size: int, *,
-                 close_mu: float,
-                 close_sigma: float,
-                 high_mu: float = 0.0,
-                 high_sigma: float = 0.0,
-                 low_mu: float = 0.0,
-                 low_sigma: float = 0.0,
+                 mu: float = 0.0, sigma: float = 1.0,
                  ) -> None:
         """
         Add gaussian noise to candles
         """
         super().__init__(batch_size)
         self._first_time = True
-        self.close_mu = close_mu
-        self.close_sigma = close_sigma
-        self.high_mu = high_mu
-        self.high_sigma = high_sigma
-        self.low_mu = low_mu
-        self.low_sigma = low_sigma
+        self.mu = mu
+        self.sigma = sigma
 
     def process(self, original_1m_candles: np.ndarray, out: np.ndarray) -> bool:
         if not self._first_time:
@@ -35,20 +26,25 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
         out[:len(original_1m_candles)] = original_1m_candles[:]
 
         # close price
-        noise = np.random.normal(self.close_mu, self.close_sigma, size=self.batch_size).cumsum()
-        out[:, 2] = out[:, 2] + noise
+        delta_close = np.diff(original_1m_candles[:, 2], prepend=last_price)
+        mu_delta = np.mean(delta_close[1:])
+        sigma_delta = np.std(delta_close[1:])
+        out[:, 2] = np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=self.batch_size).cumsum() + last_price
 
         # open price
         out[1:, 1] = out[:-1, 2]
         out[0, 1] = last_price
 
         # high
-        high_std = 0.0 if self.high_sigma == 0.0 else np.random.normal(0, self.high_sigma, size=self.batch_size)
-        out[:, 3] = out[:, 3] + self.high_mu + high_std
+        delta_high_close = original_1m_candles[:, 3] - original_1m_candles[:, 2]
+        mu_delta = np.mean(delta_high_close)
+        sigma_delta = np.std(delta_high_close)
+        out[:, 3] = out[:, 2] + np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=self.batch_size)
 
-        # low
-        low_std = 0.0 if self.low_sigma == 0.0 else np.random.normal(0, self.low_sigma, size=self.batch_size)
-        out[:, 4] = out[:, 4] + self.low_mu + low_std
+        delta_close_low = original_1m_candles[:, 2] - original_1m_candles[:, 4]
+        mu_delta = np.mean(delta_close_low)
+        sigma_delta = np.std(delta_close_low)
+        out[:, 4] = out[:, 2] - np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=self.batch_size)
 
         out[:, 3] = np.maximum(np.maximum(out[:, 1], out[:, 2]), np.maximum(out[:, 3], out[:, 4]))
         out[:, 4] = np.minimum(np.minimum(out[:, 1], out[:, 2]), np.minimum(out[:, 3], out[:, 4]))

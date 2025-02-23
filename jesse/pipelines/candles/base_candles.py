@@ -4,18 +4,18 @@ import numpy as np
 class BaseCandlesPipeline:
     def __init__(self, batch_size: int) -> None:
         self.batch_size = batch_size
-        self.output: np.ndarray = np.zeros((batch_size, 6))
+        self._output: np.ndarray = np.zeros((batch_size, 6))
 
     def get_candles(self, candles: np.ndarray, index: int, candles_step: int = -1) -> np.ndarray:
         index = index % self.batch_size
         if index == 0:
-            inject_candle = self.process(candles, self.output)
+            inject_candle = self.process(candles, self._output)
             if not inject_candle:
-                self.output[:] = candles
+                self._output[:] = candles
         if candles_step == -1:
-            return self.output[index]
+            return self._output[index]
         if index + candles_step <= self.batch_size:
-            return self.output[index:index + candles_step]
+            return self._output[index:index + candles_step]
         raise ValueError("Batch size to candle pipeline supported only multiplication of the minimum timeframe in your"
                          " routes.")
 
