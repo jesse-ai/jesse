@@ -116,7 +116,8 @@ class FuturesExchange(Exchange):
 
             if effective_order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f'You cannot submit an order for ${round(order.qty * order.price)} when your effective margin balance is ${round(self.available_margin)} considering leverage')
+                    f'You cannot submit an order for ${round(order.qty * order.price)} when your available margin is ${round(self.available_margin)}. Consider increasing leverage number from the settings or reducing the order size.'
+                )
 
         self.available_assets[base_asset] += order.qty
 
