@@ -12,28 +12,21 @@ class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
         Add gaussian noise to candles
         """
         super().__init__(batch_size)
-        self._first_time = True
         self.mu = mu
         self.sigma = sigma
 
     def process(self, original_1m_candles: np.ndarray, out: np.ndarray) -> bool:
-        if not self._first_time:
-            last_price = out[-1, 2]  # last_close_price
-        else:
-            self._first_time = True
-            # in case we don't have history set the price as the first price so the bias will be 0
-            last_price = original_1m_candles[0, 1]
-        out[:len(original_1m_candles)] = original_1m_candles[:]
+        out[:] = original_1m_candles[:]
 
         # close price
-        delta_close = np.diff(original_1m_candles[:, 2], prepend=last_price)
+        delta_close = np.diff(original_1m_candles[:, 2], prepend=self.last_price)
         mu_delta = np.mean(delta_close[1:])
         sigma_delta = np.std(delta_close[1:])
-        out[:, 2] = np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=self.batch_size).cumsum() + last_price
+        out[:, 2] = np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=self.batch_size).cumsum() + self.last_price
 
         # open price
         out[1:, 1] = out[:-1, 2]
-        out[0, 1] = last_price
+        out[0, 1] = self.last_price
 
         # high
         delta_high_close = original_1m_candles[:, 3] - original_1m_candles[:, 2]

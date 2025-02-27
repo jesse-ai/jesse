@@ -5,11 +5,16 @@ class BaseCandlesPipeline:
     def __init__(self, batch_size: int) -> None:
         self.batch_size = batch_size
         self._output: np.ndarray = np.zeros((batch_size, 6))
+        self.last_price = 0.0
 
     def get_candles(self, candles: np.ndarray, index: int, candles_step: int = -1) -> np.ndarray:
         index = index % self.batch_size
         if index == 0:
-            inject_candle = self.process(candles, self._output)
+            if self.last_price == 0.0:
+                self.last_price = candles[0, 1]  # the first time use open price instead of last close
+            else:
+                self.last_price = self._output[-1, 2]  # later use the last_price
+            inject_candle = self.process(candles, self._output[:len(candles)])
             if not inject_candle:
                 self._output[:] = candles
         if candles_step == -1:
