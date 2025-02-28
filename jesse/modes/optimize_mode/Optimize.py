@@ -1,4 +1,6 @@
 import os
+import json
+import base64
 from datetime import timedelta
 from multiprocessing import cpu_count
 import optuna
@@ -159,8 +161,6 @@ class Optimizer:
         # Only process if the current trial is complete and has a value
         if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
             # Convert parameters to DNA (base64)
-            import json
-            import base64
             params_str = json.dumps(trial.params, sort_keys=True)
             dna = base64.b64encode(params_str.encode()).decode()
             
@@ -239,17 +239,29 @@ class Optimizer:
         sync_publish('best_candidates', best_candidates)
 
         # --- NEW: Publish objective curve data in batches ---
-        if trial.state == optuna.trial.TrialState.COMPLETE:
-            # Retrieve full metrics for the trial
-            data_point = {
-                'trial': trial.number + 1,
-                'training': trial.user_attrs.get('training_metrics', {}),
-                'testing': trial.user_attrs.get('testing_metrics', {})
-            }
-            self.objective_curve_buffer.append(data_point)
+        if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
+            # Retrieve metrics for the trial
+            training_metrics = trial.user_attrs.get('training_metrics', {})
+            testing_metrics = trial.user_attrs.get('testing_metrics', {})
+            
+            # Only add to buffer if both metrics exist and are not empty
+            if training_metrics and testing_metrics:
+                data_point = {
+                    'trial': trial.number + 1,
+                    'training': training_metrics,
+                    'testing': testing_metrics
+                }
+                self.objective_curve_buffer.append(data_point)
+                
+                if jh.is_debugging():
+                    jh.debug(f"Added trial {trial.number + 1} to objective curve buffer with metrics")
+            else:
+                if jh.is_debugging():
+                    jh.debug(f"Skipped trial {trial.number + 1} - missing metrics. Training: {bool(training_metrics)}, Testing: {bool(testing_metrics)}")
 
-            # Publish a batch every (cpu_cores) completed trials
-            if (trial.number + 1) % self.cpu_cores == 0:
+            # Publish a batch every (cpu_cores) completed trials or if buffer has data
+            if ((trial.number + 1) % self.cpu_cores == 0) and self.objective_curve_buffer:
+                jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
                 jh.debug(f"Publishing objective curve batch: {self.objective_curve_buffer}")
                 sync_publish('objective_curve', self.objective_curve_buffer)
                 self.objective_curve_buffer = []
@@ -269,6 +281,9 @@ class Optimizer:
         os.makedirs('./storage/temp/optuna', exist_ok=True)
         storage_url = "sqlite:///./storage/temp/optuna/optuna_study.db"
         
+        # Log CPU cores info
+        logger.log_optimize_mode(f"Using {self.cpu_cores} CPU cores for optimization")
+        
         # Create or load the study
         study = optuna.create_study(
             direction='maximize',
@@ -276,13 +291,23 @@ class Optimizer:
             study_name=f"{router.routes[0].strategy_name}_optuna4",
             load_if_exists=True
         )
+        
+        # Create a custom callback to ensure multi-process compatibility
+        callbacks = [self.study_callback]
+        
         # Run the optimization using multiple processes
         study.optimize(
             self.objective,
             n_trials=self.n_trials,
             n_jobs=self.cpu_cores,
-            callbacks=[self.study_callback]
+            callbacks=callbacks
         )
+
+        # Publish any remaining data in the buffer
+        if self.objective_curve_buffer:
+            jh.debug(f"Publishing remaining {len(self.objective_curve_buffer)} data points in buffer")
+            sync_publish('objective_curve', self.objective_curve_buffer)
+            self.objective_curve_buffer = []
 
         # Publish a completion alert to the dashboard
         sync_publish('alert', {
