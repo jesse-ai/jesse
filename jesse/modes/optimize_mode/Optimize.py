@@ -4,6 +4,7 @@ import base64
 from datetime import timedelta
 from multiprocessing import cpu_count
 import optuna
+import ray
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse import exceptions, sync_publish
@@ -13,7 +14,58 @@ from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
 from jesse.store import store
 
-# Optimizer class that uses Optuna for hyperparameter optimization
+# Define a Ray-compatible remote function
+@ray.remote
+def ray_evaluate_trial(
+    user_config, 
+    formatted_routes, 
+    formatted_data_routes, 
+    strategy_hp, 
+    hp, 
+    training_warmup_candles, 
+    training_candles, 
+    testing_warmup_candles, 
+    testing_candles, 
+    optimal_total, 
+    fast_mode, 
+    trial_number
+):
+    """Ray remote function to evaluate a trial"""
+    try:
+        # Calculate the fitness score using the provided hyperparameters
+        score, training_metrics, testing_metrics = get_fitness(
+            user_config,
+            formatted_routes,
+            formatted_data_routes,
+            strategy_hp,
+            hp,
+            training_warmup_candles,
+            training_candles,
+            testing_warmup_candles,
+            testing_candles,
+            optimal_total,
+            fast_mode
+        )
+        
+        # Log the trial details if debugging is enabled
+        if jh.is_debugging():
+            logger.log_optimize_mode(f"Ray Trial {trial_number}: Score={score}, Params={hp}")
+        
+        return {
+            'score': score,
+            'training_metrics': training_metrics,
+            'testing_metrics': testing_metrics
+        }
+        
+    except Exception as e:
+        logger.log_optimize_mode(f"Ray trial evaluation failed: {e}")
+        return {
+            'score': 0.0001,
+            'training_metrics': {},
+            'testing_metrics': {}
+        }
+
+# Optimizer class that uses Optuna with Ray for hyperparameter optimization
 class Optimizer:
     def __init__(
             self,
@@ -58,6 +110,19 @@ class Optimizer:
 
         # Buffer to accumulate objective curve data points (one point per trial)
         self.objective_curve_buffer = []
+        
+        # Trial counter for Ray
+        self.trial_counter = 0
+        
+        # Initialize Ray if not already
+        if not ray.is_initialized():
+            try:
+                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                logger.log_optimize_mode(f"Successfully initialized Ray with {self.cpu_cores} CPU cores")
+            except Exception as e:
+                logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.")
+                self.cpu_cores = 1
+                ray.init(num_cpus=1, ignore_reinit_error=True)
 
         # Setup a periodic termination check in case the user ends the session
         client_id = jh.get_session_id()
@@ -99,37 +164,45 @@ class Optimizer:
             else:
                 raise ValueError(f"Unsupported hyperparameter type: {param_type}")
 
-        try:
-            # Calculate the fitness score using the provided hyperparameters
-            score, training_metrics, testing_metrics = get_fitness(
-                self.user_config,
-                router.formatted_routes,
-                router.formatted_data_routes,
-                self.strategy_hp,
-                hp,
-                self.training_warmup_candles,
-                self.training_candles,
-                self.testing_warmup_candles,
-                self.testing_candles,
-                self.optimal_total,
-                self.fast_mode
-            )
-            
-            # Store logs in trial user attributes for later use in callback
-            trial.set_user_attr('training_metrics', training_metrics)
-            trial.set_user_attr('testing_metrics', testing_metrics)
-            
-        except Exception as e:
-            logger.log_optimize_mode(f"Trial evaluation failed: {e}")
-            score = 0.0001
-            trial.set_user_attr('training_metrics', {})
-            trial.set_user_attr('testing_metrics', {})
-
+        # Use Ray for remote execution
+        score, training_metrics, testing_metrics = self._evaluate_with_ray(trial.number, hp)
+        
+        # Store metrics in trial's user attributes for the callback to access
+        trial.set_user_attr('training_metrics', training_metrics)
+        trial.set_user_attr('testing_metrics', testing_metrics)
+        
+        return score
+    
+    def _evaluate_with_ray(self, trial_number, hp):
+        """Evaluate using Ray and handle result processing"""
+        # Launch the trial evaluation as a Ray task
+        future = ray_evaluate_trial.options(num_cpus=1).remote(
+            self.user_config,
+            router.formatted_routes,
+            router.formatted_data_routes,
+            self.strategy_hp,
+            hp,
+            self.training_warmup_candles,
+            self.training_candles,
+            self.testing_warmup_candles,
+            self.testing_candles,
+            self.optimal_total,
+            self.fast_mode,
+            trial_number
+        )
+        
+        # Wait for and get the result
+        result = ray.get(future)
+        
+        score = result['score']
+        training_metrics = result['training_metrics'] 
+        testing_metrics = result['testing_metrics']
+        
         # Update the dashboard with general information about the progress
-        trial_number = trial.number + 1
+        self.trial_counter += 1
         general_info = {
             'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-            'trial': f'{trial_number}/{self.n_trials}',
+            'trial': f'{self.trial_counter}/{self.n_trials}',
             'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
             'exchange_type': self.user_config['exchange']['type'],
             'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
@@ -144,12 +217,35 @@ class Optimizer:
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
+        
+        # Process trial metrics for objective curve
+        self._process_trial_metrics(trial_number, training_metrics, testing_metrics)
+        
+        return score, training_metrics, testing_metrics
+    
+    def _process_trial_metrics(self, trial_number, training_metrics, testing_metrics):
+        """Process metrics from a completed trial to update objective curve"""
+        # Only add to buffer if both metrics exist and are not empty
+        if training_metrics and testing_metrics:
+            data_point = {
+                'trial': trial_number + 1,
+                'training': training_metrics,
+                'testing': testing_metrics
+            }
+            self.objective_curve_buffer.append(data_point)
+            
+            if jh.is_debugging():
+                jh.debug(f"Added trial {trial_number + 1} to objective curve buffer with metrics")
+        else:
+            if jh.is_debugging():
+                jh.debug(f"Skipped trial {trial_number + 1} - missing metrics. Training: {bool(training_metrics)}, Testing: {bool(testing_metrics)}")
 
-        # Log the trial details if debugging is enabled
-        if jh.is_debugging():
-            logger.log_optimize_mode(f"Trial {trial_number}: Score={score}, Params={hp}")
-
-        return score
+        # Publish a batch every 5 trials or when buffer reaches 10 items
+        if (len(self.objective_curve_buffer) >= 10) or ((trial_number + 1) % 5 == 0 and self.objective_curve_buffer):
+            if jh.is_debugging():
+                jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
+            sync_publish('objective_curve', self.objective_curve_buffer)
+            self.objective_curve_buffer = []
 
     def study_callback(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
         # Get the current trial's value
@@ -160,6 +256,10 @@ class Optimizer:
         
         # Only process if the current trial is complete and has a value
         if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
+            # Get metrics from trial user attributes
+            training_metrics = trial.user_attrs.get('training_metrics', {})
+            testing_metrics = trial.user_attrs.get('testing_metrics', {})
+            
             # Convert parameters to DNA (base64)
             params_str = json.dumps(trial.params, sort_keys=True)
             dna = base64.b64encode(params_str.encode()).decode()
@@ -171,9 +271,15 @@ class Optimizer:
                 'fitness': round(current_value, 4),
                 'value': current_value,  # Used for sorting, not sent to frontend
                 'dna': dna,
-                'training_metrics': trial.user_attrs.get('training_metrics', {}),
-                'testing_metrics': trial.user_attrs.get('testing_metrics', {})
+                'training_metrics': training_metrics,
+                'testing_metrics': testing_metrics
             }
+            
+            # Debug log trial metrics
+            if jh.is_debugging():
+                jh.debug(f"Trial {trial.number} callback - fitness: {current_value}")
+                jh.debug(f"Trial {trial.number} has training metrics: {bool(training_metrics)}")
+                jh.debug(f"Trial {trial.number} has testing metrics: {bool(testing_metrics)}")
             
             # Insert into best_trials maintaining sorted order
             insert_idx = 0
@@ -238,34 +344,6 @@ class Optimizer:
         # Send top candidates to the dashboard
         sync_publish('best_candidates', best_candidates)
 
-        # --- NEW: Publish objective curve data in batches ---
-        if trial.state == optuna.trial.TrialState.COMPLETE and current_value > float('-inf'):
-            # Retrieve metrics for the trial
-            training_metrics = trial.user_attrs.get('training_metrics', {})
-            testing_metrics = trial.user_attrs.get('testing_metrics', {})
-            
-            # Only add to buffer if both metrics exist and are not empty
-            if training_metrics and testing_metrics:
-                data_point = {
-                    'trial': trial.number + 1,
-                    'training': training_metrics,
-                    'testing': testing_metrics
-                }
-                self.objective_curve_buffer.append(data_point)
-                
-                if jh.is_debugging():
-                    jh.debug(f"Added trial {trial.number + 1} to objective curve buffer with metrics")
-            else:
-                if jh.is_debugging():
-                    jh.debug(f"Skipped trial {trial.number + 1} - missing metrics. Training: {bool(training_metrics)}, Testing: {bool(testing_metrics)}")
-
-            # Publish a batch every (cpu_cores) completed trials or if buffer has data
-            if ((trial.number + 1) % self.cpu_cores == 0) and self.objective_curve_buffer:
-                jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
-                jh.debug(f"Publishing objective curve batch: {self.objective_curve_buffer}")
-                sync_publish('objective_curve', self.objective_curve_buffer)
-                self.objective_curve_buffer = []
-
         # If a solution with a very high fitness score is reached, send an alert
         if study.best_trial.value and study.best_trial.value >= 1:
             sync_publish('alert', {
@@ -275,31 +353,31 @@ class Optimizer:
 
     def run(self) -> optuna.trial.FrozenTrial:
         # Log the start of the optimization session
-        logger.log_optimize_mode("Optimization session started with Optuna")
+        logger.log_optimize_mode("Optimization session started with Optuna and Ray")
         
         # Create SQLite storage so that multiple processes can work concurrently on the study
         os.makedirs('./storage/temp/optuna', exist_ok=True)
         storage_url = "sqlite:///./storage/temp/optuna/optuna_study.db"
         
         # Log CPU cores info
-        logger.log_optimize_mode(f"Using {self.cpu_cores} CPU cores for optimization")
+        logger.log_optimize_mode(f"Using {self.cpu_cores} CPU cores for optimization with Ray")
         
         # Create or load the study
         study = optuna.create_study(
             direction='maximize',
             storage=storage_url,
-            study_name=f"{router.routes[0].strategy_name}_optuna4",
+            study_name=f"{router.routes[0].strategy_name}_optuna6",
             load_if_exists=True
         )
         
         # Create a custom callback to ensure multi-process compatibility
         callbacks = [self.study_callback]
         
-        # Run the optimization using multiple processes
+        # Run the optimization using a single Optuna process (Ray handles the parallelization)
         study.optimize(
             self.objective,
             n_trials=self.n_trials,
-            n_jobs=self.cpu_cores,
+            n_jobs=1,  # We're using Ray for parallelization
             callbacks=callbacks
         )
 
@@ -314,5 +392,8 @@ class Optimizer:
             'message': f"Finished {self.n_trials} trials. Check your best hyperparameter candidate.",
             'type': 'success'
         })
+        
+        # Shutdown Ray
+        ray.shutdown()
 
         return study.best_trial
