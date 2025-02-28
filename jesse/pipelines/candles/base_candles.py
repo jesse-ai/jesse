@@ -3,12 +3,12 @@ import numpy as np
 
 class BaseCandlesPipeline:
     def __init__(self, batch_size: int) -> None:
-        self.batch_size = batch_size
+        self._batch_size = batch_size
         self._output: np.ndarray = np.zeros((batch_size, 6))
         self.last_price = 0.0
 
     def get_candles(self, candles: np.ndarray, index: int, candles_step: int = -1) -> np.ndarray:
-        index = index % self.batch_size
+        index = index % self._batch_size
         if index == 0:
             if self.last_price == 0.0:
                 self.last_price = candles[0, 1]  # the first time use open price instead of last close
@@ -19,7 +19,7 @@ class BaseCandlesPipeline:
                 self._output[:] = candles
         if candles_step == -1:
             return self._output[index]
-        if index + candles_step <= self.batch_size:
+        if index + candles_step <= self._batch_size:
             return self._output[index:index + candles_step]
         raise ValueError("Batch size to candle pipeline supported only multiplication of the minimum timeframe in your"
                          " routes.")

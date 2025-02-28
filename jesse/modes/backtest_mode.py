@@ -578,7 +578,7 @@ def get_candles_from_pipeline(candles_pipeline: Optional[BaseCandlesPipeline], c
             return candles[i]
         else:
             return candles[i: candles_step]
-    return candles_pipeline.get_candles(candles[i: i + candles_pipeline.batch_size], i, candles_step)
+    return candles_pipeline.get_candles(candles[i: i + candles_pipeline._batch_size], i, candles_step)
 
 
 def _update_progress_bar(

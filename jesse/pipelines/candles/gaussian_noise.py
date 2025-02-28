@@ -32,10 +32,10 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
             self._first_time = True
             # in case we don't have history set the price as the first price so the bias will be 0
             last_price = original_1m_candles[0, 1]
-        out[:len(original_1m_candles)] = original_1m_candles[:]
+        out[:] = original_1m_candles[:]
 
         # close price
-        noise = np.random.normal(self.close_mu, self.close_sigma, size=self.batch_size).cumsum()
+        noise = np.random.normal(self.close_mu, self.close_sigma, size=len(out)).cumsum()
         out[:, 2] = out[:, 2] + noise
 
         # open price
@@ -43,11 +43,11 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
         out[0, 1] = last_price
 
         # high
-        high_std = 0.0 if self.high_sigma == 0.0 else np.random.normal(0, self.high_sigma, size=self.batch_size)
+        high_std = 0.0 if self.high_sigma == 0.0 else np.random.normal(0, self.high_sigma, size=len(out))
         out[:, 3] = out[:, 3] + self.high_mu + high_std
 
         # low
-        low_std = 0.0 if self.low_sigma == 0.0 else np.random.normal(0, self.low_sigma, size=self.batch_size)
+        low_std = 0.0 if self.low_sigma == 0.0 else np.random.normal(0, self.low_sigma, size=len(out))
         out[:, 4] = out[:, 4] + self.low_mu + low_std
 
         out[:, 3] = np.maximum(np.maximum(out[:, 1], out[:, 2]), np.maximum(out[:, 3], out[:, 4]))

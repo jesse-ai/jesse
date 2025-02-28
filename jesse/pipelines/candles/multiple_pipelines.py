@@ -8,7 +8,7 @@ from jesse.pipelines.candles import BaseCandlesPipeline
 class MultipleCandlesPipeline(BaseCandlesPipeline):
 
     def __init__(self, *pipelines: BaseCandlesPipeline):
-        batch_size = math.lcm(*[pipeline.batch_size for pipeline in pipelines])
+        batch_size = math.lcm(*[pipeline._batch_size for pipeline in pipelines])
         super().__init__(batch_size)
         self.pipelines = pipelines
 
@@ -19,8 +19,8 @@ class MultipleCandlesPipeline(BaseCandlesPipeline):
 
     @staticmethod
     def pipeline_process(pipeline: BaseCandlesPipeline, input_candles: np.ndarray, out: np.ndarray) -> None:
-        batch_size = pipeline.batch_size
+        batch_size = pipeline._batch_size
         for i in range(0, len(input_candles), batch_size):
             candles = input_candles[i:i + batch_size]
-            output = pipeline.get_candles(candles, 0, batch_size)
+            output = pipeline.get_candles(candles, 0, len(candles))
             out[i:i + len(output)] = output
