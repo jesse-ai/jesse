@@ -92,6 +92,12 @@ class Optimizer:
         if not self.strategy_hp:
             raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyperparameters() method.')
 
+        # Create study storage for persistence
+        os.makedirs('./storage/temp/optuna', exist_ok=True)
+        self.storage_url = f"sqlite:///./storage/temp/optuna/optuna_study.db"
+        # The study_name uniquely identifies the optimization session - changing it will create a new session
+        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray"
+        
         self.solution_len = len(self.strategy_hp)
         self.start_time = jh.now_to_timestamp()
         self.fast_mode = fast_mode
@@ -121,6 +127,14 @@ class Optimizer:
         self.trial_counter = 0
         self.completed_trials = 0
         
+        # Create or load the Optuna study for persistence
+        self.study = optuna.create_study(
+            direction='maximize',
+            storage=self.storage_url,
+            study_name=self.study_name,
+            load_if_exists=True
+        )
+        
         # Buffer to accumulate objective curve data points (one point per trial)
         self.objective_curve_buffer = []
         
@@ -143,6 +157,97 @@ class Optimizer:
             if is_process_active(client_id) is False:
                 raise exceptions.Termination
         self.tl.start()
+        
+        # Load existing trials from the Optuna study
+        self._load_study_trials()
+    
+    def _load_study_trials(self):
+        """Load trials from the Optuna study"""
+        try:
+            # Get completed trials from the Optuna study
+            completed_trials = [t for t in self.study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+            if not completed_trials:
+                logger.log_optimize_mode("No previous trials found. Starting new optimization session.")
+                return
+                
+            # Update completed trials count
+            self.completed_trials = len(completed_trials)
+            logger.log_optimize_mode(f"Loaded {self.completed_trials} completed trials from previous session")
+            
+            # Process each trial
+            for trial in completed_trials:
+                # Skip trials without values
+                if trial.value is None:
+                    continue
+                    
+                # Get trial metrics from user attributes
+                training_metrics = trial.user_attrs.get('training_metrics', {})
+                testing_metrics = trial.user_attrs.get('testing_metrics', {})
+                
+                # Convert parameters to DNA (base64)
+                params_str = json.dumps(trial.params, sort_keys=True)
+                dna = base64.b64encode(params_str.encode()).decode()
+                
+                # Create trial info dict
+                trial_info = {
+                    'trial': trial.number,
+                    'params': trial.params,
+                    'fitness': round(trial.value, 4),
+                    'value': trial.value,
+                    'dna': dna,
+                    'training_metrics': training_metrics,
+                    'testing_metrics': testing_metrics
+                }
+                
+                # Add to best trials in order
+                insert_idx = 0
+                for idx, t in enumerate(self.best_trials):
+                    if trial.value > t['value']:
+                        insert_idx = idx
+                        break
+                    else:
+                        insert_idx = idx + 1
+                
+                if insert_idx < 20 or len(self.best_trials) < 20:
+                    self.best_trials.insert(insert_idx, trial_info)
+                    
+                # Update objective curve buffer
+                if training_metrics and testing_metrics:
+                    self._process_trial_metrics(trial.number, training_metrics, testing_metrics)
+            
+            # Keep only top 20 trials
+            self.best_trials = self.best_trials[:20]
+            
+            # Update best candidates display
+            self._update_best_candidates()
+            
+            # Update progress bar efficiently
+            self._set_progressbar_index(self.completed_trials)
+            
+            # Update the dashboard with general information about the progress
+            general_info = {
+                'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+                'trial': f'{self.completed_trials}/{self.n_trials}',
+                'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
+                'exchange_type': self.user_config['exchange']['type'],
+                'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
+                'leverage': self.user_config['exchange']['futures_leverage'],
+                'cpu_cores': self.cpu_cores,
+            }
+            sync_publish('general_info', general_info)
+            sync_publish('progressbar', {
+                'current': self.progressbar.current,
+                'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
+            })
+            
+            # Set trial counter to start from after the last trial
+            self.trial_counter = max([t.number for t in completed_trials]) + 1
+            
+        except Exception as e:
+            logger.log_optimize_mode(f"Error loading previous trials: {e}")
+            # Reset counters in case of failure
+            self.completed_trials = 0
+            self.trial_counter = 0
     
     def generate_trial_params(self):
         """Generate random hyperparameters for a trial"""
@@ -178,6 +283,45 @@ class Optimizer:
                 raise ValueError(f"Unsupported hyperparameter type: {param_type}")
                 
         return hp
+    
+    def _create_optuna_trial(self, trial_number, params, score, training_metrics, testing_metrics):
+        """Create and store an Optuna trial for persistence"""
+        try:
+            # Create distributions for the parameters
+            distributions = {}
+            for param in self.strategy_hp:
+                param_name = str(param['name'])
+                param_type = param['type']
+                if isinstance(param_type, type):
+                    param_type = param_type.__name__
+                else:
+                    param_type = param_type.strip("'").strip('"')
+                    
+                if param_type == 'int':
+                    distributions[param_name] = optuna.distributions.IntDistribution(param['min'], param['max'])
+                elif param_type == 'float':
+                    distributions[param_name] = optuna.distributions.FloatDistribution(param['min'], param['max'])
+                elif param_type == 'categorical':
+                    distributions[param_name] = optuna.distributions.CategoricalDistribution(param['options'])
+            
+            # Create a new trial
+            trial = optuna.create_trial(
+                params=params,
+                distributions=distributions,
+                value=score,
+                user_attrs={
+                    'training_metrics': training_metrics,
+                    'testing_metrics': testing_metrics
+                }
+            )
+            
+            # Add the trial to the study
+            self.study.add_trial(trial)
+            return True
+            
+        except Exception as e:
+            logger.log_optimize_mode(f"Error creating Optuna trial: {e}")
+            return False
         
     def process_trial_result(self, result):
         """Process the result of a completed trial"""
@@ -190,6 +334,9 @@ class Optimizer:
         # Update progress
         self.completed_trials += 1
         self.progressbar.update()
+        
+        # Store trial in Optuna for persistence
+        self._create_optuna_trial(trial_number, params, score, training_metrics, testing_metrics)
         
         # Update the dashboard with general information about the progress
         general_info = {
@@ -321,17 +468,36 @@ class Optimizer:
             sync_publish('objective_curve', self.objective_curve_buffer)
             self.objective_curve_buffer = []
 
+    def _set_progressbar_index(self, index):
+        """Manually set the progressbar index for resuming sessions efficiently"""
+        self.progressbar.index = index
+        # Update UI to reflect progress
+        sync_publish('progressbar', {
+            'current': self.progressbar.current,
+            'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
+        })
+    
     def run(self) -> optuna.trial.FrozenTrial:
         # Log the start of the optimization session
         logger.log_optimize_mode(f"Optimization session started with Ray using {self.cpu_cores} CPU cores")
+
+        if self.completed_trials > 0:
+            logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed")
+            # Make sure the progress bar is synchronized
+            self._set_progressbar_index(self.completed_trials)
         
-        # Track the best trial
-        best_trial_value = 0.0
-        best_trial_params = None
+        # Track the best trial - handle empty study gracefully
+        try:
+            best_trial_value = self.study.best_value if self.study.trials else 0.0
+            best_trial_params = self.study.best_params if self.study.trials else None
+        except (ValueError, AttributeError) as e:
+            logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.")
+            best_trial_value = 0.0
+            best_trial_params = None
         
         try:
             # Maximum number of active workers (slightly higher than CPU cores to keep CPUs busy)
-            max_workers = min(self.cpu_cores * 2, self.n_trials)
+            max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
             
             # Dictionary to keep track of active workers
             active_refs = {}
@@ -396,29 +562,13 @@ class Optimizer:
                 sync_publish('objective_curve', self.objective_curve_buffer)
                 self.objective_curve_buffer = []
             
-            # Create a fake Optuna trial for compatibility with existing code
-            distributions = {}
-            for param in self.strategy_hp:
-                param_name = str(param['name'])
-                param_type = param['type']
-                if isinstance(param_type, type):
-                    param_type = param_type.__name__
-                else:
-                    param_type = param_type.strip("'").strip('"')
-                    
-                if param_type == 'int':
-                    distributions[param_name] = optuna.distributions.IntDistribution(param['min'], param['max'])
-                elif param_type == 'float':
-                    distributions[param_name] = optuna.distributions.FloatDistribution(param['min'], param['max'])
-                elif param_type == 'categorical':
-                    distributions[param_name] = optuna.distributions.CategoricalDistribution(param['options'])
-            
-            best_trial = optuna.trial.create_trial(
-                state=optuna.trial.TrialState.COMPLETE,
-                value=best_trial_value,
-                params=best_trial_params or {},
-                distributions=distributions
-            )
+            # Get the best trial from the study
+            try:
+                best_trial = self.study.best_trial
+            except (ValueError, AttributeError) as e:
+                logger.log_optimize_mode(f"Could not access best trial at the end: {e}")
+                # Create a dummy trial if no best trial exists
+                best_trial = None
             
             # Publish completion alert
             sync_publish('alert', {
@@ -433,4 +583,21 @@ class Optimizer:
             # Shutdown Ray
             ray.shutdown()
             
+        # Create an empty FrozenTrial if best_trial is None
+        if best_trial is None:
+            logger.log_optimize_mode("No best trial found. Returning empty result.")
+            from optuna.trial import FrozenTrial
+            return FrozenTrial(
+                number=0,
+                trial_id=0,
+                state=optuna.trial.TrialState.COMPLETE,
+                value=0.0,
+                datetime_start=None,
+                datetime_complete=None,
+                params={},
+                distributions={},
+                user_attrs={},
+                system_attrs={},
+                intermediate_values={},
+            )
         return best_trial
