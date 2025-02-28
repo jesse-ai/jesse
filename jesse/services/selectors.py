@@ -1,4 +1,3 @@
-from jesse.store import store
 from typing import List, ValuesView, Optional, Any
 
 
@@ -14,6 +13,7 @@ def get_position(exchange: str, symbol: str) -> Any:
     if exchange is None or symbol is None:
         raise ValueError(f"exchange and symbol cannot be None. exchange: {exchange}, symbol: {symbol}")
 
+    from jesse.store import store
     key = f'{exchange}-{symbol}'
     return store.positions.storage.get(key, None)
 
@@ -22,14 +22,17 @@ def get_orders(exchange: str, symbol: str) -> List[Any]:
     if exchange is None or symbol is None:
         raise ValueError(f"exchange and symbol cannot be None. exchange: {exchange}, symbol: {symbol}")
 
+    from jesse.store import store
     return store.orders.get_orders(exchange, symbol)
 
 
 def get_time() -> int:
+    from jesse.store import store
     return store.app.time
 
 
 def get_starting_time() -> int:
+    from jesse.store import store
     return store.app.starting_time
 
 
@@ -37,6 +40,7 @@ def get_exchange(name: str) -> Any:
     if name is None:
         raise ValueError(f"name cannot be None. name: {name}")
 
+    from jesse.store import store
     return store.exchanges.storage.get(name, None)
 
 
@@ -49,6 +53,7 @@ def get_trading_exchange():
 
 
 def get_all_exchanges() -> ValuesView[Any]:
+    from jesse.store import store
     return store.exchanges.storage.values()
 
 
