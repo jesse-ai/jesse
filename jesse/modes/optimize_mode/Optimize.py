@@ -5,7 +5,6 @@ from datetime import timedelta
 from multiprocessing import cpu_count
 import optuna
 import ray
-import time
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -14,7 +13,6 @@ from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
-from jesse.store import store
 
 # Define a Ray-compatible remote function
 @ray.remote
