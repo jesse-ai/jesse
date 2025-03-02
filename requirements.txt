@@ -27,4 +27,3 @@ numba~=0.61.0rc2
 PyJWT~=2.8.0
 cryptography~=42.0.5
 ecdsa>=0.16.0
-tqdm~=4.67.1

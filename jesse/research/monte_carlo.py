@@ -16,17 +16,8 @@ def monte_carlo(
     hyperparameters: dict = None,
     fast_mode: bool = True,
     scenarios: int = 1000,
-    progress_bar: bool = False,
     cpu_cores: int = 0,
 ) -> list[dict]:
-    if progress_bar:
-        if jh.is_notebook():
-            from tqdm.notebook import tqdm
-        else:
-            from tqdm import tqdm
-        scenarios_list = tqdm(range(scenarios))
-    else:
-        scenarios_list = range(scenarios)
 
     cpu_cores = cpu_cores or multiprocessing.cpu_count()
     _backtest = functools.partial(
