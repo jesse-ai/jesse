@@ -169,6 +169,14 @@ def dashy_to_underline(symbol: str) -> str:
     return symbol.replace('-', '_')
 
 
+def get_base_asset(symbol: str) -> str:
+    return symbol.split('-')[0]
+
+
+def get_quote_asset(symbol: str) -> str:
+    return symbol.split('-')[1]
+
+
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
