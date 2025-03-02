@@ -1,4 +1,5 @@
 import functools
+import multiprocessing
 from typing import List, Dict
 
 import jesse.helpers as jh
@@ -16,6 +17,7 @@ def monte_carlo(
     fast_mode: bool = True,
     scenarios: int = 1000,
     progress_bar: bool = False,
+    cpu_cores: int = 0,
 ) -> list[dict]:
     if progress_bar:
         if jh.is_notebook():
@@ -26,6 +28,7 @@ def monte_carlo(
     else:
         scenarios_list = range(scenarios)
 
+    cpu_cores = cpu_cores or multiprocessing.cpu_count()
     _backtest = functools.partial(
         backtest,
         config=config,
@@ -43,9 +46,8 @@ def monte_carlo(
             return _backtest(*args, **kwargs)
         except Exception as e:
             return {'exception': e}
-    return [
-        allow_failures_backtests(
-            benchmark=benchmark and i == 0,
-        )
-        for i in scenarios_list
-    ]
+
+    with multiprocessing.Pool(processes=cpu_cores) as pool:
+        benchmarks = [benchmark] + [False] * (scenarios - 1)
+        results = pool.map(allow_failures_backtests, benchmarks)
+    return results
