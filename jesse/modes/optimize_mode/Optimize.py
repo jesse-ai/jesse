@@ -13,6 +13,8 @@ from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
+from jesse.models.utils import update_optimization_session_status, update_optimization_session_trials
+from jesse.models.OptimizationSession import OptimizationSession
 
 # Define a Ray-compatible remote function
 @ray.remote
@@ -73,6 +75,7 @@ def ray_evaluate_trial(
 class Optimizer:
     def __init__(
             self,
+            session_id: str,
             user_config: dict,
             training_warmup_candles: dict,
             training_candles: dict,
@@ -82,6 +85,8 @@ class Optimizer:
             optimal_total: int,
             cpu_cores: int,
     ) -> None:
+        self.session_id = session_id
+
         # Retrieve the target strategy and its hyperparameter configuration
         strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
         
@@ -94,7 +99,7 @@ class Optimizer:
         os.makedirs('./storage/temp/optuna', exist_ok=True)
         self.storage_url = f"sqlite:///./storage/temp/optuna/optuna_study.db"
         # The study_name uniquely identifies the optimization session - changing it will create a new session
-        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray"
+        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray3_{self.session_id}"
         
         self.solution_len = len(self.strategy_hp)
         self.start_time = jh.now_to_timestamp()
@@ -153,6 +158,8 @@ class Optimizer:
         @self.tl.job(interval=timedelta(seconds=1))
         def check_for_termination():
             if is_process_active(client_id) is False:
+                # Update session status to 'stopped' in the database
+                update_optimization_session_status(self.session_id, 'stopped')
                 raise exceptions.Termination
         self.tl.start()
         
@@ -240,6 +247,14 @@ class Optimizer:
             
             # Set trial counter to start from after the last trial
             self.trial_counter = max([t.number for t in completed_trials]) + 1
+            
+            # Update the database with loaded trials
+            update_optimization_session_trials(
+                self.session_id,
+                self.completed_trials,
+                self.best_trials,
+                self.objective_curve_buffer
+            )
             
         except Exception as e:
             logger.log_optimize_mode(f"Error loading previous trials: {e}")
@@ -396,6 +411,16 @@ class Optimizer:
                 
             # Update best candidates table
             self._update_best_candidates()
+            
+            # Update the database with the latest trials data
+            # We do this every 5 trials to avoid too many database writes
+            if self.completed_trials % 5 == 0:
+                update_optimization_session_trials(
+                    self.session_id,
+                    self.completed_trials,
+                    self.best_trials,
+                    self.objective_curve_buffer
+                )
                 
     def _update_best_candidates(self):
         """Update the best candidates table in the dashboard"""
@@ -568,14 +593,33 @@ class Optimizer:
                 # Create a dummy trial if no best trial exists
                 best_trial = None
             
+            # Update the database with final results
+            update_optimization_session_trials(
+                self.session_id,
+                self.completed_trials,
+                self.best_trials,
+                []  # Empty objective curve buffer as we've already published it
+            )
+            
+            # Update session status to 'finished'
+            update_optimization_session_status(self.session_id, 'finished')
+            
             # Publish completion alert
             sync_publish('alert', {
                 'message': f"Finished {self.n_trials} trials. Check your best hyperparameter candidate.",
                 'type': 'success'
             })
             
+        except exceptions.Termination:
+            # Handle user-initiated termination
+            logger.log_optimize_mode("Optimization terminated by user")
+            # Update session status to 'stopped'
+            update_optimization_session_status(self.session_id, 'stopped')
+            raise
         except Exception as e:
             logger.log_optimize_mode(f"Error during optimization: {e}")
+            # Update session status to 'stopped' due to error
+            update_optimization_session_status(self.session_id, 'stopped')
             raise
         finally:
             # Shutdown Ray

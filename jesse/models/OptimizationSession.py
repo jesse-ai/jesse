@@ -44,6 +44,7 @@ class OptimizationSession(peewee.Model):
         database = database.db
         indexes = (
             (('id',), True),
+            (('updated_at',), False),
         )
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:

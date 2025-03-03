@@ -8,10 +8,11 @@ from jesse.store import store
 from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
+from jesse.models.utils import store_optimization_session
 
 
 def run(
-        client_id: str,
+        session_id: str,
         user_config: dict,
         exchange: str,
         routes: List[Dict[str, str]],
@@ -44,7 +45,7 @@ def run(
         r['exchange'] = exchange
     # set routes
     router.initiate(routes, data_routes)
-    store.app.set_session_id(client_id)
+    store.app.set_session_id(session_id)
     register_custom_exception_handler()
     # validate routes
     validate_routes(router)
@@ -56,8 +57,42 @@ def run(
         testing_start_date,
         testing_finish_date
     )
+    
+    # Convert date strings to timestamps for database storage
+    training_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(training_start_date, 'YYYY-MM-DD'))
+    training_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(training_finish_date, 'YYYY-MM-DD'))
+    testing_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_start_date, 'YYYY-MM-DD'))
+    testing_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_finish_date, 'YYYY-MM-DD'))
+    
+    # Calculate number of trials based on hyperparameters
+    strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
+    strategy_hp = strategy_class.hyperparameters(None)
+    n_trials = len(strategy_hp) * 100 if strategy_hp else 100
+    
+    # Create optimization config for database
+    optimization_config = {
+        'exchange': exchange,
+        'routes': routes,
+        'data_routes': data_routes,
+        'optimal_total': optimal_total,
+        'fast_mode': fast_mode,
+        'cpu_cores': cpu_cores,
+    }
+    
+    # Store the optimization session in the database
+    store_optimization_session(
+        id=session_id,
+        status='running',
+        config=optimization_config,
+        training_start_date=training_start_date_timestamp,
+        training_finish_date=training_finish_date_timestamp,
+        testing_start_date=testing_start_date_timestamp,
+        testing_finish_date=testing_finish_date_timestamp,
+        total_trials=n_trials
+    )
 
     optimizer = Optimizer(
+        session_id,
         user_config,
         training_warmup_candles,
         training_candles,
