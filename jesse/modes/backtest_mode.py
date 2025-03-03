@@ -577,7 +577,7 @@ def get_candles_from_pipeline(candles_pipeline: Optional[BaseCandlesPipeline], c
         if candles_step == -1:
             return candles[i]
         else:
-            return candles[i: candles_step]
+            return candles[i: i+candles_step]
     return candles_pipeline.get_candles(candles[i: i + candles_pipeline._batch_size], i, candles_step)
 
 
