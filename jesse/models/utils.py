@@ -18,22 +18,21 @@ def store_optimization_session(
     from jesse.models.OptimizationSession import OptimizationSession
     import json
     
-    # Create session object
-    session = OptimizationSession(
-        id=id,
-        status=status,
-        config=json.dumps(config),
-        training_start_date=training_start_date,
-        training_finish_date=training_finish_date,
-        testing_start_date=testing_start_date,
-        testing_finish_date=testing_finish_date,
-        completed_trials=0,
-        total_trials=total_trials,
-        created_at=jh.now_to_timestamp(),
-    )
+    d = {
+        'id': id,
+        'status': status,
+        'config': json.dumps(config),
+        'training_start_date': training_start_date,
+        'training_finish_date': training_finish_date,
+        'testing_start_date': testing_start_date,
+        'testing_finish_date': testing_finish_date,
+        'completed_trials': 0,
+        'total_trials': total_trials,
+        'created_at': jh.now_to_timestamp(),
+    }
     
     # Save to database
-    session.save()
+    OptimizationSession.insert(**d).execute()
     
     if jh.is_debugging():
         logger.info(f'Created optimization session with ID: {id}')
@@ -44,9 +43,13 @@ def update_optimization_session_status(id: str, status: str) -> None:
     
     try:
         session = OptimizationSession.get(OptimizationSession.id == id)
-        session.status = status
-        session.updated_at = jh.now_to_timestamp()
-        session.save()
+        
+        d = {
+            'status': status,
+            'updated_at': jh.now_to_timestamp()
+        }
+        
+        OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
         
         if jh.is_debugging():
             logger.info(f'Updated optimization session {id} status to: {status}')
@@ -64,17 +67,18 @@ def update_optimization_session_trials(
     import json
     
     try:
-        session = OptimizationSession.get(OptimizationSession.id == id)
-        session.completed_trials = completed_trials
+        d = {
+            'completed_trials': completed_trials,
+            'updated_at': jh.now_to_timestamp()
+        }
         
         if best_trials is not None:
-            session.best_trials = json.dumps(best_trials)
+            d['best_trials'] = json.dumps(best_trials)
             
         if objective_curve is not None:
-            session.objective_curve = json.dumps(objective_curve)
-            
-        session.updated_at = jh.now_to_timestamp()
-        session.save()
+            d['objective_curve'] = json.dumps(objective_curve)
+        
+        OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
         
         if jh.is_debugging():
             logger.info(f'Updated optimization session {id} with {completed_trials} completed trials')
@@ -138,8 +142,7 @@ def delete_optimization_session(id: str) -> bool:
     from jesse.models.OptimizationSession import OptimizationSession
     
     try:
-        session = OptimizationSession.get(OptimizationSession.id == id)
-        session.delete_instance()
+        OptimizationSession.delete().where(OptimizationSession.id == id).execute()
         
         if jh.is_debugging():
             logger.info(f'Deleted optimization session with ID: {id}')
