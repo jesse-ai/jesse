@@ -66,12 +66,12 @@ def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
 
 
-
-# Import the routers from controller files
+# Import and include routers
 from jesse.controllers.optimization_controller import router as optimization_router
+from jesse.controllers.exchange_controller import router as exchange_router
 
-# Include the routers
 fastapi_app.include_router(optimization_router)
+fastapi_app.include_router(exchange_router)
 
 @fastapi_app.post("/make-strategy")
 def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -256,15 +256,6 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     )
 
 
-@fastapi_app.post('/exchange-supported-symbols')
-def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.controllers.exchange_info import get_exchange_supported_symbols
-    return get_exchange_supported_symbols(request_json.exchange)
-
-
 @fastapi_app.post('/import-candles')
 def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
     jh.validate_cwd()
@@ -365,41 +356,6 @@ def active_workers(authorization: Optional[str] = Header(None)):
     return JSONResponse({
         'data': list(process_manager.active_workers)
     }, status_code=200)
-
-
-@fastapi_app.get('/exchange-api-keys')
-def get_exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.exchange_api_keys import get_exchange_api_keys
-
-    return get_exchange_api_keys()
-
-
-@fastapi_app.post('/exchange-api-keys/store')
-def store_exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson,
-                            authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.exchange_api_keys import store_exchange_api_keys
-
-    return store_exchange_api_keys(
-        json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret,
-        json_request.additional_fields, json_request.general_notifications_id, json_request.error_notifications_id
-    )
-
-
-@fastapi_app.post('/exchange-api-keys/delete')
-def delete_exchange_api_keys(json_request: DeleteExchangeApiKeyRequestJson,
-                             authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.exchange_api_keys import delete_exchange_api_keys
-
-    return delete_exchange_api_keys(json_request.id)
 
 
 @fastapi_app.get('/notification-api-keys')
