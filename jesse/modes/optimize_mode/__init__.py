@@ -8,7 +8,7 @@ from jesse.store import store
 from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
-from jesse.models.utils import store_optimization_session
+from jesse.models.utils import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status
 
 
 def run(
@@ -79,17 +79,30 @@ def run(
         'cpu_cores': cpu_cores,
     }
     
-    # Store the optimization session in the database
-    store_optimization_session(
-        id=session_id,
-        status='running',
-        config=optimization_config,
-        training_start_date=training_start_date_timestamp,
-        training_finish_date=training_finish_date_timestamp,
-        testing_start_date=testing_start_date_timestamp,
-        testing_finish_date=testing_finish_date_timestamp,
-        total_trials=n_trials
-    )
+    # Check if we're resuming an existing session
+    existing_session = get_optimization_session_by_id(session_id)
+    
+    if existing_session:
+        # Session exists, update it for resuming
+        update_optimization_session_status(session_id, 'running')
+        
+        if jh.is_debugging():
+            jh.debug(f"Resuming existing optimization session with ID: {session_id}")
+    else:
+        # Session doesn't exist, create a new one
+        store_optimization_session(
+            id=session_id,
+            status='running',
+            config=optimization_config,
+            training_start_date=training_start_date_timestamp,
+            training_finish_date=training_finish_date_timestamp,
+            testing_start_date=testing_start_date_timestamp,
+            testing_finish_date=testing_finish_date_timestamp,
+            total_trials=n_trials
+        )
+        
+        if jh.is_debugging():
+            jh.debug(f"Created new optimization session with ID: {session_id}")
 
     optimizer = Optimizer(
         session_id,

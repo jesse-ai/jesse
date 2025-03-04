@@ -5,6 +5,15 @@ import jesse.helpers as jh
 from jesse.services import logger
 
 
+def get_optimization_session_by_id(id: str):
+    from jesse.models.OptimizationSession import OptimizationSession
+    
+    try:
+        return OptimizationSession.get(OptimizationSession.id == id)
+    except OptimizationSession.DoesNotExist:
+        return None
+
+
 def store_optimization_session(
     id: str,
     status: str,
@@ -18,6 +27,7 @@ def store_optimization_session(
     from jesse.models.OptimizationSession import OptimizationSession
     import json
     
+    # Create a new session
     d = {
         'id': id,
         'status': status,
