@@ -3,7 +3,6 @@ import numpy as np
 import jesse.helpers as jh
 from jesse.services import selectors
 from jesse.libs import DynamicNumpyArray
-from jesse.models import store_orderbook_into_db
 
 
 class OrderbookState:
