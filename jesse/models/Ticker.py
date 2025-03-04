@@ -1,4 +1,6 @@
 import peewee
+import jesse.helpers as jh
+import numpy as np
 
 
 class Ticker(peewee.Model):
