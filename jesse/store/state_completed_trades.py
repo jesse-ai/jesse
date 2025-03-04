@@ -1,7 +1,7 @@
 import numpy as np
 from jesse.models import Position, ClosedTrade, Order
 import jesse.helpers as jh
-from jesse.models.utils import store_completed_trade_into_db
+from jesse.models.ClosedTrade import store_closed_trade_into_db
 from jesse.enums import sides
 from jesse.services import logger
 
@@ -93,7 +93,7 @@ class ClosedTrades:
                 raise
 
         if jh.is_livetrading():
-            store_completed_trade_into_db(t)
+            store_closed_trade_into_db(t)
         # store the trade into the list
         self.trades.append(t)
         if not jh.is_unit_testing():

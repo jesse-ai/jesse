@@ -189,29 +189,29 @@ if database.is_open():
 # # # # # # # # # DB FUNCTIONS # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def store_completed_trade_into_db(completed_trade) -> None:
+def store_closed_trade_into_db(closed_trade) -> None:
     return
 
     d = {
-        'id': completed_trade.id,
-        'strategy_name': completed_trade.strategy_name,
-        'symbol': completed_trade.symbol,
-        'exchange': completed_trade.exchange,
-        'type': completed_trade.type,
-        'timeframe': completed_trade.timeframe,
-        'entry_price': completed_trade.entry_price,
-        'exit_price': completed_trade.exit_price,
-        'qty': completed_trade.qty,
-        'opened_at': completed_trade.opened_at,
-        'closed_at': completed_trade.closed_at,
-        'leverage': completed_trade.leverage,
+        'id': closed_trade.id,
+        'strategy_name': closed_trade.strategy_name,
+        'symbol': closed_trade.symbol,
+        'exchange': closed_trade.exchange,
+        'type': closed_trade.type,
+        'timeframe': closed_trade.timeframe,
+        'entry_price': closed_trade.entry_price,
+        'exit_price': closed_trade.exit_price,
+        'qty': closed_trade.qty,
+        'opened_at': closed_trade.opened_at,
+        'closed_at': closed_trade.closed_at,
+        'leverage': closed_trade.leverage,
     }
 
     def async_save() -> None:
         ClosedTrade.insert(**d).execute()
         if jh.is_debugging():
             logger.info(
-                f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
+                f'Stored the closed trade record for {closed_trade.exchange}-{closed_trade.symbol}-{closed_trade.strategy_name} into database.')
 
     # async call
     threading.Thread(target=async_save).start()

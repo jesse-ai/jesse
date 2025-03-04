@@ -8,7 +8,7 @@ from jesse.store import store
 from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
-from jesse.models.utils import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status
+from jesse.models.OptimizationSession import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status
 
 
 def run(

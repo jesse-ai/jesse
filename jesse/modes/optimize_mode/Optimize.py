@@ -13,7 +13,7 @@ from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
-from jesse.models.utils import update_optimization_session_status, update_optimization_session_trials
+from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials
 
 # Define a Ray-compatible remote function
 @ray.remote
