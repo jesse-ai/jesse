@@ -1158,3 +1158,16 @@ def compressed_response(content: str) -> dict:
         'is_compressed': True,
         'data': base64.b64encode(compressed).decode('utf-8')
     }
+
+def validate_cwd() -> None:
+    """
+    make sure we're in a Jesse project
+    """
+    if not is_jesse_project():
+        print(
+            color(
+                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
+                'red'
+            )
+        )
+        os._exit(1)

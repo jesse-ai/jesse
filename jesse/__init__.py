@@ -34,20 +34,6 @@ except ModuleNotFoundError:
     HAS_LIVE_TRADE_PLUGIN = False
 
 
-def validate_cwd() -> None:
-    """
-    make sure we're in a Jesse project
-    """
-    if not jh.is_jesse_project():
-        print(
-            jh.color(
-                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
-                'red'
-            )
-        )
-        os._exit(1)
-
-
 JESSE_DIR = pkg_resources.resource_filename(__name__, '')
 
 
@@ -79,6 +65,13 @@ async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[st
 def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
 
+
+
+# Import the routers from controller files
+from jesse.controllers.optimization_controller import router as optimization_router
+
+# Include the routers
+fastapi_app.include_router(optimization_router)
 
 @fastapi_app.post("/make-strategy")
 def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -212,7 +205,7 @@ def install_live(strict: bool) -> None:
 
 @cli.command()
 def run() -> None:
-    validate_cwd()
+    jh.validate_cwd()
 
     # run all the db migrations
     from jesse.services.migrator import run as run_migrations
@@ -274,7 +267,7 @@ def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson
 
 @fastapi_app.post('/import-candles')
 def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    validate_cwd()
+    jh.validate_cwd()
 
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
@@ -308,7 +301,7 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    validate_cwd()
+    jh.validate_cwd()
 
     from jesse.modes.backtest_mode import run as run_backtest
 
@@ -334,45 +327,6 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
 
 
-@fastapi_app.post("/optimization")
-async def optimization(request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    validate_cwd()
-
-    from jesse.modes.optimize_mode import run as run_optimization
-
-    process_manager.add_task(
-        run_optimization,
-        request_json.id,
-        request_json.config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.training_start_date,
-        request_json.training_finish_date,
-        request_json.testing_start_date,
-        request_json.testing_finish_date,
-        request_json.optimal_total,
-        request_json.fast_mode,
-        request_json.cpu_cores
-    )
-
-    return JSONResponse({'message': 'Started optimization...'}, status_code=202)
-
-
-@fastapi_app.post("/cancel-optimization")
-def cancel_optimization(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    process_manager.cancel_process(request_json.id)
-
-    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
-
-
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
     """
@@ -384,19 +338,6 @@ def download(mode: str, file_type: str, session_id: str, token: str = Query(...)
     from jesse.modes import data_provider
 
     return data_provider.download_file(mode, file_type, session_id)
-
-
-@fastapi_app.get("/download/optimize/log")
-def download_optimization_log(token: str = Query(...)):
-    """
-    Optimization logs don't have have session ID
-    """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes import data_provider
-
-    return data_provider.download_file('optimize', 'log')
 
 
 @fastapi_app.post("/cancel-backtest")
@@ -557,7 +498,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
-        validate_cwd()
+        jh.validate_cwd()
 
         trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
 
@@ -593,9 +534,7 @@ if HAS_LIVE_TRADE_PLUGIN:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
-        from jesse import validate_cwd
-
-        validate_cwd()
+        jh.validate_cwd()
 
         from jesse.modes.data_provider import get_candles as gc
 
