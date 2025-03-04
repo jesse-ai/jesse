@@ -281,3 +281,38 @@ class Order(Model):
 # if database is open, create the table
 if database.is_open():
     Order.create_table()
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def store_order_into_db(order) -> None:
+    return
+    from jesse.models.Order import Order
+
+    d = {
+        'id': order.id,
+        'trade_id': order.trade_id,
+        'exchange_id': order.exchange_id,
+        'vars': order.vars,
+        'symbol': order.symbol,
+        'exchange': order.exchange,
+        'side': order.side,
+        'type': order.type,
+        'reduce_only': order.reduce_only,
+        'qty': order.qty,
+        'filled_qty': order.filled_qty,
+        'price': order.price,
+        'status': order.status,
+        'created_at': order.created_at,
+        'executed_at': order.executed_at,
+        'canceled_at': order.canceled_at,
+    }
+
+    def async_save() -> None:
+        Order.insert(**d).execute()
+        if jh.is_debugging():
+            logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
+
+    # async call
+    threading.Thread(target=async_save).start()

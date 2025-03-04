@@ -1,5 +1,6 @@
 import numpy as np
 import peewee
+import threading
 
 import jesse.helpers as jh
 from jesse.config import config
@@ -182,3 +183,35 @@ class ClosedTrade(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     ClosedTrade.create_table()
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def store_completed_trade_into_db(completed_trade) -> None:
+    return
+
+    d = {
+        'id': completed_trade.id,
+        'strategy_name': completed_trade.strategy_name,
+        'symbol': completed_trade.symbol,
+        'exchange': completed_trade.exchange,
+        'type': completed_trade.type,
+        'timeframe': completed_trade.timeframe,
+        'entry_price': completed_trade.entry_price,
+        'exit_price': completed_trade.exit_price,
+        'qty': completed_trade.qty,
+        'opened_at': completed_trade.opened_at,
+        'closed_at': completed_trade.closed_at,
+        'leverage': completed_trade.leverage,
+    }
+
+    def async_save() -> None:
+        ClosedTrade.insert(**d).execute()
+        if jh.is_debugging():
+            logger.info(
+                f'Stored the completed trade record for {completed_trade.exchange}-{completed_trade.symbol}-{completed_trade.strategy_name} into database.')
+
+    # async call
+    threading.Thread(target=async_save).start()

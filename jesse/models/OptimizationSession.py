@@ -1,6 +1,8 @@
 import peewee
 import json
 from jesse.services.db import database
+import jesse.helpers as jh
+import json
 
 
 if database.is_closed():
@@ -132,3 +134,118 @@ class OptimizationSession(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     OptimizationSession.create_table()
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def get_optimization_session_by_id(id: str):
+    try:
+        return OptimizationSession.get(OptimizationSession.id == id)
+    except OptimizationSession.DoesNotExist:
+        return None
+
+
+def store_optimization_session(
+    id: str,
+    status: str,
+    config: dict,
+    training_start_date: int,
+    training_finish_date: int,
+    testing_start_date: int,
+    testing_finish_date: int,
+    total_trials: int
+) -> None:
+    # Create a new session
+    d = {
+        'id': id,
+        'status': status,
+        'config': json.dumps(config),
+        'training_start_date': training_start_date,
+        'training_finish_date': training_finish_date,
+        'testing_start_date': testing_start_date,
+        'testing_finish_date': testing_finish_date,
+        'completed_trials': 0,
+        'total_trials': total_trials,
+        'created_at': jh.now_to_timestamp(),
+    }
+    
+    # Save to database
+    OptimizationSession.insert(**d).execute()
+    
+
+def update_optimization_session_status(id: str, status: str) -> None:
+    d = {
+        'status': status,
+        'updated_at': jh.now_to_timestamp()
+    }
+    
+    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+
+
+def update_optimization_session_trials(
+    id: str, 
+    completed_trials: int, 
+    best_trials: list = None,
+    objective_curve: list = None
+) -> None:
+    d = {
+        'completed_trials': completed_trials,
+        'updated_at': jh.now_to_timestamp()
+    }
+
+    if best_trials is not None:
+        d['best_trials'] = json.dumps(best_trials)
+
+    if objective_curve is not None:
+        d['objective_curve'] = json.dumps(objective_curve)
+
+    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    
+
+def get_optimization_session(id: str) -> dict:
+    session = OptimizationSession.get(OptimizationSession.id == id)
+    return {
+        'id': session.id,
+        'status': session.status,
+        'config': session.config_json,
+        'best_trials': session.best_trials_json,
+        'objective_curve': session.objective_curve_json,
+        'completed_trials': session.completed_trials,
+        'total_trials': session.total_trials,
+        'training_start_date': session.training_start_date,
+        'training_finish_date': session.training_finish_date,
+        'testing_start_date': session.testing_start_date,
+        'testing_finish_date': session.testing_finish_date,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'duration': session.duration,
+        'best_score': session.best_score
+    }
+
+
+def get_optimization_sessions(status: str = None, limit: int = 20, offset: int = 0) -> list:
+    query = OptimizationSession.select().order_by(OptimizationSession.created_at.desc()).limit(limit).offset(offset)
+    
+    if status:
+        query = query.where(OptimizationSession.status == status)
+    
+    sessions = []
+    for session in query:
+        sessions.append({
+            'id': session.id,
+            'status': session.status,
+            'config': session.config_json,
+            'completed_trials': session.completed_trials,
+            'total_trials': session.total_trials,
+            'created_at': session.created_at,
+            'updated_at': session.updated_at,
+            'duration': session.duration,
+            'best_score': session.best_score
+        })
+    
+    return sessions
+
+
+def delete_optimization_session(id: str) -> bool:
+    OptimizationSession.delete().where(OptimizationSession.id == id).execute()

@@ -54,6 +54,7 @@ def info(msg: str, send_notification=False, webhook=None) -> None:
     log_id = jh.generate_unique_id()
     log_dict = {
         'id': log_id,
+        'session_id': store.app.session_id,
         'timestamp': jh.now_to_timestamp(),
         'message': msg
     }
@@ -69,7 +70,7 @@ def info(msg: str, send_notification=False, webhook=None) -> None:
         logger.info(msg)
 
     if jh.is_live():
-        from jesse.models.utils import store_log_into_db
+        from jesse.models.Log import store_log_into_db
         store_log_into_db(log_dict, 'info')
 
     if send_notification:
@@ -89,6 +90,7 @@ def error(msg: str, send_notification=True) -> None:
     log_id = jh.generate_unique_id()
     log_dict = {
         'id': log_id,
+        'session_id': store.app.session_id,
         'timestamp': jh.now_to_timestamp(),
         'message': msg
     }
@@ -106,7 +108,7 @@ def error(msg: str, send_notification=True) -> None:
         logger.error(msg)
 
     if jh.is_live():
-        from jesse.models.utils import store_log_into_db
+        from jesse.models.Log import store_log_into_db
         store_log_into_db(log_dict, 'error')
 
 
