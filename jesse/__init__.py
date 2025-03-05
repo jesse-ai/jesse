@@ -51,6 +51,8 @@ from jesse.controllers.candles_controller import router as candles_router
 from jesse.controllers.strategy_controller import router as strategy_router
 from jesse.controllers.auth_controller import router as auth_router
 from jesse.controllers.config_controller import router as config_router
+from jesse.controllers.notification_controller import router as notification_router
+from jesse.controllers.system_controller import router as system_router
 
 # register routers
 fastapi_app.include_router(optimization_router)
@@ -60,33 +62,8 @@ fastapi_app.include_router(candles_router)
 fastapi_app.include_router(strategy_router)
 fastapi_app.include_router(auth_router)
 fastapi_app.include_router(config_router)
-
-
-@fastapi_app.post("/feedback")
-def feedback(json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import jesse_trade
-    return jesse_trade.feedback(json_request.description, json_request.email)
-
-
-@fastapi_app.post("/report-exception")
-def report_exception(json_request: ReportExceptionRequestJson,
-                     authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import jesse_trade
-    return jesse_trade.report_exception(
-        json_request.description,
-        json_request.traceback,
-        json_request.mode,
-        json_request.attach_logs,
-        json_request.session_id,
-        json_request.email,
-        has_live=HAS_LIVE_TRADE_PLUGIN
-    )
+fastapi_app.include_router(notification_router)
+fastapi_app.include_router(system_router)
 
 
 @fastapi_app.websocket("/ws")
@@ -177,27 +154,6 @@ def run() -> None:
     uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
 
 
-@fastapi_app.post('/general-info')
-def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services.general_info import get_general_info
-
-    try:
-        data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
-    except Exception as e:
-        jh.error(str(e))
-        return JSONResponse({
-            'error': str(e)
-        }, status_code=500)
-
-    return JSONResponse(
-        data,
-        status_code=200
-    )
-
-
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
     """
@@ -215,54 +171,6 @@ def download(mode: str, file_type: str, session_id: str, token: str = Query(...)
 def shutdown_event():
     from jesse.services.db import database
     database.close_connection()
-
-
-@fastapi_app.post("/active-workers")
-def active_workers(authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    return JSONResponse({
-        'data': list(process_manager.active_workers)
-    }, status_code=200)
-
-
-@fastapi_app.get('/notification-api-keys')
-def get_notification_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.notification_api_keys import get_notification_api_keys
-
-    return get_notification_api_keys()
-
-
-@fastapi_app.post('/notification-api-keys/store')
-def store_notification_api_keys(
-        json_request: StoreNotificationApiKeyRequestJson,
-        authorization: Optional[str] = Header(None)
-) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.notification_api_keys import store_notification_api_keys
-
-    return store_notification_api_keys(
-        json_request.name, json_request.driver, json_request.fields
-    )
-
-
-@fastapi_app.post('/notification-api-keys/delete')
-def delete_notification_api_keys(
-        json_request: DeleteNotificationApiKeyRequestJson,
-        authorization: Optional[str] = Header(None)
-) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.notification_api_keys import delete_notification_api_keys
-
-    return delete_notification_api_keys(json_request.id)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
