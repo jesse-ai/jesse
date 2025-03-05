@@ -43,40 +43,19 @@ async def index():
     return FileResponse(f"{JESSE_DIR}/static/index.html")
 
 
-@fastapi_app.post("/terminate-all")
-async def terminate_all(authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    process_manager.flush()
-    return JSONResponse({'message': 'terminating all tasks...'})
-
-
-@fastapi_app.post("/shutdown")
-async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    background_tasks.add_task(jh.terminate_app)
-    return JSONResponse({'message': 'Shutting down...'})
-
-
-@fastapi_app.post("/auth")
-def auth(json_request: LoginRequestJson):
-    return authenticator.password_to_token(json_request.password)
-
-
 # Import and include routers
 from jesse.controllers.optimization_controller import router as optimization_router
 from jesse.controllers.exchange_controller import router as exchange_router
 from jesse.controllers.backtest_controller import router as backtest_router
 from jesse.controllers.candles_controller import router as candles_router
+from jesse.controllers.auth_controller import router as auth_router
 
 # register routers
 fastapi_app.include_router(optimization_router)
 fastapi_app.include_router(exchange_router)
 fastapi_app.include_router(backtest_router)
 fastapi_app.include_router(candles_router)
+fastapi_app.include_router(auth_router)
 
 @fastapi_app.post("/make-strategy")
 def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -136,24 +115,6 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
     uc(json_request.current_config)
 
     return JSONResponse({'message': 'Updated configurations successfully'}, status_code=200)
-
-
-@fastapi_app.post("/clear-candles-database-cache")
-def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
-    """
-    Endpoint moved to candles_controller.py
-    Use /candles/clear-cache instead
-    """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services.cache import cache
-    cache.flush()
-
-    return JSONResponse({
-        'status': 'success',
-        'message': 'Candles database cache cleared successfully',
-    }, status_code=200)
 
 
 @fastapi_app.websocket("/ws")
@@ -264,23 +225,6 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
         status_code=200
     )
 
-
-
-
-
-@fastapi_app.post("/cancel-import-candles")
-def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
-    """
-    Endpoint moved to candles_controller.py
-    Use /candles/cancel-import instead
-    """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    process_manager.cancel_process(request_json.id)
-
-    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
 
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
