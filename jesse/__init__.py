@@ -48,6 +48,7 @@ from jesse.controllers.optimization_controller import router as optimization_rou
 from jesse.controllers.exchange_controller import router as exchange_router
 from jesse.controllers.backtest_controller import router as backtest_router
 from jesse.controllers.candles_controller import router as candles_router
+from jesse.controllers.strategy_controller import router as strategy_router
 from jesse.controllers.auth_controller import router as auth_router
 
 # register routers
@@ -55,15 +56,8 @@ fastapi_app.include_router(optimization_router)
 fastapi_app.include_router(exchange_router)
 fastapi_app.include_router(backtest_router)
 fastapi_app.include_router(candles_router)
+fastapi_app.include_router(strategy_router)
 fastapi_app.include_router(auth_router)
-
-@fastapi_app.post("/make-strategy")
-def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import strategy_handler
-    return strategy_handler.generate(json_request.name)
 
 
 @fastapi_app.post("/feedback")
@@ -291,51 +285,6 @@ def delete_notification_api_keys(
     from jesse.modes.notification_api_keys import delete_notification_api_keys
 
     return delete_notification_api_keys(json_request.id)
-
-
-@fastapi_app.get('/get-strategies')
-def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import strategy_handler
-    return strategy_handler.get_strategies()
-
-
-@fastapi_app.post('/get-strategy')
-def get_strategy(
-        json_request: GetStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
-) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import strategy_handler
-    return strategy_handler.get_strategy(json_request.name)
-
-
-@fastapi_app.post('/save-strategy')
-def save_strategy(
-        json_request: SaveStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
-) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import strategy_handler
-    return strategy_handler.save_strategy(json_request.name, json_request.content)
-
-
-@fastapi_app.post('/delete-strategy')
-def delete_strategy(
-        json_request: DeleteStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
-) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services import strategy_handler
-    return strategy_handler.delete_strategy(json_request.name)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
