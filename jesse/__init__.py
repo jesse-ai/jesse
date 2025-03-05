@@ -50,6 +50,7 @@ from jesse.controllers.backtest_controller import router as backtest_router
 from jesse.controllers.candles_controller import router as candles_router
 from jesse.controllers.strategy_controller import router as strategy_router
 from jesse.controllers.auth_controller import router as auth_router
+from jesse.controllers.config_controller import router as config_router
 
 # register routers
 fastapi_app.include_router(optimization_router)
@@ -58,6 +59,7 @@ fastapi_app.include_router(backtest_router)
 fastapi_app.include_router(candles_router)
 fastapi_app.include_router(strategy_router)
 fastapi_app.include_router(auth_router)
+fastapi_app.include_router(config_router)
 
 
 @fastapi_app.post("/feedback")
@@ -85,30 +87,6 @@ def report_exception(json_request: ReportExceptionRequestJson,
         json_request.email,
         has_live=HAS_LIVE_TRADE_PLUGIN
     )
-
-
-@fastapi_app.post("/get-config")
-def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.data_provider import get_config as gc
-
-    return JSONResponse({
-        'data': gc(json_request.current_config, has_live=HAS_LIVE_TRADE_PLUGIN)
-    }, status_code=200)
-
-
-@fastapi_app.post("/update-config")
-def update_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes.data_provider import update_config as uc
-
-    uc(json_request.current_config)
-
-    return JSONResponse({'message': 'Updated configurations successfully'}, status_code=200)
 
 
 @fastapi_app.websocket("/ws")
