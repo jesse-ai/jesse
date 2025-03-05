@@ -69,9 +69,12 @@ def auth(json_request: LoginRequestJson):
 # Import and include routers
 from jesse.controllers.optimization_controller import router as optimization_router
 from jesse.controllers.exchange_controller import router as exchange_router
+from jesse.controllers.backtest_controller import router as backtest_router
 
+# register routers
 fastapi_app.include_router(optimization_router)
 fastapi_app.include_router(exchange_router)
+fastapi_app.include_router(backtest_router)
 
 @fastapi_app.post("/make-strategy")
 def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -286,38 +289,6 @@ def cancel_import_candles(request_json: CancelRequestJson, authorization: Option
     return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'},
                         status_code=202)
 
-
-@fastapi_app.post("/backtest")
-def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    jh.validate_cwd()
-
-    from jesse.modes.backtest_mode import run as run_backtest
-
-    process_manager.add_task(
-        run_backtest,
-        request_json.id,
-        request_json.debug_mode,
-        request_json.config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.start_date,
-        request_json.finish_date,
-        None,
-        request_json.export_chart,
-        request_json.export_tradingview,
-        request_json.export_csv,
-        request_json.export_json,
-        request_json.fast_mode,
-        request_json.benchmark
-    )
-
-    return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
-
-
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
     """
@@ -329,17 +300,6 @@ def download(mode: str, file_type: str, session_id: str, token: str = Query(...)
     from jesse.modes import data_provider
 
     return data_provider.download_file(mode, file_type, session_id)
-
-
-@fastapi_app.post("/cancel-backtest")
-def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    process_manager.cancel_process(request_json.id)
-
-    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
 
 
 @fastapi_app.on_event("shutdown")
@@ -552,41 +512,6 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
     try:
         delete_candles(json_request.exchange, json_request.symbol)
         return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
-    except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
-
-
-@fastapi_app.get("/logs/backtest/{session_id}")
-def get_logs(session_id: str, token: str = Query(...)):
-    """
-    Get logs as text for a specific session. Similar to download but returns text content instead of file.
-    """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
-
-    try:
-        from jesse.modes.data_provider import get_backtest_logs
-        content = get_backtest_logs(session_id)
-
-        if content is None:
-            return JSONResponse({'error': 'Log file not found'}, status_code=404)
-
-        return JSONResponse({'content': content}, status_code=200)
-    except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
-
-
-@fastapi_app.get("/download/backtest/log/{session_id}")
-def download_backtest_log(session_id: str, token: str = Query(...)):
-    """
-    Download log file for a specific backtest session
-    """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
-
-    try:
-        from jesse.modes.data_provider import download_backtest_log
-        return download_backtest_log(session_id)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 
