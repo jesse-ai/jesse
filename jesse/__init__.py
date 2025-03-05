@@ -70,11 +70,13 @@ def auth(json_request: LoginRequestJson):
 from jesse.controllers.optimization_controller import router as optimization_router
 from jesse.controllers.exchange_controller import router as exchange_router
 from jesse.controllers.backtest_controller import router as backtest_router
+from jesse.controllers.candles_controller import router as candles_router
 
 # register routers
 fastapi_app.include_router(optimization_router)
 fastapi_app.include_router(exchange_router)
 fastapi_app.include_router(backtest_router)
+fastapi_app.include_router(candles_router)
 
 @fastapi_app.post("/make-strategy")
 def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -138,6 +140,10 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
 
 @fastapi_app.post("/clear-candles-database-cache")
 def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
+    """
+    Endpoint moved to candles_controller.py
+    Use /candles/clear-cache instead
+    """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -259,28 +265,15 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     )
 
 
-@fastapi_app.post('/import-candles')
-def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    jh.validate_cwd()
 
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes import import_candles_mode
-
-    process_manager.add_task(
-        import_candles_mode.run, 
-        request_json.id, 
-        request_json.exchange, 
-        request_json.symbol,
-        request_json.start_date
-    )
-
-    return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
 
 @fastapi_app.post("/cancel-import-candles")
 def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Endpoint moved to candles_controller.py
+    Use /candles/cancel-import instead
+    """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -445,22 +438,6 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
 
-    @fastapi_app.post('/get-candles')
-    def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        jh.validate_cwd()
-
-        from jesse.modes.data_provider import get_candles as gc
-
-        arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe)
-
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
-
     @fastapi_app.post('/get-logs')
     def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
@@ -488,32 +465,6 @@ if HAS_LIVE_TRADE_PLUGIN:
             'id': json_request.id,
             'data': arr
         }, status_code=200)
-
-@fastapi_app.post("/existing-candles")
-def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services.candle import get_existing_candles
-    
-    try:
-        data = get_existing_candles()
-        return JSONResponse({'data': data}, status_code=200)
-    except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
-
-@fastapi_app.post("/delete-candles")
-def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    from jesse.services.candle import delete_candles
-    
-    try:
-        delete_candles(json_request.exchange, json_request.symbol)
-        return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
-    except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints
