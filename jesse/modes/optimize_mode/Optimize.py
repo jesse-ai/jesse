@@ -8,7 +8,8 @@ import ray
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse import exceptions, sync_publish
+from jesse import exceptions
+from jesse.services.redis import sync_publish
 from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
