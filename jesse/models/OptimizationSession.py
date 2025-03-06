@@ -224,27 +224,11 @@ def get_optimization_session(id: str) -> dict:
     }
 
 
-def get_optimization_sessions(status: str = None, limit: int = 20, offset: int = 0) -> list:
-    query = OptimizationSession.select().order_by(OptimizationSession.created_at.desc()).limit(limit).offset(offset)
-    
-    if status:
-        query = query.where(OptimizationSession.status == status)
-    
-    sessions = []
-    for session in query:
-        sessions.append({
-            'id': session.id,
-            'status': session.status,
-            'config': session.config_json,
-            'completed_trials': session.completed_trials,
-            'total_trials': session.total_trials,
-            'created_at': session.created_at,
-            'updated_at': session.updated_at,
-            'duration': session.duration,
-            'best_score': session.best_score
-        })
-    
-    return sessions
+def get_optimization_sessions() -> list:
+    """
+    Returns a list of OptimizationSession objects sorted by most recently updated
+    """
+    return list(OptimizationSession.select().order_by(OptimizationSession.updated_at.desc()))
 
 
 def delete_optimization_session(id: str) -> bool:

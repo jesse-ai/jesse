@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Header, Query
 from typing import Optional
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson
 from jesse import helpers as jh
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions
+from jesse.services.transformers import get_optimization_session
+
+
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
 
 
@@ -65,3 +69,23 @@ def download_optimization_log(token: str = Query(...)):
     from jesse.modes import data_provider
 
     return data_provider.download_file('optimize', 'log')
+
+
+@router.post("/sessions")
+def get_optimization_sessions(authorization: Optional[str] = Header(None)):
+    """
+    Get a list of all optimization sessions sorted by most recently updated
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    # Get sessions from the database
+    sessions = get_sessions()
+    
+    # Transform the sessions using the transformer
+    transformed_sessions = [get_optimization_session(session) for session in sessions]
+    
+    return JSONResponse({
+        'sessions': transformed_sessions,
+        'count': len(transformed_sessions)
+    })

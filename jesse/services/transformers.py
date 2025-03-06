@@ -1,5 +1,6 @@
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 from jesse.models.NotificationApiKeys import NotificationApiKeys
+from jesse.models.OptimizationSession import OptimizationSession
 import json
 
 
@@ -43,3 +44,23 @@ def get_notification_api_key(api_key: NotificationApiKeys, protect_sensitive_dat
             result[key] = value
 
     return result
+
+
+def get_optimization_session(session: OptimizationSession) -> dict:
+    """
+    Transform an OptimizationSession model instance into a dictionary for API responses
+    """
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'completed_trials': session.completed_trials,
+        'total_trials': session.total_trials,
+        'training_start_date': session.training_start_date,
+        'training_finish_date': session.training_finish_date,
+        'testing_start_date': session.testing_start_date,
+        'testing_finish_date': session.testing_finish_date,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'duration': session.duration,
+        'best_score': session.best_score
+    }
