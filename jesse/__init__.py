@@ -1,23 +1,16 @@
 import asyncio
 import json
-import os
 import warnings
-from typing import Optional
 import click
 import pkg_resources
-from fastapi import BackgroundTasks, Query, Header
+from fastapi import Query
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
-    ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
-    DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
-    ExchangeSupportedSymbolsRequestJson, SaveStrategyRequestJson, GetStrategyRequestJson, DeleteStrategyRequestJson, \
-    DeleteCandlesRequestJson
+from jesse.services.redis import async_redis
+from jesse.services.web import fastapi_app
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
@@ -25,13 +18,6 @@ import time
 
 # to silent stupid pandas warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
-# variable to know if the live trade plugin is installed
-HAS_LIVE_TRADE_PLUGIN = True
-try:
-    import jesse_live
-except ModuleNotFoundError:
-    HAS_LIVE_TRADE_PLUGIN = False
 
 
 JESSE_DIR = pkg_resources.resource_filename(__name__, '')
@@ -119,7 +105,7 @@ def cli() -> None:
 )
 def install_live(strict: bool) -> None:
     from jesse.services.installer import install
-    install(HAS_LIVE_TRADE_PLUGIN, strict)
+    install(is_live_plugin_already_installed=jh.has_live_trade_plugin(), strict=strict)
 
 
 @cli.command()
@@ -176,74 +162,9 @@ def shutdown_event():
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Plugin Endpoints
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-if HAS_LIVE_TRADE_PLUGIN:
-    from jesse.services.web import fastapi_app, LiveRequestJson, LiveCancelRequestJson, GetCandlesRequestJson, \
-        GetLogsRequestJson, GetOrdersRequestJson
-    from jesse.services import auth as authenticator
-
-    @fastapi_app.post("/live")
-    def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        jh.validate_cwd()
-
-        trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
-
-        # execute live session
-        from jesse_live import live_mode
-        process_manager.add_task(
-            live_mode.run,
-            request_json.id,
-            request_json.debug_mode,
-            request_json.exchange,
-            request_json.exchange_api_key_id,
-            request_json.notification_api_key_id,
-            request_json.config,
-            request_json.routes,
-            request_json.data_routes,
-            trading_mode,
-        )
-
-        mode = 'live' if request_json.paper_mode is False else 'paper'
-        return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
-
-    @fastapi_app.post("/cancel-live")
-    def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        process_manager.cancel_process(request_json.id)
-
-        return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
-
-    @fastapi_app.post('/get-logs')
-    def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        from jesse_live.services.data_provider import get_logs as gl
-
-        arr = gl(json_request.id, json_request.type, json_request.start_time)
-
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
-
-    @fastapi_app.post('/get-orders')
-    def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-        if not authenticator.is_valid_token(authorization):
-            return authenticator.unauthorized_response()
-
-        from jesse_live.services.data_provider import get_orders as go
-
-        arr = go(json_request.session_id)
-
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
+if jh.has_live_trade_plugin():
+    from jesse.controllers.live_controller import router as live_router
+    fastapi_app.include_router(live_router)
 
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints

@@ -1171,3 +1171,10 @@ def validate_cwd() -> None:
             )
         )
         os._exit(1)
+
+def has_live_trade_plugin() -> bool:
+    try:
+        import jesse_live
+    except ModuleNotFoundError:
+        return False
+    return True

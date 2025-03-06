@@ -4,13 +4,7 @@ from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
 from jesse.services.web import ConfigRequestJson
-
-# Check if the live trade plugin is installed
-try:
-    import jesse_live
-    HAS_LIVE_TRADE_PLUGIN = True
-except ImportError:
-    HAS_LIVE_TRADE_PLUGIN = False
+import jesse.helpers as jh
 
 router = APIRouter(prefix="/config", tags=["Configuration"])
 
@@ -26,7 +20,7 @@ def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = H
     from jesse.modes.data_provider import get_config as gc
 
     return JSONResponse({
-        'data': gc(json_request.current_config, has_live=HAS_LIVE_TRADE_PLUGIN)
+        'data': gc(json_request.current_config, has_live=jh.has_live_trade_plugin())
     }, status_code=200)
 
 
