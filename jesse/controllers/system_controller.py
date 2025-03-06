@@ -32,7 +32,6 @@ def report_exception(json_request: ReportExceptionRequestJson,
         return authenticator.unauthorized_response()
 
     from jesse.services import jesse_trade
-    from jesse import HAS_LIVE_TRADE_PLUGIN
     
     return jesse_trade.report_exception(
         json_request.description,
@@ -41,7 +40,7 @@ def report_exception(json_request: ReportExceptionRequestJson,
         json_request.attach_logs,
         json_request.session_id,
         json_request.email,
-        has_live=HAS_LIVE_TRADE_PLUGIN
+        has_live=jh.has_live_trade_plugin()
     )
 
 
@@ -54,10 +53,9 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
         return authenticator.unauthorized_response()
 
     from jesse.services.general_info import get_general_info
-    from jesse import HAS_LIVE_TRADE_PLUGIN
 
     try:
-        data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
+        data = get_general_info(has_live=jh.has_live_trade_plugin())
     except Exception as e:
         jh.error(str(e))
         return JSONResponse({

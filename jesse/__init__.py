@@ -39,6 +39,7 @@ from jesse.controllers.auth_controller import router as auth_router
 from jesse.controllers.config_controller import router as config_router
 from jesse.controllers.notification_controller import router as notification_router
 from jesse.controllers.system_controller import router as system_router
+from jesse.controllers.file_controller import router as file_router
 
 # register routers
 fastapi_app.include_router(optimization_router)
@@ -50,6 +51,7 @@ fastapi_app.include_router(auth_router)
 fastapi_app.include_router(config_router)
 fastapi_app.include_router(notification_router)
 fastapi_app.include_router(system_router)
+fastapi_app.include_router(file_router)
 
 
 @fastapi_app.websocket("/ws")
@@ -138,19 +140,6 @@ def run() -> None:
     # run the main application
     process_manager.flush()
     uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
-
-
-@fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
-def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
-    """
-    Log files require session_id because there is one log per each session. Except for the optimize mode
-    """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
-
-    from jesse.modes import data_provider
-
-    return data_provider.download_file(mode, file_type, session_id)
 
 
 @fastapi_app.on_event("shutdown")
