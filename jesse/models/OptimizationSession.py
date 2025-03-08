@@ -15,26 +15,17 @@ class OptimizationSession(peewee.Model):
     # Status of the optimization session: running, paused, finished, or stopped
     status = peewee.CharField()
     
-    # Configuration in JSON format - includes all session parameters
-    config = peewee.TextField()
-    
     # Best trials data in JSON format
     best_trials = peewee.TextField(null=True)
     
     # Objective curve data in JSON format
     objective_curve = peewee.TextField(null=True)
     
+    # Frontend state in JSON format - used for restoring UI state
+    state = peewee.TextField(null=True)
+    
     # Progress tracking
     completed_trials = peewee.IntegerField(default=0)
-    total_trials = peewee.IntegerField(default=0)
-    
-    # Training period
-    training_start_date = peewee.BigIntegerField()
-    training_finish_date = peewee.BigIntegerField()
-    
-    # Testing period
-    testing_start_date = peewee.BigIntegerField()
-    testing_finish_date = peewee.BigIntegerField()
     
     # Timestamps for session management
     created_at = peewee.BigIntegerField()
@@ -57,20 +48,6 @@ class OptimizationSession(peewee.Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
-    
-    @property
-    def config_json(self):
-        """
-        Returns the config as a Python dictionary
-        """
-        return json.loads(self.config)
-    
-    @config_json.setter
-    def config_json(self, config_dict):
-        """
-        Sets the config from a Python dictionary
-        """
-        self.config = json.dumps(config_dict)
     
     @property
     def best_trials_json(self):
@@ -103,6 +80,22 @@ class OptimizationSession(peewee.Model):
         Sets the objective curve data from a Python list
         """
         self.objective_curve = json.dumps(curve_data)
+    
+    @property
+    def state_json(self):
+        """
+        Returns the frontend state as a Python dictionary
+        """
+        if not self.state:
+            return {}
+        return json.loads(self.state)
+    
+    @state_json.setter
+    def state_json(self, state_data):
+        """
+        Sets the frontend state from a Python dictionary
+        """
+        self.state = json.dumps(state_data)
     
     @property
     def duration(self):
@@ -148,25 +141,13 @@ def get_optimization_session_by_id(id: str):
 
 def store_optimization_session(
     id: str,
-    status: str,
-    config: dict,
-    training_start_date: int,
-    training_finish_date: int,
-    testing_start_date: int,
-    testing_finish_date: int,
-    total_trials: int
+    status: str
 ) -> None:
     # Create a new session
     d = {
         'id': id,
         'status': status,
-        'config': json.dumps(config),
-        'training_start_date': training_start_date,
-        'training_finish_date': training_finish_date,
-        'testing_start_date': testing_start_date,
-        'testing_finish_date': testing_finish_date,
         'completed_trials': 0,
-        'total_trials': total_trials,
         'created_at': jh.now_to_timestamp(),
     }
     
@@ -208,19 +189,13 @@ def get_optimization_session(id: str) -> dict:
     return {
         'id': session.id,
         'status': session.status,
-        'config': session.config_json,
         'best_trials': session.best_trials_json,
         'objective_curve': session.objective_curve_json,
         'completed_trials': session.completed_trials,
-        'total_trials': session.total_trials,
-        'training_start_date': session.training_start_date,
-        'training_finish_date': session.training_finish_date,
-        'testing_start_date': session.testing_start_date,
-        'testing_finish_date': session.testing_finish_date,
         'created_at': session.created_at,
         'updated_at': session.updated_at,
-        'duration': session.duration,
-        'best_score': session.best_score
+        'best_score': session.best_score,
+        'state': session.state_json
     }
 
 
@@ -233,3 +208,12 @@ def get_optimization_sessions() -> list:
 
 def delete_optimization_session(id: str) -> bool:
     OptimizationSession.delete().where(OptimizationSession.id == id).execute()
+
+
+def update_optimization_session_state(id: str, state: dict) -> None:
+    d = {
+        'state': json.dumps(state),
+        'updated_at': jh.now_to_timestamp()
+    }
+    
+    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()

@@ -173,3 +173,8 @@ class ReportExceptionRequestJson(BaseModel):
 class DeleteCandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
+
+
+class UpdateOptimizationSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict

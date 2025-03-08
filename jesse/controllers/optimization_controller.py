@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Header, Query
-from typing import Optional
-from fastapi.responses import JSONResponse
+from typing import Optional, List
+from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
 
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import OptimizationRequestJson, CancelRequestJson
+from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state
 from jesse.services.transformers import get_optimization_session
 
 
@@ -88,4 +89,19 @@ def get_optimization_sessions(authorization: Optional[str] = Header(None)):
     return JSONResponse({
         'sessions': transformed_sessions,
         'count': len(transformed_sessions)
+    })
+
+
+@router.post("/update-state")
+def update_session_state(request_json: UpdateOptimizationSessionStateRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Update the state of an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    update_optimization_session_state(request_json.id, request_json.state)
+    
+    return JSONResponse({
+        'message': 'Optimization session state updated successfully'
     })

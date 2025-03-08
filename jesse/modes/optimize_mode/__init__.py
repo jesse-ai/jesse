@@ -92,13 +92,7 @@ def run(
         # Session doesn't exist, create a new one
         store_optimization_session(
             id=session_id,
-            status='running',
-            config=optimization_config,
-            training_start_date=training_start_date_timestamp,
-            training_finish_date=training_finish_date_timestamp,
-            testing_start_date=testing_start_date_timestamp,
-            testing_finish_date=testing_finish_date_timestamp,
-            total_trials=n_trials
+            status='running'
         )
         
         if jh.is_debugging():
