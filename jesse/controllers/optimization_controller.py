@@ -5,9 +5,9 @@ from pydantic import BaseModel
 
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson
+from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, PauseOptimizationRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status
 from jesse.services.transformers import get_optimization_session
 
 
@@ -105,3 +105,20 @@ def update_session_state(request_json: UpdateOptimizationSessionStateRequestJson
     return JSONResponse({
         'message': 'Optimization session state updated successfully'
     })
+
+
+@router.post("/pause")
+def pause_optimization(request_json: PauseOptimizationRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Pause an optimization process
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    # First update the status to 'paused'
+    update_optimization_session_status(request_json.id, 'paused')
+    
+    # Then request cancellation of the current process
+    process_manager.cancel_process(request_json.id)
+
+    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was paused'}, status_code=202)

@@ -178,3 +178,12 @@ class DeleteCandlesRequestJson(BaseModel):
 class UpdateOptimizationSessionStateRequestJson(BaseModel):
     id: str
     state: dict
+
+
+class UpdateOptimizationSessionStatusRequestJson(BaseModel):
+    id: str
+    status: str
+
+
+class PauseOptimizationRequestJson(BaseModel):
+    id: str
