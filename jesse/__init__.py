@@ -41,7 +41,31 @@ def install_live(strict: bool) -> None:
 
 @cli.command()
 def run() -> None:
+    # Display welcome message
+    welcome_message = """
+     ██╗███████╗███████╗███████╗███████╗
+     ██║██╔════╝██╔════╝██╔════╝██╔════╝
+     ██║█████╗  ███████╗███████╗█████╗  
+██   ██║██╔══╝  ╚════██║╚════██║██╔══╝  
+╚█████╔╝███████╗███████║███████║███████╗
+ ╚════╝ ╚══════╝╚══════╝╚══════╝╚══════╝
+                                        
+    """
+    version = pkg_resources.get_distribution("jesse").version
+    print(welcome_message)
+    print(f"Main Framework Version: {version}")
+    
+    # Check if jesse-live is installed and display its version
+    if jh.has_live_trade_plugin():
+        try:
+            from jesse_live.version import __version__ as live_version
+            print(f"Live Plugin Version: {live_version}")
+        except ImportError:
+            pass
+    
     jh.validate_cwd()
+
+    print("")
 
     # run all the db migrations
     from jesse.services.migrator import run as run_migrations
