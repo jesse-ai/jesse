@@ -14,9 +14,17 @@ import arrow
 import click
 import numpy as np
 import base64
+from typing import Pattern, Set, Final
+import re
 
 
 CACHED_CONFIG = dict()
+
+# Core symbol patterns
+FUTURES_PATTERN: Final[Pattern] = re.compile(r'(\d{1,2})?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})')
+QUOTE_ASSETS: Final[Set[str]] = {'USD', 'USDT', 'USDC', 'USDS', 'USDP', 'USDU', 'TUSD', 'FDUSD', 'UST',
+                                'EUR', 'EUT', 'GBP', 'JPY', 'MIM', 'TRY', 'SUSDT'}
+SORTED_QUOTES: Final[list[str]] = sorted(QUOTE_ASSETS, key=len, reverse=True)
 
 
 def app_currency() -> str:
@@ -107,58 +115,35 @@ def convert_number(old_max: float, old_min: float, new_max: float, new_min: floa
     return (((old_value - old_min) * new_range) / old_range) + new_min
 
 
+def is_futures_contract(symbol: str) -> bool:
+    """Check if symbol contains a futures expiry date pattern."""
+    return bool(FUTURES_PATTERN.search(symbol))
+
+
 def dashless_symbol(symbol: str) -> str:
-    return symbol.replace("-", "")
+    """Remove dashes unless it's a futures contract."""
+    return symbol if is_futures_contract(symbol) else symbol.replace("-", "")
 
 
 def dashy_symbol(symbol: str) -> str:
-    # if already has '-' in symbol, return symbol
-    if '-' in symbol:
+    """Add dash to symbol in appropriate position."""
+    # Early returns for already formatted symbols
+    if '-' in symbol or is_futures_contract(symbol):
         return symbol
-
+    
+    # Try config symbols first
     from jesse.config import config
-
     for s in config['app']['considering_symbols']:
-        compare_symbol = dashless_symbol(s)
-        if compare_symbol == symbol:
+        if dashless_symbol(s) == symbol:
             return s
-
-    if symbol.endswith('EUR'):
-        return symbol[:-3] + '-EUR'
-    if symbol.endswith('EUT'):
-        return symbol[:-3] + '-EUT'
-    if symbol.endswith('GBP'):
-        return symbol[:-3] + '-GBP'
-    if symbol.endswith('JPY'):
-        return symbol[:-3] + '-JPY'
-    if symbol.endswith('MIM'):
-        return symbol[:-3] + '-MIM'
-    if symbol.endswith('TRY'):
-        return symbol[:-3] + '-TRY'
-    if symbol.endswith('FDUSD'):
-        return symbol[:-5] + '-FDUSD'
-    if symbol.endswith('TUSD'):
-        return symbol[:-4] + '-TUSD'
-    if symbol.endswith('UST'):
-        return symbol[:-3] + '-UST'
-    if symbol.endswith('USDT'):
-        return symbol[:-4] + '-USDT'
-    if symbol.endswith('USDC'):
-        return symbol[:-4] + '-USDC'
-    if symbol.endswith('USDS'):
-        return symbol[:-4] + '-USDS'
-    if symbol.endswith('USDP'):
-        return symbol[:-4] + '-USDP'
-    if symbol.endswith('USDU'):
-        return symbol[:-4] + '-USDU'
-    if symbol.endswith('USD'):
-        return symbol[:-3] + '-USD'
-
-    if len(symbol) > 7 and symbol.endswith('SUSDT'):
-        # ex: SETHSUSDT => SETH-SUSDT
-        return symbol[:-5] + '-' + symbol[-5:]
-
-    return f"{symbol[0:3]}-{symbol[3:]}"
+    
+    # Check for known quote assets
+    for quote in SORTED_QUOTES:
+        if symbol.endswith(quote):
+            return f"{symbol[:-len(quote)]}-{quote}"
+    
+    # Default fallback for unknown formats
+    return f"{symbol[:3]}-{symbol[3:]}" if len(symbol) >= 6 else symbol
 
 
 def underline_to_dashy_symbol(symbol: str) -> str:
