@@ -53,7 +53,7 @@ def equity_curve(benchmark: bool = False) -> list:
         for i, r in enumerate(router.routes):
             _, daily_candles = get_candles(
                 r.exchange, r.symbol, '1D', store.app.starting_time,
-                store.app.ending_time, is_for_jesse=False, warmup_candles_num=0, caching=True
+                store.app.ending_time + 1000 * 60 * 60 * 24, is_for_jesse=False, warmup_candles_num=0, caching=True
             )
             daily_returns = prices_to_returns(daily_candles[:, 2])
             daily_returns[0] = 0
