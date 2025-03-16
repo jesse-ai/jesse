@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union
+from datetime import datetime
 
 import numpy as np
 
@@ -16,6 +17,70 @@ from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
 from jesse.services.color import generate_unique_hex_color
+
+
+class StrategyCandles(np.ndarray):
+    """
+    Human view of candles in strategy.
+    """
+
+    def __new__(cls, input_array: np.ndarray, *args, **kwargs) -> "StrategyCandles":
+
+        if len(input_array.shape) != 2 or input_array.shape[1] != 6:
+            raise ValueError(f'Candle data size invalid: expected (*, 6), got {input_array.shape}')
+
+        return np.asarray(input_array, *args, **kwargs).view(cls)
+
+    def __getitem__(self, key: Union[int, slice]) -> Union[np.ndarray, "StrategyCandles", float]:
+
+        result = super().__getitem__(key)
+
+        if isinstance(result, np.ndarray):
+            if result.shape == (6,) or (len(result.shape) == 2 and result.shape[1] == 6):
+                return result # remains this class
+
+            return result.view(np.ndarray)
+
+        return result
+
+    @property
+    def time(self) -> Union[np.ndarray, float]:
+        return self[0] if self.shape == (6,) else self[:, 0]
+
+    @property
+    def open(self) -> Union[np.ndarray, float]:
+        return self[1] if self.shape == (6,) else self[:, 1]
+
+    @property
+    def close(self) -> Union[np.ndarray, float]:
+        return self[2] if self.shape == (6,) else self[:, 2]
+
+    @property
+    def high(self) -> Union[np.ndarray, float]:
+        return self[3] if self.shape == (6,) else self[:, 3]
+
+    @property
+    def low(self) -> Union[np.ndarray, float]:
+        return self[4] if self.shape == (6,) else self[:, 4]
+
+    @property
+    def volume(self) -> Union[np.ndarray, float]:
+        return self[5] if self.shape == (6,) else self[:, 5]
+
+    @property
+    def time_dt(self) -> Union[datetime, List[datetime]]:
+
+        if self.shape == (6,):
+            return datetime.fromtimestamp(self[0] / 1000)
+
+        return [datetime.fromtimestamp(time / 1000) for time in self[:, 0]]
+
+    def __repr__(self) -> str:
+
+        if self.shape == (6,):
+            return f'{self.time_dt} open {self.open} close {self.close} high {self.high} low {self.low}'
+
+        return f'{len(self)} candles from {self[0].time_dt} to {self[-1].time_dt}'
 
 
 class Strategy(ABC):
@@ -1114,13 +1179,13 @@ class Strategy(ABC):
         return self.current_candle[4]
 
     @property
-    def candles(self) -> np.ndarray:
+    def candles(self) -> StrategyCandles:
         """
         Returns candles for current trading route
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+        return StrategyCandles(store.candles.get_candles(self.exchange, self.symbol, self.timeframe))
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
