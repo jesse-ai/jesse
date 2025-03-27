@@ -105,7 +105,7 @@ class OptimizationSession(peewee.Model):
         if not self.updated_at:
             # For running sessions, calculate duration up to now
             import jesse.helpers as jh
-            return jh.now_to_timestamp() - self.created_at
+            return jh.now_to_timestamp(True) - self.created_at
         
         # For completed sessions, use the stored timestamps
         return self.updated_at - self.created_at
@@ -148,8 +148,8 @@ def store_optimization_session(
         'id': id,
         'status': status,
         'completed_trials': 0,
-        'created_at': jh.now_to_timestamp(),
-        'updated_at': jh.now_to_timestamp()
+        'created_at': jh.now_to_timestamp(True),
+        'updated_at': jh.now_to_timestamp(True)
     }
     
     # Save to database
@@ -159,7 +159,7 @@ def store_optimization_session(
 def update_optimization_session_status(id: str, status: str) -> None:
     d = {
         'status': status,
-        'updated_at': jh.now_to_timestamp()
+        'updated_at': jh.now_to_timestamp(True)
     }
     
     OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
@@ -173,7 +173,7 @@ def update_optimization_session_trials(
 ) -> None:
     d = {
         'completed_trials': completed_trials,
-        'updated_at': jh.now_to_timestamp()
+        'updated_at': jh.now_to_timestamp(True)
     }
 
     if best_trials is not None:
@@ -214,7 +214,7 @@ def delete_optimization_session(id: str) -> bool:
 def update_optimization_session_state(id: str, state: dict) -> None:
     d = {
         'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp()
+        'updated_at': jh.now_to_timestamp(True)
     }
     
     OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()

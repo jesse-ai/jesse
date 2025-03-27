@@ -92,6 +92,33 @@ def get_optimization_sessions(authorization: Optional[str] = Header(None)):
     })
 
 
+@router.post("/sessions/{session_id}")
+def get_optimization_session_by_id(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get a single optimization session by ID
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.models.OptimizationSession import get_optimization_session_by_id
+    from jesse.services.transformers import get_optimization_session
+
+    # Get the session from the database
+    session = get_optimization_session_by_id(session_id)
+    
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+    
+    # Transform the session using the transformer
+    transformed_session = get_optimization_session(session)
+    
+    return JSONResponse({
+        'session': transformed_session
+    })
+
+
 @router.post("/update-state")
 def update_session_state(request_json: UpdateOptimizationSessionStateRequestJson, authorization: Optional[str] = Header(None)):
     """
