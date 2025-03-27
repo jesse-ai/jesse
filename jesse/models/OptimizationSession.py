@@ -29,7 +29,7 @@ class OptimizationSession(peewee.Model):
     
     # Timestamps for session management
     created_at = peewee.BigIntegerField()
-    updated_at = peewee.BigIntegerField(null=True)
+    updated_at = peewee.BigIntegerField()
 
     class Meta:
         from jesse.services.db import database
@@ -149,6 +149,7 @@ def store_optimization_session(
         'status': status,
         'completed_trials': 0,
         'created_at': jh.now_to_timestamp(),
+        'updated_at': jh.now_to_timestamp()
     }
     
     # Save to database
