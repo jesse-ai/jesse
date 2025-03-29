@@ -99,7 +99,7 @@ class Optimizer:
         os.makedirs('./storage/temp/optuna', exist_ok=True)
         self.storage_url = f"sqlite:///./storage/temp/optuna/optuna_study.db"
         # The study_name uniquely identifies the optimization session - changing it will create a new session
-        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray3_{self.session_id}"
+        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray_{self.session_id}"
         
         self.solution_len = len(self.strategy_hp)
         self.start_time = jh.now_to_timestamp()
