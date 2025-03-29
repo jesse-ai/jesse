@@ -502,7 +502,7 @@ class Optimizer:
     
     def run(self) -> optuna.trial.FrozenTrial:
         # Log the start of the optimization session
-        logger.log_optimize_mode(f"Optimization session started with Ray using {self.cpu_cores} CPU cores")
+        logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores")
 
         if self.completed_trials > 0:
             logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed")
@@ -571,13 +571,6 @@ class Optimizer:
                     if result['score'] > best_trial_value:
                         best_trial_value = result['score']
                         best_trial_params = result['params']
-                        
-                        if best_trial_value >= 1:
-                            # Send an alert for a good solution
-                            sync_publish('alert', {
-                                'message': f'Fitness goal reached at trial {trial_number}',
-                                'type': 'success'
-                            })
             
             # Publish any remaining data in the buffer
             if self.objective_curve_buffer:
