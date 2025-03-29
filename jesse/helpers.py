@@ -190,22 +190,35 @@ def date_to_timestamp(date: str) -> int:
 
 
 def dna_to_hp(strategy_hp, dna: str):
-    hp = {}
+    # First, try to decode as Base64
+    try:
+        import base64
+        import json
+        # Try to decode the DNA as base64
+        decoded_bytes = base64.b64decode(dna)
+        # Try to parse as JSON
+        decoded_json = json.loads(decoded_bytes.decode('utf-8'))
+        # If successful, the decoded JSON should be the hyperparameters
+        return decoded_json
+    except (ValueError, base64.binascii.Error, json.JSONDecodeError):
+        # If decoding fails, use the legacy method
+        hp = {}
 
-    for gene, h in zip(dna, strategy_hp):
-        if h['type'] is int:
-            decoded_gene = int(
-                round(
-                    convert_number(119, 40, h['max'], h['min'], ord(gene))
+        for gene, h in zip(dna, strategy_hp):
+            if h['type'] is int:
+                decoded_gene = int(
+                    round(
+                        convert_number(119, 40, h['max'], h['min'], ord(gene))
+                    )
                 )
-            )
-        elif h['type'] is float:
-            decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
-        else:
-            raise TypeError('Only int and float types are implemented')
+            elif h['type'] is float:
+                decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
+            else:
+                raise TypeError('Only int and float types are implemented')
 
-        hp[h['name']] = decoded_gene
-    return hp
+            hp[h['name']] = decoded_gene
+        
+        return hp
 
 
 def dump_exception() -> None:
