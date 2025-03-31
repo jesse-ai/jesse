@@ -527,7 +527,7 @@ def _prepare_times_before_simulation(candles: dict) -> None:
 
 def _prepare_routes(hyperparameters: dict = None,
                     with_candles_pipeline: bool = True,
-                    ) -> dict[str, BaseCandlesPipeline | None]:
+                    ) -> Dict[str, BaseCandlesPipeline | None]:
     # initiate strategies
     candles_pipeline = {}
 
@@ -869,7 +869,7 @@ timeframe_to_one_minutes = {
     timeframes.WEEK_1: 60 * 24 * 7,
     timeframes.MONTH_1: 60 * 24 * 30,
 }
-def _simulate_new_candles(candles: dict, candles_pipelines: dict[str, BaseCandlesPipeline], candle_index: int, candles_step: int) -> None:
+def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandlesPipeline], candle_index: int, candles_step: int) -> None:
     i = candle_index
     # add candles
     for j in candles:
