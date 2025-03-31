@@ -40,14 +40,9 @@ def monte_carlo(
         with_candles_pipeline=with_candles_pipeline
     )
 
-    def allow_failures_backtests(*args, **kwargs):
-        try:
-            return _backtest(*args, **kwargs)
-        except Exception as e:
-            return {"exception": e}
 
     return [
-        allow_failures_backtests(
+        _backtest(
             benchmark=benchmark and i == 0, with_candles_pipeline=i != 0
         )
         for i in scenarios_list

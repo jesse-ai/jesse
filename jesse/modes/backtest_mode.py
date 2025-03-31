@@ -857,6 +857,7 @@ def _simulate_new_candles(candles: dict, candles_pipelines: dict[str, BaseCandle
     for j in candles:
         candles_pipeline = candles_pipelines[j]
         short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
+        candles[j]['candles'][i:i+candles_step] = short_candles
         if i != 0:
             previous_short_candles = candles[j]["candles"][i - 1]
             # work the same, the fix needs to be done only on the gap of 1m edge candles.
