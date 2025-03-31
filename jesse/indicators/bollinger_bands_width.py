@@ -4,7 +4,7 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-@njit
+@njit(cache=True)
 def _bb_width(source: np.ndarray, period: int, mult: float) -> np.ndarray:
     """
     Calculate Bollinger Bands Width using Numba

@@ -21,11 +21,14 @@ def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, directio
 
     :return: float | np.ndarray
     """
+    if matype == 24 or matype == 29:
+        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in kaufmanstop indicator.")
+
     candles = slice_candles(candles, sequential)
 
     high = candles[:, 3]
     low = candles[:, 4]
-
+    
     hl_diff = ma(high - low, period=period, matype=matype, sequential=True)
 
     res = low - hl_diff * mult if direction == "long" else high + hl_diff * mult 

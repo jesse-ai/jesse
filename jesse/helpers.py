@@ -443,6 +443,7 @@ def is_importing_candles() -> bool:
     return config['app']['trading_mode'] == 'candles'
 
 
+@lru_cache
 def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
@@ -459,6 +460,7 @@ def is_optimizing() -> bool:
     return config['app']['trading_mode'] == 'optimize'
 
 
+@lru_cache
 def is_paper_trading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'papertrade'

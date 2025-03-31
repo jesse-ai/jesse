@@ -5,7 +5,7 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-@njit
+@njit(cache=True)
 def _rsi(p: np.ndarray, period: int) -> np.ndarray:
     """
     Compute the Relative Strength Index using a loop and Wilder's smoothing.

@@ -38,27 +38,24 @@ def efi_fast(source, volume):
     return dif
 
 
+@njit(cache=True)
 def ema(data: np.ndarray, period: int) -> np.ndarray:
-    alpha = 2.0 / (period + 1)
     n = data.shape[0]
-    out = np.full(n, np.nan)
+    # Initialize output array and fill with NaN
+    out = np.empty(n)
+    for i in range(n):
+        out[i] = np.nan
     if n < period:
         return out
-    seed = np.mean(data[:period])
-    out[period - 1] = seed
-    m = n - period  # number of elements beyond the seed
-    if m > 0:
-        # Create indices for the subsequent calculations
-        indices = np.arange(1, m + 1)  # i from 1 to m, corresponds to t = period-1 + i
-        j = np.arange(m)               # j from 0 to m-1
-        # Compute exponent matrix where each element [i, j] = (1 - alpha)^(i - 1 - j) for j < i, else 0
-        exp_matrix = indices[:, None] - 1 - j[None, :]
-        mask = j[None, :] < indices[:, None]
-        W = np.where(mask, (1 - alpha) ** exp_matrix, 0.0)
-        # data_slice holds the data for indices from period to end
-        data_slice = data[period:period + m]
-        # Compute the weighted sum for each row
-        weighted_sums = np.sum(W * data_slice, axis=1)
-        ema_values = (1 - alpha) ** indices * seed + alpha * weighted_sums
-        out[period:] = ema_values
+    alpha = 2.0 / (period + 1)
+    # Compute seed as the simple average of the first 'period' values
+    sum_value = 0.0
+    for i in range(period):
+        sum_value += data[i]
+    ema_val = sum_value / period
+    out[period - 1] = ema_val
+    # Recursively compute EMA for the rest of the data
+    for i in range(period, n):
+        ema_val = alpha * data[i] + (1 - alpha) * ema_val
+        out[i] = ema_val
     return out

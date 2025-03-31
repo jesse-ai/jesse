@@ -28,12 +28,12 @@ def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, s
         return low[-1]
 
     # Use numba-compiled function to calculate SAR values
-    sar_values = _sar_numba(high, low, acceleration, maximum, n)
+    sar_values = _fast_sar(high, low, acceleration, maximum, n)
     return sar_values if sequential else sar_values[-1]
 
 
-@njit
-def _sar_numba(high, low, acceleration, maximum, n):
+@njit(cache=True)
+def _fast_sar(high, low, acceleration, maximum, n):
     sar_values = np.zeros(n)
     if high[1] > high[0]:
         uptrend = True

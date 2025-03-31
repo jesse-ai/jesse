@@ -2,6 +2,7 @@ import numpy as np
 
 import jesse.indicators as ta
 from jesse.factories import candles_from_close_prices
+import pytest
 from .data.test_candles_indicators import *
 
 matypes = 39
@@ -878,6 +879,21 @@ def test_kaufmanstop():
     assert round(single, 0) == 57
     assert len(seq) == len(candles)
     assert seq[-1] == single
+    with pytest.raises(ValueError) as e:
+        ta.kaufmanstop(candles, matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kaufmanstop indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kaufmanstop(candles, matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kaufmanstop indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kaufmanstop(candles, matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kaufmanstop indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kaufmanstop(candles, matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kaufmanstop indicator."
 
 
 def test_kdj():
@@ -895,6 +911,37 @@ def test_kdj():
     assert len(seq_kd.k) == len(candles)
     assert len(seq_kd.d) == len(candles)
     assert len(seq_kd.j) == len(candles)
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowk_matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowk_matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowd_matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowd_matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowk_matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowk_matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowd_matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.kdj(candles, slowd_matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator."
 
 
 def test_kelner_channels():
@@ -1581,6 +1628,21 @@ def test_rvi():
     assert round(single, 2) == 27.99
     assert len(seq) == len(candles)
     assert seq[-1] == single
+    with pytest.raises(ValueError) as e:
+        ta.rvi(candles, matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in rvi indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.rvi(candles, matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in rvi indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.rvi(candles, matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in rvi indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.rvi(candles, matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in rvi indicator."
 
 
 def test_safezonestop():
@@ -1732,6 +1794,37 @@ def test_stoch():
     assert stoch.k[-1] == k
     assert len(stoch.d) == len(candles)
     assert len(stoch.k) == len(candles)
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=24, slowd_period=3, slowd_matype=0)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=29, slowd_period=3, slowd_matype=0)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=24, slowd_period=3, slowd_matype=0, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=29, slowd_period=3, slowd_matype=0, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stoch(candles, fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator."
 
 
 def test_stochf():
@@ -1747,6 +1840,23 @@ def test_stochf():
     assert seq.k[-1] == single.k
     assert len(seq.k) == len(candles)
     assert len(seq.d) == len(candles)
+    
+    with pytest.raises(ValueError) as e:
+        ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=24)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=29)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=24, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator."
+
+    with pytest.raises(ValueError) as e:
+        ta.stochf(candles, fastk_period=5, fastd_period=3, fastd_matype=29, sequential=True)
+    assert str(e.value) == "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator."
+    
 
 
 def test_supersmoother():

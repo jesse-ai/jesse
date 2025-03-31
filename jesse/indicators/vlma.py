@@ -57,7 +57,10 @@ def vlma(candles: np.ndarray, min_period: int = 5, max_period: int = 50, matype:
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    mean = ma(source, period=max_period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        mean = ma(candles, period=max_period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        mean = ma(source, period=max_period, matype=matype, sequential=True)
 
     if devtype == 0:
        stdDev = moving_std(source, max_period)

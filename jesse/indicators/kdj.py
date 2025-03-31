@@ -46,6 +46,9 @@ def kdj(candles: np.ndarray, fastk_period: int = 9, slowk_period: int = 3, slowk
 
     :return: KDJ(k, d, j)
     """
+    if any(matype in (24, 29) for matype in (slowk_matype, slowd_matype)):
+        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in kdj indicator.")
+    
     candles = slice_candles(candles, sequential)
 
     candles_close = candles[:, 2]
@@ -56,6 +59,7 @@ def kdj(candles: np.ndarray, fastk_period: int = 9, slowk_period: int = 3, slowk
     ll = _rolling_min(candles_low, fastk_period)
 
     stoch = 100 * (candles_close - ll) / (hh - ll)
+    
     k = ma(stoch, period=slowk_period, matype=slowk_matype, sequential=True)
     d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
     j = 3 * k - 2 * d

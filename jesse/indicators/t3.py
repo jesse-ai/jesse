@@ -27,7 +27,6 @@ def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: st
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
         
-    # Calculate k based on volume factor
     k = 2 / (period + 1)
     
     # Calculate weights based on volume factor
@@ -36,37 +35,40 @@ def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: st
     w3 = -6 * vfactor ** 2 - 3 * vfactor - 3 * vfactor ** 3
     w4 = 1 + 3 * vfactor + vfactor ** 3 + 3 * vfactor ** 2
     
-
-    # Calculate six EMAs in sequence
-    e1 = _ema(source, k)
-    e2 = _ema(e1, k)
-    e3 = _ema(e2, k)
-    e4 = _ema(e3, k)
-    e5 = _ema(e4, k)
-    e6 = _ema(e5, k)
-    
-    # Calculate T3 using the weighted sum of EMAs
-    t3 = w1 * e6 + w2 * e5 + w3 * e4 + w4 * e3
+    t3 = _t3_fast(source, k, w1, w2, w3, w4)
     
     return t3 if sequential else t3[-1]
 
 
-@njit
-def _ema_loop(data: np.ndarray, alpha: float, alpha_rev: float, result: np.ndarray) -> np.ndarray:
-    for i in range(1, len(data)):
-        result[i] = alpha * data[i] + alpha_rev * result[i-1]
-    return result
-
-
-@njit
-def _ema(data: np.ndarray, alpha: float) -> np.ndarray:
-    alpha_rev = 1 - alpha
-    n = data.shape[0]
+@njit(cache=True)
+def _t3_fast(source: np.ndarray, k: float, w1: float, w2: float, w3: float, w4: float) -> np.ndarray:
+    n = len(source)
+    e1 = np.zeros(n)
+    e2 = np.zeros(n)
+    e3 = np.zeros(n)
+    e4 = np.zeros(n)
+    e5 = np.zeros(n)
+    e6 = np.zeros(n)
+    t3 = np.zeros(n)
     
-    # Initialize with first value
-    result = np.empty(n)
-    result[0] = data[0]
+    # Initialize first values
+    e1[0] = source[0]
+    e2[0] = e1[0]
+    e3[0] = e2[0]
+    e4[0] = e3[0]
+    e5[0] = e4[0]
+    e6[0] = e5[0]
     
-    # Call the optimized loop function
-    return _ema_loop(data, alpha, alpha_rev, result)
+    k_rev = 1 - k
     
+    # Calculate all EMAs in a single loop for better cache utilization
+    for i in range(1, n):
+        e1[i] = k * source[i] + k_rev * e1[i-1]
+        e2[i] = k * e1[i] + k_rev * e2[i-1]
+        e3[i] = k * e2[i] + k_rev * e3[i-1]
+        e4[i] = k * e3[i] + k_rev * e4[i-1]
+        e5[i] = k * e4[i] + k_rev * e5[i-1]
+        e6[i] = k * e5[i] + k_rev * e6[i-1]
+        t3[i] = w1 * e6[i] + w2 * e5[i] + w3 * e4[i] + w4 * e3[i]
+    
+    return t3

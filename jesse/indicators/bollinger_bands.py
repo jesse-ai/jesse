@@ -79,7 +79,10 @@ def bollinger_bands(
     else:
         raise ValueError("devtype not in (0, 1, 2)")
 
-    middlebands = ma(source, period=period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        middlebands = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        middlebands = ma(source, period=period, matype=matype, sequential=True)
     upperbands = middlebands + devup * dev
     lowerbands = middlebands - devdn * dev
 
