@@ -599,7 +599,7 @@ class Optimizer:
             
             # Publish completion alert
             sync_publish('alert', {
-                'message': f"Finished {self.n_trials} trials. Check your best hyperparameter candidate.",
+                'message': f"Finished {self.n_trials} trials. Check the \"Best Trials\" table for the best performing parameters.",
                 'type': 'success'
             })
             
