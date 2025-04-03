@@ -311,9 +311,29 @@ class Optimizer:
                     param_type = param_type.strip("'").strip('"')
                     
                 if param_type == 'int':
-                    distributions[param_name] = optuna.distributions.IntDistribution(param['min'], param['max'])
+                    if 'step' in param and param['step'] is not None:
+                        distributions[param_name] = optuna.distributions.IntDistribution(
+                            low=param['min'], 
+                            high=param['max'],
+                            step=param['step']
+                        )
+                    else:
+                        distributions[param_name] = optuna.distributions.IntDistribution(
+                            low=param['min'], 
+                            high=param['max']
+                        )
                 elif param_type == 'float':
-                    distributions[param_name] = optuna.distributions.FloatDistribution(param['min'], param['max'])
+                    if 'step' in param and param['step'] is not None:
+                        distributions[param_name] = optuna.distributions.FloatDistribution(
+                            low=param['min'], 
+                            high=param['max'],
+                            step=param['step']
+                        )
+                    else:
+                        distributions[param_name] = optuna.distributions.FloatDistribution(
+                            low=param['min'], 
+                            high=param['max']
+                        )
                 elif param_type == 'categorical':
                     distributions[param_name] = optuna.distributions.CategoricalDistribution(param['options'])
             
