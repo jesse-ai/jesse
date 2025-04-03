@@ -117,8 +117,8 @@ class Optimizer:
         available = cpu_count()
         self.cpu_cores = cpu_cores if cpu_cores <= available else available
 
-        # Determine number of trials based on the number of hyperparameters
-        self.n_trials = self.solution_len * 200
+        # Get number of trials from settings
+        self.n_trials = self.solution_len * jh.get_config('env.optimization.trials', 200)
         
         # Create a progress bar instance to update the front end about optimization progress
         self.progressbar = Progressbar(self.n_trials)

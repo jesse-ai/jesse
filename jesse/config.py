@@ -48,6 +48,8 @@ config = {
         'optimization': {
             # available ratio options: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
             'objective_function': 'sharpe',
+            # number of trials per each hyperparameter
+            'trials': 200,
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -118,6 +120,8 @@ def set_config(conf: dict) -> None:
             config['env']['optimization']['objective_function'] = conf['objective_function']
         # warm_up_candles
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
+        # number of trials per each hyperparameter
+        config['env']['optimization']['trials'] = int(conf['trials'])
 
     # backtest and live
     if jh.is_backtesting() or jh.is_live():

@@ -58,27 +58,6 @@ def run(
         testing_finish_date
     )
     
-    # Convert date strings to timestamps for database storage
-    training_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(training_start_date, 'YYYY-MM-DD'))
-    training_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(training_finish_date, 'YYYY-MM-DD'))
-    testing_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_start_date, 'YYYY-MM-DD'))
-    testing_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_finish_date, 'YYYY-MM-DD'))
-    
-    # Calculate number of trials based on hyperparameters
-    strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
-    strategy_hp = strategy_class.hyperparameters(None)
-    n_trials = len(strategy_hp) * 100 if strategy_hp else 100
-    
-    # Create optimization config for database
-    optimization_config = {
-        'exchange': exchange,
-        'routes': routes,
-        'data_routes': data_routes,
-        'optimal_total': optimal_total,
-        'fast_mode': fast_mode,
-        'cpu_cores': cpu_cores,
-    }
-    
     # Check if we're resuming an existing session
     existing_session = get_optimization_session_by_id(session_id)
     
