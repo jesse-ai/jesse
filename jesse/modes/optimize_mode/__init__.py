@@ -25,6 +25,9 @@ def run(
         fast_mode: bool,
         cpu_cores: int
 ) -> None:
+    if jh.python_version() == (3, 13):
+        raise ValueError('Optimization is not supported on Python 3.13. The "Ray" library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
+        
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
 

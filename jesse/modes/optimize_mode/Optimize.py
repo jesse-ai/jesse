@@ -85,6 +85,10 @@ class Optimizer:
             optimal_total: int,
             cpu_cores: int,
     ) -> None:
+        # Check for Python 3.13 first thing
+        if jh.python_version() == (3, 13):
+            raise ValueError('Optimization is not supported on Python 3.13. The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
+            
         self.session_id = session_id
 
         # Retrieve the target strategy and its hyperparameter configuration

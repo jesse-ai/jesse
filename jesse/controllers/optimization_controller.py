@@ -24,6 +24,13 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
 
     jh.validate_cwd()
 
+    # Check Python version before imports
+    if jh.python_version() == (3, 13):
+        return JSONResponse({
+            'error': 'Optimization is not supported on Python 3.13',
+            'message': 'The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.'
+        }, status_code=500)
+
     from jesse.modes.optimize_mode import run as run_optimization
 
     process_manager.add_task(
