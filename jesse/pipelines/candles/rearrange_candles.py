@@ -3,7 +3,7 @@ import numpy as np
 from jesse.pipelines.candles import BaseCandlesPipeline
 
 
-class RearrangeCandles(BaseCandlesPipeline):
+class ShuffleCandles(BaseCandlesPipeline):
 
     def __init__(self, batch_size: int) -> None:
         super().__init__(batch_size)

@@ -1,5 +1,5 @@
 from .base_candles import BaseCandlesPipeline
-from .rearrange_candles import RearrangeCandles
+from .rearrange_candles import ShuffleCandles
 from .multiple_pipelines import MultipleCandlesPipeline
 from .gaussian_noise import GaussianNoiseCandlesPipeline
 from .gaussian_resampler import GaussianResamplerCandlesPipeline
