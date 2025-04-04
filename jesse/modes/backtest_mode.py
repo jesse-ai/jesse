@@ -568,7 +568,7 @@ def _prepare_routes(hyperparameters: dict = None,
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
-        candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.get_candles_pipeline() if with_candles_pipeline else None
+        candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline() if with_candles_pipeline else None
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 

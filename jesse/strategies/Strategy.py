@@ -73,7 +73,7 @@ class Strategy(ABC):
         # Add cached price
         self._cached_price = None
 
-    def get_candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
+    def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
