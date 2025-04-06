@@ -40,7 +40,6 @@ def monte_carlo(
         with_candles_pipeline=with_candles_pipeline
     )
 
-
     return [
         _backtest(
             benchmark=benchmark and i == 0, with_candles_pipeline=i != 0
