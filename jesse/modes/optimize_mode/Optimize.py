@@ -149,7 +149,7 @@ class Optimizer:
         if not ray.is_initialized():
             try:
                 ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
-                logger.log_optimize_mode(f"Successfully initialized Ray with {self.cpu_cores} CPU cores")
+                logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores")
             except Exception as e:
                 logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.")
                 self.cpu_cores = 1
