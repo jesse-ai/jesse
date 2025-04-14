@@ -30,3 +30,4 @@ ecdsa>=0.16.0
 eth_utils~=1.10.0
 eth-account~=0.13.5
 msgpack~=1.1.0
+starkbank-ecdsa~=1.1.0
