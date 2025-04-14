@@ -56,9 +56,9 @@ class BinanceMain(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1d',
+            'interval': '1w',
             'symbol': dashless_symbol,
-            'limit': 1500,
+            'limit': 1000,
         }
 
         response = self._make_request(
@@ -71,9 +71,9 @@ class BinanceMain(CandleExchange):
         data = response.json()
 
         # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
-        first_timestamp = int(data[0][0])
-        return first_timestamp + 60_000 * 1440
+        # candles, let's start since the second week then
+        first_timestamp = int(data[1][0])
+        return first_timestamp
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
