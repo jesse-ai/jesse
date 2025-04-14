@@ -71,7 +71,7 @@ class BinanceMain(CandleExchange):
         data = response.json()
 
         # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
+        # candles, let's start since the second week then
         first_timestamp = int(data[1][0])
         return first_timestamp
 
