@@ -46,7 +46,8 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.testing_finish_date,
         request_json.optimal_total,
         request_json.fast_mode,
-        request_json.cpu_cores
+        request_json.cpu_cores,
+        request_json.state,
     )
 
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)
@@ -63,7 +64,7 @@ def cancel_optimization(request_json: CancelRequestJson, authorization: Optional
     process_manager.cancel_process(request_json.id)
 
     return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'},
-                       status_code=202)
+                        status_code=202)
 
 
 @router.get("/download-log")
@@ -89,10 +90,10 @@ def get_optimization_sessions(authorization: Optional[str] = Header(None)):
 
     # Get sessions from the database
     sessions = get_sessions()
-    
+
     # Transform the sessions using the transformer
     transformed_sessions = [get_optimization_session(session) for session in sessions]
-    
+
     return JSONResponse({
         'sessions': transformed_sessions,
         'count': len(transformed_sessions)
@@ -108,19 +109,19 @@ def get_optimization_session_by_id(session_id: str, authorization: Optional[str]
         return authenticator.unauthorized_response()
 
     from jesse.models.OptimizationSession import get_optimization_session_by_id
-    from jesse.services.transformers import get_optimization_session
+    from jesse.services.transformers import get_optimization_session_for_load_more
 
     # Get the session from the database
     session = get_optimization_session_by_id(session_id)
-    
+
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
-    
+
     # Transform the session using the transformer
-    transformed_session = get_optimization_session(session)
-    
+    transformed_session = get_optimization_session_for_load_more(session)
+
     return JSONResponse({
         'session': transformed_session
     })
@@ -135,7 +136,7 @@ def update_session_state(request_json: UpdateOptimizationSessionStateRequestJson
         return authenticator.unauthorized_response()
 
     update_optimization_session_state(request_json.id, request_json.state)
-    
+
     return JSONResponse({
         'message': 'Optimization session state updated successfully'
     })
@@ -151,7 +152,7 @@ def pause_optimization(request_json: PauseOptimizationRequestJson, authorization
 
     # First update the status to 'paused'
     update_optimization_session_status(request_json.id, 'paused')
-    
+
     # Then request cancellation of the current process
     process_manager.cancel_process(request_json.id)
 

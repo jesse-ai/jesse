@@ -49,7 +49,7 @@ class OptimizationRequestJson(BaseModel):
     optimal_total: int
     fast_mode: bool
     cpu_cores: int
-    
+    state: dict
 
 
 class ImportCandlesRequestJson(BaseModel):

@@ -8,7 +8,7 @@ from jesse.store import store
 from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
-from jesse.models.OptimizationSession import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status
+from jesse.models.OptimizationSession import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status, update_optimization_session_state
 
 
 def run(
@@ -23,11 +23,13 @@ def run(
         testing_finish_date: str,
         optimal_total: int,
         fast_mode: bool,
-        cpu_cores: int
+        cpu_cores: int,
+        state: dict,
 ) -> None:
     if jh.python_version() == (3, 13):
-        raise ValueError('Optimization is not supported on Python 3.13. The "Ray" library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
-        
+        raise ValueError(
+            'Optimization is not supported on Python 3.13. The "Ray" library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
+
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
 
@@ -53,21 +55,21 @@ def run(
     # validate routes
     validate_routes(router)
 
-    # load historical candles 
+    # load historical candles
     training_warmup_candles, training_candles, testing_warmup_candles, testing_candles = _get_training_and_testing_candles(
         training_start_date,
         training_finish_date,
         testing_start_date,
         testing_finish_date
     )
-    
+
     # Check if we're resuming an existing session
     existing_session = get_optimization_session_by_id(session_id)
-    
+
     if existing_session:
         # Session exists, update it for resuming
         update_optimization_session_status(session_id, 'running')
-        
+
         if jh.is_debugging():
             jh.debug(f"Resuming existing optimization session with ID: {session_id}")
     else:
@@ -76,7 +78,8 @@ def run(
             id=session_id,
             status='running'
         )
-        
+        update_optimization_session_state(session_id, state)
+
         if jh.is_debugging():
             jh.debug(f"Created new optimization session with ID: {session_id}")
 
