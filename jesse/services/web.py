@@ -185,5 +185,5 @@ class UpdateOptimizationSessionStatusRequestJson(BaseModel):
     status: str
 
 
-class PauseOptimizationRequestJson(BaseModel):
+class TerminateOptimizationRequestJson(BaseModel):
     id: str

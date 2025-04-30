@@ -26,7 +26,10 @@ class OptimizationSession(peewee.Model):
     
     # Progress tracking
     completed_trials = peewee.IntegerField(default=0)
-    
+    total_trials = peewee.IntegerField(default=0)
+    exception = peewee.TextField(null=True)
+    traceback = peewee.TextField(null=True)
+
     # Timestamps for session management
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
@@ -139,6 +142,18 @@ def get_optimization_session_by_id(id: str):
         return None
 
 
+def reset_optimization_session(id: str):
+    OptimizationSession.update(
+        status='running',
+        completed_trials=0,
+        best_trials=None,
+        objective_curve=None,
+        exception=None,
+        traceback=None,
+        updated_at=jh.now_to_timestamp(True)
+    ).where(OptimizationSession.id == id).execute()
+
+
 def store_optimization_session(
     id: str,
     status: str
@@ -165,14 +180,26 @@ def update_optimization_session_status(id: str, status: str) -> None:
     OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
 
 
+def add_session_exception(id: str, exception: str, traceback: str) -> None:
+    d = {
+        'exception': exception,
+        'traceback': traceback,
+        'updated_at': jh.now_to_timestamp(True)
+    }
+
+    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+
+
 def update_optimization_session_trials(
     id: str, 
     completed_trials: int, 
     best_trials: list = None,
-    objective_curve: list = None
+    objective_curve: list = None,
+    total_trials: int = None
 ) -> None:
     d = {
         'completed_trials': completed_trials,
+        'total_trials': total_trials,
         'updated_at': jh.now_to_timestamp(True)
     }
 
@@ -208,7 +235,12 @@ def get_optimization_sessions() -> list:
 
 
 def delete_optimization_session(id: str) -> bool:
-    OptimizationSession.delete().where(OptimizationSession.id == id).execute()
+    try:
+        OptimizationSession.delete().where(OptimizationSession.id == id).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting optimization session: {e}")
+        return False
 
 
 def update_optimization_session_state(id: str, state: dict) -> None:

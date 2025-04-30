@@ -14,7 +14,8 @@ from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
-from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials, get_optimization_session
+from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials, get_optimization_session, get_optimization_session_by_id
+import traceback
 
 # Define a Ray-compatible remote function
 
@@ -171,7 +172,7 @@ class Optimizer:
         def check_for_termination():
             if is_process_active(client_id) is False:
                 # Update session status to 'stopped' in the database
-                if get_optimization_session(self.session_id)['status'] != 'paused':
+                if get_optimization_session(self.session_id)['status'] != 'terminated':
                     update_optimization_session_status(self.session_id, 'stopped')
                 raise exceptions.Termination
         self.tl.start()
@@ -180,94 +181,45 @@ class Optimizer:
         self._load_study_trials()
 
     def _load_study_trials(self):
-        """Load trials from the Optuna study"""
+        """Load trials from the database session"""
+        session_data = get_optimization_session_by_id(self.session_id)
+
+        def replace_inf_with_null(obj):
+            if isinstance(obj, dict):
+                return {k: replace_inf_with_null(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [replace_inf_with_null(item) for item in obj]
+            elif isinstance(obj, float) and (obj == float('inf') or obj == float('-inf')):
+                return None
+            return obj
         try:
             # Get completed trials from the Optuna study
-            completed_trials = [t for t in self.study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+            completed_trials = session_data.completed_trials
             if not completed_trials:
                 logger.log_optimize_mode("No previous trials found. Starting new optimization session.")
                 return
 
             # Update completed trials count
-            self.completed_trials = len(completed_trials)
+            self.completed_trials = completed_trials
             logger.log_optimize_mode(f"Loaded {self.completed_trials} completed trials from previous session")
-
-            # Process each trial
-            for trial in completed_trials:
-                # Skip trials without values
-                if trial.value is None:
-                    continue
-
-                # Get trial metrics from user attributes
-                training_metrics = trial.user_attrs.get('training_metrics', {})
-                testing_metrics = trial.user_attrs.get('testing_metrics', {})
-
-                # Convert parameters to DNA (base64)
-                params_str = json.dumps(trial.params, sort_keys=True)
-                dna = base64.b64encode(params_str.encode()).decode()
-
-                # Create trial info dict
-                trial_info = {
-                    'trial': trial.number,
-                    'params': trial.params,
-                    'fitness': round(trial.value, 4),
-                    'value': trial.value,
-                    'dna': dna,
-                    'training_metrics': training_metrics,
-                    'testing_metrics': testing_metrics
-                }
-
-                # Add to best trials in order
-                insert_idx = 0
-                for idx, t in enumerate(self.best_trials):
-                    if trial.value > t['value']:
-                        insert_idx = idx
-                        break
-                    else:
-                        insert_idx = idx + 1
-
-                if insert_idx < 20 or len(self.best_trials) < 20:
-                    self.best_trials.insert(insert_idx, trial_info)
-
-                # Update objective curve buffer
-                if training_metrics and testing_metrics:
-                    self._process_trial_metrics(trial.number, training_metrics, testing_metrics)
-
-            # Keep only top 20 trials
-            self.best_trials = self.best_trials[:20]
-
+            self.best_trials = replace_inf_with_null(json.loads(session_data.best_trials))
             # Update best candidates display
             self._update_best_candidates()
 
             # Update progress bar efficiently
             self._set_progressbar_index(self.completed_trials)
 
-            # Update the dashboard with general information about the progress
-            general_info = {
-                'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                'trial': f'{self.completed_trials}/{self.n_trials}',
-                'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
-                'exchange_type': self.user_config['exchange']['type'],
-                'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
-                'leverage': self.user_config['exchange']['futures_leverage'],
-                'cpu_cores': self.cpu_cores,
-            }
-            sync_publish('general_info', general_info)
-            sync_publish('progressbar', {
-                'current': self.progressbar.current,
-                'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
-            })
-
             # Set trial counter to start from after the last trial
-            self.trial_counter = max([t.number for t in completed_trials]) + 1
+            self.trial_counter = completed_trials
 
+            self.total_objective_curve_buffer = json.loads(session_data.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null'))
             # Update the database with loaded trials
-
             update_optimization_session_trials(
                 self.session_id,
                 self.completed_trials,
                 self.best_trials,
-                self.total_objective_curve_buffer
+                self.total_objective_curve_buffer,
+                self.n_trials
             )
 
         except Exception as e:
@@ -454,7 +406,8 @@ class Optimizer:
                     self.session_id,
                     self.completed_trials,
                     self.best_trials,
-                    self.total_objective_curve_buffer
+                    self.total_objective_curve_buffer,
+                    self.n_trials
                 )
 
     def _update_best_candidates(self):
@@ -627,7 +580,8 @@ class Optimizer:
                 self.session_id,
                 self.completed_trials,
                 self.best_trials,
-                self.total_objective_curve_buffer
+                self.total_objective_curve_buffer,
+                self.n_trials
             )
 
             # Update session status to 'finished'
@@ -649,6 +603,8 @@ class Optimizer:
             logger.log_optimize_mode(f"Error during optimization: {e}")
             # Update session status to 'stopped' due to error
             update_optimization_session_status(self.session_id, 'stopped')
+            from jesse.models.OptimizationSession import add_session_exception
+            add_session_exception(self.session_id, str(e), str(traceback.format_exc()))
             raise
         finally:
             # Shutdown Ray

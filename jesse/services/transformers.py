@@ -119,10 +119,13 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'id': str(session.id),
         'status': session.status,
         'completed_trials': session.completed_trials,
+        'total_trials': session.total_trials,
         'created_at': session.created_at,
         'updated_at': session.updated_at,
         'best_score': session.best_score,
         'best_candidates': best_candidates,
         'objective_curve': json.loads(session.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null')) if session.objective_curve else None,
-        'state': session.state_json
+        'state': session.state_json,
+        'exception': session.exception,
+        'traceback': session.traceback
     }
