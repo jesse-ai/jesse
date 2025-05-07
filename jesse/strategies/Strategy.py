@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 import numpy as np
+import torch
+from agilerl.algorithms.ppo import PPO
+from gymnasium import spaces
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
+from jesse.research.reinforcement_learning import AgentSettings
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
@@ -68,96 +72,9 @@ class Strategy(ABC):
 
         self._cached_methods = {}
         self._cached_metrics = {}
+        self._agent_settings: AgentSettings | None = None
+        self.agent: PPO = None
 
-        # Add cached price
-        self._cached_price = None
-
-    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
-
-        if title not in self._add_line_to_candle_chart_values:
-            self._add_line_to_candle_chart_values[title] = {
-                'data': [],
-                'color': color if color is not None else generate_unique_hex_color(),
-            }
-        self._add_line_to_candle_chart_values[title]['data'].append({
-            'time': int(self.current_candle[0] / 1000),
-            'value': value,
-            'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
-        })
-
-    def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
-
-        if line_style == 'solid':
-            lineStyle = 0
-        elif line_style == 'dotted':
-            lineStyle = 1
-        else:
-            raise ValueError(f"Invalid line_style: {line_style}")
-
-        if title in self._add_horizontal_line_to_candle_chart_values:
-            self._add_horizontal_line_to_candle_chart_values[title].update({
-                'price': value,
-                'color': color if color is not None else self._add_horizontal_line_to_candle_chart_values[title]['color'],
-                'lineWidth': line_width,
-                'lineStyle': lineStyle,
-            })
-        else:
-            self._add_horizontal_line_to_candle_chart_values[title] = {
-                'title': title,
-                'price': value,
-                'color': color if color is not None else generate_unique_hex_color(),
-                'lineWidth': line_width,
-                'lineStyle': lineStyle,
-            }
-
-    def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
-
-        if line_style == 'solid':
-            lineStyle = 0
-        elif line_style == 'dotted':
-            lineStyle = 1
-        else:
-            raise ValueError(f"Invalid line_style: {line_style}")
-
-        if chart_name not in self._add_horizontal_line_to_extra_chart_values:
-            self._add_horizontal_line_to_extra_chart_values[chart_name] = {}
-
-        self._add_horizontal_line_to_extra_chart_values[chart_name][title] = {
-            'price': value,
-            'color': color if color is not None else generate_unique_hex_color(),
-            'lineWidth': line_width,
-            'lineStyle': lineStyle,
-            'title': title
-        }
-
-    def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
-
-        if chart_name not in self._add_extra_line_chart_values:
-            self._add_extra_line_chart_values[chart_name] = {}
-
-        if title not in self._add_extra_line_chart_values[chart_name]:
-            self._add_extra_line_chart_values[chart_name][title] = {
-                'data': [],
-                'color': color if color is not None else generate_unique_hex_color(),
-            }
-
-        self._add_extra_line_chart_values[chart_name][title]['data'].append({
-            'time': int(self.current_candle[0] / 1000),
-            'value': value,
-            'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
-        })
 
     def _init_objects(self) -> None:
         """
@@ -172,6 +89,13 @@ class Strategy(ABC):
             self.hp = {}
             for dna in self.hyperparameters():
                 self.hp[dna['name']] = dna['default']
+
+        self._agent_settings = self.agent_settings()
+        if self._agent_settings is not None and isinstance(
+            self._agent_settings.agent_path, str
+        ):
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.agent = PPO.load(self._agent_settings.agent_path, device=device)
 
     @property
     def _price_precision(self) -> int:
@@ -746,6 +670,9 @@ class Strategy(ABC):
         if not self._is_initiated:
             self._is_initiated = True
 
+        if self.agent is not None:
+            self._check_agent_action()
+
         self._wait_until_executing_orders_are_fully_handled()
 
         if jh.is_live() and jh.is_debugging():
@@ -981,6 +908,9 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        # reward is not needed on live mode
+        if self.is_backtesting and self.agent is not None:
+            store.reinforce_learning.rewards.append([self.agent_reward()])
         self._clear_cached_methods()
 
         # Clear the cached price
@@ -1449,3 +1379,28 @@ class Strategy(ABC):
             raise ValueError('self.min_qty is only available in live modes')
 
         return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+
+    def agent_settings(self) -> AgentSettings | None:
+        return None
+
+    def _check_agent_action(self) -> None:
+        state = self.env_observation()[None, :]
+        action, log_prob, _, value = self.agent.getAction(state)
+        self._inject_agent_action(action[0])
+        if self.is_backtesting:
+            store.reinforce_learning.states.append(state)
+            store.reinforce_learning.actions.append(action)
+            store.reinforce_learning.log_probs.append(log_prob)
+            store.reinforce_learning.values.append(value)
+
+    def env_observation(self) -> Any:
+        return None
+
+    def agent_reward(self) -> float:
+        return 1
+
+    def _actions_space(self) -> spaces.Discrete:
+        return spaces.Discrete(len(self._agent_settings.actions_space))
+
+    def _inject_agent_action(self, action: int) -> None:
+        self.agent_action = self._agent_settings.actions_space[action]

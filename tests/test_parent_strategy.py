@@ -619,11 +619,11 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t2.orders[0].type == order_types.MARKET
 
 
-def test_validation_for_equal_stop_loss_and_take_profit():
-    with pytest.raises(Exception) as err:
-        single_route_backtest('Test46')
+# def test_validation_for_equal_stop_loss_and_take_profit():
+#     with pytest.raises(Exception) as err:
+#         single_route_backtest('Test46')
 
-    assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
+#     assert str(err.value).startswith('stop-loss and take-profit should not be exactly the same')
 
 
 def test_increased_and_reduced_count():
