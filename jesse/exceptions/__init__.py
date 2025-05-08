@@ -102,3 +102,7 @@ class NotSupportedError(Exception):
 
 class CandlesNotFound(Exception):
     pass
+
+
+class InvalidDateRange(Exception):
+    pass
