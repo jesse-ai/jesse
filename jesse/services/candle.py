@@ -271,8 +271,6 @@ def _get_candles_from_db(
     # validate finish_date is not in the future
     current_timestamp = arrow.utcnow().int_timestamp * 1000
     if finish_date_timestamp > current_timestamp:
-        jh.dump('finish_date_timestamp' + jh.timestamp_to_time(finish_date_timestamp))
-        jh.dump('current_timestamp' + jh.timestamp_to_time(current_timestamp))
         today_str = jh.timestamp_to_date(current_timestamp)
         yesterday_date = jh.timestamp_to_date(current_timestamp - 86400000)
         raise InvalidDateRange(f'The finish date "{jh.timestamp_to_time(finish_date_timestamp)[:19]}" cannot be in the future. Please select a date up to "{yesterday_date}".')
@@ -314,7 +312,6 @@ def _get_candles_from_db(
             
         # For finish date validation, we need to check if we have candles up to exactly one minute
         # before the start of the requested finish date
-        jh.dump('finish_date_timestamp' + jh.timestamp_to_time(finish_date_timestamp))
         # Check if the latest available candle timestamp is before the required last candle
         if latest_available < finish_date_timestamp:
             # Missing candles at the end of the requested range
