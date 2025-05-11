@@ -82,6 +82,8 @@ class exchanges:
     APEX_OMNI_PERPETUAL = 'Apex Omni Perpetual'
     GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
     GATE_SPOT = 'Gate Spot'
+    HYPERLIQUID_PERPETUAL = 'Hyperliquid Perpetual'
+    HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
 
 
 class migration_actions:
