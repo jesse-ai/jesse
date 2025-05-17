@@ -131,9 +131,16 @@ class SpotExchange(Exchange):
         """
         Used for updating the exchange from the WS stream (only for live trading)
         """
+        import jesse.services.logger as logger
+
         if not jh.is_livetrading():
             raise Exception('This method is only for live trading')
 
+        old_balance = self.assets[self.settlement_currency]
         self.assets[self.settlement_currency] = data['balance']
+        if old_balance != 0 and self.assets[self.settlement_currency] != old_balance:
+            logger.info(
+                f'Balance for {self.settlement_currency} on {self.name} changed from {round(old_balance, 2)} to {round(self.assets[self.settlement_currency], 2)}'
+            )
         if self._started_balance == 0:
             self._started_balance = data['balance']
