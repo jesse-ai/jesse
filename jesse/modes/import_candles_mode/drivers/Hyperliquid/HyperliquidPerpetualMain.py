@@ -2,6 +2,7 @@ import requests
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
+from .hyperliquid_utils import timeframe_to_interval
 
 
 class HyperliquidPerpetualMain(CandleExchange):
@@ -18,7 +19,7 @@ class HyperliquidPerpetualMain(CandleExchange):
             'type': 'candleSnapshot',
             'req': {
                 'coin': base_symbol,
-                'interval': '1w',
+                'interval': 'W',
                 'startTime': 1514811660
             }
         }
@@ -35,12 +36,12 @@ class HyperliquidPerpetualMain(CandleExchange):
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         base_symbol = jh.get_base_asset(symbol)
-
+        interval = timeframe_to_interval(timeframe)
         payload = {
             'type': 'candleSnapshot',
             'req': {
                 'coin': base_symbol,
-                'interval': timeframe,
+                'interval': interval,
                 'startTime': int(start_timestamp)
             }
         }
@@ -49,6 +50,8 @@ class HyperliquidPerpetualMain(CandleExchange):
             'Content-Type': 'application/json',
         }
         response = requests.post(self.endpoint, json=payload, headers=headers)
+        self.validate_response(response)
+
         data = response.json()
 
         return [
