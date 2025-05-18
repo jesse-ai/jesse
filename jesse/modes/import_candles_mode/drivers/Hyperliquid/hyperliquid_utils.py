@@ -28,11 +28,11 @@ def timeframe_to_interval(timeframe: str) -> str:
     elif timeframe == timeframes.HOUR_12:
         return '12h'
     elif timeframe == timeframes.DAY_1:
-        return 'D'
+        return '1d'
     elif timeframe == timeframes.DAY_3:
-        return '3D'
+        return '3d'
     elif timeframe == timeframes.WEEK_1:
-        return 'W'
+        return '1w'
     else:
         raise ValueError('Invalid timeframe: {}'.format(timeframe))
 
