@@ -1,0 +1,20 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.rulers": [160],
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "autopep8.args": [
+        "--max-line-length=160",
+        "--aggressive",
+        "--aggressive"
+    ],
+    "python.formatting.provider": "autopep8",
+    "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
+    "python.linting.pylintEnabled": true
+}

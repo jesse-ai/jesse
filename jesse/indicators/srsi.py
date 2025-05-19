@@ -8,7 +8,7 @@ from jesse.helpers import get_candle_source, same_length, slice_candles
 StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
 
 
-@njit
+@njit(cache=True)
 def _rolling_window(a, window):
     """Helper function to create rolling windows of data"""
     shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
@@ -16,7 +16,7 @@ def _rolling_window(a, window):
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
 
-@njit
+@njit(cache=True)
 def _calculate_stoch(data, period_stoch, k_period, d_period):
     """Calculate stochastic oscillator values"""
     # Calculate rolling min and max
@@ -39,7 +39,7 @@ def _calculate_stoch(data, period_stoch, k_period, d_period):
     return k, d
 
 
-@njit
+@njit(cache=True)
 def _calculate_rsi(source, period):
     n = len(source)
     rsi = np.full(n, np.nan)  # initialize all values as NaN

@@ -24,8 +24,12 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matyp
 
     source = get_candle_source(candles, source_type=source_type)
 
-    fast_ma = ma(source, period=fast_period, matype=matype, sequential=True)
-    slow_ma = ma(source, period=slow_period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        fast_ma = ma(candles, period=fast_period, matype=matype, source_type=source_type, sequential=True)
+        slow_ma = ma(candles, period=slow_period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        fast_ma = ma(source, period=fast_period, matype=matype, sequential=True)
+        slow_ma = ma(source, period=slow_period, matype=matype, sequential=True)
     res = 100 * (fast_ma - slow_ma) / slow_ma
 
     return res if sequential else res[-1]

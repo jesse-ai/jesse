@@ -21,6 +21,8 @@ BITGET_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE
                      timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
+HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                         timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -395,6 +397,33 @@ exchange_info = {
             "live_trading": False,
         },
         "required_live_plan": "premium",
+    },
+    # HyperLiquid
+    exchanges_enums.HYPERLIQUID_PERPETUAL: {
+        "name": exchanges_enums.HYPERLIQUID_PERPETUAL,
+        "url": "https://app.hyperliquid.xyz/trade",
+        "fee": 0.0001,
+        "type": "futures",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": HYPERLIQUID_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET: {
+        "name": exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET,
+        "url": "https://app.hyperliquid-testnet.xyz/trade",
+        "fee": 0.0001,
+        "type": "futures",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": HYPERLIQUID_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
     },
 }
 

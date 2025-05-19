@@ -23,6 +23,9 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
 
     :return: Stochastic(k, d)
     """
+    if any(matype in (24, 29) for matype in (slowk_matype, slowd_matype)):
+        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in stochastic indicator.")
+
     candles = slice_candles(candles, sequential)
 
     candles_close = candles[:, 2]

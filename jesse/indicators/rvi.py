@@ -21,6 +21,9 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     :param sequential: bool - default: False
     :return: float | np.ndarray
     """
+    if matype == 24 or matype == 29:
+        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in rvi indicator.")
+
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)

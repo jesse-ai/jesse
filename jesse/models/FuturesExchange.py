@@ -116,7 +116,8 @@ class FuturesExchange(Exchange):
 
             if effective_order_size > self.available_margin:
                 raise InsufficientMargin(
-                    f'You cannot submit an order for ${round(order.qty * order.price)} when your effective margin balance is ${round(self.available_margin)} considering leverage')
+                    f'Cannot submit an order with a value of ${round(order.qty * order.price)} when your available margin is ${round(self.available_margin)}. Consider increasing leverage number from the settings or reducing the order size.'
+                )
 
         self.available_assets[base_asset] += order.qty
 
@@ -169,9 +170,14 @@ class FuturesExchange(Exchange):
         """
         if not jh.is_livetrading():
             raise Exception('This method is only for live trading')
-
+        old_balance = self._wallet_balance
         self._available_margin = data['available_margin']
         self._wallet_balance = data['wallet_balance']
+
+        if old_balance != 0 and self._wallet_balance != old_balance:
+            logger.info(
+                f'Balance for {self.settlement_currency} on {self.name} changed from {round(old_balance, 2)} to {round(self._wallet_balance, 2)}'
+            )
         if self._started_balance == 0:
             self._started_balance = self._wallet_balance
 

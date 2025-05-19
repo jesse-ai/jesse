@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 import arrow
-from jesse.exceptions import CandleNotFoundInDatabase
+from jesse.exceptions import CandleNotFoundInDatabase, InvalidDateRange
 import jesse.helpers as jh
 from jesse.services import logger
 from jesse.models import Candle
@@ -262,6 +262,23 @@ def _get_candles_from_db(
         if cached_value:
             return np.array(cached_value)
 
+    # validate the dates
+    if start_date_timestamp == finish_date_timestamp:
+        raise InvalidDateRange('start_date and finish_date cannot be the same.')
+    if start_date_timestamp > finish_date_timestamp:
+        raise InvalidDateRange(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
+    
+    # validate finish_date is not in the future
+    current_timestamp = arrow.utcnow().int_timestamp * 1000
+    if finish_date_timestamp > current_timestamp:
+        today_str = jh.timestamp_to_date(current_timestamp)
+        yesterday_date = jh.timestamp_to_date(current_timestamp - 86400000)
+        raise InvalidDateRange(f'The finish date "{jh.timestamp_to_time(finish_date_timestamp)[:19]}" cannot be in the future. Please select a date up to "{yesterday_date}".')
+
+    # validate start_date is not in the future
+    if start_date_timestamp > current_timestamp:
+        raise InvalidDateRange(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(current_timestamp)}).')
+
     # Always materialize the database results immediately
     candles_tuple = list(Candle.select(
         Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
@@ -273,19 +290,42 @@ def _get_candles_from_db(
         Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
     ).order_by(Candle.timestamp.asc()).tuples())
 
-    # validate the dates
-    if start_date_timestamp == finish_date_timestamp:
-        raise CandleNotFoundInDatabase('start_date and finish_date cannot be the same.')
-    if start_date_timestamp > finish_date_timestamp:
-        raise CandleNotFoundInDatabase(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
-    if start_date_timestamp > arrow.utcnow().int_timestamp * 1000:
-        raise CandleNotFoundInDatabase(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(arrow.utcnow().int_timestamp * 1000)}).')
+    # Check if we got any candles
+    if not candles_tuple:
+        raise CandleNotFoundInDatabase(f"No candles found for {symbol} on {exchange} between {jh.timestamp_to_date(start_date_timestamp)} and {jh.timestamp_to_date(finish_date_timestamp)}.")
+    
+    # Convert to numpy array for easier timestamp extraction
+    candles_array = np.array(candles_tuple)
+    
+    # Verify the retrieved data covers the requested range
+    if len(candles_array) > 0:
+        earliest_available = candles_array[0][0]  # First timestamp
+        latest_available = candles_array[-1][0]   # Last timestamp
+        
+        # Check if earliest available timestamp is after the requested start date
+        if earliest_available > start_date_timestamp + 60_000:  # Allow 1 minute tolerance
+            raise CandleNotFoundInDatabase(
+                f"Missing candles for {symbol} on {exchange}. "
+                f"Requested data from {jh.timestamp_to_date(start_date_timestamp)}, "
+                f"but earliest available candle is from {jh.timestamp_to_date(earliest_available)}."
+            )
+            
+        # For finish date validation, we need to check if we have candles up to exactly one minute
+        # before the start of the requested finish date
+        # Check if the latest available candle timestamp is before the required last candle
+        if latest_available < finish_date_timestamp:
+            # Missing candles at the end of the requested range
+            raise CandleNotFoundInDatabase(
+                f"Missing recent candles for \"{symbol}\" on \"{exchange}\". "
+                f"Requested data until \"{jh.timestamp_to_time(finish_date_timestamp)[:19]}\", "
+                f"but latest available candle is up to \"{jh.timestamp_to_time(latest_available)[:19]}\"."
+            )
 
     if caching:
         # cache for 1 week it for near future calls
         cache.set_value(cache_key, candles_tuple, expire_seconds=60 * 60 * 24 * 7)
 
-    return np.array(candles_tuple)
+    return candles_array
 
 
 def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:

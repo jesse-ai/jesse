@@ -20,6 +20,9 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
 
     :return: StochasticFast(k, d)
     """
+    if fastd_matype == 24 or fastd_matype == 29:
+        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator.")
+
     candles = slice_candles(candles, sequential)
 
     candles_close = candles[:, 2]

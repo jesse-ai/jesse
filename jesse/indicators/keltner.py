@@ -68,7 +68,10 @@ def keltner(candles: np.ndarray, period: int = 20, multiplier: float = 2, matype
     candles = slice_candles(candles, sequential)
 
     source = get_candle_source(candles, source_type=source_type)
-    ma_values = ma(source, period=period, matype=matype, sequential=True)
+    if matype == 24 or matype == 29:
+        ma_values = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+    else:
+        ma_values = ma(source, period=period, matype=matype, sequential=True)
     
     up, mid, low = _calculate_keltner(
         source, 
