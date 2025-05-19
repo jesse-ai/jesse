@@ -792,6 +792,35 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
         return np.floor(number / factor) * factor
 
 
+def is_almost_equal(a: float, b: float, tolerance: float = 1e-8) -> bool:
+    """
+    Compares two floating point values with a small tolerance to account for floating point precision issues.
+    
+    :param a: First float value to compare
+    :param b: Second float value to compare
+    :param tolerance: The tolerance level for the comparison (default: 1e-8)
+    :return: bool - True if the difference between a and b is less than or equal to the tolerance
+    """
+    # Check if both are None, which means they're equal
+    if a is None and b is None:
+        return True
+    
+    # Check if only one is None, which means they're not equal
+    if a is None or b is None:
+        return False
+    
+    # Check for exact equality first (optimizes for common case)
+    if a == b:
+        return True
+    
+    # For values very close to zero, use absolute tolerance
+    if abs(a) < tolerance and abs(b) < tolerance:
+        return abs(a - b) <= tolerance
+    
+    # For non-zero values, use relative tolerance
+    return abs((a - b) / max(abs(a), abs(b))) <= tolerance
+
+
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
     return np.concatenate((np.full((bigger.shape[0] - shorter.shape[0]), np.nan), shorter))
 
