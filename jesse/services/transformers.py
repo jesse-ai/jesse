@@ -115,6 +115,15 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
             'objective_metric': candidate_objective_metric
         })
 
+    best_candidates = json.dumps(best_candidates).replace('NaN', 'null')
+    best_candidates = json.loads(best_candidates)
+
+    objective_curve = None
+    if session.objective_curve:
+        objective_curve = session.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null')
+        objective_curve = objective_curve.replace('NaN', 'null')
+        objective_curve = json.loads(objective_curve)
+
     return {
         'id': str(session.id),
         'status': session.status,
@@ -124,7 +133,7 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'updated_at': session.updated_at,
         'best_score': session.best_score,
         'best_candidates': best_candidates,
-        'objective_curve': json.loads(session.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null')) if session.objective_curve else None,
+        'objective_curve': objective_curve,
         'state': session.state_json,
         'exception': session.exception,
         'traceback': session.traceback
