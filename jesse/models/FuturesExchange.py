@@ -176,7 +176,7 @@ class FuturesExchange(Exchange):
 
         if old_balance != 0 and self._wallet_balance != old_balance:
             logger.info(
-                f'Balance for {self.settlement_currency} on {self.name} changed from {round(old_balance, 2)} to {round(self._wallet_balance, 2)}'
+                f'Balance for {self.settlement_currency} on {self.name} changed from "{round(old_balance, 2)}" to "{round(self._wallet_balance, 2)}"'
             )
         if self._started_balance == 0:
             self._started_balance = self._wallet_balance
