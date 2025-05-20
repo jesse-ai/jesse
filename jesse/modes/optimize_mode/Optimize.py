@@ -477,7 +477,9 @@ class Optimizer:
             if jh.is_debugging():
                 jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
             sync_publish('objective_curve', self.objective_curve_buffer)
-            self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
+
+            if self.objective_curve_buffer[0]['trial'] > self.total_objective_curve_buffer[-1]['trial']:
+                self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
             self.objective_curve_buffer = []
 
     def _set_progressbar_index(self, index):
@@ -516,6 +518,14 @@ class Optimizer:
 
             # Begin optimization loop
             while self.completed_trials < self.n_trials:
+                if self.completed_trials == 0:
+                    update_optimization_session_trials(
+                        self.session_id,
+                        0,
+                        [],
+                        [],
+                        self.n_trials
+                    )
                 # Launch new trials if we have capacity
                 while len(active_refs) < max_workers and self.trial_counter < self.n_trials:
                     # Generate parameters for this trial
