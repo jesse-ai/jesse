@@ -478,8 +478,12 @@ class Optimizer:
                 jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
             sync_publish('objective_curve', self.objective_curve_buffer)
 
-            if self.objective_curve_buffer[0]['trial'] > self.total_objective_curve_buffer[-1]['trial']:
+            if len(self.objective_curve_buffer) > 0 and len(self.total_objective_curve_buffer) > 0:
+                if self.objective_curve_buffer[0]['trial'] > self.total_objective_curve_buffer[-1]['trial']:
+                    self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
+            else:
                 self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
+
             self.objective_curve_buffer = []
 
     def _set_progressbar_index(self, index):
