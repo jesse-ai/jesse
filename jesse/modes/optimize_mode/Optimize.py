@@ -63,16 +63,16 @@ def ray_evaluate_trial(
             'training_metrics': training_metrics,
             'testing_metrics': testing_metrics
         }
-
+    except exceptions.RouteNotFound as e:
+        # Convert RouteNotFound to a standard RuntimeError to avoid serialization issues
+        error_msg = str(e)
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with RouteNotFound: {error_msg}")
+        logger.log_optimize_mode(f"Trial {trial_number} hyperparameters: {hp}")
+        raise RuntimeError(f"RouteNotFound: {error_msg}")
     except Exception as e:
-        logger.log_optimize_mode(f"Ray trial evaluation failed: {e}")
-        return {
-            'trial_number': trial_number,
-            'score': 0.0001,
-            'params': hp,
-            'training_metrics': {},
-            'testing_metrics': {}
-        }
+        # Log and re-raise other exceptions
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with exception: {str(e)}")
+        raise
 
 # Optimizer class that uses Ray for hyperparameter optimization
 
@@ -519,7 +519,6 @@ class Optimizer:
 
             # Dictionary to keep track of active workers
             active_refs = {}
-
             # Begin optimization loop
             while self.completed_trials < self.n_trials:
                 if self.completed_trials == 0:
@@ -565,15 +564,26 @@ class Optimizer:
                 # Process completed trials
                 for ref in done_refs:
                     trial_number = active_refs.pop(ref)
-                    result = ray.get(ref)
+                    try:
+                        result = ray.get(ref)
+                        # Process the result
+                        self._process_trial_result(result)
 
-                    # Process the result
-                    self._process_trial_result(result)
-
-                    # Update best trial if better
-                    if result['score'] > best_trial_value:
-                        best_trial_value = result['score']
-                        best_trial_params = result['params']
+                        # Update best trial if better
+                        if result['score'] > best_trial_value:
+                            best_trial_value = result['score']
+                            best_trial_params = result['params']
+                    except ray.exceptions.RayTaskError as e:
+                        # Check if this is a RouteNotFound error converted to RuntimeError
+                        if hasattr(e, 'cause') and isinstance(e.cause, RuntimeError) and 'RouteNotFound:' in str(e.cause):
+                            raise e.cause
+                        else:
+                            jh.debug(f'Ray task error for trial {trial_number}: {e}')
+                            original_exception = e.cause
+                            raise
+                    except Exception as e:
+                        jh.debug(f'Exception raised in the ray method for trial {trial_number}: {e}')
+                        raise e
 
             # Publish any remaining data in the buffer
             if self.objective_curve_buffer:

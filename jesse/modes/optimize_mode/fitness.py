@@ -4,6 +4,7 @@ import jesse.helpers as jh
 from jesse.research.backtest import _isolated_backtest as isolated_backtest
 from jesse.services import logger
 import numpy as np
+from jesse import exceptions
 
 
 def _formatted_inputs_for_isolated_backtest(user_config, routes):
@@ -108,6 +109,8 @@ def get_fitness(
 
         return score, training_metrics, testing_metrics
 
+    except exceptions.RouteNotFound as e:
+        raise e
     except Exception as e:
         import sys, traceback
         exc_type, exc_value, exc_traceback = sys.exc_info()
