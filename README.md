@@ -47,45 +47,64 @@ In fact, it is so simple that in case you already know Python, you can get start
 - 🔧 **Built-in Code Editor**: Write, edit, and debug your strategies with a built-in code editor.
 - 📺 **Youtube Channel**: Jesse has a Youtube channel with screencast tutorials that go through example strategies step by step.
 
-## Example Strategy
+## Dive Deeper into Jesse's Capabilities
 
-```py
-class SMACrossover(Strategy):
-    @property
-    def slow_sma(self):
-        return ta.sma(self.candles, 200)
+### Stupid Simple
+Craft complex trading strategies with remarkably simple Python. Access 300+ indicators, multi-symbol/timeframe support, spot/futures trading, partial fills, and risk management tools. Focus on logic, not boilerplate.
 
-    @property
-    def fast_sma(self):
-        return ta.sma(self.candles, 50)
-
-    def should_long(self) -> bool:
-        # Fast SMA above Slow SMA
-        return self.fast_sma > self.slow_sma
-
-    def should_short(self) -> bool:
-        # Fast SMA below Slow SMA
-        return self.fast_sma < self.slow_sma
+```python
+class GoldenCross(Strategy):
+    def should_long(self):
+        # go long when the EMA 8 is above the EMA 21
+        short_ema = ta.ema(self.candles, 8)
+        long_ema = ta.ema(self.candles, 21)
+        return short_ema > long_ema
 
     def go_long(self):
-        # Open long position and use entire balance to buy
-        qty = utils.size_to_qty(self.balance, self.price, fee_rate=self.fee_rate)
+        entry_price = self.price - 10        # limit buy order at $10 below the current price
+        qty = utils.size_to_qty(self.balance*0.05, entry_price) # spend only 5% of my total capital
+        self.buy = qty, entry_price                 # submit entry order
+        self.take_profit = qty, entry_price*1.2  # take profit at 20% above the entry price
+        self.stop_loss = qty, entry_price*0.9   # stop loss at 10% below the entry price
+```
 
-        self.buy = qty, self.price
+### Backtest
+Execute highly accurate and fast backtests without look-ahead bias. Utilize debugging logs, interactive charts with indicator support, and detailed performance metrics to validate your strategies thoroughly.
 
-    def go_short(self):
-        # Open short position and use entire balance to sell
-        qty = utils.size_to_qty(self.balance, self.price, fee_rate=self.fee_rate)
+![Backtest](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/backtest.gif)
 
-        self.sell = qty, self.price
+### Live/Paper Trading
+Deploy strategies live with robust monitoring tools. Supports paper trading, multiple accounts, real-time logs & notifications (Telegram, Slack, Discord), interactive charts, spot/futures, DEX, and a built-in code editor.
 
-    def update_position(self):
-        # If there exist long position, but the signal shows Death Cross, then close the position, and vice versa.
-        if self.is_long and self.fast_sma < self.slow_sma:
-            self.liquidate()
-    
-        if self.is_short and self.fast_sma > self.slow_sma:
-            self.liquidate()
+![Live/Paper Trading](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/live.gif)
+
+### Benchmark
+Accelerate research using the benchmark feature. Run batch backtests, compare across timeframes, symbols, and strategies. Filter and sort results by key performance metrics for efficient analysis.
+
+![Benchmark](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/benchmark.gif)
+
+### AI
+Leverage our AI assistant even with limited Python knowledge. Get help writing and improving strategies, implementing ideas, debugging, optimizing, and understanding code. Your personal AI quant.
+
+![AI](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/gpt.gif)
+
+### Optimize Your Strategies
+Unsure about optimal parameters? Let the optimization mode decide using simple syntax. Fine-tune any strategy parameter with the Optuna library and easy cross-validation.
+
+```python
+@property
+def slow_sma(self):
+    return ta.sma(self.candles, self.hp['slow_sma_period'])
+
+@property
+def fast_sma(self):
+    return ta.sma(self.candles, self.hp['fast_sma_period'])
+
+def hyperparameters(self):
+    return [
+        {'name': 'slow_sma_period', 'type': int, 'min': 150, 'max': 210, 'default': 200},
+        {'name': 'fast_sma_period', 'type': int, 'min': 20, 'max': 100, 'default': 50},
+    ]
 ```
 
 ## Getting Started
