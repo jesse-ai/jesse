@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:jesse/static/_nuxt/A46XQGLE.js
-import{a as e,c as o,o as t,b as s,B as c}from"./7Q6s__oj.js";const n={},r={class:"py-10 mx-auto"},l={class:"mx-auto max-w-7xl px-2 md:px-8"},_={class:"max-w-[600px] mx-auto"};function d(a,m){return t(),o("div",r,[s("main",null,[s("div",l,[s("div",_,[c(a.$slots,"default")])])])])}const x=e(n,[["render",d]]);export{x as S};
-========
-import{a as e,c as o,o as t,b as s,B as c}from"./CwIBBHLx.js";const n={},r={class:"py-10 mx-auto"},l={class:"mx-auto max-w-7xl px-2 md:px-8"},_={class:"max-w-[600px] mx-auto"};function d(a,m){return t(),o("div",r,[s("main",null,[s("div",l,[s("div",_,[c(a.$slots,"default")])])])])}const x=e(n,[["render",d]]);export{x as S};
->>>>>>>> optimization:jesse/static/_nuxt/BaFO-5Mi.js
