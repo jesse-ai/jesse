@@ -306,6 +306,31 @@ def _get_study_name() -> str:
     return study_name
 
 
+def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message: str = None):
+    """Helper function to handle missing candles scenarios"""
+    formatted_date = jh.timestamp_to_date(start_date)
+    if message is None:
+        message = f'Missing trading candles for {symbol} on {exchange} from {formatted_date}'
+    
+    sync_publish(
+        "missing_candles",
+        {
+            "message": message,
+            "symbol": symbol,
+            "exchange": exchange,
+            "start_date": formatted_date,
+        },
+    )
+    
+    raise exceptions.CandlesNotFound({
+        'message': message,
+        'symbol': symbol,
+        'exchange': exchange,
+        'start_date': start_date,
+        'type': 'missing_candles'
+    })
+
+
 def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
     max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
@@ -318,6 +343,23 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
         warmup_candles_arr, trading_candle_arr = get_candles(
             exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
         )
+
+        # Ensure that trading_candle_arr is not None or empty
+        if trading_candle_arr is None or (isinstance(trading_candle_arr, np.ndarray) and trading_candle_arr.size == 0):
+            _handle_missing_candles(
+                exchange, 
+                symbol, 
+                start_date, 
+                f"Missing trading candles for {symbol} on {exchange}"
+            )
+
+        # Check that the first trading candle covers the requested start date.
+        if trading_candle_arr[0][0] > start_date:
+            _handle_missing_candles(exchange, symbol, start_date)
+
+        # Check that the last trading candle covers the requested finish date.
+        if trading_candle_arr[-1][0] < (finish_date - 60_000):
+            _handle_missing_candles(exchange, symbol, start_date)
 
         # add trading candles
         trading_candles[jh.key(exchange, symbol)] = {

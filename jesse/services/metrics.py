@@ -389,7 +389,12 @@ def hyperparameters(routes_arr: list) -> list:
     hp = []
 
     # add DNA
-    hp.append(['DNA', routes_arr[0].strategy.dna()])
+    dna_value = routes_arr[0].strategy.dna()
+    if dna_value is not None and len(dna_value) > 16:
+        formatted_dna = f"{dna_value[:5]}*****{dna_value[-5:]}"
+        hp.append(['DNA', formatted_dna])
+    else:
+        hp.append(['DNA', dna_value])
 
     # add hyperparameters
     for key in routes_arr[0].strategy.hp:
