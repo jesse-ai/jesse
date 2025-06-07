@@ -92,3 +92,24 @@ def download_backtest_log(session_id: str, token: str = Query(...)):
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 
+
+
+@router.get("/logs/{session_id}")
+def get_logs(session_id: str, token: str = Query(...)):
+    """
+    Get logs as text for a specific session. Similar to download but returns text content instead of file.
+    """
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    try:
+        from jesse.modes.data_provider import get_backtest_logs
+        content = get_backtest_logs(session_id)
+
+        if content is None:
+            return JSONResponse({'error': 'Log file not found'}, status_code=404)
+
+        return JSONResponse({'content': content}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
