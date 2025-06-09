@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = "1.9.1"
+VERSION = "1.9.2"
 DESCRIPTION = "A trading framework for cryptocurrencies"
 with open("requirements.txt", "r", encoding="utf-8") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
