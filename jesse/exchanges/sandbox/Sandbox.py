@@ -4,6 +4,7 @@ from jesse.exchanges.exchange import Exchange
 from jesse.models import Order
 from jesse.store import store
 from typing import Union
+from jesse.models import Order
 
 
 class Sandbox(Exchange):
@@ -26,7 +27,9 @@ class Sandbox(Exchange):
         store.orders.add_order(order)
 
         store.orders.to_execute.append(order)
-
+        if hasattr(store.app, 'session_id'):
+            order.session_id = store.app.session_id
+        Order.store_order_into_db(order)
         return order
 
     def limit_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
@@ -42,7 +45,7 @@ class Sandbox(Exchange):
         })
 
         store.orders.add_order(order)
-
+        Order.store_order_into_db(order)
         return order
 
     def stop_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
@@ -58,7 +61,7 @@ class Sandbox(Exchange):
         })
 
         store.orders.add_order(order)
-
+        Order.store_order_into_db(order)
         return order
 
     def cancel_all_orders(self, symbol: str) -> None:

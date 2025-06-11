@@ -8,7 +8,6 @@ from jesse.services.notifier import notify
 from jesse.enums import order_statuses, order_submitted_via
 from jesse.services.db import database
 
-
 if database.is_closed():
     database.open_connection()
 
@@ -33,6 +32,7 @@ class Order(Model):
     price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
+    updated_at = BigIntegerField(default=jh.now_to_timestamp(True))
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
 
@@ -75,6 +75,48 @@ class Order(Model):
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
         e.on_order_submission(self)
+
+    def store_order_into_db(order) -> None:
+        from jesse.store import store
+
+        d = {
+            'id': order.id,
+            'trade_id': order.trade_id,
+            'exchange_id': order.exchange_id,
+            'vars': order.vars,
+            'symbol': order.symbol,
+            'exchange': order.exchange,
+            'side': order.side,
+            'type': order.type,
+            'reduce_only': order.reduce_only,
+            'qty': order.qty,
+            'filled_qty': order.filled_qty,
+            'price': order.price,
+            'status': order.status,
+            'created_at': order.created_at,
+            'executed_at': order.executed_at,
+            'canceled_at': order.canceled_at,
+            'session_id': store.app.session_id,
+        }
+
+        Order.insert(**d).execute()
+
+    def update_db_order_status(self, status, filled_qty=None) -> None:
+        d = {
+            'status': status,
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        if status == order_statuses.EXECUTED:
+            filled_qty = self.qty if filled_qty is None or filled_qty == 0 else filled_qty
+            d['executed_at'] = jh.now_to_timestamp(True)
+        elif status == order_statuses.PARTIALLY_FILLED:
+            filled_qty = self.filled_qty if filled_qty is None or filled_qty == 0 else filled_qty
+        elif status == order_statuses.CANCELED:
+            d['canceled_at'] = jh.now_to_timestamp(True)
+        else:
+            filled_qty = self.filled_qty
+
+        Order.update(**d).where(Order.id == self.id).execute()
 
     def notify_submission(self) -> None:
         if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
@@ -166,6 +208,7 @@ class Order(Model):
     def queue(self):
         self.status = order_statuses.QUEUED
         self.canceled_at = None
+        self.update_db_order_status(order_statuses.QUEUED)
         if jh.is_debuggable('order_submission'):
             txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
@@ -182,6 +225,9 @@ class Order(Model):
         self.id = jh.generate_unique_id()
         self.status = order_statuses.ACTIVE
         self.canceled_at = None
+
+        self.update_db_order_status(order_statuses.ACTIVE)
+
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
@@ -199,6 +245,7 @@ class Order(Model):
 
         self.canceled_at = jh.now_to_timestamp()
         self.status = order_statuses.CANCELED
+        self.update_db_order_status(order_statuses.CANCELED)
 
         # if jh.is_live():
         #     self.save()
@@ -242,6 +289,7 @@ class Order(Model):
         # log the order of the trade for metrics
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
+        self.update_db_order_status(order_statuses.EXECUTED, self.filled_qty)
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
@@ -271,7 +319,7 @@ class Order(Model):
         # log the order of the trade for metrics
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
-
+        self.update_db_order_status(order_statuses.PARTIALLY_FILLED, self.filled_qty)
         p = selectors.get_position(self.exchange, self.symbol)
 
         if p:
@@ -286,33 +334,34 @@ if database.is_open():
 # # # # # # # # # DB FUNCTIONS # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def store_order_into_db(order) -> None:
-    return
-    from jesse.models.Order import Order
 
-    d = {
-        'id': order.id,
-        'trade_id': order.trade_id,
-        'exchange_id': order.exchange_id,
-        'vars': order.vars,
-        'symbol': order.symbol,
-        'exchange': order.exchange,
-        'side': order.side,
-        'type': order.type,
-        'reduce_only': order.reduce_only,
-        'qty': order.qty,
-        'filled_qty': order.filled_qty,
-        'price': order.price,
-        'status': order.status,
-        'created_at': order.created_at,
-        'executed_at': order.executed_at,
-        'canceled_at': order.canceled_at,
-    }
+# def store_order_into_db(order) -> None:
+#     jh.dump('try to save order')
+#     d = {
+#         'id': order.id,
+#         'trade_id': order.trade_id,
+#         'exchange_id': order.exchange_id,
+#         'vars': order.vars,
+#         'symbol': order.symbol,
+#         'exchange': order.exchange,
+#         'side': order.side,
+#         'type': order.type,
+#         'reduce_only': order.reduce_only,
+#         'qty': order.qty,
+#         'filled_qty': order.filled_qty,
+#         'price': order.price,
+#         'status': order.status,
+#         'created_at': order.created_at,
+#         'executed_at': order.executed_at,
+#         'canceled_at': order.canceled_at,
+#     }
+#     jh.dump('order', d)
+#     Order.insert(**d).execute()
+    # def async_save() -> None:
+    #     Order.insert(**d).execute()
+    #     if jh.is_debugging():
+    #         logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
 
-    def async_save() -> None:
-        Order.insert(**d).execute()
-        if jh.is_debugging():
-            logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
-
-    # async call
-    threading.Thread(target=async_save).start()
+    # import threading
+    # # async call
+    # threading.Thread(target=async_save).start()
