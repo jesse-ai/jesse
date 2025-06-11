@@ -3,6 +3,7 @@ from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.OptimizationSession import OptimizationSession
 import json
 import jesse.helpers as jh
+from jesse.models.LiveSession import LiveSession
 
 def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     result = {
@@ -137,4 +138,23 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'state': session.state_json,
         'exception': session.exception,
         'traceback': session.traceback
+    }
+
+
+def get_live_session(session: LiveSession) -> dict:
+    """
+    Transform an OptimizationSession model instance into a dictionary for API responses
+    """
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'routes': session.routes,
+        'data_routes': session.data_routes,
+        'exchange': session.exchange,
+        'notification_api_key_id': session.notification_api_key_id,
+        'debug_mode': session.debug_mode,
+        'paper_mode': session.paper_mode,
+        'daily_portfolio_balance': session.daily_portfolio_balance
     }

@@ -6,6 +6,8 @@ from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import LiveRequestJson, LiveCancelRequestJson, GetLogsRequestJson, GetOrdersRequestJson
 import jesse.helpers as jh
+from jesse.models.LiveSession import get_live_sessions, get_live_session_by_id, update_live_session_status
+from jesse.services.transformers import get_live_session
 
 router = APIRouter(prefix="/live", tags=["Live Trading"])
 
@@ -41,6 +43,21 @@ def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(No
     return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
 
 
+@router.get("/sessions")
+def get_sessions(authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Get sessions for live trading
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    sessions = get_live_sessions()
+    # Transform the sessions using the transformer
+    transformed_sessions = [get_live_session(session) for session in sessions]
+    return JSONResponse({
+        'sessions': transformed_sessions
+    })
+
 @router.post("/cancel")
 def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
     """
@@ -48,6 +65,12 @@ def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
+
+    # check if the session is running
+    session = get_live_session_by_id(request_json.id)
+    if session.status != 'running':
+        return JSONResponse({'message': f'Live process with ID of {request_json.id} is not running.'}, status_code=400)
+    update_live_session_status(request_json.id, 'terminated')
 
     process_manager.cancel_process(request_json.id)
 

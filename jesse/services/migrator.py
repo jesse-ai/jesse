@@ -30,8 +30,8 @@ def run():
     _exchange_api_keys(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, Option
-    database.db.create_tables([Candle, ClosedTrade, Log, Order])
+    from jesse.models import Candle, ClosedTrade, Log, Order, Option, LiveSession, Trade
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, LiveSession])
 
     database.close_connection()
 

@@ -6,6 +6,9 @@ import threading
 
 class Trade(peewee.Model):
     id = peewee.UUIDField(primary_key=True)
+
+    session_id = peewee.UUIDField()
+
     # timestamp in milliseconds
     timestamp = peewee.BigIntegerField()
 
@@ -40,10 +43,10 @@ class Trade(peewee.Model):
 # # # # # # # # # DB FUNCTIONS # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-def store_trade_into_db(exchange: str, symbol: str, trade: np.ndarray) -> None:
-    return
+def store_trade_into_db(session_id: str, exchange: str, symbol: str, trade: np.ndarray) -> None:
     d = {
         'id': jh.generate_unique_id(),
+        'session_id': session_id,
         'timestamp': trade[0],
         'price': trade[1],
         'buy_qty': trade[2],
