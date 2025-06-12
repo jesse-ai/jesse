@@ -36,13 +36,14 @@ def ray_run_scenario(
         
         # Simply log scenarios with missing equity curve
         if 'equity_curve' not in result or result['equity_curve'] is None:
-            print(f"Info: Scenario {scenario_index} missing equity_curve - this will be filtered out")
+            # The logs will be collected but not displayed directly
+            return {'result': result, 'log': f"Info: Scenario {scenario_index} missing equity_curve - this will be filtered out"}
                 
-        return result
+        return {'result': result, 'log': None}
     except Exception as e:
-        # Log and re-raise exceptions
-        print(f"Ray scenario {scenario_index} failed with exception: {str(e)}")
-        raise
+        # Return the error instead of logging directly
+        error_msg = f"Ray scenario {scenario_index} failed with exception: {str(e)}"
+        return {'result': None, 'log': error_msg, 'error': True}
 
 def monte_carlo(
     config: dict,
@@ -81,9 +82,9 @@ def monte_carlo(
                     from tqdm.notebook import tqdm
                 else:
                     from tqdm import tqdm
-                scenarios_list = tqdm(range(scenarios))
+                pbar = tqdm(total=scenarios, desc="Monte Carlo Scenarios")
             else:
-                scenarios_list = range(scenarios)
+                pbar = None
                 
             _backtest = functools.partial(
                 backtest,
@@ -98,14 +99,24 @@ def monte_carlo(
                 with_candles_pipeline=with_candles_pipeline
             )
 
-            results = [
-                _backtest(
+            results = []
+            for i in range(scenarios):
+                result = _backtest(
                     benchmark=benchmark and i == 0, 
                     with_candles_pipeline=i != 0
                 )
-                for i in scenarios_list
-            ]
+                results.append(result)
+                if pbar:
+                    pbar.update(1)
+                    if 'equity_curve' not in result or result['equity_curve'] is None:
+                        if jh.is_notebook():
+                            print(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
+                        else:
+                            tqdm.write(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
             
+            if pbar:
+                pbar.close()
+                
             # Filter out results with missing equity curve
             results = [r for r in results if 'equity_curve' in r and r['equity_curve'] is not None]
             print(f"Returned {len(results)} valid scenarios out of {scenarios} total")
@@ -122,9 +133,9 @@ def monte_carlo(
                     from tqdm.notebook import tqdm
                 else:
                     from tqdm import tqdm
-                scenarios_list = tqdm(range(scenarios))
+                pbar = tqdm(total=scenarios, desc="Monte Carlo Scenarios")
             else:
-                scenarios_list = range(scenarios)
+                pbar = None
                 
             _backtest = functools.partial(
                 backtest,
@@ -139,13 +150,23 @@ def monte_carlo(
                 with_candles_pipeline=with_candles_pipeline
             )
 
-            results = [
-                _backtest(
+            results = []
+            for i in range(scenarios):
+                result = _backtest(
                     benchmark=benchmark and i == 0, 
                     with_candles_pipeline=i != 0
                 )
-                for i in scenarios_list
-            ]
+                results.append(result)
+                if pbar:
+                    pbar.update(1)
+                    if 'equity_curve' not in result or result['equity_curve'] is None:
+                        if jh.is_notebook():
+                            print(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
+                        else:
+                            tqdm.write(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
+            
+            if pbar:
+                pbar.close()
             
             # Filter out results with missing equity curve
             results = [r for r in results if 'equity_curve' in r and r['equity_curve'] is not None]
@@ -153,19 +174,19 @@ def monte_carlo(
             
             return results
         
-        # Use Ray for parallel processing
+        # Initialize progress bar if requested
         if progress_bar:
             if jh.is_notebook():
                 from tqdm.notebook import tqdm
             else:
                 from tqdm import tqdm
-            scenarios_list = tqdm(range(scenarios))
+            pbar = tqdm(total=scenarios, desc="Monte Carlo Scenarios")
         else:
-            scenarios_list = range(scenarios)
+            pbar = None
 
         # Launch all scenarios in parallel
         refs = []
-        for i in scenarios_list:
+        for i in range(scenarios):
             ref = ray_run_scenario.remote(
                 config=config,
                 routes=routes,
@@ -180,8 +201,54 @@ def monte_carlo(
             )
             refs.append(ref)
 
-        # Get results, maintaining the order
-        results = ray.get(refs)
+        # Process results as they complete
+        results = []
+        total_completed = 0
+        while refs:
+            # Wait for any task to complete (with timeout for responsiveness)
+            done_refs, refs = ray.wait(refs, num_returns=1, timeout=0.5)
+            
+            if done_refs:
+                for ref in done_refs:
+                    # Get and append result
+                    try:
+                        response = ray.get(ref)
+                        
+                        # Handle the response structure (result and log)
+                        if isinstance(response, dict) and 'result' in response:
+                            # Add the result if it exists
+                            if response['result'] is not None:
+                                results.append(response['result'])
+                            
+                            # Print log messages in a way that doesn't interfere with the progress bar
+                            if response.get('log') and pbar:
+                                if jh.is_notebook():
+                                    print(response['log'])
+                                else:
+                                    tqdm.write(response['log'])
+                            
+                            # Handle errors
+                            if response.get('error', False):
+                                print(f"Error in scenario: {response.get('log')}")
+                        else:
+                            # Handle old format for backward compatibility
+                            results.append(response)
+                    except Exception as e:
+                        if pbar:
+                            if jh.is_notebook():
+                                print(f"Error processing scenario result: {str(e)}")
+                            else:
+                                tqdm.write(f"Error processing scenario result: {str(e)}")
+                        else:
+                            print(f"Error processing scenario result: {str(e)}")
+                    
+                    # Update progress bar
+                    if pbar:
+                        pbar.update(1)
+                    total_completed += 1
+        
+        if pbar:
+            pbar.close()
         
         # Filter out results with missing equity curve
         valid_results = [r for r in results if 'equity_curve' in r and r['equity_curve'] is not None]
