@@ -42,7 +42,7 @@ class Exchange(ABC):
             self.buy_orders[base_asset] = DynamicNumpyArray((10, 2))
             self.sell_orders[base_asset] = DynamicNumpyArray((10, 2))
             self.assets[base_asset] = 0.0
-            self.assets[self.settlement_currency] = starting_balance
+            self.assets[self.settlement_currency] = 0.0 if jh.is_livetrading() else starting_balance
             self.temp_reduced_amount[base_asset] = 0.0
             self.temp_reduced_amount[self.settlement_currency] = 0.0
             self.starting_assets[base_asset] = 0.0

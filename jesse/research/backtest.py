@@ -106,8 +106,6 @@ def _isolated_backtest(
     router.initiate(routes, data_routes)
 
     validate_routes(router)
-    # TODO: further validate routes and allow only one exchange
-    # TODO: validate the name of the exchange in the config and the route? or maybe to make sure it's a supported exchange
 
     # initiate candle store
     store.candles.init_storage(5000)

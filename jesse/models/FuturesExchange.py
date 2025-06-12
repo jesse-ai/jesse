@@ -170,7 +170,6 @@ class FuturesExchange(Exchange):
         """
         if not jh.is_livetrading():
             raise Exception('This method is only for live trading')
-
         self._available_margin = data['available_margin']
         self._wallet_balance = data['wallet_balance']
         if self._started_balance == 0:

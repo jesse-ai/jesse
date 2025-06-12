@@ -34,3 +34,26 @@ class Log(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     Log.create_table()
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def store_log_into_db(log: dict, log_type: str) -> None:
+    if log_type == 'info':
+        log_type = 1
+    elif log_type == 'error':
+        log_type = 2
+    else:
+        raise ValueError(f"Unsupported log_type value: {log_type}")
+
+    d = {
+        'id': log['id'],
+        'session_id': log['session_id'],
+        'type': log_type,
+        'timestamp': log['timestamp'],
+        'message': log['message']
+    }
+
+    Log.insert(**d).execute()

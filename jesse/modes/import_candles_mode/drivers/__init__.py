@@ -17,6 +17,8 @@ from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet impor
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import ApexOmniPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
+from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual import HyperliquidPerpetual
+from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
 
 
 drivers = {
@@ -35,7 +37,8 @@ drivers = {
     exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
     exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
     exchanges.GATE_SPOT: GateSpot,
-
+    exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
+    exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,

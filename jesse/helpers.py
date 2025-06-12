@@ -169,6 +169,14 @@ def dashy_to_underline(symbol: str) -> str:
     return symbol.replace('-', '_')
 
 
+def get_base_asset(symbol: str) -> str:
+    return symbol.split('-')[0]
+
+
+def get_quote_asset(symbol: str) -> str:
+    return symbol.split('-')[1]
+
+
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
     if type(date1) is not arrow.arrow.Arrow or type(
             date2) is not arrow.arrow.Arrow:
@@ -190,22 +198,35 @@ def date_to_timestamp(date: str) -> int:
 
 
 def dna_to_hp(strategy_hp, dna: str):
-    hp = {}
+    # First, try to decode as Base64
+    try:
+        import base64
+        import json
+        # Try to decode the DNA as base64
+        decoded_bytes = base64.b64decode(dna)
+        # Try to parse as JSON
+        decoded_json = json.loads(decoded_bytes.decode('utf-8'))
+        # If successful, the decoded JSON should be the hyperparameters
+        return decoded_json
+    except (ValueError, base64.binascii.Error, json.JSONDecodeError):
+        # If decoding fails, use the legacy method
+        hp = {}
 
-    for gene, h in zip(dna, strategy_hp):
-        if h['type'] is int:
-            decoded_gene = int(
-                round(
-                    convert_number(119, 40, h['max'], h['min'], ord(gene))
+        for gene, h in zip(dna, strategy_hp):
+            if h['type'] is int:
+                decoded_gene = int(
+                    round(
+                        convert_number(119, 40, h['max'], h['min'], ord(gene))
+                    )
                 )
-            )
-        elif h['type'] is float:
-            decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
-        else:
-            raise TypeError('Only int and float types are implemented')
+            elif h['type'] is float:
+                decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
+            else:
+                raise TypeError('Only int and float types are implemented')
 
-        hp[h['name']] = decoded_gene
-    return hp
+            hp[h['name']] = decoded_gene
+        
+        return hp
 
 
 def dump_exception() -> None:
@@ -784,6 +805,35 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
         return np.floor(number / factor) * factor
 
 
+def is_almost_equal(a: float, b: float, tolerance: float = 1e-8) -> bool:
+    """
+    Compares two floating point values with a small tolerance to account for floating point precision issues.
+    
+    :param a: First float value to compare
+    :param b: Second float value to compare
+    :param tolerance: The tolerance level for the comparison (default: 1e-8)
+    :return: bool - True if the difference between a and b is less than or equal to the tolerance
+    """
+    # Check if both are None, which means they're equal
+    if a is None and b is None:
+        return True
+    
+    # Check if only one is None, which means they're not equal
+    if a is None or b is None:
+        return False
+    
+    # Check for exact equality first (optimizes for common case)
+    if a == b:
+        return True
+    
+    # For values very close to zero, use absolute tolerance
+    if abs(a) < tolerance and abs(b) < tolerance:
+        return abs(a - b) <= tolerance
+    
+    # For non-zero values, use relative tolerance
+    return abs((a - b) / max(abs(a), abs(b))) <= tolerance
+
+
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
     return np.concatenate((np.full((bigger.shape[0] - shorter.shape[0]), np.nan), shorter))
 
@@ -1160,3 +1210,23 @@ def compressed_response(content: str) -> dict:
         'is_compressed': True,
         'data': base64.b64encode(compressed).decode('utf-8')
     }
+
+def validate_cwd() -> None:
+    """
+    make sure we're in a Jesse project
+    """
+    if not is_jesse_project():
+        print(
+            color(
+                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
+                'red'
+            )
+        )
+        os._exit(1)
+
+def has_live_trade_plugin() -> bool:
+    try:
+        import jesse_live
+    except ModuleNotFoundError:
+        return False
+    return True

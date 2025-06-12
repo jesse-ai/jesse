@@ -1,28 +1,87 @@
 import os
-from abc import ABC
+import json
+import base64
 from datetime import timedelta
-from multiprocessing import Manager, Process, cpu_count
-from random import choices, randint
-
-import click
+from multiprocessing import cpu_count
+import optuna
+import ray
 import numpy as np
-import pydash
-from pandas import json_normalize
-from timeloop import Timeloop
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse import exceptions, sync_publish
-from jesse.modes.optimize_mode.fitness import create_baby, get_and_add_fitness_to_the_bucket
+from jesse import exceptions
+from jesse.services.redis import sync_publish
+from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
-from jesse.store import store
+from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials, get_optimization_session, get_optimization_session_by_id
+import traceback
+
+# Define a Ray-compatible remote function
 
 
-class Optimizer(ABC):
+@ray.remote
+def ray_evaluate_trial(
+    user_config,
+    formatted_routes,
+    formatted_data_routes,
+    strategy_hp,
+    hp,
+    training_warmup_candles,
+    training_candles,
+    testing_warmup_candles,
+    testing_candles,
+    optimal_total,
+    fast_mode,
+    trial_number
+):
+    """Ray remote function to evaluate a trial"""
+    try:
+        # Calculate the fitness score using the provided hyperparameters
+        score, training_metrics, testing_metrics = get_fitness(
+            user_config,
+            formatted_routes,
+            formatted_data_routes,
+            strategy_hp,
+            hp,
+            training_warmup_candles,
+            training_candles,
+            testing_warmup_candles,
+            testing_candles,
+            optimal_total,
+            fast_mode
+        )
+
+        # Log the trial details if debugging is enabled
+        if jh.is_debugging():
+            logger.log_optimize_mode(f"Ray Trial {trial_number}: Score={score}, Params={hp}")
+
+        return {
+            'trial_number': trial_number,
+            'score': score,
+            'params': hp,
+            'training_metrics': training_metrics,
+            'testing_metrics': testing_metrics
+        }
+    except exceptions.RouteNotFound as e:
+        # Convert RouteNotFound to a standard RuntimeError to avoid serialization issues
+        error_msg = str(e)
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with RouteNotFound: {error_msg}")
+        logger.log_optimize_mode(f"Trial {trial_number} hyperparameters: {hp}")
+        raise RuntimeError(f"RouteNotFound: {error_msg}")
+    except Exception as e:
+        # Log and re-raise other exceptions
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with exception: {str(e)}")
+        raise
+
+# Optimizer class that uses Ray for hyperparameter optimization
+
+
+class Optimizer:
     def __init__(
             self,
+            session_id: str,
+            user_config: dict,
             training_warmup_candles: dict,
             training_candles: dict,
             testing_warmup_candles: dict,
@@ -30,467 +89,566 @@ class Optimizer(ABC):
             fast_mode: bool,
             optimal_total: int,
             cpu_cores: int,
-            csv: bool,
-            export_json: bool,
-            start_date: str,
-            finish_date: str,
-            charset: str = r'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw',
-            fitness_goal: float = 1,
     ) -> None:
-        if len(router.routes) != 1:
-            raise NotImplementedError('optimize_mode mode only supports one route at the moment')
+        # Check for Python 3.13 first thing
+        if jh.python_version() == (3, 13):
+            raise ValueError(
+                'Optimization is not supported on Python 3.13. The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
 
-        self.strategy_name = router.routes[0].strategy_name
-        self.exchange = router.routes[0].exchange
-        self.symbol = router.routes[0].symbol
-        self.timeframe = router.routes[0].timeframe
-        strategy_class = jh.get_strategy_class(self.strategy_name)
+        self.session_id = session_id
+
+        # Retrieve the target strategy and its hyperparameter configuration
+        strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
+
         self.strategy_hp = strategy_class.hyperparameters(None)
-        solution_len = len(self.strategy_hp)
 
-        if solution_len == 0:
+        if not self.strategy_hp:
+            update_optimization_session_status(self.session_id, 'stopped')
             raise exceptions.InvalidStrategy('Targeted strategy does not implement a valid hyperparameters() method.')
 
-        self.started_index = 0
+        # Create study storage for persistence
+        os.makedirs('./storage/temp/optuna', exist_ok=True)
+        self.storage_url = f"sqlite:///./storage/temp/optuna/optuna_study.db"
+        # The study_name uniquely identifies the optimization session - changing it will create a new session
+        self.study_name = f"{router.routes[0].strategy_name}_optuna_ray_{self.session_id}"
+
+        self.solution_len = len(self.strategy_hp)
         self.start_time = jh.now_to_timestamp()
-        self.population = []
-        self.iterations = 2000 * solution_len
-        self.population_size = solution_len * 100
-        self.solution_len = solution_len
-        self.charset = charset
-        self.fitness_goal = fitness_goal
         self.fast_mode = fast_mode
-        self.cpu_cores = 0
         self.optimal_total = optimal_total
         self.training_warmup_candles = training_warmup_candles
         self.training_candles = training_candles
         self.testing_warmup_candles = testing_warmup_candles
         self.testing_candles = testing_candles
-        self.average_execution_seconds = 0
+        self.user_config = user_config
 
+        # Validate and set the number of CPU cores to use
+        if cpu_cores < 1:
+            raise ValueError('cpu_cores must be an integer value greater than 0.')
+        available = cpu_count()
+        self.cpu_cores = cpu_cores if cpu_cores <= available else available
+
+        # Get number of trials from settings
+        self.n_trials = self.solution_len * jh.get_config('env.optimization.trials', 200)
+
+        # Create a progress bar instance to update the front end about optimization progress
+        self.progressbar = Progressbar(self.n_trials)
+
+        # Initialize best trials tracking
+        self.best_trials = []
+
+        # Trial counter and completed trials
+        self.trial_counter = 0
+        self.completed_trials = 0
+
+        # Create or load the Optuna study for persistence
+        self.study = optuna.create_study(
+            direction='maximize',
+            storage=self.storage_url,
+            study_name=self.study_name,
+            load_if_exists=True
+        )
+
+        # Buffer to accumulate objective curve data points (one point per trial)
+        self.objective_curve_buffer = []
+        self.total_objective_curve_buffer = []
+
+        # Initialize Ray if not already
+        if not ray.is_initialized():
+            try:
+                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores")
+            except Exception as e:
+                logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.")
+                self.cpu_cores = 1
+                ray.init(num_cpus=1, ignore_reinit_error=True)
+
+        # Setup a periodic termination check in case the user ends the session
         client_id = jh.get_session_id()
-        # check for termination event once per second
-        tl_0 = Timeloop()
-        @tl_0.job(interval=timedelta(seconds=1))
+        from timeloop import Timeloop
+        self.tl = Timeloop()
+
+        @self.tl.job(interval=timedelta(seconds=1))
         def check_for_termination():
             if is_process_active(client_id) is False:
+                # Update session status to 'stopped' in the database
+                if get_optimization_session(self.session_id)['status'] != 'terminated':
+                    update_optimization_session_status(self.session_id, 'stopped')
                 raise exceptions.Termination
-        tl_0.start()
+        self.tl.start()
 
-        options = {
-            'strategy_name': self.strategy_name,
-            'exchange': self.exchange,
-            'symbol': self.symbol,
-            'timeframe': self.timeframe,
-            'strategy_hp': self.strategy_hp,
-            'csv': csv,
-            'json': export_json,
-            'start_date': start_date,
-            'finish_date': finish_date,
-        }
+        # Load existing trials from the Optuna study
+        self._load_study_trials()
 
-        self.options = {} if options is None else options
-        os.makedirs('./storage/temp/optimize', exist_ok=True)
-        # self.temp_path = f"./storage/temp/optimize/{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}.pickle"
+    def _load_study_trials(self):
+        """Load trials from the database session"""
+        session_data = get_optimization_session_by_id(self.session_id)
 
-        if fitness_goal > 1 or fitness_goal < 0:
-            raise ValueError('fitness scores must be between 0 and 1')
+        def replace_inf_with_null(obj):
+            if isinstance(obj, dict):
+                return {k: replace_inf_with_null(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [replace_inf_with_null(item) for item in obj]
+            elif isinstance(obj, float) and (obj == float('inf') or obj == float('-inf')):
+                return None
+            return obj
+        try:
+            # Get completed trials from the Optuna study
+            completed_trials = session_data.completed_trials
+            if not completed_trials:
+                logger.log_optimize_mode("No previous trials found. Starting new optimization session.")
+                return
 
-        if not optimal_total > 0:
-            raise ValueError('optimal_total must be bigger than 0')
+            # Update completed trials count
+            self.completed_trials = completed_trials
+            logger.log_optimize_mode(f"Loaded {self.completed_trials} completed trials from previous session")
+            self.best_trials = replace_inf_with_null(json.loads(session_data.best_trials))
+            # Update best candidates display
+            self._update_best_candidates()
 
-        # # if temp file exists, load data to resume previous session
-        # if jh.file_exists(self.temp_path) and click.confirm(
-        #         'Previous session detected. Do you want to resume?', default=True
-        # ):
-        #     self.load_progress()
+            # Update progress bar efficiently
+            self._set_progressbar_index(self.completed_trials)
 
-        if cpu_cores > cpu_count():
-            raise ValueError(f'Entered cpu cores number is more than available on this machine which is {cpu_count()}')
-        elif cpu_cores == 0:
-            self.cpu_cores = cpu_count()
-        else:
-            self.cpu_cores = cpu_cores
+            # Set trial counter to start from after the last trial
+            self.trial_counter = completed_trials
 
-    def generate_initial_population(self) -> None:
-        """
-        generates the initial population
-        """
-        length = int(self.population_size / self.cpu_cores)
-
-        progressbar = Progressbar(length)
-        for i in range(length):
-            people = []
-            with Manager() as manager:
-                dna_bucket = manager.list([])
-                workers = []
-
-                try:
-                    for _ in range(self.cpu_cores):
-                        dna = ''.join(choices(self.charset, k=self.solution_len))
-                        w = Process(
-                            target=get_and_add_fitness_to_the_bucket,
-                            args=(
-                                dna_bucket, jh.get_config('env.optimization'), router.formatted_routes, router.formatted_data_routes,
-                                self.strategy_hp, dna, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total, self.fast_mode
-                            )
-                        )
-                        w.start()
-                        workers.append(w)
-
-                    # join workers
-                    for w in workers:
-                        w.join()
-                        if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {w.exitcode}')
-                except exceptions.Termination:
-                    self._handle_termination(manager, workers)
-
-                for d in dna_bucket:
-                    people.append({
-                        'dna': d[0],
-                        'fitness': d[1],
-                        'training_log': d[2],
-                        'testing_log': d[3]
-                    })
-
-            # update dashboard
-            self.update_progressbar(progressbar)
-
-            # general_info streams
-            general_info = {
-                'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                'index': f'{(i + 1) * self.cpu_cores}/{self.population_size}',
-                'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
-                'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
-                'average_execution_seconds': self.average_execution_seconds
-            }
-            if jh.is_debugging():
-                general_info['population_size'] = self.population_size
-                general_info['iterations'] = self.iterations
-                general_info['solution_length'] = self.solution_len
-            sync_publish('general_info', general_info)
-
-            for p in people:
-                self.population.append(p)
-
-        sync_publish('progressbar', {
-            'current': 100,
-            'estimated_remaining_seconds': 0
-        })
-        # sort the population
-        self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
-
-    def select_person(self) -> dict:
-        # len(self.population) instead of self.population_size because some DNAs might not have been created due to errors
-        # to fix an issue with being less than 100 population_len (which means there's only on hyperparameter in the strategy)
-        population_len = len(self.population)
-        if population_len == 0:
-            raise IndexError('population is empty')
-        count = int(population_len / 100)
-        if count == 0:
-            count = 1
-        random_index = np.random.choice(population_len, count, replace=False)
-        chosen_ones = [self.population[r] for r in random_index]
-        return pydash.max_by(chosen_ones, 'fitness')
-
-    def evolve(self) -> list:
-        """
-        the main method, that runs the evolutionary algorithm
-        """
-        # clear the logs to start from a clean slate
-        jh.clear_file('storage/logs/optimize-mode.txt')
-
-        logger.log_optimize_mode('Optimization session started')
-
-        if self.started_index == 0:
-            logger.log_optimize_mode(
-                f"Generating {self.population_size} population size (random DNAs) using {self.cpu_cores} CPU cores"
+            self.total_objective_curve_buffer = json.loads(session_data.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null'))
+            # Update the database with loaded trials
+            update_optimization_session_trials(
+                self.session_id,
+                self.completed_trials,
+                self.best_trials,
+                self.total_objective_curve_buffer,
+                self.n_trials
             )
-            self.generate_initial_population()
 
-            if len(self.population) < 0.5 * self.population_size:
-                msg = f'Too many errors! less than half of the expected population size could be generated. Only {len(self.population)} individuals from planned {self.population_size} are usable. Read more at https://jesse.trade/help/faq/bad-optimization-results-or-valueerror-too-many-errors-less-than-half-of-the-expected-population-size-could-be-generated'
-                logger.log_optimize_mode(msg)
-                raise ValueError(msg)
+        except Exception as e:
+            logger.log_optimize_mode(f"Error loading previous trials: {e}")
+            # Reset counters in case of failure
+            self.completed_trials = 0
+            self.trial_counter = 0
 
-            # if even our best individual is too weak, then we better not continue
-            if self.population[0]['fitness'] == 0.0001:
-                msg = 'Cannot continue because no individual with the minimum fitness-score was found. Your strategy seems to be flawed or maybe it requires modifications. '
-                logger.log_optimize_mode(msg)
-                raise exceptions.InvalidStrategy(msg)
+    def _generate_trial_params(self):
+        """Generate random hyperparameters for a trial"""
+        hp = {}
+        for param in self.strategy_hp:
+            param_name = str(param['name'])
+            param_type = param['type']
+            # Convert to string whether input is type class or string
+            if isinstance(param_type, type):
+                param_type = param_type.__name__
+            else:
+                # Remove quotes if they exist
+                param_type = param_type.strip("'").strip('"')
 
-        loop_length = int(self.iterations / self.cpu_cores)
-
-        i = self.started_index
-        progressbar = Progressbar(loop_length)
-        while i < loop_length:
-            with Manager() as manager:
-                people_bucket = manager.list([])
-                workers = []
-
-                try:
-                    for _ in range(self.cpu_cores):
-                        mommy = self.select_person()
-                        daddy = self.select_person()
-                        w = Process(
-                            target=create_baby,
-                            args=(
-                                people_bucket, mommy, daddy, self.solution_len, self.charset,
-                                jh.get_config('env.optimization'), router.formatted_routes,
-                                router.formatted_data_routes,
-                                self.strategy_hp, self.training_warmup_candles, self.training_candles, self.testing_warmup_candles, self.testing_candles,
-                                self.optimal_total, self.fast_mode
-                            )
-                        )
-                        w.start()
-                        workers.append(w)
-
-                    for w in workers:
-                        w.join()
-                        if w.exitcode > 0:
-                            logger.error(f'a process exited with exitcode: {w.exitcode}')
-                except exceptions.Termination:
-                    self._handle_termination(manager, workers)
-
-                # update dashboard
-                click.clear()
-                self.update_progressbar(progressbar)
-                # general_info streams
-                general_info = {
-                    'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
-                    'index': f'{(i + 1) * self.cpu_cores}/{self.iterations}',
-                    'errors_info_count': f'{len(store.logs.errors)}/{len(store.logs.info)}',
-                    'trading_route': f'{router.routes[0].exchange}, {router.routes[0].symbol}, {router.routes[0].timeframe}, {router.routes[0].strategy_name}',
-                    'average_execution_seconds': self.average_execution_seconds
-                }
-                if jh.is_debugging():
-                    general_info['population_size'] = self.population_size
-                    general_info['iterations'] = self.iterations
-                    general_info['solution_length'] = self.solution_len
-                sync_publish('general_info', general_info)
-
-                if self.population_size > 50:
-                    number_of_ind_to_show = 40
-                elif self.population_size > 20:
-                    number_of_ind_to_show = 15
-                elif self.population_size > 9:
-                    number_of_ind_to_show = 9
+            if param_type == 'int':
+                if 'step' in param and param['step'] is not None:
+                    steps = (param['max'] - param['min']) // param['step'] + 1
+                    value = param['min'] + np.random.randint(0, steps) * param['step']
                 else:
-                    raise ValueError('self.population_size cannot be less than 10')
+                    value = np.random.randint(param['min'], param['max'] + 1)
+                hp[param_name] = value
+            elif param_type == 'float':
+                if 'step' in param and param['step'] is not None:
+                    steps = int((param['max'] - param['min']) / param['step']) + 1
+                    value = param['min'] + np.random.randint(0, steps) * param['step']
+                else:
+                    value = np.random.uniform(param['min'], param['max'])
+                hp[param_name] = value
+            elif param_type == 'categorical':
+                options = param['options']
+                hp[param_name] = options[np.random.randint(0, len(options))]
+            else:
+                raise ValueError(f"Unsupported hyperparameter type: {param_type}")
 
-                best_candidates = [{
-                        'rank': j + 1,
-                        'dna': self.population[j]['dna'],
-                        'fitness': round(self.population[j]['fitness'], 4),
-                        'training_win_rate': self.population[j]['training_log']['win-rate'],
-                        'training_total_trades': self.population[j]['training_log']['total'],
-                        'training_pnl': self.population[j]['training_log']['PNL'],
-                        'testing_win_rate': self.population[j]['testing_log']['win-rate'],
-                        'testing_total_trades': self.population[j]['testing_log']['total'],
-                        'testing_pnl': self.population[j]['testing_log']['PNL'],
-                    } for j in range(number_of_ind_to_show)]
-                sync_publish('best_candidates', best_candidates)
+        return hp
 
-                # one person has to die and be replaced with the newborn baby
-                for baby in people_bucket:
-                    # never kill our best performer
-                    random_index = randint(1, len(self.population) - 1)
-                    self.population[random_index] = baby
-                    self.population = list(sorted(self.population, key=lambda x: x['fitness'], reverse=True))
+    def _create_optuna_trial(self, trial_number, params, score, training_metrics, testing_metrics):
+        """Create and store an Optuna trial for persistence"""
+        try:
+            # Create distributions for the parameters
+            distributions = {}
+            for param in self.strategy_hp:
+                param_name = str(param['name'])
+                param_type = param['type']
+                if isinstance(param_type, type):
+                    param_type = param_type.__name__
+                else:
+                    param_type = param_type.strip("'").strip('"')
 
-                    # reaching the fitness goal could also end the process
-                    if baby['fitness'] >= self.fitness_goal:
-                        self.update_progressbar(progressbar, finished=True)
-                        sync_publish('alert', {
-                            'message': f'Fitness goal reached after iteration {i*self.cpu_cores}',
-                            'type': 'success'
-                        })
-                        return baby
+                if param_type == 'int':
+                    if 'step' in param and param['step'] is not None:
+                        distributions[param_name] = optuna.distributions.IntDistribution(
+                            low=param['min'],
+                            high=param['max'],
+                            step=param['step']
+                        )
+                    else:
+                        distributions[param_name] = optuna.distributions.IntDistribution(
+                            low=param['min'],
+                            high=param['max']
+                        )
+                elif param_type == 'float':
+                    if 'step' in param and param['step'] is not None:
+                        distributions[param_name] = optuna.distributions.FloatDistribution(
+                            low=param['min'],
+                            high=param['max'],
+                            step=param['step']
+                        )
+                    else:
+                        distributions[param_name] = optuna.distributions.FloatDistribution(
+                            low=param['min'],
+                            high=param['max']
+                        )
+                elif param_type == 'categorical':
+                    distributions[param_name] = optuna.distributions.CategoricalDistribution(param['options'])
 
-                # TODO: bring back progress resumption
-                # # save progress after every n iterations
-                # if i != 0 and int(i * self.cpu_cores) % 50 == 0:
-                #     self.save_progress(i)
+            # Create a new trial
+            trial = optuna.create_trial(
+                params=params,
+                distributions=distributions,
+                value=score,
+                user_attrs={
+                    'training_metrics': training_metrics,
+                    'testing_metrics': testing_metrics
+                }
+            )
 
-                # TODO: bring back
-                # # store a take_snapshot of the fittest individuals of the population
-                # if i != 0 and i % int(100 / self.cpu_cores) == 0:
-                #     self.take_snapshot(i * self.cpu_cores)
+            # Add the trial to the study
+            self.study.add_trial(trial)
+            return True
 
-                i += 1
+        except Exception as e:
+            logger.log_optimize_mode(f"Error creating Optuna trial: {e}")
+            return False
 
-                logger.log_optimize_mode('Saving to CSV file...')
-                study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
+    def _process_trial_result(self, result):
+        """Process the result of a completed trial"""
+        trial_number = result['trial_number']
+        score = result['score']
+        params = result['params']
+        training_metrics = result['training_metrics']
+        testing_metrics = result['testing_metrics']
 
-                dna_json = {'snapshot': []}
-                index = f'{(i + 1) * self.cpu_cores}/{self.population_size}'
-                for i in range(30):
-                    dna_json['snapshot'].append(
-                        {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-                            'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
-                            'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
+        # Update progress
+        self.completed_trials += 1
+        self.progressbar.update()
 
-                path = f'./storage/genetics/{study_name}.txt'
-                os.makedirs('./storage/genetics', exist_ok=True)
-                txt = ''
-                with open(path, 'a', encoding="utf-8") as f:
-                    txt += '\n\n'
-                    txt += f'# iteration {index}'
-                    txt += '\n'
+        # Store trial in Optuna for persistence
+        self._create_optuna_trial(trial_number, params, score, training_metrics, testing_metrics)
 
-                    for i in range(30):
-                        log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
+        # Update the dashboard with general information about the progress
+        general_info = {
+            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+            'trial': f'{self.completed_trials}/{self.n_trials}',
+            'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
+            'exchange_type': self.user_config['exchange']['type'],
+            'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
+            'leverage': self.user_config['exchange']['futures_leverage'],
+            'cpu_cores': self.cpu_cores,
+        }
+        sync_publish('general_info', general_info)
 
-                        txt += '\n'
-                        txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
-
-                    f.write(txt)
-
-                path = f'storage/genetics/csv/{study_name}.csv'
-                os.makedirs('./storage/genetics/csv', exist_ok=True)
-                exists = os.path.exists(path)
-
-                df = json_normalize(dna_json['snapshot'])
-
-                with open(path, 'a', newline='', encoding="utf-8") as outfile:
-                    if not exists:
-                        # header of CSV file
-                        df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-
-                    df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-
-        sync_publish('alert', {
-            'message': f"Finished {self.iterations} iterations. Check your best DNA candidates, "
-                       f"if you don't like any of them, try modifying your strategy.",
-            'type': 'success'
-        })
-
-        return self.population
-
-    def run(self) -> list:
-        return self.evolve()
-
-    @staticmethod
-    def _handle_termination(manager, workers):
-        logger.info('Terminating session...')
-
-        # terminate all workers
-        for w in workers:
-            w.terminate()
-
-        # shutdown the manager process manually since garbage collection cannot won't get to do it for us
-        manager.shutdown()
-
-        # now we can terminate the main session safely
-        raise exceptions.Termination
-
-    def update_progressbar(self, progressbar, finished=False):
-        if finished:
-            progressbar.finish()
-        else:
-            progressbar.update()
-        self.average_execution_seconds = progressbar.average_execution_seconds / self.cpu_cores
+        # Update the progress bar and publish the current progress to the dashboard
         sync_publish('progressbar', {
-            'current': progressbar.current,
-            'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
+            'current': self.progressbar.current,
+            'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
 
+        # Process trial metrics for objective curve
+        self._process_trial_metrics(trial_number, training_metrics, testing_metrics)
 
-    # def save_progress(self, iterations_index: int) -> None:
-    #     """
-    #     pickles data so we can later resume optimizing
-    #     """
-    #     data = {
-    #         'population': self.population,
-    #         'iterations': self.iterations,
-    #         'iterations_index': iterations_index,
-    #         'population_size': self.population_size,
-    #         'solution_len': self.solution_len,
-    #         'charset': self.charset,
-    #         'fitness_goal': self.fitness_goal,
-    #         'options': self.options,
-    #     }
-    #
-    #     with open(self.temp_path, 'wb') as f:
-    #         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        # Add to best trials if the score is valid
+        if score > 0.0001:
+            # Convert parameters to DNA (base64)
+            params_str = json.dumps(params, sort_keys=True)
+            dna = base64.b64encode(params_str.encode()).decode()
 
-    # def load_progress(self) -> None:
-    #     """
-    #     Unpickles data to resume from previous optimizing session population
-    #     """
-    #     with open(self.temp_path, 'rb') as f:
-    #         data = pickle.load(f)
-    #
-    #     self.population = data['population']
-    #     self.iterations = data['iterations']
-    #     self.started_index = data['iterations_index']
-    #     self.population_size = data['population_size']
-    #     self.solution_len = data['solution_len']
-    #     self.charset = data['charset']
-    #     self.fitness_goal = data['fitness_goal']
-    #     self.options = data['options']
+            # Create trial info dict
+            current_trial_info = {
+                'trial': trial_number,
+                'params': params,
+                'fitness': round(score, 4),
+                'value': score,  # Used for sorting, not sent to frontend
+                'dna': dna,
+                'training_metrics': training_metrics,
+                'testing_metrics': testing_metrics
+            }
 
-    # def take_snapshot(self, index: int) -> None:
-    #     """
-    #     stores a snapshot of the fittest population members into a file.
-    #     """
-    #     study_name = f"{self.options['strategy_name']}-{self.options['exchange']}-{self.options['symbol']}-{self.options['timeframe']}-{self.options['start_date']}-{self.options['finish_date']}"
-    #
-    #     dna_json = {'snapshot': []}
-    #     for i in range(30):
-    #         dna_json['snapshot'].append(
-    #             {'iteration': index, 'dna': self.population[i]['dna'], 'fitness': self.population[i]['fitness'],
-    #              'training_log': self.population[i]['training_log'], 'testing_log': self.population[i]['testing_log'],
-    #              'parameters': jh.dna_to_hp(self.options['strategy_hp'], self.population[i]['dna'])})
-    #
-    #     path = f'./storage/genetics/{study_name}.txt'
-    #     os.makedirs('./storage/genetics', exist_ok=True)
-    #     txt = ''
-    #     with open(path, 'a', encoding="utf-8") as f:
-    #         txt += '\n\n'
-    #         txt += f'# iteration {index}'
-    #         txt += '\n'
-    #
-    #         for i in range(30):
-    #             log = f"win-rate: {self.population[i]['training_log']['win-rate']} %, total: {self.population[i]['training_log']['total']}, PNL: {self.population[i]['training_log']['PNL']} % || win-rate: {self.population[i]['testing_log']['win-rate']} %, total: {self.population[i]['testing_log']['total']}, PNL: {self.population[i]['testing_log']['PNL']} %"
-    #
-    #             txt += '\n'
-    #             txt += f"{i + 1} ==  {self.population[i]['dna']}  ==  {self.population[i]['fitness']}  ==  {log}"
-    #
-    #         f.write(txt)
-    #
-    #     if self.options['csv']:
-    #         path = f'storage/genetics/csv/{study_name}.csv'
-    #         os.makedirs('./storage/genetics/csv', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         df = json_normalize(dna_json['snapshot'])
-    #
-    #         with open(path, 'a', newline='', encoding="utf-8") as outfile:
-    #             if not exists:
-    #                 # header of CSV file
-    #                 df.to_csv(outfile, header=True, index=False, encoding='utf-8')
-    #
-    #             df.to_csv(outfile, header=False, index=False, encoding='utf-8')
-    #
-    #     if self.options['json']:
-    #         path = f'storage/genetics/json/{study_name}.json'
-    #         os.makedirs('./storage/genetics/json', exist_ok=True)
-    #         exists = os.path.exists(path)
-    #
-    #         mode = 'r+' if exists else 'w'
-    #         with open(path, mode, encoding="utf-8") as file:
-    #             if not exists:
-    #                 snapshots = {"snapshots": []}
-    #                 snapshots["snapshots"].append(dna_json['snapshot'])
-    #                 json.dump(snapshots, file, ensure_ascii=False)
-    #             else:
-    #                 # file exists - append
-    #                 file.seek(0)
-    #                 data = json.load(file)
-    #                 data["snapshots"].append(dna_json['snapshot'])
-    #                 file.seek(0)
-    #                 json.dump(data, file, ensure_ascii=False)
-    #             file.write('\n')
+            # Debug log trial metrics
+            if jh.is_debugging():
+                jh.debug(f"Trial {trial_number} processed - fitness: {score}")
+                jh.debug(f"Trial {trial_number} has training metrics: {bool(training_metrics)}")
+                jh.debug(f"Trial {trial_number} has testing metrics: {bool(testing_metrics)}")
+
+            # Insert into best_trials maintaining sorted order
+            insert_idx = 0
+            for idx, t in enumerate(self.best_trials):
+                if score > t['value']:
+                    insert_idx = idx
+                    break
+                else:
+                    insert_idx = idx + 1
+
+            if insert_idx < 20 or len(self.best_trials) < 20:
+                self.best_trials.insert(insert_idx, current_trial_info)
+                # Keep only top 20
+                self.best_trials = self.best_trials[:20]
+
+            # Update best candidates table
+            self._update_best_candidates()
+
+            # Update the database with the latest trials data
+            # We do this every 5 trials to avoid too many database writes
+            if self.completed_trials % 5 == 0:
+
+                update_optimization_session_trials(
+                    self.session_id,
+                    self.completed_trials,
+                    self.best_trials,
+                    self.total_objective_curve_buffer,
+                    self.n_trials
+                )
+
+    def _update_best_candidates(self):
+        """Update the best candidates table in the dashboard"""
+        # Get the objective function configuration
+        objective_function_config = jh.get_config('env.optimization.objective_function', 'sharpe').lower()
+        mapping = {
+            'sharpe': 'sharpe_ratio',
+            'calmar': 'calmar_ratio',
+            'sortino': 'sortino_ratio',
+            'omega': 'omega_ratio',
+            'serenity': 'serenity_index',
+            'smart sharpe': 'smart_sharpe',
+            'smart sortino': 'smart_sortino'
+        }
+        metric_key = mapping.get(objective_function_config, objective_function_config)
+
+        best_candidates = []
+        for idx, t in enumerate(self.best_trials):
+            train_value = t.get('training_metrics', {}).get(metric_key, None)
+            test_value = t.get('testing_metrics', {}).get(metric_key, None)
+            if isinstance(train_value, (int, float)):
+                train_value = round(train_value, 2)
+            if isinstance(test_value, (int, float)):
+                test_value = round(test_value, 2)
+            if train_value is None:
+                train_value = "N/A"
+            if test_value is None:
+                test_value = "N/A"
+
+            candidate_objective_metric = f"{train_value} / {test_value}"
+
+            best_candidates.append({
+                'rank': f"#{idx + 1}",
+                'trial': f"Trial {t['trial']}",
+                'params': t['params'],
+                'fitness': t['fitness'],
+                'dna': t['dna'],
+                'training_metrics': t.get('training_metrics', {}),
+                'testing_metrics': t.get('testing_metrics', {}),
+                'objective_metric': candidate_objective_metric
+            })
+
+        # Send top candidates to the dashboard
+        sync_publish('best_candidates', best_candidates)
+
+    def _process_trial_metrics(self, trial_number, training_metrics, testing_metrics):
+        """Process metrics from a completed trial to update objective curve"""
+        # Only add to buffer if both metrics exist and are not empty
+        if training_metrics and testing_metrics:
+            data_point = {
+                'trial': trial_number + 1,
+                'training': training_metrics,
+                'testing': testing_metrics
+            }
+            self.objective_curve_buffer.append(data_point)
+
+            if jh.is_debugging():
+                jh.debug(f"Added trial {trial_number + 1} to objective curve buffer with metrics")
+        else:
+            if jh.is_debugging():
+                jh.debug(f"Skipped trial {trial_number + 1} - missing metrics. Training: {bool(training_metrics)}, Testing: {bool(testing_metrics)}")
+
+        # Publish a batch every 5 trials or when buffer reaches 10 items
+        buffer_size = len(self.objective_curve_buffer)
+        if buffer_size >= 10 or (buffer_size > 0 and self.completed_trials % 5 == 0):
+            if jh.is_debugging():
+                jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
+            sync_publish('objective_curve', self.objective_curve_buffer)
+
+            if len(self.objective_curve_buffer) > 0 and len(self.total_objective_curve_buffer) > 0:
+                if self.objective_curve_buffer[0]['trial'] > self.total_objective_curve_buffer[-1]['trial']:
+                    self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
+            else:
+                self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
+
+            self.objective_curve_buffer = []
+
+    def _set_progressbar_index(self, index):
+        """Manually set the progressbar index for resuming sessions efficiently"""
+        self.progressbar.index = index
+        # Update UI to reflect progress
+        sync_publish('progressbar', {
+            'current': self.progressbar.current,
+            'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
+        })
+
+    def run(self) -> optuna.trial.FrozenTrial:
+        # Log the start of the optimization session
+        logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores")
+
+        if self.completed_trials > 0:
+            logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed")
+            # Make sure the progress bar is synchronized
+            self._set_progressbar_index(self.completed_trials)
+
+        # Track the best trial - handle empty study gracefully
+        try:
+            best_trial_value = self.study.best_value if self.study.trials else 0.0
+            best_trial_params = self.study.best_params if self.study.trials else None
+        except (ValueError, AttributeError) as e:
+            logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.")
+            best_trial_value = 0.0
+            best_trial_params = None
+
+        try:
+            # Maximum number of active workers (slightly higher than CPU cores to keep CPUs busy)
+            max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
+
+            # Dictionary to keep track of active workers
+            active_refs = {}
+            # Begin optimization loop
+            while self.completed_trials < self.n_trials:
+                if self.completed_trials == 0:
+                    update_optimization_session_trials(
+                        self.session_id,
+                        0,
+                        [],
+                        [],
+                        self.n_trials
+                    )
+                # Launch new trials if we have capacity
+                while len(active_refs) < max_workers and self.trial_counter < self.n_trials:
+                    # Generate parameters for this trial
+                    hp = self._generate_trial_params()
+
+                    # Launch the trial evaluation
+                    ref = ray_evaluate_trial.options(num_cpus=1).remote(
+                        self.user_config,
+                        router.formatted_routes,
+                        router.formatted_data_routes,
+                        self.strategy_hp,
+                        hp,
+                        self.training_warmup_candles,
+                        self.training_candles,
+                        self.testing_warmup_candles,
+                        self.testing_candles,
+                        self.optimal_total,
+                        self.fast_mode,
+                        self.trial_counter
+                    )
+
+                    # Store the reference
+                    active_refs[ref] = self.trial_counter
+                    self.trial_counter += 1
+
+                # No more workers to launch, wait for results
+                if not active_refs:
+                    break
+
+                # Wait for any trial to complete (with timeout to ensure responsiveness)
+                done_refs, _ = ray.wait(list(active_refs.keys()), num_returns=1, timeout=0.5)
+
+                # Process completed trials
+                for ref in done_refs:
+                    trial_number = active_refs.pop(ref)
+                    try:
+                        result = ray.get(ref)
+                        # Process the result
+                        self._process_trial_result(result)
+
+                        # Update best trial if better
+                        if result['score'] > best_trial_value:
+                            best_trial_value = result['score']
+                            best_trial_params = result['params']
+                    except ray.exceptions.RayTaskError as e:
+                        # Check if this is a RouteNotFound error converted to RuntimeError
+                        if hasattr(e, 'cause') and isinstance(e.cause, RuntimeError) and 'RouteNotFound:' in str(e.cause):
+                            raise e.cause
+                        else:
+                            jh.debug(f'Ray task error for trial {trial_number}: {e}')
+                            original_exception = e.cause
+                            raise
+                    except Exception as e:
+                        jh.debug(f'Exception raised in the ray method for trial {trial_number}: {e}')
+                        raise e
+
+            # Publish any remaining data in the buffer
+            if self.objective_curve_buffer:
+                jh.debug(f"Publishing remaining {len(self.objective_curve_buffer)} data points in buffer")
+                sync_publish('objective_curve', self.objective_curve_buffer)
+                self.objective_curve_buffer = []
+
+            # Get the best trial from the study
+            try:
+                best_trial = self.study.best_trial
+            except (ValueError, AttributeError) as e:
+                logger.log_optimize_mode(f"Could not access best trial at the end: {e}")
+                # Create a dummy trial if no best trial exists
+                best_trial = None
+
+            # Update the database with final results
+            update_optimization_session_trials(
+                self.session_id,
+                self.completed_trials,
+                self.best_trials,
+                self.total_objective_curve_buffer,
+                self.n_trials
+            )
+
+            # Update session status to 'finished'
+            update_optimization_session_status(self.session_id, 'finished')
+
+            # Publish completion alert
+            sync_publish('alert', {
+                'message': f"Finished {self.n_trials} trials. Check the \"Best Trials\" table for the best performing parameters.",
+                'type': 'success'
+            })
+
+        except exceptions.Termination:
+            # Handle user-initiated termination
+            logger.log_optimize_mode("Optimization terminated by user")
+            # Update session status to 'stopped'
+            update_optimization_session_status(self.session_id, 'stopped')
+            raise
+        except Exception as e:
+            logger.log_optimize_mode(f"Error during optimization: {e}")
+            # Update session status to 'stopped' due to error
+            update_optimization_session_status(self.session_id, 'stopped')
+            from jesse.models.OptimizationSession import add_session_exception
+            add_session_exception(self.session_id, str(e), str(traceback.format_exc()))
+            raise
+        finally:
+            # Shutdown Ray
+            ray.shutdown()
+
+        # Create an empty FrozenTrial if best_trial is None
+        if best_trial is None:
+            logger.log_optimize_mode("No best trial found. Returning empty result.")
+            from optuna.trial import FrozenTrial
+            return FrozenTrial(
+                number=0,
+                trial_id=0,
+                state=optuna.trial.TrialState.COMPLETE,
+                value=0.0,
+                datetime_start=None,
+                datetime_complete=None,
+                params={},
+                distributions={},
+                user_attrs={},
+                system_attrs={},
+                intermediate_values={},
+            )
+        return best_trial

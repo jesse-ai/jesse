@@ -1,9 +1,6 @@
-import os
 from hashlib import sha256
-import requests
 from fastapi.responses import JSONResponse
 from jesse.services.env import ENV_VALUES
-import jesse.helpers as jh
 
 
 def password_to_token(password: str) -> JSONResponse:

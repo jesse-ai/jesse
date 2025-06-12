@@ -659,3 +659,40 @@ def test_is_price_near():
     assert jh.is_price_near(20, 20.001) == True
     assert jh.is_price_near(0.0014458, 0.0014458*1.05) == False
     assert jh.is_price_near(0.0014458, 0.0014458*1.10) == False
+
+
+def test_is_almost_equal():
+    # Test exact equality
+    assert jh.is_almost_equal(100, 100) == True
+    assert jh.is_almost_equal(0, 0) == True
+    assert jh.is_almost_equal(-10, -10) == True
+    
+    # Test almost equal values with default tolerance
+    assert jh.is_almost_equal(0.1 + 0.2, 0.3) == True  # Classic floating point issue
+    assert jh.is_almost_equal(1.0000000001, 1.0) == True
+    assert jh.is_almost_equal(100.000000001, 100.0) == True
+    
+    # Test values that should be considered different
+    assert jh.is_almost_equal(1.0, 1.1) == False
+    assert jh.is_almost_equal(100, 101) == False
+    assert jh.is_almost_equal(0.001, 0.002) == False
+    
+    # Test with custom tolerance
+    assert jh.is_almost_equal(1.0, 1.05, tolerance=0.1) == True
+    assert jh.is_almost_equal(1.0, 1.05, tolerance=0.01) == False
+    
+    # Test with None values
+    assert jh.is_almost_equal(None, None) == True
+    assert jh.is_almost_equal(None, 0) == False
+    assert jh.is_almost_equal(0, None) == False
+    
+    # Test with very different values
+    assert jh.is_almost_equal(1000, 0.001) == False
+    assert jh.is_almost_equal(-1000, 1000) == False
+    
+    # Test with real-world quantity values that should be considered equal
+    assert jh.is_almost_equal(0.00123456, 0.00123457) == False
+    assert jh.is_almost_equal(100.00000001, 100.0) == True
+    
+    # Test with values that shouldn't be considered equal even with updated tolerance
+    assert jh.is_almost_equal(0.001, 0.00101) == False

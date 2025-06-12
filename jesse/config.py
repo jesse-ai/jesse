@@ -3,7 +3,8 @@ from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
 from jesse.info import exchange_info
 
-
+# Main configuration used by the Jesse framework. These values are modified
+# at runtime based on the mode (backtest, live, or optimize) and user settings.
 config = {
     # these values are related to the user's environment
     'env': {
@@ -39,14 +40,16 @@ config = {
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # Optimize mode
+        # Optimize mode (using Optuna)
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         #
         # Below configurations are related to the optimize mode
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         'optimization': {
-            # sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
-            'ratio': 'sharpe',
+            # available ratio options: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino
+            'objective_function': 'sharpe',
+            # number of trials per each hyperparameter
+            'trials': 200,
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -112,12 +115,13 @@ def set_config(conf: dict) -> None:
 
     # optimization mode only
     if jh.is_optimizing():
-        # ratio
-        config['env']['optimization']['ratio'] = conf['ratio']
-        # exchange info (only one because the optimize mode supports only one trading route at the moment)
-        config['env']['optimization']['exchange'] = conf['exchange']
+        # objective function
+        if 'objective_function' in conf:
+            config['env']['optimization']['objective_function'] = conf['objective_function']
         # warm_up_candles
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
+        # number of trials per each hyperparameter
+        config['env']['optimization']['trials'] = int(conf['trials'])
 
     # backtest and live
     if jh.is_backtesting() or jh.is_live():
