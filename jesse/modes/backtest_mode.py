@@ -511,6 +511,8 @@ def _step_simulator(
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
+        elif i == length - 1:
+            save_daily_portfolio_balance()
 
     _finish_progress_bar(progressbar, run_silently)
 
@@ -523,9 +525,6 @@ def _step_simulator(
     for r in router.routes:
         r.strategy._terminate()
         _execute_market_orders()
-
-    # now that backtest simulation is finished, add finishing balance
-    save_daily_portfolio_balance()
 
     # set the ending time for the backtest session
     store.app.ending_time = store.app.time + 60_000
@@ -825,7 +824,10 @@ def _skip_simulator(
         # now check to see if there's any MARKET orders waiting to be executed
         _execute_market_orders()
 
+        last_i = (length - 1) // candles_step * candles_step
         if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
+        elif i == last_i:
             save_daily_portfolio_balance()
 
     _finish_progress_bar(progressbar, run_silently)
@@ -839,9 +841,6 @@ def _skip_simulator(
     for r in router.routes:
         r.strategy._terminate()
         _execute_market_orders()
-
-    # now that backtest simulation is finished, add finishing balance
-    save_daily_portfolio_balance()
 
     # set the ending time for the backtest session
     store.app.ending_time = store.app.time + 60_000

@@ -55,13 +55,14 @@ def _prepare_returns(returns, rf=0.0, periods=252):
     Helper function to prepare returns data by converting to pandas Series and 
     adjusting for risk-free rate if provided
     """
-    if rf != 0:
-        returns = returns - (rf / periods)
-    
     if isinstance(returns, pd.DataFrame):
         returns = returns[returns.columns[0]]
-        
+
+    if rf != 0:
+        returns = returns - (rf / periods)
+
     return returns
+
 
 def sharpe_ratio(returns, rf=0.0, periods=365, annualize=True, smart=False):
     """
@@ -126,13 +127,12 @@ def calmar_ratio(returns):
     # Calculate CAGR exactly as in cagr() function
     first_value = 1
     last_value = (1 + returns).prod()
-    days = (returns.index[-1] - returns.index[0]).days
-    years = float(days) / 365
+    days = len(returns) + 1 # Need to add one because of pct_change() taking one off
     
-    if years == 0:
+    if days == 0:
         return pd.Series([0.0])
         
-    cagr_ratio = (last_value / first_value) ** (1 / years) - 1
+    cagr_ratio = (last_value / first_value) ** (365 / days) - 1
     
     # Calculate Max Drawdown using cumulative returns
     cum_returns = (1 + returns).cumprod()
@@ -169,15 +169,14 @@ def cagr(returns, rf=0.0, compounded=True, periods=365):
     last_value = (1 + returns).prod()
     
     # Calculate years exactly as quantstats does
-    days = (returns.index[-1] - returns.index[0]).days
-    years = float(days) / 365
+    days = len(returns) + 1 # Need to add one because of pct_change() taking one off
     
     # Handle edge case
-    if years == 0:
+    if days == 0:
         return pd.Series([0.0])
         
     # Calculate CAGR using quantstats formula
-    result = (last_value / first_value) ** (1 / years) - 1
+    result = (last_value / first_value) ** (365 / days) - 1
     
     return pd.Series([result])
 
@@ -315,7 +314,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     date_index = pd.date_range(start=start_date, periods=len(daily_balance))
 
-    daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
+    daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1).dropna()
 
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
