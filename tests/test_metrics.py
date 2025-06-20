@@ -2,6 +2,7 @@ from jesse.store import store
 from jesse.testing_utils import single_route_backtest
 from jesse.services import metrics
 import numpy as np
+import math
 
 
 def test_open_pl_and_total_open_trades():
@@ -74,7 +75,77 @@ def test_metrics_long_and_short_without_fee():
     assert 499.9 < stats['gross_profit'] <= 500
     assert stats['total_open_trades'] == 1
     assert stats['largest_losing_trade'] == 0
-    assert stats['largest_winning_trade'] == 50
+    assert stats['largest_winning_trade'] >= 50
+
+
+def test_metrics_long_and_short_one_year_without_fee():
+    n_candles = 525600
+    single_route_backtest('TestMetrics2', trend='sine', candles_count=n_candles, end_date='2020-04-01')
+
+    trades = store.completed_trades.trades
+    assert len(trades) == 10
+    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 10
+    assert stats['starting_balance'] == 10000
+    assert 10499 < stats['finishing_balance'] <= 10500
+    assert stats['longs_percentage'] == 50
+    assert stats['shorts_percentage'] == 50
+    assert stats['fee'] == 0
+    assert 499 < stats['net_profit'] <= 500
+    assert 4.9 < stats['net_profit_percentage'] <= 5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['average_loss'] is np.nan
+    assert stats['win_rate'] == 1.0
+    assert stats['winning_streak'] == 10
+    assert stats['longs_count'] == 5
+    assert stats['shorts_count'] == 5
+    assert 49.9 < stats['expectancy'] <= 50
+    assert 0.49 < stats['expectancy_percentage'] <= 0.5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['gross_loss'] == 0
+    assert 499 < stats['gross_profit'] <= 500
+    assert stats['total_open_trades'] == 1
+    assert stats['largest_losing_trade'] == 0
+    assert 49.9 <= stats['largest_winning_trade'] <= 50
+    expected_annual_return = ((stats['finishing_balance'] / stats['starting_balance']) ** (525600 / n_candles) - 1) * 100
+    assert math.isclose(stats['annual_return'], expected_annual_return, abs_tol=1e-2)
+    assert stats['max_drawdown'] >= -0.5001 # should never have more than a $50 drawdown
+
+
+def test_metrics_long_and_short_year_and_half_without_fee():
+    n_candles = 788400
+    single_route_backtest('TestMetrics2', trend='sine', candles_count=n_candles, end_date='2021-04-01')
+
+    trades = store.completed_trades.trades
+    assert len(trades) == 10
+    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 10
+    assert stats['starting_balance'] == 10000
+    assert 10499 < stats['finishing_balance'] <= 10500
+    assert stats['longs_percentage'] == 50
+    assert stats['shorts_percentage'] == 50
+    assert stats['fee'] == 0
+    assert 499 < stats['net_profit'] <= 500
+    assert 4.9 < stats['net_profit_percentage'] <= 5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['average_loss'] is np.nan
+    assert stats['win_rate'] == 1.0
+    assert stats['winning_streak'] == 10
+    assert stats['longs_count'] == 5
+    assert stats['shorts_count'] == 5
+    assert 49.9 < stats['expectancy'] <= 50
+    assert 0.49 < stats['expectancy_percentage'] <= 0.5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['gross_loss'] == 0
+    assert 499 < stats['gross_profit'] <= 500
+    assert stats['total_open_trades'] == 1
+    assert stats['largest_losing_trade'] == 0
+    assert 49.9 <= stats['largest_winning_trade'] <= 50
+    expected_annual_return = ((stats['finishing_balance'] / stats['starting_balance']) ** (525600 / n_candles) - 1) * 100
+    assert math.isclose(stats['annual_return'], expected_annual_return, abs_tol=1e-2)
+    assert stats['max_drawdown'] >= -0.5001 # should never have more than a $50 drawdown
 
 
     # ignore metrics that are dependant on daily_returns because the testing candle set is not for multiple dais

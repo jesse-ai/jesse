@@ -79,6 +79,11 @@ def smooth_sine_wave_candles(length: int, min_price: float, max_price: float, wa
         arr.append([first_timestamp, open_p, close_p, high_p, low_p, vol])
         prev_p = p
 
+    arr_np = np.array(arr)
+    price_columns = arr_np[:, 1:5]
+    # Assert all prices are within bounds
+    assert ((price_columns >= min_price) & (price_columns <= max_price)).all(), "Price values out of bounds"
+
     return np.array(arr)
 
 

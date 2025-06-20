@@ -44,15 +44,12 @@ def get_downtrend_candles(candles_count=100):
     }
 
 
-def get_smooth_sine_candles(candles_count=100, timeframe='1m'):
-    timeframe_to_increment = {'1m' : 60000,
-                              '1D' : 86400000,
-                              }
+def get_smooth_sine_candles(candles_count=100):
     return {
         jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
             'exchange': exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
-            'candles': smooth_sine_wave_candles(length=candles_count, min_price=5, max_price=25, timestamp_increment=timeframe_to_increment[timeframe]),
+            'candles': smooth_sine_wave_candles(length=candles_count, min_price=5, max_price=25),
         }
     }
 
@@ -75,7 +72,8 @@ def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
 def single_route_backtest(
         strategy_name: str, is_futures_trading=True,
         leverage=1, leverage_mode='cross', trend='up', fee=0,
-        candles_count=100, timeframe='1m'
+        candles_count=100, timeframe='1m',
+        start_date='2019-04-01', end_date='2019-04-02',
 ):
     """
     used to simplify simple tests
@@ -94,12 +92,12 @@ def single_route_backtest(
     elif trend == 'down':
         candles = get_downtrend_candles(candles_count)
     elif trend == 'sine':
-        candles = get_smooth_sine_candles(candles_count, timeframe) # Price fluctuates between 5 and 25, 5 times
+        candles = get_smooth_sine_candles(candles_count) # Price fluctuates between 5 and 25, 5 times
     else:
         raise ValueError
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], start_date, end_date, candles)
 
 
 def two_routes_backtest(
