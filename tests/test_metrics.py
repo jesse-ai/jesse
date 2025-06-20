@@ -45,6 +45,38 @@ def test_metrics_for_trades_without_fee():
     assert stats['largest_losing_trade'] == 0
     assert stats['largest_winning_trade'] == 50
 
+
+def test_metrics_long_and_short_without_fee():
+    single_route_backtest('TestMetrics2', trend='sine', candles_count=100)
+
+    trades = store.completed_trades.trades
+    assert len(trades) == 10
+    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 10
+    assert stats['starting_balance'] == 10000
+    assert stats['finishing_balance'] == 10500
+    assert stats['longs_percentage'] == 50
+    assert stats['shorts_percentage'] == 50
+    assert stats['fee'] == 0
+    assert 499.9 < stats['net_profit'] <= 500
+    assert 4.9 < stats['net_profit_percentage'] <= 5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['average_loss'] is np.nan
+    assert stats['win_rate'] == 1.0
+    assert stats['winning_streak'] == 10
+    assert stats['longs_count'] == 5
+    assert stats['shorts_count'] == 5
+    assert 49.9 < stats['expectancy'] <= 50
+    assert 0.49 < stats['expectancy_percentage'] <= 0.5
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['gross_loss'] == 0
+    assert 499.9 < stats['gross_profit'] <= 500
+    assert stats['total_open_trades'] == 1
+    assert stats['largest_losing_trade'] == 0
+    assert stats['largest_winning_trade'] == 50
+
+
     # ignore metrics that are dependant on daily_returns because the testing candle set is not for multiple dais
 
 # def test_stats_for_a_strategy_without_losing_trades():
