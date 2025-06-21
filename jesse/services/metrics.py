@@ -64,47 +64,59 @@ def _prepare_returns(returns, rf=0.0, periods=252):
     return returns
 
 
-def sharpe_ratio(returns, rf=0.0, periods=365, annualize=True, smart=False):
+def sharpe_ratio(prepared_returns, rf=0.0, periods=365, annualize=True, smart=False):
     """
     Calculates the sharpe ratio of access returns
     """
-    returns = _prepare_returns(returns, rf, periods)
-    divisor = returns.std(ddof=1)
+    if prepared_returns.empty or len(prepared_returns) == 1:
+        return np.nan
+    
+    if isinstance(prepared_returns, pd.DataFrame):
+         prepared_returns = _prepare_returns(prepared_returns, rf, periods)
+
+    divisor = prepared_returns.std(ddof=1)
     
     if smart:
-        divisor = divisor * autocorr_penalty(returns)
+        divisor = divisor * autocorr_penalty(prepared_returns)
         
-    res = returns.mean() / divisor
+    res = prepared_returns.mean() / divisor
     
     if annualize:
         res = res * np.sqrt(1 if periods is None else periods)
     
-    # Always convert to pandas Series    
-    return pd.Series([res])
+    return res
 
 
-def sortino_ratio(returns, rf=0, periods=365, annualize=True, smart=False):
+def sortino_ratio(prepared_returns, rf=0.0, periods=365, annualize=True, smart=False):
     """
-    Calculates the sortino ratio of access returns
+    Calculates the Sortino ratio of excess returns.
     """
-    returns = _prepare_returns(returns, rf, periods)
-    
-    downside = np.sqrt((returns[returns < 0] ** 2).sum() / len(returns))
-    
-    # Handle division by zero
-    if downside == 0:
-        res = np.inf if returns.mean() > 0 else -np.inf
+    if prepared_returns.empty or len(prepared_returns) == 1:
+        return np.nan
+
+    if isinstance(prepared_returns, pd.DataFrame):
+         prepared_returns = _prepare_returns(prepared_returns, rf, periods)
+
+    # downside deviation based on negative returns only
+    negative_returns = prepared_returns[prepared_returns < 0]
+
+    if len(negative_returns) < 2:
+        return np.nan  # not enough downside data
+
+    downside = negative_returns.std(ddof=1)
+
+    if downside == 0 or np.isnan(downside):
+        res = np.inf if prepared_returns.mean() > 0 else -np.inf
     else:
         if smart:
-            downside = downside * autocorr_penalty(returns)
-            
-        res = returns.mean() / downside
-        
+            downside = downside * autocorr_penalty(prepared_returns)
+
+        res = prepared_returns.mean() / downside
+
         if annualize:
-            res = res * np.sqrt(1 if periods is None else periods)
-    
-    # Always convert to pandas Series
-    return pd.Series([res])
+            res *= np.sqrt(1 if periods is None else periods)
+
+    return res
 
 
 def autocorr_penalty(returns):
@@ -117,101 +129,98 @@ def autocorr_penalty(returns):
     return np.sqrt(1 + 2 * np.sum(corr))
 
 
-def calmar_ratio(returns):
+def calmar_ratio(prepared_returns):
     """
     Calculates the calmar ratio (CAGR% / MaxDD%)
     """
-    # Get daily returns
-    returns = _prepare_returns(returns)
-    
-    # Calculate CAGR exactly as in cagr() function
-    first_value = 1
-    last_value = (1 + returns).prod()
-    days = len(returns) + 1 # Need to add one because of pct_change() taking one off
-    
-    if days == 0:
-        return pd.Series([0.0])
-        
-    cagr_ratio = (last_value / first_value) ** (365 / days) - 1
-    
-    # Calculate Max Drawdown using cumulative returns
-    cum_returns = (1 + returns).cumprod()
-    rolling_max = cum_returns.expanding(min_periods=1).max()
-    drawdown = cum_returns / rolling_max - 1
-    max_dd = abs(drawdown.min())
-    
-    # Calculate Calmar
-    result = cagr_ratio / max_dd if max_dd != 0 else 0
-    
-    # Always convert to pandas Series
-    return pd.Series([result])
+    if prepared_returns.empty:
+        return np.nan  # empty input → undefined
+
+    if isinstance(prepared_returns, pd.DataFrame):
+         prepared_returns = _prepare_returns(prepared_returns)
+
+    if len(prepared_returns) <= 1:
+        return np.nan  # not enough data to compute CAGR meaningfully
+
+    # Calculate CAGR
+    calculated_cagr = cagr(prepared_returns)
+    if calculated_cagr is np.nan:
+        return np.nan
+    max_dd = abs(max_drawdown(prepared_returns))
+
+    return calculated_cagr / max_dd if max_dd != 0 else 0
 
 
 def max_drawdown(returns):
     """
     Calculates the maximum drawdown
     """
+    if returns.empty:
+        return np.nan
+
     prices = (returns + 1).cumprod()
-    result = (prices / prices.expanding(min_periods=0).max()).min() - 1
-    
-    # Always convert to pandas Series
-    return pd.Series([result])
+    return (prices / prices.expanding(min_periods=0).max()).min() - 1
 
 
-def cagr(returns, rf=0.0, compounded=True, periods=365):
+def cagr(prepared_returns, rf=0.0):
     """
     Calculates the communicative annualized growth return (CAGR%)
     """
-    returns = _prepare_returns(returns, rf)
+    if prepared_returns.empty:
+        return np.nan
+    
+    if isinstance(prepared_returns, pd.DataFrame):
+         prepared_returns = _prepare_returns(prepared_returns, rf)
     
     # Get first and last values of cumulative returns
     first_value = 1
-    last_value = (1 + returns).prod()
+    last_value = (1 + prepared_returns).prod()
     
     # Calculate years exactly as quantstats does
-    days = len(returns) + 1 # Need to add one because of pct_change() taking one off
-    
-    # Handle edge case
-    if days == 0:
-        return pd.Series([0.0])
+    days = len(prepared_returns) + 1 # Need to add one because of pct_change() taking one off
         
     # Calculate CAGR using quantstats formula
     result = (last_value / first_value) ** (365 / days) - 1
     
-    return pd.Series([result])
+    return result
 
 
-def omega_ratio(returns, rf=0.0, required_return=0.0, periods=365):
+def omega_ratio(prepared_returns, rf=0.0, required_return=0.0, periods=365):
     """
     Determines the Omega ratio of a strategy
     """
-    returns = _prepare_returns(returns, rf, periods)
+    if prepared_returns.empty:
+        return np.nan
+
+    if isinstance(prepared_returns, pd.DataFrame):
+         prepared_returns = _prepare_returns(prepared_returns, rf, periods)
     
     if periods == 1:
         return_threshold = required_return
     else:
         return_threshold = (1 + required_return) ** (1.0 / periods) - 1
         
-    returns_less_thresh = returns - return_threshold
+    returns_less_thresh = prepared_returns - return_threshold
     numer = returns_less_thresh[returns_less_thresh > 0.0].sum()
     denom = -1.0 * returns_less_thresh[returns_less_thresh < 0.0].sum()
     
     result = numer / denom if denom > 0.0 else np.nan
     
-    # Always convert to pandas Series
-    return pd.Series([result])
+    return result
 
 
 def serenity_index(returns, rf=0):
     """
     Calculates the serenity index score
     """
+    if returns.empty or len(returns) == 1:
+        return np.nan
+
     dd = to_drawdown_series(returns)
     pitfall = -conditional_value_at_risk(dd) / returns.std()
     result = (returns.sum() - rf) / (ulcer_index(returns) * pitfall)
     
-    # Always convert to pandas Series
-    return pd.Series([result])
+    return result
 
 
 def ulcer_index(returns):
@@ -331,13 +340,14 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
             return np.nan
 
     # Calculate metrics using 365 days for crypto markets
-    max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
-    annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
-    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
-    calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
-    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
-    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
-    serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
+    prepared_returns = _prepare_returns(daily_return, periods=365)
+    max_dd = max_drawdown(daily_return) * 100
+    annual_return = cagr(prepared_returns) * 100
+    sharpe = sharpe_ratio(prepared_returns, periods=365)
+    calmar = calmar_ratio(prepared_returns)
+    sortino = sortino_ratio(prepared_returns, periods=365)
+    omega = omega_ratio(prepared_returns, periods=365)
+    serenity = serenity_index(daily_return)
 
     return {
         'total': safe_convert(total_completed, int),

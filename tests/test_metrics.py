@@ -45,6 +45,50 @@ def test_metrics_for_trades_without_fee():
     assert stats['open_pl'] == 0
     assert stats['largest_losing_trade'] == 0
     assert stats['largest_winning_trade'] == 50
+    assert stats['sharpe_ratio'] is np.nan
+    assert stats['calmar_ratio'] is np.nan
+    assert stats['sortino_ratio'] is np.nan
+    assert stats['omega_ratio'] is np.nan
+    assert stats['serenity_index'] is np.nan
+    assert stats['max_drawdown'] == 0
+
+
+def test_metrics_two_trades_without_fee():
+    days = 7
+    n_candles = days * 1440
+    single_route_backtest('TestMetrics2', trend='sine', candles_count=n_candles, n_waves=1)
+
+    trades = store.completed_trades.trades
+    assert len(trades) == 2
+    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 2
+    assert stats['starting_balance'] == 10000
+    assert stats['finishing_balance'] == 10100
+    assert stats['longs_percentage'] == 50
+    assert stats['shorts_percentage'] == 50
+    assert stats['fee'] == 0
+    assert 99.9 < stats['net_profit'] <= 100
+    assert 0.9 < stats['net_profit_percentage'] <= 1
+    assert 49.9 < stats['average_win'] <= 50
+    assert stats['average_loss'] is np.nan
+    assert stats['win_rate'] == 1.0
+    assert stats['winning_streak'] == 2
+    assert stats['longs_count'] == 1
+    assert stats['shorts_count'] == 1
+    assert 49.9 < stats['expectancy'] <= 50
+    assert 0.49 < stats['expectancy_percentage'] <= 0.5
+    assert stats['gross_loss'] == 0
+    assert 99.9 < stats['gross_profit'] <= 100
+    assert stats['total_open_trades'] == 1
+    assert stats['largest_losing_trade'] == 0
+    assert stats['largest_winning_trade'] >= 50
+    assert stats['sharpe_ratio'] > 0
+    assert stats['calmar_ratio'] > 0
+    assert stats['sortino_ratio'] > 0
+    assert stats['omega_ratio'] > 0
+    assert stats['serenity_index'] > 0
+    assert 0 > stats['max_drawdown'] >= -0.5
 
 
 def test_metrics_long_and_short_without_fee():
@@ -70,7 +114,6 @@ def test_metrics_long_and_short_without_fee():
     assert stats['shorts_count'] == 5
     assert 49.9 < stats['expectancy'] <= 50
     assert 0.49 < stats['expectancy_percentage'] <= 0.5
-    assert 49.9 < stats['average_win'] <= 50
     assert stats['gross_loss'] == 0
     assert 499.9 < stats['gross_profit'] <= 500
     assert stats['total_open_trades'] == 1
@@ -103,7 +146,43 @@ def test_metrics_long_and_short_one_year_without_fee():
     assert stats['shorts_count'] == 5
     assert 49.9 < stats['expectancy'] <= 50
     assert 0.49 < stats['expectancy_percentage'] <= 0.5
+    assert stats['gross_loss'] == 0
+    assert 499 < stats['gross_profit'] <= 500
+    assert stats['total_open_trades'] == 1
+    assert stats['largest_losing_trade'] == 0
+    assert 49.9 <= stats['largest_winning_trade'] <= 50
+    expected_annual_return = ((stats['finishing_balance'] / stats['starting_balance']) ** (365 / days) - 1) * 100
+    assert math.isclose(stats['annual_return'], expected_annual_return, abs_tol=1e-1)
+    assert stats['max_drawdown'] >= -0.5001 # should never have more than a $50 drawdown
+    expected_calmar_ratio = stats['annual_return'] / abs(stats['max_drawdown']) if stats['max_drawdown'] != 0 else float('inf')
+    assert math.isclose(stats['calmar_ratio'], expected_calmar_ratio, abs_tol=1e-1)
+
+
+def test_metrics_fast_long_and_short_one_year_without_fee():
+    days = 365
+    n_candles = days * 1440  # = 525,600
+    single_route_backtest('TestMetrics2', trend='sine', candles_count=n_candles, end_date='2020-04-01', fast_mode=True)
+
+    trades = store.completed_trades.trades
+    assert len(trades) == 10
+    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 10
+    assert stats['starting_balance'] == 10000
+    assert 10499 < stats['finishing_balance'] <= 10500
+    assert stats['longs_percentage'] == 50
+    assert stats['shorts_percentage'] == 50
+    assert stats['fee'] == 0
+    assert 499 < stats['net_profit'] <= 500
+    assert 4.9 < stats['net_profit_percentage'] <= 5
     assert 49.9 < stats['average_win'] <= 50
+    assert stats['average_loss'] is np.nan
+    assert stats['win_rate'] == 1.0
+    assert stats['winning_streak'] == 10
+    assert stats['longs_count'] == 5
+    assert stats['shorts_count'] == 5
+    assert 49.9 < stats['expectancy'] <= 50
+    assert 0.49 < stats['expectancy_percentage'] <= 0.5
     assert stats['gross_loss'] == 0
     assert 499 < stats['gross_profit'] <= 500
     assert stats['total_open_trades'] == 1
@@ -141,7 +220,6 @@ def test_metrics_long_and_short_year_and_half_without_fee():
     assert stats['shorts_count'] == 5
     assert 49.9 < stats['expectancy'] <= 50
     assert 0.49 < stats['expectancy_percentage'] <= 0.5
-    assert 49.9 < stats['average_win'] <= 50
     assert stats['gross_loss'] == 0
     assert 499 < stats['gross_profit'] <= 500
     assert stats['total_open_trades'] == 1
@@ -179,7 +257,6 @@ def test_metrics_long_and_short_half_year_without_fee():
     assert stats['shorts_count'] == 5
     assert 49.9 < stats['expectancy'] <= 50
     assert 0.49 < stats['expectancy_percentage'] <= 0.5
-    assert 49.9 < stats['average_win'] <= 50
     assert stats['gross_loss'] == 0
     assert 499 < stats['gross_profit'] <= 500
     assert stats['total_open_trades'] == 1
