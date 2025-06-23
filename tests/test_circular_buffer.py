@@ -81,6 +81,6 @@ def test_wrap():
     for idx, i in enumerate(range(1, 20)):
         a.append(i)
         if (idx+1) % 6 == 0:
-            assert a.has_wrapped_around == True
+            assert a.has_wrapped == True
         else:
-            assert a.has_wrapped_around == False
+            assert a.has_wrapped == False

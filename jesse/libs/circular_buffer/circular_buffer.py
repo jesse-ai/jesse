@@ -4,7 +4,7 @@ class CircularBuffer:
 
     Useful for managing streaming or time series data efficiently. Supports O(1)
     insertion, indexing, and lazy deletion, with O(n) slicing performance.
-    
+
     Most obvious use case is for real-time forming OHLC data.
     """
 
@@ -115,7 +115,7 @@ class CircularBuffer:
         self._buffer = [None] * self._max_size
 
     @property
-    def has_wrapped_around(self):
+    def has_wrapped(self):
         """
         Indicates whether the buffer has completely filled and started overwriting.
         Generally used to indicate when the time series has completed one full circle.
