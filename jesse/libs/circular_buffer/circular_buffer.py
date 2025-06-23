@@ -21,7 +21,7 @@ class CircularBuffer:
         Time Complexity:
             O(n) — for allocating internal buffer of size `n`.
         """
-        if size is None or size < 0:
+        if size is None or size <= 0:
             raise ValueError("CircularBuffer size must be a positive integer")
         self._buffer = [None] * size
         self._max_size = size
@@ -108,11 +108,10 @@ class CircularBuffer:
         Reset the buffer by marking all data as invalid (lazy deletion).
 
         Time Complexity:
-            O(n) — for reinitializing internal storage.
+            O(1) — for clearing storage.
         """
         self._write_index = 0
         self._count = 0
-        self._buffer = [None] * self._max_size
 
     @property
     def has_wrapped(self):

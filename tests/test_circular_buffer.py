@@ -66,6 +66,10 @@ def test_clear():
     with pytest.raises(IndexError):
         a[-1] is None
     len(a) == 0
+    for _, i in enumerate(range(1, 10)):
+        a.append(i)
+    assert a[0] == 4
+    assert a[-1] == 9
 
 def test_iter():
     a = CircularBuffer(size=6)
