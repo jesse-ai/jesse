@@ -1,9 +1,13 @@
 class CircularBuffer:
     """
     A fixed-size circular (ring) buffer that overwrites the oldest data when full.
+    Oldest data starts at index 0.
 
     Useful for managing streaming or time series data efficiently. Supports O(1)
     insertion, indexing, and lazy deletion, with O(n) slicing performance.
+
+    This version of circular buffer assumes input of streaming temporal data.
+    Therefore, there is no delete or pop method.
 
     Most obvious use case is for real-time forming OHLC data.
     """
@@ -16,7 +20,7 @@ class CircularBuffer:
             size (int): The total capacity of the buffer.
         
         Raises:
-            ValueError: If size is None or less than 0.
+            ValueError: If size is None or less than or equal to 0.
 
         Time Complexity:
             O(n) — for allocating internal buffer of size `n`.
@@ -27,6 +31,7 @@ class CircularBuffer:
         self._max_size = size
         self._write_index = 0
         self._count = 0  # Number of valid elements in buffer
+        self._wrap_len = 0
 
     def __len__(self):
         """
@@ -100,6 +105,8 @@ class CircularBuffer:
         """
         self._buffer[self._write_index] = value
         self._write_index = (self._write_index + 1) % self._max_size
+        self._wrap_len = max((self._wrap_len+1) % (self._max_size + 1), 1)
+
         if self._count < self._max_size:
             self._count += 1
 
@@ -112,18 +119,17 @@ class CircularBuffer:
         """
         self._write_index = 0
         self._count = 0
+        self._wrap_len = 0
 
     @property
-    def has_wrapped(self):
+    def wrap_len(self):
         """
-        Indicates whether the buffer has completely filled and started overwriting.
-        Generally used to indicate when the time series has completed one full circle.
-        For example, if your size is 60 and you have appended 60 items into the buffer, this would return True after the 60th append.
+        Returns the number of items the head has written before it has done one full cycle.
 
         Returns:
-            bool: True if the buffer has wrapped around at least once.
+            int: Number of written items before one full cycle.
 
         Time Complexity:
             O(1)
         """
-        return self._write_index == 0 and self._count == self._max_size
+        return self._wrap_len

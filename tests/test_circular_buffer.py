@@ -81,10 +81,13 @@ def test_iter():
         count += 1
 
 def test_wrap():
-    a = CircularBuffer(size=6)
-    for idx, i in enumerate(range(1, 20)):
+    a = CircularBuffer(size=5)
+
+    assert a.wrap_len == 0
+    for i in range(5):
         a.append(i)
-        if (idx+1) % 6 == 0:
-            assert a.has_wrapped == True
-        else:
-            assert a.has_wrapped == False
+    assert a.wrap_len == 5
+
+    for i in range(2):
+        a.append(i)
+    assert a.wrap_len == 2
