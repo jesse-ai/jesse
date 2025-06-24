@@ -32,6 +32,7 @@ def test_append():
 
     np.testing.assert_array_equal(a[0][:], np.array([1, 2, 3, 4, 5, 6]))
     np.testing.assert_array_equal(a[1][:], np.array([7, 8, 9, 10, 11, 12]))
+    assert a.size == 6
 
 def test_circular_append():
     a = CircularBuffer(size=6)

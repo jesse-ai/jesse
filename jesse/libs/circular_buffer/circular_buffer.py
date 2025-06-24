@@ -105,8 +105,9 @@ class CircularBuffer:
         """
         self._buffer[self._write_index] = value
         self._write_index = (self._write_index + 1) % self._max_size
-        self._wrap_len = max((self._wrap_len+1) % (self._max_size + 1), 1)
-
+        self._wrap_len += 1
+        if self._wrap_len > self._max_size:
+            self._wrap_len = 1
         if self._count < self._max_size:
             self._count += 1
 
@@ -133,3 +134,16 @@ class CircularBuffer:
             O(1)
         """
         return self._wrap_len
+
+    @property
+    def size(self):
+        """
+        Returns initial size of the buffer.
+
+        Returns:
+            int: Initial size of the buffer.
+
+        Time Complexity:
+            O(1)
+        """
+        return self._max_size
