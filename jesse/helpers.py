@@ -15,6 +15,8 @@ import click
 import numpy as np
 import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
+from jesse.constants import TIMEFRAME_PRIORITY
+from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
 
@@ -503,35 +505,11 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 
 
 def max_timeframe(timeframes_list: list) -> str:
-    from jesse.enums import timeframes
 
-    if timeframes.DAY_1 in timeframes_list:
-        return timeframes.DAY_1
-    if timeframes.HOUR_12 in timeframes_list:
-        return timeframes.HOUR_12
-    if timeframes.HOUR_8 in timeframes_list:
-        return timeframes.HOUR_8
-    if timeframes.HOUR_6 in timeframes_list:
-        return timeframes.HOUR_6
-    if timeframes.HOUR_4 in timeframes_list:
-        return timeframes.HOUR_4
-    if timeframes.HOUR_3 in timeframes_list:
-        return timeframes.HOUR_3
-    if timeframes.HOUR_2 in timeframes_list:
-        return timeframes.HOUR_2
-    if timeframes.HOUR_1 in timeframes_list:
-        return timeframes.HOUR_1
-    if timeframes.MINUTE_45 in timeframes_list:
-        return timeframes.MINUTE_45
-    if timeframes.MINUTE_30 in timeframes_list:
-        return timeframes.MINUTE_30
-    if timeframes.MINUTE_15 in timeframes_list:
-        return timeframes.MINUTE_15
-    if timeframes.MINUTE_5 in timeframes_list:
-        return timeframes.MINUTE_5
-    if timeframes.MINUTE_3 in timeframes_list:
-        return timeframes.MINUTE_3
-
+    times = set(timeframes_list)
+    for tf in TIMEFRAME_PRIORITY:
+        if tf in times:
+            return tf
     return timeframes.MINUTE_1
 
 
