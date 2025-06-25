@@ -1,13 +1,18 @@
+from dataclasses import dataclass
+
+@dataclass
 class sides:
     BUY = 'buy'
     SELL = 'sell'
 
 
+@dataclass
 class trade_types:
     LONG = 'long'
     SHORT = 'short'
 
 
+@dataclass
 class order_statuses:
     ACTIVE = 'ACTIVE'
     CANCELED = 'CANCELED'
@@ -18,6 +23,7 @@ class order_statuses:
     REJECTED = 'REJECTED'
 
 
+@dataclass
 class timeframes:
     MINUTE_1 = '1m'
     MINUTE_3 = '3m'
@@ -38,6 +44,7 @@ class timeframes:
     MONTH_1 = '1M'
 
 
+@dataclass
 class colors:
     GREEN = 'green'
     YELLOW = 'yellow'
@@ -46,6 +53,7 @@ class colors:
     BLACK = 'black'
 
 
+@dataclass
 class order_types:
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'
@@ -54,6 +62,7 @@ class order_types:
     STOP_LIMIT = 'STOP LIMIT'
 
 
+@dataclass
 class exchanges:
     SANDBOX = 'Sandbox'
     COINBASE_SPOT = 'Coinbase Spot'
@@ -86,6 +95,7 @@ class exchanges:
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
 
 
+@dataclass
 class migration_actions:
     ADD = 'add'
     DROP = 'drop'
@@ -97,6 +107,7 @@ class migration_actions:
     DROP_INDEX = 'drop_index'
 
 
+@dataclass
 class order_submitted_via:
     STOP_LOSS = 'stop-loss'
     TAKE_PROFIT = 'take-profit'
