@@ -16,6 +16,7 @@ import numpy as np
 import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
 from jesse.constants import TIMEFRAME_PRIORITY
+from jesse.constants import SUPPORTED_COLORS
 from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
@@ -75,23 +76,10 @@ def color(msg_text: str, msg_color: str) -> str:
     if not msg_text:
         return ''
 
-    if msg_color == 'black':
-        return click.style(msg_text, fg='black')
-    if msg_color == 'red':
-        return click.style(msg_text, fg='red')
-    if msg_color == 'green':
-        return click.style(msg_text, fg='green')
-    if msg_color == 'yellow':
-        return click.style(msg_text, fg='yellow')
-    if msg_color == 'blue':
-        return click.style(msg_text, fg='blue')
-    if msg_color == 'magenta':
-        return click.style(msg_text, fg='magenta')
-    if msg_color == 'cyan':
-        return click.style(msg_text, fg='cyan')
-    if msg_color in {'white', 'gray'}:
+    if msg_color in SUPPORTED_COLORS:
+        return click.style(msg_text, fg=msg_color)
+    if msg_color == 'gray':
         return click.style(msg_text, fg='white')
-
     raise ValueError('unsupported color')
 
 

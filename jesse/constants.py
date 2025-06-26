@@ -50,3 +50,16 @@ TIMEFRAME_TO_ONE_MINUTES = {
     timeframes.WEEK_1: 60 * 24 * 7,
     timeframes.MONTH_1: 60 * 24 * 30,
 }
+
+
+SUPPORTED_COLORS = {
+    'black',
+    'red',
+    'green',
+    'yellow',
+    'blue',
+    'magenta',
+    'cyan',
+    'white',
+    #'gray',
+}
