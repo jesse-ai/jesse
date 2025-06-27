@@ -69,6 +69,7 @@ class Strategy(ABC):
 
         self._cached_methods = {}
         self._cached_metrics = {}
+        self._current_route_index = None
 
         # Add cached price
         self._cached_price = None
@@ -1318,6 +1319,17 @@ class Strategy(ABC):
     def routes(self) -> List[Route]:
         from jesse.routes import router
         return router.routes
+
+    @property
+    def current_route_index(self) -> int:
+        if self._current_route_index is None:
+            for i, r in enumerate(self.routes):
+                if r.exchange == self.exchange and r.symbol == self.symbol and r.timeframe == self.timeframe:
+                    self._current_route_index = i
+                    break
+            else:
+                self._current_route_index = -1
+        return self._current_route_index
 
     @property
     def leverage(self) -> int:
