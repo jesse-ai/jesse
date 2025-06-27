@@ -1103,34 +1103,47 @@ def _get_executing_orders(exchange, symbol, real_candle):
 
 
 def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
+    remaining_orders = set(orders)
     sorted_orders = []
-    for i in range(len(short_candles)):
-        included_orders = [
-            order
-            for order in orders
-            if candle_includes_price(short_candles[i], order.price)
-        ]
+    
+    for candle in short_candles:
+        open_price = candle[1]
+        close_price = candle[2]
+        is_red = open_price > close_price
+
+        low, high = candle[4], candle[3]
+        # Did not use candle_includes_price() for performance, keeping it vectorization-friendly
+        included_orders = [order for order in remaining_orders if low <= order.price <= high]
+
         if len(included_orders) == 1:
             sorted_orders.append(included_orders[0])
+            remaining_orders.remove(included_orders[0])
         elif len(included_orders) > 1:
             # in case that the orders are above
-            is_red = short_candles[i, 1] > short_candles[i, 2]
-            above_open, on_open, below_open = [], [], []
-            open_price = short_candles[i, 1]
+            on_open, above_open, below_open = [], [], []
             for order in included_orders:
                 if order.price == open_price:
                     on_open.append(order)
-                if order.price > open_price:
+                elif order.price > open_price:
                     above_open.append(order)
                 else:
                     below_open.append(order)
             sorted_orders += on_open
+            remaining_orders.difference_update(on_open)
+
             if is_red:
                 # heuristic that first the price goes up and then down, so this is the order execution sort
-                sorted_orders += sorted(above_open, key=lambda o: o.price) + sorted(below_open, key=lambda o: o.price, reverse=True)
+                above_open.sort(key=lambda o: o.price)
+                below_open.sort(key=lambda o: o.price, reverse=True)
+                sorted_orders += above_open + below_open
+                remaining_orders.difference_update(above_open + below_open)
             else:
-                sorted_orders += sorted(below_open, key=lambda o: o.price, reverse=True) + sorted(above_open, key=lambda o: o.price)
+                below_open.sort(key=lambda o: o.price, reverse=True)
+                above_open.sort(key=lambda o: o.price)
+                sorted_orders += below_open + above_open
+                remaining_orders.difference_update(below_open + above_open)
 
         if len(sorted_orders) == len(orders):
             break
+
     return sorted_orders
