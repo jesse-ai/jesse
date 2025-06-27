@@ -1088,9 +1088,8 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
     sorted_orders = []
     
     for candle in short_candles:
-        open_price = candle[1]
+        open_price, close_price, low, high = candle[1], candle[2], candle[4], candle[3]
 
-        low, high = candle[4], candle[3]
         # Did not use candle_includes_price() for performance, keeping it vectorization-friendly
         included_orders = [order for order in remaining_orders if low <= order.price <= high]
 
@@ -1110,7 +1109,7 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
             sorted_orders += on_open
             remaining_orders.difference_update(on_open)
 
-            is_red = open_price > candle[2]
+            is_red = open_price > close_price
             if is_red:
                 # heuristic that first the price goes up and then down, so this is the order execution sort
                 above_open.sort(key=lambda o: o.price)
