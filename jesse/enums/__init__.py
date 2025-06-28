@@ -5,7 +5,7 @@ class Side(Enum):
     SELL = 'sell'
 
 
-class TradeType:
+class TradeType(Enum):
     LONG = 'long'
     SHORT = 'short'
 

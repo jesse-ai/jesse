@@ -138,11 +138,11 @@ class ClosedTrade(peewee.Model):
 
     @property
     def is_long(self) -> bool:
-        return self.type == TradeType.LONG
+        return self.type == TradeType.LONG.value
 
     @property
     def is_short(self) -> bool:
-        return self.type == TradeType.SHORT
+        return self.type == TradeType.SHORT.value
 
     @property
     def qty(self) -> float:

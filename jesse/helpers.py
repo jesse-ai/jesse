@@ -555,10 +555,10 @@ def opposite_side(s: str) -> str:
 def opposite_type(t: str) -> str:
     from jesse.enums import TradeType
 
-    if t == TradeType.LONG:
-        return TradeType.SHORT
-    if t == TradeType.SHORT:
-        return TradeType.LONG
+    if t == TradeType.LONG.value:
+        return TradeType.SHORT.value
+    if t == TradeType.SHORT.value:
+        return TradeType.LONG.value
     raise ValueError('unsupported type')
 
 
@@ -775,9 +775,9 @@ def side_to_type(s: str) -> str:
     s = s.lower()
 
     if s == Side.BUY.value:
-        return TradeType.LONG
+        return TradeType.LONG.value
     if s == Side.SELL.value:
-        return TradeType.SHORT
+        return TradeType.SHORT.value
     raise ValueError
 
 
@@ -869,9 +869,9 @@ def today_to_timestamp() -> int:
 def type_to_side(t: str) -> str:
     from jesse.enums import TradeType, Side
 
-    if t == TradeType.LONG:
+    if t == TradeType.LONG.value:
         return Side.BUY.value
-    if t == TradeType.SHORT:
+    if t == TradeType.SHORT.value:
         return Side.SELL.value
     raise ValueError(f'unsupported type: "{t}". Only "long" and "short" are supported.')
 

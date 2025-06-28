@@ -318,9 +318,9 @@ class Position:
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
-        if self.type == TradeType.LONG:
+        if self.type == TradeType.LONG.value:
             self._update_qty(qty, operation='subtract')
-        elif self.type == TradeType.SHORT:
+        elif self.type == TradeType.SHORT.value:
             self._update_qty(qty, operation='add')
 
     def _mutating_increase(self, qty: float, price: float) -> None:
@@ -335,9 +335,9 @@ class Position:
         )
 
         if self._can_mutate_qty:
-            if self.type == TradeType.LONG:
+            if self.type == TradeType.LONG.value:
                 self._update_qty(qty, operation='add')
-            elif self.type == TradeType.SHORT:
+            elif self.type == TradeType.SHORT.value:
                 self._update_qty(qty, operation='subtract')
 
     def _mutating_open(self, qty: float, price: float) -> None:
