@@ -228,9 +228,9 @@ class Strategy(ABC):
 
         self._executed_orders.append({
             'time': int(self.current_candle[0] / 1000),
-            'position': 'aboveBar' if order.side == Side.SELL else 'belowBar',
-            'color': '#e91e63' if order.side == Side.SELL else '#2196F3',
-            'shape': 'arrowDown' if order.side == Side.SELL else 'arrowUp',
+            'position': 'aboveBar' if order.side == Side.SELL.value else 'belowBar',
+            'color': '#e91e63' if order.side == Side.SELL.value else '#2196F3',
+            'shape': 'arrowDown' if order.side == Side.SELL.value else 'arrowUp',
             'text': f'{order.side.upper()} • {position_type}',
             'order_id': order.id,
         })
@@ -362,7 +362,7 @@ class Strategy(ABC):
                 self.broker.buy_at_market(o[0])
             # STOP order
             elif o[1] > price_to_compare:
-                self.broker.start_profit_at(Side.BUY, o[0], o[1])
+                self.broker.start_profit_at(Side.BUY.value, o[0], o[1])
             # LIMIT order
             elif o[1] < price_to_compare:
                 self.broker.buy_at(o[0], o[1])
@@ -384,7 +384,7 @@ class Strategy(ABC):
                 self.broker.sell_at_market(o[0])
             # STOP order
             elif o[1] < price_to_compare:
-                self.broker.start_profit_at(Side.SELL, o[0], o[1])
+                self.broker.start_profit_at(Side.SELL.value, o[0], o[1])
             # LIMIT order
             elif o[1] > price_to_compare:
                 self.broker.sell_at(o[0], o[1])

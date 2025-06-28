@@ -29,7 +29,7 @@ class Broker:
             self.symbol,
             abs(qty),
             self.position.current_price,
-            Side.SELL,
+            Side.SELL.value,
             reduce_only=False
         )
 
@@ -44,7 +44,7 @@ class Broker:
             self.symbol,
             abs(qty),
             price,
-            Side.SELL,
+            Side.SELL.value,
             reduce_only=False
         )
 
@@ -56,7 +56,7 @@ class Broker:
             self.symbol,
             abs(qty),
             self.position.current_price,
-            Side.BUY,
+            Side.BUY.value,
             reduce_only=False
         )
 
@@ -71,7 +71,7 @@ class Broker:
             self.symbol,
             abs(qty),
             price,
-            Side.BUY,
+            Side.BUY.value,
             reduce_only=False
         )
 

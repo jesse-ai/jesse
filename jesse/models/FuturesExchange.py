@@ -122,7 +122,7 @@ class FuturesExchange(Exchange):
         self.available_assets[base_asset] += order.qty
 
         if not order.reduce_only:
-            if order.side == Side.BUY:
+            if order.side == Side.BUY.value:
                 self.buy_orders[base_asset].append(np.array([order.qty, order.price]))
             else:
                 self.sell_orders[base_asset].append(np.array([order.qty, order.price]))
@@ -135,7 +135,7 @@ class FuturesExchange(Exchange):
 
         if not order.reduce_only:
             order_array = np.array([order.qty, order.price])
-            if order.side == Side.BUY:
+            if order.side == Side.BUY.value:
                 item_index = np.where(np.all(self.buy_orders[base_asset].array == order_array, axis=1))[0]
                 if len(item_index) > 0:
                     index = item_index[0]
@@ -155,7 +155,7 @@ class FuturesExchange(Exchange):
         self.available_assets[base_asset] -= order.qty
         if not order.reduce_only:
             order_array = np.array([order.qty, order.price])
-            if order.side == Side.BUY:
+            if order.side == Side.BUY.value:
                 index = find_order_index(self.buy_orders[base_asset].array, order_array)
                 if index != -1:
                     self.buy_orders[base_asset].delete(index, axis=0)

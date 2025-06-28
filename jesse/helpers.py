@@ -543,10 +543,10 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
 def opposite_side(s: str) -> str:
     from jesse.enums import Side
 
-    if s == Side.BUY:
-        return Side.SELL
-    elif s == Side.SELL:
-        return Side.BUY
+    if s == Side.BUY.value:
+        return Side.SELL.value
+    elif s == Side.SELL.value:
+        return Side.BUY.value
     else:
         raise ValueError(f'{s} is not a valid input for side')
 
@@ -774,9 +774,9 @@ def side_to_type(s: str) -> str:
     # make sure string is lowercase
     s = s.lower()
 
-    if s == Side.BUY:
+    if s == Side.BUY.value:
         return TradeType.LONG
-    if s == Side.SELL:
+    if s == Side.SELL.value:
         return TradeType.SHORT
     raise ValueError
 
@@ -870,9 +870,9 @@ def type_to_side(t: str) -> str:
     from jesse.enums import TradeType, Side
 
     if t == TradeType.LONG:
-        return Side.BUY
+        return Side.BUY.value
     if t == TradeType.SHORT:
-        return Side.SELL
+        return Side.SELL.value
     raise ValueError(f'unsupported type: "{t}". Only "long" and "short" are supported.')
 
 

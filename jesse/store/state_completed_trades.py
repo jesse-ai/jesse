@@ -50,9 +50,9 @@ class ClosedTrades:
         used for correct trade-metrics calculations in persistency support for live mode.
         """
         t = self._get_current_trade(exchange, symbol)
-        if side == Side.BUY:
+        if side == Side.BUY.value:
             t.buy_orders.append(np.array([abs(qty), price]))
-        elif side == Side.SELL:
+        elif side == Side.SELL.value:
             t.sell_orders.append(np.array([abs(qty), price]))
         else:
             raise Exception(f"Invalid order side: {side}")
