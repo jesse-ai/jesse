@@ -10,7 +10,7 @@ class TradeType(Enum):
     SHORT = 'short'
 
 
-class OrderStatus:
+class OrderStatus(Enum):
     ACTIVE = 'ACTIVE'
     CANCELED = 'CANCELED'
     EXECUTED = 'EXECUTED'

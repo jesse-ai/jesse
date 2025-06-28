@@ -31,7 +31,7 @@ class Order(Model):
     qty = FloatField()
     filled_qty = FloatField(default=0)
     price = FloatField(null=True)
-    status = CharField(default=OrderStatus.ACTIVE)
+    status = CharField(default=OrderStatus.ACTIVE.value)
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
@@ -85,11 +85,11 @@ class Order(Model):
 
     @property
     def is_canceled(self) -> bool:
-        return self.status == OrderStatus.CANCELED
+        return self.status == OrderStatus.CANCELED.value
 
     @property
     def is_active(self) -> bool:
-        return self.status == OrderStatus.ACTIVE
+        return self.status == OrderStatus.ACTIVE.value
 
     @property
     def is_cancellable(self):
@@ -107,7 +107,7 @@ class Order(Model):
 
         :return: bool
         """
-        return self.status == OrderStatus.QUEUED
+        return self.status == OrderStatus.QUEUED.value
 
     @property
     def is_new(self) -> bool:
@@ -115,7 +115,7 @@ class Order(Model):
 
     @property
     def is_executed(self) -> bool:
-        return self.status == OrderStatus.EXECUTED
+        return self.status == OrderStatus.EXECUTED.value
 
     @property
     def is_filled(self) -> bool:
@@ -123,7 +123,7 @@ class Order(Model):
 
     @property
     def is_partially_filled(self) -> bool:
-        return self.status == OrderStatus.PARTIALLY_FILLED
+        return self.status == OrderStatus.PARTIALLY_FILLED.value
 
     @property
     def is_stop_loss(self):
@@ -164,7 +164,7 @@ class Order(Model):
         return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
 
     def queue(self):
-        self.status = OrderStatus.QUEUED
+        self.status = OrderStatus.QUEUED.value
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
             txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -180,7 +180,7 @@ class Order(Model):
 
         # regenerate the order id to avoid errors on the exchange's side
         self.id = jh.generate_unique_id()
-        self.status = OrderStatus.ACTIVE
+        self.status = OrderStatus.ACTIVE.value
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -198,7 +198,7 @@ class Order(Model):
             return
 
         self.canceled_at = jh.now_to_timestamp()
-        self.status = OrderStatus.CANCELED
+        self.status = OrderStatus.CANCELED.value
 
         # if jh.is_live():
         #     self.save()
@@ -222,7 +222,7 @@ class Order(Model):
             return
 
         self.executed_at = jh.now_to_timestamp()
-        self.status = OrderStatus.EXECUTED
+        self.status = OrderStatus.EXECUTED.value
 
         # if jh.is_live():
         #     self.save()
@@ -253,7 +253,7 @@ class Order(Model):
 
     def execute_partially(self, silent=False) -> None:
         self.executed_at = jh.now_to_timestamp()
-        self.status = OrderStatus.PARTIALLY_FILLED
+        self.status = OrderStatus.PARTIALLY_FILLED.value
 
         # if jh.is_live():
         #     self.save()

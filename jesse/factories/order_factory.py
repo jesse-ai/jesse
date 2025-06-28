@@ -24,7 +24,7 @@ def fake_order(attributes: dict = None) -> Order:
     order_type = OrderType.LIMIT.value
     price = randint(40, 100)
     qty = randint(1, 10)
-    status = OrderStatus.ACTIVE
+    status = OrderStatus.ACTIVE.value
     created_at = first_timestamp
 
     return Order({
