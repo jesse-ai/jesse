@@ -32,6 +32,7 @@ class Strategy(ABC):
         self.hp = None
 
         self.index = 0
+        self.last_trade_index = 0
         self.vars = {}
 
         self.increased_count = 0
@@ -884,6 +885,7 @@ class Strategy(ABC):
         pass
 
     def _on_close_position(self, order: Order):
+        self.last_trade_index = self.index
         self._broadcast('route-close-position')
         self._execute_cancel()
         self.on_close_position(order)
@@ -1112,6 +1114,16 @@ class Strategy(ABC):
             [float] -- the current trading candle's LOW price
         """
         return self.current_candle[4]
+    
+    @property
+    def volume(self) -> float:
+        """
+        Returns the volume of the current candle for this strategy.
+        Just as a helper to use when writing super simple strategies.
+        Returns:
+           [float] -- the volume of the current candle
+        """
+        return self.current_candle[5]
 
     @property
     def candles(self) -> np.ndarray:
