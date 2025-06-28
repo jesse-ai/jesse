@@ -47,11 +47,35 @@ def test_circular_append():
 
 def test_slicing(): # Slicing is slow and not recommended
     a = CircularBuffer(size=6)
-    for _, i in enumerate(range(1, 10)):
+    assert a[:] == []
+    for _, i in enumerate(range(1, 4)):
+        a.append(i)
+    assert a[:] == [1, 2, 3]
+
+    for _, i in enumerate(range(4, 7)):
+        a.append(i)
+    assert a[:] == [1, 2, 3, 4, 5, 6]
+    assert a[::2] == [1, 3, 5]
+    assert a[1:4] == [2, 3, 4]
+
+    for _, i in enumerate(range(7, 10)):
         a.append(i)
     assert a[:] == [4, 5, 6, 7, 8, 9]
     assert a[::2] == [4, 6, 8]
     assert a[1:3] == [5, 6]
+
+    for _, i in enumerate(range(10, 13)):
+        a.append(i)
+    assert a[:] == [7, 8, 9, 10, 11, 12]
+    assert a[::2] == [7, 9, 11]
+    assert a[1:3] == [8, 9]
+
+    for _, i in enumerate(range(13, 16)):
+        a.append(i)
+
+    # Now _write_index = 3, still wrapped, but not at 0
+    assert a[:] == [10, 11, 12, 13, 14, 15]
+
     with pytest.raises(ValueError):
         a[::0] is None
 

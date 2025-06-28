@@ -81,11 +81,21 @@ class CircularBuffer:
             size = self._count
             start_idx, stop_idx, step = idx.indices(size)
 
-            if step == 1:
+            if self._count == 0:
+                return []
+            elif self._write_index == 0: # head has currently done one full cycle
+                return self._buffer[start_idx:stop_idx:step] # Fastest
+            elif step == 1:
+                # Indexing is contiguous
                 length = max(0, stop_idx - start_idx)
-                return [self._buffer[(start + i) % self._max_size] for i in range(start_idx, start_idx + length)]
-            else:
-                return [self._buffer[(start + i) % self._max_size] for i in range(start_idx, stop_idx, step)]
+                buf = self._buffer
+                mod = self._max_size    
+                return [buf[(start + i) % mod] for i in range(start_idx, start_idx + length)]
+            else: # step != 1
+                # Indexing is non-contiguous, slowest but still fast
+                buf = self._buffer
+                mod = self._max_size 
+                return [buf[(start + i) % mod] for i in range(start_idx, stop_idx, step)]
 
         if not -self._count <= idx < self._count:
             raise IndexError(f"Index {idx} out of range")
