@@ -88,7 +88,7 @@ class CandlesState:
             exchange, symbol = ar['exchange'], ar['symbol']
 
             # initiate the '1m' timeframes
-            key = jh.key(exchange, symbol, Timeframe.MINUTE_1)
+            key = jh.key(exchange, symbol, Timeframe.MINUTE_1.value)
             self.storage[key] = DynamicNumpyArray((bucket_size, 6))
 
             for timeframe in config['app']['considering_timeframes']:

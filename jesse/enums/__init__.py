@@ -20,7 +20,7 @@ class OrderStatus:
     REJECTED = 'REJECTED'
 
 
-class Timeframe:
+class Timeframe(Enum):
     MINUTE_1 = '1m'
     MINUTE_3 = '3m'
     MINUTE_5 = '5m'

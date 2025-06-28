@@ -35,7 +35,7 @@ def set_up_without_fee(is_futures_trading=False):
     position = selectors.get_position(Exchanges.SANDBOX, 'BTC-USDT')
     position.current_price = 50
     exchange = selectors.get_exchange(Exchanges.SANDBOX)
-    broker = Broker(position, Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5)
+    broker = Broker(position, Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5.value)
 
 
 def set_up_with_fee(is_futures_trading=False):
@@ -60,7 +60,7 @@ def set_up_with_fee(is_futures_trading=False):
     position.current_price = 50
     exchange = selectors.get_exchange(Exchanges.SANDBOX)
     broker = Broker(position, Exchanges.SANDBOX, 'BTC-USDT',
-                    Timeframe.MINUTE_5)
+                    Timeframe.MINUTE_5.value)
 
 
 def test_cancel_all_orders():

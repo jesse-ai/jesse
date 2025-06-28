@@ -496,7 +496,7 @@ def _step_simulator(
         for r in router.routes:
             count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
             # 1m timeframe
-            if r.timeframe == Timeframe.MINUTE_1:
+            if r.timeframe == Timeframe.MINUTE_1.value:
                 r.strategy._execute()
             elif (i + 1) % count == 0:
                 # print candle
@@ -1053,7 +1053,7 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
     for r in router.routes:
         count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
         # 1m timeframe
-        if r.timeframe == Timeframe.MINUTE_1:
+        if r.timeframe == Timeframe.MINUTE_1.value:
             r.strategy._execute()
         elif (candle_index + candles_step) % count == 0:
             # print candle

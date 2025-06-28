@@ -472,7 +472,7 @@ def max_timeframe(timeframes_list: list) -> str:
     for tf in TIMEFRAME_PRIORITY:
         if tf in times:
             return tf
-    return Timeframe.MINUTE_1
+    return Timeframe.MINUTE_1.value
 
 
 def normalize(x: float, x_min: float, x_max: float) -> float:

@@ -12,7 +12,7 @@ from jesse.config import config
 def test_backtesting_one_route():
     reset_config()
     routes = [
-        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test19'}
+        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'}
     ]
     config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
 
@@ -66,9 +66,9 @@ def test_backtesting_one_route():
 def test_backtesting_three_routes():
     reset_config()
     routes = [
-        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test19'},
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test19'},
-        {'symbol': 'XRP-USDT', 'timeframe': Timeframe.MINUTE_15, 'strategy': 'Test19'}
+        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'},
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'},
+        {'symbol': 'XRP-USDT', 'timeframe': Timeframe.MINUTE_15.value, 'strategy': 'Test19'}
     ]
     config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
 

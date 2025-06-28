@@ -95,10 +95,10 @@ def test_filters():
 def test_forming_candles():
     reset_config()
     routes = [
-        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test19'}
+        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'}
     ] 
     data_routes = [
-        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_15}
+        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_15.value}
     ]
 
     candles = {}
@@ -112,8 +112,8 @@ def test_forming_candles():
     backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, data_routes, '2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
-    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5)) == math.ceil(1382 / 5)
-    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_15)) == math.ceil(
+    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5.value)) == math.ceil(1382 / 5)
+    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_15.value)) == math.ceil(
         1382 / 15)
 
 
@@ -137,7 +137,7 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     set_up()
 
     routes = [
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_1, 'strategy': 'Test05'}
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_1.value, 'strategy': 'Test05'}
     ]
 
     candles = {}
@@ -178,7 +178,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     set_up()
 
     routes = [
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test06'}
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test06'}
     ]
 
     candles = {}
@@ -234,7 +234,7 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
     set_up()
 
     routes = [
-        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_1, 'strategy': 'Test14'}
+        {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_1.value, 'strategy': 'Test14'}
     ]
 
     generated_candles = candles_from_close_prices(
@@ -287,8 +287,8 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
 def test_must_not_be_able_to_set_two_similar_routes():
     reset_config()
     router.set_routes([
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test01'},
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_30, 'strategy': 'Test02'},
+        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test01'},
+        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_30.value, 'strategy': 'Test02'},
     ])
     with pytest.raises(Exception) as err:
         store.reset(True)
@@ -452,7 +452,7 @@ def test_should_buy_and_execute_buy():
     set_up()
 
     routes = [
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test01'},
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test01'},
     ]
 
     candles = {}
@@ -495,7 +495,7 @@ def test_should_sell_and_execute_sell():
     set_up()
 
     routes = [
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5, 'strategy': 'Test02'},
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test02'},
     ]
 
     candles = {}
@@ -584,7 +584,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     set_up()
 
     routes = [
-        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_1, 'strategy': 'Test07'}
+        {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_1.value, 'strategy': 'Test07'}
     ]
 
     candles = {}
