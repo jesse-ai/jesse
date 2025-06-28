@@ -80,7 +80,7 @@ class Exchanges:
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
 
 
-class MigrationAction:
+class MigrationAction(Enum):
     ADD = 'add'
     DROP = 'drop'
     RENAME = 'rename'
