@@ -668,7 +668,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS
+                            submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS.value
 
                         # if self.take_profit has been modified
 
@@ -710,7 +710,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT
+                            submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT.value
     
         except TypeError:
             raise exceptions.InvalidStrategy(
@@ -851,7 +851,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS
+                    submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS.value
 
         if self.take_profit is not None:
             for o in self._take_profit:
@@ -868,7 +868,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT
+                    submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT.value
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()

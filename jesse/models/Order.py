@@ -127,11 +127,11 @@ class Order(Model):
 
     @property
     def is_stop_loss(self):
-        return self.submitted_via == OrderSubmittedVia.STOP_LOSS
+        return self.submitted_via == OrderSubmittedVia.STOP_LOSS.value
 
     @property
     def is_take_profit(self):
-        return self.submitted_via == OrderSubmittedVia.TAKE_PROFIT
+        return self.submitted_via == OrderSubmittedVia.TAKE_PROFIT.value
 
     @property
     def to_dict(self):

@@ -91,6 +91,6 @@ class MigrationAction(Enum):
     DROP_INDEX = 'drop_index'
 
 
-class OrderSubmittedVia:
+class OrderSubmittedVia(Enum):
     STOP_LOSS = 'stop-loss'
     TAKE_PROFIT = 'take-profit'
