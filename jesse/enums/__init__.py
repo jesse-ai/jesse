@@ -40,14 +40,6 @@ class Timeframe(Enum):
     MONTH_1 = '1M'
 
 
-class Color:
-    GREEN = 'green'
-    YELLOW = 'yellow'
-    RED = 'red'
-    MAGENTA = 'magenta'
-    BLACK = 'black'
-
-
 class OrderType:
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'
