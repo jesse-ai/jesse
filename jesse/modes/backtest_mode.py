@@ -740,7 +740,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
             'symbol': symbol,
             'exchange': exchange,
             'side': closing_order_side,
-            'type': OrderType.MARKET,
+            'type': OrderType.MARKET.value,
             'reduce_only': True,
             'qty': jh.prepare_qty(p.qty, closing_order_side),
             'price': p.bankruptcy_price

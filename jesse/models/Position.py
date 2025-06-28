@@ -420,7 +420,7 @@ class Position:
 
             # order opens position
             if self.qty == 0:
-                change_balance = order.type == OrderType.MARKET
+                change_balance = order.type == OrderType.MARKET.value
                 self._mutating_open(qty, price)
             # order closes position
             elif (sum_floats(self.qty, qty)) == 0:

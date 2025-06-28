@@ -10,8 +10,8 @@ class TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceShortPosition(Stra
             assert last_trade.exit_price == 10
 
             # the order type should be market
-            assert self.trades[-1].orders[0].type == OrderType.MARKET
-            assert self.trades[-1].orders[1].type == OrderType.MARKET
+            assert self.trades[-1].orders[0].type == OrderType.MARKET.value
+            assert self.trades[-1].orders[1].type == OrderType.MARKET.value
 
     def should_long(self) -> bool:
         return False

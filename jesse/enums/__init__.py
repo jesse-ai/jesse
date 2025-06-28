@@ -40,7 +40,7 @@ class Timeframe(Enum):
     MONTH_1 = '1M'
 
 
-class OrderType:
+class OrderType(Enum):
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'
     STOP = 'STOP'

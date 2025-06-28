@@ -163,7 +163,7 @@ def test_stop_loss():
     assert exchange.wallet_balance == 1000
 
     order = broker.reduce_position_at(1, 40, 50)
-    assert order.type == OrderType.STOP
+    assert order.type == OrderType.STOP.value
     assert order.price == 40
     assert order.qty == -1
     assert order.side == 'sell'

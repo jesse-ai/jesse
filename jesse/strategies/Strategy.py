@@ -821,7 +821,7 @@ class Strategy(ABC):
                 self._execute_short()
 
     def _have_any_pending_market_exit_orders(self) -> bool:
-        return any(o.is_active and o.type == OrderType.MARKET for o in self.exit_orders)
+        return any(o.is_active and o.type == OrderType.MARKET.value for o in self.exit_orders)
 
     @staticmethod
     def _simulate_market_order_execution() -> None:
