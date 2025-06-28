@@ -5,6 +5,6 @@ from jesse.enums import Exchanges
 class ApexOmniPerpetual(ApexProMain):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.APEX_OMNI_PERPETUAL,
+            name=Exchanges.APEX_OMNI_PERPETUAL.value,
             rest_endpoint='https://omni.apex.exchange/api/v3'
         )

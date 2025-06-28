@@ -28,7 +28,7 @@ config = {
 
         # fill it later in this file using data in info.py
         'exchanges': {
-            Exchanges.SANDBOX: {
+            Exchanges.SANDBOX.value: {
                 'fee': 0,
                 'type': 'futures',
                 # accepted values are: 'cross' and 'isolated'

@@ -102,18 +102,18 @@ def test_forming_candles():
     ]
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'BTC-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'BTC-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'BTC-USDT',
         'candles': test_candles_0
     }
 
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, data_routes, '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, data_routes, '2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
-    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5.value)) == math.ceil(1382 / 5)
-    assert len(store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_15.value)) == math.ceil(
+    assert len(store.candles.get_candles(Exchanges.SANDBOX.value, 'BTC-USDT', Timeframe.MINUTE_5.value)) == math.ceil(1382 / 5)
+    assert len(store.candles.get_candles(Exchanges.SANDBOX.value, 'BTC-USDT', Timeframe.MINUTE_15.value)) == math.ceil(
         1382 / 15)
 
 
@@ -141,15 +141,15 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     ]
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'ETH-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'ETH-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'ETH-USDT',
         'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 2
 
@@ -182,15 +182,15 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     ]
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'ETH-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'ETH-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'ETH-USDT',
         'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
     assert len(store.completed_trades.trades) == 2
 
     t1: ClosedTrade = store.completed_trades.trades[0]
@@ -242,14 +242,14 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
     )
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'BTC-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'BTC-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'BTC-USDT',
         'candles': generated_candles
     }
 
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     assert len(store.completed_trades.trades) == 1
     t1: ClosedTrade = store.completed_trades.trades[0]
@@ -287,8 +287,8 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
 def test_must_not_be_able_to_set_two_similar_routes():
     reset_config()
     router.set_routes([
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test01'},
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_30.value, 'strategy': 'Test02'},
+        {'exchange': Exchanges.SANDBOX.value, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test01'},
+        {'exchange': Exchanges.SANDBOX.value, 'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_30.value, 'strategy': 'Test02'},
     ])
     with pytest.raises(Exception) as err:
         store.reset(True)
@@ -457,15 +457,15 @@ def test_should_buy_and_execute_buy():
 
     candles = {}
     for r in routes:
-        key = jh.key(Exchanges.SANDBOX, r['symbol'])
+        key = jh.key(Exchanges.SANDBOX.value, r['symbol'])
         candles[key] = {
-            'exchange': Exchanges.SANDBOX,
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': r['symbol'],
             'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     for r in router.routes:
         s: Strategy = r.strategy
@@ -500,15 +500,15 @@ def test_should_sell_and_execute_sell():
 
     candles = {}
     for r in routes:
-        key = jh.key(Exchanges.SANDBOX, r['symbol'])
+        key = jh.key(Exchanges.SANDBOX.value, r['symbol'])
         candles[key] = {
-            'exchange': Exchanges.SANDBOX,
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': r['symbol'],
             'candles': range_candles((5 * 3) * 20)
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     for r in router.routes:
         s: Strategy = r.strategy
@@ -588,15 +588,15 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     ]
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'ETH-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'ETH-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'ETH-USDT',
         'candles': test_candles_1
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     t1: ClosedTrade = store.completed_trades.trades[0]
     assert t1.type == 'long'
@@ -699,14 +699,14 @@ def test_positions():
 
     candles = {}
     for r in routes:
-        key = jh.key(Exchanges.SANDBOX, r['symbol'])
+        key = jh.key(Exchanges.SANDBOX.value, r['symbol'])
         candles[key] = {
-            'exchange': Exchanges.SANDBOX,
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': r['symbol'],
             'candles': range_candles((5 * 3) * 20)
         }
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     # assertions done in the TestPositions
 
@@ -721,14 +721,14 @@ def test_portfolio_value():
 
     candles = {}
     for r in routes:
-        key = jh.key(Exchanges.SANDBOX, r['symbol'])
+        key = jh.key(Exchanges.SANDBOX.value, r['symbol'])
         candles[key] = {
-            'exchange': Exchanges.SANDBOX,
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': r['symbol'],
             'candles': range_candles((5 * 3) * 20)
         }
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     # assertions done in the TestPortfolioValue
 

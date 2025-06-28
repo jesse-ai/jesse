@@ -5,7 +5,7 @@ from jesse.enums import Exchanges
 class BybitSpot(BybitMain):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.BYBIT_SPOT,
+            name=Exchanges.BYBIT_SPOT.value,
             rest_endpoint='https://api.bybit.com',
             category='spot',
         )

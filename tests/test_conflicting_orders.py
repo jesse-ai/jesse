@@ -11,8 +11,8 @@ from jesse.testing_utils import single_route_backtest
 
 def get_btc_candles():
     return {
-        jh.key(Exchanges.SANDBOX, 'BTC-USDT'): {
-            'exchange': Exchanges.SANDBOX,
+        jh.key(Exchanges.SANDBOX.value, 'BTC-USDT'): {
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': 'BTC-USDT',
             'candles': candles_from_close_prices(range(1, 100)),
         }
@@ -23,9 +23,9 @@ def set_up(routes, is_futures_trading=True):
     reset_config()
     if is_futures_trading:
         # used only in futures trading
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'futures'
     else:
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'spot'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'spot'
     router.set_routes(routes)
     store.reset(True)
 
@@ -69,7 +69,7 @@ def test_conflicting_orders_2():
 
 # def test_can_handle_not_correctly_sorted_multiple_orders():
 #     set_up([
-#         (exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1, 'Test35'),
+#         (Exchanges.SANDBOX.value, 'BTC-USDT', timeframes.MINUTE_1, 'Test35'),
 #     ])
 #
 #     backtest_mode.run('2019-04-01', '2019-04-02', get_btc_candles())

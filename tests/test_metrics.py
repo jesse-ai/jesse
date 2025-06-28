@@ -49,13 +49,13 @@ def test_metrics_for_trades_without_fee():
 
 # def test_stats_for_a_strategy_without_losing_trades():
 #     set_up([
-#         (exchanges.SANDBOX, 'ETH-USDT', timeframes.MINUTE_5, 'Test08'),
+#         (Exchanges.SANDBOX.value, 'ETH-USDT', timeframes.MINUTE_5, 'Test08'),
 #     ])
 #
 #     candles = {}
-#     key = jh.key(exchanges.SANDBOX, 'ETH-USDT')
+#     key = jh.key(Exchanges.SANDBOX.value, 'ETH-USDT')
 #     candles[key] = {
-#         'exchange': exchanges.SANDBOX,
+#         'exchange': Exchanges.SANDBOX.value,
 #         'symbol': 'ETH-USDT',
 #         'candles': test_candles_1
 #     }

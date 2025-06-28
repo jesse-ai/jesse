@@ -5,6 +5,6 @@ from jesse.enums import Exchanges
 class ApexProPerpetual(ApexProMain):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.APEX_PRO_PERPETUAL,
+            name=Exchanges.APEX_PRO_PERPETUAL.value,
             rest_endpoint='https://pro.apex.exchange/api/v2'
         )

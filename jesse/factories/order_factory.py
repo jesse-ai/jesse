@@ -18,7 +18,7 @@ def fake_order(attributes: dict = None) -> Order:
 
     global first_timestamp
     first_timestamp += 60000
-    exchange = Exchanges.SANDBOX
+    exchange = Exchanges.SANDBOX.value
     symbol = 'BTC-USD'
     side = Side.BUY.value
     order_type = OrderType.LIMIT.value

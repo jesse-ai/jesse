@@ -16,50 +16,50 @@ broker: Broker = None
 
 def set_up_without_fee(is_futures_trading=False):
     reset_config()
-    config['env']['exchanges'][Exchanges.SANDBOX]['fee'] = 0
-    config['env']['exchanges'][Exchanges.SANDBOX]['balance'] = 1000
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['fee'] = 0
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['balance'] = 1000
     if is_futures_trading:
         # used only in futures trading
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'futures'
     else:
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'spot'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'spot'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
     router.initiate([
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+        {'exchange': Exchanges.SANDBOX.value, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
     ], [])
 
     global position
     global exchange
     global broker
-    position = selectors.get_position(Exchanges.SANDBOX, 'BTC-USDT')
+    position = selectors.get_position(Exchanges.SANDBOX.value, 'BTC-USDT')
     position.current_price = 50
-    exchange = selectors.get_exchange(Exchanges.SANDBOX)
-    broker = Broker(position, Exchanges.SANDBOX, 'BTC-USDT', Timeframe.MINUTE_5.value)
+    exchange = selectors.get_exchange(Exchanges.SANDBOX.value)
+    broker = Broker(position, Exchanges.SANDBOX.value, 'BTC-USDT', Timeframe.MINUTE_5.value)
 
 
 def set_up_with_fee(is_futures_trading=False):
     reset_config()
-    config['env']['exchanges'][Exchanges.SANDBOX]['fee'] = 0.002
-    config['env']['exchanges'][Exchanges.SANDBOX]['balance'] = 1000
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['fee'] = 0.002
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['balance'] = 1000
     if is_futures_trading:
         # used only in futures trading
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'futures'
     else:
-        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'spot'
+        config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'spot'
     config['app']['trading_mode'] = 'backtest'
     config['app']['considering_exchanges'] = ['Sandbox']
     router.initiate([
-        {'exchange': Exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
+        {'exchange': Exchanges.SANDBOX.value, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
     ], [])
 
     global position
     global exchange
     global broker
-    position = selectors.get_position(Exchanges.SANDBOX, 'BTC-USDT')
+    position = selectors.get_position(Exchanges.SANDBOX.value, 'BTC-USDT')
     position.current_price = 50
-    exchange = selectors.get_exchange(Exchanges.SANDBOX)
-    broker = Broker(position, Exchanges.SANDBOX, 'BTC-USDT',
+    exchange = selectors.get_exchange(Exchanges.SANDBOX.value)
+    broker = Broker(position, Exchanges.SANDBOX.value, 'BTC-USDT',
                     Timeframe.MINUTE_5.value)
 
 

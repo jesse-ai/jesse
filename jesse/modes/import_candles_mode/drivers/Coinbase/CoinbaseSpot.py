@@ -8,7 +8,7 @@ from .coinbase_utils import timeframe_to_interval
 class CoinbaseSpot(CandleExchange):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.COINBASE_SPOT,
+            name=Exchanges.COINBASE_SPOT.value,
             count=300,
             rate_limit_per_second=1.5,
             backup_exchange_class=None

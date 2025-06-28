@@ -48,7 +48,7 @@ class OrderType(Enum):
     STOP_LIMIT = 'STOP LIMIT'
 
 
-class Exchanges:
+class Exchanges(Enum):
     SANDBOX = 'Sandbox'
     COINBASE_SPOT = 'Coinbase Spot'
     BITFINEX_SPOT = 'Bitfinex Spot'

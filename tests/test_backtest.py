@@ -14,21 +14,21 @@ def test_backtesting_one_route():
     routes = [
         {'symbol': 'BTC-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'}
     ]
-    config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'futures'
 
     candles = {}
-    key = jh.key(Exchanges.SANDBOX, 'BTC-USDT')
+    key = jh.key(Exchanges.SANDBOX.value, 'BTC-USDT')
     candles[key] = {
-        'exchange': Exchanges.SANDBOX,
+        'exchange': Exchanges.SANDBOX.value,
         'symbol': 'BTC-USDT',
         'candles': range_candles(5 * 20)
     }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    one_min = store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', '1m')
-    five_min = store.candles.get_candles(Exchanges.SANDBOX, 'BTC-USDT', '5m')
+    one_min = store.candles.get_candles(Exchanges.SANDBOX.value, 'BTC-USDT', '1m')
+    five_min = store.candles.get_candles(Exchanges.SANDBOX.value, 'BTC-USDT', '5m')
 
     # assert the count of present candles
     assert len(five_min) == 20
@@ -48,14 +48,14 @@ def test_backtesting_one_route():
 
     # there must be only one positions present
     assert len(store.positions.storage) == 1
-    p = selectors.get_position(Exchanges.SANDBOX, 'BTC-USDT')
+    p = selectors.get_position(Exchanges.SANDBOX.value, 'BTC-USDT')
     assert p.is_close
     assert p.current_price == last_1[2]
     assert p.current_price == last_5[2]
 
     # assert routes
     assert len(router.routes) == 1
-    assert router.routes[0].exchange == Exchanges.SANDBOX
+    assert router.routes[0].exchange == Exchanges.SANDBOX.value
     assert router.routes[0].symbol == 'BTC-USDT'
     assert router.routes[0].timeframe == '5m'
     assert router.routes[0].strategy_name == 'Test19'
@@ -70,19 +70,19 @@ def test_backtesting_three_routes():
         {'symbol': 'ETH-USDT', 'timeframe': Timeframe.MINUTE_5.value, 'strategy': 'Test19'},
         {'symbol': 'XRP-USDT', 'timeframe': Timeframe.MINUTE_15.value, 'strategy': 'Test19'}
     ]
-    config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+    config['env']['exchanges'][Exchanges.SANDBOX.value]['type'] = 'futures'
 
     candles = {}
     for r in routes:
-        key = jh.key(Exchanges.SANDBOX, r['symbol'])
+        key = jh.key(Exchanges.SANDBOX.value, r['symbol'])
         candles[key] = {
-            'exchange': Exchanges.SANDBOX,
+            'exchange': Exchanges.SANDBOX.value,
             'symbol': r['symbol'],
             'candles': range_candles(5 * 3 * 20)
         }
 
     # run backtest (dates are fake just to pass)
-    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX.value, routes, [], '2019-04-01', '2019-04-02', candles)
 
     # there must be three positions present with the updated current_price
     assert len(store.positions.storage) == 3

@@ -12,7 +12,7 @@ from .bitfinex_utils import timeframe_to_interval
 class BitfinexSpot(CandleExchange):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.BITFINEX_SPOT,
+            name=Exchanges.BITFINEX_SPOT.value,
             count=1440,
             rate_limit_per_second=1,
             backup_exchange_class=None

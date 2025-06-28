@@ -7,7 +7,7 @@ class BinanceUSSpot(BinanceMain):
         from .BinanceSpot import BinanceSpot
 
         super().__init__(
-            name=Exchanges.BINANCE_US_SPOT,
+            name=Exchanges.BINANCE_US_SPOT.value,
             rest_endpoint='https://api.binance.us/api',
             backup_exchange_class=BinanceSpot
         )

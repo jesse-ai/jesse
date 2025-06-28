@@ -7,7 +7,7 @@ class BinancePerpetualFuturesTestnet(BinanceMain):
         from .BinanceSpot import BinanceSpot
 
         super().__init__(
-            name=Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
+            name=Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET.value,
             rest_endpoint='https://testnet.binancefuture.com/fapi',
             backup_exchange_class=BinanceSpot
         )

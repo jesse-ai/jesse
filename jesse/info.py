@@ -1,4 +1,4 @@
-from jesse.enums import Exchanges as exchanges_enums, Timeframe
+from jesse.enums import Exchanges, Timeframe
 
 JESSE_API_URL = 'https://api1.jesse.trade/api'
 # JESSE_API_URL = 'http://localhost:8040/api'
@@ -26,8 +26,8 @@ HYPERLIQUID_TIMEFRAMES = [Timeframe.MINUTE_1.value, Timeframe.MINUTE_3.value, Ti
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
-    exchanges_enums.BYBIT_USDT_PERPETUAL: {
-        "name": exchanges_enums.BYBIT_USDT_PERPETUAL,
+    Exchanges.BYBIT_USDT_PERPETUAL.value: {
+        "name": Exchanges.BYBIT_USDT_PERPETUAL.value,
         "url": JESSE_WEBSITE_URL + "/bybit",
         "fee": 0.00055,
         "type": "futures",
@@ -41,8 +41,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BYBIT_USDT_PERPETUAL_TESTNET
-    exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.BYBIT_USDT_PERPETUAL_TESTNET,
+    Exchanges.BYBIT_USDT_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.BYBIT_USDT_PERPETUAL_TESTNET.value,
         "url": JESSE_WEBSITE_URL + "/bybit",
         "fee": 0.00055,
         "type": "futures",
@@ -56,8 +56,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BYBIT_USDT_PERPETUAL
-    exchanges_enums.BYBIT_USDC_PERPETUAL: {
-        "name": exchanges_enums.BYBIT_USDC_PERPETUAL,
+    Exchanges.BYBIT_USDC_PERPETUAL.value: {
+        "name": Exchanges.BYBIT_USDC_PERPETUAL.value,
         "url": JESSE_WEBSITE_URL + "/bybit",
         "fee": 0.00055,
         "type": "futures",
@@ -71,8 +71,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BYBIT_USDC_PERPETUAL_TESTNET
-    exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.BYBIT_USDC_PERPETUAL_TESTNET,
+    Exchanges.BYBIT_USDC_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.BYBIT_USDC_PERPETUAL_TESTNET.value,
         "url": JESSE_WEBSITE_URL + "/bybit",
         "fee": 0.00055,
         "type": "futures",
@@ -86,8 +86,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BYBIT_SPOT_TESTNET
-    exchanges_enums.BYBIT_SPOT: {
-        "name": exchanges_enums.BYBIT_SPOT,
+    Exchanges.BYBIT_SPOT.value: {
+        "name": Exchanges.BYBIT_SPOT.value,
         "url": "https://jesse.trade/bybit",
         "fee": 0.001,
         "type": "spot",
@@ -100,8 +100,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BYBIT_SPOT_TESTNET
-    exchanges_enums.BYBIT_SPOT_TESTNET: {
-        "name": exchanges_enums.BYBIT_SPOT_TESTNET,
+    Exchanges.BYBIT_SPOT_TESTNET.value: {
+        "name": Exchanges.BYBIT_SPOT_TESTNET.value,
         "url": "https://jesse.trade/bybit",
         "fee": 0.001,
         "type": "spot",
@@ -114,8 +114,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BITFINEX_SPOT
-    exchanges_enums.BITFINEX_SPOT: {
-        "name": exchanges_enums.BITFINEX_SPOT,
+    Exchanges.BITFINEX_SPOT.value: {
+        "name": Exchanges.BITFINEX_SPOT.value,
         "url": "https://bitfinex.com",
         "fee": 0.002,
         "type": "spot",
@@ -138,8 +138,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BINANCE_SPOT
-    exchanges_enums.BINANCE_SPOT: {
-        "name": exchanges_enums.BINANCE_SPOT,
+    Exchanges.BINANCE_SPOT.value: {
+        "name": Exchanges.BINANCE_SPOT.value,
         "url": "https://binance.com",
         "fee": 0.001,
         "type": "spot",
@@ -152,8 +152,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BINANCE_US_SPOT
-    exchanges_enums.BINANCE_US_SPOT: {
-        "name": exchanges_enums.BINANCE_US_SPOT,
+    Exchanges.BINANCE_US_SPOT.value: {
+        "name": Exchanges.BINANCE_US_SPOT.value,
         "url": "https://binance.us",
         "fee": 0.001,
         "type": "spot",
@@ -166,8 +166,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BINANCE_PERPETUAL_FUTURES
-    exchanges_enums.BINANCE_PERPETUAL_FUTURES: {
-        "name": exchanges_enums.BINANCE_PERPETUAL_FUTURES,
+    Exchanges.BINANCE_PERPETUAL_FUTURES.value: {
+        "name": Exchanges.BINANCE_PERPETUAL_FUTURES.value,
         "url": "https://binance.com",
         "fee": 0.0004,
         "type": "futures",
@@ -180,8 +180,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BINANCE_PERPETUAL_FUTURES_TESTNET
-    exchanges_enums.BINANCE_PERPETUAL_FUTURES_TESTNET: {
-        "name": exchanges_enums.BINANCE_PERPETUAL_FUTURES_TESTNET,
+    Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET.value: {
+        "name": Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET.value,
         "url": "https://binance.com",
         "fee": 0.0004,
         "type": "futures",
@@ -194,8 +194,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # COINBASE_SPOT
-    exchanges_enums.COINBASE_SPOT: {
-        "name": exchanges_enums.COINBASE_SPOT,
+    Exchanges.COINBASE_SPOT.value: {
+        "name": Exchanges.COINBASE_SPOT.value,
         "url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
         "fee": 0.0003,
         "type": "spot",
@@ -208,8 +208,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # APEX_PRO_PERPETUAL_TESTNET
-    exchanges_enums.APEX_PRO_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.APEX_PRO_PERPETUAL_TESTNET,
+    Exchanges.APEX_PRO_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.APEX_PRO_PERPETUAL_TESTNET.value,
         "url": "https://testnet.pro.apex.exchange/trade/BTCUSD",
         "fee": 0.0005,
         "type": "futures",
@@ -221,8 +221,8 @@ exchange_info = {
         },
         "required_live_plan": "free",
     },
-    exchanges_enums.APEX_PRO_PERPETUAL: {
-        "name": exchanges_enums.APEX_PRO_PERPETUAL,
+    Exchanges.APEX_PRO_PERPETUAL.value: {
+        "name": Exchanges.APEX_PRO_PERPETUAL.value,
         "url": "https://pro.apex.exchange/trade/BTCUSD",
         "fee": 0.0005,
         "type": "futures",
@@ -234,8 +234,8 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
-    exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET,
+    Exchanges.APEX_OMNI_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.APEX_OMNI_PERPETUAL_TESTNET.value,
         "url": "https://testnet.omni.apex.exchange/trade/BTCUSD",
         "fee": 0.0005,
         "type": "futures",
@@ -247,8 +247,8 @@ exchange_info = {
         },
         "required_live_plan": "free",
     },
-    exchanges_enums.APEX_OMNI_PERPETUAL: {
-        "name": exchanges_enums.APEX_OMNI_PERPETUAL,
+    Exchanges.APEX_OMNI_PERPETUAL.value: {
+        "name": Exchanges.APEX_OMNI_PERPETUAL.value,
         "url": "https://omni.apex.exchange/trade/BTCUSD",
         "fee": 0.0005,
         "type": "futures",
@@ -260,8 +260,8 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
-    exchanges_enums.GATE_USDT_PERPETUAL: {
-        "name": exchanges_enums.GATE_USDT_PERPETUAL,
+    Exchanges.GATE_USDT_PERPETUAL.value: {
+        "name": Exchanges.GATE_USDT_PERPETUAL.value,
         "url": "https://jesse.trade/gate",
         "fee": 0.0005,
         "type": "futures",
@@ -273,8 +273,8 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
-    exchanges_enums.GATE_SPOT: {
-        "name": exchanges_enums.GATE_SPOT,
+    Exchanges.GATE_SPOT.value: {
+        "name": Exchanges.GATE_SPOT.value,
         "url": "https://jesse.trade/gate",
         "fee": 0.0005,
         "type": "spot",
@@ -287,8 +287,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # FTX_PERPETUAL_FUTURES
-    exchanges_enums.FTX_PERPETUAL_FUTURES: {
-        "name": exchanges_enums.FTX_PERPETUAL_FUTURES,
+    Exchanges.FTX_PERPETUAL_FUTURES.value: {
+        "name": Exchanges.FTX_PERPETUAL_FUTURES.value,
         "url": "https://ftx.com/markets/future",
         "fee": 0.0006,
         "type": "futures",
@@ -301,8 +301,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # FTX_SPOT
-    exchanges_enums.FTX_SPOT: {
-        "name": exchanges_enums.FTX_SPOT,
+    Exchanges.FTX_SPOT.value: {
+        "name": Exchanges.FTX_SPOT.value,
         "url": "https://ftx.com/markets/spot",
         "fee": 0.0007,
         "type": "spot",
@@ -315,8 +315,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # FTX_US_SPOT
-    exchanges_enums.FTX_US_SPOT: {
-        "name": exchanges_enums.FTX_US_SPOT,
+    Exchanges.FTX_US_SPOT.value: {
+        "name": Exchanges.FTX_US_SPOT.value,
         "url": "https://ftx.us",
         "fee": 0.002,
         "type": "spot",
@@ -329,8 +329,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BITGET_USDT_PERPETUAL_TESTNET
-    exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.BITGET_USDT_PERPETUAL_TESTNET,
+    Exchanges.BITGET_USDT_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.BITGET_USDT_PERPETUAL_TESTNET.value,
         "url": JESSE_WEBSITE_URL + "/bitget",
         "fee": 0.0006,
         "type": "futures",
@@ -343,8 +343,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BITGET_USDT_PERPETUAL
-    exchanges_enums.BITGET_USDT_PERPETUAL: {
-        "name": exchanges_enums.BITGET_USDT_PERPETUAL,
+    Exchanges.BITGET_USDT_PERPETUAL.value: {
+        "name": Exchanges.BITGET_USDT_PERPETUAL.value,
         "url": JESSE_WEBSITE_URL + "/bitget",
         "fee": 0.0006,
         "type": "futures",
@@ -357,8 +357,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # BITGET_SPOT
-    exchanges_enums.BITGET_SPOT: {
-        "name": exchanges_enums.BITGET_SPOT,
+    Exchanges.BITGET_SPOT.value: {
+        "name": Exchanges.BITGET_SPOT.value,
         "url": JESSE_WEBSITE_URL + "/bitget",
         "fee": 0.0006,
         "type": "spot",
@@ -371,8 +371,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # DyDx
-    exchanges_enums.DYDX_PERPETUAL: {
-        "name": exchanges_enums.DYDX_PERPETUAL,
+    Exchanges.DYDX_PERPETUAL.value: {
+        "name": Exchanges.DYDX_PERPETUAL.value,
         "url": JESSE_WEBSITE_URL + "/dydx",
         "fee": 0.0005,
         "type": "futures",
@@ -385,8 +385,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # DyDx Testnet
-    exchanges_enums.DYDX_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.DYDX_PERPETUAL_TESTNET,
+    Exchanges.DYDX_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.DYDX_PERPETUAL_TESTNET.value,
         "url": "https://trade.stage.dydx.exchange/trade/ETH-USD",
         "fee": 0.0005,
         "type": "futures",
@@ -399,8 +399,8 @@ exchange_info = {
         "required_live_plan": "premium",
     },
     # HyperLiquid
-    exchanges_enums.HYPERLIQUID_PERPETUAL: {
-        "name": exchanges_enums.HYPERLIQUID_PERPETUAL,
+    Exchanges.HYPERLIQUID_PERPETUAL.value: {
+        "name": Exchanges.HYPERLIQUID_PERPETUAL.value,
         "url": "https://app.hyperliquid.xyz/trade",
         "fee": 0.0001,
         "type": "futures",
@@ -412,8 +412,8 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
-    exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET,
+    Exchanges.HYPERLIQUID_PERPETUAL_TESTNET.value: {
+        "name": Exchanges.HYPERLIQUID_PERPETUAL_TESTNET.value,
         "url": "https://app.hyperliquid-testnet.xyz/trade",
         "fee": 0.0001,
         "type": "futures",

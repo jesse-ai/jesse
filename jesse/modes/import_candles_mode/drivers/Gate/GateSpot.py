@@ -5,6 +5,6 @@ from jesse.enums import Exchanges
 class GateSpot(GateSpotMain):
     def __init__(self) -> None:
         super().__init__(
-            name=Exchanges.GATE_SPOT,
+            name=Exchanges.GATE_SPOT.value,
             rest_endpoint='https://api.gateio.ws/api/v4/spot'
         )
