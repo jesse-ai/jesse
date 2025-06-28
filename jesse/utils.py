@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 import jesse.helpers as jh
-from jesse.enums import timeframes
+from jesse.enums import Timeframe
 import statsmodels.api as sm
 
 
@@ -20,19 +20,19 @@ def anchor_timeframe(timeframe: str) -> str:
     """
 
     dic = {
-        timeframes.MINUTE_1: timeframes.MINUTE_5,
-        timeframes.MINUTE_3: timeframes.MINUTE_15,
-        timeframes.MINUTE_5: timeframes.MINUTE_30,
-        timeframes.MINUTE_15: timeframes.HOUR_2,
-        timeframes.MINUTE_30: timeframes.HOUR_3,
-        timeframes.MINUTE_45: timeframes.HOUR_3,
-        timeframes.HOUR_1: timeframes.HOUR_4,
-        timeframes.HOUR_2: timeframes.HOUR_6,
-        timeframes.HOUR_3: timeframes.DAY_1,
-        timeframes.HOUR_4: timeframes.DAY_1,
-        timeframes.HOUR_6: timeframes.DAY_1,
-        timeframes.HOUR_8: timeframes.DAY_1,
-        timeframes.HOUR_12: timeframes.DAY_1,
+        Timeframe.MINUTE_1: Timeframe.MINUTE_5,
+        Timeframe.MINUTE_3: Timeframe.MINUTE_15,
+        Timeframe.MINUTE_5: Timeframe.MINUTE_30,
+        Timeframe.MINUTE_15: Timeframe.HOUR_2,
+        Timeframe.MINUTE_30: Timeframe.HOUR_3,
+        Timeframe.MINUTE_45: Timeframe.HOUR_3,
+        Timeframe.HOUR_1: Timeframe.HOUR_4,
+        Timeframe.HOUR_2: Timeframe.HOUR_6,
+        Timeframe.HOUR_3: Timeframe.DAY_1,
+        Timeframe.HOUR_4: Timeframe.DAY_1,
+        Timeframe.HOUR_6: Timeframe.DAY_1,
+        Timeframe.HOUR_8: Timeframe.DAY_1,
+        Timeframe.HOUR_12: Timeframe.DAY_1,
     }
 
     return dic[timeframe]
@@ -333,33 +333,33 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
 
     :raises InvalidTimeframe: If the provided timeframe is not supported.
     """
-    from jesse.enums import timeframes
+    from jesse.enums import Timeframe
     from jesse.exceptions import InvalidTimeframe
 
     dic = {
-        timeframes.MINUTE_1: 1,
-        timeframes.MINUTE_3: 3,
-        timeframes.MINUTE_5: 5,
-        timeframes.MINUTE_15: 15,
-        timeframes.MINUTE_30: 30,
-        timeframes.MINUTE_45: 45,
-        timeframes.HOUR_1: 60,
-        timeframes.HOUR_2: 60 * 2,
-        timeframes.HOUR_3: 60 * 3,
-        timeframes.HOUR_4: 60 * 4,
-        timeframes.HOUR_6: 60 * 6,
-        timeframes.HOUR_8: 60 * 8,
-        timeframes.HOUR_12: 60 * 12,
-        timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
-        timeframes.MONTH_1: 60 * 24 * 30,
+        Timeframe.MINUTE_1: 1,
+        Timeframe.MINUTE_3: 3,
+        Timeframe.MINUTE_5: 5,
+        Timeframe.MINUTE_15: 15,
+        Timeframe.MINUTE_30: 30,
+        Timeframe.MINUTE_45: 45,
+        Timeframe.HOUR_1: 60,
+        Timeframe.HOUR_2: 60 * 2,
+        Timeframe.HOUR_3: 60 * 3,
+        Timeframe.HOUR_4: 60 * 4,
+        Timeframe.HOUR_6: 60 * 6,
+        Timeframe.HOUR_8: 60 * 8,
+        Timeframe.HOUR_12: 60 * 12,
+        Timeframe.DAY_1: 60 * 24,
+        Timeframe.DAY_3: 60 * 24 * 3,
+        Timeframe.WEEK_1: 60 * 24 * 7,
+        Timeframe.MONTH_1: 60 * 24 * 30,
     }
 
     try:
         return dic[timeframe]
     except KeyError:
-        all_timeframes = [timeframe for timeframe in jh.class_iter(timeframes)]
+        all_timeframes = [timeframe for timeframe in jh.class_iter(Timeframe)]
         raise InvalidTimeframe(
             f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.'
         )

@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from jesse.info import exchange_info
 
 # Main configuration used by the Jesse framework. These values are modified
@@ -28,7 +28,7 @@ config = {
 
         # fill it later in this file using data in info.py
         'exchanges': {
-            exchanges.SANDBOX: {
+            Exchanges.SANDBOX: {
                 'fee': 0,
                 'type': 'futures',
                 # accepted values are: 'cross' and 'isolated'

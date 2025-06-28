@@ -1,4 +1,4 @@
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceUSSpot import BinanceUSSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import BinancePerpetualFutures
@@ -23,27 +23,27 @@ from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTes
 
 drivers = {
     # Perpetual Futures
-    exchanges.BINANCE_PERPETUAL_FUTURES: BinancePerpetualFutures,
-    exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: BinancePerpetualFuturesTestnet,
-    exchanges.BITFINEX_SPOT: BitfinexSpot,
-    exchanges.COINBASE_SPOT: CoinbaseSpot,
-    exchanges.BYBIT_USDT_PERPETUAL: BybitUSDTPerpetual,
-    exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
-    exchanges.BYBIT_USDC_PERPETUAL: BybitUSDCPerpetual,
-    exchanges.BYBIT_USDC_PERPETUAL_TESTNET: BybitUSDCPerpetualTestnet,
-    exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
-    exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
-    exchanges.APEX_OMNI_PERPETUAL_TESTNET: ApexOmniPerpetualTestnet,
-    exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
-    exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
-    exchanges.GATE_SPOT: GateSpot,
-    exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
-    exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
+    Exchanges.BINANCE_PERPETUAL_FUTURES: BinancePerpetualFutures,
+    Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET: BinancePerpetualFuturesTestnet,
+    Exchanges.BITFINEX_SPOT: BitfinexSpot,
+    Exchanges.COINBASE_SPOT: CoinbaseSpot,
+    Exchanges.BYBIT_USDT_PERPETUAL: BybitUSDTPerpetual,
+    Exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
+    Exchanges.BYBIT_USDC_PERPETUAL: BybitUSDCPerpetual,
+    Exchanges.BYBIT_USDC_PERPETUAL_TESTNET: BybitUSDCPerpetualTestnet,
+    Exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
+    Exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
+    Exchanges.APEX_OMNI_PERPETUAL_TESTNET: ApexOmniPerpetualTestnet,
+    Exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
+    Exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
+    Exchanges.GATE_SPOT: GateSpot,
+    Exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
+    Exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
     # Spot
-    exchanges.BINANCE_SPOT: BinanceSpot,
-    exchanges.BINANCE_US_SPOT: BinanceUSSpot,
-    exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
-    exchanges.BYBIT_SPOT: BybitSpot,
+    Exchanges.BINANCE_SPOT: BinanceSpot,
+    Exchanges.BINANCE_US_SPOT: BinanceUSSpot,
+    Exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
+    Exchanges.BYBIT_SPOT: BybitSpot,
 }
 
 

@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.config import reset_config
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from jesse.factories import candles_from_close_prices
 from jesse.models import ClosedTrade
 from jesse.routes import router
@@ -11,8 +11,8 @@ from jesse.testing_utils import single_route_backtest
 
 def get_btc_candles():
     return {
-        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
-            'exchange': exchanges.SANDBOX,
+        jh.key(Exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': Exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
             'candles': candles_from_close_prices(range(1, 100)),
         }
@@ -23,9 +23,9 @@ def set_up(routes, is_futures_trading=True):
     reset_config()
     if is_futures_trading:
         # used only in futures trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
     else:
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
+        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'spot'
     router.set_routes(routes)
     store.reset(True)
 

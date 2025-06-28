@@ -2,7 +2,7 @@ import numpy as np
 from jesse.models import Position, ClosedTrade, Order
 import jesse.helpers as jh
 from jesse.models.ClosedTrade import store_closed_trade_into_db
-from jesse.enums import sides
+from jesse.enums import Side
 from jesse.services import logger
 
 
@@ -50,9 +50,9 @@ class ClosedTrades:
         used for correct trade-metrics calculations in persistency support for live mode.
         """
         t = self._get_current_trade(exchange, symbol)
-        if side == sides.BUY:
+        if side == Side.BUY:
             t.buy_orders.append(np.array([abs(qty), price]))
-        elif side == sides.SELL:
+        elif side == Side.SELL:
             t.sell_orders.append(np.array([abs(qty), price]))
         else:
             raise Exception(f"Invalid order side: {side}")

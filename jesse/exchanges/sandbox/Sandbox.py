@@ -1,5 +1,5 @@
 import jesse.helpers as jh
-from jesse.enums import order_types
+from jesse.enums import OrderType
 from jesse.exchanges.exchange import Exchange
 from jesse.models import Order
 from jesse.store import store
@@ -17,7 +17,7 @@ class Sandbox(Exchange):
             'symbol': symbol,
             'exchange': self.name,
             'side': side,
-            'type': order_types.MARKET,
+            'type': OrderType.MARKET,
             'reduce_only': reduce_only,
             'qty': jh.prepare_qty(qty, side),
             'price': current_price,
@@ -35,7 +35,7 @@ class Sandbox(Exchange):
             'symbol': symbol,
             'exchange': self.name,
             'side': side,
-            'type': order_types.LIMIT,
+            'type': OrderType.LIMIT,
             'reduce_only': reduce_only,
             'qty': jh.prepare_qty(qty, side),
             'price': price,
@@ -51,7 +51,7 @@ class Sandbox(Exchange):
             'symbol': symbol,
             'exchange': self.name,
             'side': side,
-            'type': order_types.STOP,
+            'type': OrderType.STOP,
             'reduce_only': reduce_only,
             'qty': jh.prepare_qty(qty, side),
             'price': price,

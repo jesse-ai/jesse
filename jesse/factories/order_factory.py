@@ -1,7 +1,7 @@
 from random import randint
 
 import jesse.helpers as jh
-from jesse.enums import exchanges, sides, order_types, order_statuses
+from jesse.enums import Exchanges, Side, OrderType, OrderStatus
 from jesse.models import Order
 
 first_timestamp = 1552309186171
@@ -18,13 +18,13 @@ def fake_order(attributes: dict = None) -> Order:
 
     global first_timestamp
     first_timestamp += 60000
-    exchange = exchanges.SANDBOX
+    exchange = Exchanges.SANDBOX
     symbol = 'BTC-USD'
-    side = sides.BUY
-    order_type = order_types.LIMIT
+    side = Side.BUY
+    order_type = OrderType.LIMIT
     price = randint(40, 100)
     qty = randint(1, 10)
-    status = order_statuses.ACTIVE
+    status = OrderStatus.ACTIVE
     created_at = first_timestamp
 
     return Order({

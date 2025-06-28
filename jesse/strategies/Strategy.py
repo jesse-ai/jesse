@@ -8,7 +8,7 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse import exceptions
-from jesse.enums import sides, order_submitted_via, order_types
+from jesse.enums import Side, OrderSubmittedVia, OrderType
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
 from jesse.services import metrics
 from jesse.services.broker import Broker
@@ -228,9 +228,9 @@ class Strategy(ABC):
 
         self._executed_orders.append({
             'time': int(self.current_candle[0] / 1000),
-            'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
-            'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
-            'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
+            'position': 'aboveBar' if order.side == Side.SELL else 'belowBar',
+            'color': '#e91e63' if order.side == Side.SELL else '#2196F3',
+            'shape': 'arrowDown' if order.side == Side.SELL else 'arrowUp',
             'text': f'{order.side.upper()} • {position_type}',
             'order_id': order.id,
         })
@@ -362,7 +362,7 @@ class Strategy(ABC):
                 self.broker.buy_at_market(o[0])
             # STOP order
             elif o[1] > price_to_compare:
-                self.broker.start_profit_at(sides.BUY, o[0], o[1])
+                self.broker.start_profit_at(Side.BUY, o[0], o[1])
             # LIMIT order
             elif o[1] < price_to_compare:
                 self.broker.buy_at(o[0], o[1])
@@ -384,7 +384,7 @@ class Strategy(ABC):
                 self.broker.sell_at_market(o[0])
             # STOP order
             elif o[1] < price_to_compare:
-                self.broker.start_profit_at(sides.SELL, o[0], o[1])
+                self.broker.start_profit_at(Side.SELL, o[0], o[1])
             # LIMIT order
             elif o[1] > price_to_compare:
                 self.broker.sell_at(o[0], o[1])
@@ -668,7 +668,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+                            submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS
 
                         # if self.take_profit has been modified
 
@@ -710,7 +710,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
+                            submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT
     
         except TypeError:
             raise exceptions.InvalidStrategy(
@@ -821,7 +821,7 @@ class Strategy(ABC):
                 self._execute_short()
 
     def _have_any_pending_market_exit_orders(self) -> bool:
-        return any(o.is_active and o.type == order_types.MARKET for o in self.exit_orders)
+        return any(o.is_active and o.type == OrderType.MARKET for o in self.exit_orders)
 
     @staticmethod
     def _simulate_market_order_execution() -> None:
@@ -851,7 +851,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+                    submitted_order.submitted_via = OrderSubmittedVia.STOP_LOSS
 
         if self.take_profit is not None:
             for o in self._take_profit:
@@ -868,7 +868,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
+                    submitted_order.submitted_via = OrderSubmittedVia.TAKE_PROFIT
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()

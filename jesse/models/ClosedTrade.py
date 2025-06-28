@@ -6,7 +6,7 @@ import jesse.helpers as jh
 from jesse.config import config
 from jesse.services.db import database
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
-from jesse.enums import trade_types
+from jesse.enums import TradeType
 
 if database.is_closed():
     database.open_connection()
@@ -138,11 +138,11 @@ class ClosedTrade(peewee.Model):
 
     @property
     def is_long(self) -> bool:
-        return self.type == trade_types.LONG
+        return self.type == TradeType.LONG
 
     @property
     def is_short(self) -> bool:
-        return self.type == trade_types.SHORT
+        return self.type == TradeType.SHORT
 
     @property
     def qty(self) -> float:

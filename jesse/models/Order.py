@@ -5,7 +5,7 @@ import jesse.services.logger as logger
 import jesse.services.selectors as selectors
 from jesse.config import config
 from jesse.services.notifier import notify
-from jesse.enums import order_statuses, order_submitted_via
+from jesse.enums import OrderStatus, OrderSubmittedVia
 from jesse.services.db import database
 
 
@@ -31,7 +31,7 @@ class Order(Model):
     qty = FloatField()
     filled_qty = FloatField(default=0)
     price = FloatField(null=True)
-    status = CharField(default=order_statuses.ACTIVE)
+    status = CharField(default=OrderStatus.ACTIVE)
     created_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
@@ -85,11 +85,11 @@ class Order(Model):
 
     @property
     def is_canceled(self) -> bool:
-        return self.status == order_statuses.CANCELED
+        return self.status == OrderStatus.CANCELED
 
     @property
     def is_active(self) -> bool:
-        return self.status == order_statuses.ACTIVE
+        return self.status == OrderStatus.ACTIVE
 
     @property
     def is_cancellable(self):
@@ -107,7 +107,7 @@ class Order(Model):
 
         :return: bool
         """
-        return self.status == order_statuses.QUEUED
+        return self.status == OrderStatus.QUEUED
 
     @property
     def is_new(self) -> bool:
@@ -115,7 +115,7 @@ class Order(Model):
 
     @property
     def is_executed(self) -> bool:
-        return self.status == order_statuses.EXECUTED
+        return self.status == OrderStatus.EXECUTED
 
     @property
     def is_filled(self) -> bool:
@@ -123,15 +123,15 @@ class Order(Model):
 
     @property
     def is_partially_filled(self) -> bool:
-        return self.status == order_statuses.PARTIALLY_FILLED
+        return self.status == OrderStatus.PARTIALLY_FILLED
 
     @property
     def is_stop_loss(self):
-        return self.submitted_via == order_submitted_via.STOP_LOSS
+        return self.submitted_via == OrderSubmittedVia.STOP_LOSS
 
     @property
     def is_take_profit(self):
-        return self.submitted_via == order_submitted_via.TAKE_PROFIT
+        return self.submitted_via == OrderSubmittedVia.TAKE_PROFIT
 
     @property
     def to_dict(self):
@@ -164,7 +164,7 @@ class Order(Model):
         return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
 
     def queue(self):
-        self.status = order_statuses.QUEUED
+        self.status = OrderStatus.QUEUED
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
             txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -180,7 +180,7 @@ class Order(Model):
 
         # regenerate the order id to avoid errors on the exchange's side
         self.id = jh.generate_unique_id()
-        self.status = order_statuses.ACTIVE
+        self.status = OrderStatus.ACTIVE
         self.canceled_at = None
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
@@ -198,7 +198,7 @@ class Order(Model):
             return
 
         self.canceled_at = jh.now_to_timestamp()
-        self.status = order_statuses.CANCELED
+        self.status = OrderStatus.CANCELED
 
         # if jh.is_live():
         #     self.save()
@@ -222,7 +222,7 @@ class Order(Model):
             return
 
         self.executed_at = jh.now_to_timestamp()
-        self.status = order_statuses.EXECUTED
+        self.status = OrderStatus.EXECUTED
 
         # if jh.is_live():
         #     self.save()
@@ -253,7 +253,7 @@ class Order(Model):
 
     def execute_partially(self, silent=False) -> None:
         self.executed_at = jh.now_to_timestamp()
-        self.status = order_statuses.PARTIALLY_FILLED
+        self.status = OrderStatus.PARTIALLY_FILLED
 
         # if jh.is_live():
         #     self.save()

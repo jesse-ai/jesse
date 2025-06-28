@@ -1,4 +1,4 @@
-from jesse.enums import timeframes
+from jesse.enums import Timeframe
 
 
 def timeframe_to_interval(timeframe: str) -> str:
@@ -17,35 +17,35 @@ def timeframe_to_interval(timeframe: str) -> str:
     # 3d
     # 1w
     # 1M
-    if timeframe == timeframes.MINUTE_1:
+    if timeframe == Timeframe.MINUTE_1:
         return '1m'
-    elif timeframe == timeframes.MINUTE_3:
+    elif timeframe == Timeframe.MINUTE_3:
         return '3m'
-    elif timeframe == timeframes.MINUTE_5:
+    elif timeframe == Timeframe.MINUTE_5:
         return '5m'
-    elif timeframe == timeframes.MINUTE_15:
+    elif timeframe == Timeframe.MINUTE_15:
         return '15m'
-    elif timeframe == timeframes.MINUTE_30:
+    elif timeframe == Timeframe.MINUTE_30:
         return '30m'
-    elif timeframe == timeframes.HOUR_1:
+    elif timeframe == Timeframe.HOUR_1:
         return '1h'
-    elif timeframe == timeframes.HOUR_2:
+    elif timeframe == Timeframe.HOUR_2:
         return '2h'
-    elif timeframe == timeframes.HOUR_4:
+    elif timeframe == Timeframe.HOUR_4:
         return '4h'
-    elif timeframe == timeframes.HOUR_6:
+    elif timeframe == Timeframe.HOUR_6:
         return '6h'
-    elif timeframe == timeframes.HOUR_8:
+    elif timeframe == Timeframe.HOUR_8:
         return '8h'
-    elif timeframe == timeframes.HOUR_12:
+    elif timeframe == Timeframe.HOUR_12:
         return '12h'
-    elif timeframe == timeframes.DAY_1:
+    elif timeframe == Timeframe.DAY_1:
         return '1d'
-    elif timeframe == timeframes.DAY_3:
+    elif timeframe == Timeframe.DAY_3:
         return '3d'
-    elif timeframe == timeframes.WEEK_1:
+    elif timeframe == Timeframe.WEEK_1:
         return '1w'
-    elif timeframe == timeframes.MONTH_1:
+    elif timeframe == Timeframe.MONTH_1:
         return '1M'
     else:
         raise ValueError('Invalid timeframe: {}'.format(timeframe))
@@ -53,34 +53,34 @@ def timeframe_to_interval(timeframe: str) -> str:
 
 def interval_to_timeframe(interval: str) -> str:
     if interval == '1m':
-        return timeframes.MINUTE_1
+        return Timeframe.MINUTE_1
     elif interval == '3m':
-        return timeframes.MINUTE_3
+        return Timeframe.MINUTE_3
     elif interval == '5m':
-        return timeframes.MINUTE_5
+        return Timeframe.MINUTE_5
     elif interval == '15m':
-        return timeframes.MINUTE_15
+        return Timeframe.MINUTE_15
     elif interval == '30m':
-        return timeframes.MINUTE_30
+        return Timeframe.MINUTE_30
     elif interval == '1h':
-        return timeframes.HOUR_1
+        return Timeframe.HOUR_1
     elif interval == '2h':
-        return timeframes.HOUR_2
+        return Timeframe.HOUR_2
     elif interval == '4h':
-        return timeframes.HOUR_4
+        return Timeframe.HOUR_4
     elif interval == '6h':
-        return timeframes.HOUR_6
+        return Timeframe.HOUR_6
     elif interval == '8h':
-        return timeframes.HOUR_8
+        return Timeframe.HOUR_8
     elif interval == '12h':
-        return timeframes.HOUR_12
+        return Timeframe.HOUR_12
     elif interval == '1d':
-        return timeframes.DAY_1
+        return Timeframe.DAY_1
     elif interval == '3d':
-        return timeframes.DAY_3
+        return Timeframe.DAY_3
     elif interval == '1w':
-        return timeframes.WEEK_1
+        return Timeframe.WEEK_1
     elif interval == '1M':
-        return timeframes.MONTH_1
+        return Timeframe.MONTH_1
     else:
         raise ValueError('Invalid interval: {}'.format(interval))

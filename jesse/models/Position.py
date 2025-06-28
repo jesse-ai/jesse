@@ -5,7 +5,7 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
-from jesse.enums import trade_types, order_types
+from jesse.enums import TradeType, OrderType
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
 from jesse.services import logger
@@ -318,9 +318,9 @@ class Position:
             self.exchange.add_realized_pnl(estimated_profit)
             self.exchange.temp_reduced_amount[jh.base_asset(self.symbol)] += abs(qty * price)
 
-        if self.type == trade_types.LONG:
+        if self.type == TradeType.LONG:
             self._update_qty(qty, operation='subtract')
-        elif self.type == trade_types.SHORT:
+        elif self.type == TradeType.SHORT:
             self._update_qty(qty, operation='add')
 
     def _mutating_increase(self, qty: float, price: float) -> None:
@@ -335,9 +335,9 @@ class Position:
         )
 
         if self._can_mutate_qty:
-            if self.type == trade_types.LONG:
+            if self.type == TradeType.LONG:
                 self._update_qty(qty, operation='add')
-            elif self.type == trade_types.SHORT:
+            elif self.type == TradeType.SHORT:
                 self._update_qty(qty, operation='subtract')
 
     def _mutating_open(self, qty: float, price: float) -> None:
@@ -420,7 +420,7 @@ class Position:
 
             # order opens position
             if self.qty == 0:
-                change_balance = order.type == order_types.MARKET
+                change_balance = order.type == OrderType.MARKET
                 self._mutating_open(qty, price)
             # order closes position
             elif (sum_floats(self.qty, qty)) == 0:

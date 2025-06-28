@@ -5,14 +5,14 @@ from requests.exceptions import ConnectionError, RequestException
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from .bitfinex_utils import timeframe_to_interval
 
 
 class BitfinexSpot(CandleExchange):
     def __init__(self) -> None:
         super().__init__(
-            name=exchanges.BITFINEX_SPOT,
+            name=Exchanges.BITFINEX_SPOT,
             count=1440,
             rate_limit_per_second=1,
             backup_exchange_class=None

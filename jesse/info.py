@@ -1,28 +1,28 @@
-from jesse.enums import exchanges as exchanges_enums, timeframes
+from jesse.enums import Exchanges as exchanges_enums, Timeframe
 
 JESSE_API_URL = 'https://api1.jesse.trade/api'
 # JESSE_API_URL = 'http://localhost:8040/api'
 JESSE_WEBSITE_URL = 'https://jesse.trade'
 # JESSE_WEBSITE_URL = 'http://localhost:8040'
 
-BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
-                    timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
-BINANCE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
-                      timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
-COINBASE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5,
-                       timeframes.MINUTE_15, timeframes.HOUR_1, timeframes.HOUR_6, timeframes.DAY_1]
-APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                       timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
-GATE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                   timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1]
-FTX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
-                  timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
-BITGET_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                     timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
-DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                   timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
-HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                         timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+BYBIT_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_3, Timeframe.MINUTE_5, Timeframe.MINUTE_15, Timeframe.MINUTE_30,
+                    Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_12, Timeframe.DAY_1]
+BINANCE_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_3, Timeframe.MINUTE_5, Timeframe.MINUTE_15, Timeframe.MINUTE_30,
+                      Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_8, Timeframe.HOUR_12, Timeframe.DAY_1]
+COINBASE_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_5,
+                       Timeframe.MINUTE_15, Timeframe.HOUR_1, Timeframe.HOUR_6, Timeframe.DAY_1]
+APEX_PRO_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_5, Timeframe.MINUTE_15,
+                       Timeframe.MINUTE_30, Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_12, Timeframe.DAY_1]
+GATE_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_5, Timeframe.MINUTE_15,
+                   Timeframe.MINUTE_30, Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_8, Timeframe.HOUR_12, Timeframe.DAY_1, Timeframe.WEEK_1]
+FTX_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_3, Timeframe.MINUTE_5, Timeframe.MINUTE_15, Timeframe.MINUTE_30,
+                  Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_12, Timeframe.DAY_1]
+BITGET_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_5, Timeframe.MINUTE_15,
+                     Timeframe.MINUTE_30, Timeframe.HOUR_1, Timeframe.HOUR_4, Timeframe.HOUR_12, Timeframe.DAY_1]
+DYDX_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_5, Timeframe.MINUTE_15,
+                   Timeframe.MINUTE_30, Timeframe.HOUR_1, Timeframe.HOUR_4, Timeframe.DAY_1]
+HYPERLIQUID_TIMEFRAMES = [Timeframe.MINUTE_1, Timeframe.MINUTE_3, Timeframe.MINUTE_5, Timeframe.MINUTE_15,
+                         Timeframe.MINUTE_30, Timeframe.HOUR_1, Timeframe.HOUR_2, Timeframe.HOUR_4, Timeframe.HOUR_6, Timeframe.HOUR_8, Timeframe.HOUR_12, Timeframe.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -121,15 +121,15 @@ exchange_info = {
         "type": "spot",
         "supported_leverage_modes": ["cross"],
         "supported_timeframes": [
-            timeframes.MINUTE_1,
-            timeframes.MINUTE_5,
-            timeframes.MINUTE_15,
-            timeframes.MINUTE_30,
-            timeframes.HOUR_1,
-            timeframes.HOUR_3,
-            timeframes.HOUR_6,
-            timeframes.HOUR_12,
-            timeframes.DAY_1,
+            Timeframe.MINUTE_1,
+            Timeframe.MINUTE_5,
+            Timeframe.MINUTE_15,
+            Timeframe.MINUTE_30,
+            Timeframe.HOUR_1,
+            Timeframe.HOUR_3,
+            Timeframe.HOUR_6,
+            Timeframe.HOUR_12,
+            Timeframe.DAY_1,
         ],
         "modes": {
             "backtesting": True,
@@ -437,18 +437,18 @@ live_trading_exchanges = list(sorted(live_trading_exchanges))
 
 # used for backtesting, and live trading when local candle generation is enabled:
 jesse_supported_timeframes = [
-    timeframes.MINUTE_1,
-    timeframes.MINUTE_3,
-    timeframes.MINUTE_5,
-    timeframes.MINUTE_15,
-    timeframes.MINUTE_30,
-    timeframes.MINUTE_45,
-    timeframes.HOUR_1,
-    timeframes.HOUR_2,
-    timeframes.HOUR_3,
-    timeframes.HOUR_4,
-    timeframes.HOUR_6,
-    timeframes.HOUR_8,
-    timeframes.HOUR_12,
-    timeframes.DAY_1,
+    Timeframe.MINUTE_1,
+    Timeframe.MINUTE_3,
+    Timeframe.MINUTE_5,
+    Timeframe.MINUTE_15,
+    Timeframe.MINUTE_30,
+    Timeframe.MINUTE_45,
+    Timeframe.HOUR_1,
+    Timeframe.HOUR_2,
+    Timeframe.HOUR_3,
+    Timeframe.HOUR_4,
+    Timeframe.HOUR_6,
+    Timeframe.HOUR_8,
+    Timeframe.HOUR_12,
+    Timeframe.DAY_1,
 ]

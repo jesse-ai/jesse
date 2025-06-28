@@ -3,7 +3,7 @@ import numpy as np
 import jesse.helpers as jh
 import jesse.services.selectors as selectors
 from jesse.config import config
-from jesse.enums import timeframes
+from jesse.enums import Timeframe
 from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
 from jesse.models.Candle import store_candle_into_db
@@ -88,7 +88,7 @@ class CandlesState:
             exchange, symbol = ar['exchange'], ar['symbol']
 
             # initiate the '1m' timeframes
-            key = jh.key(exchange, symbol, timeframes.MINUTE_1)
+            key = jh.key(exchange, symbol, Timeframe.MINUTE_1)
             self.storage[key] = DynamicNumpyArray((bucket_size, 6))
 
             for timeframe in config['app']['considering_timeframes']:

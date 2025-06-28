@@ -1,5 +1,5 @@
 from jesse.strategies import Strategy
-from jesse.enums import order_types
+from jesse.enums import OrderType
 
 
 class TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceShortPosition(Strategy):
@@ -10,8 +10,8 @@ class TestStopLossPriceIsReplacedWithMarketOrderForBetterPriceShortPosition(Stra
             assert last_trade.exit_price == 10
 
             # the order type should be market
-            assert self.trades[-1].orders[0].type == order_types.MARKET
-            assert self.trades[-1].orders[1].type == order_types.MARKET
+            assert self.trades[-1].orders[0].type == OrderType.MARKET
+            assert self.trades[-1].orders[1].type == OrderType.MARKET
 
     def should_long(self) -> bool:
         return False

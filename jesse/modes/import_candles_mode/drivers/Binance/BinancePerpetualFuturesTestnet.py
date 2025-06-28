@@ -1,5 +1,5 @@
 from .BinanceMain import BinanceMain
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 
 
 class BinancePerpetualFuturesTestnet(BinanceMain):
@@ -7,7 +7,7 @@ class BinancePerpetualFuturesTestnet(BinanceMain):
         from .BinanceSpot import BinanceSpot
 
         super().__init__(
-            name=exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
+            name=Exchanges.BINANCE_PERPETUAL_FUTURES_TESTNET,
             rest_endpoint='https://testnet.binancefuture.com/fapi',
             backup_exchange_class=BinanceSpot
         )

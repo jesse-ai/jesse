@@ -17,7 +17,7 @@ import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
 from jesse.constants import TIMEFRAME_PRIORITY
 from jesse.constants import SUPPORTED_COLORS
-from jesse.enums import timeframes
+from jesse.enums import Timeframe
 
 CACHED_CONFIG = dict()
 
@@ -472,7 +472,7 @@ def max_timeframe(timeframes_list: list) -> str:
     for tf in TIMEFRAME_PRIORITY:
         if tf in times:
             return tf
-    return timeframes.MINUTE_1
+    return Timeframe.MINUTE_1
 
 
 def normalize(x: float, x_min: float, x_max: float) -> float:
@@ -541,24 +541,24 @@ def np_shift(arr: np.ndarray, num: int, fill_value=0) -> np.ndarray:
 
 @lru_cache
 def opposite_side(s: str) -> str:
-    from jesse.enums import sides
+    from jesse.enums import Side
 
-    if s == sides.BUY:
-        return sides.SELL
-    elif s == sides.SELL:
-        return sides.BUY
+    if s == Side.BUY:
+        return Side.SELL
+    elif s == Side.SELL:
+        return Side.BUY
     else:
         raise ValueError(f'{s} is not a valid input for side')
 
 
 @lru_cache
 def opposite_type(t: str) -> str:
-    from jesse.enums import trade_types
+    from jesse.enums import TradeType
 
-    if t == trade_types.LONG:
-        return trade_types.SHORT
-    if t == trade_types.SHORT:
-        return trade_types.LONG
+    if t == TradeType.LONG:
+        return TradeType.SHORT
+    if t == TradeType.SHORT:
+        return TradeType.LONG
     raise ValueError('unsupported type')
 
 
@@ -769,15 +769,15 @@ def should_execute_silently() -> bool:
 
 @lru_cache
 def side_to_type(s: str) -> str:
-    from jesse.enums import trade_types, sides
+    from jesse.enums import TradeType, Side
 
     # make sure string is lowercase
     s = s.lower()
 
-    if s == sides.BUY:
-        return trade_types.LONG
-    if s == sides.SELL:
-        return trade_types.SHORT
+    if s == Side.BUY:
+        return TradeType.LONG
+    if s == Side.SELL:
+        return TradeType.SHORT
     raise ValueError
 
 
@@ -867,12 +867,12 @@ def today_to_timestamp() -> int:
 
 @lru_cache
 def type_to_side(t: str) -> str:
-    from jesse.enums import trade_types, sides
+    from jesse.enums import TradeType, Side
 
-    if t == trade_types.LONG:
-        return sides.BUY
-    if t == trade_types.SHORT:
-        return sides.SELL
+    if t == TradeType.LONG:
+        return Side.BUY
+    if t == TradeType.SHORT:
+        return Side.SELL
     raise ValueError(f'unsupported type: "{t}". Only "long" and "short" are supported.')
 
 

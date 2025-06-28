@@ -7,7 +7,7 @@ import jesse.services.metrics as stats
 import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import config
-from jesse.enums import timeframes, order_types
+from jesse.enums import Timeframe, OrderType
 from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.routes import router
@@ -496,7 +496,7 @@ def _step_simulator(
         for r in router.routes:
             count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
             # 1m timeframe
-            if r.timeframe == timeframes.MINUTE_1:
+            if r.timeframe == Timeframe.MINUTE_1:
                 r.strategy._execute()
             elif (i + 1) % count == 0:
                 # print candle
@@ -740,7 +740,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
             'symbol': symbol,
             'exchange': exchange,
             'side': closing_order_side,
-            'type': order_types.MARKET,
+            'type': OrderType.MARKET,
             'reduce_only': True,
             'qty': jh.prepare_qty(p.qty, closing_order_side),
             'price': p.bankruptcy_price
@@ -1053,7 +1053,7 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
     for r in router.routes:
         count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
         # 1m timeframe
-        if r.timeframe == timeframes.MINUTE_1:
+        if r.timeframe == Timeframe.MINUTE_1:
             r.strategy._execute()
         elif (candle_index + candles_step) % count == 0:
             # print candle

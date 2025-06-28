@@ -1,7 +1,7 @@
 from typing import Union
 
 import jesse.helpers as jh
-from jesse.enums import sides
+from jesse.enums import Side
 from jesse.exceptions import OrderNotAllowed, InvalidStrategy
 from jesse.models import Order
 from jesse.models import Position
@@ -29,7 +29,7 @@ class Broker:
             self.symbol,
             abs(qty),
             self.position.current_price,
-            sides.SELL,
+            Side.SELL,
             reduce_only=False
         )
 
@@ -44,7 +44,7 @@ class Broker:
             self.symbol,
             abs(qty),
             price,
-            sides.SELL,
+            Side.SELL,
             reduce_only=False
         )
 
@@ -56,7 +56,7 @@ class Broker:
             self.symbol,
             abs(qty),
             self.position.current_price,
-            sides.BUY,
+            Side.BUY,
             reduce_only=False
         )
 
@@ -71,7 +71,7 @@ class Broker:
             self.symbol,
             abs(qty),
             price,
-            sides.BUY,
+            Side.BUY,
             reduce_only=False
         )
 

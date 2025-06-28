@@ -1,19 +1,16 @@
-from dataclasses import dataclass
+from enum import Enum
 
-@dataclass
-class sides:
+class Side:
     BUY = 'buy'
     SELL = 'sell'
 
 
-@dataclass
-class trade_types:
+class TradeType:
     LONG = 'long'
     SHORT = 'short'
 
 
-@dataclass
-class order_statuses:
+class OrderStatus:
     ACTIVE = 'ACTIVE'
     CANCELED = 'CANCELED'
     EXECUTED = 'EXECUTED'
@@ -23,8 +20,7 @@ class order_statuses:
     REJECTED = 'REJECTED'
 
 
-@dataclass
-class timeframes:
+class Timeframe:
     MINUTE_1 = '1m'
     MINUTE_3 = '3m'
     MINUTE_5 = '5m'
@@ -44,8 +40,7 @@ class timeframes:
     MONTH_1 = '1M'
 
 
-@dataclass
-class colors:
+class Color:
     GREEN = 'green'
     YELLOW = 'yellow'
     RED = 'red'
@@ -53,8 +48,7 @@ class colors:
     BLACK = 'black'
 
 
-@dataclass
-class order_types:
+class OrderType:
     MARKET = 'MARKET'
     LIMIT = 'LIMIT'
     STOP = 'STOP'
@@ -62,8 +56,7 @@ class order_types:
     STOP_LIMIT = 'STOP LIMIT'
 
 
-@dataclass
-class exchanges:
+class Exchanges:
     SANDBOX = 'Sandbox'
     COINBASE_SPOT = 'Coinbase Spot'
     BITFINEX_SPOT = 'Bitfinex Spot'
@@ -95,8 +88,7 @@ class exchanges:
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
 
 
-@dataclass
-class migration_actions:
+class MigrationAction:
     ADD = 'add'
     DROP = 'drop'
     RENAME = 'rename'
@@ -107,7 +99,6 @@ class migration_actions:
     DROP_INDEX = 'drop_index'
 
 
-@dataclass
-class order_submitted_via:
+class OrderSubmittedVia:
     STOP_LOSS = 'stop-loss'
     TAKE_PROFIT = 'take-profit'

@@ -1,14 +1,14 @@
 import requests
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from .coinbase_utils import timeframe_to_interval
 
 
 class CoinbaseSpot(CandleExchange):
     def __init__(self) -> None:
         super().__init__(
-            name=exchanges.COINBASE_SPOT,
+            name=Exchanges.COINBASE_SPOT,
             count=300,
             rate_limit_per_second=1.5,
             backup_exchange_class=None

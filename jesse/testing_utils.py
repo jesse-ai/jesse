@@ -1,6 +1,6 @@
 import jesse.helpers as jh
 from jesse.config import reset_config
-from jesse.enums import exchanges
+from jesse.enums import Exchanges
 from jesse.factories import candles_from_close_prices
 from jesse.modes import backtest_mode
 from jesse.config import config
@@ -8,15 +8,15 @@ from jesse.config import config
 
 def get_btc_and_eth_candles():
     candles = {
-        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
-            'exchange': exchanges.SANDBOX,
+        jh.key(Exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': Exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
             'candles': candles_from_close_prices(range(101, 200)),
         }
     }
 
-    candles[jh.key(exchanges.SANDBOX, 'ETH-USDT')] = {
-        'exchange': exchanges.SANDBOX,
+    candles[jh.key(Exchanges.SANDBOX, 'ETH-USDT')] = {
+        'exchange': Exchanges.SANDBOX,
         'symbol': 'ETH-USDT',
         'candles': candles_from_close_prices(range(1, 100))
     }
@@ -25,8 +25,8 @@ def get_btc_and_eth_candles():
 
 def get_btc_candles(candles_count=100):
     return {
-        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
-            'exchange': exchanges.SANDBOX,
+        jh.key(Exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': Exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
             'candles': candles_from_close_prices(range(1, candles_count)),
         }
@@ -35,8 +35,8 @@ def get_btc_candles(candles_count=100):
 
 def get_downtrend_candles(candles_count=100):
     return {
-        jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
-            'exchange': exchanges.SANDBOX,
+        jh.key(Exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': Exchanges.SANDBOX,
             'symbol': 'BTC-USDT',
             'candles': candles_from_close_prices(range(candles_count, 10, -1)),
         }
@@ -45,17 +45,17 @@ def get_downtrend_candles(candles_count=100):
 
 def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
     reset_config()
-    config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 10_000
+    config['env']['exchanges'][Exchanges.SANDBOX]['balance'] = 10_000
 
     config['env']['exchanges']['Sandbox']['fee'] = fee
 
     if is_futures_trading:
         # used only in futures trading
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'futures'
-        config['env']['exchanges'][exchanges.SANDBOX]['futures_leverage_mode'] = leverage_mode
-        config['env']['exchanges'][exchanges.SANDBOX]['futures_leverage'] = leverage
+        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'futures'
+        config['env']['exchanges'][Exchanges.SANDBOX]['futures_leverage_mode'] = leverage_mode
+        config['env']['exchanges'][Exchanges.SANDBOX]['futures_leverage'] = leverage
     else:
-        config['env']['exchanges'][exchanges.SANDBOX]['type'] = 'spot'
+        config['env']['exchanges'][Exchanges.SANDBOX]['type'] = 'spot'
 
 
 def single_route_backtest(
@@ -83,7 +83,7 @@ def single_route_backtest(
         raise ValueError
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
 
 def two_routes_backtest(
@@ -104,4 +104,4 @@ def two_routes_backtest(
     ]
 
     # dates are fake. just to pass required parameters
-    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())
+    backtest_mode.run('000', False, {}, Exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())

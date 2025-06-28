@@ -1,9 +1,9 @@
 import jesse.helpers as jh
-from jesse.enums import sides
+from jesse.enums import Side
 from jesse.exceptions import InsufficientBalance
 from jesse.models import Order
 from jesse.models.Exchange import Exchange
-from jesse.enums import order_types
+from jesse.enums import OrderType
 from jesse.utils import sum_floats, subtract_floats
 
 
@@ -37,16 +37,16 @@ class SpotExchange(Exchange):
         if jh.is_livetrading():
             return
 
-        if order.side == sides.SELL:
-            if order.type == order_types.STOP:
+        if order.side == Side.SELL:
+            if order.type == OrderType.STOP:
                 self.stop_orders_sum[order.symbol] = sum_floats(self.stop_orders_sum.get(order.symbol, 0), abs(order.qty))
-            elif order.type == order_types.LIMIT:
+            elif order.type == OrderType.LIMIT:
                 self.limit_orders_sum[order.symbol] = sum_floats(self.limit_orders_sum.get(order.symbol, 0), abs(order.qty))
 
         base_asset = jh.base_asset(order.symbol)
 
         # buy order
-        if order.side == sides.BUY:
+        if order.side == Side.BUY:
             # cannot buy if we don't have enough balance (of the settlement currency)
             quote_balance = self.assets[self.settlement_currency]
             self.assets[self.settlement_currency] = subtract_floats(self.assets[self.settlement_currency], (abs(order.qty) * order.price))
@@ -58,11 +58,11 @@ class SpotExchange(Exchange):
         else:
             base_balance = self.assets[base_asset]
             # sell order's qty cannot be bigger than the amount of existing base asset
-            if order.type == order_types.MARKET:
+            if order.type == OrderType.MARKET:
                 order_qty = sum_floats(abs(order.qty), self.limit_orders_sum.get(order.symbol, 0))
-            elif order.type == order_types.STOP:
+            elif order.type == OrderType.STOP:
                 order_qty = self.stop_orders_sum[order.symbol]
-            elif order.type == order_types.LIMIT:
+            elif order.type == OrderType.LIMIT:
                 order_qty = self.limit_orders_sum[order.symbol]
             else:
                 raise Exception(f"Unknown order type {order.type}")
@@ -76,16 +76,16 @@ class SpotExchange(Exchange):
         if jh.is_livetrading():
             return
 
-        if order.side == sides.SELL:
-            if order.type == order_types.STOP:
+        if order.side == Side.SELL:
+            if order.type == OrderType.STOP:
                 self.stop_orders_sum[order.symbol] = subtract_floats(self.stop_orders_sum[order.symbol], abs(order.qty))
-            elif order.type == order_types.LIMIT:
+            elif order.type == OrderType.LIMIT:
                 self.limit_orders_sum[order.symbol] = subtract_floats(self.limit_orders_sum[order.symbol], abs(order.qty))
 
         base_asset = jh.base_asset(order.symbol)
 
         # buy order
-        if order.side == sides.BUY:
+        if order.side == Side.BUY:
             # asset's balance is increased by the amount of the order's qty after fees are deducted
             self.assets[base_asset] = sum_floats(self.assets[base_asset], abs(order.qty) * (1 - self.fee_rate))
         # sell order
@@ -108,22 +108,22 @@ class SpotExchange(Exchange):
         if jh.is_livetrading():
             return
 
-        if order.side == sides.SELL:
-            if order.type == order_types.STOP:
+        if order.side == Side.SELL:
+            if order.type == OrderType.STOP:
                 self.stop_orders_sum[order.symbol] = subtract_floats(self.stop_orders_sum[order.symbol], abs(order.qty))
-            elif order.type == order_types.LIMIT:
+            elif order.type == OrderType.LIMIT:
                 self.limit_orders_sum[order.symbol] = subtract_floats(self.limit_orders_sum[order.symbol], abs(order.qty))
 
         base_asset = jh.base_asset(order.symbol)
 
         # buy order
-        if order.side == sides.BUY:
+        if order.side == Side.BUY:
             self.assets[self.settlement_currency] = sum_floats(self.assets[self.settlement_currency], abs(order.qty) * order.price)
         # sell order
         else:
-            if order.type == order_types.STOP:
+            if order.type == OrderType.STOP:
                 self.stop_orders_sum[order.symbol] = subtract_floats(self.stop_orders_sum[order.symbol], abs(order.qty))
-            elif order.type == order_types.LIMIT:
+            elif order.type == OrderType.LIMIT:
                 self.limit_orders_sum[order.symbol] = subtract_floats(self.limit_orders_sum[order.symbol], abs(order.qty))
 
 
