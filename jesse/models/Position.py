@@ -10,6 +10,7 @@ from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
 from jesse.services import logger
 from jesse.utils import sum_floats, subtract_floats
+from jesse.models.Trade import Trade
 
 
 class Position:
@@ -299,7 +300,15 @@ class Position:
 
     def _close(self):
         from jesse.store import store
+        from datetime import datetime
+
         store.completed_trades.close_trade(self)
+        db_trade = Trade.get_trade_from_db(store.app.session_id, self.exchange_name, self.symbol, self.qty, self.type)
+        d = {
+            'sell_at_price': self.exit_price,
+            'sell_by': 'jesse',
+        }
+        Trade.close_trade_in_db(db_trade.id, d)
 
     def _mutating_reduce(self, qty: float, price: float) -> None:
         if not self._can_mutate_qty:
@@ -380,6 +389,18 @@ class Position:
     def _open(self):
         from jesse.store import store
         store.completed_trades.open_trade(self)
+        db_trade = Trade.get_trade_from_db(store.app.session_id, self.exchange_name, self.symbol, self.qty, self.type)
+        if db_trade is None:
+            d = {
+                'session_id': store.app.session_id,
+                'exchange': self.exchange_name,
+                'symbol': self.symbol,
+                'qty': self.qty,
+                'buy_at_price': self.entry_price,
+                'type': self.type,
+                'buy_by': 'jesse'
+            }
+            Trade.store_trade_into_db(d)
 
     def _on_executed_order(self, order: Order) -> None:
         # futures (live)
@@ -480,6 +501,7 @@ class Position:
                     self.exchange_name, self.symbol, jh.type_to_side(self.type),
                     self.qty, self.entry_price
                 )
+
             self.opened_at = jh.now_to_timestamp()
             self._open()
         elif closing_position:

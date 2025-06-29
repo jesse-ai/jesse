@@ -12,3 +12,4 @@ from .Log import Log
 from .NotificationApiKeys import NotificationApiKeys
 from .ExchangeApiKeys import ExchangeApiKeys
 from .LiveSession import LiveSession
+from .Trade import Trade

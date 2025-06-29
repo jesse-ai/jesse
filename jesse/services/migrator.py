@@ -31,7 +31,7 @@ def run():
 
     # create initial tables
     from jesse.models import Candle, ClosedTrade, Log, Order, Option, LiveSession, Trade
-    database.db.create_tables([Candle, ClosedTrade, Log, Order, LiveSession])
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, LiveSession, Trade])
 
     database.close_connection()
 
