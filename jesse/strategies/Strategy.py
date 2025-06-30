@@ -750,7 +750,7 @@ class Strategy(ABC):
 
         self._wait_until_executing_orders_are_fully_handled()
 
-        if jh.is_live() and jh.is_debugging():
+        if jh.is_live() and jh.is_debuggable('strategy_execution'):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # should cancel entry?
