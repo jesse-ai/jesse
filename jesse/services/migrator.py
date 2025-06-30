@@ -12,9 +12,7 @@ def run():
     If actions type is 'rename', you must add new field with 'old_name' key.
     To make column to not nullable, you must clean all null value of columns.
     """
-    click.clear()
-
-    print('Checking for new database migrations...')
+    print('Checking for new database migrations...\n')
 
     database.open_connection()
 

@@ -1,4 +1,3 @@
-import jesse.helpers as jh
 from jesse.config import config
 from jesse.exceptions import InvalidConfig
 from jesse.models import SpotExchange, FuturesExchange
@@ -19,8 +18,8 @@ class ExchangesState:
             elif exchange_type == 'futures':
                 self.storage[name] = FuturesExchange(
                     name, starting_assets, fee,
-                    futures_leverage_mode=jh.get_config(f'env.exchanges.{name}.futures_leverage_mode'),
-                    futures_leverage=jh.get_config(f'env.exchanges.{name}.futures_leverage'),
+                    futures_leverage_mode=config['env']['exchanges'][name]['futures_leverage_mode'],
+                    futures_leverage=config['env']['exchanges'][name]['futures_leverage'],
                 )
             else:
                 raise InvalidConfig(

@@ -36,3 +36,20 @@ class DailyBalance(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     DailyBalance.create_table()
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def store_daily_balance_into_db(daily_balance: dict) -> None:
+    return
+    def async_save():
+        DailyBalance.insert(**daily_balance).execute()
+        if jh.is_debugging():
+            logger.info(
+                f'Stored daily portfolio balance record into the database: {daily_balance["asset"]} => {jh.format_currency(round(daily_balance["balance"], 2))}'
+                )
+
+    # async call
+    threading.Thread(target=async_save).start()

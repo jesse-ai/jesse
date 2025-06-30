@@ -14,7 +14,10 @@ import arrow
 import click
 import numpy as np
 import base64
-
+from jesse.constants import CANDLE_SOURCE_MAPPING
+from jesse.constants import TIMEFRAME_PRIORITY
+from jesse.constants import SUPPORTED_COLORS
+from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
 
@@ -73,23 +76,10 @@ def color(msg_text: str, msg_color: str) -> str:
     if not msg_text:
         return ''
 
-    if msg_color == 'black':
-        return click.style(msg_text, fg='black')
-    if msg_color == 'red':
-        return click.style(msg_text, fg='red')
-    if msg_color == 'green':
-        return click.style(msg_text, fg='green')
-    if msg_color == 'yellow':
-        return click.style(msg_text, fg='yellow')
-    if msg_color == 'blue':
-        return click.style(msg_text, fg='blue')
-    if msg_color == 'magenta':
-        return click.style(msg_text, fg='magenta')
-    if msg_color == 'cyan':
-        return click.style(msg_text, fg='cyan')
-    if msg_color in {'white', 'gray'}:
+    if msg_color in SUPPORTED_COLORS:
+        return click.style(msg_text, fg=msg_color)
+    if msg_color == 'gray':
         return click.style(msg_text, fg='white')
-
     raise ValueError('unsupported color')
 
 
@@ -112,53 +102,27 @@ def dashless_symbol(symbol: str) -> str:
 
 
 def dashy_symbol(symbol: str) -> str:
-    # if already has '-' in symbol, return symbol
     if '-' in symbol:
         return symbol
 
     from jesse.config import config
-
     for s in config['app']['considering_symbols']:
-        compare_symbol = dashless_symbol(s)
-        if compare_symbol == symbol:
+        if dashless_symbol(s) == symbol:
             return s
 
-    if symbol.endswith('EUR'):
-        return symbol[:-3] + '-EUR'
-    if symbol.endswith('EUT'):
-        return symbol[:-3] + '-EUT'
-    if symbol.endswith('GBP'):
-        return symbol[:-3] + '-GBP'
-    if symbol.endswith('JPY'):
-        return symbol[:-3] + '-JPY'
-    if symbol.endswith('MIM'):
-        return symbol[:-3] + '-MIM'
-    if symbol.endswith('TRY'):
-        return symbol[:-3] + '-TRY'
-    if symbol.endswith('FDUSD'):
-        return symbol[:-5] + '-FDUSD'
-    if symbol.endswith('TUSD'):
-        return symbol[:-4] + '-TUSD'
-    if symbol.endswith('UST'):
-        return symbol[:-3] + '-UST'
-    if symbol.endswith('USDT'):
-        return symbol[:-4] + '-USDT'
-    if symbol.endswith('USDC'):
-        return symbol[:-4] + '-USDC'
-    if symbol.endswith('USDS'):
-        return symbol[:-4] + '-USDS'
-    if symbol.endswith('USDP'):
-        return symbol[:-4] + '-USDP'
-    if symbol.endswith('USDU'):
-        return symbol[:-4] + '-USDU'
-    if symbol.endswith('USD'):
-        return symbol[:-3] + '-USD'
+    suffixes = [
+        'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY', 'UST', 'SUSDT'
+    ]
 
-    if len(symbol) > 7 and symbol.endswith('SUSDT'):
-        # ex: SETHSUSDT => SETH-SUSDT
-        return symbol[:-5] + '-' + symbol[-5:]
+    for suffix in suffixes:
+        if symbol.endswith(suffix):
+            return f"{symbol[:-len(suffix)]}-{suffix}"
 
-    return f"{symbol[0:3]}-{symbol[3:]}"
+    if "USD" in symbol[-4:]: # Only look at the last 4 letters
+        idx = symbol.rfind("USD")
+        return f"{symbol[:idx]}-{symbol[idx:]}"
+
+    return f"{symbol[:3]}-{symbol[3:]}"
 
 
 def underline_to_dashy_symbol(symbol: str) -> str:
@@ -167,6 +131,14 @@ def underline_to_dashy_symbol(symbol: str) -> str:
 
 def dashy_to_underline(symbol: str) -> str:
     return symbol.replace('-', '_')
+
+
+def get_base_asset(symbol: str) -> str:
+    return symbol.split('-')[0]
+
+
+def get_quote_asset(symbol: str) -> str:
+    return symbol.split('-')[1]
 
 
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
@@ -190,22 +162,35 @@ def date_to_timestamp(date: str) -> int:
 
 
 def dna_to_hp(strategy_hp, dna: str):
-    hp = {}
+    # First, try to decode as Base64
+    try:
+        import base64
+        import json
+        # Try to decode the DNA as base64
+        decoded_bytes = base64.b64decode(dna)
+        # Try to parse as JSON
+        decoded_json = json.loads(decoded_bytes.decode('utf-8'))
+        # If successful, the decoded JSON should be the hyperparameters
+        return decoded_json
+    except (ValueError, base64.binascii.Error, json.JSONDecodeError):
+        # If decoding fails, use the legacy method
+        hp = {}
 
-    for gene, h in zip(dna, strategy_hp):
-        if h['type'] is int:
-            decoded_gene = int(
-                round(
-                    convert_number(119, 40, h['max'], h['min'], ord(gene))
+        for gene, h in zip(dna, strategy_hp):
+            if h['type'] is int:
+                decoded_gene = int(
+                    round(
+                        convert_number(119, 40, h['max'], h['min'], ord(gene))
+                    )
                 )
-            )
-        elif h['type'] is float:
-            decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
-        else:
-            raise TypeError('Only int and float types are implemented')
+            elif h['type'] is float:
+                decoded_gene = convert_number(119, 40, h['max'], h['min'], ord(gene))
+            else:
+                raise TypeError('Only int and float types are implemented')
 
-        hp[h['name']] = decoded_gene
-    return hp
+            hp[h['name']] = decoded_gene
+        
+        return hp
 
 
 def dump_exception() -> None:
@@ -294,31 +279,12 @@ def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
 
 def get_candle_source(candles: np.ndarray, source_type: str = "close") -> np.ndarray:
     """
-     Returns the candles corresponding the selected type.
-
-     :param candles: np.ndarray
-     :param source_type: string
-     :return: np.ndarray
-     """
-
-    if source_type == "close":
-        return candles[:, 2]
-    elif source_type == "high":
-        return candles[:, 3]
-    elif source_type == "low":
-        return candles[:, 4]
-    elif source_type == "open":
-        return candles[:, 1]
-    elif source_type == "volume":
-        return candles[:, 5]
-    elif source_type == "hl2":
-        return (candles[:, 3] + candles[:, 4]) / 2
-    elif source_type == "hlc3":
-        return (candles[:, 3] + candles[:, 4] + candles[:, 2]) / 3
-    elif source_type == "ohlc4":
-        return (candles[:, 1] + candles[:, 3] + candles[:, 4] + candles[:, 2]) / 4
-    else:
-        raise ValueError('type string not recognised')
+    Returns the candles corresponding to the selected type.
+    """
+    try:
+        return CANDLE_SOURCE_MAPPING[source_type](candles)
+    except KeyError:
+        raise ValueError(f"Source type '{source_type}' not recognised")
 
 
 def get_config(keys: str, default: Any = None) -> Any:
@@ -501,35 +467,11 @@ def key(exchange: str, symbol: str, timeframe: str = None):
 
 
 def max_timeframe(timeframes_list: list) -> str:
-    from jesse.enums import timeframes
 
-    if timeframes.DAY_1 in timeframes_list:
-        return timeframes.DAY_1
-    if timeframes.HOUR_12 in timeframes_list:
-        return timeframes.HOUR_12
-    if timeframes.HOUR_8 in timeframes_list:
-        return timeframes.HOUR_8
-    if timeframes.HOUR_6 in timeframes_list:
-        return timeframes.HOUR_6
-    if timeframes.HOUR_4 in timeframes_list:
-        return timeframes.HOUR_4
-    if timeframes.HOUR_3 in timeframes_list:
-        return timeframes.HOUR_3
-    if timeframes.HOUR_2 in timeframes_list:
-        return timeframes.HOUR_2
-    if timeframes.HOUR_1 in timeframes_list:
-        return timeframes.HOUR_1
-    if timeframes.MINUTE_45 in timeframes_list:
-        return timeframes.MINUTE_45
-    if timeframes.MINUTE_30 in timeframes_list:
-        return timeframes.MINUTE_30
-    if timeframes.MINUTE_15 in timeframes_list:
-        return timeframes.MINUTE_15
-    if timeframes.MINUTE_5 in timeframes_list:
-        return timeframes.MINUTE_5
-    if timeframes.MINUTE_3 in timeframes_list:
-        return timeframes.MINUTE_3
-
+    times = set(timeframes_list)
+    for tf in TIMEFRAME_PRIORITY:
+        if tf in times:
+            return tf
     return timeframes.MINUTE_1
 
 
@@ -782,6 +724,35 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
         # for example, for decimals = -2, we want to round down to the nearest 100 if the number is 1234, we want to return 1200:
         factor = 10 ** (decimals * -1)
         return np.floor(number / factor) * factor
+
+
+def is_almost_equal(a: float, b: float, tolerance: float = 1e-8) -> bool:
+    """
+    Compares two floating point values with a small tolerance to account for floating point precision issues.
+    
+    :param a: First float value to compare
+    :param b: Second float value to compare
+    :param tolerance: The tolerance level for the comparison (default: 1e-8)
+    :return: bool - True if the difference between a and b is less than or equal to the tolerance
+    """
+    # Check if both are None, which means they're equal
+    if a is None and b is None:
+        return True
+    
+    # Check if only one is None, which means they're not equal
+    if a is None or b is None:
+        return False
+    
+    # Check for exact equality first (optimizes for common case)
+    if a == b:
+        return True
+    
+    # For values very close to zero, use absolute tolerance
+    if abs(a) < tolerance and abs(b) < tolerance:
+        return abs(a - b) <= tolerance
+    
+    # For non-zero values, use relative tolerance
+    return abs((a - b) / max(abs(a), abs(b))) <= tolerance
 
 
 def same_length(bigger: np.ndarray, shorter: np.ndarray) -> np.ndarray:
@@ -1160,3 +1131,23 @@ def compressed_response(content: str) -> dict:
         'is_compressed': True,
         'data': base64.b64encode(compressed).decode('utf-8')
     }
+
+def validate_cwd() -> None:
+    """
+    make sure we're in a Jesse project
+    """
+    if not is_jesse_project():
+        print(
+            color(
+                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
+                'red'
+            )
+        )
+        os._exit(1)
+
+def has_live_trade_plugin() -> bool:
+    try:
+        import jesse_live
+    except ModuleNotFoundError:
+        return False
+    return True

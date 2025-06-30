@@ -6,7 +6,7 @@ from jesse.config import config
 from jesse.enums import timeframes
 from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
-from jesse.models import store_candle_into_db
+from jesse.models.Candle import store_candle_into_db
 from jesse.services.candle import generate_candle_from_one_minutes
 from timeloop import Timeloop
 from datetime import timedelta

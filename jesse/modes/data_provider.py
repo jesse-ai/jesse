@@ -12,9 +12,10 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     database.open_connection()
 
     from jesse.services.candle import generate_candle_from_one_minutes
-    from jesse.models.utils import fetch_candles_from_db
+    from jesse.models.Candle import fetch_candles_from_db
 
-    symbol = symbol.upper()
+    if 'hyperliquid' not in exchange.lower():
+        symbol = symbol.upper()
 
     # fetch the current value for warmup_candles from the database
     from jesse.models.Option import Option

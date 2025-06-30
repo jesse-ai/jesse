@@ -5,7 +5,7 @@ import numpy as np
 import jesse.helpers as jh
 from jesse.services import selectors
 from jesse.libs import DynamicNumpyArray
-from jesse.models import store_ticker_into_db, Ticker
+from jesse.models import Ticker
 
 
 class TickersState:

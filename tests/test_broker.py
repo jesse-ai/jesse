@@ -3,12 +3,11 @@ import pytest
 import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges, timeframes, order_types
-from jesse.exceptions import InvalidStrategy, NegativeBalance, OrderNotAllowed
+from jesse.exceptions import OrderNotAllowed
 from jesse.models import Position, Exchange
 from jesse.routes import router
 from jesse.services.broker import Broker
 from jesse.store import store
-import jesse.helpers as jh
 
 position: Position = None
 exchange: Exchange = None

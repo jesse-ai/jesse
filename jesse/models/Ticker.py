@@ -1,4 +1,6 @@
 import peewee
+import jesse.helpers as jh
+import numpy as np
 
 
 class Ticker(peewee.Model):
@@ -31,3 +33,29 @@ class Ticker(peewee.Model):
         for a, value in attributes.items():
             setattr(self, a, value)
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # DB FUNCTIONS # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+def store_ticker_into_db(exchange: str, symbol: str, ticker: np.ndarray) -> None:
+    return
+    d = {
+        'id': jh.generate_unique_id(),
+        'timestamp': ticker[0],
+        'last_price': ticker[1],
+        'high_price': ticker[2],
+        'low_price': ticker[3],
+        'volume': ticker[4],
+        'symbol': symbol,
+        'exchange': exchange,
+    }
+
+    def async_save() -> None:
+        Ticker.insert(**d).on_conflict_ignore().execute()
+        print(
+            jh.color(f'ticker: {jh.timestamp_to_time(d["timestamp"])}-{exchange}-{symbol}: {ticker}', 'yellow')
+        )
+
+    # async call
+    threading.Thread(target=async_save).start()
