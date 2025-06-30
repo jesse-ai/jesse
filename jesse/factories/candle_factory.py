@@ -54,6 +54,40 @@ def candles_from_close_prices(prices: Union[list, range]) -> np.ndarray:
     return np.array(arr)
 
 
+def smooth_sine_wave_candles(length: int, min_price: float, max_price: float, n_waves: int = 5, timestamp_increment: int = 60000):
+
+    # Create sine wave closing prices
+    x = np.linspace(0, 2 * np.pi * n_waves, length)
+    y = (np.sin(x) + 1) / 2  # normalize sine wave to [0,1]
+    scaled = y * (max_price - min_price) + min_price
+
+    fake_candle(reset=True)
+    global first_timestamp
+    arr = []
+    prev_p = np.nan
+    for p in scaled:
+        if np.isnan(prev_p):
+            prev_p = p
+
+        first_timestamp += timestamp_increment
+        open_p = prev_p
+        close_p = p
+        high_p = max(open_p, close_p)
+        low_p = min(open_p, close_p)
+        vol = randint(0, 200)
+
+        arr.append([first_timestamp, open_p, close_p, high_p, low_p, vol])
+        prev_p = p
+
+    arr_np = np.array(arr)
+    price_columns = arr_np[:, 1:5]
+    # Assert all prices are within bounds
+    assert ((price_columns >= min_price) & (price_columns <= max_price)).all(), "Price values out of bounds"
+
+    return np.array(arr)
+
+
+
 def fake_candle(attributes: dict = None, reset: bool = False) -> np.ndarray:
     global first_timestamp
     global open_price
