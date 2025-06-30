@@ -42,6 +42,12 @@ class BinanceMain(CandleExchange):
                 response = self.session.get(url, params=params, timeout=30)
                 return response
             except (requests.exceptions.ConnectionError, OSError) as e:
+                if "ERROR 451" in str(e):
+                    raise Exception(
+                        "Access to this exchange is restricted from your location (HTTP 451). "
+                        "This is likely due to geographic restrictions imposed by the exchange. "
+                        "You may need to use a VPN to change your IP address to a permitted location."
+                    )
                 if "Cannot allocate memory" in str(e):
                     # Force garbage collection and wait
                     import gc
