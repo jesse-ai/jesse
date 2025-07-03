@@ -1,8 +1,9 @@
 import numpy as np
-from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx
+from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema
 from jesse.indicators import bollinger_bands, mean_ad, median_ad
 from jesse.indicators.bollinger_bands_width import bollinger_bands_width
 from jesse.indicators.adx import adx as adx_py
+from jesse.indicators.tema import tema as tema_py
 
 # Test RSI
 print("Testing RSI...")
@@ -196,5 +197,19 @@ for i in range(first_valid_idx, first_valid_idx + 5):
 print("Last few ADX values:")
 for i in range(len(adx_values_rust) - 5, len(adx_values_rust)):
      print(f"Rust ADX[{i}] = {adx_values_rust[i]:.4f}, Py ADX[{i}] = {adx_values_py[i]:.4f}")
+
+# Test TEMA
+print("\nTesting TEMA...")
+tema_values_rust = tema(price_array, period=9)
+tema_values_py = tema_py(price_array, period=9, sequential=True)
+
+print(f"TEMA shape: {tema_values_rust.shape}")
+print("First few TEMA values:")
+for i in range(5):
+    print(f"Rust TEMA[{i}] = {tema_values_rust[i]:.4f}, Py TEMA[{i}] = {tema_values_py[i]:.4f}")
+
+print("Last few TEMA values:")
+for i in range(len(tema_values_rust) - 5, len(tema_values_rust)):
+    print(f"Rust TEMA[{i}] = {tema_values_rust[i]:.4f}, Py TEMA[{i}] = {tema_values_py[i]:.4f}")
 
 print("\nAll tests completed successfully!") 

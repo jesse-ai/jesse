@@ -664,6 +664,36 @@ fn adx(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray1<f6
     })
 }
 
+/// Calculate TEMA (Triple Exponential Moving Average) - Optimized Single-Pass Version
+#[pyfunction]
+fn tema(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        let mut result = Array1::<f64>::zeros(n);
+
+        if n == 0 {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+
+        let alpha = 2.0 / (period as f64 + 1.0);
+        let mut ema1 = source_array[0];
+        let mut ema2 = ema1;
+        let mut ema3 = ema2;
+
+        result[0] = 3.0 * ema1 - 3.0 * ema2 + ema3;
+
+        for i in 1..n {
+            ema1 = alpha * source_array[i] + (1.0 - alpha) * ema1;
+            ema2 = alpha * ema1 + (1.0 - alpha) * ema2;
+            ema3 = alpha * ema2 + (1.0 - alpha) * ema3;
+            result[i] = 3.0 * ema1 - 3.0 * ema2 + ema3;
+        }
+
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -678,5 +708,6 @@ fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sma, m)?)?;
     m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
     m.add_function(wrap_pyfunction!(adx, m)?)?;
+    m.add_function(wrap_pyfunction!(tema, m)?)?;
     Ok(())
 }
