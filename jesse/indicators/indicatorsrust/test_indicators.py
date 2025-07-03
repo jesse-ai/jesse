@@ -1,5 +1,5 @@
 import numpy as np
-from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma
+from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width
 from jesse.indicators import bollinger_bands, mean_ad, median_ad
 
 # Test RSI
@@ -153,5 +153,23 @@ for i in range(first_valid_idx, first_valid_idx + 5):
 print("Last few SMA values:")
 for i in range(len(sma_values) - 5, len(sma_values)):
     print(f"SMA[{i}] = {sma_values[i]:.2f}")
+
+# Test Bollinger Bands Width
+print("\nTesting Bollinger Bands Width...")
+bbw_values = bollinger_bands_width(price_array, period=20, mult=2)
+print(f"BBW shape: {bbw_values.shape}")
+first_valid_idx_bbw = 0
+for i in range(len(bbw_values)):
+    if not np.isnan(bbw_values[i]):
+        first_valid_idx_bbw = i
+        break
+print("First few valid BBW values:")
+for i in range(first_valid_idx_bbw, first_valid_idx_bbw + 5):
+    if i < len(bbw_values):
+        print(f"BBW[{i}] = {bbw_values[i]:.4f}")
+
+print("Last few BBW values:")
+for i in range(len(bbw_values) - 5, len(bbw_values)):
+    print(f"BBW[{i}] = {bbw_values[i]:.4f}")
 
 print("\nAll tests completed successfully!") 

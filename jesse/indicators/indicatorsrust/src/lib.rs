@@ -494,6 +494,83 @@ fn sma(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64
     })
 }
 
+/// Calculate Bollinger Bands Width (BBW)
+#[pyfunction]
+fn bollinger_bands_width(source: PyReadonlyArray1<f64>, period: usize, mult: f64) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        let mut bbw = Array1::<f64>::from_elem(n, f64::NAN);
+
+        if n < period {
+            return Ok(PyArray1::from_array(py, &bbw).to_owned());
+        }
+
+        let mut sum_x: f64 = 0.0;
+        let mut sum_x2: f64 = 0.0;
+        let mut nan_count = 0;
+
+        // Initialize the first window
+        for i in 0..period {
+            let val = source_array[i];
+            if val.is_nan() {
+                nan_count += 1;
+            } else {
+                sum_x += val;
+                sum_x2 += val * val;
+            }
+        }
+
+        if nan_count == 0 {
+            let mean = sum_x / period as f64;
+            if mean != 0.0 {
+                let mut variance = sum_x2 / period as f64 - mean * mean;
+                if variance < 0.0 {
+                    variance = 0.0;
+                }
+                let std = variance.sqrt();
+                bbw[period - 1] = (2.0 * mult * std) / mean;
+            }
+        }
+
+        // Roll the window for subsequent values
+        for i in period..n {
+            let old_val = source_array[i - period];
+            let new_val = source_array[i];
+
+            if old_val.is_nan() {
+                nan_count -= 1;
+            } else {
+                sum_x -= old_val;
+                sum_x2 -= old_val * old_val;
+            }
+
+            if new_val.is_nan() {
+                nan_count += 1;
+            } else {
+                sum_x += new_val;
+                sum_x2 += new_val * new_val;
+            }
+            
+            if nan_count == 0 {
+                let mean = sum_x / period as f64;
+                if mean != 0.0 {
+                    let mut variance = sum_x2 / period as f64 - mean * mean;
+                    if variance < 0.0 {
+                        variance = 0.0;
+                    }
+                    let std = variance.sqrt();
+                    bbw[i] = (2.0 * mult * std) / mean;
+                }
+            } else {
+                bbw[i] = f64::NAN;
+            }
+        }
+
+        Ok(PyArray1::from_array(py, &bbw).to_owned())
+    })
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -506,5 +583,6 @@ fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(srsi, m)?)?;
     m.add_function(wrap_pyfunction!(moving_std, m)?)?;
     m.add_function(wrap_pyfunction!(sma, m)?)?;
+    m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
     Ok(())
 }
