@@ -1,9 +1,10 @@
 import numpy as np
-from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema
+from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema, macd
 from jesse.indicators import bollinger_bands, mean_ad, median_ad
 from jesse.indicators.bollinger_bands_width import bollinger_bands_width
 from jesse.indicators.adx import adx as adx_py
 from jesse.indicators.tema import tema as tema_py
+from jesse.indicators.macd import macd as macd_py
 
 # Test RSI
 print("Testing RSI...")
@@ -211,5 +212,25 @@ for i in range(5):
 print("Last few TEMA values:")
 for i in range(len(tema_values_rust) - 5, len(tema_values_rust)):
     print(f"Rust TEMA[{i}] = {tema_values_rust[i]:.4f}, Py TEMA[{i}] = {tema_values_py[i]:.4f}")
+
+# Test MACD
+print("\nTesting MACD...")
+macd_line_rust, signal_line_rust, hist_rust = macd(price_array, fast_period=12, slow_period=26, signal_period=9)
+macd_py_res = macd_py(price_array, fast_period=12, slow_period=26, signal_period=9, sequential=True)
+
+print(f"MACD shapes: macd={macd_line_rust.shape}, signal={signal_line_rust.shape}, hist={hist_rust.shape}")
+print("First few MACD values:")
+for i in range(5):
+    print(
+        f"Rust: macd={macd_line_rust[i]:.4f}, signal={signal_line_rust[i]:.4f}, hist={hist_rust[i]:.4f} | "
+        f"Py: macd={macd_py_res.macd[i]:.4f}, signal={macd_py_res.signal[i]:.4f}, hist={macd_py_res.hist[i]:.4f}"
+    )
+
+print("Last few MACD values:")
+for i in range(len(price_array) - 5, len(price_array)):
+    print(
+        f"Rust: macd={macd_line_rust[i]:.4f}, signal={signal_line_rust[i]:.4f}, hist={hist_rust[i]:.4f} | "
+        f"Py: macd={macd_py_res.macd[i]:.4f}, signal={macd_py_res.signal[i]:.4f}, hist={macd_py_res.hist[i]:.4f}"
+    )
 
 print("\nAll tests completed successfully!") 

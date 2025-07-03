@@ -694,6 +694,65 @@ fn tema(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f6
     })
 }
 
+/// Calculate MACD (Moving Average Convergence/Divergence) - Optimized Single-Pass Version
+#[pyfunction]
+fn macd(source: PyReadonlyArray1<f64>, fast_period: usize, slow_period: usize, signal_period: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        
+        let mut macd_line_result = Array1::<f64>::zeros(n);
+        let mut signal_line_result = Array1::<f64>::zeros(n);
+        let mut hist_result = Array1::<f64>::zeros(n);
+
+        if n == 0 {
+            return Ok((
+                PyArray1::from_array(py, &macd_line_result).to_owned(),
+                PyArray1::from_array(py, &signal_line_result).to_owned(),
+                PyArray1::from_array(py, &hist_result).to_owned(),
+            ));
+        }
+
+        let alpha_fast = 2.0 / (fast_period as f64 + 1.0);
+        let alpha_slow = 2.0 / (slow_period as f64 + 1.0);
+        let alpha_signal = 2.0 / (signal_period as f64 + 1.0);
+
+        let mut ema_fast = source_array[0];
+        let mut ema_slow = source_array[0];
+        
+        let macd_val = ema_fast - ema_slow;
+        let macd_val_cleaned = if macd_val.is_nan() { 0.0 } else { macd_val };
+        
+        let mut signal_ema = macd_val_cleaned;
+
+        macd_line_result[0] = macd_val_cleaned;
+        signal_line_result[0] = signal_ema;
+        hist_result[0] = macd_val - signal_ema;
+
+        for i in 1..n {
+            ema_fast = alpha_fast * source_array[i] + (1.0 - alpha_fast) * ema_fast;
+            ema_slow = alpha_slow * source_array[i] + (1.0 - alpha_slow) * ema_slow;
+
+            let macd_val = ema_fast - ema_slow;
+            let macd_val_cleaned = if macd_val.is_nan() { 0.0 } else { macd_val };
+            
+            signal_ema = alpha_signal * macd_val_cleaned + (1.0 - alpha_signal) * signal_ema;
+            
+            let hist_val = macd_val - signal_ema;
+
+            macd_line_result[i] = macd_val_cleaned;
+            signal_line_result[i] = signal_ema;
+            hist_result[i] = hist_val;
+        }
+
+        Ok((
+            PyArray1::from_array(py, &macd_line_result).to_owned(),
+            PyArray1::from_array(py, &signal_line_result).to_owned(),
+            PyArray1::from_array(py, &hist_result).to_owned(),
+        ))
+    })
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -709,5 +768,6 @@ fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
     m.add_function(wrap_pyfunction!(adx, m)?)?;
     m.add_function(wrap_pyfunction!(tema, m)?)?;
+    m.add_function(wrap_pyfunction!(macd, m)?)?;
     Ok(())
 }
