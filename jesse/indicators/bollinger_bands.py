@@ -1,43 +1,15 @@
 from collections import namedtuple
 
 import numpy as np
-from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
+from jesse.indicators.indicatorsrust import moving_std
+
 
 BollingerBands = namedtuple('BollingerBands', ['upperband', 'middleband', 'lowerband'])
-
-
-@njit
-def _moving_std_numba(source, period):
-    n = len(source)
-    result = np.empty(n, dtype=np.float64)
-    # Fill the first period-1 entries with NaN
-    for i in range(period - 1):
-        result[i] = np.nan
-    # Calculate standard deviation for each window of 'period' elements
-    for i in range(period - 1, n):
-        sum_val = 0.0
-        sum_sq = 0.0
-        for j in range(i - period + 1, i + 1):
-            x = source[j]
-            sum_val += x
-            sum_sq += x * x
-        mean = sum_val / period
-        variance = sum_sq / period - mean * mean
-        # Guard against possible negative variance from precision issues
-        if variance < 0.0:
-            variance = 0.0
-        result[i] = variance ** 0.5
-    return result
-
-
-def moving_std(source, period):
-    # Use the Numba-accelerated function instead of the Python loop with np.std
-    return _moving_std_numba(source, period)
 
 
 def bollinger_bands(

@@ -393,6 +393,107 @@ fn srsi(source: PyReadonlyArray1<f64>, period: usize, period_stoch: usize, k_per
     })
 }
 
+/// Calculate moving standard deviation
+#[pyfunction]
+fn moving_std(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+
+        let mut sum_val: f64 = 0.0;
+        let mut sum_sq: f64 = 0.0;
+
+        for i in 0..period {
+            sum_val += source_array[i];
+            sum_sq += source_array[i] * source_array[i];
+        }
+
+        let mean = sum_val / period as f64;
+        let mut variance = sum_sq / period as f64 - mean * mean;
+        if variance < 0.0 {
+            variance = 0.0;
+        }
+        result[period - 1] = variance.sqrt();
+
+        for i in period..n {
+            let old_val = source_array[i - period];
+            let new_val = source_array[i];
+
+            sum_val = sum_val - old_val + new_val;
+            sum_sq = sum_sq - old_val * old_val + new_val * new_val;
+
+            let mean = sum_val / period as f64;
+            let mut variance = sum_sq / period as f64 - mean * mean;
+            if variance < 0.0 {
+                variance = 0.0;
+            }
+            result[i] = variance.sqrt();
+        }
+
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
+/// Calculate Simple Moving Average (SMA) - The final, correct, optimized version
+#[pyfunction]
+fn sma(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+
+        let mut sum: f64 = 0.0;
+        let mut nan_count = 0;
+
+        for i in 0..period {
+            let val = source_array[i];
+            if val.is_nan() {
+                nan_count += 1;
+            } else {
+                sum += val;
+            }
+        }
+
+        if nan_count == 0 {
+            result[period - 1] = sum / period as f64;
+        }
+
+        for i in period..n {
+            let old_val = source_array[i - period];
+            let new_val = source_array[i];
+
+            if old_val.is_nan() {
+                nan_count -= 1;
+            } else {
+                sum -= old_val;
+            }
+            
+            if new_val.is_nan() {
+                nan_count += 1;
+            } else {
+                sum += new_val;
+            }
+
+            if nan_count == 0 {
+                result[i] = sum / period as f64;
+            } else {
+                result[i] = f64::NAN;
+            }
+        }
+
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -403,5 +504,7 @@ fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shift, m)?)?;
     m.add_function(wrap_pyfunction!(alligator, m)?)?;
     m.add_function(wrap_pyfunction!(srsi, m)?)?;
+    m.add_function(wrap_pyfunction!(moving_std, m)?)?;
+    m.add_function(wrap_pyfunction!(sma, m)?)?;
     Ok(())
 }

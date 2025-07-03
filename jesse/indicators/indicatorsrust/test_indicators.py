@@ -1,5 +1,6 @@
 import numpy as np
-from indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi
+from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma
+from jesse.indicators import bollinger_bands, mean_ad, median_ad
 
 # Test RSI
 print("Testing RSI...")
@@ -116,5 +117,41 @@ for i in range(start_idx, start_idx + 5):
 print("Last few SRSI values:")
 for i in range(len(k) - 5, len(k)):
     print(f"K[{i}] = {k[i]}, D[{i}] = {d[i]}")
+
+# Test Bollinger Bands
+print("\nTesting Bollinger Bands...")
+upper, middle, lower = bollinger_bands(price_array, period=20, devup=2, devdn=2, sequential=True)
+print(f"Bollinger Bands shapes: U={upper.shape}, M={middle.shape}, L={lower.shape}")
+first_valid_idx = 0
+for i in range(len(middle)):
+    if not np.isnan(middle[i]):
+        first_valid_idx = i
+        break
+print("First few valid Bollinger Bands values:")
+for i in range(first_valid_idx, first_valid_idx + 5):
+    if i < len(middle):
+        print(f"Index {i}: U={upper[i]:.2f}, M={middle[i]:.2f}, L={lower[i]:.2f}")
+
+print("Last few Bollinger Bands values:")
+for i in range(len(middle) - 5, len(middle)):
+    print(f"Index {i}: U={upper[i]:.2f}, M={middle[i]:.2f}, L={lower[i]:.2f}")
+
+# Test SMA
+print("\nTesting SMA...")
+sma_values = sma(price_array, period=15)
+print(f"SMA shape: {sma_values.shape}")
+first_valid_idx = 0
+for i in range(len(sma_values)):
+    if not np.isnan(sma_values[i]):
+        first_valid_idx = i
+        break
+print("First few valid SMA values:")
+for i in range(first_valid_idx, first_valid_idx + 5):
+    if i < len(sma_values):
+        print(f"SMA[{i}] = {sma_values[i]:.2f}")
+
+print("Last few SMA values:")
+for i in range(len(sma_values) - 5, len(sma_values)):
+    print(f"SMA[{i}] = {sma_values[i]:.2f}")
 
 print("\nAll tests completed successfully!") 
