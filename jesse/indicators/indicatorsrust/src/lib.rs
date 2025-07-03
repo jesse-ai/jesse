@@ -571,6 +571,99 @@ fn bollinger_bands_width(source: PyReadonlyArray1<f64>, period: usize, mult: f64
     })
 }
 
+/// Calculate ADX (Average Directional Movement Index) - Optimized Single-Pass Version
+#[pyfunction]
+fn adx(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.shape()[0];
+        let mut adx_result = Array1::<f64>::from_elem(n, f64::NAN);
+
+        let required_len = 2 * period;
+        if n <= required_len {
+            return Ok(PyArray1::from_array(py, &adx_result).to_owned());
+        }
+
+        let high = candles_array.slice(s![.., 3]);
+        let low = candles_array.slice(s![.., 4]);
+        let close = candles_array.slice(s![.., 2]);
+
+        // State for Wilder smoothing
+        let mut tr_smooth: f64 = 0.0;
+        let mut plus_dm_smooth: f64 = 0.0;
+        let mut minus_dm_smooth: f64 = 0.0;
+        
+        // Buffer for DX values to calculate the first ADX
+        let mut dx_buffer: Vec<f64> = Vec::with_capacity(period);
+
+        // Main calculation loop
+        for i in 1..n {
+            // 1. Calculate raw TR, +DM, -DM for current step `i`
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let current_tr = hl.max(hc).max(lc);
+
+            let h_diff = high[i] - high[i - 1];
+            let l_diff = low[i - 1] - low[i];
+
+            let mut current_plus_dm = 0.0;
+            if h_diff > l_diff && h_diff > 0.0 {
+                current_plus_dm = h_diff;
+            }
+
+            let mut current_minus_dm = 0.0;
+            if l_diff > h_diff && l_diff > 0.0 {
+                current_minus_dm = l_diff;
+            }
+
+            // 2. Update smoothed values
+            if i <= period {
+                // Accumulate for the first smoothed value
+                tr_smooth += current_tr;
+                plus_dm_smooth += current_plus_dm;
+                minus_dm_smooth += current_minus_dm;
+            } else {
+                // Apply Wilder's smoothing formula
+                tr_smooth = tr_smooth - (tr_smooth / period as f64) + current_tr;
+                plus_dm_smooth = plus_dm_smooth - (plus_dm_smooth / period as f64) + current_plus_dm;
+                minus_dm_smooth = minus_dm_smooth - (minus_dm_smooth / period as f64) + current_minus_dm;
+            }
+            
+            // From index `period` onwards, we can calculate DI and DX
+            if i >= period {
+                let mut current_dx = 0.0;
+                if tr_smooth != 0.0 {
+                    let di_plus = 100.0 * plus_dm_smooth / tr_smooth;
+                    let di_minus = 100.0 * minus_dm_smooth / tr_smooth;
+                    let di_sum = di_plus + di_minus;
+                    if di_sum != 0.0 {
+                        current_dx = 100.0 * (di_plus - di_minus).abs() / di_sum;
+                    }
+                }
+                
+                // Store DX value for initial ADX calculation, or calculate ADX
+                if i < required_len {
+                    dx_buffer.push(current_dx);
+                } else {
+                    if i == required_len {
+                        // First ADX value is the average of the buffer
+                        let dx_sum: f64 = dx_buffer.iter().sum();
+                        adx_result[i] = dx_sum / period as f64;
+                    } else {
+                        // Subsequent ADX values are smoothed
+                        if !adx_result[i - 1].is_nan() {
+                           adx_result[i] = (adx_result[i - 1] * (period - 1) as f64 + current_dx) / period as f64;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(PyArray1::from_array(py, &adx_result).to_owned())
+    })
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -584,5 +677,6 @@ fn indicatorsrust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(moving_std, m)?)?;
     m.add_function(wrap_pyfunction!(sma, m)?)?;
     m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
+    m.add_function(wrap_pyfunction!(adx, m)?)?;
     Ok(())
 }

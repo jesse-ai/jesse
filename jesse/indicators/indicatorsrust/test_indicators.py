@@ -1,6 +1,8 @@
 import numpy as np
-from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width
+from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx
 from jesse.indicators import bollinger_bands, mean_ad, median_ad
+from jesse.indicators.bollinger_bands_width import bollinger_bands_width
+from jesse.indicators.adx import adx as adx_py
 
 # Test RSI
 print("Testing RSI...")
@@ -156,7 +158,7 @@ for i in range(len(sma_values) - 5, len(sma_values)):
 
 # Test Bollinger Bands Width
 print("\nTesting Bollinger Bands Width...")
-bbw_values = bollinger_bands_width(price_array, period=20, mult=2)
+bbw_values = bollinger_bands_width(candles, period=20, mult=2.0, sequential=True)
 print(f"BBW shape: {bbw_values.shape}")
 first_valid_idx_bbw = 0
 for i in range(len(bbw_values)):
@@ -171,5 +173,28 @@ for i in range(first_valid_idx_bbw, first_valid_idx_bbw + 5):
 print("Last few BBW values:")
 for i in range(len(bbw_values) - 5, len(bbw_values)):
     print(f"BBW[{i}] = {bbw_values[i]:.4f}")
+
+# Test ADX
+print("\nTesting ADX...")
+adx_values_rust = adx(candles, period=14)
+adx_values_py = adx_py(candles, period=14, sequential=True)
+
+# Find first valid index for comparison
+first_valid_idx = 0
+for i in range(len(adx_values_rust)):
+    if not np.isnan(adx_values_rust[i]):
+        first_valid_idx = i
+        break
+
+print(f"ADX shape: {adx_values_rust.shape}")
+print(f"First valid ADX at index {first_valid_idx}")
+print("First few valid ADX values:")
+for i in range(first_valid_idx, first_valid_idx + 5):
+    if i < len(adx_values_rust):
+        print(f"Rust ADX[{i}] = {adx_values_rust[i]:.4f}, Py ADX[{i}] = {adx_values_py[i]:.4f}")
+
+print("Last few ADX values:")
+for i in range(len(adx_values_rust) - 5, len(adx_values_rust)):
+     print(f"Rust ADX[{i}] = {adx_values_rust[i]:.4f}, Py ADX[{i}] = {adx_values_py[i]:.4f}")
 
 print("\nAll tests completed successfully!") 
