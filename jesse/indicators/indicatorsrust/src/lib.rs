@@ -6,56 +6,49 @@ use ndarray::{Array1, s};
 #[pyfunction]
 fn rsi(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
     Python::with_gil(|py| {
-        // Convert PyArray to rust ndarray
         let source_array = source.as_array();
         let n = source_array.len();
-        
-        // Create output array
-        let mut result = Array1::<f64>::zeros(n);
-        
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+
         if n <= period {
-            // Return array of NaNs if we don't have enough data
-            for i in 0..n {
-                result[i] = f64::NAN;
-            }
             return Ok(PyArray1::from_array(py, &result).to_owned());
         }
-        
-        // Calculate price changes
-        let mut gains = Array1::<f64>::zeros(n);
-        let mut losses = Array1::<f64>::zeros(n);
-        
-        for i in 1..n {
+
+        // Calculate initial sum of gains and losses
+        let mut sum_gain = 0.0;
+        let mut sum_loss = 0.0;
+        for i in 1..=period {
             let change = source_array[i] - source_array[i - 1];
             if change > 0.0 {
-                gains[i] = change;
+                sum_gain += change;
             } else {
-                losses[i] = change.abs();
+                sum_loss += change.abs();
             }
         }
-        
-        // First average gain and loss
-        let mut avg_gain = gains.slice(s![1..period+1]).sum() / period as f64;
-        let mut avg_loss = losses.slice(s![1..period+1]).sum() / period as f64;
-        
-        // Set first values as NaN
-        for i in 0..period {
-            result[i] = f64::NAN;
-        }
-        
-        // Calculate first RSI
+
+        let mut avg_gain = sum_gain / period as f64;
+        let mut avg_loss = sum_loss / period as f64;
+
+        // Calculate first RSI value
         if avg_loss == 0.0 {
             result[period] = 100.0;
         } else {
             let rs = avg_gain / avg_loss;
             result[period] = 100.0 - (100.0 / (1.0 + rs));
         }
-        
-        // Calculate RSI using Wilder's smoothing method
-        for i in (period+1)..n {
-            avg_gain = (avg_gain * (period as f64 - 1.0) + gains[i]) / period as f64;
-            avg_loss = (avg_loss * (period as f64 - 1.0) + losses[i]) / period as f64;
-            
+
+        // Calculate subsequent RSI values using Wilder's smoothing
+        for i in (period + 1)..n {
+            let change = source_array[i] - source_array[i - 1];
+            let (current_gain, current_loss) = if change > 0.0 {
+                (change, 0.0)
+            } else {
+                (0.0, change.abs())
+            };
+
+            avg_gain = (avg_gain * (period as f64 - 1.0) + current_gain) / period as f64;
+            avg_loss = (avg_loss * (period as f64 - 1.0) + current_loss) / period as f64;
+
             if avg_loss == 0.0 {
                 result[i] = 100.0;
             } else {
@@ -63,8 +56,7 @@ fn rsi(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64
                 result[i] = 100.0 - (100.0 / (1.0 + rs));
             }
         }
-        
-        // Convert back to PyArray
+
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
 }
