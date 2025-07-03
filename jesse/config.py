@@ -13,6 +13,7 @@ config = {
         },
 
         'logging': {
+            'strategy_execution': True,
             'order_submission': True,
             'order_cancellation': True,
             'order_execution': True,

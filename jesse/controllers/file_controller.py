@@ -4,10 +4,10 @@ from jesse.services import auth as authenticator
 from jesse.modes import data_provider
 
 
-router = APIRouter(prefix="/file", tags=["File"])
+router = APIRouter(prefix="/download", tags=["Download"])
 
 
-@router.get("/download/{mode}/{file_type}/{session_id}")
+@router.get("/{mode}/{file_type}/{session_id}")
 def download(mode: str, file_type: str, session_id: str, token: str = Query(...)):
     """
     Download files such as logs or other generated files.

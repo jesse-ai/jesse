@@ -1,0 +1,1 @@
+import{g as c,a4 as n,Q as r,c as i,o as p}from"./CgNmNnAO.js";const _=c({__name:"index",setup(u){const o=n(),t=r(),e=Object.keys(t.tabs);if(e.length>0){const s=e[0],a=t.tabs[s];o.push({path:`/backtest/${a.id}`})}else t.addTab();return(s,a)=>(p(),i("div"))}});export{_ as default};
