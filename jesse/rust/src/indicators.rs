@@ -519,4 +519,71 @@ pub fn bollinger_bands_width(source: PyReadonlyArray1<f64>, period: usize, mult:
 
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
+}
+
+/// Calculate Bollinger Bands - Optimized version
+#[pyfunction]
+pub fn bollinger_bands(source: PyReadonlyArray1<f64>, period: usize, devup: f64, devdn: f64) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        
+        let mut upper_band = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut middle_band = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut lower_band = Array1::<f64>::from_elem(n, f64::NAN);
+
+        if n < period {
+            return Ok((
+                PyArray1::from_array(py, &upper_band).to_owned(),
+                PyArray1::from_array(py, &middle_band).to_owned(),
+                PyArray1::from_array(py, &lower_band).to_owned()
+            ));
+        }
+
+        // Use rolling window for efficient calculation
+        let mut sum = 0.0;
+        let mut sum_sq = 0.0;
+        
+        // Initialize first window
+        for i in 0..period {
+            let val = source_array[i];
+            sum += val;
+            sum_sq += val * val;
+        }
+        
+        // Calculate first Bollinger Bands values
+        let sma = sum / period as f64;
+        let variance = (sum_sq / period as f64) - (sma * sma);
+        let std_dev = variance.sqrt();
+        
+        middle_band[period - 1] = sma;
+        upper_band[period - 1] = sma + devup * std_dev;
+        lower_band[period - 1] = sma - devdn * std_dev;
+        
+        // Calculate subsequent values using rolling window
+        for i in period..n {
+            let old_val = source_array[i - period];
+            let new_val = source_array[i];
+            
+            // Update rolling sums
+            sum = sum - old_val + new_val;
+            sum_sq = sum_sq - (old_val * old_val) + (new_val * new_val);
+            
+            // Calculate SMA and standard deviation
+            let sma = sum / period as f64;
+            let variance = (sum_sq / period as f64) - (sma * sma);
+            let std_dev = variance.sqrt();
+            
+            // Calculate bands
+            middle_band[i] = sma;
+            upper_band[i] = sma + devup * std_dev;
+            lower_band[i] = sma - devdn * std_dev;
+        }
+
+        Ok((
+            PyArray1::from_array(py, &upper_band).to_owned(),
+            PyArray1::from_array(py, &middle_band).to_owned(),
+            PyArray1::from_array(py, &lower_band).to_owned()
+        ))
+    })
 } 

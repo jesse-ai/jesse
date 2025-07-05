@@ -20,6 +20,7 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tema, m)?)?;
     m.add_function(wrap_pyfunction!(macd, m)?)?;
     m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
+    m.add_function(wrap_pyfunction!(bollinger_bands, m)?)?;
     
     // Utils
     m.add_function(wrap_pyfunction!(shift, m)?)?;
