@@ -170,59 +170,126 @@ pub fn ichimoku_cloud(
     })
 }
 
-/// Calculate SRSI (Stochastic RSI)
+/// Calculate SRSI (Stochastic RSI) - Optimized version
 #[pyfunction]
 pub fn srsi(source: PyReadonlyArray1<f64>, period: usize, period_stoch: usize, k_period: usize, d_period: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     Python::with_gil(|py| {
         let source_array = source.as_array();
         let n = source_array.len();
         
-        // Calculate RSI first
-        let rsi_values = rsi(source, period)?;
-        let rsi_array = rsi_values.as_ref(py).readonly();
-        let rsi_data = rsi_array.as_array();
-        
-        // Calculate Stochastic of RSI
         let mut k_values = Array1::<f64>::from_elem(n, f64::NAN);
         let mut d_values = Array1::<f64>::from_elem(n, f64::NAN);
         
-        // Calculate %K (Stochastic of RSI)
-        for i in (period + period_stoch - 1)..n {
-            let start_idx = i + 1 - period_stoch;
-            let rsi_slice = rsi_data.slice(s![start_idx..=i]);
-            
-            let rsi_min = rsi_slice.fold(f64::INFINITY, |a, &b| if b.is_nan() { a } else { a.min(b) });
-            let rsi_max = rsi_slice.fold(f64::NEG_INFINITY, |a, &b| if b.is_nan() { a } else { a.max(b) });
-            
-            if rsi_max != rsi_min && !rsi_data[i].is_nan() {
-                k_values[i] = 100.0 * (rsi_data[i] - rsi_min) / (rsi_max - rsi_min);
+        if n <= period {
+            return Ok((
+                PyArray1::from_array(py, &k_values).to_owned(),
+                PyArray1::from_array(py, &d_values).to_owned()
+            ));
+        }
+
+        // Inline RSI calculation with rolling stochastic
+        let mut sum_gain = 0.0;
+        let mut sum_loss = 0.0;
+        
+        // Calculate initial RSI values
+        for i in 1..=period {
+            let change = source_array[i] - source_array[i - 1];
+            if change > 0.0 {
+                sum_gain += change;
+            } else {
+                sum_loss += change.abs();
             }
         }
         
-        // Calculate %D (SMA of %K)
-        for i in (period + period_stoch + k_period - 2)..n {
-            let start_idx = i + 1 - k_period;
-            let k_slice = k_values.slice(s![start_idx..=i]);
-            
-            let valid_values: Vec<f64> = k_slice.iter().filter(|&&x| !x.is_nan()).cloned().collect();
-            if valid_values.len() == k_period {
-                d_values[i] = valid_values.iter().sum::<f64>() / k_period as f64;
-            }
-        }
+        let mut avg_gain = sum_gain / period as f64;
+        let mut avg_loss = sum_loss / period as f64;
         
-        // Apply SMA smoothing to %D if d_period > 1
-        if d_period > 1 {
-            let mut smoothed_d = Array1::<f64>::from_elem(n, f64::NAN);
-            for i in (period + period_stoch + k_period + d_period - 3)..n {
-                let start_idx = i + 1 - d_period;
-                let d_slice = d_values.slice(s![start_idx..=i]);
+        // Rolling buffers for stochastic calculation
+        let mut rsi_buffer = std::collections::VecDeque::with_capacity(period_stoch);
+        let mut k_buffer = std::collections::VecDeque::with_capacity(k_period);
+        
+        // Process each data point
+        for i in period..n {
+            // Calculate RSI for current point
+            let rsi_val = if i == period {
+                // First RSI value
+                if avg_loss == 0.0 {
+                    100.0
+                } else {
+                    let rs = avg_gain / avg_loss;
+                    100.0 - (100.0 / (1.0 + rs))
+                }
+            } else {
+                // Subsequent RSI values using Wilder's smoothing
+                let change = source_array[i] - source_array[i - 1];
+                let (current_gain, current_loss) = if change > 0.0 {
+                    (change, 0.0)
+                } else {
+                    (0.0, change.abs())
+                };
                 
-                let valid_values: Vec<f64> = d_slice.iter().filter(|&&x| !x.is_nan()).cloned().collect();
-                if valid_values.len() == d_period {
-                    smoothed_d[i] = valid_values.iter().sum::<f64>() / d_period as f64;
+                avg_gain = (avg_gain * (period as f64 - 1.0) + current_gain) / period as f64;
+                avg_loss = (avg_loss * (period as f64 - 1.0) + current_loss) / period as f64;
+                
+                if avg_loss == 0.0 {
+                    100.0
+                } else {
+                    let rs = avg_gain / avg_loss;
+                    100.0 - (100.0 / (1.0 + rs))
+                }
+            };
+            
+            // Add to RSI buffer
+            rsi_buffer.push_back(rsi_val);
+            if rsi_buffer.len() > period_stoch {
+                rsi_buffer.pop_front();
+            }
+            
+            // Calculate %K when we have enough RSI values
+            if rsi_buffer.len() == period_stoch {
+                let rsi_min = rsi_buffer.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+                let rsi_max = rsi_buffer.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                
+                let k_val = if rsi_max != rsi_min {
+                    100.0 * (rsi_val - rsi_min) / (rsi_max - rsi_min)
+                } else {
+                    f64::NAN
+                };
+                
+                if k_period > 1 {
+                    // Smooth %K
+                    k_buffer.push_back(k_val);
+                    if k_buffer.len() > k_period {
+                        k_buffer.pop_front();
+                    }
+                    
+                    if k_buffer.len() == k_period && k_buffer.iter().all(|&x| !x.is_nan()) {
+                        let k_smoothed = k_buffer.iter().sum::<f64>() / k_period as f64;
+                        k_values[i] = k_smoothed;
+                    }
+                } else {
+                    // No smoothing needed
+                    k_values[i] = k_val;
                 }
             }
-            d_values = smoothed_d;
+        }
+        
+        // Calculate %D (SMA of %K) using rolling sum
+        if d_period > 0 {
+            let mut d_buffer = std::collections::VecDeque::with_capacity(d_period);
+            
+            for i in 0..n {
+                if !k_values[i].is_nan() {
+                    d_buffer.push_back(k_values[i]);
+                    if d_buffer.len() > d_period {
+                        d_buffer.pop_front();
+                    }
+                    
+                    if d_buffer.len() == d_period {
+                        d_values[i] = d_buffer.iter().sum::<f64>() / d_period as f64;
+                    }
+                }
+            }
         }
         
         Ok((
