@@ -481,7 +481,7 @@ pub fn macd(source: PyReadonlyArray1<f64>, fast_period: usize, slow_period: usiz
     })
 }
 
-/// Calculate Bollinger Bands Width
+/// Calculate Bollinger Bands Width - Optimized version
 #[pyfunction]
 pub fn bollinger_bands_width(source: PyReadonlyArray1<f64>, period: usize, mult: f64) -> PyResult<Py<PyArray1<f64>>> {
     Python::with_gil(|py| {
@@ -493,27 +493,48 @@ pub fn bollinger_bands_width(source: PyReadonlyArray1<f64>, period: usize, mult:
             return Ok(PyArray1::from_array(py, &result).to_owned());
         }
 
-        // Calculate SMA and standard deviation for each window
-        for i in (period - 1)..n {
-            let start_idx = i + 1 - period;
-            let window = source_array.slice(s![start_idx..=i]);
+        // Use rolling window for efficient calculation
+        let mut sum = 0.0;
+        let mut sum_sq = 0.0;
+        
+        // Initialize first window
+        for i in 0..period {
+            let val = source_array[i];
+            sum += val;
+            sum_sq += val * val;
+        }
+        
+        // Calculate first BBW value
+        let sma = sum / period as f64;
+        let variance = (sum_sq / period as f64) - (sma * sma);
+        let std_dev = variance.sqrt();
+        
+        // Calculate Bollinger Bands Width
+        if sma != 0.0 {
+            let upper_band = sma + mult * std_dev;
+            let lower_band = sma - mult * std_dev;
+            result[period - 1] = (upper_band - lower_band) / sma;
+        }
+        
+        // Calculate subsequent values using rolling window
+        for i in period..n {
+            let old_val = source_array[i - period];
+            let new_val = source_array[i];
             
-            // Calculate SMA
-            let sma_val = window.sum() / period as f64;
+            // Update rolling sums
+            sum = sum - old_val + new_val;
+            sum_sq = sum_sq - (old_val * old_val) + (new_val * new_val);
             
-            // Calculate standard deviation
-            let variance = window.iter()
-                .map(|&x| (x - sma_val).powi(2))
-                .sum::<f64>() / period as f64;
+            // Calculate SMA and standard deviation
+            let sma = sum / period as f64;
+            let variance = (sum_sq / period as f64) - (sma * sma);
             let std_dev = variance.sqrt();
             
-            // Calculate upper and lower bands
-            let upper_band = sma_val + mult * std_dev;
-            let lower_band = sma_val - mult * std_dev;
-            
             // Calculate Bollinger Bands Width
-            if sma_val != 0.0 {
-                result[i] = (upper_band - lower_band) / sma_val;
+            if sma != 0.0 {
+                let upper_band = sma + mult * std_dev;
+                let lower_band = sma - mult * std_dev;
+                result[i] = (upper_band - lower_band) / sma;
             }
         }
 
