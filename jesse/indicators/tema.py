@@ -1,7 +1,7 @@
 from typing import Union
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
-from .indicatorsrust import tema as tema_rust
+from jesse.rust import tema as tema_rust
 
 
 def tema(candles: np.ndarray, period: int = 9, source_type: str = "close", sequential: bool = False) -> Union[

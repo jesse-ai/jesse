@@ -1,1 +1,0 @@
-from indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema, macd

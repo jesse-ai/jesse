@@ -1,7 +1,7 @@
 from collections import namedtuple
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
-from .indicatorsrust import macd as macd_rust
+from jesse.rust import macd as macd_rust
 
 MACD = namedtuple('MACD', ['macd', 'signal', 'hist'])
 

@@ -1,7 +1,7 @@
 from typing import Union
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
-from jesse.indicators.indicatorsrust import bollinger_bands_width as bollinger_bands_width_rust
+from jesse.rust import bollinger_bands_width as bollinger_bands_width_rust
 
 
 def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2.0, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:

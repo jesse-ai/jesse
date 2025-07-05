@@ -1,5 +1,5 @@
 import numpy as np
-from jesse.indicators.indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema, macd
+from indicatorsrust import rsi, kama, ichimoku_cloud, smma, shift, alligator, srsi, moving_std, sma, bollinger_bands_width, adx, tema, macd
 from jesse.indicators import bollinger_bands, mean_ad, median_ad
 from jesse.indicators.bollinger_bands_width import bollinger_bands_width
 from jesse.indicators.adx import adx as adx_py

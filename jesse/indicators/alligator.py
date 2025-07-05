@@ -1,7 +1,7 @@
 from collections import namedtuple
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
-from jesse.indicators.indicatorsrust import smma, shift, alligator as alligator_rust
+from jesse.rust import smma, shift, alligator as alligator_rust
 
 AG = namedtuple('AG', ['jaw', 'teeth', 'lips'])
 
