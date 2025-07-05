@@ -61,15 +61,13 @@ pub fn rsi(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1
     })
 }
 
-/// Calculate KAMA (Kaufman Adaptive Moving Average)
+/// Calculate KAMA (Kaufman Adaptive Moving Average) - Optimized version
 #[pyfunction]
 pub fn kama(source: PyReadonlyArray1<f64>, period: usize, fast_length: usize, slow_length: usize) -> PyResult<Py<PyArray1<f64>>> {
     Python::with_gil(|py| {
-        // Convert PyArray to rust ndarray
         let source_array = source.as_array();
         let n = source_array.len();
         
-        // Create output array
         let mut result = Array1::<f64>::zeros(n);
         
         if n <= period {
@@ -90,17 +88,33 @@ pub fn kama(source: PyReadonlyArray1<f64>, period: usize, fast_length: usize, sl
             result[i] = source_array[i];
         }
         
+        // Pre-calculate price differences for rolling volatility
+        let mut price_diffs = Vec::with_capacity(n - 1);
+        for i in 1..n {
+            price_diffs.push((source_array[i] - source_array[i - 1]).abs());
+        }
+        
+        // Initialize rolling volatility sum for the first window
+        let mut volatility_sum = 0.0;
+        for i in 0..(period - 1) {
+            volatility_sum += price_diffs[i];
+        }
+        
         // Start the calculation after the initial period
         for i in period..n {
-            // Calculate Efficiency Ratio
+            // Calculate Efficiency Ratio using rolling volatility
             let change = (source_array[i] - source_array[i - period]).abs();
-            let mut volatility = 0.0;
             
-            for j in (i - period + 1)..=i {
-                volatility += (source_array[j] - source_array[j - 1]).abs();
+            // Update rolling volatility sum
+            if i >= period {
+                // Add new difference, remove old difference
+                volatility_sum += price_diffs[i - 1]; // Current period's difference
+                if i > period {
+                    volatility_sum -= price_diffs[i - period - 1]; // Remove oldest difference
+                }
             }
             
-            let er = if volatility != 0.0 { change / volatility } else { 0.0 };
+            let er = if volatility_sum != 0.0 { change / volatility_sum } else { 0.0 };
             
             // Calculate smoothing constant
             let sc = (er * alpha_diff + slow_alpha).powi(2);
@@ -109,7 +123,6 @@ pub fn kama(source: PyReadonlyArray1<f64>, period: usize, fast_length: usize, sl
             result[i] = result[i - 1] + sc * (source_array[i] - result[i - 1]);
         }
         
-        // Convert back to PyArray
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
 }
