@@ -1126,3 +1126,61 @@ pub fn chop(candles: PyReadonlyArray2<f64>, period: usize, scalar: f64, drift: u
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
 }
+
+/// Calculate ATR (Average True Range) - Ultra-optimized version
+#[pyfunction]
+pub fn atr(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Extract OHLCV data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Calculate True Range (TR) inline and ATR simultaneously
+        let mut tr_sum = 0.0;
+        
+        // Calculate first TR value
+        let first_tr = high[0] - low[0];
+        tr_sum += first_tr;
+        
+        // Calculate subsequent TR values and accumulate for first period
+        for i in 1..period {
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let tr = hl.max(hc).max(lc);
+            tr_sum += tr;
+        }
+        
+        // First ATR value is the simple average of the first 'period' true ranges
+        result[period - 1] = tr_sum / period as f64;
+        
+        // Calculate subsequent ATR values using Wilder's smoothing
+        // Using the optimized formula: ATR[i] = (ATR[i-1] * (period - 1) + TR[i]) / period
+        // Which can be rewritten as: ATR[i] = ATR[i-1] + (TR[i] - ATR[i-1]) / period
+        let alpha = 1.0 / period as f64;
+        
+        for i in period..n {
+            // Calculate current True Range
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let tr = hl.max(hc).max(lc);
+            
+            // Apply Wilder's smoothing: ATR[i] = ATR[i-1] + alpha * (TR[i] - ATR[i-1])
+            result[i] = result[i - 1] + alpha * (tr - result[i - 1]);
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
