@@ -35,5 +35,11 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(wma, m)?)?;
     m.add_function(wrap_pyfunction!(vwma, m)?)?;
     
+    // Performance optimized indicators
+    m.add_function(wrap_pyfunction!(stoch, m)?)?;
+    m.add_function(wrap_pyfunction!(stochf, m)?)?;
+    m.add_function(wrap_pyfunction!(dm, m)?)?;
+    m.add_function(wrap_pyfunction!(dema, m)?)?;
+    
     Ok(())
 }

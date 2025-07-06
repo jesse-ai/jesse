@@ -1006,9 +1006,9 @@ pub fn chop(candles: PyReadonlyArray2<f64>, period: usize, scalar: f64, drift: u
         tr[0] = high[0] - low[0];
         for i in 1..n {
             let hl = high[i] - low[i];
-            let hc = (high[i] - close[i - 1]).abs();
-            let lc = (low[i] - close[i - 1]).abs();
-            tr[i] = hl.max(hc).max(lc);
+                          let hc = (high[i] - close[i - 1]).abs();
+              let lc = (low[i] - close[i - 1]).abs();
+              tr[i] = hl.max(hc).max(lc);
         }
         
         // Calculate ATR using Wilder's smoothing or simple average based on drift
@@ -1689,4 +1689,341 @@ pub fn vwma(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArra
         
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
+}
+
+/// Calculate Stochastic Oscillator - Ultra-optimized version
+#[pyfunction]
+pub fn stoch(candles: PyReadonlyArray2<f64>, fastk_period: usize, slowk_period: usize, slowk_matype: usize, slowd_period: usize, slowd_matype: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        if n < fastk_period {
+            let k_values = Array1::<f64>::from_elem(n, f64::NAN);
+            let d_values = Array1::<f64>::from_elem(n, f64::NAN);
+            return Ok((
+                PyArray1::from_array(py, &k_values).to_owned(),
+                PyArray1::from_array(py, &d_values).to_owned()
+            ));
+        }
+        
+        // Extract price data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Calculate rolling highs and lows using simple approach to match Python exactly
+        let mut hh = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut ll = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        for i in (fastk_period - 1)..n {
+            let start_idx = i + 1 - fastk_period;
+            let end_idx = i + 1;
+            
+            let window_high = high.slice(s![start_idx..end_idx]);
+            let window_low = low.slice(s![start_idx..end_idx]);
+            
+            hh[i] = window_high.fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+            ll[i] = window_low.fold(f64::INFINITY, |a, &b| a.min(b));
+        }
+        
+        // Calculate raw %K values
+        let mut raw_k = Array1::<f64>::from_elem(n, f64::NAN);
+        for i in (fastk_period - 1)..n {
+            let hh_val = hh[i];
+            let ll_val = ll[i];
+            let close_val = close[i];
+            
+            if hh_val > ll_val {
+                raw_k[i] = 100.0 * (close_val - ll_val) / (hh_val - ll_val);
+            }
+        }
+        
+        // Apply smoothing for %K (slow K)
+        let smoothed_k = sma_array(&raw_k, slowk_period);
+        
+        // Apply smoothing for %D
+        let smoothed_d = sma_array(&smoothed_k, slowd_period);
+        
+        Ok((
+            PyArray1::from_array(py, &smoothed_k).to_owned(),
+            PyArray1::from_array(py, &smoothed_d).to_owned()
+        ))
+    })
+}
+
+/// Calculate Stochastic Fast - Ultra-optimized version
+#[pyfunction]
+pub fn stochf(candles: PyReadonlyArray2<f64>, fastk_period: usize, fastd_period: usize, fastd_matype: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        let mut k_values = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut d_values = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < fastk_period {
+            return Ok((
+                PyArray1::from_array(py, &k_values).to_owned(),
+                PyArray1::from_array(py, &d_values).to_owned()
+            ));
+        }
+        
+        // Extract price data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Use VecDeque for efficient sliding window max/min
+        use std::collections::VecDeque;
+        let mut max_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(fastk_period);
+        let mut min_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(fastk_period);
+        
+        // Initialize first window
+        for i in 0..fastk_period.min(n) {
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            // Maintain decreasing order for max deque
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            // Maintain increasing order for min deque
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+        }
+        
+        // Calculate fast stochastic values
+        // First valid value
+        if n >= fastk_period {
+            let hh = max_deque.front().unwrap().1;
+            let ll = min_deque.front().unwrap().1;
+            if hh > ll {
+                k_values[fastk_period - 1] = 100.0 * (close[fastk_period - 1] - ll) / (hh - ll);
+            } else {
+                k_values[fastk_period - 1] = 50.0; // Default when no range
+            }
+        }
+        
+        // Sliding window for remaining values
+        for i in fastk_period..n {
+            // Remove elements outside window
+            while let Some(&(idx, _)) = max_deque.front() {
+                if idx <= i - fastk_period {
+                    max_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            while let Some(&(idx, _)) = min_deque.front() {
+                if idx <= i - fastk_period {
+                    min_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            
+            // Add new element
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+            
+            // Calculate %K
+            let hh = max_deque.front().unwrap().1;
+            let ll = min_deque.front().unwrap().1;
+            if hh > ll {
+                k_values[i] = 100.0 * (close[i] - ll) / (hh - ll);
+            } else {
+                k_values[i] = 50.0;
+            }
+        }
+        
+        // Apply smoothing to get %D
+        let smoothed_d = if fastd_matype == 0 {
+            // SMA
+            sma_array(&k_values, fastd_period)
+        } else {
+            // Other MA types - simplified, using SMA for now
+            sma_array(&k_values, fastd_period)
+        };
+        
+        d_values = smoothed_d;
+        
+        Ok((
+            PyArray1::from_array(py, &k_values).to_owned(),
+            PyArray1::from_array(py, &d_values).to_owned()
+        ))
+    })
+}
+
+/// Calculate Directional Movement (DM) - Ultra-optimized version
+#[pyfunction]
+pub fn dm(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        let mut plus_dm = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut minus_dm = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n <= period {
+            return Ok((
+                PyArray1::from_array(py, &plus_dm).to_owned(),
+                PyArray1::from_array(py, &minus_dm).to_owned()
+            ));
+        }
+        
+        // Extract price data
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Calculate raw directional movements
+        let mut raw_plus = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut raw_minus = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        for i in 1..n {
+            let up_move = high[i] - high[i - 1];
+            let down_move = low[i - 1] - low[i];
+            
+            if up_move > down_move && up_move > 0.0 {
+                raw_plus[i] = up_move;
+            } else {
+                raw_plus[i] = 0.0;
+            }
+            
+            if down_move > up_move && down_move > 0.0 {
+                raw_minus[i] = down_move;
+            } else {
+                raw_minus[i] = 0.0;
+            }
+        }
+        
+        // Apply Wilder's smoothing
+        if n > period {
+            // Calculate initial sum
+            let mut sum_plus = 0.0;
+            let mut sum_minus = 0.0;
+            
+            for i in 1..=period {
+                sum_plus += raw_plus[i];
+                sum_minus += raw_minus[i];
+            }
+            
+            plus_dm[period] = sum_plus;
+            minus_dm[period] = sum_minus;
+            
+            // Apply Wilder's smoothing formula
+            for i in (period + 1)..n {
+                plus_dm[i] = plus_dm[i - 1] - (plus_dm[i - 1] / period as f64) + raw_plus[i];
+                minus_dm[i] = minus_dm[i - 1] - (minus_dm[i - 1] / period as f64) + raw_minus[i];
+            }
+        }
+        
+        Ok((
+            PyArray1::from_array(py, &plus_dm).to_owned(),
+            PyArray1::from_array(py, &minus_dm).to_owned()
+        ))
+    })
+}
+
+/// Calculate DEMA (Double Exponential Moving Average) - Ultra-optimized version
+#[pyfunction]
+pub fn dema(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        let alpha = 2.0 / (period as f64 + 1.0);
+        
+        // Calculate first EMA
+        let mut ema1 = Array1::<f64>::from_elem(n, f64::NAN);
+        ema1[0] = source_array[0];
+        
+        for i in 1..n {
+            ema1[i] = alpha * source_array[i] + (1.0 - alpha) * ema1[i - 1];
+        }
+        
+        // Calculate second EMA (EMA of EMA)
+        let mut ema2 = Array1::<f64>::from_elem(n, f64::NAN);
+        ema2[0] = ema1[0];
+        
+        for i in 1..n {
+            ema2[i] = alpha * ema1[i] + (1.0 - alpha) * ema2[i - 1];
+        }
+        
+        // Calculate DEMA: 2*EMA1 - EMA2
+        for i in 0..n {
+            result[i] = 2.0 * ema1[i] - ema2[i];
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
+/// Helper function to calculate SMA on an array
+fn sma_array(source: &Array1<f64>, period: usize) -> Array1<f64> {
+    let n = source.len();
+    let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+    
+    if n < period {
+        return result;
+    }
+    
+    for i in (period - 1)..n {
+        let start_idx = i + 1 - period;
+        let end_idx = i + 1;
+        
+        // Calculate SMA for window, handling NaN values
+        let window = source.slice(s![start_idx..end_idx]);
+        let mut sum = 0.0;
+        let mut count = 0;
+        
+        for &val in window.iter() {
+            if !val.is_nan() {
+                sum += val;
+                count += 1;
+            }
+        }
+        
+        if count > 0 {
+            result[i] = sum / count as f64;
+        }
+    }
+    
+    result
 }

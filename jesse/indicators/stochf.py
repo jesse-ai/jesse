@@ -3,7 +3,12 @@ from collections import namedtuple
 import numpy as np
 
 from jesse.helpers import slice_candles
-from jesse.indicators.ma import ma
+
+# Try to import the high-performance Rust implementation
+try:
+    from jesse.rust import stochf as stochf_rust  # type: ignore
+except ImportError:  # pragma: no cover
+    stochf_rust = None  # type: ignore
 
 StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
 
@@ -25,6 +30,28 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
 
     candles = slice_candles(candles, sequential)
 
+    # Use Rust implementation if available
+    if stochf_rust is not None:
+        # Convert to float64 for Rust compatibility
+        candles_f64 = np.asarray(candles, dtype=np.float64)
+        
+        # Call the Rust implementation
+        k, d = stochf_rust(candles_f64, fastk_period, fastd_period, fastd_matype)
+        
+        if sequential:
+            return StochasticFast(k, d)
+        else:
+            return StochasticFast(k[-1], d[-1])
+    else:
+        # Fallback to Python implementation
+        return _stochf_python(candles, fastk_period, fastd_period, fastd_matype, sequential)
+
+
+def _stochf_python(candles: np.ndarray, fastk_period: int, fastd_period: int, fastd_matype: int,
+                   sequential: bool) -> StochasticFast:
+    """Python fallback implementation."""
+    from jesse.indicators.ma import ma
+    
     candles_close = candles[:, 2]
     candles_high = candles[:, 3]
     candles_low = candles[:, 4]

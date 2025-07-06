@@ -4,6 +4,12 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
+# Try to import the high-performance Rust implementation
+try:
+    from jesse.rust import dm as dm_rust  # type: ignore
+except ImportError:  # pragma: no cover
+    dm_rust = None  # type: ignore
+
 DM = namedtuple('DM', ['plus', 'minus'])
 
 
@@ -18,6 +24,26 @@ def dm(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DM:
     :return: DM(plus, minus)
     """
     candles = slice_candles(candles, sequential)
+    
+    # Use Rust implementation if available
+    if dm_rust is not None:
+        # Convert to float64 for Rust compatibility
+        candles_f64 = np.asarray(candles, dtype=np.float64)
+        
+        # Call the Rust implementation
+        plus, minus = dm_rust(candles_f64, period)
+        
+        if sequential:
+            return DM(plus, minus)
+        else:
+            return DM(plus[-1], minus[-1])
+    else:
+        # Fallback to Python implementation
+        return _dm_python(candles, period, sequential)
+
+
+def _dm_python(candles: np.ndarray, period: int, sequential: bool) -> DM:
+    """Python fallback implementation."""
     high = candles[:, 3]
     low = candles[:, 4]
     n = len(high)
