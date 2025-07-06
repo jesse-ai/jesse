@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use ndarray::{Array1, s};
+use pyo3::types::PyDict;
 
 /// Calculate RSI (Relative Strength Index)
 #[pyfunction]
@@ -1343,5 +1344,129 @@ pub fn chande(
         }
         
         Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
+/// Calculate Donchian Channels - Ultra-optimized version
+#[pyfunction]
+pub fn donchian(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyDict>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result arrays
+        let mut upperband = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut middleband = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut lowerband = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            let result = PyDict::new(py);
+            result.set_item("upperband", PyArray1::from_array(py, &upperband).to_owned())?;
+            result.set_item("middleband", PyArray1::from_array(py, &middleband).to_owned())?;
+            result.set_item("lowerband", PyArray1::from_array(py, &lowerband).to_owned())?;
+            return Ok(result.into());
+        }
+        
+        // Extract high and low data
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Use VecDeque for O(1) front/back operations
+        use std::collections::VecDeque;
+        let mut max_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(period);
+        let mut min_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(period);
+        
+        // Initialize first window
+        for i in 0..period.min(n) {
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            // Maintain decreasing order for max deque
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            // Maintain increasing order for min deque
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+        }
+        
+        // Set first valid result
+        if period <= n {
+            let max_high = max_deque.front().unwrap().1;
+            let min_low = min_deque.front().unwrap().1;
+            upperband[period - 1] = max_high;
+            lowerband[period - 1] = min_low;
+            middleband[period - 1] = (max_high + min_low) * 0.5;
+        }
+        
+        // Process remaining elements with optimized sliding window
+        for i in period..n {
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            // Remove expired elements from front of max deque (O(1) amortized)
+            while let Some(&(idx, _)) = max_deque.front() {
+                if idx <= i - period {
+                    max_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            
+            // Remove expired elements from front of min deque (O(1) amortized)
+            while let Some(&(idx, _)) = min_deque.front() {
+                if idx <= i - period {
+                    min_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            
+            // Add new element to max deque (maintain decreasing order)
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            // Add new element to min deque (maintain increasing order)
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+            
+            // Calculate results
+            let max_high = max_deque.front().unwrap().1;
+            let min_low = min_deque.front().unwrap().1;
+            upperband[i] = max_high;
+            lowerband[i] = min_low;
+            middleband[i] = (max_high + min_low) * 0.5;
+        }
+        
+        // Return as dictionary
+        let result = PyDict::new(py);
+        result.set_item("upperband", PyArray1::from_array(py, &upperband).to_owned())?;
+        result.set_item("middleband", PyArray1::from_array(py, &middleband).to_owned())?;
+        result.set_item("lowerband", PyArray1::from_array(py, &lowerband).to_owned())?;
+        Ok(result.into())
     })
 }

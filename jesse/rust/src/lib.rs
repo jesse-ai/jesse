@@ -27,7 +27,8 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(di, m)?)?;
     m.add_function(wrap_pyfunction!(chop, m)?)?;
     m.add_function(wrap_pyfunction!(atr, m)?)?;
-    m.add_function(wrap_pyfunction!(chande, m)?)?;
+    m.add_function(wrap_pyfunction!(indicators::chande, m)?)?;
+    m.add_function(wrap_pyfunction!(indicators::donchian, m)?)?;
     
     Ok(())
 }
