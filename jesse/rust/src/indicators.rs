@@ -1470,3 +1470,223 @@ pub fn donchian(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<Py
         Ok(result.into())
     })
 }
+
+/// Calculate Williams' %R - Ultra-optimized version
+#[pyfunction]
+pub fn willr(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Extract required data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Use VecDeque for efficient sliding window
+        use std::collections::VecDeque;
+        let mut max_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(period);
+        let mut min_deque: VecDeque<(usize, f64)> = VecDeque::with_capacity(period);
+        
+        // Initialize first window
+        for i in 0..period.min(n) {
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            // Maintain decreasing order for max deque
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            // Maintain increasing order for min deque
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+        }
+        
+        // Set first valid result
+        if period <= n {
+            let max_high = max_deque.front().unwrap().1;
+            let min_low = min_deque.front().unwrap().1;
+            let denom = max_high - min_low;
+            if denom == 0.0 {
+                result[period - 1] = 0.0;
+            } else {
+                result[period - 1] = ((max_high - close[period - 1]) / denom) * -100.0;
+            }
+        }
+        
+        // Process remaining elements
+        for i in period..n {
+            let high_val = high[i];
+            let low_val = low[i];
+            
+            // Remove expired elements from max deque
+            while let Some(&(idx, _)) = max_deque.front() {
+                if idx <= i - period {
+                    max_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            
+            // Remove expired elements from min deque
+            while let Some(&(idx, _)) = min_deque.front() {
+                if idx <= i - period {
+                    min_deque.pop_front();
+                } else {
+                    break;
+                }
+            }
+            
+            // Add new element to max deque
+            while let Some(&(_, val)) = max_deque.back() {
+                if val <= high_val {
+                    max_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_deque.push_back((i, high_val));
+            
+            // Add new element to min deque
+            while let Some(&(_, val)) = min_deque.back() {
+                if val >= low_val {
+                    min_deque.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_deque.push_back((i, low_val));
+            
+            // Calculate Williams' %R
+            let max_high = max_deque.front().unwrap().1;
+            let min_low = min_deque.front().unwrap().1;
+            let denom = max_high - min_low;
+            if denom == 0.0 {
+                result[i] = 0.0;
+            } else {
+                result[i] = ((max_high - close[i]) / denom) * -100.0;
+            }
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
+/// Calculate Weighted Moving Average - Ultra-optimized version
+#[pyfunction]
+pub fn wma(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let source_array = source.as_array();
+        let n = source_array.len();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Pre-calculate weight sum for efficiency
+        let weight_sum = (period * (period + 1)) / 2;
+        let weight_sum_f64 = weight_sum as f64;
+        
+        // Calculate WMA for each position
+        for i in (period - 1)..n {
+            let mut weighted_sum = 0.0;
+            
+            // Calculate weighted sum using unrolled loop for better performance
+            for j in 0..period {
+                let weight = (j + 1) as f64;
+                let value = source_array[i - period + 1 + j];
+                weighted_sum += weight * value;
+            }
+            
+            result[i] = weighted_sum / weight_sum_f64;
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
+
+/// Calculate Volume Weighted Moving Average - Ultra-optimized version
+#[pyfunction]
+pub fn vwma(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n == 0 {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Extract required data
+        let close = candles_array.column(2);
+        let volume = candles_array.column(5);
+        
+        // Pre-calculate price * volume for efficiency
+        let mut weighted_prices = Array1::<f64>::zeros(n);
+        for i in 0..n {
+            weighted_prices[i] = close[i] * volume[i];
+        }
+        
+        // Use cumulative sums for ultra-fast rolling calculation
+        let mut cumsum_weighted = Array1::<f64>::zeros(n);
+        let mut cumsum_volume = Array1::<f64>::zeros(n);
+        
+        cumsum_weighted[0] = weighted_prices[0];
+        cumsum_volume[0] = volume[0];
+        
+        for i in 1..n {
+            cumsum_weighted[i] = cumsum_weighted[i - 1] + weighted_prices[i];
+            cumsum_volume[i] = cumsum_volume[i - 1] + volume[i];
+        }
+        
+        // Calculate VWMA using cumulative sums
+        for i in 0..n {
+            let start_idx = if i >= period { i - period + 1 } else { 0 };
+            let end_idx = i;
+            
+            let sum_weighted = if start_idx == 0 {
+                cumsum_weighted[end_idx]
+            } else {
+                cumsum_weighted[end_idx] - cumsum_weighted[start_idx - 1]
+            };
+            
+            let sum_volume = if start_idx == 0 {
+                cumsum_volume[end_idx]
+            } else {
+                cumsum_volume[end_idx] - cumsum_volume[start_idx - 1]
+            };
+            
+            if sum_volume == 0.0 {
+                result[i] = f64::NAN;
+            } else {
+                result[i] = sum_weighted / sum_volume;
+            }
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}

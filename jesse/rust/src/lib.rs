@@ -30,5 +30,10 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indicators::chande, m)?)?;
     m.add_function(wrap_pyfunction!(indicators::donchian, m)?)?;
     
+    // New optimized indicators
+    m.add_function(wrap_pyfunction!(willr, m)?)?;
+    m.add_function(wrap_pyfunction!(wma, m)?)?;
+    m.add_function(wrap_pyfunction!(vwma, m)?)?;
+    
     Ok(())
 }
