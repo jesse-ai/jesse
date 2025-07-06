@@ -24,6 +24,7 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sma, m)?)?;
     m.add_function(wrap_pyfunction!(smma, m)?)?;
     m.add_function(wrap_pyfunction!(alligator, m)?)?;
+    m.add_function(wrap_pyfunction!(di, m)?)?;
     
     Ok(())
 }

@@ -886,3 +886,97 @@ pub fn alligator(source: PyReadonlyArray1<f64>) -> PyResult<(Py<PyArray1<f64>>, 
         ))
     })
 } 
+
+/// Calculate DI (Directional Indicator) - Optimized version
+#[pyfunction]
+pub fn di(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result arrays
+        let mut plus_di = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut minus_di = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < 2 || n < period + 1 {
+            return Ok((
+                PyArray1::from_array(py, &plus_di).to_owned(),
+                PyArray1::from_array(py, &minus_di).to_owned()
+            ));
+        }
+        
+        // Extract OHLCV data (assuming standard format: open, high, low, close, volume)
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        let close = candles_array.column(2);
+        
+        // Initialize smoothed values for Wilder's smoothing
+        let mut tr_smooth = 0.0;
+        let mut plus_dm_smooth = 0.0;
+        let mut minus_dm_smooth = 0.0;
+        
+        // Calculate initial sums for the first 'period' values
+        for i in 1..=period {
+            // Calculate True Range (TR)
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let current_tr = hl.max(hc).max(lc);
+            
+            // Calculate Directional Movements (+DM and -DM)
+            let h_diff = high[i] - high[i - 1];
+            let l_diff = low[i - 1] - low[i];
+            
+            let current_plus_dm = if h_diff > l_diff && h_diff > 0.0 { h_diff } else { 0.0 };
+            let current_minus_dm = if l_diff > h_diff && l_diff > 0.0 { l_diff } else { 0.0 };
+            
+            // Accumulate for initial smoothed values
+            tr_smooth += current_tr;
+            plus_dm_smooth += current_plus_dm;
+            minus_dm_smooth += current_minus_dm;
+        }
+        
+        // Calculate first DI values at index 'period'
+        if tr_smooth > 0.0 {
+            plus_di[period] = 100.0 * plus_dm_smooth / tr_smooth;
+            minus_di[period] = 100.0 * minus_dm_smooth / tr_smooth;
+        } else {
+            plus_di[period] = 0.0;
+            minus_di[period] = 0.0;
+        }
+        
+        // Calculate subsequent DI values using Wilder's smoothing
+        for i in (period + 1)..n {
+            // Calculate current TR, +DM, -DM
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let current_tr = hl.max(hc).max(lc);
+            
+            let h_diff = high[i] - high[i - 1];
+            let l_diff = low[i - 1] - low[i];
+            
+            let current_plus_dm = if h_diff > l_diff && h_diff > 0.0 { h_diff } else { 0.0 };
+            let current_minus_dm = if l_diff > h_diff && l_diff > 0.0 { l_diff } else { 0.0 };
+            
+            // Apply Wilder's smoothing: smoothed[i] = (smoothed[i-1] * (period - 1) + current) / period
+            tr_smooth = (tr_smooth * (period - 1) as f64 + current_tr) / period as f64;
+            plus_dm_smooth = (plus_dm_smooth * (period - 1) as f64 + current_plus_dm) / period as f64;
+            minus_dm_smooth = (minus_dm_smooth * (period - 1) as f64 + current_minus_dm) / period as f64;
+            
+            // Calculate DI values
+            if tr_smooth > 0.0 {
+                plus_di[i] = 100.0 * plus_dm_smooth / tr_smooth;
+                minus_di[i] = 100.0 * minus_dm_smooth / tr_smooth;
+            } else {
+                plus_di[i] = 0.0;
+                minus_di[i] = 0.0;
+            }
+        }
+        
+        Ok((
+            PyArray1::from_array(py, &plus_di).to_owned(),
+            PyArray1::from_array(py, &minus_di).to_owned()
+        ))
+    })
+}
