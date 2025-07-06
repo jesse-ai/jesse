@@ -8,7 +8,7 @@ from jesse.indicators.sma import sma as sma_py
 
 # Try to import the high-performance Rust implementation
 try:
-    from jesse.rust import srsi as srsi_rust  # type: ignore
+    from jesse_rust import srsi as srsi_rust  # type: ignore
 except ImportError:  # pragma: no cover – rust module missing only in dev envs
     srsi_rust = None  # type: ignore
 

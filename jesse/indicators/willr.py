@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import slice_candles
-from jesse.rust import willr as willr_rust
+from jesse_rust import willr as willr_rust
 
 
 def willr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:

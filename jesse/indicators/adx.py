@@ -1,7 +1,7 @@
 from typing import Union
 import numpy as np
 from jesse.helpers import slice_candles
-from jesse.rust import adx as adx_rust
+from jesse_rust import adx as adx_rust
 
 
 def adx(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:

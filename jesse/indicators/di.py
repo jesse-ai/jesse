@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 
 from jesse.helpers import slice_candles
-from jesse.rust import di as di_rust
+from jesse_rust import di as di_rust
 
 DI = namedtuple('DI', ['plus', 'minus'])
 

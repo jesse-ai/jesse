@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
-from jesse.rust import vwma as vwma_rust
+from jesse_rust import vwma as vwma_rust
 
 
 def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[

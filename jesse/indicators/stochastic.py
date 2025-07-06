@@ -6,7 +6,7 @@ from jesse.helpers import slice_candles
 
 # Try to import the high-performance Rust implementation
 try:
-    from jesse.rust import stoch as stoch_rust  # type: ignore
+    from jesse_rust import stoch as stoch_rust  # type: ignore
 except ImportError:  # pragma: no cover
     stoch_rust = None  # type: ignore
 

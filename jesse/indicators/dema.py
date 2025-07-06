@@ -7,7 +7,7 @@ from jesse.helpers import get_candle_source, slice_candles
 
 # Try to import the high-performance Rust implementation
 try:
-    from jesse.rust import dema as dema_rust  # type: ignore
+    from jesse_rust import dema as dema_rust  # type: ignore
 except ImportError:  # pragma: no cover
     dema_rust = None  # type: ignore
 

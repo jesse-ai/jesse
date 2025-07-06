@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import slice_candles
-from jesse.rust import chop as chop_rust
+from jesse_rust import chop as chop_rust
 
 
 def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int = 1, sequential: bool = False) -> Union[float, np.ndarray]:

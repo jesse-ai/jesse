@@ -1,7 +1,7 @@
 from typing import Union
 import numpy as np
 from jesse.helpers import slice_candles
-from jesse.rust import atr as rust_atr
+from jesse_rust import atr as rust_atr
 
 
 def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:

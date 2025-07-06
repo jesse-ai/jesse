@@ -1,7 +1,7 @@
 from typing import Union
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
-from jesse.rust import kama as kama_rust
+from jesse_rust import kama as kama_rust
 
 
 def kama(candles: np.ndarray, period: int = 14, fast_length: int = 2, slow_length: int = 30, 
