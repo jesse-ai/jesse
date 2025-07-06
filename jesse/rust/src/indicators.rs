@@ -980,3 +980,149 @@ pub fn di(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<(Py<PyArray
         ))
     })
 }
+
+/// Calculate CHOP (Choppiness Index) - Ultra-optimized version
+#[pyfunction]
+pub fn chop(candles: PyReadonlyArray2<f64>, period: usize, scalar: f64, drift: usize) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Extract OHLCV data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Calculate True Range (TR) array
+        let mut tr = Array1::<f64>::zeros(n);
+        tr[0] = high[0] - low[0];
+        for i in 1..n {
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            tr[i] = hl.max(hc).max(lc);
+        }
+        
+        // Calculate ATR using Wilder's smoothing or simple average based on drift
+        let mut atr = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if drift == 1 {
+            // Simple case: ATR = TR
+            atr.assign(&tr);
+        } else {
+            // Wilder's smoothing for ATR
+            // Calculate initial ATR as simple average of first 'drift' values
+            let mut sum = 0.0;
+            for i in 0..drift {
+                sum += tr[i];
+            }
+            atr[drift - 1] = sum / drift as f64;
+            
+            // Apply Wilder's smoothing for subsequent values
+            let alpha = 1.0 / drift as f64;
+            for i in drift..n {
+                atr[i] = alpha * tr[i] + (1.0 - alpha) * atr[i - 1];
+            }
+        }
+        
+        // Pre-calculate log10(period) for efficiency
+        let log_period = (period as f64).log10();
+        
+        // Use rolling sum algorithm for ATR sum (O(n) instead of O(n*p))
+        let mut atr_sum = 0.0;
+        let mut highest = f64::NEG_INFINITY;
+        let mut lowest = f64::INFINITY;
+        
+        // Initialize the first window
+        for i in 0..period {
+            if !atr[i].is_nan() {
+                atr_sum += atr[i];
+            }
+            if high[i] > highest {
+                highest = high[i];
+            }
+            if low[i] < lowest {
+                lowest = low[i];
+            }
+        }
+        
+        // Use deque-like structures for efficient rolling max/min
+        use std::collections::VecDeque;
+        let mut max_deque: VecDeque<(usize, f64)> = VecDeque::new();
+        let mut min_deque: VecDeque<(usize, f64)> = VecDeque::new();
+        
+        // Initialize deques for the first window
+        for i in 0..period {
+            // Maintain max deque (decreasing order)
+            while !max_deque.is_empty() && max_deque.back().unwrap().1 <= high[i] {
+                max_deque.pop_back();
+            }
+            max_deque.push_back((i, high[i]));
+            
+            // Maintain min deque (increasing order)
+            while !min_deque.is_empty() && min_deque.back().unwrap().1 >= low[i] {
+                min_deque.pop_back();
+            }
+            min_deque.push_back((i, low[i]));
+        }
+        
+        // Calculate first CHOP value
+        if atr_sum > 0.0 {
+            let range = highest - lowest;
+            if range > 0.0 {
+                result[period - 1] = (scalar * (atr_sum.log10() - range.log10())) / log_period;
+            }
+        }
+        
+        // Rolling window calculation for subsequent values
+        for i in period..n {
+            // Update rolling ATR sum
+            if !atr[i].is_nan() {
+                atr_sum += atr[i];
+            }
+            if !atr[i - period].is_nan() {
+                atr_sum -= atr[i - period];
+            }
+            
+            // Remove elements outside the window from deques
+            while !max_deque.is_empty() && max_deque.front().unwrap().0 <= i - period {
+                max_deque.pop_front();
+            }
+            while !min_deque.is_empty() && min_deque.front().unwrap().0 <= i - period {
+                min_deque.pop_front();
+            }
+            
+            // Add new element to deques
+            while !max_deque.is_empty() && max_deque.back().unwrap().1 <= high[i] {
+                max_deque.pop_back();
+            }
+            max_deque.push_back((i, high[i]));
+            
+            while !min_deque.is_empty() && min_deque.back().unwrap().1 >= low[i] {
+                min_deque.pop_back();
+            }
+            min_deque.push_back((i, low[i]));
+            
+            // Get current max and min
+            let current_highest = max_deque.front().unwrap().1;
+            let current_lowest = min_deque.front().unwrap().1;
+            
+            // Calculate CHOP
+            if atr_sum > 0.0 {
+                let range = current_highest - current_lowest;
+                if range > 0.0 {
+                    result[i] = (scalar * (atr_sum.log10() - range.log10())) / log_period;
+                }
+            }
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
