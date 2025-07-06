@@ -1,12 +1,8 @@
 use pyo3::prelude::*;
 
 mod indicators;
-mod utils;
-mod helpers;
 
 use indicators::*;
-use utils::*;
-use helpers::*;
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -22,12 +18,10 @@ fn rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bollinger_bands_width, m)?)?;
     m.add_function(wrap_pyfunction!(bollinger_bands, m)?)?;
     
-    // Utils
+    // Utility functions (now in indicators.rs)
     m.add_function(wrap_pyfunction!(shift, m)?)?;
     m.add_function(wrap_pyfunction!(moving_std, m)?)?;
     m.add_function(wrap_pyfunction!(sma, m)?)?;
-    
-    // Helpers
     m.add_function(wrap_pyfunction!(smma, m)?)?;
     m.add_function(wrap_pyfunction!(alligator, m)?)?;
     
