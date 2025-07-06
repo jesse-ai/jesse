@@ -1964,31 +1964,42 @@ pub fn dema(source: PyReadonlyArray1<f64>, period: usize) -> PyResult<Py<PyArray
         
         let mut result = Array1::<f64>::from_elem(n, f64::NAN);
         
-        if n < period {
+        if n == 0 {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        if n == 1 {
+            result[0] = source_array[0];
             return Ok(PyArray1::from_array(py, &result).to_owned());
         }
         
         let alpha = 2.0 / (period as f64 + 1.0);
+        let one_minus_alpha = 1.0 - alpha;
         
-        // Calculate first EMA
-        let mut ema1 = Array1::<f64>::from_elem(n, f64::NAN);
+        // Optimized: Conservative optimizations for better performance
+        // Pre-calculate constants for better performance
+        let two = 2.0;
+        
+        // Pre-allocate arrays with the exact pattern as Python
+        let mut ema1 = Array1::<f64>::zeros(n);
         ema1[0] = source_array[0];
         
+        // Step 1: Calculate EMA1 efficiently  
         for i in 1..n {
-            ema1[i] = alpha * source_array[i] + (1.0 - alpha) * ema1[i - 1];
+            ema1[i] = alpha * source_array[i] + one_minus_alpha * ema1[i - 1];
         }
         
-        // Calculate second EMA (EMA of EMA)
-        let mut ema2 = Array1::<f64>::from_elem(n, f64::NAN);
+        // Step 2: Calculate EMA2 (EMA of EMA1) efficiently
+        let mut ema2 = Array1::<f64>::zeros(n);
         ema2[0] = ema1[0];
         
         for i in 1..n {
-            ema2[i] = alpha * ema1[i] + (1.0 - alpha) * ema2[i - 1];
+            ema2[i] = alpha * ema1[i] + one_minus_alpha * ema2[i - 1];
         }
         
-        // Calculate DEMA: 2*EMA1 - EMA2
+        // Step 3: Calculate DEMA = 2*EMA1 - EMA2 efficiently
         for i in 0..n {
-            result[i] = 2.0 * ema1[i] - ema2[i];
+            result[i] = two * ema1[i] - ema2[i];
         }
         
         Ok(PyArray1::from_array(py, &result).to_owned())
