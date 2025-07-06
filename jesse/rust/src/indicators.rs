@@ -1184,3 +1184,164 @@ pub fn atr(candles: PyReadonlyArray2<f64>, period: usize) -> PyResult<Py<PyArray
         Ok(PyArray1::from_array(py, &result).to_owned())
     })
 }
+
+/// Calculate Chande (Chandelier Exit) - Ultra-optimized version
+#[pyfunction]
+pub fn chande(
+    candles: PyReadonlyArray2<f64>, 
+    period: usize, 
+    mult: f64, 
+    direction: &str
+) -> PyResult<Py<PyArray1<f64>>> {
+    Python::with_gil(|py| {
+        let candles_array = candles.as_array();
+        let n = candles_array.nrows();
+        
+        // Initialize result array
+        let mut result = Array1::<f64>::from_elem(n, f64::NAN);
+        
+        if n < period {
+            return Ok(PyArray1::from_array(py, &result).to_owned());
+        }
+        
+        // Extract OHLCV data
+        let close = candles_array.column(2);
+        let high = candles_array.column(3);
+        let low = candles_array.column(4);
+        
+        // Pre-allocate ATR array
+        let mut atr = vec![f64::NAN; n];
+        
+        // Calculate ATR using rolling window - first pass
+        let mut tr_sum = 0.0;
+        
+        // Calculate first TR value
+        let first_tr = high[0] - low[0];
+        tr_sum += first_tr;
+        
+        // Calculate subsequent TR values and accumulate for first period
+        for i in 1..period {
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let tr = hl.max(hc).max(lc);
+            tr_sum += tr;
+        }
+        
+        // First ATR value
+        atr[period - 1] = tr_sum / period as f64;
+        
+        // Calculate subsequent ATR values using Wilder's smoothing
+        let alpha = 1.0 / period as f64;
+        for i in period..n {
+            let hl = high[i] - low[i];
+            let hc = (high[i] - close[i - 1]).abs();
+            let lc = (low[i] - close[i - 1]).abs();
+            let tr = hl.max(hc).max(lc);
+            atr[i] = atr[i - 1] + alpha * (tr - atr[i - 1]);
+        }
+        
+        // Calculate Chandelier Exit using rolling max/min with deques
+        use std::collections::VecDeque;
+        
+        if direction == "long" {
+            // For long: use rolling maximum of high prices
+            let mut max_deque: VecDeque<(usize, f64)> = VecDeque::new();
+            
+            // Initialize the first window
+            for i in 0..period.min(n) {
+                // Remove elements that are smaller than current (maintain decreasing order)
+                while let Some(&(_, val)) = max_deque.back() {
+                    if val <= high[i] {
+                        max_deque.pop_back();
+                    } else {
+                        break;
+                    }
+                }
+                max_deque.push_back((i, high[i]));
+            }
+            
+            // Calculate chandelier exit for the first valid position
+            if period <= n {
+                let max_high = max_deque.front().unwrap().1;
+                result[period - 1] = max_high - atr[period - 1] * mult;
+            }
+            
+            // Slide the window for remaining positions
+            for i in period..n {
+                // Remove elements outside the window
+                while let Some(&(idx, _)) = max_deque.front() {
+                    if idx <= i - period {
+                        max_deque.pop_front();
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Add new element maintaining decreasing order
+                while let Some(&(_, val)) = max_deque.back() {
+                    if val <= high[i] {
+                        max_deque.pop_back();
+                    } else {
+                        break;
+                    }
+                }
+                max_deque.push_back((i, high[i]));
+                
+                // Calculate chandelier exit
+                let max_high = max_deque.front().unwrap().1;
+                result[i] = max_high - atr[i] * mult;
+            }
+        } else if direction == "short" {
+            // For short: use rolling minimum of low prices
+            let mut min_deque: VecDeque<(usize, f64)> = VecDeque::new();
+            
+            // Initialize the first window
+            for i in 0..period.min(n) {
+                // Remove elements that are larger than current (maintain increasing order)
+                while let Some(&(_, val)) = min_deque.back() {
+                    if val >= low[i] {
+                        min_deque.pop_back();
+                    } else {
+                        break;
+                    }
+                }
+                min_deque.push_back((i, low[i]));
+            }
+            
+            // Calculate chandelier exit for the first valid position
+            if period <= n {
+                let min_low = min_deque.front().unwrap().1;
+                result[period - 1] = min_low + atr[period - 1] * mult;
+            }
+            
+            // Slide the window for remaining positions
+            for i in period..n {
+                // Remove elements outside the window
+                while let Some(&(idx, _)) = min_deque.front() {
+                    if idx <= i - period {
+                        min_deque.pop_front();
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Add new element maintaining increasing order
+                while let Some(&(_, val)) = min_deque.back() {
+                    if val >= low[i] {
+                        min_deque.pop_back();
+                    } else {
+                        break;
+                    }
+                }
+                min_deque.push_back((i, low[i]));
+                
+                // Calculate chandelier exit
+                let min_low = min_deque.front().unwrap().1;
+                result[i] = min_low + atr[i] * mult;
+            }
+        }
+        
+        Ok(PyArray1::from_array(py, &result).to_owned())
+    })
+}
