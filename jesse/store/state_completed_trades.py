@@ -32,32 +32,28 @@ class ClosedTrades:
 
     def add_executed_order(self, executed_order: Order) -> None:
         t = self._get_current_trade(executed_order.exchange, executed_order.symbol)
-        if executed_order.is_partially_filled:
-            qty = executed_order.filled_qty
-        else:
-            qty = executed_order.qty
+        if not executed_order.is_partially_filled:
             executed_order.trade_id = t.id
             t.orders.append(executed_order)
 
-        self.add_order_record_only(
-            executed_order.exchange, executed_order.symbol, executed_order.side,
-            qty, executed_order.price
-        )
+        self.add_order_record_only(executed_order)
 
-    def add_order_record_only(self, exchange: str, symbol: str, side: str, qty: float, price: float) -> None:
+    def add_order_record_only(self, order: Order) -> None:
         """
         used in add_executed_order() and for when initially adding open positions in live mode.
         used for correct trade-metrics calculations in persistency support for live mode.
         """
-        t = self._get_current_trade(exchange, symbol)
-        if side == sides.BUY:
-            t.buy_orders.append(np.array([abs(qty), price]))
-        elif side == sides.SELL:
-            t.sell_orders.append(np.array([abs(qty), price]))
+        t = self._get_current_trade(order.exchange, order.symbol)
+        if order.side == sides.BUY:
+            t.buy_orders.append(np.array([abs(order.qty), order.price]))
+        elif order.side == sides.SELL:
+            t.sell_orders.append(np.array([abs(order.qty), order.price]))
         else:
-            raise Exception(f"Invalid order side: {side}")
+            raise Exception(f"Invalid order side: {order.side}")
 
-    def open_trade(self, position: Position) -> None:
+    def open_trade(self, position: Position, p_orders: list = None) -> None:
+        from jesse.store import store
+
         t = self._get_current_trade(position.exchange_name, position.symbol)
         t.opened_at = position.opened_at
         t.leverage = position.leverage
@@ -72,6 +68,28 @@ class ClosedTrades:
         t.exchange = position.exchange_name
         t.symbol = position.symbol
         t.type = position.type
+        t.session_id = store.app.session_id
+
+        ClosedTrade.store_closed_trade_into_db(t)
+        if p_orders:
+            for order in p_orders:
+                order.trade_id = t.id
+                Order.store_order_in_db(order)
+                self.add_order_record_only(order)
+
+
+
+    def fetch_open_trade(self, trade: dict) -> None:
+        t = self._get_current_trade(trade.exchange, trade.symbol)
+        t.id = trade.id
+        t.opened_at = trade.opened_at
+        t.leverage = trade.leverage
+        t.timeframe = trade.timeframe
+        t.strategy_name = trade.strategy_name
+        t.exchange = trade.exchange
+        t.symbol = trade.symbol
+        t.type = trade.type
+        t.session_id = trade.session_id
 
     def close_trade(self, position: Position) -> None:
         t = self._get_current_trade(position.exchange_name, position.symbol)
@@ -96,6 +114,7 @@ class ClosedTrades:
             store_closed_trade_into_db(t)
         # store the trade into the list
         self.trades.append(t)
+        ClosedTrade.close_trade_in_db(t)
         if not jh.is_unit_testing():
             logger.info(
                 f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty},"

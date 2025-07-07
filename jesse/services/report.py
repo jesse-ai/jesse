@@ -228,6 +228,8 @@ def orders() -> List[dict]:
     for r in router.routes:
         r_orders = store.orders.get_orders(r.exchange, r.symbol)
         for o in r_orders:
+            o.trade_id = str(o.trade_id) if o.trade_id else None
+            o.id = str(o.id) if o.id else None
             route_orders.append(o.to_dict)
 
     return route_orders

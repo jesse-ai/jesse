@@ -7,6 +7,8 @@ from jesse.config import config
 from jesse.services.db import database
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
 from jesse.enums import trade_types
+from jesse.models.Order import Order
+from jesse.enums import order_statuses
 
 if database.is_closed():
     database.open_connection()
@@ -16,14 +18,19 @@ class ClosedTrade(peewee.Model):
     """A trade is made when a position is opened AND closed."""
 
     id = peewee.UUIDField(primary_key=True)
+    session_id = peewee.UUIDField()
     strategy_name = peewee.CharField()
     symbol = peewee.CharField()
     exchange = peewee.CharField()
     type = peewee.CharField()
     timeframe = peewee.CharField()
     opened_at = peewee.BigIntegerField()
-    closed_at = peewee.BigIntegerField()
+    closed_at = peewee.BigIntegerField(null=True)
     leverage = peewee.IntegerField()
+    created_at = peewee.BigIntegerField()
+    updated_at = peewee.BigIntegerField()
+    session_mode = peewee.CharField()
+    disabled_trade = peewee.BooleanField(default=False)
 
     class Meta:
         from jesse.services.db import database
@@ -45,6 +52,65 @@ class ClosedTrade(peewee.Model):
         self.sell_orders = DynamicNumpyArray((10, 2))
         # to store the actual order objects
         self.orders = []
+
+    @staticmethod
+    def get_trade_by_id(trade_id):
+        return ClosedTrade.get(ClosedTrade.id == trade_id)
+
+    @staticmethod
+    def store_closed_trade_into_db(closed_trade):
+        d = {
+            'id': closed_trade.id,
+            'session_id': closed_trade.session_id,
+            'strategy_name': closed_trade.strategy_name,
+            'symbol': closed_trade.symbol,
+            'exchange': closed_trade.exchange,
+            'type': closed_trade.type,
+            'timeframe': closed_trade.timeframe,
+            'opened_at': closed_trade.opened_at,
+            'leverage': closed_trade.leverage,
+            'created_at': jh.now_to_timestamp(),
+            'updated_at': jh.now_to_timestamp(),
+            'session_mode': config['app']['trading_mode'],
+        }
+        try:
+            ClosedTrade.insert(**d).execute()
+        except Exception as e:
+            jh.dump(f"Error storing closed trade in database: {e}")
+
+    @staticmethod
+    def close_trade_in_db(closed_trade):
+        d = {
+            'closed_at': jh.now_to_timestamp(),
+            'updated_at': jh.now_to_timestamp(),
+        }
+        try:
+            ClosedTrade.update(**d).where(ClosedTrade.id == closed_trade.id).execute()
+        except Exception as e:
+            jh.dump(f"Error closing trade in database: {e}")
+
+    @staticmethod
+    def get_account_db_trades():
+        valid_value = None
+        trades = list(
+            ClosedTrade.select().where(
+                ClosedTrade.closed_at == valid_value).where(
+                ClosedTrade.disabled_trade == False).where(
+                ClosedTrade.session_mode == 'live_trading').order_by(
+                ClosedTrade.opened_at.desc()))
+
+        # Fetch orders for each trade and populate the orders list
+        for trade in trades:
+            trade.orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).order_by(Order.created_at))
+
+        return trades
+
+    @staticmethod
+    def disable_trade_in_db(trade_id):
+        d = {
+            'disabled_trade': True,
+        }
+        ClosedTrade.update(**d).where(ClosedTrade.id == trade_id).execute()
 
     @property
     def to_json(self) -> dict:
@@ -134,6 +200,8 @@ class ClosedTrade(peewee.Model):
     @property
     def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
+        if self.closed_at is None:
+            return None
         return (self.closed_at - self.opened_at) / 1000
 
     @property
@@ -143,6 +211,7 @@ class ClosedTrade(peewee.Model):
     @property
     def is_short(self) -> bool:
         return self.type == trade_types.SHORT
+
 
     @property
     def qty(self) -> float:
@@ -174,7 +243,6 @@ class ClosedTrade(peewee.Model):
             return np.nan
 
         return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
-
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None

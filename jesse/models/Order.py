@@ -33,11 +33,12 @@ class Order(Model):
     price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
+    updated_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
-
-    # needed in Jesse, but no need to store in database(?)
-    submitted_via = None
+    session_mode = CharField()
+    jesse_submitted = BooleanField(default=True)
+    submitted_via = CharField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -82,6 +83,82 @@ class Order(Model):
             if self.price:
                 txt += f', ${self.price}'
             notify(txt)
+
+    @staticmethod
+    def store_order_in_db(order):
+        if Order.select().where(Order.id == order.id).exists():
+            # if exist update the order
+            Order.update_order_in_db(order)
+            return
+
+        from jesse.store import store
+        d = {
+            'id': order.id,
+            'session_id': store.app.session_id,
+            'symbol': order.symbol,
+            'exchange': order.exchange,
+            'side': order.side,
+            'type': order.type,
+            'reduce_only': order.reduce_only,
+            'qty': order.qty,
+            'status': order.status,
+            'created_at': order.created_at if order.created_at else jh.now_to_timestamp(),
+            'updated_at': order.updated_at if order.updated_at else jh.now_to_timestamp(),
+            'session_mode': config['app']['trading_mode'],
+        }
+        if order.trade_id:
+            d['trade_id'] = order.trade_id
+            d['exchange_id'] = order.exchange_id
+            d['executed_at'] = order.executed_at
+            d['filled_qty'] = order.filled_qty
+            d['jesse_submitted'] = order.jesse_submitted
+            d['price'] = order.price
+
+        if order.submitted_via:
+            d['submitted_via'] = order.submitted_via
+        if hasattr(order, 'jesse_submitted'):
+            d['jesse_submitted'] = order.jesse_submitted
+
+        try:
+            Order.insert(**d).execute()
+        except Exception as e:
+            jh.dump(f"Error storing order in database: {e}")
+
+    @staticmethod
+    def get_order_by_exchange_or_client_id(exchange_id=None, client_id=None):
+        if exchange_id:
+            return Order.select().where(Order.exchange_id == exchange_id).first()
+        if client_id:
+            return Order.select().where(Order.id == client_id).first()
+        return None
+
+    @staticmethod
+    def update_order_in_db(order):
+        d = {
+            'updated_at': jh.now_to_timestamp(),
+            'status': order.status,
+            'filled_qty': order.filled_qty,
+            'price': order.price,
+            'exchange_id': order.exchange_id,
+        }
+
+        if order.is_executed:
+            d['executed_at'] = jh.now_to_timestamp()
+        if order.is_canceled:
+            d['canceled_at'] = jh.now_to_timestamp()
+        if order.trade_id:
+            d['trade_id'] = order.trade_id
+        if order.submitted_via:
+            d['submitted_via'] = order.submitted_via
+
+        try:
+            Order.update(**d).where(Order.id == order.id).execute()
+        except Exception as e:
+            jh.dump(f"Error updating order in database: {e}")
+
+    @staticmethod
+    def get_session_orders(session_id: str, exchange: str, symbol: str):
+        return Order.select().where(Order.session_id == session_id, Order.exchange == exchange, Order.symbol == symbol)
 
     @property
     def is_canceled(self) -> bool:
@@ -137,6 +214,7 @@ class Order(Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'trade_id': self.trade_id,
             'session_id': self.session_id,
             'exchange_id': self.exchange_id,
             'symbol': self.symbol,
@@ -172,6 +250,7 @@ class Order(Model):
                 txt += f', ${round(self.price, 2)}'
                 logger.info(txt)
         self.notify_submission()
+        Order.update_order_in_db(self)
 
     def resubmit(self):
         # don't allow resubmission if the order is already active or cancelled
@@ -182,6 +261,7 @@ class Order(Model):
         self.id = jh.generate_unique_id()
         self.status = order_statuses.ACTIVE
         self.canceled_at = None
+        Order.update_order_in_db(self)
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
@@ -216,6 +296,7 @@ class Order(Model):
         # handle exchange balance
         e = selectors.get_exchange(self.exchange)
         e.on_order_cancellation(self)
+        Order.update_order_in_db(self)
 
     def execute(self, silent=False) -> None:
         if self.is_canceled or self.is_executed:
@@ -242,6 +323,7 @@ class Order(Model):
         # log the order of the trade for metrics
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
+        Order.update_order_in_db(self)
 
         # handle exchange balance for ordered asset
         e = selectors.get_exchange(self.exchange)
@@ -272,6 +354,7 @@ class Order(Model):
         from jesse.store import store
         store.completed_trades.add_executed_order(self)
 
+        Order.update_order_in_db(self)
         p = selectors.get_position(self.exchange, self.symbol)
 
         if p:

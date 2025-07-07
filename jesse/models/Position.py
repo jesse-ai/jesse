@@ -377,9 +377,13 @@ class Position:
         else:
             raise NotImplementedError('exchange type not implemented')
 
-    def _open(self):
+    def _open(self, p_orders: list = None):
         from jesse.store import store
-        store.completed_trades.open_trade(self)
+        store.completed_trades.open_trade(self, p_orders)
+
+    def _fetch_open_trade(self, trade: dict):
+        from jesse.store import store
+        store.completed_trades.fetch_open_trade(trade)
 
     def _on_executed_order(self, order: Order) -> None:
         # futures (live)
@@ -452,7 +456,7 @@ class Position:
         if self.strategy:
             self.strategy._on_updated_position(order)
 
-    def update_from_stream(self, data: dict, is_initial: bool) -> None:
+    def update_from_stream(self, data: dict, is_initial: bool, open_trade: dict = None, p_orders: list = None) -> None:
         """
         Used for updating the position from the WS stream (only for live trading)
         """
@@ -474,14 +478,17 @@ class Position:
         opening_position = before_qty <= self._min_qty < after_qty
         closing_position = before_qty > self._min_qty >= after_qty
         if opening_position:
-            if is_initial:
-                from jesse.store import store
-                store.completed_trades.add_order_record_only(
-                    self.exchange_name, self.symbol, jh.type_to_side(self.type),
-                    self.qty, self.entry_price
-                )
+            # if is_initial:
+            #     from jesse.store import store
+            #     store.completed_trades.add_order_record_only(
+            #         self.exchange_name, self.symbol, jh.type_to_side(self.type),
+            #         self.qty, self.entry_price
+            #     )
             self.opened_at = jh.now_to_timestamp()
-            self._open()
+            if open_trade:
+                self._fetch_open_trade(open_trade)
+            else:
+                self._open(p_orders)
         elif closing_position:
             self.closed_at = jh.now_to_timestamp()
 

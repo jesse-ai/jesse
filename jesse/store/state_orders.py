@@ -42,6 +42,7 @@ class OrdersState:
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
         self.active_storage[key].append(order)
+        Order.store_order_in_db(order)
 
     def remove_order(self, order: Order) -> None:
         key = f'{order.exchange}-{order.symbol}'

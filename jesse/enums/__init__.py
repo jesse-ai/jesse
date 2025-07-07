@@ -85,8 +85,6 @@ class exchanges:
     BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
     DYDX_PERPETUAL = "Dydx Perpetual"
     DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
-    APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
-    APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
     APEX_OMNI_PERPETUAL_TESTNET = 'Apex Omni Perpetual Testnet'
     APEX_OMNI_PERPETUAL = 'Apex Omni Perpetual'
     GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
