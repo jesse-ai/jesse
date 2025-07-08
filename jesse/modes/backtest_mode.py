@@ -296,17 +296,6 @@ def _get_add_horizontal_line_to_extra_chart():
     return arr
 
 
-def _get_study_name() -> str:
-    routes_count = len(router.routes)
-    more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
-    if type(router.routes[0].strategy_name) is str:
-        strategy_name = router.routes[0].strategy_name
-    else:
-        strategy_name = router.routes[0].strategy_name.__name__
-    study_name = f"{strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}"
-    return study_name
-
-
 def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message: str = None):
     """Helper function to handle missing candles scenarios"""
     formatted_date = jh.timestamp_to_date(start_date)
