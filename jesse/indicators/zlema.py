@@ -4,6 +4,7 @@ import numpy as np
 from numba import njit
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
+import jesse_rust
 
 
 @njit
@@ -49,7 +50,12 @@ def zlema(candles: np.ndarray, period: int = 20, source_type: str = "close", seq
     else:
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
-
-    res = _zlema_fast(source, period)
+        
+    # Use the Rust implementation if available
+    try:
+        res = jesse_rust.zlema(source, period)
+    except (ImportError, AttributeError):
+        # Fall back to Python implementation
+        res = _zlema_fast(source, period)
 
     return same_length(candles, res) if sequential else res[-1]

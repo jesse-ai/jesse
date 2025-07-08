@@ -2,6 +2,7 @@ from collections import namedtuple
 import numpy as np
 from numba import jit
 from jesse.helpers import get_candle_source, slice_candles
+import jesse_rust
 
 Wavetrend = namedtuple('Wavetrend', ['wt1', 'wt2', 'wtCrossUp', 'wtCrossDown', 'wtOversold', 'wtOverbought', 'wtVwap'])
 
@@ -87,20 +88,34 @@ def wt(candles: np.ndarray, wtchannellen: int = 9, wtaveragelen: int = 12, wtmal
     :return: Wavetrend
     """
     candles = slice_candles(candles, sequential)
-    src = get_candle_source(candles, source_type=source_type)
     
-    # Convert inputs to float64 for better numerical stability
-    src = src.astype(np.float64)
-    
-    # Calculate main components
-    wt1, wt2 = _fast_wt(src, wtchannellen, wtaveragelen, wtmalen)
-    
-    # Calculate additional components
-    wtVwap = wt1 - wt2
-    wtOversold = wt2 <= oslevel
-    wtOverbought = wt2 >= oblevel
-    wtCrossUp = wt2 - wt1 <= 0
-    wtCrossDown = wt2 - wt1 >= 0
+    # Try to use the Rust implementation if available
+    try:
+        wt1, wt2, wtCrossUp, wtCrossDown, wtOversold, wtOverbought, wtVwap = jesse_rust.wt(
+            candles, 
+            wtchannellen, 
+            wtaveragelen, 
+            wtmalen, 
+            float(oblevel), 
+            float(oslevel), 
+            source_type
+        )
+    except (ImportError, AttributeError):
+        # Fall back to Python implementation
+        src = get_candle_source(candles, source_type=source_type)
+        
+        # Convert inputs to float64 for better numerical stability
+        src = src.astype(np.float64)
+        
+        # Calculate main components
+        wt1, wt2 = _fast_wt(src, wtchannellen, wtaveragelen, wtmalen)
+        
+        # Calculate additional components
+        wtVwap = wt1 - wt2
+        wtOversold = wt2 <= oslevel
+        wtOverbought = wt2 >= oblevel
+        wtCrossUp = wt2 - wt1 <= 0
+        wtCrossDown = wt2 - wt1 >= 0
 
     if sequential:
         return Wavetrend(wt1, wt2, wtCrossUp, wtCrossDown, wtOversold, wtOverbought, wtVwap)
