@@ -215,7 +215,12 @@ def subtract_floats(float1: float, float2: float) -> float:
 
     :return: float
     """
-    return float(Decimal(str(float1)) - Decimal(str(float2)))
+    try:
+        import jesse_rust
+        return jesse_rust.subtract_floats(float1, float2)
+    except ImportError:
+        # Fallback to Python implementation
+        return float(Decimal(str(float1)) - Decimal(str(float2)))
 
 
 def sum_floats(float1: float, float2: float) -> float:
@@ -227,7 +232,12 @@ def sum_floats(float1: float, float2: float) -> float:
 
     :return: float
     """
-    return float(Decimal(str(float1)) + Decimal(str(float2)))
+    try:
+        import jesse_rust
+        return jesse_rust.sum_floats(float1, float2)
+    except ImportError:
+        # Fallback to Python implementation
+        return float(Decimal(str(float1)) + Decimal(str(float2)))
 
 
 def strictly_increasing(series: np.ndarray, lookback: int) -> bool:
