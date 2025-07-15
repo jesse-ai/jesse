@@ -79,36 +79,9 @@ class BitunixMain(CandleExchange):
         self.validate_response(response)
         data = response.json()['data']
 
-        # Determine which suffix to filter based on exchange name
-        target_suffix = '-USDT' if self.name.startswith('Apex Omni') else '-USDC'
+        symbols = []
+        for p in data:
+            symbol = jh.dashless_symbol(p['symbol'])
+            symbols.append(symbol)
 
-        # For legacy API response format
-        if 'usdtConfig' not in data:
-            symbols = []
-            contracts = data['contractConfig']['perpetualContract']
-            for p in contracts:
-                symbol = p['symbol']
-                if symbol.endswith(target_suffix):
-                    symbols.append(symbol)
-            return list(sorted(symbols))
-
-        # For new API response format
-        pairs = []
-        # For Omni (USDT pairs)
-        if target_suffix == '-USDT':
-            if 'usdtConfig' in data and 'perpetualContract' in data['usdtConfig']:
-                contracts = data['usdtConfig']['perpetualContract']
-                for p in contracts:
-                    symbol = p['symbol']
-                    if symbol.endswith(target_suffix):
-                        pairs.append(symbol)
-        # For Pro (USDC pairs)
-        else:
-            if 'usdcConfig' in data and 'perpetualContract' in data['usdcConfig']:
-                contracts = data['usdcConfig']['perpetualContract']
-                for p in contracts:
-                    symbol = p['symbol']
-                    if symbol.endswith(target_suffix):
-                        pairs.append(symbol)
-
-        return list(sorted(pairs))
+        return list(sorted(symbols))
