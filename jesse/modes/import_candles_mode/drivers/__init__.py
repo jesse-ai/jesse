@@ -19,6 +19,7 @@ from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateU
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual import HyperliquidPerpetual
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Bitunix.BitunixPerpetual import BitunixPerpetual
 
 
 drivers = {
@@ -39,6 +40,7 @@ drivers = {
     exchanges.GATE_SPOT: GateSpot,
     exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
+    exchanges.BITUNIX_PERPETUAL: BitunixPerpetual,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,

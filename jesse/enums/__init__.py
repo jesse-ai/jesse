@@ -93,6 +93,7 @@ class exchanges:
     GATE_SPOT = 'Gate Spot'
     HYPERLIQUID_PERPETUAL = 'Hyperliquid Perpetual'
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
+    BITUNIX_PERPETUAL = 'Bitunix Perpetual'
 
 
 @dataclass
