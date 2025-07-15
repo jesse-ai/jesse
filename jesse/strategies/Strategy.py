@@ -1319,6 +1319,11 @@ class Strategy(ABC):
     def routes(self) -> List[Route]:
         from jesse.routes import router
         return router.routes
+    
+    @property
+    def data_routes(self) -> List[Route]:
+        from jesse.routes import router
+        return router.data_routes
 
     @property
     def current_route_index(self) -> int:

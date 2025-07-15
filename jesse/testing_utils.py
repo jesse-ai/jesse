@@ -105,3 +105,29 @@ def two_routes_backtest(
 
     # dates are fake. just to pass required parameters
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', get_btc_and_eth_candles())
+
+
+def two_data_routes_backtest(
+        strategy_name1: str, strategy_name2: str, is_futures_trading=True, leverage=1, leverage_mode='cross', trend='up'
+):
+    """
+    used to simplify simple tests
+    """
+    set_up(
+        is_futures_trading=is_futures_trading,
+        leverage=leverage,
+        leverage_mode=leverage_mode
+    )
+
+    routes = [
+        {'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': strategy_name1},
+        {'symbol': 'ETH-USDT', 'timeframe': '5m', 'strategy': strategy_name2},
+    ]
+
+    data_routes = [
+        {'symbol': 'BTC-USDT', 'timeframe': '5m'},
+        {'symbol': 'ETH-USDT', 'timeframe': '15m'},
+    ]
+
+    # dates are fake. just to pass required parameters
+    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, data_routes, '2019-04-01', '2019-04-02', get_btc_and_eth_candles())
