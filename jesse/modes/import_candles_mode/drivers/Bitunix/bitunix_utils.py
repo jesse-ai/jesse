@@ -82,3 +82,28 @@ def interval_to_timeframe(interval: str) -> str:
         return timeframes.MONTH_1
     else:
         raise ValueError('Invalid interval: {}'.format(interval))
+
+
+def get_timeframe_to_interval_ws(timeframe: str) -> str:
+    if timeframe == timeframes.MINUTE_1:
+        return '1min'
+    elif timeframe == timeframes.MINUTE_5:
+        return '5min'
+    elif timeframe == timeframes.MINUTE_15:
+        return '15min'
+    elif timeframe == timeframes.MINUTE_30:
+        return '30min'
+    elif timeframe == timeframes.HOUR_1:
+        return '60min'
+    elif timeframe == timeframes.HOUR_2:
+        return '2h'
+    elif timeframe == timeframes.HOUR_4:
+        return '4h'
+    elif timeframe == timeframes.HOUR_6:
+        return '6h'
+    elif timeframe == timeframes.HOUR_8:
+        return '8h'
+    elif timeframe == timeframes.HOUR_12:
+        return '12h'
+    elif timeframe == timeframes.DAY_1:
+        return '1day'

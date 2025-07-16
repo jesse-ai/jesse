@@ -81,7 +81,7 @@ class BitunixMain(CandleExchange):
 
         symbols = []
         for p in data:
-            symbol = jh.dashless_symbol(p['symbol'])
+            symbol = jh.dashy_symbol(p['symbol'])
             symbols.append(symbol)
 
         return list(sorted(symbols))
