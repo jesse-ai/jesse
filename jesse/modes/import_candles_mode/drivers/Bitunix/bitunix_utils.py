@@ -107,3 +107,34 @@ def get_timeframe_to_interval_ws(timeframe: str) -> str:
         return '12h'
     elif timeframe == timeframes.DAY_1:
         return '1day'
+
+
+def get_interval_ws_to_timeframe(interval: str) -> str:
+    """
+    Reverse mapping of get_timeframe_to_interval_ws.
+    Takes interval string and returns the corresponding timeframe constant.
+    """
+    if interval == '1min':
+        return timeframes.MINUTE_1
+    elif interval == '5min':
+        return timeframes.MINUTE_5
+    elif interval == '15min':
+        return timeframes.MINUTE_15
+    elif interval == '30min':
+        return timeframes.MINUTE_30
+    elif interval == '60min':
+        return timeframes.HOUR_1
+    elif interval == '2h':
+        return timeframes.HOUR_2
+    elif interval == '4h':
+        return timeframes.HOUR_4
+    elif interval == '6h':
+        return timeframes.HOUR_6
+    elif interval == '8h':
+        return timeframes.HOUR_8
+    elif interval == '12h':
+        return timeframes.HOUR_12
+    elif interval == '1day':
+        return timeframes.DAY_1
+    else:
+        raise ValueError('Invalid interval: {}'.format(interval))

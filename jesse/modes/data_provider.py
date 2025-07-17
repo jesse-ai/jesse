@@ -67,17 +67,28 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             candles = generated_candles
 
     database.close_connection()
+    candles_list = []
+    seen_times = set()
 
-    return [
-        {
-            'time': int(c[0] / 1000),
-            'open': c[1],
-            'close': c[2],
-            'high': c[3],
-            'low': c[4],
-            'volume': c[5],
-        } for c in candles
-    ]
+    for c in candles:
+        candle_time = int(c[0] / 1000)
+
+        # Skip if we've already seen this timestamp
+        if candle_time in seen_times:
+            continue
+
+        seen_times.add(candle_time)
+        candles_list.append(
+            {
+                'time': candle_time,
+                'open': c[1],
+                'close': c[2],
+                'high': c[3],
+                'low': c[4],
+                'volume': c[5],
+            }
+        )
+    return candles_list
 
 
 def get_config(client_config: dict, has_live=False) -> dict:
@@ -186,10 +197,10 @@ def download_backtest_log(session_id: str):
     Returns the log file for a specific backtest session as a downloadable file
     """
     path = f'storage/logs/backtest-mode/{session_id}.txt'
-    
+
     if not os.path.exists(path):
         raise Exception('Log file not found')
-        
+
     filename = f'backtest-{session_id}.txt'
     return FileResponse(
         path=path,
