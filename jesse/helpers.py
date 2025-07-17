@@ -265,6 +265,56 @@ def format_currency(num: float) -> str:
     return f'{num:,}'
 
 
+def format_price(price: float) -> str:
+    """
+    Formats the price for logging.
+    - If abs(price) is >= 1, it will be truncated to 2 decimal places.
+    - If abs(price) is < 1, it will be truncated to 2 significant digits.
+    """
+    if price is None:
+        return ""
+
+    if price == 0:
+        return "0.00"
+
+    # to handle scientific notation
+    price_str = f'{price:.20f}'
+    
+    if abs(price) >= 1:
+        if '.' not in price_str:
+            return f"{price:.2f}"
+            
+        integer_part, decimal_part = price_str.split('.')
+        return f"{integer_part}.{decimal_part[:2]}"
+
+    # For numbers between -1 and 1
+    
+    # find sign
+    sign = ''
+    if price < 0:
+        sign = '-'
+        
+    price_str = f'{abs(price):.20f}'
+    
+    decimal_part = price_str.split('.')[1]
+
+    first_non_zero_index = -1
+    for i, digit in enumerate(decimal_part):
+        if digit != '0':
+            first_non_zero_index = i
+            break
+
+    # This case should ideally not be hit if price is not 0, but as a safeguard:
+    if first_non_zero_index == -1:
+        return "0.00"
+
+    end_index = first_non_zero_index + 2
+    
+    formatted_decimal = decimal_part[:end_index]
+    
+    return f"{sign}0.{formatted_decimal}"
+
+
 def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
