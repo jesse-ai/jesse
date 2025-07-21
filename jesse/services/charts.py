@@ -6,16 +6,22 @@ from jesse.utils import prices_to_returns
 
 
 def _calculate_equity_curve(daily_balance, start_date, name: str, color: str):
-    date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
-    eq = [{
-        'time': date.timestamp(),
-        'value': balance,
-        'color': color
-    } for date, balance in zip(date_list, daily_balance)]
+    date_list = [start_date + timedelta(days=x)
+                 for x in range(len(daily_balance))]
+    eq = []
+    for date, balance in zip(date_list, daily_balance):
+        try:
+            ts = date.timestamp()
+        except OSError:
+            ts = 0  # or skip, or use datetime.now().timestamp()
+        eq.append({
+            'time': ts,
+            'value': balance,
+            'color': color
+        })
     return {
         'name': name,
-        'data': eq,
-        'color': color,
+        'data': eq
     }
 
 
@@ -44,9 +50,11 @@ def equity_curve(benchmark: bool = False) -> list:
     daily_balance = store.app.daily_balance
 
     # Define the first 10 colors
-    colors = ['#818CF8', '#fbbf24', '#fb7185', '#60A5FA', '#f472b6', '#A78BFA', '#f87171', '#6EE7B7', '#93C5FD', '#FCA5A5']
+    colors = ['#818CF8', '#fbbf24', '#fb7185', '#60A5FA', '#f472b6',
+              '#A78BFA', '#f87171', '#6EE7B7', '#93C5FD', '#FCA5A5']
 
-    result.append(_calculate_equity_curve(daily_balance, start_date, 'Portfolio', colors[0]))
+    result.append(_calculate_equity_curve(
+        daily_balance, start_date, 'Portfolio', colors[0]))
 
     if benchmark:
         initial_balance = daily_balance[0]
@@ -57,12 +65,14 @@ def equity_curve(benchmark: bool = False) -> list:
             )
             daily_returns = prices_to_returns(daily_candles[:, 2])
             daily_returns[0] = 0
-            daily_balance_benchmark = initial_balance * (1 + daily_returns/100).cumprod()
+            daily_balance_benchmark = initial_balance * \
+                (1 + daily_returns/100).cumprod()
 
             # If there are more than 10 routes, generate new colors
             if i + 1 >= 10:
                 colors.append(_generate_color(colors[-1]))
 
-            result.append(_calculate_equity_curve(daily_balance_benchmark, start_date, r.symbol, colors[(i + 1) % len(colors)]))
+            result.append(_calculate_equity_curve(
+                daily_balance_benchmark, start_date, r.symbol, colors[(i + 1) % len(colors)]))
 
     return result

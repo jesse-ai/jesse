@@ -141,7 +141,8 @@ def _execute_backtest(
         })
         # candles info
         key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-        sync_publish('candles_info', stats.candles_info(candles[key]['candles']))
+        sync_publish('candles_info', stats.candles_info(
+            candles[key]['candles']))
         # routes info
         sync_publish('routes_info', stats.routes(router.routes))
 
@@ -196,12 +197,18 @@ def _execute_backtest(
         sync_publish('equity_curve', result['equity_curve'], compression=True)
         sync_publish('trades', result['trades'], compression=True)
         if chart:
-            sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
-            sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
-            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart(), compression=True)
-            sync_publish('add_extra_line_chart', _get_add_extra_line_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart(), compression=True)
+            sync_publish(
+                'candles_chart', _get_formatted_candles_for_frontend(), compression=True)
+            sync_publish(
+                'orders_chart', _get_formatted_orders_for_frontend(), compression=True)
+            sync_publish('add_line_to_candle_chart',
+                         _get_add_line_to_candle_chart(), compression=True)
+            sync_publish('add_extra_line_chart',
+                         _get_add_extra_line_chart(), compression=True)
+            sync_publish('add_horizontal_line_to_candle_chart',
+                         _get_add_horizontal_line_to_candle_chart(), compression=True)
+            sync_publish('add_horizontal_line_to_extra_chart',
+                         _get_add_horizontal_line_to_extra_chart(), compression=True)
 
     # close database connection
     from jesse.services.db import database
@@ -211,7 +218,8 @@ def _execute_backtest(
 def _get_formatted_candles_for_frontend():
     arr = []
     for r in router.routes:
-        candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        candles_arr = store.candles.get_candles(
+            r.exchange, r.symbol, r.timeframe)
         # Find the index where the starting time actually begins.
         starting_index = 0
         for i, c in enumerate(candles_arr):
@@ -301,7 +309,7 @@ def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message
     formatted_date = jh.timestamp_to_date(start_date)
     if message is None:
         message = f'Missing trading candles for {symbol} on {exchange} from {formatted_date}'
-    
+
     sync_publish(
         "missing_candles",
         {
@@ -311,7 +319,7 @@ def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message
             "start_date": formatted_date,
         },
     )
-    
+
     raise exceptions.CandlesNotFound({
         'message': message,
         'symbol': symbol,
@@ -337,9 +345,9 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
         # Ensure that trading_candle_arr is not None or empty
         if trading_candle_arr is None or (isinstance(trading_candle_arr, np.ndarray) and trading_candle_arr.size == 0):
             _handle_missing_candles(
-                exchange, 
-                symbol, 
-                start_date, 
+                exchange,
+                symbol,
+                start_date,
                 f"Missing trading candles for {symbol} on {exchange}"
             )
 
@@ -371,19 +379,22 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
     try:
         for c in config['app']['considering_candles']:
             exchange, symbol = c[0], c[1]
-            inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+            inject_warmup_candles_to_store(warmup_candles[jh.key(
+                exchange, symbol)]['candles'], exchange, symbol)
     except ValueError as e:
         # Extract exchange and symbol from error message
         match = re.search(r"for (.*?)/(.*?)\?", str(e))
         if match:
             exchange, symbol = match.groups()
-            
+
             # Calculate warmup start date using the same logic as load_candles()
             warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
-            max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
+            max_timeframe = jh.max_timeframe(
+                config['app']['considering_timeframes'])
             # Convert max_timeframe to minutes and multiply by warmup_num
             warmup_minutes = TIMEFRAME_TO_ONE_MINUTES[max_timeframe] * warmup_num
-            warmup_start_timestamp = jh.date_to_timestamp(start_date) - (warmup_minutes * 60_000)
+            warmup_start_timestamp = jh.date_to_timestamp(
+                start_date) - (warmup_minutes * 60_000)
             warmup_start_date = jh.timestamp_to_date(warmup_start_timestamp)
             # Publish the missing candles error to the frontend
             # This will trigger the alert in the BacktestTab.vue component
@@ -447,7 +458,8 @@ def _step_simulator(
             short_candle = candles[j]['candles'][i]
             if i != 0:
                 previous_short_candle = candles[j]['candles'][i - 1]
-                short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+                short_candle = _get_fixed_jumped_candle(
+                    previous_short_candle, short_candle)
             exchange = candles[j]['exchange']
             symbol = candles[j]['symbol']
 
@@ -661,7 +673,8 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
     if len(executing_orders) > 1:
         # extend the candle shape from (6,) to (1,6)
-        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
+        executing_orders = _sort_execution_orders(
+            executing_orders, current_temp_candle[None, :])
 
     while True:
         if len(executing_orders) == 0:
@@ -675,8 +688,10 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     continue
 
                 if candle_includes_price(current_temp_candle, order.price):
-                    storable_temp_candle, current_temp_candle = split_candle(current_temp_candle, order.price)
-                    _update_all_routes_a_partial_candle(exchange, symbol, storable_temp_candle)
+                    storable_temp_candle, current_temp_candle = split_candle(
+                        current_temp_candle, order.price)
+                    _update_all_routes_a_partial_candle(
+                        exchange, symbol, storable_temp_candle)
 
                     p = selectors.get_position(exchange, symbol)
                     p.current_price = storable_temp_candle[2]
@@ -684,10 +699,12 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     executed_order = True
 
                     order.execute()
-                    executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
+                    executing_orders = _get_executing_orders(
+                        exchange, symbol, current_temp_candle)
                     if len(executing_orders) > 1:
                         # extend the candle shape from (6,) to (1,6)
-                        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
+                        executing_orders = _sort_execution_orders(
+                            executing_orders, current_temp_candle[None, :])
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
@@ -893,7 +910,7 @@ def _simulate_new_candles(candles: dict, candle_index: int, candles_step: int) -
                 generated_candle = generate_candle_from_one_minutes(
                     timeframe,
                     candles[j]["candles"][
-                    i - count + candles_step: i + candles_step],
+                        i - count + candles_step: i + candles_step],
                 )
 
                 store.candles.add_candle(
@@ -922,13 +939,16 @@ def _simulate_price_change_effect_multiple_candles(
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
     if len(executing_orders) > 0:
         if len(executing_orders) > 1:
-            executing_orders = _sort_execution_orders(executing_orders, short_timeframes_candles)
+            executing_orders = _sort_execution_orders(
+                executing_orders, short_timeframes_candles)
 
         for i in range(len(short_timeframes_candles)):
             current_temp_candle = short_timeframes_candles[i].copy()
             if i > 0:
-                current_temp_candle[3] = max(current_temp_candle[3], short_timeframes_candles[i-1, 2])
-                current_temp_candle[4] = min(current_temp_candle[4], short_timeframes_candles[i-1, 2])
+                current_temp_candle[3] = max(
+                    current_temp_candle[3], short_timeframes_candles[i-1, 2])
+                current_temp_candle[4] = min(
+                    current_temp_candle[4], short_timeframes_candles[i-1, 2])
             is_executed_order = False
 
             while True:
@@ -1020,8 +1040,10 @@ def _update_all_routes_a_partial_candle(
         if timeframe == '1m':
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
-        number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        number_of_needed_candles = int(
+            storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
+        candles_1m = store.candles.get_candles(
+            exchange, symbol, '1m')[-number_of_needed_candles:]
         generated_candle = generate_candle_from_one_minutes(
             timeframe,
             candles_1m,
@@ -1075,12 +1097,13 @@ def _get_executing_orders(exchange, symbol, real_candle):
 def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
     remaining_orders = set(orders)
     sorted_orders = []
-    
+
     for candle in short_candles:
         open_price, close_price, low, high = candle[1], candle[2], candle[4], candle[3]
 
         # Did not use candle_includes_price() for performance, keeping it vectorization-friendly
-        included_orders = [order for order in remaining_orders if low <= order.price <= high]
+        included_orders = [
+            order for order in remaining_orders if low <= order.price <= high]
 
         if len(included_orders) == 1:
             sorted_orders.append(included_orders[0])

@@ -1,3 +1,14 @@
+from jesse.controllers.file_controller import router as file_router
+from jesse.controllers.system_controller import router as system_router
+from jesse.controllers.notification_controller import router as notification_router
+from jesse.controllers.config_controller import router as config_router
+from jesse.controllers.auth_controller import router as auth_router
+from jesse.controllers.strategy_controller import router as strategy_router
+from jesse.controllers.candles_controller import router as candles_router
+from jesse.controllers.backtest_controller import router as backtest_router
+from jesse.controllers.exchange_controller import router as exchange_router
+from jesse.controllers.optimization_controller import router as optimization_router
+from jesse.controllers.websocket_controller import router as websocket_router
 import warnings
 from typing import Optional, Dict, Set
 import click
@@ -150,13 +161,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     # Use connection manager to handle this websocket
     connection_id = str(id(websocket))
     print(jh.color(f"=> WebSocket {connection_id} connecting", 'yellow'))
-    
+
     await ws_manager.connect(websocket)
     channel_pattern = f"{ENV_VALUES['APP_PORT']}:channel:*"
-    
+
     # Start Redis listener if not already started
     await ws_manager.start_redis_listener(channel_pattern)
-    
+
     try:
         # Keep the connection alive
         while True:
@@ -172,6 +183,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         await ws_manager.stop_redis_listener()
 
 # create a Click group
+
+
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse").version)
 def cli() -> None:
@@ -203,7 +216,7 @@ def run() -> None:
     version = pkg_resources.get_distribution("jesse").version
     print(welcome_message)
     print(f"Main Framework Version: {version}")
-    
+
     # Check if jesse-live is installed and display its version
     if jh.has_live_trade_plugin():
         try:
@@ -211,7 +224,7 @@ def run() -> None:
             print(f"Live Plugin Version: {live_version}")
         except ImportError:
             pass
-    
+
     jh.validate_cwd()
 
     print("")
@@ -223,7 +236,8 @@ def run() -> None:
         run_migrations()
     except peewee.OperationalError:
         sleep_seconds = 10
-        print(f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again.")
+        print(
+            f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again.")
         time.sleep(sleep_seconds)
         run_migrations()
 
@@ -253,17 +267,6 @@ def shutdown_event():
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Routes
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-from jesse.controllers.websocket_controller import router as websocket_router
-from jesse.controllers.optimization_controller import router as optimization_router
-from jesse.controllers.exchange_controller import router as exchange_router
-from jesse.controllers.backtest_controller import router as backtest_router
-from jesse.controllers.candles_controller import router as candles_router
-from jesse.controllers.strategy_controller import router as strategy_router
-from jesse.controllers.auth_controller import router as auth_router
-from jesse.controllers.config_controller import router as config_router
-from jesse.controllers.notification_controller import router as notification_router
-from jesse.controllers.system_controller import router as system_router
-from jesse.controllers.file_controller import router as file_router
 
 # register routers
 fastapi_app.include_router(websocket_router)
@@ -290,4 +293,5 @@ if jh.has_live_trade_plugin():
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Static Files (Must be loaded at the end to prevent overlapping with API endpoints)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-fastapi_app.mount("/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
+fastapi_app.mount(
+    "/", StaticFiles(directory=f"{JESSE_DIR}/static"), name="static")
