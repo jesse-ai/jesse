@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class sides:
     BUY = 'buy'
@@ -93,6 +94,7 @@ class exchanges:
     GATE_SPOT = 'Gate Spot'
     HYPERLIQUID_PERPETUAL = 'Hyperliquid Perpetual'
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
+    BLOFIN_PERPETUAL = 'BloFin Perpetual'
 
 
 @dataclass

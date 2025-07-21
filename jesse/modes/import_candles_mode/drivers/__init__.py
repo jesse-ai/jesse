@@ -19,7 +19,7 @@ from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateU
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual import HyperliquidPerpetual
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
-
+from jesse.modes.import_candles_mode.drivers.BloFin.BloFinPerpetual import BloFinPerpetual
 
 drivers = {
     # Perpetual Futures
@@ -39,6 +39,7 @@ drivers = {
     exchanges.GATE_SPOT: GateSpot,
     exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
+    exchanges.BLOFIN_PERPETUAL: BloFinPerpetual,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
