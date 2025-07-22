@@ -37,10 +37,13 @@ class BloFinMain(CandleExchange):
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         start = start_timestamp + self.count * jh.timeframe_to_one_minutes(timeframe) * 60000 + 60000
+        if start > jh.now():
+            start = jh.now()
+
         payload = {
             'instId': symbol,
             'bar': timeframe,
-            'after': int(start / 1000),
+            'after': start,
             'limit': self.count
         }
 
@@ -54,7 +57,8 @@ class BloFinMain(CandleExchange):
 
         data = response.json()['data']
         data = data[::-1]
-        return [
+
+        candles = [
             {
                 'id': jh.generate_unique_id(),
                 'exchange': self.name,
@@ -68,6 +72,25 @@ class BloFinMain(CandleExchange):
                 'volume': float(d[5])
             } for d in data
         ]
+
+        # if the last candle is not the most recent candle, generate the next candle
+        if candles[-1]['timestamp'] + (jh.timeframe_to_one_minutes(timeframe) * 60_000 * 2) > jh.now():
+            if (candles[-1]['timestamp'] + jh.timeframe_to_one_minutes(timeframe) * 60_000 < jh.now()):
+                candles.append(
+                    {
+                        'id': jh.generate_unique_id(),
+                        'exchange': self.name,
+                        'symbol': symbol,
+                        'timeframe': timeframe,
+                        'timestamp': candles[-1]['timestamp'] + jh.timeframe_to_one_minutes(timeframe) * 60_000,
+                        'open': float(candles[-1]['close']),
+                        'close': float(candles[-1]['close']),
+                        'high': float(candles[-1]['close']),
+                        'low': float(candles[-1]['close']),
+                        'volume': float(candles[-1]['volume'])
+                    }
+                )
+        return candles
 
     def get_available_symbols(self) -> list:
         response = requests.get(self.endpoint + '/market/tickers')
