@@ -9,12 +9,14 @@ Algo-trading was 😵‍💫, we made it 🤩
 </p>
 </div>
 
-# Jesse
+# Jesse with RL - Reinforcement Learning
 [![PyPI](https://img.shields.io/pypi/v/jesse)](https://pypi.org/project/jesse)
 [![Downloads](https://pepy.tech/badge/jesse)](https://pepy.tech/project/jesse)
 [![Docker Pulls](https://img.shields.io/docker/pulls/salehmir/jesse)](https://hub.docker.com/r/salehmir/jesse)
 [![GitHub](https://img.shields.io/github/license/jesse-ai/jesse)](https://github.com/jesse-ai/jesse)
 [![coverage](https://codecov.io/gh/jesse-ai/jesse/graph/badge.svg)](https://codecov.io/gh/jesse-ai/jesse)
+
+> ✨ **Jesse-Adv** extends the [Jesse trading framework](https://jesse.trade) with Reinforcement Learning, exchange API support (Binance, KuCoin), and a test-train pipeline powered by Stable-Baselines3.
 
 ---
 
@@ -24,6 +26,14 @@ Jesse is an advanced crypto trading framework that aims to **simplify** **resear
 Watch this video to get a quick overview of Jesse:
 
 [![Jesse Overview](https://img.youtube.com/vi/0EqN3OOqeJM/0.jpg)](https://www.youtube.com/watch?v=0EqN3OOqeJM)
+
+## Jesse-Adv
+**Jesse-Adv** builds upon the original [Jesse framework](https://github.com/jesse-ai/jesse) to enable:
+- Reinforcement learning (via Stable-Baselines3)
+- Custom `TradingEnv` for Gym-compatible agents
+- Real market integration via Binance and KuCoin APIs
+- Easy model training, testing, and evaluation
+- Future-ready architecture for real-time algo-trading
 
 ## Why Jesse?
 In short, Jesse is more **accurate** than other solutions, and way more **simple**. 
@@ -47,6 +57,24 @@ In fact, it is so simple that in case you already know Python, you can get start
 - 🔧 **Built-in Code Editor**: Write, edit, and debug your strategies with a built-in code editor.
 - 📺 **Youtube Channel**: Jesse has a Youtube channel with screencast tutorials that go through example strategies step by step.
 
+## Additions on Jesse with this repo - 
+### 📦 Reinforcement Learning
+Train RL agents using PPO (or any SB3 algorithm) with a `TradingEnv` built on top of Jesse’s backtesting engine.
+
+- `train_rl.py`: Train a model with synthetic or historical candles
+- `test_rl.py`: Evaluate trained models across multiple episodes
+- `rl_env.py`: Custom `gym.Env` wrapper for RL agent interaction
+
+### 🔗 Real Exchange Support
+Modular support for **real-time candles** using public APIs:
+- `jesse/exchanges/binance.py`
+- `jesse/exchanges/kucoin.py`
+- `jesse/exchanges/exchange_api.py` – abstraction layer
+
+### 🧪 Model Lifecycle
+- Save checkpoints (`ppo_trading_model.zip`)
+- Evaluate cumulative reward and return
+- TensorBoard-compatible logs
 ## Dive Deeper into Jesse's Capabilities
 
 ### Stupid Simple
@@ -66,6 +94,19 @@ class GoldenCross(Strategy):
         self.buy = qty, entry_price                 # submit entry order
         self.take_profit = qty, entry_price*1.2  # take profit at 20% above the entry price
         self.stop_loss = qty, entry_price*0.9   # stop loss at 10% below the entry price
+```
+
+## ✨ Sample RL Strategy Environment
+
+```python
+obs, _ = env.reset()
+done = False
+
+while not done:
+    action, _ = model.predict(obs, deterministic=True)
+    obs, reward, terminated, truncated, _ = env.step(action)
+    done = terminated or truncated
+    env.render()
 ```
 
 ### Backtest
