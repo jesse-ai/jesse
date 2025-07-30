@@ -39,6 +39,7 @@ class Order(Model):
     session_mode = CharField()
     jesse_submitted = BooleanField(default=True)
     submitted_via = CharField(null=True)
+    order_exist_in_exchange = BooleanField(default=True)
 
     class Meta:
         from jesse.services.db import database
@@ -135,6 +136,8 @@ class Order(Model):
             d['jesse_submitted'] = order.jesse_submitted
         if hasattr(order, 'exchange_id'):
             d['exchange_id'] = order.exchange_id
+        if hasattr(order, 'order_exist_in_exchange'):
+            d['order_exist_in_exchange'] = order.order_exist_in_exchange
 
         try:
             Order.insert(**d).execute()
@@ -177,7 +180,7 @@ class Order(Model):
         }
 
         if order.is_executed:
-            d['executed_at'] = jh.now_to_timestamp()
+            d['executed_at'] = getattr(order, 'executed_at', jh.now_to_timestamp())
         if order.is_canceled:
             d['canceled_at'] = jh.now_to_timestamp()
         if order.trade_id:
@@ -194,9 +197,24 @@ class Order(Model):
         return Order.select().where(Order.session_id == session_id, Order.exchange == exchange, Order.symbol == symbol)
 
     @staticmethod
-    def get_active_orders(symbol: str, exchange: str):
+    def get_active_orders(symbol: str, exchange: str, is_initial=False):
+        from jesse.models.ClosedTrade import ClosedTrade
+
         orders = Order.select().where(Order.symbol == symbol, Order.status == order_statuses.ACTIVE, Order.exchange == exchange)
+        # assign trade of order to orders
+        for order in orders:
+            if order.trade_id:
+                order.trade = ClosedTrade.get_trade_by_id(order.trade_id)
         return orders
+
+    @staticmethod
+    def get_last_exchange_order(exchange: str, symbol: str):
+        return Order.select().where(
+            Order.exchange == exchange,
+            Order.symbol == symbol).where(
+            Order.exchange_id ==  None).where(
+            Order.order_exist_in_exchange == True).order_by(
+            Order.created_at.desc()).first()
 
     @property
     def is_canceled(self) -> bool:

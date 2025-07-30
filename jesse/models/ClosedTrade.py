@@ -30,7 +30,7 @@ class ClosedTrade(peewee.Model):
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
     session_mode = peewee.CharField()
-    disabled_trade = peewee.BooleanField(default=False)
+    soft_deleted_at = peewee.BigIntegerField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -59,6 +59,11 @@ class ClosedTrade(peewee.Model):
 
     @staticmethod
     def store_closed_trade_into_db(closed_trade):
+        # check id exist in previouse record or not
+        db_trade = ClosedTrade.select().where(ClosedTrade.id == closed_trade.id).first()
+        if db_trade:
+            return
+
         d = {
             'id': closed_trade.id,
             'session_id': closed_trade.session_id,
@@ -73,6 +78,7 @@ class ClosedTrade(peewee.Model):
             'updated_at': jh.now_to_timestamp(),
             'session_mode': config['app']['trading_mode'],
         }
+
         try:
             ClosedTrade.insert(**d).execute()
         except Exception as e:
@@ -81,7 +87,7 @@ class ClosedTrade(peewee.Model):
     @staticmethod
     def close_trade_in_db(closed_trade):
         d = {
-            'closed_at': jh.now_to_timestamp(),
+            'closed_at': closed_trade.closed_at if closed_trade.closed_at else jh.now_to_timestamp(),
             'updated_at': jh.now_to_timestamp(),
         }
         try:
@@ -90,25 +96,49 @@ class ClosedTrade(peewee.Model):
             jh.dump(f"Error closing trade in database: {e}")
 
     @staticmethod
-    def get_account_db_trades():
+    def get_open_trade(exchange_name, symbol):
         valid_value = None
-        trades = list(
-            ClosedTrade.select().where(
-                ClosedTrade.closed_at == valid_value).where(
-                ClosedTrade.disabled_trade == False).where(
-                ClosedTrade.session_mode == 'live_trading').order_by(
-                ClosedTrade.opened_at.desc()))
+        trade = ClosedTrade.select().where(
+            ClosedTrade.soft_deleted_at == valid_value).where(
+            ClosedTrade.session_mode == 'livetrade').where(
+            ClosedTrade.exchange == exchange_name).where(
+            ClosedTrade.symbol == symbol).order_by(
+            ClosedTrade.opened_at.desc()).first()
+
+        if trade is None:
+            return None
 
         # Fetch orders for each trade and populate the orders list
-        for trade in trades:
-            trade.orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).order_by(Order.created_at))
-
-        return trades
+        from jesse.enums import sides
+        exchange_orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).where(Order.order_exist_in_exchange == True).order_by(Order.executed_at))
+        simulated_orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).where(Order.order_exist_in_exchange == False).order_by(Order.executed_at))
+        if len(exchange_orders) == 0:
+            # when trade don't have any exchange orders, we need to check if it has simulated orders
+            if len(simulated_orders) > 0:
+                for simulated_order in simulated_orders:
+                    if simulated_order.side == sides.BUY:
+                        trade.buy_orders.append(np.array([abs(simulated_order.qty), simulated_order.price]))
+                    elif simulated_order.side == sides.SELL:
+                        trade.sell_orders.append(np.array([abs(simulated_order.qty), simulated_order.price]))
+                trade.is_simulated = True
+            return trade
+        trade.orders = {order.exchange_id: order for order in exchange_orders if order.exchange_id}
+        trade.is_simulated = False
+        for o in exchange_orders + simulated_orders:
+            if o.side == sides.BUY:
+                trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
+            elif o.side == sides.SELL:
+                trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
+        if trade.current_qty == 0:
+            ClosedTrade.close_trade_in_db(trade)
+            return None
+        else:
+            return trade
 
     @staticmethod
     def disable_trade_in_db(trade_id):
         d = {
-            'disabled_trade': True,
+            'soft_deleted_at': jh.now_to_timestamp(),
         }
         ClosedTrade.update(**d).where(ClosedTrade.id == trade_id).execute()
 
@@ -212,7 +242,6 @@ class ClosedTrade(peewee.Model):
     def is_short(self) -> bool:
         return self.type == trade_types.SHORT
 
-
     @property
     def qty(self) -> float:
         if self.is_long:
@@ -234,6 +263,18 @@ class ClosedTrade(peewee.Model):
         return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
 
     @property
+    def current_qty(self) -> float:
+        trade_orders = Order.select().where(Order.trade_id == self.id).where(Order.status == order_statuses.EXECUTED).order_by(Order.executed_at)
+        if len(trade_orders) == 0:
+            return 0.0
+        else:
+            import jesse.utils as utils
+            qty = 0.0
+            for order in trade_orders:
+                qty = utils.sum_floats(qty, order.filled_qty)
+            return qty
+
+    @property
     def exit_price(self) -> float:
         if self.is_long:
             orders = self.sell_orders[:]
@@ -243,6 +284,7 @@ class ClosedTrade(peewee.Model):
             return np.nan
 
         return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
+
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None
@@ -253,9 +295,9 @@ if database.is_open():
     ClosedTrade.create_table()
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # DB FUNCTIONS # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def store_closed_trade_into_db(closed_trade) -> None:
     return
