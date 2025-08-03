@@ -111,14 +111,14 @@ def dashy_symbol(symbol: str) -> str:
             return s
 
     suffixes = [
-        'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY', 'UST', 'SUSDT'
+        'UST', 'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
     ]
 
     for suffix in suffixes:
         if symbol.endswith(suffix):
             return f"{symbol[:-len(suffix)]}-{suffix}"
 
-    if "USD" in symbol[-4:]: # Only look at the last 4 letters
+    if "USD" in symbol[-4:]:  # Only look at the last 4 letters
         idx = symbol.rfind("USD")
         return f"{symbol[:idx]}-{symbol[idx:]}"
 
@@ -189,7 +189,7 @@ def dna_to_hp(strategy_hp, dna: str):
                 raise TypeError('Only int and float types are implemented')
 
             hp[h['name']] = decoded_gene
-        
+
         return hp
 
 
@@ -279,23 +279,23 @@ def format_price(price: float) -> str:
 
     # to handle scientific notation
     price_str = f'{price:.20f}'
-    
+
     if abs(price) >= 1:
         if '.' not in price_str:
             return f"{price:.2f}"
-            
+
         integer_part, decimal_part = price_str.split('.')
         return f"{integer_part}.{decimal_part[:2]}"
 
     # For numbers between -1 and 1
-    
+
     # find sign
     sign = ''
     if price < 0:
         sign = '-'
-        
+
     price_str = f'{abs(price):.20f}'
-    
+
     decimal_part = price_str.split('.')[1]
 
     first_non_zero_index = -1
@@ -309,9 +309,9 @@ def format_price(price: float) -> str:
         return "0.00"
 
     end_index = first_non_zero_index + 2
-    
+
     formatted_decimal = decimal_part[:end_index]
-    
+
     return f"{sign}0.{formatted_decimal}"
 
 
@@ -383,7 +383,7 @@ def get_strategy_class(strategy_name: str):
                 if os.path.exists(strategy_file):
                     with open(strategy_file, 'r') as f:
                         content = f.read()
-                    
+
                     # Find the class definition
                     class_pattern = r'class\s+(\w+)'
                     match = re.search(class_pattern, content)
@@ -394,7 +394,7 @@ def get_strategy_class(strategy_name: str):
                             new_content = re.sub(f'class {old_class_name}', f'class {strategy_name}', content)
                             with open(strategy_file, 'w') as f:
                                 f.write(new_content)
-                            
+
                             # Reload the module to get the updated class
                             import importlib
                             module_path = f'strategies.{strategy_name}'
@@ -779,7 +779,7 @@ def round_decimals_down(number: Union[np.ndarray, float], decimals: int = 2) -> 
 def is_almost_equal(a: float, b: float, tolerance: float = 1e-8) -> bool:
     """
     Compares two floating point values with a small tolerance to account for floating point precision issues.
-    
+
     :param a: First float value to compare
     :param b: Second float value to compare
     :param tolerance: The tolerance level for the comparison (default: 1e-8)
@@ -788,19 +788,19 @@ def is_almost_equal(a: float, b: float, tolerance: float = 1e-8) -> bool:
     # Check if both are None, which means they're equal
     if a is None and b is None:
         return True
-    
+
     # Check if only one is None, which means they're not equal
     if a is None or b is None:
         return False
-    
+
     # Check for exact equality first (optimizes for common case)
     if a == b:
         return True
-    
+
     # For values very close to zero, use absolute tolerance
     if abs(a) < tolerance and abs(b) < tolerance:
         return abs(a - b) <= tolerance
-    
+
     # For non-zero values, use relative tolerance
     return abs((a - b) / max(abs(a), abs(b))) <= tolerance
 
@@ -1064,7 +1064,7 @@ def str_or_none(item, encoding='utf-8'):
         if isinstance(item, str):
             return item
 
-        if type(item) == np.float64:
+        if isinstance(item, np.float64):
             return str(item)
 
         try:
@@ -1148,7 +1148,7 @@ def is_price_near(order_price, price_to_compare, percentage_threshold=0.00015):
     """
     Check if the given order price is near the specified price.
     Default percentage_threshold is 0.015% (0.00015)
-    We calculate percentage difference between the two prices rounded to 4 decimal places, 
+    We calculate percentage difference between the two prices rounded to 4 decimal places,
     so low-priced orders can be properly compared within 0.015% range.
     """
     return abs(1 - (order_price / price_to_compare)) <= percentage_threshold
@@ -1168,9 +1168,9 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
 
 def compressed_response(content: str) -> dict:
     """
-    Helper function to handle compression for HTTP responses. 
+    Helper function to handle compression for HTTP responses.
     Returns a dict with compression info and content.
-    
+
     :param content: string content to potentially compress
     :return: dict with is_compressed flag and content
     """
@@ -1181,6 +1181,7 @@ def compressed_response(content: str) -> dict:
         'is_compressed': True,
         'data': base64.b64encode(compressed).decode('utf-8')
     }
+
 
 def validate_cwd() -> None:
     """
@@ -1194,6 +1195,7 @@ def validate_cwd() -> None:
             )
         )
         os._exit(1)
+
 
 def has_live_trade_plugin() -> bool:
     try:
