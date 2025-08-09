@@ -18,6 +18,8 @@ def backtest(
         hyperparameters: dict = None,
         fast_mode: bool = False,
         with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -67,6 +69,8 @@ def backtest(
         generate_logs=generate_logs,
         fast_mode=fast_mode,
         with_candles_pipeline=with_candles_pipeline,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs,
     )
 
 
@@ -87,6 +91,8 @@ def _isolated_backtest(
         generate_logs: bool = False,
         fast_mode: bool = False,
         with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -150,7 +156,9 @@ def _isolated_backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
-        with_candles_pipeline=with_candles_pipeline
+        with_candles_pipeline=with_candles_pipeline,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs
     )
 
     result = {

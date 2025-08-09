@@ -1,10 +1,8 @@
-import functools
 from typing import List, Dict
 import ray
 from multiprocessing import cpu_count
 import jesse.helpers as jh
 from jesse.research import backtest
-import jesse.services.logger as logger
 
 @ray.remote
 def ray_run_scenario(
@@ -17,10 +15,16 @@ def ray_run_scenario(
     fast_mode: bool,
     benchmark: bool,
     scenario_index: int,
-    with_candles_pipeline: bool
+    with_candles_pipeline: bool,
+    candles_pipeline_class = None,
+    candles_pipeline_kwargs: dict = None
 ):
     """Ray remote function to run a single Monte Carlo scenario"""
     try:
+        # Determine benchmark and pipeline behavior per scenario
+        is_benchmark_scenario = benchmark and scenario_index == 0
+        effective_with_candles_pipeline = with_candles_pipeline and (not is_benchmark_scenario)
+
         result = backtest(
             config=config,
             routes=routes,
@@ -30,8 +34,10 @@ def ray_run_scenario(
             generate_equity_curve=True,
             hyperparameters=hyperparameters,
             fast_mode=fast_mode,
-            benchmark=benchmark and scenario_index == 0,
-            with_candles_pipeline=with_candles_pipeline and scenario_index != 0
+            benchmark=is_benchmark_scenario,
+            with_candles_pipeline=effective_with_candles_pipeline,
+            candles_pipeline_class=candles_pipeline_class,
+            candles_pipeline_kwargs=candles_pipeline_kwargs
         )
         
         # Simply log scenarios with missing equity curve
@@ -57,6 +63,8 @@ def monte_carlo(
     scenarios: int = 1000,
     progress_bar: bool = False,
     with_candles_pipeline: bool = True,
+    candles_pipeline_class = None,
+    candles_pipeline_kwargs: dict = None,
     cpu_cores: int = None,
 ) -> list[dict]:
     # Determine the number of CPU cores to use
@@ -70,110 +78,16 @@ def monte_carlo(
         cpu_cores = max(1, min(cpu_cores, available_cores))
 
     # Initialize Ray if not already initialized
+    started_ray_here = False
     if not ray.is_initialized():
         try:
             ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
             print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
+            started_ray_here = True
         except Exception as e:
-            print(f"Error initializing Ray: {e}. Falling back to sequential mode.")
-            # Use sequential processing instead
-            if progress_bar:
-                if jh.is_notebook():
-                    from tqdm.notebook import tqdm
-                else:
-                    from tqdm import tqdm
-                pbar = tqdm(total=scenarios, desc="Monte Carlo Scenarios")
-            else:
-                pbar = None
-                
-            _backtest = functools.partial(
-                backtest,
-                config=config,
-                routes=routes,
-                data_routes=data_routes,
-                candles=candles,
-                warmup_candles=warmup_candles,
-                generate_equity_curve=True,
-                hyperparameters=hyperparameters,
-                fast_mode=fast_mode,
-                with_candles_pipeline=with_candles_pipeline
-            )
-
-            results = []
-            for i in range(scenarios):
-                result = _backtest(
-                    benchmark=benchmark and i == 0, 
-                    with_candles_pipeline=i != 0
-                )
-                results.append(result)
-                if pbar:
-                    pbar.update(1)
-                    if 'equity_curve' not in result or result['equity_curve'] is None:
-                        if jh.is_notebook():
-                            print(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
-                        else:
-                            tqdm.write(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
-            
-            if pbar:
-                pbar.close()
-                
-            # Filter out results with missing equity curve
-            results = [r for r in results if 'equity_curve' in r and r['equity_curve'] is not None]
-            print(f"Returned {len(results)} valid scenarios out of {scenarios} total")
-            
-            return results
+            raise RuntimeError(f"Error initializing Ray: {e}")
 
     try:
-        # Fall back to sequential processing if only 1 scenario
-        if scenarios == 1:
-            print("Using sequential processing for Monte Carlo (single scenario)")
-            
-            if progress_bar:
-                if jh.is_notebook():
-                    from tqdm.notebook import tqdm
-                else:
-                    from tqdm import tqdm
-                pbar = tqdm(total=scenarios, desc="Monte Carlo Scenarios")
-            else:
-                pbar = None
-                
-            _backtest = functools.partial(
-                backtest,
-                config=config,
-                routes=routes,
-                data_routes=data_routes,
-                candles=candles,
-                warmup_candles=warmup_candles,
-                generate_equity_curve=True,
-                hyperparameters=hyperparameters,
-                fast_mode=fast_mode,
-                with_candles_pipeline=with_candles_pipeline
-            )
-
-            results = []
-            for i in range(scenarios):
-                result = _backtest(
-                    benchmark=benchmark and i == 0, 
-                    with_candles_pipeline=i != 0
-                )
-                results.append(result)
-                if pbar:
-                    pbar.update(1)
-                    if 'equity_curve' not in result or result['equity_curve'] is None:
-                        if jh.is_notebook():
-                            print(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
-                        else:
-                            tqdm.write(f"Info: Scenario {i} missing equity_curve - this will be filtered out")
-            
-            if pbar:
-                pbar.close()
-            
-            # Filter out results with missing equity curve
-            results = [r for r in results if 'equity_curve' in r and r['equity_curve'] is not None]
-            print(f"Returned {len(results)} valid scenarios out of {scenarios} total")
-            
-            return results
-        
         # Initialize progress bar if requested
         if progress_bar:
             if jh.is_notebook():
@@ -184,20 +98,30 @@ def monte_carlo(
         else:
             pbar = None
 
-        # Launch all scenarios in parallel
+        # Put large, shared objects in Ray's object store
+        config_ref = ray.put(config)
+        routes_ref = ray.put(routes)
+        data_routes_ref = ray.put(data_routes)
+        candles_ref = ray.put(candles)
+        warmup_candles_ref = ray.put(warmup_candles)
+        hyperparameters_ref = ray.put(hyperparameters)
+
+        # Launch all scenarios in parallel (including single-scenario cases)
         refs = []
         for i in range(scenarios):
             ref = ray_run_scenario.remote(
-                config=config,
-                routes=routes,
-                data_routes=data_routes,
-                candles=candles,
-                warmup_candles=warmup_candles,
-                hyperparameters=hyperparameters,
+                config=config_ref,
+                routes=routes_ref,
+                data_routes=data_routes_ref,
+                candles=candles_ref,
+                warmup_candles=warmup_candles_ref,
+                hyperparameters=hyperparameters_ref,
                 fast_mode=fast_mode,
                 benchmark=benchmark,
                 scenario_index=i,
-                with_candles_pipeline=with_candles_pipeline
+                with_candles_pipeline=with_candles_pipeline,
+                candles_pipeline_class=candles_pipeline_class,
+                candles_pipeline_kwargs=candles_pipeline_kwargs
             )
             refs.append(ref)
 
@@ -266,6 +190,6 @@ def monte_carlo(
         raise
     
     finally:
-        # Shutdown Ray
-        if ray.is_initialized():
+        # Shutdown Ray only if this function initialized it
+        if started_ray_here and ray.is_initialized():
             ray.shutdown()

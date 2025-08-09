@@ -431,6 +431,8 @@ def _step_simulator(
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
         with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -443,7 +445,7 @@ def _step_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline)
+    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
 
     # add initial balance
     save_daily_portfolio_balance(is_initial=True)
@@ -569,6 +571,8 @@ def _prepare_times_before_simulation(candles: dict) -> None:
 
 def _prepare_routes(hyperparameters: dict = None,
                     with_candles_pipeline: bool = True,
+                    candles_pipeline_class = None,
+                    candles_pipeline_kwargs: dict = None,
                     ) -> Dict[str, BaseCandlesPipeline | None]:
     # initiate strategies
     candles_pipeline = {}
@@ -610,7 +614,16 @@ def _prepare_routes(hyperparameters: dict = None,
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
-        candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline() if with_candles_pipeline else None
+        if with_candles_pipeline:
+            if candles_pipeline_class is not None:
+                # Use the provided pipeline class with kwargs if available
+                kwargs = candles_pipeline_kwargs or {}
+                candles_pipeline[jh.key(r.exchange, r.symbol)] = candles_pipeline_class(**kwargs)
+            else:
+                # Otherwise, fall back to the strategy's pipeline
+                candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline()
+        else:
+            candles_pipeline[jh.key(r.exchange, r.symbol)] = None
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
@@ -815,6 +828,8 @@ def _skip_simulator(
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
         with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -824,7 +839,7 @@ def _skip_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline)
+    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
 
     # add initial balance
     save_daily_portfolio_balance(is_initial=True)

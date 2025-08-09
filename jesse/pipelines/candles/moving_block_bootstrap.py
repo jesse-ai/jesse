@@ -2,17 +2,34 @@ import numpy as np
 from jesse.pipelines.candles import BaseCandlesPipeline
 
 class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
-    def __init__(self, batch_size: int, *, block_size: int = 10) -> None:
+    def __init__(self, batch_size: int, *, block_size: int | None = None, **_ignored) -> None:
         """
-        Generate synthetic candles by moving-block bootstrap on multivariate 
+        Generate synthetic candles by moving-block bootstrap on multivariate
         tuples of (delta_close, delta_high, delta_low).
 
-        Args:
-            batch_size: number of 1m bars to output.
-            block_size: length of each bootstrap block (in bars).
+        Parameters
+        ----------
+        batch_size : int
+            Number of 1-minute bars returned by the pipeline each call.
+        block_size : int, optional
+            Length of each bootstrap block (in bars).  If ``None`` (default) we
+            pick a heuristic value equal to ``max(10, batch_size // 10)`` so
+            that the blocks are long enough to preserve serial correlation yet
+            short enough to allow variety.  The value is capped at
+            ``batch_size − 1`` to guarantee at least two possible block start
+            positions.
         """
         super().__init__(batch_size)
-        self.block_size = block_size
+
+        # Determine block_size if not supplied or if too large
+        if block_size is None:
+            block_size = max(10, batch_size // 10)
+        if block_size >= batch_size:
+            block_size = batch_size - 1  # ensure at least one alternative start
+        self._block_size = block_size
+
+        # Independent RNG per pipeline instance to avoid identical scenarios
+        self._rng = np.random.default_rng()
 
     def _bootstrap_blocks(self, arr: np.ndarray, n: int) -> np.ndarray:
         """
@@ -20,13 +37,13 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         `arr` is shape (T, 3) for the three deltas.
         """
         T, D = arr.shape
-        if self.block_size > T:
-            raise ValueError(f"block_size ({self.block_size}) > available data ({T})")
-        max_start = T - self.block_size
+        # Use the configured block_size, but not beyond available data
+        effective_block_size = min(self._block_size, T)
+        max_start = T - effective_block_size
         # how many blocks needed to reach n rows
-        num_blocks = int(np.ceil(n / self.block_size)) + 1
-        starts = np.random.randint(0, max_start + 1, size=num_blocks)
-        blocks = [arr[s : s + self.block_size] for s in starts]
+        num_blocks = int(np.ceil(n / effective_block_size)) + 1
+        starts = self._rng.integers(0, max_start + 1, size=num_blocks)
+        blocks = [arr[s : s + effective_block_size] for s in starts]
         boot = np.vstack(blocks)
         return boot[:n]
 
