@@ -344,24 +344,18 @@ class CandlesState:
             return np.zeros((0, 6))
 
         # complete candle
-        if dif == 0 or self.storage[long_key][:long_count][-1][0] == self.storage[short_key][short_count - dif][0]:
+        if dif == 0:
             return self.storage[long_key][:long_count]
         # generate forming candle only if NOT in live mode
         elif not jh.is_live():
-            return np.concatenate(
-                (
-                    self.storage[long_key][:long_count],
-                    np.array(
-                        (
-                            generate_candle_from_one_minutes(
-                                timeframe,
-                                self.storage[short_key][short_count - dif:short_count],
-                                True
-                            ),
-                        )
-                    )
-                ), axis=0
+            forming_candle = generate_candle_from_one_minutes(
+                timeframe,
+                self.storage[short_key][short_count - dif:short_count],
+                True
             )
+            existing_candles_arr: DynamicNumpyArray = self.storage[long_key]
+            self.add_candle(forming_candle, exchange, symbol, timeframe, with_execution=False, with_generation=False, with_skip=False)
+            return existing_candles_arr[:]
         # in live mode, just return the complete candles
         else:
             return self.storage[long_key][:long_count]

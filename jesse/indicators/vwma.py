@@ -2,7 +2,8 @@ from typing import Union
 
 import numpy as np
 
-from jesse.helpers import get_candle_source, same_length, slice_candles
+from jesse.helpers import get_candle_source, slice_candles
+from jesse_rust import vwma as vwma_rust
 
 
 def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
@@ -18,27 +19,28 @@ def vwma(candles: np.ndarray, period: int = 20, source_type: str = "close", sequ
     :return: float | np.ndarray
     """
     if len(candles.shape) == 1:
+        # Handle 1D array case by creating dummy candles with volume=1
         source = candles
-        volume = np.ones_like(candles)
+        dummy_candles = np.column_stack([
+            np.zeros(len(source)),  # timestamp
+            np.zeros(len(source)),  # open
+            source,                 # close
+            np.zeros(len(source)),  # high
+            np.zeros(len(source)),  # low
+            np.ones(len(source))    # volume
+        ])
+        candles_f64 = np.asarray(dummy_candles, dtype=np.float64)
     else:
         candles = slice_candles(candles, sequential)
-        source = get_candle_source(candles, source_type=source_type)
-        volume = candles[:, 5]
+        # Convert to float64 for Rust compatibility
+        candles_f64 = np.asarray(candles, dtype=np.float64)
+        
+        # Update close column if different source type is requested
+        if source_type != "close":
+            source = get_candle_source(candles, source_type=source_type)
+            candles_f64[:, 2] = source
 
-    # Calculate price * volume
-    weighted = source * volume
+    # Call the Rust implementation
+    result = vwma_rust(candles_f64, period)
     
-    # Compute cumulative sums for weighted price and volume
-    cumsum_weighted = np.cumsum(weighted)
-    cumsum_volume = np.cumsum(volume)
-
-    # Allocate array for VWMA values
-    vwma_vals = np.empty_like(source, dtype=float)
-
-    # For initial indices where full period is not available, use cumulative sums
-    vwma_vals[:period] = cumsum_weighted[:period] / np.where(cumsum_volume[:period] == 0, 1, cumsum_volume[:period])
-
-    # For indices with a complete period, use the rolling difference of cumulative sums
-    vwma_vals[period:] = (cumsum_weighted[period:] - cumsum_weighted[:-period]) / np.where((cumsum_volume[period:] - cumsum_volume[:-period]) == 0, 1, (cumsum_volume[period:] - cumsum_volume[:-period]))
-
-    return same_length(candles, vwma_vals) if sequential else vwma_vals[-1]
+    return result if sequential else result[-1]

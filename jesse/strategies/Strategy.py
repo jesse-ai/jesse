@@ -33,6 +33,7 @@ class Strategy(ABC):
         self.hp = None
 
         self.index = 0
+        self.last_trade_index = 0
         self.vars = {}
 
         self.increased_count = 0
@@ -69,6 +70,7 @@ class Strategy(ABC):
 
         self._cached_methods = {}
         self._cached_metrics = {}
+        self._current_route_index = None
 
         # Add cached price
         self._cached_price = None
@@ -752,7 +754,7 @@ class Strategy(ABC):
 
         self._wait_until_executing_orders_are_fully_handled()
 
-        if jh.is_live() and jh.is_debugging():
+        if jh.is_live() and jh.is_debuggable('strategy_execution'):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # should cancel entry?
@@ -888,6 +890,7 @@ class Strategy(ABC):
         pass
 
     def _on_close_position(self, order: Order):
+        self.last_trade_index = self.index
         self._broadcast('route-close-position')
         self._execute_cancel()
         self.on_close_position(order)
@@ -1116,6 +1119,16 @@ class Strategy(ABC):
             [float] -- the current trading candle's LOW price
         """
         return self.current_candle[4]
+    
+    @property
+    def volume(self) -> float:
+        """
+        Returns the volume of the current candle for this strategy.
+        Just as a helper to use when writing super simple strategies.
+        Returns:
+           [float] -- the volume of the current candle
+        """
+        return self.current_candle[5]
 
     @property
     def candles(self) -> np.ndarray:
@@ -1310,6 +1323,22 @@ class Strategy(ABC):
     def routes(self) -> List[Route]:
         from jesse.routes import router
         return router.routes
+    
+    @property
+    def data_routes(self) -> List[Route]:
+        from jesse.routes import router
+        return router.data_routes
+
+    @property
+    def current_route_index(self) -> int:
+        if self._current_route_index is None:
+            for i, r in enumerate(self.routes):
+                if r.exchange == self.exchange and r.symbol == self.symbol and r.timeframe == self.timeframe:
+                    self._current_route_index = i
+                    break
+            else:
+                self._current_route_index = -1
+        return self._current_route_index
 
     @property
     def leverage(self) -> int:

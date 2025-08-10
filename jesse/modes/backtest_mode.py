@@ -25,6 +25,7 @@ from jesse.services.redis import sync_publish, is_process_active
 from timeloop import Timeloop
 from datetime import timedelta
 from jesse.services.progressbar import Progressbar
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 
 
 def run(
@@ -296,17 +297,6 @@ def _get_add_horizontal_line_to_extra_chart():
     return arr
 
 
-def _get_study_name() -> str:
-    routes_count = len(router.routes)
-    more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
-    if type(router.routes[0].strategy_name) is str:
-        strategy_name = router.routes[0].strategy_name
-    else:
-        strategy_name = router.routes[0].strategy_name.__name__
-    study_name = f"{strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}"
-    return study_name
-
-
 def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message: str = None):
     """Helper function to handle missing candles scenarios"""
     formatted_date = jh.timestamp_to_date(start_date)
@@ -393,7 +383,7 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
             warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
             max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
             # Convert max_timeframe to minutes and multiply by warmup_num
-            warmup_minutes = timeframe_to_one_minutes[max_timeframe] * warmup_num
+            warmup_minutes = TIMEFRAME_TO_ONE_MINUTES[max_timeframe] * warmup_num
             warmup_start_timestamp = jh.date_to_timestamp(start_date) - (warmup_minutes * 60_000)
             warmup_start_date = jh.timestamp_to_date(warmup_start_timestamp)
             # Publish the missing candles error to the frontend
@@ -481,7 +471,7 @@ def _step_simulator(
                 if timeframe == '1m':
                     continue
 
-                count = timeframe_to_one_minutes[timeframe]
+                count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
                 # until = count - ((i + 1) % count)
 
                 if (i + 1) % count == 0:
@@ -498,7 +488,7 @@ def _step_simulator(
 
         # now that all new generated candles are ready, execute
         for r in router.routes:
-            count = timeframe_to_one_minutes[r.timeframe]
+            count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
             # 1m timeframe
             if r.timeframe == timeframes.MINUTE_1:
                 r.strategy._execute()
@@ -902,7 +892,7 @@ def _calculate_minimum_candle_step():
     # config["app"]["considering_timeframes"] use '1m' also even if not required by the user so take only what the user
     # is requested.
     consider_time_frames = [
-        timeframe_to_one_minutes[route["timeframe"]]
+        TIMEFRAME_TO_ONE_MINUTES[route["timeframe"]]
         for route in router.all_formatted_routes
     ]
     return np.gcd.reduce(consider_time_frames)
@@ -952,7 +942,7 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
             if timeframe == "1m":
                 continue
 
-            count = timeframe_to_one_minutes[timeframe]
+            count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
 
             if (i + candles_step) % count == 0:
                 generated_candle = generate_candle_from_one_minutes(
@@ -1084,7 +1074,7 @@ def _update_all_routes_a_partial_candle(
             continue
         if timeframe == '1m':
             continue
-        tf_minutes = timeframe_to_one_minutes[timeframe]
+        tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
         candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
         generated_candle = generate_candle_from_one_minutes(
@@ -1105,7 +1095,7 @@ def _update_all_routes_a_partial_candle(
 def _execute_routes(candle_index: int, candles_step: int) -> None:
     # now that all new generated candles are ready, execute
     for r in router.routes:
-        count = timeframe_to_one_minutes[r.timeframe]
+        count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
         # 1m timeframe
         if r.timeframe == timeframes.MINUTE_1:
             r.strategy._execute()
@@ -1138,20 +1128,21 @@ def _get_executing_orders(exchange, symbol, real_candle):
 
 
 def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
+    remaining_orders = set(orders)
     sorted_orders = []
-    for i in range(len(short_candles)):
-        included_orders = [
-            order
-            for order in orders
-            if candle_includes_price(short_candles[i], order.price)
-        ]
+    
+    for candle in short_candles:
+        open_price, close_price, low, high = candle[1], candle[2], candle[4], candle[3]
+
+        # Did not use candle_includes_price() for performance, keeping it vectorization-friendly
+        included_orders = [order for order in remaining_orders if low <= order.price <= high]
+
         if len(included_orders) == 1:
             sorted_orders.append(included_orders[0])
+            remaining_orders.remove(included_orders[0])
         elif len(included_orders) > 1:
             # in case that the orders are above
-            is_red = short_candles[i, 1] > short_candles[i, 2]
-            above_open, on_open, below_open = [], [], []
-            open_price = short_candles[i, 1]
+            on_open, above_open, below_open = [], [], []
             for order in included_orders:
                 if order.price == open_price:
                     on_open.append(order)
@@ -1160,12 +1151,22 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
                 else:
                     below_open.append(order)
             sorted_orders += on_open
+            remaining_orders.difference_update(on_open)
+
+            is_red = open_price > close_price
             if is_red:
                 # heuristic that first the price goes up and then down, so this is the order execution sort
-                sorted_orders += sorted(above_open, key=lambda o: o.price) + sorted(below_open, key=lambda o: o.price, reverse=True)
+                above_open.sort(key=lambda o: o.price)
+                below_open.sort(key=lambda o: o.price, reverse=True)
+                sorted_orders += above_open + below_open
+                remaining_orders.difference_update(above_open + below_open)
             else:
-                sorted_orders += sorted(below_open, key=lambda o: o.price, reverse=True) + sorted(above_open, key=lambda o: o.price)
+                below_open.sort(key=lambda o: o.price, reverse=True)
+                above_open.sort(key=lambda o: o.price)
+                sorted_orders += below_open + above_open
+                remaining_orders.difference_update(below_open + above_open)
 
         if len(sorted_orders) == len(orders):
             break
+
     return sorted_orders

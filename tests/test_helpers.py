@@ -82,6 +82,9 @@ def test_dashless_symbol():
     # make sure that it works even if it's already dashless
     assert jh.dashless_symbol('BTCUSDT') == 'BTCUSDT'
 
+    assert jh.dashless_symbol('SETH-SUSDT') == 'SETHSUSDT'
+    assert jh.dashless_symbol('USD-USDT') == 'USDUSDT'
+
 
 def test_dashy_symbol():
     assert jh.dashy_symbol('BTCUSD') == 'BTC-USD'
@@ -179,6 +182,24 @@ def test_floor_with_precision():
 def test_format_currency():
     assert jh.format_currency(100_000_000) == '100,000,000'
     assert jh.format_currency(100_000_000.23) == '100,000,000.23'
+
+
+def test_format_price():
+    assert jh.format_price(1.12312312312123) == "1.12"
+    assert jh.format_price(0.0000123121312) == "0.000012"
+    assert jh.format_price(12312313.123123123) == "12312313.12"
+    assert jh.format_price(999.9999) == "999.99"
+    # test with negative numbers
+    assert jh.format_price(-1.12312312312123) == "-1.12"
+    assert jh.format_price(-0.0000123121312) == "-0.000012"
+    # test with zero
+    assert jh.format_price(0) == "0.00"
+    # test with None
+    assert jh.format_price(None) == ""
+    # test with a large number without decimals
+    assert jh.format_price(12345) == "12345.00"
+    # test scientific notation
+    assert jh.format_price(1.23e-7) == "0.00000012"
 
 
 def test_generate_unique_id():
