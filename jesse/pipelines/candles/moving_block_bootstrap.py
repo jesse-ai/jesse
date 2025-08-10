@@ -2,7 +2,7 @@ import numpy as np
 from jesse.pipelines.candles import BaseCandlesPipeline
 
 class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
-    def __init__(self, batch_size: int, *, block_size: int | None = None, **_ignored) -> None:
+    def __init__(self, batch_size: int, **_ignored) -> None:
         """
         Generate synthetic candles by moving-block bootstrap on multivariate
         tuples of (delta_close, delta_high, delta_low).
@@ -10,23 +10,18 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         Parameters
         ----------
         batch_size : int
-            Number of 1-minute bars returned by the pipeline each call.
-        block_size : int, optional
-            Length of each bootstrap block (in bars).  If ``None`` (default) we
-            pick a heuristic value equal to ``max(10, batch_size // 10)`` so
-            that the blocks are long enough to preserve serial correlation yet
-            short enough to allow variety.  The value is capped at
-            ``batch_size − 1`` to guarantee at least two possible block start
-            positions.
+            Size of the internal regeneration buffer in minutes. The pipeline
+            derives a reasonable bootstrap block length from this, so there is
+            no separate block-size argument.
         """
         super().__init__(batch_size)
 
-        # Determine block_size if not supplied or if too large
-        if block_size is None:
-            block_size = max(10, batch_size // 10)
-        if block_size >= batch_size:
-            block_size = batch_size - 1  # ensure at least one alternative start
-        self._block_size = block_size
+        # Derive block size from batch size. Heuristic: max(10, batch_size // 10),
+        # then clamp to [1, batch_size - 1]. This preserves short-horizon
+        # dependence while allowing variety.
+        derived_block_size = max(10, batch_size // 10)
+        derived_block_size = max(1, min(batch_size - 1, derived_block_size))
+        self._block_size = derived_block_size
 
         # Independent RNG per pipeline instance to avoid identical scenarios
         self._rng = np.random.default_rng()
@@ -37,8 +32,10 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         `arr` is shape (T, 3) for the three deltas.
         """
         T, D = arr.shape
+        if T == 0:
+            return np.zeros((n, 3), dtype=arr.dtype)
         # Use the configured block_size, but not beyond available data
-        effective_block_size = min(self._block_size, T)
+        effective_block_size = max(1, min(self._block_size, T))
         max_start = T - effective_block_size
         # how many blocks needed to reach n rows
         num_blocks = int(np.ceil(n / effective_block_size)) + 1
