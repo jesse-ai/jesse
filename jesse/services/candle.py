@@ -268,14 +268,8 @@ def _get_candles_from_db(
     if start_date_timestamp > finish_date_timestamp:
         raise InvalidDateRange(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
     
-    # validate finish_date is not in the future
-    current_timestamp = arrow.utcnow().int_timestamp * 1000
-    if finish_date_timestamp > current_timestamp:
-        today_str = jh.timestamp_to_date(current_timestamp)
-        yesterday_date = jh.timestamp_to_date(current_timestamp - 86400000)
-        raise InvalidDateRange(f'The finish date "{jh.timestamp_to_time(finish_date_timestamp)[:19]}" cannot be in the future. Please select a date up to "{yesterday_date}".')
-
     # validate start_date is not in the future
+    current_timestamp = arrow.utcnow().int_timestamp * 1000
     if start_date_timestamp > current_timestamp:
         raise InvalidDateRange(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(current_timestamp)}).')
 
@@ -314,12 +308,21 @@ def _get_candles_from_db(
         # before the start of the requested finish date
         # Check if the latest available candle timestamp is before the required last candle
         if latest_available < finish_date_timestamp:
-            # Missing candles at the end of the requested range
-            raise CandleNotFoundInDatabase(
-                f"Missing recent candles for \"{symbol}\" on \"{exchange}\". "
-                f"Requested data until \"{jh.timestamp_to_time(finish_date_timestamp)[:19]}\", "
-                f"but latest available candle is up to \"{jh.timestamp_to_time(latest_available)[:19]}\"."
-            )
+            # Adjust to use the last available candle instead of raising an exception
+            print(f"Warning: Requested data until {jh.timestamp_to_time(finish_date_timestamp)[:19]}, "
+                  f"but latest available candle is {jh.timestamp_to_time(latest_available)[:19]}. "
+                  f"Adjusting to backtest until last available candle.")
+            # Re-query with the adjusted finish date
+            candles_tuple = list(Candle.select(
+                Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+                Candle.volume
+            ).where(
+                Candle.exchange == exchange,
+                Candle.symbol == symbol,
+                Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+                Candle.timestamp.between(start_date_timestamp, latest_available)
+            ).order_by(Candle.timestamp.asc()).tuples())
+            candles_array = np.array(candles_tuple)
 
     if caching:
         # cache for 1 week it for near future calls
