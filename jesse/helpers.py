@@ -269,7 +269,7 @@ def format_price(price: float) -> str:
     """
     Formats the price for logging.
     - If abs(price) is >= 1, it will be truncated to 2 decimal places.
-    - If abs(price) is < 1, it will be truncated to 2 significant digits.
+    - If abs(price) is < 1, it will be truncated to 5 significant digits.
     """
     if price is None:
         return ""
@@ -308,7 +308,8 @@ def format_price(price: float) -> str:
     if first_non_zero_index == -1:
         return "0.00"
 
-    end_index = first_non_zero_index + 2
+    # Use 5 significant digits for all values below 1
+    end_index = first_non_zero_index + 5
 
     formatted_decimal = decimal_part[:end_index]
 
