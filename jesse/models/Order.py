@@ -187,6 +187,8 @@ class Order(Model):
             d['trade_id'] = order.trade_id
         if order.submitted_via:
             d['submitted_via'] = order.submitted_via
+        if order.qty != 0:
+            d['qty'] = order.qty
         try:
             Order.update(**d).where(Order.id == order.id).execute()
         except Exception as e:
@@ -200,21 +202,51 @@ class Order(Model):
     def get_active_orders(symbol: str, exchange: str, is_initial=False):
         from jesse.models.ClosedTrade import ClosedTrade
 
-        orders = Order.select().where(Order.symbol == symbol, Order.status == order_statuses.ACTIVE, Order.exchange == exchange)
+        orders = Order.select().where(
+            Order.symbol == symbol,
+            Order.status == order_statuses.ACTIVE,
+            Order.exchange == exchange
+        )
         # assign trade of order to orders
         for order in orders:
             if order.trade_id:
                 order.trade = ClosedTrade.get_trade_by_id(order.trade_id)
         return orders
+    
+    @staticmethod
+    def get_executed_and_active_orders_without_trade_id(symbol: str, exchange: str):
+        executed_orders = list(Order.select().where(
+            Order.symbol == symbol,
+            (Order.status == order_statuses.EXECUTED),
+            Order.exchange == exchange,
+            Order.trade_id == None,
+            Order.order_exist_in_exchange == True
+        ).order_by(
+            Order.executed_at.asc()
+        ))
+        active_orders = list(Order.select().where(
+            Order.symbol == symbol,
+            (Order.status == order_statuses.ACTIVE),
+            Order.exchange == exchange,
+            Order.order_exist_in_exchange == True
+        ).order_by(
+            Order.created_at.asc()
+        ))
+        return executed_orders, active_orders
 
     @staticmethod
     def get_last_exchange_order(exchange: str, symbol: str):
         return Order.select().where(
             Order.exchange == exchange,
             Order.symbol == symbol).where(
+            Order.trade_id !=  None).where(
             Order.exchange_id ==  None).where(
             Order.order_exist_in_exchange == True).order_by(
             Order.created_at.desc()).first()
+            
+    @staticmethod
+    def get_order_by_trade_id(trade_id):
+        return list(Order.select().where(Order.trade_id == trade_id))
 
     @property
     def is_canceled(self) -> bool:
