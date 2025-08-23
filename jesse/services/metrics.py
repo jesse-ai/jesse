@@ -157,6 +157,17 @@ def max_drawdown(returns):
     # Always convert to pandas Series
     return pd.Series([result])
 
+def realized_max_drawdown(starting_balance, df_pnl):
+    """
+    Calculates the realized maximum drawdown as a percentage
+    """
+    cumulative_balance = starting_balance + df_pnl.cumsum()
+    peak_balance = cumulative_balance.cummax()
+    drawdown = peak_balance - cumulative_balance
+    drawdown_pct = (drawdown / peak_balance) * 100
+    result = -drawdown_pct.max()
+
+    return pd.Series([result])
 
 def cagr(returns, rf=0.0, compounded=True, periods=365):
     """
@@ -311,6 +322,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     average_losing_holding_period = losing_trades['holding_period'].mean()
     gross_profit = winning_trades['PNL'].sum()
     gross_loss = losing_trades['PNL'].sum()
+    realized_max_dd = realized_max_drawdown(starting_balance, df['PNL']).iloc[0]
 
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     date_index = pd.date_range(start=start_date, periods=len(daily_balance))
@@ -366,6 +378,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'gross_profit': safe_convert(gross_profit),
         'gross_loss': safe_convert(gross_loss),
         'max_drawdown': safe_convert(max_dd),
+        'realized_max_drawdown': safe_convert(realized_max_dd),
         'annual_return': safe_convert(annual_return),
         'sharpe_ratio': safe_convert(sharpe),
         'calmar_ratio': safe_convert(calmar),
