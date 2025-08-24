@@ -8,6 +8,7 @@ import random
 import string
 import sys
 import uuid
+from IPython import get_ipython
 from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
@@ -220,26 +221,53 @@ def estimate_average_price(order_qty: float, order_price: float, current_qty: fl
             current_entry_price) / (abs(order_qty) + abs(current_qty))
 
 
-def estimate_PNL(qty: float, entry_price: float, exit_price: float, trade_type: str, trading_fee: float = 0) -> float:
+def estimate_PNL(qty: float, entry_price: float, exit_price: float, trade_type: str, trading_fee: float = 0.0) -> float:
     qty = abs(qty)
-    profit = qty * (exit_price - entry_price)
 
+    # Calculate gross profit/loss
+    profit = qty * (exit_price - entry_price)
     if trade_type == 'short':
         profit *= -1
 
-    fee = trading_fee * qty * (entry_price + exit_price)
+    # Apply trading fees on both entry and exit
+    entry_fee = trading_fee * qty * entry_price
+    exit_fee = trading_fee * qty * exit_price
+    total_fee = entry_fee + exit_fee
 
-    return profit - fee
+    return profit - total_fee
 
 
-def estimate_PNL_percentage(qty: float, entry_price: float, exit_price: float, trade_type: str) -> float:
+def estimate_PNL_percentage(
+    qty: float,
+    entry_price: float,
+    exit_price: float,
+    trade_type: str,
+    trading_fee: float = 0.0
+) -> float:
     qty = abs(qty)
-    profit = qty * (exit_price - entry_price)
 
-    if trade_type == 'short':
-        profit *= -1
+    # Handle invalid entry price
+    if entry_price == 0:
+        return 0.0
 
-    return (profit / (qty * entry_price)) * 100
+    # Calculate gross profit based on trade type
+    if trade_type.lower() == 'long':
+        profit = qty * (exit_price - entry_price)
+    elif trade_type.lower() == 'short':
+        profit = qty * (entry_price - exit_price)
+    else:
+        raise ValueError("trade_type must be either 'long' or 'short'")
+
+    # Apply fees on both entry and exit
+    entry_fee = trading_fee * qty * entry_price
+    exit_fee = trading_fee * qty * exit_price
+    total_fee = entry_fee + exit_fee
+
+    net_profit = profit - total_fee
+
+    # Return PNL percentage based on initial investment
+    return (net_profit / (qty * entry_price)) * 100
+
 
 
 def file_exists(path: str) -> bool:
