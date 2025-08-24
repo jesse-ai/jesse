@@ -230,7 +230,7 @@ exchange_info = {
         "supported_timeframes": APEX_PRO_TIMEFRAMES,
         "modes": {
             "backtesting": False,
-            "live_trading": True,
+            "live_trading": False,
         },
         "required_live_plan": "premium",
     },

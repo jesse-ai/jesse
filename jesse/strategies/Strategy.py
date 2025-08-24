@@ -521,7 +521,7 @@ class Strategy(ABC):
         if self.position.is_open:
             raise Exception('cannot cancel orders when position is still open. there must be a bug somewhere.')
 
-        logger.info('cancel all remaining orders to prepare for a fresh start...')
+        logger.info(f'cancel all remaining orders of {self.symbol} to prepare for a fresh start...')
 
         self.broker.cancel_all_orders()
 
