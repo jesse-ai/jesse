@@ -186,12 +186,15 @@ def test_format_currency():
 
 def test_format_price():
     assert jh.format_price(1.12312312312123) == "1.12"
-    assert jh.format_price(0.0000123121312) == "0.000012"
+    # very small numbers use 5 significant digits
+    assert jh.format_price(0.0000123121312) == "0.000012312"
     assert jh.format_price(12312313.123123123) == "12312313.12"
     assert jh.format_price(999.9999) == "999.99"
     # test with negative numbers
     assert jh.format_price(-1.12312312312123) == "-1.12"
-    assert jh.format_price(-0.0000123121312) == "-0.000012"
+    # very small negative numbers use 5 significant digits
+    assert jh.format_price(-0.0000123121312) == "-0.000012312"
+    assert jh.format_price(-0.0123121312) == "-0.012312"
     # test with zero
     assert jh.format_price(0) == "0.00"
     # test with None
@@ -199,7 +202,7 @@ def test_format_price():
     # test with a large number without decimals
     assert jh.format_price(12345) == "12345.00"
     # test scientific notation
-    assert jh.format_price(1.23e-7) == "0.00000012"
+    assert jh.format_price(1.23e-7) == "0.00000012300"
 
 
 def test_generate_unique_id():
