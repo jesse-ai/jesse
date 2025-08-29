@@ -17,7 +17,6 @@ def backtest(
         generate_logs: bool = False,
         hyperparameters: dict = None,
         fast_mode: bool = False,
-        with_candles_pipeline: bool = True,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
 ) -> dict:
@@ -68,7 +67,6 @@ def backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
-        with_candles_pipeline=with_candles_pipeline,
         candles_pipeline_class=candles_pipeline_class,
         candles_pipeline_kwargs=candles_pipeline_kwargs,
     )
@@ -90,7 +88,6 @@ def _isolated_backtest(
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
         fast_mode: bool = False,
-        with_candles_pipeline: bool = True,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
 ) -> dict:
@@ -156,7 +153,6 @@ def _isolated_backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
-        with_candles_pipeline=with_candles_pipeline,
         candles_pipeline_class=candles_pipeline_class,
         candles_pipeline_kwargs=candles_pipeline_kwargs
     )
@@ -183,6 +179,10 @@ def _isolated_backtest(
         result['hyperparameters'] = backtest_result['hyperparameters']
     if generate_logs:
         result['logs'] = backtest_result['logs']
+    
+    # Always include trades if available (needed for trade-shuffling Monte Carlo)
+    if 'trades' in backtest_result:
+        result['trades'] = backtest_result['trades']
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()
