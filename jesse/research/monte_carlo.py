@@ -301,13 +301,9 @@ def _run_trades_simulation(
                 print(f"   Metrics shows total trades: {total_trades}")
             raise ValueError("No trades found in original backtest. Cannot perform trade-shuffling Monte Carlo.")
         
-        print(f"Found {len(trades_list)} trades in original backtest")
-        
         original_trades = original_result['trades']
         original_equity_curve = original_result['equity_curve']
         starting_balance = config.get('starting_balance', 10000)
-        
-        print(f"Found {len(original_trades)} trades in original backtest")
         
         # Initialize progress bar if requested
         if progress_bar:
@@ -448,14 +444,15 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
     final_value = values[-1]
     total_return = (final_value - starting_balance) / starting_balance
     
-    # Calculate max drawdown
+    # Calculate max drawdown (ensure it doesn't exceed 100%)
     peak = starting_balance
     max_drawdown = 0.0
     
     for value in values:
         if value > peak:
             peak = value
-        drawdown = (peak - value) / peak if peak > 0 else 0
+        # Cap drawdown at 100% (total loss)
+        drawdown = min(1.0, (peak - value) / peak) if peak > 0 else 0
         max_drawdown = max(max_drawdown, drawdown)
     
     # Calculate volatility (annualized, assuming daily data)
@@ -472,12 +469,17 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
         volatility = 0
         sharpe_ratio = 0
     
+    # Calculate Calmar ratio (annualized return / max drawdown)
+    annual_return = total_return  # Simplified - could be more precise with actual time period
+    calmar_ratio = annual_return / max_drawdown if max_drawdown > 0 else 0
+    
     return {
         'total_return': total_return,
         'final_value': final_value,
         'max_drawdown': max_drawdown,
         'volatility': volatility,
         'sharpe_ratio': sharpe_ratio,
+        'calmar_ratio': calmar_ratio,
         'starting_balance': starting_balance
     }
 
@@ -487,12 +489,13 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         return {'error': 'No simulation results to analyze'}
     
     # Extract metrics from all simulations
+    # Remove final_value since it's invariant under trade shuffling, add calmar_ratio
     metrics = {
         'total_return': [],
-        'final_value': [],
         'max_drawdown': [],
         'volatility': [],
-        'sharpe_ratio': []
+        'sharpe_ratio': [],
+        'calmar_ratio': []
     }
     
     for result in simulation_results:
@@ -500,11 +503,8 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
             if key in result and isinstance(result[key], (int, float)):
                 metrics[key].append(result[key])
     
-    # Calculate original metrics for comparison
-    original_metrics = _calculate_metrics_from_equity_curve(
-        original_result.get('equity_curve', []), 
-        original_result.get('starting_balance', 10000)
-    )
+    # Use original backtest metrics directly instead of recalculating
+    original_metrics = original_result.get('metrics', {})
     
     # Calculate percentiles and confidence intervals
     confidence_analysis = {}
@@ -537,7 +537,7 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         }
         
         # Calculate p-value (probability of getting original result or better by chance)
-        if metric_name in ['total_return', 'final_value', 'sharpe_ratio']:
+        if metric_name in ['total_return', 'sharpe_ratio', 'calmar_ratio']:
             # Higher is better
             p_value = np.sum(values_array >= original_value) / len(values_array)
         else:
