@@ -1,10 +1,10 @@
 """
-Monte Carlo Simulation Module for Jesse Trading Framework
+Stress Test and Monte Carlo Simulation Module for Jesse Trading Framework
 
-This module provides Monte Carlo simulation capabilities for backtesting trading strategies.
+This module provides stress testing and Monte Carlo simulation capabilities for backtesting trading strategies.
 It supports two types of simulations:
-1. Candles-based: Uses different random candle data for each simulation
-2. Trades-based: Shuffles the order of trades from an original backtest
+1. Stress Test: Uses different random candle data for each simulation to test strategy robustness
+2. Monte Carlo: Shuffles the order of trades from an original backtest to test statistical significance
 
 The module uses Ray for parallel processing to efficiently run multiple scenarios
 simultaneously across multiple CPU cores.
@@ -31,7 +31,7 @@ RAY_WAIT_TIMEOUT = 0.5  # Timeout for Ray wait operations (seconds)
 BASE_RANDOM_SEED = 42  # Base seed for reproducible results
 
 # Validation constants
-VALID_SIMULATION_TYPES = ["candles", "trades"]
+# Note: VALID_SIMULATION_TYPES removed as we now have separate functions
 
 # Statistical constants
 ANNUALIZATION_FACTOR = 365  # Trading days per year for volatility calculation
@@ -57,7 +57,7 @@ ALPHA_1_PERCENT = 0.01
 # =============================================================================
 
 @ray.remote
-def ray_run_scenario_candles(
+def ray_run_scenario_stress_test(
     config: dict,
     routes: List[Dict[str, str]],
     data_routes: List[Dict[str, str]],
@@ -71,7 +71,7 @@ def ray_run_scenario_candles(
     candles_pipeline_kwargs: dict = None
 ) -> Dict[str, Any]:
     """
-    Ray remote function to execute a single candles-based Monte Carlo scenario.
+    Ray remote function to execute a single stress test scenario.
     
     This function runs in a separate process and executes a backtest with potentially
     modified candle data based on the provided pipeline configuration. The first scenario
@@ -138,7 +138,7 @@ def ray_run_scenario_candles(
         return {'result': None, 'log': error_msg, 'error': True}
 
 @ray.remote
-def ray_run_scenario_trades(
+def ray_run_scenario_monte_carlo(
     original_trades: list,
     original_equity_curve: list,
     starting_balance: float,
@@ -146,9 +146,9 @@ def ray_run_scenario_trades(
     seed: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Ray remote function to execute a single trades-based Monte Carlo scenario.
+    Ray remote function to execute a single Monte Carlo scenario.
     
-    This function performs trade-order shuffling analysis by randomly reordering the
+    This function performs Monte Carlo analysis by randomly reordering the
     trades from an original backtest and reconstructing the resulting equity curve.
     This helps assess how much of the strategy's performance is due to the specific
     timing of trades versus the trade selection itself.
@@ -201,14 +201,14 @@ def ray_run_scenario_trades(
         
     except Exception as e:
         # Return structured error information for centralized handling
-        error_msg = f"Ray trade scenario {scenario_index} failed with exception: {str(e)}"
+        error_msg = f"Ray Monte Carlo scenario {scenario_index} failed with exception: {str(e)}"
         return {'result': None, 'log': error_msg, 'error': True}
 
 # =============================================================================
 # MAIN MONTE CARLO FUNCTION
 # =============================================================================
 
-def monte_carlo(
+def stress_test(
     config: dict,
     routes: List[Dict[str, str]],
     data_routes: List[Dict[str, str]],
@@ -219,17 +219,16 @@ def monte_carlo(
     fast_mode: bool = True,
     num_scenarios: int = 1000,
     progress_bar: bool = False,
-    simulation_type: Literal["candles", "trades"] = "candles",
     candles_pipeline_class = None,
     candles_pipeline_kwargs: Optional[dict] = None,
     cpu_cores: Optional[int] = None,
 ) -> dict:
     """
-    Execute Monte Carlo simulation for trading strategy backtesting.
+    Execute stress test simulation for trading strategy backtesting.
     
-    This function runs multiple scenarios of a trading strategy using either
-    randomized candle data or shuffled trade orders to assess the robustness
-    and statistical significance of the strategy's performance.
+    This function runs multiple scenarios of a trading strategy using
+    randomized candle data to assess the robustness of the strategy's performance
+    across different market conditions.
     
     Args:
         config: Jesse configuration dictionary containing strategy and environment settings.
@@ -246,19 +245,15 @@ def monte_carlo(
         warmup_candles: Optional dictionary containing warmup period candle data for strategy
                        initialization. Uses same structure as main candles.
         benchmark: Whether to include a benchmark scenario using original unmodified data.
-                  Only applies to candles simulation type.
         hyperparameters: Optional dictionary of strategy hyperparameters. If None, uses
                         strategy defaults.
         fast_mode: Whether to run in fast mode (reduces some calculations for speed).
-                  Recommended for large Monte Carlo runs.
-        num_scenarios: Number of Monte Carlo scenarios to execute. Higher numbers provide
+                  Recommended for large stress test runs.
+        num_scenarios: Number of stress test scenarios to execute. Higher numbers provide
                       better statistical confidence but take longer to run.
         progress_bar: Whether to display a progress bar during execution. Useful for
                      long-running simulations.
-        simulation_type: Type of simulation to perform:
-                        - "candles": Modifies candle data using pipeline for each scenario
-                        - "trades": Shuffles trade order from original backtest
-        candles_pipeline_class: Optional class for modifying candle data in candles simulation.
+        candles_pipeline_class: Optional class for modifying candle data in stress test simulation.
                                Must implement Jesse's candles pipeline interface. Examples:
                                MovingBlockBootstrap, GaussianNoise, etc.
         candles_pipeline_kwargs: Arguments to pass to the candles pipeline class constructor.
@@ -266,53 +261,29 @@ def monte_carlo(
                   of available cores. Limited to available system cores.
     
     Returns:
-        Dictionary containing simulation results:
-        
-        For candles simulation:
-        - type: "candles"
+        Dictionary containing stress test results:
+        - type: "stress_test"
         - scenarios: List of backtest results from each scenario
-        - num_scenarios: Number of successful scenarios completed
-        - total_requested: Total number of scenarios requested
-        
-        For trades simulation:
-        - type: "trades"  
-        - original: Original backtest result used as baseline
-        - scenarios: List of trade-shuffled scenario results
-        - confidence_analysis: Statistical analysis including p-values and confidence intervals
         - num_scenarios: Number of successful scenarios completed
         - total_requested: Total number of scenarios requested
     
     Raises:
-        ValueError: If simulation_type is invalid, or if incompatible parameters are provided
-                   (e.g., using candles_pipeline_class with trades simulation)
         RuntimeError: If Ray initialization fails or system doesn't have sufficient resources
     
     Examples:
-        # Basic candles Monte Carlo with bootstrap pipeline
-        result = monte_carlo(
+        # Basic stress test with bootstrap pipeline
+        result = stress_test(
             config=config,
             routes=[{'exchange': 'Binance', 'symbol': 'BTC-USDT', 'timeframe': '1h', 'strategy': 'MyStrategy'}],
             data_routes=[],
             candles=candles_data,
-            simulation_type="candles",
             num_scenarios=500,
             candles_pipeline_class=MovingBlockBootstrap,
             progress_bar=True
         )
         
-        # Trades shuffling analysis for statistical significance
-        result = monte_carlo(
-            config=config,
-            routes=routes,
-            data_routes=data_routes,
-            candles=candles_data,
-            simulation_type="trades",
-            num_scenarios=1000,
-            progress_bar=True
-        )
-        
-        # Quick candles test with custom CPU allocation
-        result = monte_carlo(
+        # Quick stress test with custom CPU allocation
+        result = stress_test(
             config=config,
             routes=routes,
             data_routes=data_routes, 
@@ -326,15 +297,7 @@ def monte_carlo(
         - Ray is automatically initialized and cleaned up by this function
         - Results are processed in real-time as scenarios complete
         - Invalid scenarios (missing equity curves) are automatically filtered out
-        - For trades simulation, the original backtest must contain trades data
     """
-    # Validate input parameters
-    if simulation_type not in VALID_SIMULATION_TYPES:
-        raise ValueError(f"simulation_type must be one of {VALID_SIMULATION_TYPES}")
-    
-    # Trades simulation cannot use candles pipeline (logical constraint)
-    if simulation_type == "trades" and candles_pipeline_class is not None:
-        raise ValueError("candles_pipeline_class must be None for trades simulation type")
     
     # Determine optimal CPU core allocation
     if cpu_cores is None:
@@ -357,20 +320,137 @@ def monte_carlo(
             raise RuntimeError(f"Error initializing Ray: {e}")
 
     try:
-        # Execute the appropriate simulation type
-        if simulation_type == "candles":
-            return _run_candles_simulation(
-                config, routes, data_routes, candles, warmup_candles, 
-                benchmark, hyperparameters, fast_mode, num_scenarios, 
-                progress_bar, candles_pipeline_class, candles_pipeline_kwargs, 
-                cpu_cores, ray_started_here
-            )
-        else:  # simulation_type == "trades"
-            return _run_trades_simulation(
-                config, routes, data_routes, candles, warmup_candles,
-                benchmark, hyperparameters, fast_mode, num_scenarios, progress_bar,
-                cpu_cores, ray_started_here
-            )
+        # Execute stress test simulation
+        return _run_stress_test_simulation(
+            config, routes, data_routes, candles, warmup_candles, 
+            benchmark, hyperparameters, fast_mode, num_scenarios, 
+            progress_bar, candles_pipeline_class, candles_pipeline_kwargs, 
+            cpu_cores, ray_started_here
+        )
+    
+    except Exception as e:
+        jh.debug(f"Error during Monte Carlo simulation: {e}")
+        raise
+    
+    finally:
+        # Clean up Ray resources only if we initialized it
+        if ray_started_here and ray.is_initialized():
+            ray.shutdown()
+
+
+def monte_carlo(
+    config: dict,
+    routes: List[Dict[str, str]],
+    data_routes: List[Dict[str, str]],
+    candles: dict,
+    warmup_candles: Optional[dict] = None,
+    benchmark: bool = False,
+    hyperparameters: Optional[dict] = None,
+    fast_mode: bool = True,
+    num_scenarios: int = 1000,
+    progress_bar: bool = False,
+    cpu_cores: Optional[int] = None,
+) -> dict:
+    """
+    Execute Monte Carlo simulation for trading strategy backtesting.
+    
+    This function runs multiple scenarios of a trading strategy by shuffling
+    trade orders to assess the statistical significance of the strategy's performance.
+    
+    Args:
+        config: Jesse configuration dictionary containing strategy and environment settings.
+               Must include keys like 'starting_balance', exchanges, and other backtest settings.
+        routes: List of trading routes, each containing:
+               - exchange: Name of the exchange (e.g., 'Binance')
+               - symbol: Trading pair symbol (e.g., 'BTC-USDT')  
+               - timeframe: Candle timeframe (e.g., '1h', '4h', '1D')
+               - strategy: Name of the strategy class to test
+        data_routes: List of data routes for additional data feeds required by the strategy.
+                    Can be empty if strategy only needs main route data.
+        candles: Dictionary containing historical candle data for all symbols and timeframes.
+                Structure: {exchange: {symbol: {timeframe: numpy_array}}}
+        warmup_candles: Optional dictionary containing warmup period candle data for strategy
+                       initialization. Uses same structure as main candles.
+        benchmark: Whether to include a benchmark scenario using original unmodified data.
+        hyperparameters: Optional dictionary of strategy hyperparameters. If None, uses
+                        strategy defaults.
+        fast_mode: Whether to run in fast mode (reduces some calculations for speed).
+                  Recommended for large Monte Carlo runs.
+        num_scenarios: Number of Monte Carlo scenarios to execute. Higher numbers provide
+                      better statistical confidence but take longer to run.
+        progress_bar: Whether to display a progress bar during execution. Useful for
+                     long-running simulations.
+        cpu_cores: Number of CPU cores to use for parallel processing. If None, uses 80%
+                  of available cores. Limited to available system cores.
+    
+    Returns:
+        Dictionary containing Monte Carlo results:
+        - type: "monte_carlo"  
+        - original: Original backtest result used as baseline
+        - scenarios: List of trade-shuffled scenario results
+        - confidence_analysis: Statistical analysis including p-values and confidence intervals
+        - num_scenarios: Number of successful scenarios completed
+        - total_requested: Total number of scenarios requested
+    
+    Raises:
+        RuntimeError: If Ray initialization fails or system doesn't have sufficient resources
+        ValueError: If the original backtest doesn't contain trades data
+    
+    Examples:
+        # Monte Carlo analysis for statistical significance
+        result = monte_carlo(
+            config=config,
+            routes=[{'exchange': 'Binance', 'symbol': 'BTC-USDT', 'timeframe': '1h', 'strategy': 'MyStrategy'}],
+            data_routes=[],
+            candles=candles_data,
+            num_scenarios=1000,
+            progress_bar=True
+        )
+        
+        # Quick Monte Carlo test with custom CPU allocation
+        result = monte_carlo(
+            config=config,
+            routes=routes,
+            data_routes=data_routes, 
+            candles=candles_data,
+            num_scenarios=100,
+            cpu_cores=4,
+            fast_mode=True
+        )
+    
+    Note:
+        - Ray is automatically initialized and cleaned up by this function
+        - Results are processed in real-time as scenarios complete
+        - The original backtest must contain trades data for this analysis
+        - Trade timing is randomized while preserving individual trade results
+    """
+    # Determine optimal CPU core allocation
+    if cpu_cores is None:
+        available_cores = cpu_count()
+        # Use default percentage of available cores, but ensure at least 1
+        cpu_cores = max(MIN_CPU_CORES, int(available_cores * DEFAULT_CPU_USAGE_RATIO))
+    else:
+        # Respect user preference but enforce reasonable limits
+        available_cores = cpu_count()
+        cpu_cores = max(MIN_CPU_CORES, min(cpu_cores, available_cores))
+
+    # Initialize Ray for parallel processing if not already running
+    ray_started_here = False
+    if not ray.is_initialized():
+        try:
+            ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+            jh.debug(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
+            ray_started_here = True
+        except Exception as e:
+            raise RuntimeError(f"Error initializing Ray: {e}")
+
+    try:
+        # Execute Monte Carlo simulation
+        return _run_monte_carlo_simulation(
+            config, routes, data_routes, candles, warmup_candles,
+            benchmark, hyperparameters, fast_mode, num_scenarios, progress_bar,
+            cpu_cores, ray_started_here
+        )
     
     except Exception as e:
         jh.debug(f"Error during Monte Carlo simulation: {e}")
@@ -519,7 +599,7 @@ def _create_ray_shared_objects(
     }
 
 
-def _launch_candles_scenarios(
+def _launch_stress_test_scenarios(
     num_scenarios: int,
     shared_objects: Dict[str, Any],
     fast_mode: bool,
@@ -528,14 +608,14 @@ def _launch_candles_scenarios(
     candles_pipeline_kwargs: dict
 ) -> List[Any]:
     """
-    Launch all candles-based Monte Carlo scenarios in parallel.
+    Launch all stress test scenarios in parallel.
     
     Args:
         num_scenarios: Number of scenarios to launch
         shared_objects: Dictionary of Ray shared object references
         fast_mode: Whether to use fast mode
         benchmark: Whether to include benchmark scenario
-        candles_pipeline_class: Class for modifying candle data
+        candles_pipeline_class: Class for modifying candle data in stress test
         candles_pipeline_kwargs: Arguments for pipeline class
     
     Returns:
@@ -544,7 +624,7 @@ def _launch_candles_scenarios(
     scenario_refs = []
     
     for i in range(num_scenarios):
-        ref = ray_run_scenario_candles.remote(
+        ref = ray_run_scenario_stress_test.remote(
             config=shared_objects['config'],
             routes=shared_objects['routes'],
             data_routes=shared_objects['data_routes'],
@@ -581,9 +661,9 @@ def _filter_valid_results(results: List[dict]) -> Tuple[List[dict], int]:
     return valid_results, filtered_count
 
 
-def _log_candles_simulation_summary(valid_results: List[dict], filtered_count: int, num_scenarios: int) -> None:
+def _log_stress_test_simulation_summary(valid_results: List[dict], filtered_count: int, num_scenarios: int) -> None:
     """
-    Log summary information for candles simulation results.
+    Log summary information for stress test simulation results.
     
     Args:
         valid_results: List of valid scenario results
@@ -687,14 +767,14 @@ def _diagnose_empty_trades(original_result: dict) -> None:
         jh.debug(f"   Metrics shows total trades: {total_trades}")
 
 
-def _launch_trades_scenarios(
+def _launch_monte_carlo_scenarios(
     num_scenarios: int,
     trades_ref: Any,
     equity_curve_ref: Any,
     starting_balance: float
 ) -> List[Any]:
     """
-    Launch all trades-based Monte Carlo scenarios in parallel.
+    Launch all Monte Carlo scenarios in parallel.
     
     Args:
         num_scenarios: Number of scenarios to launch
@@ -708,7 +788,7 @@ def _launch_trades_scenarios(
     scenario_refs = []
     
     for i in range(num_scenarios):
-        ref = ray_run_scenario_trades.remote(
+        ref = ray_run_scenario_monte_carlo.remote(
             original_trades=trades_ref,
             original_equity_curve=equity_curve_ref,
             starting_balance=starting_balance,
@@ -724,14 +804,14 @@ def _launch_trades_scenarios(
 # SIMULATION EXECUTION FUNCTIONS
 # =============================================================================
 
-def _run_candles_simulation(
+def _run_stress_test_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]], 
     candles: dict, warmup_candles: dict, benchmark: bool, hyperparameters: dict, 
     fast_mode: bool, num_scenarios: int, progress_bar: bool, 
     candles_pipeline_class, candles_pipeline_kwargs: dict, cpu_cores: int, started_ray_here: bool
 ) -> dict:
     """
-    Execute candles-based Monte Carlo simulation.
+    Execute stress test simulation.
     
     This function runs multiple backtests where each scenario potentially uses
     modified candle data based on the provided pipeline. This helps assess
@@ -739,7 +819,7 @@ def _run_candles_simulation(
     """
     try:
         # Initialize progress tracking
-        pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Scenarios (Candles)")
+        pbar = _setup_progress_bar(progress_bar, num_scenarios, "Stress Test Scenarios")
 
         # Store large objects in Ray's shared memory for efficiency
         shared_objects = _create_ray_shared_objects(
@@ -747,7 +827,7 @@ def _run_candles_simulation(
         )
 
         # Launch all scenarios in parallel for maximum efficiency
-        scenario_refs = _launch_candles_scenarios(
+        scenario_refs = _launch_stress_test_scenarios(
             num_scenarios, shared_objects, fast_mode, benchmark,
             candles_pipeline_class, candles_pipeline_kwargs
         )
@@ -762,26 +842,26 @@ def _run_candles_simulation(
         valid_results, filtered_count = _filter_valid_results(results)
         
         # Log summary information
-        _log_candles_simulation_summary(valid_results, filtered_count, num_scenarios)
+        _log_stress_test_simulation_summary(valid_results, filtered_count, num_scenarios)
         
         return {
-            'type': 'candles',
+            'type': 'stress_test',
             'scenarios': valid_results,
             'num_scenarios': len(valid_results),
             'total_requested': num_scenarios
         }
     
     except Exception as e:
-        print(f"Error during candles Monte Carlo simulation: {e}")
+        print(f"Error during stress test simulation: {e}")
         raise
 
-def _run_trades_simulation(
+def _run_monte_carlo_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]], 
     candles: dict, warmup_candles: dict, benchmark: bool, hyperparameters: dict, fast_mode: bool, 
     num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool
 ) -> dict:
     """
-    Execute trades-based Monte Carlo simulation.
+    Execute Monte Carlo simulation.
     
     This function first runs an original backtest to extract trades, then
     shuffles the order of these trades across multiple scenarios to analyze
@@ -802,14 +882,14 @@ def _run_trades_simulation(
         )
         
         # Initialize progress tracking
-        pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Scenarios (Trades)")
+        pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Scenarios")
 
         # Store shared objects in Ray's memory
         trades_ref = ray.put(original_trades)
         equity_curve_ref = ray.put(original_equity_curve)
         
         # Launch trade shuffling scenarios in parallel
-        scenario_refs = _launch_trades_scenarios(
+        scenario_refs = _launch_monte_carlo_scenarios(
             num_scenarios, trades_ref, equity_curve_ref, starting_balance
         )
 
@@ -819,13 +899,13 @@ def _run_trades_simulation(
         if pbar:
             pbar.close()
 
-        jh.debug(f"Completed {len(results)} trade-shuffling scenarios out of {num_scenarios} requested")
+        jh.debug(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
         
         # Perform statistical analysis on the results
         confidence_analysis = _calculate_confidence_intervals(original_result, results)
         
         return {
-            'type': 'trades',
+            'type': 'monte_carlo',
             'original': original_result,
             'scenarios': results,
             'confidence_analysis': confidence_analysis,
@@ -834,7 +914,7 @@ def _run_trades_simulation(
         }
     
     except Exception as e:
-        print(f"Error during trades Monte Carlo simulation: {e}")
+        print(f"Error during Monte Carlo simulation: {e}")
         raise
 
 
