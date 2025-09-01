@@ -494,10 +494,6 @@ def is_unit_testing() -> bool:
     if script_name in ["pytest", "py.test"]:
         return True
 
-    # Check if the code is being executed from PyCharm's test runner.
-    if os.environ.get("PYCHARM_HOSTED"):
-        return True
-
     # Otherwise, the code is not running by running pytest or PyCharm's test runner.
     return False
 
