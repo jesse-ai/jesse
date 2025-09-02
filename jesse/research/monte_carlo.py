@@ -328,7 +328,7 @@ def stress_test(
     if not ray.is_initialized():
         try:
             ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
-            jh.debug(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
+            print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
             ray_started_here = True
         except Exception as e:
             raise RuntimeError(f"Error initializing Ray: {e}")
@@ -453,7 +453,7 @@ def monte_carlo(
     if not ray.is_initialized():
         try:
             ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
-            jh.debug(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
+            print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
             ray_started_here = True
         except Exception as e:
             raise RuntimeError(f"Error initializing Ray: {e}")
@@ -882,8 +882,6 @@ def _run_monte_carlo_simulation(
     how trade timing affects performance metrics and statistical significance.
     """
     try:
-        jh.debug("Running original backtest to extract trades...")
-        
         # Execute original backtest to obtain trade history
         original_result = _run_original_backtest(
             config, routes, data_routes, candles, warmup_candles,
@@ -913,7 +911,7 @@ def _run_monte_carlo_simulation(
         if pbar:
             pbar.close()
 
-        jh.debug(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
+        print(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
         
         # Perform statistical analysis on the results
         confidence_analysis = _calculate_confidence_intervals(original_result, results)

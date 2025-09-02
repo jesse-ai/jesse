@@ -617,6 +617,18 @@ def _prepare_routes(hyperparameters: dict = None,
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
 
+    # Ensure pipelines exist for data routes as well (no strategy attached)
+    # Keys in `candles` include both trading and data routes; provide a pipeline (or None) for each
+    for dr in getattr(router, 'data_routes', []) or []:
+        key = jh.key(dr.exchange, dr.symbol)
+        if key in candles_pipeline:
+            continue
+        if with_candles_pipeline and candles_pipeline_class is not None:
+            kwargs = candles_pipeline_kwargs or {}
+            candles_pipeline[key] = candles_pipeline_class(**kwargs)
+        else:
+            candles_pipeline[key] = None
+
     return candles_pipeline
 
 
