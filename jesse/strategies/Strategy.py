@@ -1241,7 +1241,7 @@ class Strategy(ABC):
 
         # validate that the price (second column) is not less or equal to zero
         if arr[:, 1].min() <= 0:
-            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
+            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \nSubmitted order: {var}\nCurrent price: {self.price}\nCurrent time: {jh.timestamp_to_time(self.time)}')
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
