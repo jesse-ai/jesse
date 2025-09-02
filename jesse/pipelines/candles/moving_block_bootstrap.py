@@ -48,6 +48,8 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         # copy everything first (timestamps, volumes, etc)
         out[:] = original_1m_candles[:]
         n = len(out)
+        # strictly positive floor to avoid invalid negative prices
+        eps = 1e-12
 
         # compute the 3 deltas for each bar
         delta_close = np.diff(original_1m_candles[:, 2], prepend=self.last_price)
@@ -60,20 +62,24 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         # bootstrap blocks of the 3-tuples
         boot_deltas = self._bootstrap_blocks(deltas, n)
 
-        # rebuild close prices
+        # rebuild close prices (ensure strictly positive)
         boot_close = np.cumsum(boot_deltas[:, 0]) + self.last_price
+        boot_close = np.maximum(boot_close, eps)
         out[:, 2] = boot_close
 
         # rebuild opens
         out[1:, 1] = boot_close[:-1]
-        out[0, 1] = self.last_price
+        out[0, 1] = max(self.last_price, eps)
 
         # rebuild high and low from the bootstrapped ranges
         out[:, 3] = boot_close + boot_deltas[:, 1]
         out[:, 4] = boot_close - boot_deltas[:, 2]
 
-        # enforce the true high/low bounds
-        out[:, 3] = np.maximum.reduce([out[:,1], out[:,2], out[:,3], out[:,4]])
-        out[:, 4] = np.minimum.reduce([out[:,1], out[:,2], out[:,3], out[:,4]])
+        # enforce the true high/low bounds and positivity
+        out[:, 1] = np.maximum(out[:, 1], eps)
+        out[:, 2] = np.maximum(out[:, 2], eps)
+        out[:, 3] = np.maximum.reduce([out[:, 1], out[:, 2], out[:, 3], out[:, 4]])
+        out[:, 4] = np.minimum.reduce([out[:, 1], out[:, 2], out[:, 3], out[:, 4]])
+        out[:, 4] = np.maximum(out[:, 4], eps)
 
         return True

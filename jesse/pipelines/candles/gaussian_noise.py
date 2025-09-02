@@ -26,6 +26,7 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
         self.low_sigma = low_sigma
 
     def process(self, original_1m_candles: np.ndarray, out: np.ndarray) -> bool:
+        eps = 1e-12
         if not self._first_time:
             last_price = out[-1, 2]  # last_close_price
         else:
@@ -36,11 +37,11 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
 
         # close price
         noise = np.random.normal(self.close_mu, self.close_sigma, size=len(out)).cumsum()
-        out[:, 2] = out[:, 2] + noise
+        out[:, 2] = np.maximum(out[:, 2] + noise, eps)
 
         # open price
         out[1:, 1] = out[:-1, 2]
-        out[0, 1] = last_price
+        out[0, 1] = max(last_price, eps)
 
         # high
         high_std = 0.0 if self.high_sigma == 0.0 else np.random.normal(0, self.high_sigma, size=len(out))
@@ -50,7 +51,11 @@ class GaussianNoiseCandlesPipeline(BaseCandlesPipeline):
         low_std = 0.0 if self.low_sigma == 0.0 else np.random.normal(0, self.low_sigma, size=len(out))
         out[:, 4] = out[:, 4] + self.low_mu + low_std
 
+        # enforce bounds and positivity
+        out[:, 1] = np.maximum(out[:, 1], eps)
+        out[:, 2] = np.maximum(out[:, 2], eps)
         out[:, 3] = np.maximum(np.maximum(out[:, 1], out[:, 2]), np.maximum(out[:, 3], out[:, 4]))
         out[:, 4] = np.minimum(np.minimum(out[:, 1], out[:, 2]), np.minimum(out[:, 3], out[:, 4]))
+        out[:, 4] = np.maximum(out[:, 4], eps)
 
         return True

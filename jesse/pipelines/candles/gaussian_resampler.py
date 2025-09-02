@@ -16,6 +16,7 @@ class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
         self.sigma = sigma
 
     def process(self, original_1m_candles: np.ndarray, out: np.ndarray) -> bool:
+        eps = 1e-12
         out[:] = original_1m_candles[:]
 
         # close price
@@ -23,10 +24,11 @@ class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
         mu_delta = np.mean(delta_close[1:])
         sigma_delta = np.std(delta_close[1:])
         out[:, 2] = np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=len(out)).cumsum() + self.last_price
+        out[:, 2] = np.maximum(out[:, 2], eps)
 
         # open price
         out[1:, 1] = out[:-1, 2]
-        out[0, 1] = self.last_price
+        out[0, 1] = max(self.last_price, eps)
 
         # high
         delta_high_close = original_1m_candles[:, 3] - original_1m_candles[:, 2]
@@ -39,7 +41,11 @@ class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
         sigma_delta = np.std(delta_close_low)
         out[:, 4] = out[:, 2] - np.random.normal(mu_delta + self.mu, sigma_delta * self.sigma, size=len(out))
 
+        # enforce bounds and positivity
+        out[:, 1] = np.maximum(out[:, 1], eps)
+        out[:, 2] = np.maximum(out[:, 2], eps)
         out[:, 3] = np.maximum(np.maximum(out[:, 1], out[:, 2]), np.maximum(out[:, 3], out[:, 4]))
         out[:, 4] = np.minimum(np.minimum(out[:, 1], out[:, 2]), np.minimum(out[:, 3], out[:, 4]))
+        out[:, 4] = np.maximum(out[:, 4], eps)
 
         return True
