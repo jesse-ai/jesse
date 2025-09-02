@@ -133,9 +133,23 @@ def ray_run_scenario_stress_test(
         return {'result': result, 'log': None, 'error': False}
         
     except Exception as e:
-        # Return structured error information for centralized handling
-        error_msg = f"Ray scenario {scenario_index} failed with exception: {str(e)}"
-        return {'result': None, 'log': error_msg, 'error': True}
+        # Import traceback for detailed error information
+        import traceback
+        
+        # Capture full exception details for better debugging
+        full_traceback = traceback.format_exc()
+        error_type = type(e).__name__
+        error_msg = str(e)
+        
+        # Create detailed error message
+        detailed_error = (
+            f"Ray scenario {scenario_index} failed:\n"
+            f"Error Type: {error_type}\n"
+            f"Error Message: {error_msg}\n"
+            f"Full Traceback:\n{full_traceback}"
+        )
+        
+        return {'result': None, 'log': detailed_error, 'error': True}
 
 @ray.remote
 def ray_run_scenario_monte_carlo(
@@ -1118,11 +1132,10 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         return {'error': 'No simulation results to analyze'}
     
     # Extract metrics from all simulations
-    # Remove final_value since it's invariant under trade shuffling, add calmar_ratio
+    # Remove final_value and volatility since they're not meaningful under trade shuffling
     metrics = {
         'total_return': [],
         'max_drawdown': [],
-        'volatility': [],
         'sharpe_ratio': [],
         'calmar_ratio': []
     }
@@ -1170,7 +1183,7 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
             # Higher is better
             p_value = np.sum(values_array >= original_value) / len(values_array)
         else:
-            # Lower is better (max_drawdown, volatility)
+            # Lower is better (max_drawdown)
             p_value = np.sum(values_array <= original_value) / len(values_array)
         
         # Calculate additional statistics
