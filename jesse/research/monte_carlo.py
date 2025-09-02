@@ -685,9 +685,9 @@ def _log_stress_test_simulation_summary(valid_results: List[dict], filtered_coun
         num_scenarios: Total number of requested scenarios
     """
     if filtered_count > 0:
-        jh.debug(f"Filtered out {filtered_count} scenarios with missing equity curves")
+        print(f"Filtered out {filtered_count} scenarios with missing equity curves")
     
-    jh.debug(f"Returned {len(valid_results)} valid scenarios out of {num_scenarios} total")
+    print(f"Returned {len(valid_results)} valid scenarios out of {num_scenarios} total")
 
 
 def _run_original_backtest(
@@ -747,7 +747,7 @@ def _extract_trade_data(original_result: dict, config: dict) -> Tuple[list, list
     # Validate that trades exist in the result
     if 'trades' not in original_result:
         available_keys = list(original_result.keys())
-        jh.debug(f"Available keys in backtest result: {available_keys}")
+        print(f"Available keys in backtest result: {available_keys}")
         raise ValueError("No 'trades' key found in backtest result. Cannot perform trade-shuffling Monte Carlo.")
     
     trades_list = original_result['trades']
@@ -771,14 +771,14 @@ def _diagnose_empty_trades(original_result: dict) -> None:
     Args:
         original_result: Original backtest result for diagnosis
     """
-    jh.debug("Trades list is empty. This could happen if:")
-    jh.debug("1. The strategy didn't generate any trades")
-    jh.debug("2. The time period was too short")
-    jh.debug("3. The strategy conditions were never met")
+    print("Trades list is empty. This could happen if:")
+    print("1. The strategy didn't generate any trades")
+    print("2. The time period was too short")
+    print("3. The strategy conditions were never met")
     
     if 'metrics' in original_result:
         total_trades = original_result['metrics'].get('total', 0)
-        jh.debug(f"   Metrics shows total trades: {total_trades}")
+        print(f"   Metrics shows total trades: {total_trades}")
 
 
 def _launch_monte_carlo_scenarios(
