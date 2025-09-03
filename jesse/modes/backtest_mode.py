@@ -10,7 +10,7 @@ from jesse.config import config
 from jesse.enums import timeframes, order_types
 from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
-from jesse.pipelines.candles import BaseCandlesPipeline
+from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report

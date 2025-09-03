@@ -10,7 +10,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.pipelines.candles import BaseCandlesPipeline
+from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store

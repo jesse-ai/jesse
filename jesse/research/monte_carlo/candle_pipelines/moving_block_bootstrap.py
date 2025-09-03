@@ -1,5 +1,5 @@
 import numpy as np
-from jesse.pipelines.candles import BaseCandlesPipeline
+from .base_candles import BaseCandlesPipeline
 
 class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
     def __init__(self, batch_size: int, **_ignored) -> None:

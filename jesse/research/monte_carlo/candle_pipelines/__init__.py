@@ -1,6 +1,4 @@
 from .base_candles import BaseCandlesPipeline
-from .shuffle_candles import ShuffleCandlesPipeline
-from .multiple_pipelines import MultipleCandlesPipeline
 from .gaussian_noise import GaussianNoiseCandlesPipeline
 from .gaussian_resampler import GaussianResamplerCandlesPipeline
 from .moving_block_bootstrap import MovingBlockBootstrapCandlesPipeline

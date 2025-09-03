@@ -1,6 +1,6 @@
 import numpy as np
 
-from jesse.pipelines.candles import BaseCandlesPipeline
+from .base_candles import BaseCandlesPipeline
 
 
 class GaussianResamplerCandlesPipeline(BaseCandlesPipeline):
