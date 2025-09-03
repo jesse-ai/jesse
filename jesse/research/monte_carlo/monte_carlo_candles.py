@@ -22,7 +22,6 @@ def ray_run_scenario_monte_carlo_candles(
     warmup_candles: dict,
     hyperparameters: dict,
     fast_mode: bool,
-    benchmark: bool,
     scenario_index: int,
     candles_pipeline_class = None,
     candles_pipeline_kwargs: dict = None
@@ -31,8 +30,8 @@ def ray_run_scenario_monte_carlo_candles(
     Ray remote function to execute a single Monte Carlo candles scenario.
     """
     try:
-        is_benchmark_scenario = benchmark and scenario_index == 0
-        should_use_pipeline = candles_pipeline_class is not None and not is_benchmark_scenario
+        # Always apply the pipeline for Monte Carlo scenarios (except scenario 0 which is original)
+        should_use_pipeline = candles_pipeline_class is not None and scenario_index > 0
         result = backtest(
             config=config,
             routes=routes,
@@ -42,10 +41,13 @@ def ray_run_scenario_monte_carlo_candles(
             generate_equity_curve=True,
             hyperparameters=hyperparameters,
             fast_mode=fast_mode,
-            benchmark=is_benchmark_scenario,
+            benchmark=False,  # Never use benchmark mode
             candles_pipeline_class=candles_pipeline_class if should_use_pipeline else None,
             candles_pipeline_kwargs=candles_pipeline_kwargs if should_use_pipeline else None
         )
+        # Tag the result with its scenario index so downstream consumers can
+        # reliably identify the original vs simulated scenarios regardless of completion order
+        result['scenario_index'] = scenario_index
         if 'equity_curve' not in result or result['equity_curve'] is None:
             return {
                 'result': result,
@@ -73,7 +75,6 @@ def monte_carlo_candles(
     data_routes: List[Dict[str, str]],
     candles: dict,
     warmup_candles: Optional[dict] = None,
-    benchmark: bool = False,
     hyperparameters: Optional[dict] = None,
     fast_mode: bool = True,
     num_scenarios: int = 1000,
@@ -99,7 +100,7 @@ def monte_carlo_candles(
     try:
         return _run_monte_carlo_candles_simulation(
             config, routes, data_routes, candles, warmup_candles,
-            benchmark, hyperparameters, fast_mode, num_scenarios,
+            hyperparameters, fast_mode, num_scenarios,
             progress_bar, candles_pipeline_class, candles_pipeline_kwargs,
             cpu_cores, ray_started_here
         )
@@ -115,7 +116,6 @@ def _launch_monte_carlo_candles_scenarios(
     num_scenarios: int,
     shared_objects: Dict[str, Any],
     fast_mode: bool,
-    benchmark: bool,
     candles_pipeline_class,
     candles_pipeline_kwargs: dict
 ) -> List[Any]:
@@ -129,7 +129,6 @@ def _launch_monte_carlo_candles_scenarios(
             warmup_candles=shared_objects['warmup_candles'],
             hyperparameters=shared_objects['hyperparameters'],
             fast_mode=fast_mode,
-            benchmark=benchmark,
             scenario_index=i,
             candles_pipeline_class=candles_pipeline_class,
             candles_pipeline_kwargs=candles_pipeline_kwargs
@@ -155,7 +154,7 @@ def _log_monte_carlo_candles_simulation_summary(valid_results: List[dict], filte
 
 def _run_monte_carlo_candles_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]],
-    candles: dict, warmup_candles: dict, benchmark: bool, hyperparameters: dict,
+    candles: dict, warmup_candles: dict, hyperparameters: dict,
     fast_mode: bool, num_scenarios: int, progress_bar: bool,
     candles_pipeline_class, candles_pipeline_kwargs: dict, cpu_cores: int, started_ray_here: bool
 ) -> dict:
@@ -165,7 +164,7 @@ def _run_monte_carlo_candles_simulation(
             config, routes, data_routes, candles, warmup_candles, hyperparameters
         )
         scenario_refs = _launch_monte_carlo_candles_scenarios(
-            num_scenarios, shared_objects, fast_mode, benchmark,
+            num_scenarios, shared_objects, fast_mode,
             candles_pipeline_class, candles_pipeline_kwargs
         )
         results = _process_scenario_results(scenario_refs, pbar)
@@ -173,10 +172,16 @@ def _run_monte_carlo_candles_simulation(
             pbar.close()
         valid_results, filtered_count = _filter_valid_results(results)
         _log_monte_carlo_candles_simulation_summary(valid_results, filtered_count, num_scenarios)
+        
+        # Separate original result (scenario_index == 0) from Monte Carlo simulations
+        original_result = next((r for r in valid_results if r.get('scenario_index') == 0), None)
+        simulation_results = [r for r in valid_results if r.get('scenario_index', -1) > 0]
+        
         return {
             'type': 'monte_carlo_candles',
-            'scenarios': valid_results,
-            'num_scenarios': len(valid_results),
+            'original': original_result,
+            'scenarios': simulation_results,
+            'num_scenarios': len(simulation_results),
             'total_requested': num_scenarios
         }
     except Exception as e:
