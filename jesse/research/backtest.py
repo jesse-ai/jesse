@@ -16,7 +16,9 @@ def backtest(
         generate_json: bool = False,
         generate_logs: bool = False,
         hyperparameters: dict = None,
-        fast_mode: bool = False
+        fast_mode: bool = False,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -65,6 +67,8 @@ def backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs,
     )
 
 
@@ -84,6 +88,8 @@ def _isolated_backtest(
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
         fast_mode: bool = False,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -147,6 +153,8 @@ def _isolated_backtest(
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs
     )
 
     result = {
@@ -171,6 +179,10 @@ def _isolated_backtest(
         result['hyperparameters'] = backtest_result['hyperparameters']
     if generate_logs:
         result['logs'] = backtest_result['logs']
+    
+    # Always include trades if available (needed for trade-shuffling Monte Carlo)
+    if 'trades' in backtest_result:
+        result['trades'] = backtest_result['trades']
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()
