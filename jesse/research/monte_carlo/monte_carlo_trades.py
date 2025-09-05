@@ -93,7 +93,7 @@ class MonteCarloTradesReturn(TypedDict):
 
 
 @ray.remote
-def ray_run_scenario_monte_carlo(
+def _ray_run_scenario_monte_carlo(
     original_trades: list,
     original_equity_curve: list,
     starting_balance: float,
@@ -253,7 +253,7 @@ def _launch_monte_carlo_scenarios(
 ) -> List[Any]:
     scenario_refs: List[Any] = []
     for i in range(num_scenarios):
-        ref = ray_run_scenario_monte_carlo.remote(
+        ref = _ray_run_scenario_monte_carlo.remote(
             original_trades=trades_ref,
             original_equity_curve=equity_curve_ref,
             starting_balance=starting_balance,
@@ -453,14 +453,14 @@ def _generate_interpretation(confidence_analysis: dict) -> dict:
     }
 
 
-def get_timestamped_filename(base_name: str) -> str:
+def _get_timestamped_filename(base_name: str) -> str:
     """Generate a timestamped filename."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name, ext = os.path.splitext(base_name)
     return f"{name}_{timestamp}{ext}"
 
 
-def create_charts_folder():
+def _create_charts_folder():
     """Create a charts folder for all outputs."""
     folder_path = os.path.abspath("charts")
     os.makedirs(folder_path, exist_ok=True)
@@ -543,8 +543,8 @@ def plot_monte_carlo_trades_chart(results: dict, charts_folder: str = None) -> N
     plt.title("Monte Carlo Trades - Equity Curve (Shuffled Order)")
     plt.xlabel("Time"); plt.ylabel("Portfolio Value"); plt.legend(); plt.grid(True, alpha=0.3); plt.tight_layout()
     if charts_folder is None:
-        charts_folder = create_charts_folder()
-    filename = get_timestamped_filename("monte_carlo_trades_chart.png")
+        charts_folder = _create_charts_folder()
+    filename = _get_timestamped_filename("monte_carlo_trades_chart.png")
     chart_path = os.path.join(charts_folder, filename)
     plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
     print(f"   💾 Trades chart saved: {chart_path}")

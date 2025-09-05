@@ -43,7 +43,7 @@ class MonteCarloCandlesReturn(TypedDict):
 
 
 @ray.remote
-def ray_run_scenario_monte_carlo_candles(
+def _ray_run_scenario_monte_carlo_candles(
     config: dict,
     routes: List[Dict[str, str]],
     data_routes: List[Dict[str, str]],
@@ -150,7 +150,7 @@ def _launch_monte_carlo_candles_scenarios(
 ) -> List[Any]:
     scenario_refs = []
     for i in range(num_scenarios):
-        ref = ray_run_scenario_monte_carlo_candles.remote(
+        ref = _ray_run_scenario_monte_carlo_candles.remote(
             config=shared_objects['config'],
             routes=shared_objects['routes'],
             data_routes=shared_objects['data_routes'],
@@ -217,14 +217,14 @@ def _run_monte_carlo_candles_simulation(
         raise
 
 
-def get_timestamped_filename(base_name: str) -> str:
+def _get_timestamped_filename(base_name: str) -> str:
     """Generate a timestamped filename."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name, ext = os.path.splitext(base_name)
     return f"{name}_{timestamp}{ext}"
 
 
-def create_charts_folder():
+def _create_charts_folder():
     """Create a charts folder for all outputs."""
     folder_path = os.path.abspath("charts")
     os.makedirs(folder_path, exist_ok=True)
@@ -343,8 +343,8 @@ def plot_monte_carlo_candles_chart(results: dict, charts_folder: str = None) -> 
     plt.title("Monte Carlo Candles - Equity Curve")
     plt.legend(); plt.tight_layout()
     if charts_folder is None:
-        charts_folder = create_charts_folder()
-    filename = get_timestamped_filename("monte_carlo_candles_chart.png")
+        charts_folder = _create_charts_folder()
+    filename = _get_timestamped_filename("monte_carlo_candles_chart.png")
     chart_path = os.path.join(charts_folder, filename)
     plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
     print(f"Saved Monte Carlo candles chart to: {chart_path}")
