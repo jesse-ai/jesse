@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, TypedDict
 import ray
 from multiprocessing import cpu_count
 import numpy as np
@@ -18,6 +18,73 @@ from .common import (
     _setup_progress_bar,
     _process_scenario_results,
 )
+
+# ============================================================================
+# Typed return structures for clearer docs and IDE support
+# ============================================================================
+class EquityCurvePoint(TypedDict):
+    time: int
+    value: float
+
+class EquityCurveSeries(TypedDict):
+    name: str  # 'Portfolio'
+    data: List[EquityCurvePoint]
+
+class MonteCarloTradeScenarioResult(TypedDict, total=False):
+    # Metrics reconstructed from shuffled trades
+    total_return: float
+    final_value: float
+    max_drawdown: float
+    volatility: float
+    sharpe_ratio: float
+    calmar_ratio: float
+    starting_balance: float
+    # Added by ray_run_scenario_monte_carlo
+    trades: List[Dict[str, Any]]
+    equity_curve: List[EquityCurveSeries]
+
+class ConfidenceIntervalBounds(TypedDict):
+    lower: float
+    upper: float
+
+class ConfidenceIntervals(TypedDict):
+    _90: ConfidenceIntervalBounds  # stored as '90%'
+    _95: ConfidenceIntervalBounds  # stored as '95%'
+
+class MetricPercentiles(TypedDict):
+    _5th: float  # stored as '5th'
+    _25th: float  # stored as '25th'
+    _50th: float  # stored as '50th'
+    _75th: float  # stored as '75th'
+    _95th: float  # stored as '95th'
+
+class SimulationAggregate(TypedDict):
+    mean: float
+    std: float
+    min: float
+    max: float
+    count: int
+
+class ConfidenceMetricAnalysis(TypedDict):
+    original: float
+    simulations: SimulationAggregate
+    percentiles: Dict[str, float]
+    confidence_intervals: Dict[str, ConfidenceIntervalBounds]
+    p_value: float
+    is_significant_5pct: bool
+    is_significant_1pct: bool
+
+class ConfidenceAnalysis(TypedDict):
+    summary: Dict[str, int]
+    metrics: Dict[str, ConfidenceMetricAnalysis]
+    interpretation: Dict[str, Any]
+
+class MonteCarloTradesReturn(TypedDict):
+    original: Dict[str, Any]
+    scenarios: List[MonteCarloTradeScenarioResult]
+    confidence_analysis: ConfidenceAnalysis
+    num_scenarios: int
+    total_requested: int
 
 
 @ray.remote
@@ -59,7 +126,7 @@ def monte_carlo_trades(
     num_scenarios: int = 1000,
     progress_bar: bool = False,
     cpu_cores: Optional[int] = None,
-) -> dict:
+) -> MonteCarloTradesReturn:
     if cpu_cores is None:
         available_cores = cpu_count()
         cpu_cores = max(MIN_CPU_CORES, int(available_cores * DEFAULT_CPU_USAGE_RATIO))
@@ -115,7 +182,6 @@ def _run_monte_carlo_simulation(
         print(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
         confidence_analysis = _calculate_confidence_intervals(original_result, results)
         return {
-            'type': 'monte_carlo',
             'original': original_result,
             'scenarios': results,
             'confidence_analysis': confidence_analysis,

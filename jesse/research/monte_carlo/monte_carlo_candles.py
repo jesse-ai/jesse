@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, TypedDict
 import ray
 from multiprocessing import cpu_count
 import jesse.helpers as jh
@@ -11,6 +11,29 @@ from .common import (
     _process_scenario_results,
     _create_ray_shared_objects,
 )
+
+# ============================================================================
+# Typed return structures for candles-based Monte Carlo
+# ============================================================================
+class EquityCurvePoint(TypedDict):
+    time: int
+    value: float
+
+class EquityCurveSeries(TypedDict):
+    name: str
+    data: List[EquityCurvePoint]
+
+class MonteCarloCandlesScenarioResult(TypedDict, total=False):
+    scenario_index: int
+    metrics: Dict[str, Any]  # Backtest metrics dict
+    equity_curve: List[EquityCurveSeries]
+    trades: List[Dict[str, Any]]
+
+class MonteCarloCandlesReturn(TypedDict):
+    original: MonteCarloCandlesScenarioResult | None
+    scenarios: List[MonteCarloCandlesScenarioResult]
+    num_scenarios: int
+    total_requested: int
 
 
 @ray.remote
@@ -82,7 +105,7 @@ def monte_carlo_candles(
     candles_pipeline_class = None,
     candles_pipeline_kwargs: Optional[dict] = None,
     cpu_cores: Optional[int] = None,
-) -> dict:
+) -> MonteCarloCandlesReturn:
     if cpu_cores is None:
         available_cores = cpu_count()
         cpu_cores = max(MIN_CPU_CORES, int(available_cores * DEFAULT_CPU_USAGE_RATIO))
@@ -178,7 +201,6 @@ def _run_monte_carlo_candles_simulation(
         simulation_results = [r for r in valid_results if r.get('scenario_index', -1) > 0]
         
         return {
-            'type': 'monte_carlo_candles',
             'original': original_result,
             'scenarios': simulation_results,
             'num_scenarios': len(simulation_results),
