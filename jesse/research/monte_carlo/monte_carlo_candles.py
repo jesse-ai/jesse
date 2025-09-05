@@ -2,9 +2,6 @@ from typing import List, Dict, Optional, Tuple, Any, TypedDict
 import ray
 from multiprocessing import cpu_count
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
-from matplotlib import pyplot as plt
 import os
 from datetime import datetime
 import jesse.helpers as jh
@@ -323,6 +320,10 @@ def plot_monte_carlo_candles_chart(results: dict, charts_folder: str = None) -> 
         results: The full results dict returned by monte_carlo_candles(). Must contain 'original' and 'scenarios'.
         charts_folder: Optional folder to save charts in.
     """
+    import matplotlib
+    matplotlib.use('Agg')  # Use non-interactive backend
+    from matplotlib import pyplot as plt
+    
     if not results or 'scenarios' not in results or not results['scenarios']:
         print("No simulation results to plot")
         return
