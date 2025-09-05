@@ -1,6 +1,12 @@
 from typing import List, Dict, Optional, Tuple, Any, TypedDict
 import ray
 from multiprocessing import cpu_count
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+from matplotlib import pyplot as plt
+import os
+from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
 
@@ -209,5 +215,138 @@ def _run_monte_carlo_candles_simulation(
     except Exception as e:
         print(f"Error during Monte Carlo candles simulation: {e}")
         raise
+
+
+def get_timestamped_filename(base_name: str) -> str:
+    """Generate a timestamped filename."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name, ext = os.path.splitext(base_name)
+    return f"{name}_{timestamp}{ext}"
+
+
+def create_charts_folder():
+    """Create a charts folder for all outputs."""
+    folder_path = os.path.abspath("charts")
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+
+def print_monte_carlo_candles_summary(results: dict) -> None:
+    """Print a robustness table for Monte Carlo candles scenarios.
+
+    Args:
+        results: The full results dict returned by monte_carlo_candles(). Must contain 'original' and 'scenarios'.
+    """
+    if not results or 'scenarios' not in results or not results['scenarios']:
+        print("❌ No simulation results to summarize")
+        return
+    original_result = results.get('original')
+    simulation_results = results.get('scenarios', [])
+    valid_simulations = [r for r in simulation_results if r.get('metrics')]
+    if not valid_simulations:
+        print("❌ No valid simulation results with metrics to summarize")
+        return
+    important_metrics = [
+        'net_profit_percentage', 'max_drawdown', 'sharpe_ratio', 'win_rate', 
+        'total', 'annual_return', 'calmar_ratio', 'expectancy_percentage'
+    ]
+    if original_result and original_result.get('metrics'):
+        available_metrics = list(original_result['metrics'].keys())
+    else:
+        for r in valid_simulations:
+            available_metrics = list(r['metrics'].keys())
+            break
+        else:
+            print("❌ No metrics found in simulation results")
+            return
+    metric_keys = [m for m in important_metrics if m in available_metrics]
+    values_by_metric: dict[str, list[float]] = {k: [] for k in metric_keys}
+    for r in valid_simulations:
+        m = r.get('metrics', {})
+        for k in metric_keys:
+            v = m.get(k)
+            if isinstance(v, (int, float)) and np.isfinite(v):
+                values_by_metric[k].append(float(v))
+    print(f"\n📈 MONTE CARLO CANDLES (market-path robustness test)")
+    print(f"   Valid scenarios: {len(valid_simulations)}")
+    headers = ["Metric", "Original", "Worst 5%", "Median", "Best 5%"]
+    rows = []
+    for k in metric_keys:
+        vals = values_by_metric.get(k, [])
+        if len(vals) == 0:
+            continue
+        arr = np.array(vals, dtype=float)
+        p5 = np.percentile(arr, 5)
+        p50 = np.percentile(arr, 50)
+        p95 = np.percentile(arr, 95)
+        orig = None
+        if original_result and original_result.get('metrics'):
+            o = original_result['metrics'].get(k)
+            if isinstance(o, (int, float)) and np.isfinite(o):
+                orig = float(o)
+        display_name = k.replace('_', ' ').title()
+        if 'percentage' in k or 'return' in k:
+            orig_disp = f"{orig:.1f}%" if orig is not None else "—"
+            p5_disp = f"{p5:.1f}%"; p50_disp = f"{p50:.1f}%"; p95_disp = f"{p95:.1f}%"
+        elif k == 'max_drawdown':
+            display_name = "Max Drawdown (%)"
+            orig_disp = f"-{abs(orig):.1f}%" if orig is not None else "—"
+            p5_disp = f"-{abs(p5):.1f}%"; p50_disp = f"-{abs(p50):.1f}%"; p95_disp = f"-{abs(p95):.1f}%"
+        elif k in ['sharpe_ratio', 'calmar_ratio']:
+            orig_disp = f"{orig:.2f}" if orig is not None else "—"
+            p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
+        elif k == 'win_rate':
+            display_name = "Win Rate (%)"
+            orig_disp = f"{orig*100:.1f}%" if orig is not None else "—"
+            p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
+        else:
+            orig_disp = f"{orig:.1f}" if orig is not None else "—"
+            p5_disp = f"{p5:.1f}"; p50_disp = f"{p50:.1f}"; p95_disp = f"{p95:.1f}"
+        rows.append([display_name, orig_disp, p5_disp, p50_disp, p95_disp])
+    if not rows:
+        print("❌ No numeric metrics to summarize")
+        return
+    col_widths = [max(len(str(x)) for x in [h] + [r[i] for r in rows]) for i, h in enumerate(headers)]
+    line = " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
+    sep = "-+-".join("-" * w for w in col_widths)
+    print("   " + line); print("   " + sep)
+    for r in rows:
+        print("   " + " | ".join(str(r[i]).ljust(col_widths[i]) for i in range(len(headers))))
+    print(f"\n   📊 Interpretation:")
+    print(f"   • This tests how your strategy performs across different market conditions under resampled candles")
+
+
+def plot_monte_carlo_candles_chart(results: dict, charts_folder: str = None) -> None:
+    """Plot equity curves from Monte Carlo candles results.
+
+    Args:
+        results: The full results dict returned by monte_carlo_candles(). Must contain 'original' and 'scenarios'.
+        charts_folder: Optional folder to save charts in.
+    """
+    if not results or 'scenarios' not in results or not results['scenarios']:
+        print("No simulation results to plot")
+        return
+    original_result = results.get('original')
+    simulation_results = results.get('scenarios', [])
+    print(f"Number of Monte Carlo candles scenarios found: {len(simulation_results)}")
+    for simulation in simulation_results:
+        if "equity_curve" in simulation and simulation["equity_curve"]:
+            for equity_curve in simulation["equity_curve"]:
+                if equity_curve["name"] == "Portfolio":
+                    values = [item["value"] for item in equity_curve["data"]]
+                    plt.plot(values, color="cornflowerblue", alpha=0.5, linewidth=0.8)
+    if original_result and "equity_curve" in original_result and original_result["equity_curve"]:
+        for equity_curve in original_result["equity_curve"]:
+            if equity_curve["name"] == "Portfolio":
+                values = [item["value"] for item in equity_curve["data"]]
+                plt.plot(values, color="green", linewidth=2, label="Original Strategy")
+    plt.title("Monte Carlo Candles - Equity Curve")
+    plt.legend(); plt.tight_layout()
+    if charts_folder is None:
+        charts_folder = create_charts_folder()
+    filename = get_timestamped_filename("monte_carlo_candles_chart.png")
+    chart_path = os.path.join(charts_folder, filename)
+    plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
+    print(f"Saved Monte Carlo candles chart to: {chart_path}")
 
 

@@ -3,6 +3,11 @@ import ray
 from multiprocessing import cpu_count
 import numpy as np
 import random
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+from matplotlib import pyplot as plt
+import os
+from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
 
@@ -446,5 +451,102 @@ def _generate_interpretation(confidence_analysis: dict) -> dict:
         'detailed': interpretations,
         'overall': f"Strategy shows {significance} performance with {len([i for i in interpretations if 'significant' in i['significance']])} out of {len(interpretations)} metrics being statistically significant."
     }
+
+
+def get_timestamped_filename(base_name: str) -> str:
+    """Generate a timestamped filename."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name, ext = os.path.splitext(base_name)
+    return f"{name}_{timestamp}{ext}"
+
+
+def create_charts_folder():
+    """Create a charts folder for all outputs."""
+    folder_path = os.path.abspath("charts")
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+
+def print_monte_carlo_trades_summary(results: dict) -> None:
+    """Print a summary table for Monte Carlo trades scenarios.
+
+    Args:
+        results: The full results dict returned by monte_carlo_trades().
+    """
+    if 'confidence_analysis' not in results:
+        print("No confidence analysis available")
+        return
+    ca = results['confidence_analysis']
+    summary = ca['summary']
+    metrics = ca['metrics']
+    print(f"\n🔀 MONTE CARLO TRADES (trade-order shuffle test)")
+    print(f"   Simulations: {summary['num_simulations']}")
+    headers = ["Metric", "Original", "Worst 5%", "Median", "Best 5%"]
+    rows = []
+    for metric_name, a in metrics.items():
+        if 'original' not in a:
+            continue
+        orig = a['original']
+        sim = a.get('simulations', {})
+        percentiles = a.get('percentiles', {})
+        invariant = (sim.get('std', 0) is not None and sim.get('std', 0) < 1e-12)
+        if invariant:
+            continue
+        p5 = percentiles.get('5th', 0)
+        p50 = percentiles.get('50th', 0)
+        p95 = percentiles.get('95th', 0)
+        display_name = metric_name.replace('_', ' ').title()
+        if display_name == "Total Return":
+            display_name = "Return (%)"
+            orig_display = f"{orig*100:.1f}%"; p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
+        elif display_name == "Max Drawdown":
+            display_name = "Max Drawdown (%)"
+            orig_display = f"{abs(orig):.2f}%"
+            p5_disp = f"{abs(p95)*100:.1f}%"; p50_disp = f"{abs(p50)*100:.1f}%"; p95_disp = f"{abs(p5)*100:.1f}%"
+        elif display_name in ["Sharpe Ratio", "Calmar Ratio"]:
+            orig_display = f"{orig:.2f}"; p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
+        else:
+            orig_display = f"{orig:.2f}" if isinstance(orig, (int, float)) else str(orig)
+            p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
+        rows.append([display_name, orig_display, p5_disp, p50_disp, p95_disp])
+    if rows:
+        col_widths = [max(len(str(x)) for x in [h] + [r[i] for r in rows]) for i, h in enumerate(headers)]
+        line = " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
+        sep = "-+-".join("-" * w for w in col_widths)
+        print("   " + line); print("   " + sep)
+        for r in rows:
+            print("   " + " | ".join(str(r[i]).ljust(col_widths[i]) for i in range(len(headers))))
+        print(f"\n   📊 Interpretation:")
+        print(f"   • This tests whether trade timing affects performance")
+    else:
+        print("No metrics rows to display")
+
+
+def plot_monte_carlo_trades_chart(results: dict, charts_folder: str = None) -> None:
+    """Plot equity curves from Monte Carlo trades results.
+
+    Args:
+        results: The full results dict returned by monte_carlo_trades().
+        charts_folder: Optional folder to save charts in.
+    """
+    if 'scenarios' not in results or not results['scenarios']:
+        print("No trade shuffle scenarios to plot")
+        return
+    plt.figure(figsize=(12, 8))
+    for i, scenario in enumerate(results['scenarios'][:50]):  # Limit to 50 for visibility
+        if 'equity_curve' in scenario and scenario['equity_curve']:
+            values = [item['value'] for item in scenario['equity_curve'][0]['data']]
+            plt.plot(values, color="cornflowerblue", alpha=0.5, linewidth=0.8)
+    if 'original' in results and 'equity_curve' in results['original']:
+        original_values = [item['value'] for item in results['original']['equity_curve'][0]['data']]
+        plt.plot(original_values, color="green", linewidth=2, label="Original Strategy")
+    plt.title("Monte Carlo Trades - Equity Curve (Shuffled Order)")
+    plt.xlabel("Time"); plt.ylabel("Portfolio Value"); plt.legend(); plt.grid(True, alpha=0.3); plt.tight_layout()
+    if charts_folder is None:
+        charts_folder = create_charts_folder()
+    filename = get_timestamped_filename("monte_carlo_trades_chart.png")
+    chart_path = os.path.join(charts_folder, filename)
+    plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
+    print(f"   💾 Trades chart saved: {chart_path}")
 
 
