@@ -15,6 +15,21 @@ def register_custom_exception_handler() -> None:
             sync_publish('termination', {})
             jh.terminate_app()
         else:
+            # Capture exception in PostHog if available
+            try:
+                from jesse.services.posthog import get_posthog_service
+                svc = get_posthog_service()
+                if svc._client is not None:  # Only if PostHog is initialized
+                    ctx = {
+                        'source': 'thread_exception_handler',
+                        'thread_name': threading.current_thread().name,
+                        'traceback': str(traceback.format_exc())
+                    }
+                    svc.capture_exception(args.exc_value, ctx)
+            except Exception:
+                # Don't let PostHog errors affect the main exception handling
+                pass
+
             # send notifications if it's a live session
             if jh.is_live():
                 jesse_logger.error(

@@ -264,6 +264,7 @@ from jesse.controllers.config_controller import router as config_router
 from jesse.controllers.notification_controller import router as notification_router
 from jesse.controllers.system_controller import router as system_router
 from jesse.controllers.file_controller import router as file_router
+from jesse.controllers.analytics_controller import router as analytics_router
 
 # register routers
 fastapi_app.include_router(websocket_router)
@@ -277,6 +278,7 @@ fastapi_app.include_router(config_router)
 fastapi_app.include_router(notification_router)
 fastapi_app.include_router(system_router)
 fastapi_app.include_router(file_router)
+fastapi_app.include_router(analytics_router)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #

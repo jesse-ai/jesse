@@ -1,7 +1,8 @@
 from typing import List, Dict, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 fastapi_app = FastAPI()
@@ -17,6 +18,36 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@fastapi_app.middleware("http")
+async def posthog_exception_autocapture(request: Request, call_next):
+    """
+    Middleware to capture exceptions and forward them to PostHog for error tracking.
+    This ensures that FastAPI-handled exceptions are captured by PostHog.
+    """
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        try:
+            from jesse.services.posthog import get_posthog_service
+            svc = get_posthog_service()
+
+            if svc._client is not None:
+                ctx = {
+                    "path": request.url.path,
+                    "method": request.method,
+                    "query_params": str(request.query_params),
+                    "headers": dict(request.headers)
+                }
+
+                # Capture to PostHog
+                svc.capture_exception(exc, ctx)
+                svc.flush()
+        except Exception:
+            # Swallow PostHog failures; don't affect normal error path
+            pass
+        raise
 
 
 class BacktestRequestJson(BaseModel):
