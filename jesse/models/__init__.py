@@ -11,3 +11,4 @@ from .Log import Log
 # from .DailyBalance import DailyBalance
 from .NotificationApiKeys import NotificationApiKeys
 from .ExchangeApiKeys import ExchangeApiKeys
+from .FundingRate import FundingRate

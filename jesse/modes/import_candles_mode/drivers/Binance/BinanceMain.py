@@ -124,6 +124,38 @@ class BinanceMain(CandleExchange):
 
         return [jh.dashy_symbol(d['symbol']) for d in data['symbols']]
 
+    def get_funding_rate(self, symbol: str, start_time: int = None, limit: int = 100) -> list:
+        if 'spot' in self.name.lower():
+            raise Exception('get_funding_rate is only supported for futures trading on Binance.')
+        dashless_symbol = jh.dashless_symbol(symbol)
+
+        payload = {
+            'symbol': dashless_symbol,
+            'limit': int(limit),
+        }
+
+        if start_time is not None:
+            payload['startTime'] = int(start_time)
+
+        # Funding rates live under the futures endpoints (v1)
+        url = self.endpoint + self._prefix_address + '/fundingRate'
+
+        response = self._make_request(url, params=payload)
+
+        self.validate_response(response)
+
+        data = response.json()
+
+        # convert types
+        for item in data:
+            item['fundingTime'] = int(item.get('fundingTime'))
+            item['fundingRate'] = str(item.get('fundingRate'))
+            # markPrice may be missing in some responses
+            if 'markPrice' in item:
+                item['markPrice'] = str(item.get('markPrice'))
+
+        return data
+
     @property
     def _prefix_address(self):
         if self.name.startswith('Binance Perpetual Futures'):
