@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 import numpy as np
 
@@ -10,6 +10,7 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
+from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.store import store
@@ -73,6 +74,9 @@ class Strategy(ABC):
 
         # Add cached price
         self._cached_price = None
+
+    def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
+        return None
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
@@ -1237,7 +1241,7 @@ class Strategy(ABC):
 
         # validate that the price (second column) is not less or equal to zero
         if arr[:, 1].min() <= 0:
-            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \n{var}')
+            raise exceptions.InvalidStrategy(f'Order price must be greater than zero: \nSubmitted order: {var}\nCurrent price: {self.price}\nCurrent time: {jh.timestamp_to_time(self.time)}')
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
