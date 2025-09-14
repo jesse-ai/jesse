@@ -3,6 +3,7 @@ from time import sleep
 from typing import List, Dict, Union, Optional
 
 import numpy as np
+from gymnasium import spaces
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -74,6 +75,9 @@ class Strategy(ABC):
 
         # Add cached price
         self._cached_price = None
+
+        # Reinforcement Learning
+        self.current_action = None
 
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
@@ -249,6 +253,9 @@ class Strategy(ABC):
         self._is_handling_updated_order = True
 
         self._handle_executed_order_for_chart(order)
+
+        # Check RL agent action after position update
+        self._check_agent_action()
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:
@@ -757,6 +764,9 @@ class Strategy(ABC):
         if jh.is_live() and jh.is_debuggable('strategy_execution'):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
+        # Check RL agent action
+        self._check_agent_action()
+
         # should cancel entry?
         if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
             self._execute_cancel()
@@ -1033,6 +1043,10 @@ class Strategy(ABC):
         if len(self.entry_orders):
             self._execute_cancel()
             logger.info('Canceled open-position orders because we reached the end of the backtest session.')
+
+        # Set episode done flag when training for RL
+        if jh.is_backtesting():
+            store.rl.set_done(True)
 
         self.terminate()
 
@@ -1482,3 +1496,89 @@ class Strategy(ABC):
             raise ValueError('self.min_qty is only available in live modes')
 
         return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # Reinforcement Learning Methods
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    def get_observation_space(self) -> spaces.Space:
+        """
+        Define the observation space for the RL agent.
+        This should be implemented in the strategy.
+        
+        Returns:
+            gym.spaces.Space: The observation space
+        """
+        # Default implementation - should be overridden in strategy
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
+
+    def get_action_space(self) -> spaces.Space:
+        """
+        Define the action space for the RL agent.
+        This should be implemented in the strategy.
+        
+        Returns:
+            gym.spaces.Space: The action space
+        """
+        # Default implementation - should be overridden in strategy
+        # 0: hold, 1: buy, 2: sell
+        return spaces.Discrete(3)
+
+    def get_observation(self) -> np.ndarray:
+        """
+        Get current observation for the RL agent.
+        This should be implemented in the strategy.
+        
+        Returns:
+            np.ndarray: Current observation
+        """
+        # Default implementation - should be overridden in strategy
+        return np.zeros(10, dtype=np.float32)
+
+    def calculate_reward(self) -> float:
+        """
+        Calculate reward for the RL agent.
+        This should be implemented in the strategy.
+        
+        Returns:
+            float: Calculated reward
+        """
+        # Default implementation - should be overridden in strategy
+        return 0.0
+
+    def _check_agent_action(self) -> None:
+        """
+        Check and execute RL agent action if available.
+        This method is called during strategy execution.
+        """
+        if not jh.is_backtesting() or not store.rl.has_action():
+            return
+        
+        # Get action from RL agent
+        self.current_action = store.rl.get_action()
+        
+        # Update observation and reward
+        observation = self.get_observation()
+        reward = self.calculate_reward()
+        
+        # Check if episode should end based on strategy logic
+        episode_done = self.is_rl_episode_done()
+        
+        store.rl.set_observation(observation)
+        store.rl.set_reward(reward)
+        store.rl.set_done(episode_done)
+        store.rl.increment_step()
+        
+        # Clear action after processing
+        store.rl.clear_action()
+
+    def is_rl_episode_done(self) -> bool:
+        """
+        Check if RL episode should end.
+        This can be overridden in the strategy.
+        
+        Returns:
+            bool: Whether episode should end
+        """
+        # Default implementation - episode ends when position is closed
+        return False

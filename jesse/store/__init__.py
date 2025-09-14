@@ -10,6 +10,7 @@ from .state_logs import LogsState
 from .state_orderbook import OrderbookState
 from .state_orders import OrdersState
 from .state_positions import PositionsState
+from .state_reinforcement_learning import ReinforcementLearningState
 from .state_tickers import TickersState
 from .state_trades import TradesState
 
@@ -80,9 +81,15 @@ class StoreClass:
     exchanges = ExchangesState()
     candles = CandlesState()
     positions = PositionsState()
+    reinforcement_learning = ReinforcementLearningState()
     tickers = TickersState()
     trades = TradesState()
     orderbooks = OrderbookState()
+    
+    @property
+    def rl(self):
+        """Alias for reinforcement_learning"""
+        return self.reinforcement_learning
 
     def __init__(self) -> None:
         self.vars = {}
@@ -104,6 +111,7 @@ class StoreClass:
         self.exchanges = ExchangesState()
         self.candles = CandlesState()
         self.positions = PositionsState()
+        self.reinforcement_learning = ReinforcementLearningState()
         self.tickers = TickersState()
         self.trades = TradesState()
         self.orderbooks = OrderbookState()
