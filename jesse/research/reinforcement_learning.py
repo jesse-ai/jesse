@@ -684,7 +684,7 @@ def train_rl_agent(
         results.append(result)
         
         # Extract trading metrics from completed episodes (skip first few iterations)
-        if i >= 2:  # Start evaluation after a few iterations of learning
+        if i >= 2 and (i + 1) % 10 == 0:  # Start evaluation after a few iterations, then every 10 iterations
             try:
                 eval_metrics = _run_quick_evaluation_episode(trainer, config, routes, data_routes, candles, warmup_candles)
                 episode_trading_metrics.append(eval_metrics)
