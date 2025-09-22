@@ -91,7 +91,7 @@ class Order(Model):
         order_exist = False
         try:
             if order.exchange_id:
-                order_exist = Order.select().where(Order.exchange_id == order.exchange_id).first()
+                order_exist = Order.select().where(Order.exchange_id == str(order.exchange_id)).first()
             if not order_exist and order.id:
                 order_exist = Order.select().where(Order.id == order.id).first()
             # If still not found and we have a short ID, try partial matching
@@ -104,6 +104,7 @@ class Order(Model):
 
         if order_exist:
             # if exist update the order
+            order.id = order_exist.id
             Order.update_order_in_db(order)
             return
 
@@ -138,6 +139,8 @@ class Order(Model):
             d['exchange_id'] = order.exchange_id
         if hasattr(order, 'order_exist_in_exchange'):
             d['order_exist_in_exchange'] = order.order_exist_in_exchange
+        if hasattr(order, 'canceled_at'):
+            d['canceled_at'] = order.canceled_at
 
         try:
             Order.insert(**d).execute()
@@ -148,11 +151,15 @@ class Order(Model):
     def get_order_by_exchange_or_client_id(order_dict):
         exchange_id = order_dict.get('exchange_id') if 'exchange_id' in order_dict else None
         client_id = order_dict.get('client_id') if 'client_id' in order_dict else None
+        order = None
         if exchange_id:
-            return Order.select().where(Order.exchange_id == exchange_id).first()
-        if client_id:
-            return Order.select().where(Order.id == client_id).first()
-        return None
+            order =  Order.select().where(Order.exchange_id == exchange_id).first()
+        if not order and client_id:
+            # In some cases, client_id may be included in order.id (as a substring), so check both exact and partial match
+            order = Order.select().where(Order.id == client_id).first()
+            if not order:
+                order = Order.select().where(Order.id.contains(client_id)).first()
+        return order
 
     @staticmethod
     def find_orders_by_partial_id(partial_id: str, exchange: str = None, symbol: str = None):
@@ -171,28 +178,31 @@ class Order(Model):
 
     @staticmethod
     def update_order_in_db(order):
-        d = {
-            'updated_at': jh.now_to_timestamp(),
-            'status': order.status,
-            'filled_qty': order.filled_qty,
-            'price': order.price,
-            'exchange_id': order.exchange_id,
-        }
+        db_order = Order.select().where(Order.id == order.id).first()
+        if db_order:
+            d = {
+                'updated_at': jh.now_to_timestamp(),
+                'status': order.status,
+                'filled_qty': order.filled_qty,
+                'price': db_order.price if order.price == 0 else order.price,
+                'exchange_id': order.exchange_id,
+            }
 
-        if order.is_executed:
-            d['executed_at'] = getattr(order, 'executed_at', jh.now_to_timestamp())
-        if order.is_canceled:
-            d['canceled_at'] = jh.now_to_timestamp()
-        if order.trade_id:
-            d['trade_id'] = order.trade_id
-        if order.submitted_via:
-            d['submitted_via'] = order.submitted_via
-        if order.qty != 0:
-            d['qty'] = order.qty
-        try:
-            Order.update(**d).where(Order.id == order.id).execute()
-        except Exception as e:
-            jh.dump(f"Error updating order in database: {e}")
+            if order.is_executed:
+                d['executed_at'] = getattr(order, 'executed_at', jh.now_to_timestamp())
+            if order.is_canceled:
+                d['canceled_at'] = jh.now_to_timestamp()
+            if order.trade_id:
+                d['trade_id'] = order.trade_id
+            if order.submitted_via:
+                d['submitted_via'] = order.submitted_via
+            if order.qty != 0:
+                d['qty'] = order.qty
+            try:
+                Order.update(**d).where(Order.id == order.id).execute()
+            except Exception as e:
+                jh.dump(f"Error updating order in database: {e}")
+        
 
     @staticmethod
     def get_session_orders(session_id: str, exchange: str, symbol: str):
@@ -240,13 +250,23 @@ class Order(Model):
             Order.exchange == exchange,
             Order.symbol == symbol).where(
             Order.trade_id !=  None).where(
-            Order.exchange_id ==  None).where(
             Order.order_exist_in_exchange == True).order_by(
             Order.created_at.desc()).first()
             
     @staticmethod
     def get_order_by_trade_id(trade_id):
         return list(Order.select().where(Order.trade_id == trade_id))
+    
+    @staticmethod
+    def delete_order_from_db(order_id):
+        Order.delete().where(Order.id == order_id).execute()
+    
+    @staticmethod
+    def get_simulated_orders(exchange: str, symbol: str, qty: float = None):
+        query = Order.select().where(Order.exchange == exchange, Order.symbol == symbol, Order.order_exist_in_exchange == False)
+        if qty:
+            query = query.where(Order.qty == qty)
+        return list(query.order_by(Order.created_at.desc()))
 
     @property
     def is_canceled(self) -> bool:

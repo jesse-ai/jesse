@@ -116,7 +116,8 @@ class ClosedTrade(peewee.Model):
             ClosedTrade.soft_deleted_at == None).where(
             ClosedTrade.session_mode == 'livetrade').where(
             ClosedTrade.exchange == exchange_name).where(
-            ClosedTrade.symbol == symbol).order_by(
+            ClosedTrade.symbol == symbol).where(
+            ClosedTrade.closed_at == None).order_by(
             ClosedTrade.opened_at.desc()).first()
 
         if trade is None or not is_initial:
@@ -131,9 +132,9 @@ class ClosedTrade(peewee.Model):
             if len(simulated_orders) > 0:
                 for simulated_order in simulated_orders:
                     if simulated_order.side == sides.BUY:
-                        trade.buy_orders.append(np.array([abs(simulated_order.qty), simulated_order.price]))
+                        trade.buy_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
                     elif simulated_order.side == sides.SELL:
-                        trade.sell_orders.append(np.array([abs(simulated_order.qty), simulated_order.price]))
+                        trade.sell_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
                 trade.is_simulated = True
             return trade
         trade.orders = {order.exchange_id: order for order in exchange_orders if order.exchange_id}
