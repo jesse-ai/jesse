@@ -23,6 +23,8 @@ DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_1
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
                          timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+KUCOIN_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1, timeframes.MONTH_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -419,6 +421,48 @@ exchange_info = {
         "type": "futures",
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": HYPERLIQUID_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+    },
+    # KUCOIN_SPOT
+    exchanges_enums.KUCOIN_SPOT: {
+        "name": exchanges_enums.KUCOIN_SPOT,
+        "url": "https://www.kucoin.com/trade",
+        "fee": 0.001,
+        "type": "spot",
+        "supported_leverage_modes": ["cross"],
+        "supported_timeframes": KUCOIN_TIMEFRAMES,
+        "modes": {
+            "backtesting": True,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    # KUCOIN_FUTURES
+    exchanges_enums.KUCOIN_FUTURES: {
+        "name": exchanges_enums.KUCOIN_FUTURES,
+        "url": "https://futures.kucoin.com/trade",
+        "fee": 0.0006,
+        "type": "futures",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KUCOIN_TIMEFRAMES,
+        "modes": {
+            "backtesting": True,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    # KUCOIN_FUTURES_TESTNET
+    exchanges_enums.KUCOIN_FUTURES_TESTNET: {
+        "name": exchanges_enums.KUCOIN_FUTURES_TESTNET,
+        "url": "https://sandbox-futures.kucoin.com/trade",
+        "fee": 0.0006,
+        "type": "futures",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KUCOIN_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": True,
