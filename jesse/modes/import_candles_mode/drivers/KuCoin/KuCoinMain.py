@@ -1,11 +1,9 @@
-import requests
+import ccxt
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
 from .kucoin_utils import timeframe_to_interval
 import time
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 
 class KuCoinMain(CandleExchange):
@@ -23,129 +21,149 @@ class KuCoinMain(CandleExchange):
         )
 
         self.endpoint = rest_endpoint
-        # Setup session with retry strategy
-        self.session = requests.Session()
-        retries = Retry(
-            total=5,
-            backoff_factor=1,
-            status_forcelist=[500, 502, 503, 504],
-        )
-        self.session.mount('http://', HTTPAdapter(max_retries=retries))
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        # Initialize CCXT exchange
+        self.exchange = ccxt.kucoin({
+            'apiKey': '',  # No API key needed for public data
+            'secret': '',
+            'password': '',
+            'sandbox': 'testnet' in name.lower(),
+            'enableRateLimit': True,
+            'timeout': 30000,
+        })
 
-    def _make_request(self, url: str, params: dict = None) -> requests.Response:
-        max_retries = 3
-        retry_delay = 5
+    def _convert_timeframe(self, timeframe: str) -> str:
+        """Convert Jesse timeframe to CCXT timeframe format"""
+        timeframe_map = {
+            '1m': '1m',
+            '3m': '3m', 
+            '5m': '5m',
+            '15m': '15m',
+            '30m': '30m',
+            '1h': '1h',
+            '2h': '2h',
+            '4h': '4h',
+            '6h': '6h',
+            '8h': '8h',
+            '12h': '12h',
+            '1D': '1d',
+            '1W': '1w',
+            '1M': '1M'
+        }
+        
+        if timeframe not in timeframe_map:
+            raise ValueError(f"Unsupported timeframe: {timeframe}")
+        
+        return timeframe_map[timeframe]
 
-        for attempt in range(max_retries):
-            try:
-                response = self.session.get(url, params=params, timeout=30)
-                return response
-            except (requests.exceptions.ConnectionError, OSError) as e:
-                if "ERROR 451" in str(e):
-                    raise Exception(
-                        "Access to this exchange is restricted from your location (HTTP 451). "
-                        "This is likely due to geographic restrictions imposed by the exchange. "
-                        "You may need to use a VPN to change your IP address to a permitted location."
-                    )
-                if "Cannot allocate memory" in str(e):
-                    # Force garbage collection and wait
-                    import gc
-                    gc.collect()
-                    time.sleep(retry_delay * (attempt + 1))
-                    continue
-                raise e
-
-        raise Exception(f"Failed to make request after {max_retries} attempts")
+    def _convert_symbol(self, symbol: str) -> str:
+        """Convert Jesse symbol format to CCXT format"""
+        # Jesse uses BTC-USDT, CCXT uses BTC/USDT
+        return symbol.replace('-', '/')
 
     def get_starting_time(self, symbol: str) -> int:
         """
         Get the earliest available timestamp for a symbol
         """
-        dashless_symbol = jh.dashless_symbol(symbol)
-
-        payload = {
-            'symbol': dashless_symbol,
-            'type': '1day',
-            'startAt': 0,
-            'endAt': int(time.time() * 1000),
-            'limit': 1
-        }
-
-        response = self._make_request(
-            self.endpoint + '/api/v1/market/candles',
-            params=payload
-        )
-
-        self.validate_response(response)
-
-        data = response.json()
-        
-        if not data.get('data') or len(data['data']) == 0:
-            raise ValueError(f"No data available for symbol {symbol}")
-
-        # Get the first available timestamp
-        first_timestamp = int(data['data'][0][0])
-        # Add one day to ensure we have complete 1m data
-        return first_timestamp + 60_000 * 1440
+        try:
+            ccxt_symbol = self._convert_symbol(symbol)
+            
+            # Try to get data from a reasonable start date (2020-01-01)
+            start_date = 1577836800000  # 2020-01-01 00:00:00 UTC
+            
+            # Get the earliest available data
+            ohlcv = self.exchange.fetch_ohlcv(
+                ccxt_symbol, 
+                '1d', 
+                since=start_date, 
+                limit=1
+            )
+            
+            if not ohlcv:
+                # If no data from 2020, try from 2017
+                start_date = 1483228800000  # 2017-01-01 00:00:00 UTC
+                ohlcv = self.exchange.fetch_ohlcv(
+                    ccxt_symbol, 
+                    '1d', 
+                    since=start_date, 
+                    limit=1
+                )
+            
+            if not ohlcv:
+                raise ValueError(f"No data available for symbol {symbol}")
+            
+            # Get the first available timestamp
+            first_timestamp = ohlcv[0][0]
+            # Add one day to ensure we have complete 1m data
+            return first_timestamp + 60_000 * 1440
+            
+        except Exception as e:
+            # If all else fails, return a reasonable default
+            print(f"Warning: Could not get starting time for {symbol}: {str(e)}")
+            return 1577836800000  # 2020-01-01 00:00:00 UTC
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
-        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
-        interval = timeframe_to_interval(timeframe)
-        dashless_symbol = jh.dashless_symbol(symbol)
-
-        payload = {
-            'symbol': dashless_symbol,
-            'type': interval,
-            'startAt': int(start_timestamp),
-            'endAt': int(end_timestamp),
-            'limit': self.count,
-        }
-
-        response = self._make_request(
-            self.endpoint + '/api/v1/market/candles',
-            params=payload
-        )
-
-        self.validate_response(response)
-
-        data = response.json()
-        
-        if not data.get('data'):
+        try:
+            ccxt_symbol = self._convert_symbol(symbol)
+            ccxt_timeframe = self._convert_timeframe(timeframe)
+            
+            # Calculate end timestamp
+            end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
+            
+            # Fetch OHLCV data
+            ohlcv = self.exchange.fetch_ohlcv(
+                ccxt_symbol,
+                ccxt_timeframe,
+                since=start_timestamp,
+                limit=self.count
+            )
+            
+            if not ohlcv:
+                return []
+            
+            # Convert to Jesse format
+            candles = []
+            for candle in ohlcv:
+                candles.append({
+                    'id': jh.generate_unique_id(),
+                    'exchange': self.name,
+                    'symbol': symbol,
+                    'timeframe': timeframe,
+                    'timestamp': int(candle[0]),
+                    'open': float(candle[1]),
+                    'high': float(candle[2]),
+                    'low': float(candle[3]),
+                    'close': float(candle[4]),
+                    'volume': float(candle[5])
+                })
+            
+            return candles
+            
+        except Exception as e:
+            print(f"Error fetching candles for {symbol}: {str(e)}")
             return []
-
-        # KuCoin returns data in reverse chronological order, so we reverse it
-        candles_data = data['data'][::-1]
-        
-        return [{
-            'id': jh.generate_unique_id(),
-            'exchange': self.name,
-            'symbol': symbol,
-            'timeframe': timeframe,
-            'timestamp': int(d[0]),
-            'open': float(d[1]),
-            'close': float(d[2]),
-            'high': float(d[3]),
-            'low': float(d[4]),
-            'volume': float(d[5])
-        } for d in candles_data]
 
     def get_available_symbols(self) -> list:
-        response = self._make_request(self.endpoint + '/api/v1/symbols')
-
-        self.validate_response(response)
-
-        data = response.json()
-
-        if not data.get('data'):
+        try:
+            markets = self.exchange.load_markets()
+            
+            # Filter only trading symbols
+            trading_symbols = []
+            for symbol, market in markets.items():
+                if market.get('active', False) and market.get('type') == 'spot':
+                    # Convert from CCXT format (BTC/USDT) to Jesse format (BTC-USDT)
+                    jesse_symbol = symbol.replace('/', '-')
+                    trading_symbols.append(jesse_symbol)
+            
+            return trading_symbols
+            
+        except Exception as e:
+            print(f"Error getting available symbols: {str(e)}")
             return []
 
-        # Filter only trading symbols
-        trading_symbols = [symbol for symbol in data['data'] if symbol.get('enableTrading', False)]
-        
-        return [jh.dashy_symbol(s['symbol']) for s in trading_symbols]
-
     def __del__(self):
-        """Cleanup method to ensure proper session closure"""
-        if hasattr(self, 'session'):
-            self.session.close()
+        """Cleanup method"""
+        if hasattr(self, 'exchange'):
+            try:
+                self.exchange.close()
+            except:
+                pass
