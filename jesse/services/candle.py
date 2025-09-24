@@ -86,14 +86,14 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
     o = candle[1]
     c = candle[2]
     h = candle[3]
-    l = candle[4]
+    low = candle[4]
     v = candle[5]
 
-    if is_bullish(candle) and l < price < o:
+    if is_bullish(candle) and low < price < o:
         return np.array([
             timestamp, o, price, o, price, v
         ]), np.array([
-            timestamp, price, c, h, l, v
+            timestamp, price, c, h, low, v
         ])
     elif price == o:
         return candle, candle
@@ -101,17 +101,17 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
         return np.array([
             timestamp, o, price, price, o, v
         ]), np.array([
-            timestamp, price, c, h, l, v
+            timestamp, price, c, h, low, v
         ])
-    elif is_bearish(candle) and l < price < c:
+    elif is_bearish(candle) and low < price < c:
         return np.array([
             timestamp, o, price, h, price, v
         ]), np.array([
-            timestamp, price, c, c, l, v
+            timestamp, price, c, c, low, v
         ])
     elif is_bullish(candle) and c < price < h:
         return np.array([
-            timestamp, o, price, price, l, v
+            timestamp, o, price, price, low, v
         ]), np.array([
             timestamp, price, c, h, c, v
         ]),
@@ -119,11 +119,11 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
         return np.array([
             timestamp, o, c, h, c, v
         ]), np.array([
-            timestamp, price, price, price, l, v
+            timestamp, price, price, price, low, v
         ])
     elif is_bullish(candle) and price == c:
         return np.array([
-            timestamp, o, c, c, l, v
+            timestamp, o, c, c, low, v
         ]), np.array([
             timestamp, price, price, h, price, v
         ])
@@ -131,23 +131,23 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
         return np.array([
             timestamp, o, h, h, o, v
         ]), np.array([
-            timestamp, h, c, h, l, v
+            timestamp, h, c, h, low, v
         ])
-    elif is_bullish(candle) and price == l:
+    elif is_bullish(candle) and price == low:
         return np.array([
-            timestamp, o, l, o, l, v
+            timestamp, o, low, o, low, v
         ]), np.array([
-            timestamp, l, c, h, l, v
+            timestamp, low, c, h, low, v
         ])
-    elif is_bearish(candle) and price == l:
+    elif is_bearish(candle) and price == low:
         return np.array([
-            timestamp, o, l, h, l, v
+            timestamp, o, low, h, low, v
         ]), np.array([
-            timestamp, l, c, c, l, v
+            timestamp, low, c, c, low, v
         ])
     elif is_bullish(candle) and price == h:
         return np.array([
-            timestamp, o, h, h, l, v
+            timestamp, o, h, h, low, v
         ]), np.array([
             timestamp, h, c, h, c, v
         ])
@@ -155,11 +155,11 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
         return np.array([
             timestamp, o, price, h, price, v
         ]), np.array([
-            timestamp, price, c, price, l, v
+            timestamp, price, c, price, low, v
         ])
     elif is_bullish(candle) and o < price < c:
         return np.array([
-            timestamp, o, price, price, l, v
+            timestamp, o, price, price, low, v
         ]), np.array([
             timestamp, price, c, h, price, v
         ])
@@ -212,6 +212,13 @@ def get_candles(
         is_for_jesse: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     symbol = symbol.upper()
+
+    # Check if this is a CSV data source
+    if exchange.lower() == 'custom':
+        return _get_csv_candles(
+            symbol, timeframe, start_date_timestamp, finish_date_timestamp, 
+            warmup_candles_num, is_for_jesse
+        )
 
     # convert start_date and finish_date to timestamps
     trading_start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor(
@@ -271,7 +278,6 @@ def _get_candles_from_db(
     # validate finish_date is not in the future
     current_timestamp = arrow.utcnow().int_timestamp * 1000
     if finish_date_timestamp > current_timestamp:
-        today_str = jh.timestamp_to_date(current_timestamp)
         yesterday_date = jh.timestamp_to_date(current_timestamp - 86400000)
         raise InvalidDateRange(f'The finish date "{jh.timestamp_to_time(finish_date_timestamp)[:19]}" cannot be in the future. Please select a date up to "{yesterday_date}".')
 
@@ -396,3 +402,72 @@ def delete_candles(exchange: str, symbol: str) -> None:
         Candle.exchange == exchange,
         Candle.symbol == symbol
     ).execute()
+
+
+def _get_csv_candles(
+        symbol: str,
+        timeframe: str,
+        start_date_timestamp: int,
+        finish_date_timestamp: int,
+        warmup_candles_num: int = 0,
+        is_for_jesse: bool = False
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Get candles from CSV data source.
+    
+    Args:
+        symbol: Symbol name
+        timeframe: Timeframe
+        start_date_timestamp: Start timestamp in milliseconds
+        finish_date_timestamp: Finish timestamp in milliseconds
+        warmup_candles_num: Number of warmup candles
+        is_for_jesse: Whether this is for Jesse framework
+        
+    Returns:
+        Tuple of (warmup_candles, trading_candles)
+    """
+    from jesse.services.csv_data_provider import csv_data_provider
+    
+    try:
+        # Get candles from CSV data provider
+        candles = csv_data_provider.get_candles(
+            symbol=symbol,
+            timeframe=timeframe,
+            start_date=start_date_timestamp,
+            finish_date=finish_date_timestamp
+        )
+        
+        if candles is None or len(candles) == 0:
+            return None, None
+        
+        # Convert to numpy array if needed
+        if not isinstance(candles, np.ndarray):
+            candles = np.array(candles)
+        
+        # Calculate warmup candles if needed
+        warmup_candles = None
+        if warmup_candles_num > 0:
+            # Calculate warmup period
+            warmup_period_ms = warmup_candles_num * jh.timeframe_to_one_minutes(timeframe) * 60_000
+            warmup_start = start_date_timestamp - warmup_period_ms
+            
+            # Get warmup candles
+            warmup_candles = csv_data_provider.get_candles(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=warmup_start,
+                finish_date=start_date_timestamp - 1
+            )
+            
+            if warmup_candles is not None and len(warmup_candles) > 0:
+                if not isinstance(warmup_candles, np.ndarray):
+                    warmup_candles = np.array(warmup_candles)
+            else:
+                warmup_candles = None
+        
+        return warmup_candles, candles
+        
+    except Exception as e:
+        from jesse.services import logger
+        logger.error(f"Error getting CSV candles for {symbol}: {e}")
+        return None, None

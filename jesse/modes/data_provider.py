@@ -5,6 +5,7 @@ import peewee
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
 from jesse.info import live_trading_exchanges, backtesting_exchanges
+from jesse.services.csv_data_provider import csv_data_provider
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -78,6 +79,77 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             'volume': c[5],
         } for c in candles
     ]
+
+
+def get_csv_candles(exchange: str, symbol: str, timeframe: str, start_date: int = None, finish_date: int = None):
+    """
+    Get candles from CSV data source.
+    
+    Args:
+        exchange: Exchange name (should be 'custom' for CSV data)
+        symbol: Symbol name
+        timeframe: Timeframe
+        start_date: Start timestamp in milliseconds (optional)
+        finish_date: Finish timestamp in milliseconds (optional)
+        
+    Returns:
+        List of candle dictionaries or empty list if failed
+    """
+    try:
+        # Get candles from CSV data provider
+        candles = csv_data_provider.get_candles(symbol, timeframe, start_date, finish_date)
+        
+        if candles is None or len(candles) == 0:
+            return []
+        
+        # Convert to Jesse format
+        return [
+            {
+                'time': int(c[0] / 1000),
+                'open': c[1],
+                'close': c[2],
+                'high': c[3],
+                'low': c[4],
+                'volume': c[5],
+            } for c in candles
+        ]
+        
+    except Exception as e:
+        from jesse.services import logger
+        logger.error(f"Error getting CSV candles for {symbol}: {e}")
+        return []
+
+
+def get_available_csv_symbols():
+    """
+    Get list of available symbols from CSV data.
+    
+    Returns:
+        List of symbol names
+    """
+    return csv_data_provider.get_available_symbols()
+
+
+def import_csv_symbol_to_database(symbol: str, timeframe: str = "1m", 
+                                exchange: str = "custom",
+                                start_date: int = None, 
+                                finish_date: int = None):
+    """
+    Import a CSV symbol to Jesse database.
+    
+    Args:
+        symbol: Symbol name
+        timeframe: Timeframe
+        exchange: Exchange name
+        start_date: Start timestamp in milliseconds (optional)
+        finish_date: Finish timestamp in milliseconds (optional)
+        
+    Returns:
+        bool: True if imported successfully, False otherwise
+    """
+    return csv_data_provider.save_candles_to_database(
+        symbol, timeframe, exchange, start_date, finish_date
+    )
 
 
 def get_config(client_config: dict, has_live=False) -> dict:
