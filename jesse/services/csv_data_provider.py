@@ -30,10 +30,10 @@ class CSVDataProvider:
         
     def get_available_symbols(self) -> List[str]:
         """
-        Get list of available symbols from data directory.
+        Get list of available symbols in SYMBOL-USDT format.
         
         Returns:
-            List of symbol names
+            List of symbol names in SYMBOL-USDT format
         """
         if not os.path.exists(self.data_directory):
             return []
@@ -45,7 +45,8 @@ class CSVDataProvider:
                 # Check if price.csv exists in the directory
                 price_file = os.path.join(item_path, "price.csv")
                 if os.path.exists(price_file):
-                    symbols.append(item)
+                    # Return symbols in SYMBOL-USDT format for Jesse compatibility
+                    symbols.append(f"{item}-USDT")
                     
         return sorted(symbols)
     
@@ -54,12 +55,23 @@ class CSVDataProvider:
         Get information about a symbol's data.
         
         Args:
-            symbol: Symbol name
+            symbol: Symbol name (e.g., 'ACH' or 'ACH-USDT')
             
         Returns:
             Dictionary with symbol information or None if not found
         """
-        price_file = os.path.join(self.data_directory, symbol, "price.csv")
+        # Remove common suffixes from symbol for file lookup
+        csv_symbol = symbol
+        if symbol.endswith('-USDT'):
+            csv_symbol = symbol.replace('-USDT', '')
+        elif symbol.endswith('-USDC'):
+            csv_symbol = symbol.replace('-USDC', '')
+        elif symbol.endswith('-BTC'):
+            csv_symbol = symbol.replace('-BTC', '')
+        elif symbol.endswith('-ETH'):
+            csv_symbol = symbol.replace('-ETH', '')
+        
+        price_file = os.path.join(self.data_directory, csv_symbol, "price.csv")
         
         if not os.path.exists(price_file):
             return None
@@ -67,7 +79,8 @@ class CSVDataProvider:
         try:
             # Read first and last lines to get time range
             with open(price_file, 'r') as f:
-                first_line = f.readline().strip()
+                first_line = f.readline().strip()  # Skip header
+                first_line = f.readline().strip()  # Get first data line
                 f.seek(0, 2)  # Go to end of file
                 file_size = f.tell()
                 
@@ -80,9 +93,9 @@ class CSVDataProvider:
             first_parts = first_line.split(',')
             last_parts = last_line.split(',')
             
-            if len(first_parts) >= 2 and len(last_parts) >= 2:
-                start_time = int(first_parts[1])  # timestamp is in second column
-                end_time = int(last_parts[1])
+            if len(first_parts) >= 1 and len(last_parts) >= 1:
+                start_time = int(first_parts[0])  # timestamp is in first column
+                end_time = int(last_parts[0])
                 
                 return {
                     'symbol': symbol,
@@ -105,22 +118,33 @@ class CSVDataProvider:
         Load tick data for a symbol.
         
         Args:
-            symbol: Symbol name
+            symbol: Symbol name (e.g., 'ACH' or 'ACH-USDT')
             start_date: Start timestamp in milliseconds (optional)
             finish_date: Finish timestamp in milliseconds (optional)
             
         Returns:
             DataFrame with tick data or None if failed
         """
-        price_file = os.path.join(self.data_directory, symbol, "price.csv")
+        # Remove common suffixes from symbol for file lookup
+        csv_symbol = symbol
+        if symbol.endswith('-USDT'):
+            csv_symbol = symbol.replace('-USDT', '')
+        elif symbol.endswith('-USDC'):
+            csv_symbol = symbol.replace('-USDC', '')
+        elif symbol.endswith('-BTC'):
+            csv_symbol = symbol.replace('-BTC', '')
+        elif symbol.endswith('-ETH'):
+            csv_symbol = symbol.replace('-ETH', '')
+        
+        price_file = os.path.join(self.data_directory, csv_symbol, "price.csv")
         
         if not os.path.exists(price_file):
             logger.error(f"Price file not found for symbol {symbol}: {price_file}")
             return None
             
         try:
-            # Read CSV file
-            df = pd.read_csv(price_file, names=['timestamp', 'price', 'volume'])
+            # Read CSV file (skip header row)
+            df = pd.read_csv(price_file, names=['timestamp', 'price', 'volume'], skiprows=1)
             
             # Filter by date range if specified
             if start_date is not None:
@@ -186,7 +210,7 @@ class CSVDataProvider:
         Get candles for a symbol and timeframe.
         
         Args:
-            symbol: Symbol name
+            symbol: Symbol name (e.g., 'ACH' or 'ACH-USDT')
             timeframe: Timeframe
             start_date: Start timestamp in milliseconds (optional)
             finish_date: Finish timestamp in milliseconds (optional)
@@ -222,7 +246,7 @@ class CSVDataProvider:
         Save candles to Jesse database.
         
         Args:
-            symbol: Symbol name
+            symbol: Symbol name (e.g., 'ACH' or 'ACH-USDT')
             timeframe: Timeframe
             exchange: Exchange name
             start_date: Start timestamp in milliseconds (optional)
@@ -240,41 +264,66 @@ class CSVDataProvider:
         try:
             from jesse.services.db import database
             from jesse.models.Candle import Candle
+            import os
+            
+            # Ensure we're in a Jesse project directory
+            if not jh.is_jesse_project():
+                # Try to find Jesse project directory
+                current_dir = os.getcwd()
+                if 'project-template' in current_dir:
+                    # We're already in the right place
+                    pass
+                else:
+                    # Try to change to project-template directory
+                    project_template_dir = '/Users/alxy/Desktop/1PROJ/JesseLocal/project-template'
+                    if os.path.exists(project_template_dir):
+                        os.chdir(project_template_dir)
             
             database.open_connection()
             
             # Clear existing data for this exchange/symbol/timeframe
             Candle.delete().where(
-                (Candle.exchange == exchange) &
+                (Candle.exchange == 'custom') &
                 (Candle.symbol == symbol) &
                 (Candle.timeframe == timeframe)
             ).execute()
             
-            # Insert new data
-            candles_to_insert = []
-            for candle in candles:
-                candles_to_insert.append({
-                    'id': jh.generate_unique_id(),
-                    'timestamp': int(candle[0]),
-                    'open': float(candle[1]),
-                    'close': float(candle[2]),
-                    'high': float(candle[3]),
-                    'low': float(candle[4]),
-                    'volume': float(candle[5]),
-                    'exchange': exchange,
-                    'symbol': symbol,
-                    'timeframe': timeframe
-                })
+            # Insert new data in batches to avoid connection timeout
+            batch_size = 1000  # Insert 1000 candles at a time
+            total_candles = len(candles)
             
-            # Batch insert
-            Candle.insert_many(candles_to_insert).execute()
+            for i in range(0, total_candles, batch_size):
+                batch_candles = candles[i:i + batch_size]
+                candles_to_insert = []
+                
+                for candle in batch_candles:
+                    candles_to_insert.append({
+                        'id': jh.generate_unique_id(),
+                        'timestamp': int(candle[0]),
+                        'open': float(candle[1]),
+                        'close': float(candle[2]),
+                        'high': float(candle[3]),
+                        'low': float(candle[4]),
+                        'volume': float(candle[5]),
+                        'exchange': 'custom',
+                        'symbol': symbol,
+                        'timeframe': timeframe
+                    })
+                
+                # Insert batch
+                Candle.insert_many(candles_to_insert).execute()
+                print(f"   📊 Вставлено {min(i + batch_size, total_candles)} из {total_candles} свечей")
             
             database.close_connection()
             logger.info(f"Successfully saved {len(candles_to_insert)} candles to database")
             return True
             
         except Exception as e:
+            print(f"❌ Error saving candles to database: {e}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
             logger.error(f"Error saving candles to database: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     def get_available_timeframes(self, symbol: str) -> List[str]:
@@ -297,7 +346,7 @@ class CSVDataProvider:
 
 
 # Global instance
-csv_data_provider = CSVDataProvider()
+csv_data_provider = CSVDataProvider(data_directory="/Users/alxy/Downloads/Fond/KucoinData")
 
 
 def get_csv_candles(symbol: str, timeframe: str = "1m",

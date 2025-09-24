@@ -23,6 +23,8 @@ from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTes
 from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpot import KuCoinSpot
 from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinFutures import KuCoinFutures
 from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinFuturesTestnet import KuCoinFuturesTestnet
+# Custom CSV imports
+from jesse.modes.import_candles_mode.drivers.Custom.CustomCSV import CustomCSV
 
 
 drivers = {
@@ -52,6 +54,8 @@ drivers = {
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+    # Custom CSV
+    exchanges.CUSTOM_CSV: CustomCSV,
 }
 
 

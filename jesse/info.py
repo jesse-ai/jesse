@@ -469,6 +469,19 @@ exchange_info = {
         },
         "required_live_plan": "free",
     },
+    exchanges_enums.CUSTOM_CSV: {
+        "name": exchanges_enums.CUSTOM_CSV,
+        "url": "https://jesse.trade",
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": False,
+        },
+        "required_live_plan": "free",
+    },
 }
 
 # list of supported exchanges for backtesting
