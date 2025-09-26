@@ -25,8 +25,9 @@ def run(
         exchange: str,
         symbol: str,
         start_date_str: str,
+        end_date_str: str = None,
         mode: str = 'candles',
-        running_via_dashboard: bool = True,
+        running_via_dashboard: bool = False,
         show_progressbar: bool = False,
 ):
     if running_via_dashboard:
@@ -51,7 +52,7 @@ def run(
 
     try:
         start_timestamp = jh.arrow_to_timestamp(arrow.get(start_date_str, 'YYYY-MM-DD'))
-    except:
+    except Exception:
         raise ValueError(
             f'start_date must be a string representing a date before today. ex: 2020-01-17. You entered: {start_date_str}')
 
@@ -62,12 +63,31 @@ def run(
     elif start_timestamp > today:
         raise ValueError("Future's date is not accepted. start_date must be a string a representing date BEFORE today.")
 
+    # end_date validations
+    end_timestamp = None
+    if end_date_str is not None:
+        try:
+            end_timestamp = jh.arrow_to_timestamp(arrow.get(end_date_str, 'YYYY-MM-DD'))
+        except Exception:
+            raise ValueError(
+                f'end_date must be a string representing a date. ex: 2023-12-31. You entered: {end_date_str}')
+        
+        if end_timestamp < start_timestamp:
+            raise ValueError("end_date must be after start_date.")
+        elif end_timestamp > today:
+            raise ValueError("end_date cannot be in the future.")
+
     # We just call this to throw a exception in case of a symbol without dash
     jh.quote_asset(symbol)
 
     symbol = symbol.upper()
 
-    until_date = arrow.utcnow().floor('day')
+    # Use end_date if provided, otherwise use today
+    if end_timestamp is not None:
+        until_date = arrow.get(end_timestamp / 1000).floor('day')
+    else:
+        until_date = arrow.utcnow().floor('day')
+    
     start_date = arrow.get(start_timestamp / 1000)
     days_count = jh.date_diff_in_days(start_date, until_date)
     candles_count = days_count * 1440
@@ -91,6 +111,10 @@ def run(
 
         # to make sure it won't try to import candles from the future! LOL
         if temp_start_timestamp > jh.now_to_timestamp():
+            break
+            
+        # stop if we've reached the end_date
+        if end_timestamp is not None and temp_start_timestamp > end_timestamp:
             break
 
         # prevent duplicates calls to boost performance
@@ -146,7 +170,7 @@ def run(
                         })
                     else:
                         print(msg)
-                    run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
+                    run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], end_date_str, mode,
                         running_via_dashboard, show_progressbar)
                     return
 
@@ -192,8 +216,9 @@ def run(
     skipped_days = round(skipped_minutes / 1440, 1)
     imported_days = round(imported_minutes / 1440, 1)
     
+    end_date_display = jh.timestamp_to_date(end_timestamp) if end_timestamp else "today"
     success_text = (
-        f'Successfully imported candles since "{jh.timestamp_to_date(start_timestamp)}" until today '
+        f'Successfully imported candles since "{jh.timestamp_to_date(start_timestamp)}" until "{end_date_display}" '
         f'({imported_days} days imported, {skipped_days} days already existed in the database). '
     )
 
