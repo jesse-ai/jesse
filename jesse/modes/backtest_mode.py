@@ -864,7 +864,8 @@ def _skip_simulator(
     candles_step = _calculate_minimum_candle_step()
     progressbar = Progressbar(length, step=candles_step)
     last_update_time = None
-    for i in range(0, length, candles_step):
+    # Ensure we don't go beyond the available candles
+    for i in range(0, min(length, len(list(candles.values())[0]['candles'])), candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, candles_pipelines, i, candles_step)
@@ -948,12 +949,22 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
     # add candles
     for j in candles:
         candles_pipeline = candles_pipelines[j]
-        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
+        # Ensure we don't request candles beyond array bounds
+        max_available_step = min(candles_step, len(candles[j]['candles']) - i)
+        if max_available_step <= 0:
+            continue  # Skip if no candles available from this index
+            
+        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, max_available_step)
         # Ensure we don't exceed the array bounds
-        actual_step = min(candles_step, len(short_candles))
+        actual_step = min(max_available_step, len(short_candles))
         end_idx = min(i + actual_step, len(candles[j]['candles']))
-        candles[j]['candles'][i:end_idx] = short_candles[:actual_step]
-        if i != 0:
+        
+        # Only assign if we have valid bounds
+        if i < len(candles[j]['candles']) and end_idx <= len(candles[j]['candles']) and actual_step > 0:
+            candles[j]['candles'][i:end_idx] = short_candles[:actual_step]
+        
+        # Fix jumped candles only if we have candles and previous candle exists
+        if i != 0 and len(short_candles) > 0 and i - 1 < len(candles[j]["candles"]):
             previous_short_candles = candles[j]["candles"][i - 1]
             # work the same, the fix needs to be done only on the gap of 1m edge candles.
             short_candles[0] = _get_fixed_jumped_candle(
@@ -995,6 +1006,10 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
 def _simulate_price_change_effect_multiple_candles(
         short_timeframes_candles: np.ndarray, exchange: str, symbol: str
 ) -> None:
+    # Check if we have any candles to process
+    if len(short_timeframes_candles) == 0:
+        return
+        
     real_candle = np.array(
         [
             short_timeframes_candles[0][0],
