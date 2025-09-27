@@ -218,3 +218,9 @@ class UpdateOptimizationSessionStatusRequestJson(BaseModel):
 
 class TerminateOptimizationRequestJson(BaseModel):
     id: str
+
+
+class PostHogStartRequestJson(BaseModel):
+    email: str | None = None
+    username: str | None = None
+    user_full_name: str | None = None

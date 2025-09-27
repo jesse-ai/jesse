@@ -324,6 +324,48 @@ def generate_short_unique_id() -> str:
     return str(uuid.uuid4())[:22]
 
 
+def generate_os_based_uuid() -> str:
+    """
+    Generate a consistent UUID based on OS and system characteristics.
+        
+    Returns:
+        str: A consistent UUID string based on system characteristics
+    """
+    import platform
+    import getpass
+    
+    # Gather system-specific information
+    system_info = {
+        'os': platform.system(),
+        'os_release': platform.release(),
+        'machine': platform.machine(),
+        'processor': platform.processor(),
+        'username': getpass.getuser(),
+    }
+    
+    # Try to get additional unique identifiers
+    try:
+        # Try to get hostname
+        system_info['hostname'] = platform.node()
+    except:
+        pass
+    
+    try:
+        # Try to get MAC address -- best unique identifier
+        import uuid as uuid_module
+        mac = uuid_module.getnode()
+        system_info['mac'] = str(mac)
+    except:
+        pass
+    
+    # Create a deterministic string from system info
+    info_string = '|'.join([f"{k}:{v}" for k, v in sorted(system_info.items())])
+    
+    # Generate a UUID5 (deterministic) based on the system info
+    namespace = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # DNS namespace
+    return str(uuid.uuid5(namespace, info_string))
+
+
 def get_arrow(timestamp: int) -> arrow.arrow.Arrow:
     return timestamp_to_arrow(timestamp)
 

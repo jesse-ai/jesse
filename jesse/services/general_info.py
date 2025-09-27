@@ -34,6 +34,9 @@ def get_general_info(has_live=False) -> dict:
                 )
             plan_info = response.json()
             limits = plan_info['limits']
+            email = plan_info['email']
+            username = plan_info['username']
+            user_full_name = plan_info['user_full_name']
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name) and not name.startswith('.')]))
@@ -77,5 +80,9 @@ def get_general_info(has_live=False) -> dict:
             'timeframes': limits['timeframes'],
             'exchanges': list(limits['exchanges'].keys()),
         }
+        res['email'] = email
+        res['username'] = username
+        res['user_full_name'] = user_full_name
+        
 
     return res

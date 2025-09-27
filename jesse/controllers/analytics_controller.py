@@ -5,6 +5,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
+from jesse.services.web import PostHogStartRequestJson
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -32,7 +33,10 @@ def get_posthog_status(authorization: Optional[str] = Header(None)):
 
 
 @router.post("/posthog/start")
-def start_posthog(authorization: Optional[str] = Header(None)):
+def start_posthog(
+    request_json: PostHogStartRequestJson,
+    authorization: Optional[str] = Header(None)
+):
     """
     Start PostHog error tracking and identify user
     """
@@ -54,14 +58,11 @@ def start_posthog(authorization: Optional[str] = Header(None)):
 
         # Initialize posthog service
         posthog_service._initialize()
-
-        # Get system info and identify user
-        import jesse.helpers as jh
-        from jesse.services.general_info import get_general_info
-        info = get_general_info(has_live=jh.has_live_trade_plugin())
-        system_info = info.get("system_info", {})
-
-        posthog_service.identify_user(authorization, system_info)
+        
+        if(request_json.email):
+            posthog_service.identify_user(request_json.email)
+        else:
+            posthog_service.identify_user()
 
         return JSONResponse({
             'enabled': True,

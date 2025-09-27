@@ -16,9 +16,8 @@ mp.set_start_method('spawn', force=True)
 
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
-        # Extract PostHog config and auth token if provided
-        self._posthog_config = kwargs.pop('posthog_config', None)
-        self._posthog_auth_token = kwargs.pop('posthog_auth_token', None)
+        # Extract PostHog user distinct ID if provided
+        self._posthog_user_distinct_id = kwargs.pop('posthog_user_distinct_id', None)
         mp.Process.__init__(self, *args, **kwargs)
 
     def run(self):
@@ -35,16 +34,17 @@ class Process(mp.Process):
                     from jesse.services.posthog import get_posthog_service
                     svc = get_posthog_service()
                     
-                    # Initialize PostHog in child process if config is provided & client is not initialized yet
+                    # Initialize PostHog in child process if client is not initialized yet
                     # this checking is to avoid re-initializing posthog in child processes on each exception --- only the first exception in a process will initialize posthog
-                    if self._posthog_config and svc._client is None:
-                        # Set the config and initialize
-                        svc._api_key = self._posthog_config.get('api_key')
-                        svc._host = self._posthog_config.get('host', 'https://eu.i.posthog.com')
+                    if svc._client is None:
+                        # Initialize PostHog
                         svc._initialize()
                         
-                        # identify user to posthog using the auth token
-                        svc.identify_user(self._posthog_auth_token)
+                        # identify user to posthog using the user distinct id or anonymous id
+                        if(self._posthog_user_distinct_id):
+                            svc.identify_user(self._posthog_user_distinct_id)
+                        else:
+                            svc.identify_user()
                     
                     ctx = {
                         'source': 'multiprocessing_exception_handler',
@@ -106,23 +106,20 @@ class ProcessManager:
     def add_task(self, function, *args):
         client_id = args[0]
         
-        # Get PostHog config and auth token from parent process if PostHog is initialized
-        posthog_config = None
-        posthog_auth_token = None
+        # Get PostHog user distinct ID from parent process if PostHog is initialized
+        posthog_user_distinct_id = None
         try:
             from jesse.services.posthog import get_posthog_service
             parent_posthog_svc = get_posthog_service()
             if parent_posthog_svc._client is not None:
-                # PostHog is initialized in parent(user has turned on JesseMonitoring in the Dashboard), pass config to child
-                from jesse.config import config
-                posthog_config = config.get('env', {}).get('posthog', {})
+                # PostHog is initialized in parent(user has turned on JesseMonitoring in the Dashboard)
                 # Pass the auth token for user identification in child processes
-                posthog_auth_token = parent_posthog_svc._current_user_token
+                posthog_user_distinct_id = parent_posthog_svc._current_distinct_id
         except Exception:
-            # If we can't get config, continue without PostHog
+            # If we can't get PostHog service, continue without PostHog
             pass
         
-        w = Process(target=function, args=args, posthog_config=posthog_config, posthog_auth_token=posthog_auth_token)
+        w = Process(target=function, args=args, posthog_user_distinct_id=posthog_user_distinct_id)
         self._workers.append(w)
         w.start()
 
