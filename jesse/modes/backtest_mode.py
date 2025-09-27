@@ -443,8 +443,12 @@ def _step_simulator(
     progressbar = Progressbar(length, step=420)
     last_update_time = None
     for i in range(length):
-        # update time
-        store.app.time = first_candles_set[i][0] + 60_000
+        # update time - ensure we don't go out of bounds
+        if i < len(first_candles_set):
+            store.app.time = first_candles_set[i][0] + 60_000
+        else:
+            # If we're out of bounds, use the last available candle
+            store.app.time = first_candles_set[-1][0] + 60_000
 
         # add candles
         for j in candles:
@@ -544,6 +548,8 @@ def _step_simulator(
 def _simulation_minutes_length(candles: dict) -> int:
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]["candles"]
+    if len(first_candles_set) == 0:
+        raise ValueError(f"No candles available for {key}")
     return len(first_candles_set)
 
 
@@ -557,7 +563,7 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     try:
         store.app.starting_time = first_candles_set[0][0]
     except IndexError:
-        raise IndexError('Check your "warm_up_candles" config value')
+        raise IndexError(f'Check your "warm_up_candles" config value. No candles available for {key}. Array size: {len(first_candles_set)}')
     store.app.time = first_candles_set[0][0]
 
 
@@ -943,7 +949,10 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
     for j in candles:
         candles_pipeline = candles_pipelines[j]
         short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
-        candles[j]['candles'][i:i+candles_step] = short_candles
+        # Ensure we don't exceed the array bounds
+        actual_step = min(candles_step, len(short_candles))
+        end_idx = min(i + actual_step, len(candles[j]['candles']))
+        candles[j]['candles'][i:end_idx] = short_candles[:actual_step]
         if i != 0:
             previous_short_candles = candles[j]["candles"][i - 1]
             # work the same, the fix needs to be done only on the gap of 1m edge candles.
