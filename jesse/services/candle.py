@@ -375,8 +375,8 @@ def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
     for i in range(len(trading_candles)):
         if (i + 1) % required_candles == 0:
             # Get the slice of candles for this timeframe
-            start_idx = i - (required_candles - 1)
-            end_idx = i + 1
+            start_idx = max(0, i - (required_candles - 1))
+            end_idx = min(i + 1, len(trading_candles))
             candle_slice = trading_candles[start_idx:end_idx]
             
             # If we don't have enough candles, fill with empty ones
@@ -422,7 +422,7 @@ def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
             )
         # Handle the case where we don't have enough data for a complete candle
         # but we're at the end of the data
-        elif i == len(trading_candles) - 1 and len(trading_candles) < required_candles:
+        elif i == len(trading_candles) - 1 and len(trading_candles) < required_candles and (i + 1) % required_candles != 0:
             fill_missing = jh.get_config('env.data.fill_missing_candles', True)
             
             if fill_missing:
