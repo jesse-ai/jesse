@@ -96,7 +96,7 @@ class exchanges:
     KUCOIN_SPOT = 'KuCoin Spot'
     KUCOIN_FUTURES = 'KuCoin Futures'
     KUCOIN_FUTURES_TESTNET = 'KuCoin Futures Testnet'
-    CUSTOM_CSV = 'Custom CSV'
+    CUSTOM_CSV = 'CustomCSV'
 
 
 @dataclass

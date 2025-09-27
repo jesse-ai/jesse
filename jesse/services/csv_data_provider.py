@@ -18,7 +18,7 @@ class CSVDataProvider:
     Aggregates tick data into OHLCV candles for backtesting.
     """
     
-    def __init__(self, data_directory: str = "/Users/alxy/Downloads/Fond/KucoinData"):
+    def __init__(self, data_directory: str = "/home/jesse/KucoinData"):
         """
         Initialize CSV data provider.
         
