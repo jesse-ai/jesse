@@ -33,7 +33,7 @@ class PostHogService:
     """
 
     def __init__(self):
-        self._api_key = 'phc_E858XBvwMngGaEdEs7cw4rk8Oi3LULv4uVZ4GQt6lS'
+        self._api_key = 'phc_unujHScjdDE6abNg0ZTDKX3phU9JIffj9IlBPCjU9Bl'
         self._host = 'https://eu.i.posthog.com'
         self._debug = True # should be false in production
         self._client = None
