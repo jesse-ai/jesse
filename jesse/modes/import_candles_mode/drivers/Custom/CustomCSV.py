@@ -6,7 +6,7 @@ import jesse.helpers as jh
 class CustomCSV(CandleExchange):
     def __init__(self):
         super().__init__(
-            name='Custom CSV',
+            name='CustomCSV',
             count=1000,
             rate_limit_per_second=1,
             backup_exchange_class=None
@@ -59,7 +59,7 @@ class CustomCSV(CandleExchange):
                     'low': float(candle[4]),        # low
                     'volume': float(candle[5]),     # volume
                     'symbol': symbol,               # symbol
-                    'exchange': 'Custom CSV',       # exchange
+                    'exchange': 'CustomCSV',       # exchange
                     'timeframe': timeframe          # timeframe
                 })
             
@@ -145,7 +145,7 @@ class CustomCSV(CandleExchange):
                     'low': float(candle[4]),        # low
                     'volume': float(candle[5]),     # volume
                     'symbol': symbol,               # symbol
-                    'exchange': 'Custom CSV',       # exchange
+                    'exchange': 'CustomCSV',       # exchange
                     'timeframe': '1m'               # timeframe (hardcoded for get_candles)
                 })
             

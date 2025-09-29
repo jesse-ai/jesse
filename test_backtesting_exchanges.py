@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test backtesting exchanges including Custom CSV
+Test backtesting exchanges including CustomCSV
 """
 
 import sys
@@ -29,19 +29,19 @@ def test_backtesting_exchanges():
         for i, exchange in enumerate(live_trading_exchanges, 1):
             print(f"   {i:2d}. {exchange}")
         
-        # Check if Custom CSV is in backtesting exchanges
+        # Check if CustomCSV is in backtesting exchanges
         if exchanges.CUSTOM_CSV in backtesting_exchanges:
-            print(f"\n✅ Custom CSV найден в backtesting exchanges: {exchanges.CUSTOM_CSV}")
+            print(f"\n✅ CustomCSV найден в backtesting exchanges: {exchanges.CUSTOM_CSV}")
         else:
-            print(f"\n❌ Custom CSV НЕ найден в backtesting exchanges")
+            print(f"\n❌ CustomCSV НЕ найден в backtesting exchanges")
             print(f"   Ищем: {exchanges.CUSTOM_CSV}")
             print(f"   В списке: {backtesting_exchanges}")
         
-        # Check if Custom CSV is in live trading exchanges
+        # Check if CustomCSV is in live trading exchanges
         if exchanges.CUSTOM_CSV in live_trading_exchanges:
-            print(f"\n✅ Custom CSV найден в live trading exchanges: {exchanges.CUSTOM_CSV}")
+            print(f"\n✅ CustomCSV найден в live trading exchanges: {exchanges.CUSTOM_CSV}")
         else:
-            print(f"\n❌ Custom CSV НЕ найден в live trading exchanges (это нормально)")
+            print(f"\n❌ CustomCSV НЕ найден в live trading exchanges (это нормально)")
         
         print("\n🎉 Тест завершен!")
         

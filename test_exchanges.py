@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test available exchanges including Custom CSV
+Test available exchanges including CustomCSV
 """
 
 import sys
@@ -25,11 +25,11 @@ def test_exchanges():
         for i, exchange in enumerate(driver_names, 1):
             print(f"   {i:2d}. {exchange}")
         
-        # Check if Custom CSV is in the list
+        # Check if CustomCSV is in the list
         if exchanges.CUSTOM_CSV in driver_names:
-            print(f"\n✅ Custom CSV найден в списке: {exchanges.CUSTOM_CSV}")
+            print(f"\n✅ CustomCSV найден в списке: {exchanges.CUSTOM_CSV}")
         else:
-            print(f"\n❌ Custom CSV НЕ найден в списке")
+            print(f"\n❌ CustomCSV НЕ найден в списке")
             print(f"   Ищем: {exchanges.CUSTOM_CSV}")
             print(f"   В списке: {driver_names}")
         
