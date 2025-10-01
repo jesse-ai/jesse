@@ -340,25 +340,6 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
             'Try another start_date'
         )
-    
-    # For KuCoin Futures, don't fill absent candles to prevent zero-volume fake candles
-    # Check if this is KuCoin Futures by looking at the exchange in the first candle
-    if temp_candles and temp_candles[0].get('exchange') == 'KuCoin Futures':
-        print(f"[KuCoin Futures] GLOBAL _fill_absent_candles called with {len(temp_candles)} input candles")
-        print(f"[KuCoin Futures] Time range: {start_timestamp} to {end_timestamp}")
-        print(f"[KuCoin Futures] Returning {len(temp_candles)} real candles without filling gaps")
-        
-        # Sort candles by timestamp to ensure proper order
-        sorted_candles = sorted(temp_candles, key=lambda x: x['timestamp'])
-        
-        # Additional analysis
-        zero_volume_count = sum(1 for c in sorted_candles if c['volume'] == 0)
-        same_prices_count = sum(1 for c in sorted_candles if c['open'] == c['high'] == c['low'] == c['close'])
-        
-        print(f"[KuCoin Futures] Real candles zero volume: {zero_volume_count} ({zero_volume_count/len(sorted_candles)*100:.1f}%)")
-        print(f"[KuCoin Futures] Real candles same prices: {same_prices_count} ({same_prices_count/len(sorted_candles)*100:.1f}%)")
-        
-        return sorted_candles
 
     symbol = temp_candles[0]['symbol']
     exchange = temp_candles[0]['exchange']
