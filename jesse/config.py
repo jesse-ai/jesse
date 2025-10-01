@@ -64,6 +64,8 @@ config = {
             'warmup_candles_num': 240,
             'generate_candles_from_1m': False,
             'persistency': True,
+            # Fill missing candle data with empty candles instead of raising errors
+            'fill_missing_candles': True,
         },
     },
 
@@ -130,6 +132,9 @@ def set_config(conf: dict) -> None:
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
         # logs
         config['env']['logging'] = conf['logging']
+        # fill missing candles option
+        if 'fill_missing_candles' in conf:
+            config['env']['data']['fill_missing_candles'] = conf['fill_missing_candles']
         # exchanges
         for key, e in conf['exchanges'].items():
             if not jh.is_live() and e['type']:

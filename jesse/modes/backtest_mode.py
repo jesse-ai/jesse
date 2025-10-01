@@ -443,8 +443,12 @@ def _step_simulator(
     progressbar = Progressbar(length, step=420)
     last_update_time = None
     for i in range(length):
-        # update time
-        store.app.time = first_candles_set[i][0] + 60_000
+        # update time - ensure we don't go out of bounds
+        if i < len(first_candles_set):
+            store.app.time = first_candles_set[i][0] + 60_000
+        else:
+            # If we're out of bounds, use the last available candle
+            store.app.time = first_candles_set[-1][0] + 60_000
 
         # add candles
         for j in candles:
@@ -475,9 +479,11 @@ def _step_simulator(
                 # until = count - ((i + 1) % count)
 
                 if (i + 1) % count == 0:
+                    start_idx = max(0, i - (count - 1))
+                    end_idx = min(i + 1, len(candles[j]['candles']))
                     generated_candle = generate_candle_from_one_minutes(
                         timeframe,
-                        candles[j]['candles'][(i - (count - 1)):(i + 1)]
+                        candles[j]['candles'][start_idx:end_idx]
                     )
 
                     store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
@@ -542,6 +548,8 @@ def _step_simulator(
 def _simulation_minutes_length(candles: dict) -> int:
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]["candles"]
+    if len(first_candles_set) == 0:
+        raise ValueError(f"No candles available for {key}")
     return len(first_candles_set)
 
 
@@ -555,7 +563,7 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     try:
         store.app.starting_time = first_candles_set[0][0]
     except IndexError:
-        raise IndexError('Check your "warm_up_candles" config value')
+        raise IndexError(f'Check your "warm_up_candles" config value. No candles available for {key}. Array size: {len(first_candles_set)}')
     store.app.time = first_candles_set[0][0]
 
 
@@ -635,10 +643,17 @@ def _prepare_routes(hyperparameters: dict = None,
 def get_candles_from_pipeline(candles_pipeline: Optional[BaseCandlesPipeline], candles: np.ndarray, i: int, candles_step: int = -1) -> np.ndarray:
     if candles_pipeline is None:
         if candles_step == -1:
+            # Ensure index is within bounds
+            if i >= len(candles):
+                raise IndexError(f"Index {i} is out of bounds for candles array of size {len(candles)}")
             return candles[i]
         else:
-            return candles[i: i+candles_step]
-    return candles_pipeline.get_candles(candles[i: i + candles_pipeline._batch_size], i, candles_step)
+            # Ensure slice is within bounds
+            end_idx = min(i + candles_step, len(candles))
+            return candles[i: end_idx]
+    # Ensure batch slice is within bounds
+    batch_end = min(i + candles_pipeline._batch_size, len(candles))
+    return candles_pipeline.get_candles(candles[i: batch_end], i, candles_step)
 
 
 def _update_progress_bar(
@@ -849,7 +864,8 @@ def _skip_simulator(
     candles_step = _calculate_minimum_candle_step()
     progressbar = Progressbar(length, step=candles_step)
     last_update_time = None
-    for i in range(0, length, candles_step):
+    # Ensure we don't go beyond the available candles
+    for i in range(0, min(length, len(list(candles.values())[0]['candles'])), candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, candles_pipelines, i, candles_step)
@@ -933,9 +949,22 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
     # add candles
     for j in candles:
         candles_pipeline = candles_pipelines[j]
-        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
-        candles[j]['candles'][i:i+candles_step] = short_candles
-        if i != 0:
+        # Ensure we don't request candles beyond array bounds
+        max_available_step = min(candles_step, len(candles[j]['candles']) - i)
+        if max_available_step <= 0:
+            continue  # Skip if no candles available from this index
+            
+        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, max_available_step)
+        # Ensure we don't exceed the array bounds
+        actual_step = min(max_available_step, len(short_candles))
+        end_idx = min(i + actual_step, len(candles[j]['candles']))
+        
+        # Only assign if we have valid bounds
+        if i < len(candles[j]['candles']) and end_idx <= len(candles[j]['candles']) and actual_step > 0:
+            candles[j]['candles'][i:end_idx] = short_candles[:actual_step]
+        
+        # Fix jumped candles only if we have candles and previous candle exists
+        if i != 0 and len(short_candles) > 0 and i - 1 < len(candles[j]["candles"]):
             previous_short_candles = candles[j]["candles"][i - 1]
             # work the same, the fix needs to be done only on the gap of 1m edge candles.
             short_candles[0] = _get_fixed_jumped_candle(
@@ -957,10 +986,11 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
             count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
 
             if (i + candles_step) % count == 0:
+                start_idx = max(0, i - count + candles_step)
+                end_idx = min(i + candles_step, len(candles[j]["candles"]))
                 generated_candle = generate_candle_from_one_minutes(
                     timeframe,
-                    candles[j]["candles"][
-                    i - count + candles_step: i + candles_step],
+                    candles[j]["candles"][start_idx:end_idx],
                 )
 
                 store.candles.add_candle(
@@ -976,6 +1006,10 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
 def _simulate_price_change_effect_multiple_candles(
         short_timeframes_candles: np.ndarray, exchange: str, symbol: str
 ) -> None:
+    # Check if we have any candles to process
+    if len(short_timeframes_candles) == 0:
+        return
+        
     real_candle = np.array(
         [
             short_timeframes_candles[0][0],
@@ -1088,7 +1122,10 @@ def _update_all_routes_a_partial_candle(
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        all_candles_1m = store.candles.get_candles(exchange, symbol, '1m')
+        # Ensure we don't request more candles than available
+        number_of_needed_candles = min(number_of_needed_candles, len(all_candles_1m))
+        candles_1m = all_candles_1m[-number_of_needed_candles:]
         generated_candle = generate_candle_from_one_minutes(
             timeframe,
             candles_1m,
