@@ -553,6 +553,7 @@ class BatchCSVLoader:
                                    exchange: str = "CustomCSV",
                                    max_candles: int = 0,
                                    max_workers: int = 1,
+                                   batch_size: int = 20,
                                    progress_callback: Optional[callable] = None) -> BatchLoadReport:
         """
         Load and save all symbols to database.
@@ -562,6 +563,7 @@ class BatchCSVLoader:
             exchange: Exchange name for database
             max_candles: Maximum candles per symbol (0 = unlimited)
             max_workers: Number of parallel workers
+            batch_size: Number of symbols to process in each batch (default: 20)
             progress_callback: Callback function for progress updates
             
         Returns:
@@ -572,6 +574,7 @@ class BatchCSVLoader:
         
         logger.info(f"Starting batch save to database for {self.data_directory}")
         logger.info(f"Exchange: {exchange}, Timeframe: {timeframe}, Max candles: {max_candles}")
+        logger.info(f"Batch size: {batch_size}, Max workers: {max_workers}")
         
         # Get symbols to process
         symbols = self.get_available_symbols()
@@ -593,6 +596,12 @@ class BatchCSVLoader:
         
         logger.info(f"Found {total_symbols} symbols to save to database")
         
+        # Split symbols into batches
+        symbol_batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
+        total_batches = len(symbol_batches)
+        
+        logger.info(f"Split into {total_batches} batches of up to {batch_size} symbols each")
+        
         # Initialize statistics
         self.stats = {
             'total_symbols': total_symbols,
@@ -608,75 +617,86 @@ class BatchCSVLoader:
         results = []
         errors = []
         
-        # Save symbols
-        if max_workers == 1:
-            # Sequential saving
-            for i, symbol in enumerate(symbols):
-                logger.info(f"Saving {symbol} to database ({i+1}/{total_symbols})")
-                result = self.save_symbol_to_database(symbol, timeframe, exchange, max_candles)
-                results.append(result)
-                
-                # Update statistics
-                if result.success:
-                    self.stats['successful_loads'] += 1
-                    self.stats['total_candles'] += result.candles_count
-                    if result.saved_to_db:
-                        self.stats['saved_to_db'] += 1
-                    else:
-                        self.stats['db_save_failures'] += 1
-                        if result.db_error_message:
-                            errors.append(f"{symbol} DB save failed: {result.db_error_message}")
-                else:
-                    self.stats['failed_loads'] += 1
-                    if result.error_message:
-                        errors.append(f"{symbol}: {result.error_message}")
-                
-                # Progress callback
-                if progress_callback:
-                    progress_callback(i + 1, total_symbols, result)
-        else:
-            # Parallel saving
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all tasks
-                future_to_symbol = {
-                    executor.submit(self.save_symbol_to_database, symbol, timeframe, exchange, max_candles): symbol
-                    for symbol in symbols
-                }
-                
-                # Process completed tasks
-                completed = 0
-                for future in as_completed(future_to_symbol):
-                    symbol = future_to_symbol[future]
-                    try:
-                        result = future.result()
-                        results.append(result)
-                        
-                        # Update statistics
-                        if result.success:
-                            self.stats['successful_loads'] += 1
-                            self.stats['total_candles'] += result.candles_count
-                            if result.saved_to_db:
-                                self.stats['saved_to_db'] += 1
-                            else:
-                                self.stats['db_save_failures'] += 1
-                                if result.db_error_message:
-                                    errors.append(f"{symbol} DB save failed: {result.db_error_message}")
+        # Process batches
+        completed_symbols = 0
+        
+        for batch_num, batch_symbols in enumerate(symbol_batches, 1):
+            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_symbols)} symbols)")
+            
+            if max_workers == 1:
+                # Sequential saving within batch
+                for symbol in batch_symbols:
+                    logger.info(f"Saving {symbol} to database ({completed_symbols + 1}/{total_symbols})")
+                    result = self.save_symbol_to_database(symbol, timeframe, exchange, max_candles)
+                    results.append(result)
+                    
+                    # Update statistics
+                    if result.success:
+                        self.stats['successful_loads'] += 1
+                        self.stats['total_candles'] += result.candles_count
+                        if result.saved_to_db:
+                            self.stats['saved_to_db'] += 1
                         else:
-                            self.stats['failed_loads'] += 1
-                            if result.error_message:
-                                errors.append(f"{symbol}: {result.error_message}")
-                        
-                        completed += 1
-                        
-                        # Progress callback
-                        if progress_callback:
-                            progress_callback(completed, total_symbols, result)
+                            self.stats['db_save_failures'] += 1
+                            if result.db_error_message:
+                                errors.append(f"{symbol} DB save failed: {result.db_error_message}")
+                    else:
+                        self.stats['failed_loads'] += 1
+                        if result.error_message:
+                            errors.append(f"{symbol}: {result.error_message}")
+                    
+                    completed_symbols += 1
+                    
+                    # Progress callback
+                    if progress_callback:
+                        progress_callback(completed_symbols, total_symbols, result)
+            else:
+                # Parallel saving within batch
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all tasks for this batch
+                    future_to_symbol = {
+                        executor.submit(self.save_symbol_to_database, symbol, timeframe, exchange, max_candles): symbol
+                        for symbol in batch_symbols
+                    }
+                    
+                    # Process completed tasks
+                    for future in as_completed(future_to_symbol):
+                        symbol = future_to_symbol[future]
+                        try:
+                            result = future.result()
+                            results.append(result)
                             
-                    except Exception as e:
-                        error_msg = f"Unexpected error processing {symbol}: {e}"
-                        errors.append(error_msg)
-                        logger.error(error_msg)
-                        completed += 1
+                            # Update statistics
+                            if result.success:
+                                self.stats['successful_loads'] += 1
+                                self.stats['total_candles'] += result.candles_count
+                                if result.saved_to_db:
+                                    self.stats['saved_to_db'] += 1
+                                else:
+                                    self.stats['db_save_failures'] += 1
+                                    if result.db_error_message:
+                                        errors.append(f"{symbol} DB save failed: {result.db_error_message}")
+                            else:
+                                self.stats['failed_loads'] += 1
+                                if result.error_message:
+                                    errors.append(f"{symbol}: {result.error_message}")
+                            
+                            completed_symbols += 1
+                            
+                            # Progress callback
+                            if progress_callback:
+                                progress_callback(completed_symbols, total_symbols, result)
+                                
+                        except Exception as e:
+                            error_msg = f"Unexpected error processing {symbol}: {e}"
+                            errors.append(error_msg)
+                            logger.error(error_msg)
+                            completed_symbols += 1
+            
+            # Log batch completion
+            batch_success = sum(1 for r in results[-len(batch_symbols):] if r.success)
+            batch_saved = sum(1 for r in results[-len(batch_symbols):] if r.saved_to_db)
+            logger.info(f"Batch {batch_num}/{total_batches} completed: {batch_success}/{len(batch_symbols)} loaded, {batch_saved}/{len(batch_symbols)} saved to DB")
         
         # Finalize statistics
         self.stats['end_time'] = datetime.now()
