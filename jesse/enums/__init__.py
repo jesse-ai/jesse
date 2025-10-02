@@ -96,7 +96,8 @@ class exchanges:
     KUCOIN_SPOT = 'KuCoin Spot'
     KUCOIN_FUTURES = 'KuCoin Futures'
     KUCOIN_FUTURES_TESTNET = 'KuCoin Futures Testnet'
-    CUSTOM_CSV = 'CustomCSV'
+    CUSTOM_CSV = 'CustomCSV' # CSV with database import in jesse format
+    CUSTOM_CSV_RAW = 'CustomCSVRaw' # RAW CSV without database import in jesse format
 
 
 @dataclass

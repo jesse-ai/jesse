@@ -16,16 +16,16 @@ def test_api_symbols():
     headers = {"Authorization": token}
     
     try:
-        # Test 1: Check if Custom CSV is available
+        # Test 1: Check if CustomCSV is available
         print("1️⃣ Проверяем доступные exchanges...")
         response = requests.get(f"{base_url}/exchange/supported-symbols", 
                               headers=headers, 
-                              params={"exchange": "Custom CSV"})
+                              params={"exchange": "CustomCSV"})
         
         if response.status_code == 200:
             data = response.json()
             symbols = data.get('data', [])
-            print(f"   ✅ Custom CSV доступен")
+            print(f"   ✅ CustomCSV доступен")
             print(f"   📊 Символов: {len(symbols)}")
             if symbols:
                 print(f"   📋 Первые 10: {symbols[:10]}")

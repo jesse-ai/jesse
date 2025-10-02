@@ -16,10 +16,43 @@ def generate_candle_from_one_minutes(
     if len(candles) == 0:
         raise ValueError('No candles were passed')
 
-    if not accept_forming_candles and len(candles) != jh.timeframe_to_one_minutes(timeframe):
-        raise ValueError(
-            f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
-        )
+    required_candles = jh.timeframe_to_one_minutes(timeframe)
+    
+    if not accept_forming_candles and len(candles) != required_candles:
+        # Check if we should fill missing candles
+        fill_missing = jh.get_config('env.data.fill_missing_candles', True)
+        
+        if fill_missing and len(candles) < required_candles:
+            # Log warning about missing data
+            from jesse.services.logger import info
+            info(
+                f'Insufficient data for {timeframe} candle: only {len(candles)} candles available, '
+                f'but {required_candles} required. Filling with empty candles.'
+            )
+            
+            # Create empty candles to fill the gap
+            empty_candles = []
+            last_timestamp = candles[-1][0] if len(candles) > 0 else 0
+            last_price = candles[-1][2] if len(candles) > 0 else 0
+            
+            for i in range(required_candles - len(candles)):
+                # Create empty candle with open=close=last_price, volume=0
+                empty_candle = np.array([
+                    last_timestamp + (i + 1) * 60_000,  # timestamp
+                    last_price,  # open
+                    last_price,  # close
+                    last_price,  # high
+                    last_price,  # low
+                    0  # volume
+                ])
+                empty_candles.append(empty_candle)
+            
+            # Combine original candles with empty ones
+            candles = np.concatenate([candles, np.array(empty_candles)])
+        else:
+            raise ValueError(
+                f'Sent only {len(candles)} candles but {required_candles} is required to create a "{timeframe}" candle.'
+            )
 
     return np.array([
         candles[0][0],
@@ -310,22 +343,92 @@ def _get_candles_from_db(
         
         # Check if earliest available timestamp is after the requested start date
         if earliest_available > start_date_timestamp + 60_000:  # Allow 1 minute tolerance
-            raise CandleNotFoundInDatabase(
-                f"Missing candles for {symbol} on {exchange}. "
-                f"Requested data from {jh.timestamp_to_date(start_date_timestamp)}, "
-                f"but earliest available candle is from {jh.timestamp_to_date(earliest_available)}."
-            )
+            # Check if we should fill missing candles
+            fill_missing = jh.get_config('env.data.fill_missing_candles', True)
+            
+            if fill_missing:
+                # Log warning about missing data
+                from jesse.services.logger import info
+                info(
+                    f'Missing candles for {symbol} on {exchange}. '
+                    f'Requested data from {jh.timestamp_to_date(start_date_timestamp)}, '
+                    f'but earliest available candle is from {jh.timestamp_to_date(earliest_available)}. '
+                    f'Filling with empty candles.'
+                )
+                
+                # Calculate how many minutes we need to fill at the beginning
+                missing_minutes = int((earliest_available - start_date_timestamp) // 60_000)
+                
+                # Create empty candles to fill the gap at the beginning
+                empty_candles = []
+                first_price = candles_array[0][1] if len(candles_array) > 0 else 0  # Use first open price
+                
+                for i in range(missing_minutes):
+                    empty_candle = np.array([
+                        start_date_timestamp + i * 60_000,  # timestamp
+                        first_price,  # open
+                        first_price,  # close
+                        first_price,  # high
+                        first_price,  # low
+                        0  # volume
+                    ])
+                    empty_candles.append(empty_candle)
+                
+                # Combine empty candles at the beginning with original candles
+                if empty_candles:
+                    candles_array = np.concatenate([np.array(empty_candles), candles_array])
+            else:
+                raise CandleNotFoundInDatabase(
+                    f"Missing candles for {symbol} on {exchange}. "
+                    f"Requested data from {jh.timestamp_to_date(start_date_timestamp)}, "
+                    f"but earliest available candle is from {jh.timestamp_to_date(earliest_available)}."
+                )
             
         # For finish date validation, we need to check if we have candles up to exactly one minute
         # before the start of the requested finish date
         # Check if the latest available candle timestamp is before the required last candle
         if latest_available < finish_date_timestamp:
-            # Missing candles at the end of the requested range
-            raise CandleNotFoundInDatabase(
-                f"Missing recent candles for \"{symbol}\" on \"{exchange}\". "
-                f"Requested data until \"{jh.timestamp_to_time(finish_date_timestamp)[:19]}\", "
-                f"but latest available candle is up to \"{jh.timestamp_to_time(latest_available)[:19]}\"."
-            )
+            # Check if we should fill missing candles
+            fill_missing = jh.get_config('env.data.fill_missing_candles', True)
+            
+            if fill_missing:
+                # Log warning about missing data
+                from jesse.services.logger import info
+                info(
+                    f'Missing recent candles for "{symbol}" on "{exchange}". '
+                    f'Requested data until "{jh.timestamp_to_time(finish_date_timestamp)[:19]}", '
+                    f'but latest available candle is up to "{jh.timestamp_to_time(latest_available)[:19]}". '
+                    f'Filling with empty candles.'
+                )
+                
+                # Calculate how many minutes we need to fill
+                missing_minutes = int((finish_date_timestamp - latest_available) // 60_000)
+                
+                # Create empty candles to fill the gap
+                empty_candles = []
+                last_price = candles_array[-1][2] if len(candles_array) > 0 else 0  # Use last close price
+                
+                for i in range(missing_minutes):
+                    empty_candle = np.array([
+                        latest_available + (i + 1) * 60_000,  # timestamp
+                        last_price,  # open
+                        last_price,  # close
+                        last_price,  # high
+                        last_price,  # low
+                        0  # volume
+                    ])
+                    empty_candles.append(empty_candle)
+                
+                # Combine original candles with empty ones
+                if empty_candles:
+                    candles_array = np.concatenate([candles_array, np.array(empty_candles)])
+            else:
+                # Missing candles at the end of the requested range
+                raise CandleNotFoundInDatabase(
+                    f"Missing recent candles for \"{symbol}\" on \"{exchange}\". "
+                    f"Requested data until \"{jh.timestamp_to_time(finish_date_timestamp)[:19]}\", "
+                    f"but latest available candle is up to \"{jh.timestamp_to_time(latest_available)[:19]}\"."
+                )
 
     if caching:
         # cache for 1 week it for near future calls
@@ -337,17 +440,99 @@ def _get_candles_from_db(
 def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
     # generate candles for the requested timeframe
     generated_candles = []
+    required_candles = jh.timeframe_to_one_minutes(timeframe)
+    
     for i in range(len(trading_candles)):
-        num = jh.timeframe_to_one_minutes(timeframe)
-
-        if (i + 1) % num == 0:
+        if (i + 1) % required_candles == 0:
+            # Get the slice of candles for this timeframe
+            start_idx = max(0, i - (required_candles - 1))
+            end_idx = min(i + 1, len(trading_candles))
+            candle_slice = trading_candles[start_idx:end_idx]
+            
+            # If we don't have enough candles, fill with empty ones
+            if len(candle_slice) < required_candles:
+                fill_missing = jh.get_config('env.data.fill_missing_candles', True)
+                
+                if fill_missing:
+                    from jesse.services.logger import info
+                    info(
+                        f'Insufficient data for {timeframe} candle generation: only {len(candle_slice)} candles available, '
+                        f'but {required_candles} required. Filling with empty candles.'
+                    )
+                    
+                    empty_candles = []
+                    last_timestamp = candle_slice[-1][0] if len(candle_slice) > 0 else 0
+                    last_price = candle_slice[-1][2] if len(candle_slice) > 0 else 0
+                    
+                    for j in range(required_candles - len(candle_slice)):
+                        empty_candle = np.array([
+                            last_timestamp + (j + 1) * 60_000,  # timestamp
+                            last_price,  # open
+                            last_price,  # close
+                            last_price,  # high
+                            last_price,  # low
+                            0  # volume
+                        ])
+                        empty_candles.append(empty_candle)
+                    
+                    # Combine original candles with empty ones
+                    candle_slice = np.concatenate([candle_slice, np.array(empty_candles)])
+                else:
+                    raise ValueError(
+                        f'Insufficient data for {timeframe} candle: only {len(candle_slice)} candles available, '
+                        f'but {required_candles} required.'
+                    )
+            
             generated_candles.append(
                 generate_candle_from_one_minutes(
                     timeframe,
-                    trading_candles[(i - (num - 1)):(i + 1)],
+                    candle_slice,
                     True
                 )
             )
+        # Handle the case where we don't have enough data for a complete candle
+        # but we're at the end of the data
+        elif i == len(trading_candles) - 1 and len(trading_candles) < required_candles and (i + 1) % required_candles != 0:
+            fill_missing = jh.get_config('env.data.fill_missing_candles', True)
+            
+            if fill_missing:
+                from jesse.services.logger import info
+                info(
+                    f'Insufficient data for {timeframe} candle generation: only {len(trading_candles)} candles available, '
+                    f'but {required_candles} required. Filling with empty candles.'
+                )
+                
+                # Fill with empty candles to complete the timeframe
+                empty_candles = []
+                last_timestamp = trading_candles[-1][0] if len(trading_candles) > 0 else 0
+                last_price = trading_candles[-1][2] if len(trading_candles) > 0 else 0
+                
+                for j in range(required_candles - len(trading_candles)):
+                    empty_candle = np.array([
+                        last_timestamp + (j + 1) * 60_000,  # timestamp
+                        last_price,  # open
+                        last_price,  # close
+                        last_price,  # high
+                        last_price,  # low
+                        0  # volume
+                    ])
+                    empty_candles.append(empty_candle)
+                
+                # Combine original candles with empty ones
+                complete_candle_slice = np.concatenate([trading_candles, np.array(empty_candles)])
+                
+                generated_candles.append(
+                    generate_candle_from_one_minutes(
+                        timeframe,
+                        complete_candle_slice,
+                        True
+                    )
+                )
+            else:
+                raise ValueError(
+                    f'Insufficient data for {timeframe} candle: only {len(trading_candles)} candles available, '
+                    f'but {required_candles} required.'
+                )
 
     return np.array(generated_candles)
 

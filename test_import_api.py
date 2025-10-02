@@ -17,15 +17,15 @@ def test_import_api():
     headers = {"Authorization": token}
     
     try:
-        # Test 1: Check if Custom CSV is available
+        # Test 1: Check if CustomCSV is available
         print("1️⃣ Проверяем доступные exchanges...")
         response = requests.get(f"{base_url}/exchange/supported-symbols", 
                               headers=headers, 
-                              params={"exchange": "Custom CSV"})
+                              params={"exchange": "CustomCSV"})
         
         if response.status_code == 200:
             data = response.json()
-            print(f"   ✅ Custom CSV доступен")
+            print(f"   ✅ CustomCSV доступен")
             print(f"   📊 Символов: {len(data.get('data', []))}")
             if data.get('data'):
                 print(f"   📋 Первые 5: {data['data'][:5]}")
@@ -39,7 +39,7 @@ def test_import_api():
         # First, let's check what symbols are available
         symbols_response = requests.get(f"{base_url}/exchange/supported-symbols", 
                                       headers=headers, 
-                                      params={"exchange": "Custom CSV"})
+                                      params={"exchange": "CustomCSV"})
         
         if symbols_response.status_code == 200:
             symbols_data = symbols_response.json()
@@ -51,7 +51,7 @@ def test_import_api():
                 
                 # Try to import
                 import_data = {
-                    "exchange": "Custom CSV",
+                    "exchange": "CustomCSV",
                     "symbol": "ACH-USDT",  # Use USDT suffix as Jesse expects
                     "start_date": "2023-01-01",
                     "finish_date": "2023-01-02"
