@@ -129,7 +129,7 @@ def _isolated_optimization(
     jesse_config['app']['trading_mode'] = 'optimize'
 
     # inject (formatted) configuration values
-    set_config(_format_config(config))
+    set_config(_format_config(config, n_trials))
 
     # set routes
     router.initiate(routes, data_routes)
@@ -506,7 +506,7 @@ def _encode_params_to_dna(params: dict) -> str:
     return base64.b64encode(params_str.encode()).decode()
 
 
-def _format_config(config):
+def _format_config(config, n_trials=None):
     """
     Jesse's required format for user_config is different from what this function accepts (so it
     would be easier to write for the researcher). Hence, we need to reformat the config_dict:
@@ -522,7 +522,7 @@ def _format_config(config):
         exchange_config['futures_leverage'] = config['futures_leverage']
         exchange_config['futures_leverage_mode'] = config['futures_leverage_mode']
 
-    return {
+    result = {
         'exchanges': {
             config['exchange']: exchange_config
         },
@@ -540,3 +540,9 @@ def _format_config(config):
         },
         'warm_up_candles': config['warm_up_candles']
     }
+    
+    # Add trials if n_trials is provided
+    if n_trials is not None:
+        result['trials'] = n_trials
+    
+    return result
