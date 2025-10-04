@@ -124,7 +124,7 @@ def set_config(conf: dict) -> None:
         # warm_up_candles
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
         # number of trials per each hyperparameter
-        config['env']['optimization']['trials'] = int(conf['trials'])
+        config['env']['optimization']['trials'] = int(conf.get('trials', 20))
 
     # backtest and live
     if jh.is_backtesting() or jh.is_live():

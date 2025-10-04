@@ -127,6 +127,9 @@ def _isolated_optimization(
         )
 
     jesse_config['app']['trading_mode'] = 'optimize'
+    
+    # Clear cache to ensure is_optimizing() returns correct value
+    jh.is_optimizing.cache_clear()
 
     # inject (formatted) configuration values
     set_config(_format_config(config, n_trials))
