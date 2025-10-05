@@ -166,30 +166,7 @@ class Optimizer:
                     num_cpus=self.cpu_cores, 
                     ignore_reinit_error=True,
                     runtime_env={
-                        "working_dir": "/srv/JesseProject/jesse-trade-bot",
-                        "excludes": [
-                            # Данные и кэши
-                            "storage/",
-                            "*.csv",
-                            "*.json",
-                            "*.pickle",
-                            "*.pkl",
-                            "*.log",
-                            # Большие директории
-                            "coin-screener-script/close_prices/",
-                            "coin-screener-script/2025_09_super_group/",
-                            # Временные файлы
-                            "temp/",
-                            "logs/",
-                            "cache/",
-                            # Docker и системные файлы
-                            "docker/",
-                            ".git/",
-                            "__pycache__/",
-                            "*.pyc",
-                            # Данные Kucoin (если они в проекте)
-                            "KucoinData/",
-                        ],
+                        
                     },
                 )
                 logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores")
