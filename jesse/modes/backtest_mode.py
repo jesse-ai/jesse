@@ -107,6 +107,14 @@ def _execute_backtest(
 
     store.app.set_session_id(client_id)
 
+    # Store backtest session in database (only for UI dashboard, not for CLI/research)
+    if not jh.should_execute_silently():
+        from jesse.models.BacktestSession import store_backtest_session
+        store_backtest_session(
+            id=client_id,
+            status='running'
+        )
+
     # validate routes
     validate_routes(router)
 
@@ -184,8 +192,17 @@ def _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
                 chart, tradingview, csv, json, fast_mode, benchmark
             )
+            return
         else:
             raise e
+    except Exception as e:
+        # Store exception in database (only for UI dashboard)
+        if not jh.should_execute_silently():
+            import traceback
+            from jesse.models.BacktestSession import store_backtest_session_exception, update_backtest_session_status
+            store_backtest_session_exception(client_id, str(e), traceback.format_exc())
+            update_backtest_session_status(client_id, 'stopped')
+        raise
 
     if result and not jh.should_execute_silently():
         sync_publish('alert', {
@@ -196,13 +213,49 @@ def _execute_backtest(
         sync_publish('metrics', result['metrics'])
         sync_publish('equity_curve', result['equity_curve'], compression=True)
         sync_publish('trades', result['trades'], compression=True)
+        
+        # Prepare chart data if requested (call formatting functions once and cache)
+        chart_data = None
         if chart:
-            sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
-            sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
-            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart(), compression=True)
-            sync_publish('add_extra_line_chart', _get_add_extra_line_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart(), compression=True)
+            # Store the data for database
+            chart_data = {
+                'candles_chart': _get_formatted_candles_for_frontend(),
+                'orders_chart': _get_formatted_orders_for_frontend(),
+                'add_line_to_candle_chart': _get_add_line_to_candle_chart(),
+                'add_extra_line_chart': _get_add_extra_line_chart(),
+                'add_horizontal_line_to_candle_chart': _get_add_horizontal_line_to_candle_chart(),
+                'add_horizontal_line_to_extra_chart': _get_add_horizontal_line_to_extra_chart()
+            }
+        
+        # Capture strategy codes for each route
+        strategy_codes = {}
+        import os
+        for r in router.routes:
+            key = f"{r.exchange}-{r.symbol}"
+            if key not in strategy_codes:
+                try:
+                    strategy_path = f'strategies/{r.strategy_name}/__init__.py'
+                    
+                    if os.path.exists(strategy_path):
+                        with open(strategy_path, 'r') as f:
+                            content = f.read()
+                        strategy_codes[key] = content
+                except Exception:
+                    pass
+        
+        # Update backtest session in database with results
+        from jesse.models.BacktestSession import update_backtest_session_results, update_backtest_session_status
+        update_backtest_session_results(
+            id=client_id,
+            metrics=result.get('metrics'),
+            equity_curve=result.get('equity_curve'),
+            trades=result.get('trades'),
+            hyperparameters=result.get('hyperparameters'),
+            chart_data=chart_data,
+            execution_duration=result.get('execution_duration'),
+            strategy_codes=strategy_codes if strategy_codes else None
+        )
+        update_backtest_session_status(client_id, 'finished')
 
     # close database connection
     from jesse.services.db import database
