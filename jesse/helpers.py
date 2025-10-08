@@ -1123,6 +1123,28 @@ def clear_output():
         click.clear()
 
 
+def clean_infinite_values(obj):
+    """
+    Recursively clean infinite values (inf, -inf) from data structures
+    by replacing them with None or 0
+    
+    :param obj: The object to clean (can be dict, list, or primitive)
+    :return: The cleaned object with infinite values replaced
+    """
+    import math
+    
+    if isinstance(obj, dict):
+        return {k: clean_infinite_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_infinite_values(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
+
+
 def get_class_name(cls):
     # if it's a string, return it
     if isinstance(cls, str):
