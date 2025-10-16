@@ -157,6 +157,28 @@ def log_optimize_mode(message):
     })
 
 
+def log_monte_carlo(message):
+    # if the type of message is not str, convert it to str
+    if not isinstance(message, str):
+        message = str(message)
+
+    formatted_time = jh.timestamp_to_time(jh.now())[:19]
+    message = f'[{formatted_time}]: ' + message
+    file_name = 'monte-carlo-mode'
+
+    if file_name not in LOGGERS:
+        create_logger_file(file_name)
+
+    LOGGERS[file_name].info(message)
+
+    # also, publish to redis
+    sync_publish('log', {
+        'id': jh.generate_unique_id(),
+        'timestamp': jh.now_to_timestamp(),
+        'message': message
+    })
+
+
 def broadcast_error_without_logging(msg: str):
     msg = str(msg)
 

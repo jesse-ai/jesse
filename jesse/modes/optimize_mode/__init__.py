@@ -63,6 +63,22 @@ def run(
         testing_finish_date
     )
 
+    # Capture strategy codes for each route
+    import os
+    strategy_codes = {}
+    for r in router.routes:
+        key = f"{r.exchange}-{r.symbol}"
+        if key not in strategy_codes:
+            try:
+                strategy_path = f'strategies/{r.strategy_name}/__init__.py'
+                
+                if os.path.exists(strategy_path):
+                    with open(strategy_path, 'r') as f:
+                        content = f.read()
+                    strategy_codes[key] = content
+            except Exception:
+                pass
+
     # Check if we're resuming an existing session
     existing_session = get_optimization_session_by_id(session_id)
 
@@ -77,7 +93,8 @@ def run(
         # Session doesn't exist, create a new one
         store_optimization_session(
             id=session_id,
-            status='running'
+            status='running',
+            strategy_codes=strategy_codes if strategy_codes else None
         )
         update_optimization_session_state(session_id, state)
 

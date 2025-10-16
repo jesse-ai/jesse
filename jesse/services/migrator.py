@@ -28,6 +28,8 @@ def run():
     _ticker(migrator)
     _trade(migrator)
     _exchange_api_keys(migrator)
+    _optimization_session(migrator)
+    _monte_carlo_session(migrator)
 
     # create initial tables
     from jesse.models import Candle, ClosedTrade, Log, Order, Option
@@ -119,6 +121,28 @@ def _exchange_api_keys(migrator):
     if 'exchange_api_keys' in database.db.get_tables():
         exchange_api_keys_columns = database.db.get_columns('exchange_api_keys')
         _migrate(migrator, fields, exchange_api_keys_columns, 'exchange_api_keys')
+
+
+def _optimization_session(migrator):
+    fields = [
+        {'action': migration_actions.ADD, 'name': 'title', 'type': CharField(max_length=255, null=True)},
+        {'action': migration_actions.ADD, 'name': 'description', 'type': TextField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
+    ]
+
+    if 'optimizationsession' in database.db.get_tables():
+        optimization_session_columns = database.db.get_columns('optimizationsession')
+        _migrate(migrator, fields, optimization_session_columns, 'optimizationsession')
+
+
+def _monte_carlo_session(migrator):
+    fields = [
+        {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
+    ]
+
+    if 'montecarlosession' in database.db.get_tables():
+        monte_carlo_session_columns = database.db.get_columns('montecarlosession')
+        _migrate(migrator, fields, monte_carlo_session_columns, 'montecarlosession')
 
 
 def _migrate(migrator, fields, columns, table):

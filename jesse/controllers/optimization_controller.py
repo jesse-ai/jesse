@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Body
 from typing import Optional, List
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson
+from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
@@ -130,15 +130,21 @@ def download_optimization_log(token: str = Query(...)):
 
 
 @router.post("/sessions")
-def get_optimization_sessions(authorization: Optional[str] = Header(None)):
+def get_optimization_sessions(request_json: GetOptimizationSessionsRequestJson = Body(default=GetOptimizationSessionsRequestJson()), authorization: Optional[str] = Header(None)):
     """
-    Get a list of all optimization sessions sorted by most recently updated
+    Get a list of optimization sessions sorted by most recently updated with pagination and filtering
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    # Get sessions from the database
-    sessions = get_sessions()
+    # Get sessions from the database with pagination and filters
+    sessions = get_sessions(
+        limit=request_json.limit,
+        offset=request_json.offset,
+        title_search=request_json.title_search,
+        status_filter=request_json.status_filter,
+        date_filter=request_json.date_filter
+    )
 
     # Transform the sessions using the transformer
     transformed_sessions = [get_optimization_session(session) for session in sessions]
@@ -281,3 +287,43 @@ def remove_optimization_session(session_id: str, authorization: Optional[str] = 
     return JSONResponse({
         'message': 'Optimization session removed successfully'
     })
+
+
+@router.post("/sessions/{session_id}/notes")
+def update_session_notes(session_id: str, request_json: UpdateOptimizationSessionNotesRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Update the notes (title, description, strategy_codes) of an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    session = get_optimization_session_by_id_from_db(session_id)
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    update_optimization_session_notes(session_id, request_json.title, request_json.description, request_json.strategy_codes)
+
+    return JSONResponse({
+        'message': 'Optimization session notes updated successfully'
+    })
+
+
+@router.post("/purge-sessions")
+def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
+    """
+    Purge optimization sessions older than specified days
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+    
+    days_old = request_json.get('days_old', None)
+    
+    deleted_count = purge_optimization_sessions(days_old)
+    
+    return JSONResponse({
+        'message': f'Successfully purged {deleted_count} session(s)',
+        'deleted_count': deleted_count
+    }, status_code=200)

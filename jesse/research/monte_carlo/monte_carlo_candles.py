@@ -87,10 +87,8 @@ def _ray_run_scenario_monte_carlo_candles(
         error_type = type(e).__name__
         error_msg = str(e)
         detailed_error = (
-            f"Ray scenario {scenario_index} failed:\n"
-            f"Error Type: {error_type}\n"
-            f"Error Message: {error_msg}\n"
-            f"Full Traceback:\n{full_traceback}"
+            f"Scenario {scenario_index} failed with {error_type}: {error_msg}\n"
+            f"{full_traceback}"
         )
         return {'result': None, 'log': detailed_error, 'error': True}
 
@@ -108,6 +106,8 @@ def monte_carlo_candles(
     candles_pipeline_class = None,
     candles_pipeline_kwargs: Optional[dict] = None,
     cpu_cores: Optional[int] = None,
+    progress_callback = None,
+    result_callback = None,
 ) -> MonteCarloCandlesReturn:
     if cpu_cores is None:
         available_cores = cpu_count()
@@ -128,7 +128,7 @@ def monte_carlo_candles(
             config, routes, data_routes, candles, warmup_candles,
             hyperparameters, fast_mode, num_scenarios,
             progress_bar, candles_pipeline_class, candles_pipeline_kwargs,
-            cpu_cores, ray_started_here
+            cpu_cores, ray_started_here, progress_callback, result_callback
         )
     except Exception as e:
         jh.debug(f"Error during Monte Carlo simulation: {e}")
@@ -182,7 +182,7 @@ def _run_monte_carlo_candles_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]],
     candles: dict, warmup_candles: dict, hyperparameters: dict,
     fast_mode: bool, num_scenarios: int, progress_bar: bool,
-    candles_pipeline_class, candles_pipeline_kwargs: dict, cpu_cores: int, started_ray_here: bool
+    candles_pipeline_class, candles_pipeline_kwargs: dict, cpu_cores: int, started_ray_here: bool, progress_callback=None, result_callback=None
 ) -> dict:
     try:
         pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Candles Scenarios")
@@ -193,7 +193,7 @@ def _run_monte_carlo_candles_simulation(
             num_scenarios, shared_objects, fast_mode,
             candles_pipeline_class, candles_pipeline_kwargs
         )
-        results = _process_scenario_results(scenario_refs, pbar)
+        results = _process_scenario_results(scenario_refs, pbar, progress_callback, result_callback)
         if pbar:
             pbar.close()
         valid_results, filtered_count = _filter_valid_results(results)

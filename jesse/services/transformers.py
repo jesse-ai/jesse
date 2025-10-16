@@ -2,6 +2,7 @@ from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.OptimizationSession import OptimizationSession
 from jesse.models.BacktestSession import BacktestSession
+from jesse.models.MonteCarloSession import MonteCarloSession
 import json
 import jesse.helpers as jh
 
@@ -56,10 +57,14 @@ def get_optimization_session(session: OptimizationSession) -> dict:
         'id': str(session.id),
         'status': session.status,
         'completed_trials': session.completed_trials,
+        'total_trials': session.total_trials,
         'created_at': session.created_at,
         'updated_at': session.updated_at,
         'best_score': session.best_score,
-        'state': json.loads(session.state) if session.state else None
+        'state': json.loads(session.state) if session.state else None,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     }
 
 
@@ -138,7 +143,10 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'objective_curve': objective_curve,
         'state': session.state_json,
         'exception': session.exception,
-        'traceback': session.traceback
+        'traceback': session.traceback,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     }
 
 
@@ -187,4 +195,76 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
         'title': session.title,
         'description': session.description,
         'strategy_codes': session.strategy_codes_json
+    }
+
+
+def get_monte_carlo_session(session: MonteCarloSession) -> dict:
+    """
+    Transform a MonteCarloSession model instance into a dictionary for API responses (listing)
+    """
+    trades_session = session.trades_session
+    candles_session = session.candles_session
+    
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'has_trades': trades_session is not None,
+        'has_candles': candles_session is not None,
+        'trades_status': trades_session.status if trades_session else None,
+        'candles_status': candles_session.status if candles_session else None,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {},
+        'state': session.state_json
+    }
+
+
+def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
+    """
+    Transform a MonteCarloSession model instance with full data for detailed view
+    """
+    trades_session = session.trades_session
+    candles_session = session.candles_session
+    
+    trades_data = None
+    if trades_session:
+        trades_data = {
+            'id': str(trades_session.id),
+            'status': trades_session.status,
+            'num_scenarios': trades_session.num_scenarios,
+            'completed_scenarios': trades_session.completed_scenarios,
+            'results': jh.clean_infinite_values(json.loads(trades_session.results)) if trades_session.results else None,
+            'logs': trades_session.logs,
+            'exception': trades_session.exception,
+            'traceback': trades_session.traceback
+        }
+    
+    candles_data = None
+    if candles_session:
+        candles_data = {
+            'id': str(candles_session.id),
+            'status': candles_session.status,
+            'num_scenarios': candles_session.num_scenarios,
+            'completed_scenarios': candles_session.completed_scenarios,
+            'pipeline_type': candles_session.pipeline_type,
+            'pipeline_params': json.loads(candles_session.pipeline_params) if candles_session.pipeline_params else None,
+            'results': jh.clean_infinite_values(json.loads(candles_session.results)) if candles_session.results else None,
+            'logs': candles_session.logs,
+            'exception': candles_session.exception,
+            'traceback': candles_session.traceback
+        }
+    
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'trades_session': trades_data,
+        'candles_session': candles_data,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {},
+        'state': session.state_json
     }
