@@ -37,14 +37,18 @@ def sync_publish(event: str, msg, compression: bool = False):
         # Encode the compressed message using Base64
         msg = base64.b64encode(msg).decode('utf-8')
 
-    sync_redis.publish(
-        f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
-            'id': os.getpid(),
-            'event': f'{jh.app_mode()}.{event}',
-            'is_compressed': compression,
-            'data': msg
-        }, ignore_nan=True, cls=NpEncoder)
-    )
+    try:
+        sync_redis.publish(
+            f"{ENV_VALUES['APP_PORT']}:channel:1", json.dumps({
+                'id': os.getpid(),
+                'event': f'{jh.app_mode()}.{event}',
+                'is_compressed': compression,
+                'data': msg
+            }, ignore_nan=True, cls=NpEncoder)
+        )
+    except Exception as e:
+        # Log publish errors so we can diagnose Redis outages without crashing the worker
+        jh.terminal_debug(f"Redis publish error: {e}")
 
 
 async def async_publish(event: str, msg, compression: bool = False):

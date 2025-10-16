@@ -1,1 +1,0 @@
-import{g as c,af as n,V as r,c as i,o as p}from"./DClyChXX.js";const f=c({__name:"index",setup(u){const o=n(),t=r(),e=t.tabIds;if(e.length>0){const s=e[0],a=t.tabs[s];o.push({path:`/backtest/${a.id}`})}else t.addTab();return(s,a)=>(p(),i("div"))}});export{f as default};

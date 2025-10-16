@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 import math
 import os
 import gzip
@@ -1038,6 +1039,18 @@ def debug(*item):
         logger.info(f"==> {item[0]}")
     else:
         logger.info(f"==> {', '.join(str(x) for x in item)}")
+
+
+def terminal_debug(*item):
+    """
+    Used for debugging when developing Jesse. Prints the item with timestamp in the 
+    terminal only (not logged to file). Uses local timezone.
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if len(item) == 1:
+        dump(f"[{timestamp}] ==> {item[0]}")
+    else:
+        dump(f"[{timestamp}] ==> {', '.join(str(x) for x in item)}")
 
 
 def float_or_none(item):

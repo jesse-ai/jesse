@@ -149,7 +149,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
     # Use connection manager to handle this websocket
     connection_id = str(id(websocket))
-    print(jh.color(f"=> WebSocket {connection_id} connecting", 'yellow'))
+    jh.terminal_debug(f"WebSocket {connection_id} connecting")
     
     await ws_manager.connect(websocket)
     channel_pattern = f"{ENV_VALUES['APP_PORT']}:channel:*"
@@ -158,16 +158,23 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     await ws_manager.start_redis_listener(channel_pattern)
     
     try:
-        # Keep the connection alive
+        # Keep the connection alive and handle pong responses
         while True:
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+            try:
+                data = jh.json_loads(message)
+                # Handle pong responses for heartbeat
+                if data.get('type') == 'pong':
+                    pass
+            except:
+                pass
     except WebSocketDisconnect:
-        print(jh.color(f"WebSocket {connection_id} disconnected", 'yellow'))
+        jh.terminal_debug(f"WebSocket {connection_id} disconnected")
         ws_manager.disconnect(websocket)
         # Optionally stop Redis listener if no more clients
         await ws_manager.stop_redis_listener()
     except Exception as e:
-        print(jh.color(f"WebSocket error: {str(e)}", 'red'))
+        jh.terminal_debug(f"WebSocket error: {str(e)}")
         ws_manager.disconnect(websocket)
         await ws_manager.stop_redis_listener()
 
@@ -255,6 +262,7 @@ def shutdown_event():
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 from jesse.controllers.websocket_controller import router as websocket_router
 from jesse.controllers.optimization_controller import router as optimization_router
+from jesse.controllers.monte_carlo_controller import router as monte_carlo_router
 from jesse.controllers.exchange_controller import router as exchange_router
 from jesse.controllers.backtest_controller import router as backtest_router
 from jesse.controllers.candles_controller import router as candles_router
@@ -268,6 +276,7 @@ from jesse.controllers.file_controller import router as file_router
 # register routers
 fastapi_app.include_router(websocket_router)
 fastapi_app.include_router(optimization_router)
+fastapi_app.include_router(monte_carlo_router)
 fastapi_app.include_router(exchange_router)
 fastapi_app.include_router(backtest_router)
 fastapi_app.include_router(candles_router)
