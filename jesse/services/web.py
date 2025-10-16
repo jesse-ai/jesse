@@ -170,6 +170,10 @@ class ReportExceptionRequestJson(BaseModel):
     email: Optional[str] = None
 
 
+class HelpSearchRequestJson(BaseModel):
+    query: str
+
+
 class DeleteCandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
