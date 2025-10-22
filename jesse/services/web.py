@@ -224,3 +224,41 @@ class PostHogStartRequestJson(BaseModel):
     email: str | None = None
     username: str | None = None
     user_full_name: str | None = None
+class UpdateBacktestSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
+class GetBacktestSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+
+
+class UpdateBacktestSessionNotesRequestJson(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
+
+
+class UpdateBacktestSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
+class GetBacktestSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+
+
+class UpdateBacktestSessionNotesRequestJson(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
