@@ -71,7 +71,7 @@ class Order(Model):
             if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
                 txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
                 if self.price:
-                    txt += f', ${self.price}'
+                    txt += f', ${jh.format_price(self.price)}'
                 logger.info(txt)
 
         # handle exchange balance for ordered asset
@@ -82,7 +82,7 @@ class Order(Model):
         if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${self.price}'
+                txt += f', ${jh.format_price(self.price)}'
             notify(txt)
 
     @staticmethod
@@ -355,7 +355,7 @@ class Order(Model):
         if jh.is_debuggable('order_submission'):
             txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f', ${jh.format_price(self.price)}'
                 logger.info(txt)
         self.notify_submission()
         Order.update_order_in_db(self)
@@ -373,7 +373,7 @@ class Order(Model):
         if jh.is_debuggable('order_submission'):
             txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${self.price}'
+                txt += f', ${jh.format_price(self.price)}'
                 logger.info(txt)
         self.notify_submission()
 
@@ -394,7 +394,7 @@ class Order(Model):
         if not silent:
             txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f', ${jh.format_price(self.price)}'
             if jh.is_debuggable('order_cancellation'):
                 logger.info(txt)
             if jh.is_live():
@@ -419,7 +419,7 @@ class Order(Model):
         if not silent:
             txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f', ${jh.format_price(self.price)}'
             # log
             if jh.is_debuggable('order_execution'):
                 logger.info(txt)
@@ -449,7 +449,7 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {self.price}"
+            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {jh.format_price(self.price)}"
             # log
             if jh.is_debuggable('order_execution'):
                 logger.info(txt)

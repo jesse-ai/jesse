@@ -1,6 +1,5 @@
 from typing import Union
 
-from numba import njit
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
@@ -21,27 +20,47 @@ def t3(candles: np.ndarray, period: int = 5, vfactor: float = 0, source_type: st
     
     :return: float | np.ndarray
     """
-    if len(candles.shape) == 1:
-        source = candles
-    else:
-        candles = slice_candles(candles, sequential)
-        source = get_candle_source(candles, source_type=source_type)
+    # Check if jesse_rust is available
+    try:
+        import jesse_rust
         
-    k = 2 / (period + 1)
-    
-    # Calculate weights based on volume factor
-    w1 = -vfactor ** 3
-    w2 = 3 * vfactor ** 2 + 3 * vfactor ** 3
-    w3 = -6 * vfactor ** 2 - 3 * vfactor - 3 * vfactor ** 3
-    w4 = 1 + 3 * vfactor + vfactor ** 3 + 3 * vfactor ** 2
-    
-    t3 = _t3_fast(source, k, w1, w2, w3, w4)
-    
-    return t3 if sequential else t3[-1]
+        if len(candles.shape) == 1:
+            # Handle case where source array is passed directly
+            # Convert to candles format for Rust function
+            mock_candles = np.zeros((len(candles), 6))
+            mock_candles[:, 2] = candles  # Put source in close column
+            result = jesse_rust.t3(mock_candles, period, vfactor, "close", sequential)
+        else:
+            candles = slice_candles(candles, sequential)
+            result = jesse_rust.t3(candles, period, vfactor, source_type, sequential)
+        
+        return result if sequential else result[-1]
+        
+    except ImportError:
+        # Fallback to pure Python implementation
+        if len(candles.shape) == 1:
+            source = candles
+        else:
+            candles = slice_candles(candles, sequential)
+            source = get_candle_source(candles, source_type=source_type)
+            
+        k = 2 / (period + 1)
+        
+        # Calculate weights based on volume factor
+        w1 = -vfactor ** 3
+        w2 = 3 * vfactor ** 2 + 3 * vfactor ** 3
+        w3 = -6 * vfactor ** 2 - 3 * vfactor - 3 * vfactor ** 3
+        w4 = 1 + 3 * vfactor + vfactor ** 3 + 3 * vfactor ** 2
+        
+        t3 = _t3_fast_python(source, k, w1, w2, w3, w4)
+        
+        return t3 if sequential else t3[-1]
 
 
-@njit(cache=True)
-def _t3_fast(source: np.ndarray, k: float, w1: float, w2: float, w3: float, w4: float) -> np.ndarray:
+def _t3_fast_python(source: np.ndarray, k: float, w1: float, w2: float, w3: float, w4: float) -> np.ndarray:
+    """
+    Pure Python implementation of T3 calculation
+    """
     n = len(source)
     e1 = np.zeros(n)
     e2 = np.zeros(n)

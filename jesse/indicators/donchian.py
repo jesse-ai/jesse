@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-
+from jesse_rust import donchian as rust_donchian
 from jesse.helpers import slice_candles
 
 DonchianChannel = namedtuple('DonchianChannel', ['upperband', 'middleband', 'lowerband'])
@@ -18,28 +18,36 @@ def donchian(candles: np.ndarray, period: int = 20, sequential: bool = False) ->
     :return: DonchianChannel(upperband, middleband, lowerband)
     """
     candles = slice_candles(candles, sequential)
-    high = candles[:, 3]
-    low = candles[:, 4]
-
+    
     if sequential:
-        # Compute rolling maximum and minimum using sliding_window_view, vectorized without explicit loops
-        from numpy.lib.stride_tricks import sliding_window_view
-        n = high.shape[0]
-        # Prepare output arrays with NaN for the initial period-1 values
-        rolling_max = np.empty(n)
-        rolling_min = np.empty(n)
-        rolling_max[:period - 1] = np.nan
-        rolling_min[:period - 1] = np.nan
-        # Compute sliding window view for the valid windows
-        windowed_high = sliding_window_view(high, window_shape=period)
-        windowed_low = sliding_window_view(low, window_shape=period)
-        rolling_max[period - 1:] = np.max(windowed_high, axis=1)
-        rolling_min[period - 1:] = np.min(windowed_low, axis=1)
-        middleband = (rolling_max + rolling_min) / 2
-        return DonchianChannel(rolling_max, middleband, rolling_min)
+        # Use optimized Rust implementation
+        rust_result = rust_donchian(candles, period)
+        return DonchianChannel(
+            rust_result['upperband'],
+            rust_result['middleband'],
+            rust_result['lowerband']
+        )
     else:
-        # Non-sequential: compute only the last period's max and min
-        uc = np.max(high[-period:])
-        lc = np.min(low[-period:])
-        mc = (uc + lc) / 2
-        return DonchianChannel(uc, mc, lc)
+        # Non-sequential mode only needs the very last value of the channel.
+        # Instead of calling the Rust implementation (which processes the
+        # entire candle history and incurs extra FFI overhead), we can obtain
+        # the same result in pure NumPy by looking at just the last `period`
+        # candles.
+
+        if candles.shape[0] < period:
+            # Not enough candles yet → behave exactly like the Rust variant
+            # which would return NaNs for the incomplete window.
+            return DonchianChannel(np.nan, np.nan, np.nan)
+
+        # Slice only the window we need.
+        window = candles[-period:]
+
+        # Candle columns: 0 -> timestamp, 1 -> open, 2 -> close, 3 -> high, 4 -> low
+        highs = window[:, 3]
+        lows = window[:, 4]
+
+        upper = highs.max()
+        lower = lows.min()
+        middle = (upper + lower) / 2
+
+        return DonchianChannel(upper, middle, lower)

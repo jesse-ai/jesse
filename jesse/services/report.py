@@ -174,40 +174,42 @@ def info() -> List[List[Union[str, Any]]]:
     ]
 
 
-def watch_list() -> List[List[Union[str, str]]]:
+def watch_list() -> Dict[str, List[List[Union[str, str]]]]:
     """
-    Returns a list of data that are currently being watched in realtime
-    only support the first route
+    Returns a dictionary of watch lists for all routes keyed by route key
+    (exchange-symbol-timeframe). This allows frontend to display watch list
+    for the currently selected route without server-side knowledge of the
+    selection.
     """
-    strategy = router.routes[0].strategy
+    results: Dict[str, List[List[Union[str, str]]]] = {}
 
-    # return if strategy object is not initialized yet
-    if strategy is None:
-        return []
+    for r in router.routes:
+        strategy = r.strategy
 
-    # don't if the strategy hasn't been initiated yet
-    if not store.candles.are_all_initiated:
-        return []
+        # skip if strategy object is not initialized yet
+        if strategy is None or not store.candles.are_all_initiated:
+            results[jh.key(r.exchange, r.symbol, r.timeframe)] = []
+            continue
 
-    try:
-        watch_list_array = strategy.watch_list()
-    except Exception as e:
-        import traceback
+        try:
+            watch_list_array = strategy.watch_list()
+        except Exception:
+            import traceback
+            watch_list_array = [
+                ('', "The watch list is not available because an error occurred while getting it. Please check your strategy code's watch_list() method."),
+                ('', f'ERROR: ```{traceback.format_exc()}```')
+            ]
 
-        watch_list_array = [
-            ('', "The watch list is not available because an error occurred while getting it. Please check your strategy code's watch_list() method."),
-            ('', f'ERROR: ```{traceback.format_exc()}```')
-        ]
+        # loop through the watch list and convert each item into a string
+        for index, value in enumerate(watch_list_array):
+            if not isinstance(value, tuple) or len(value) != 2:
+                raise ValueError("watch_list() must return a list of tuples with 2 values in each. Example: [(key1, value1), (key2, value2)]")
 
-    # loop through the watch list and convert each item into a string
-    for index, value in enumerate(watch_list_array):
-        # if value is not a tuple with two values in it, raise ValueError
-        if not isinstance(value, tuple) or len(value) != 2:
-            raise ValueError("watch_list() must return a list of tuples with 2 values in each. Example: [(key1, value1), (key2, value2)]")
+            watch_list_array[index] = (str(value[0]), str(value[1]))
 
-        watch_list_array[index] = (str(value[0]), str(value[1]))
+        results[jh.key(r.exchange, r.symbol, r.timeframe)] = watch_list_array if len(watch_list_array) else []
 
-    return watch_list_array if len(watch_list_array) else []
+    return results
 
 
 def errors() -> List[List[Union[str, Any]]]:

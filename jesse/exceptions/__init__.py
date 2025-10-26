@@ -51,6 +51,9 @@ class ExchangeNotResponding(Exception):
 class ExchangeRejectedOrder(Exception):
     pass
 
+class ExchangeRejectedLeverageNumber(Exception):
+    pass
+
 
 class ExchangeOrderNotFound(Exception):
     pass

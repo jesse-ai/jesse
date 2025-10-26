@@ -22,7 +22,7 @@ BITGET_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE
 DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                         timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+                         timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -207,6 +207,33 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
+    # APEX_PRO_PERPETUAL_TESTNET
+    # exchanges_enums.APEX_PRO_PERPETUAL_TESTNET: {
+    #     "name": exchanges_enums.APEX_PRO_PERPETUAL_TESTNET,
+    #     "url": "https://testnet.pro.apex.exchange/trade/BTCUSD",
+    #     "fee": 0.0005,
+    #     "type": "futures",
+    #     "supported_leverage_modes": ["cross"],
+    #     "supported_timeframes": APEX_PRO_TIMEFRAMES,
+    #     "modes": {
+    #         "backtesting": False,
+    #         "live_trading": False,
+    #     },
+    #     "required_live_plan": "free",
+    # },
+    # exchanges_enums.APEX_PRO_PERPETUAL: {
+    #     "name": exchanges_enums.APEX_PRO_PERPETUAL,
+    #     "url": "https://pro.apex.exchange/trade/BTCUSD",
+    #     "fee": 0.0005,
+    #     "type": "futures",
+    #     "supported_leverage_modes": ["cross"],
+    #     "supported_timeframes": APEX_PRO_TIMEFRAMES,
+    #     "modes": {
+    #         "backtesting": False,
+    #         "live_trading": False,
+    #     },
+    #     "required_live_plan": "premium",
+    # },
     exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET: {
         "name": exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET,
         "url": "https://testnet.omni.apex.exchange/trade/BTCUSD",

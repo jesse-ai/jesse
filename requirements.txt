@@ -29,7 +29,7 @@ cryptography~=42.0.5
 ecdsa>=0.16.0
 optuna~=4.2.0
 ray; python_version not in "3.13"
-
 eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0
+jesse-rust==1.0.1

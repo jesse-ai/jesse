@@ -1,6 +1,6 @@
 import time
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.metrics as stats
@@ -10,6 +10,7 @@ from jesse.config import config
 from jesse.enums import timeframes, order_types
 from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
+from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report
@@ -106,6 +107,14 @@ def _execute_backtest(
 
     store.app.set_session_id(client_id)
 
+    # Store backtest session in database (only for UI dashboard, not for CLI/research)
+    if not jh.should_execute_silently():
+        from jesse.models.BacktestSession import store_backtest_session
+        store_backtest_session(
+            id=client_id,
+            status='running'
+        )
+
     # validate routes
     validate_routes(router)
 
@@ -183,8 +192,17 @@ def _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
                 chart, tradingview, csv, json, fast_mode, benchmark
             )
+            return
         else:
             raise e
+    except Exception as e:
+        # Store exception in database (only for UI dashboard)
+        if not jh.should_execute_silently():
+            import traceback
+            from jesse.models.BacktestSession import store_backtest_session_exception, update_backtest_session_status
+            store_backtest_session_exception(client_id, str(e), traceback.format_exc())
+            update_backtest_session_status(client_id, 'stopped')
+        raise
 
     if result and not jh.should_execute_silently():
         sync_publish('alert', {
@@ -195,13 +213,49 @@ def _execute_backtest(
         sync_publish('metrics', result['metrics'])
         sync_publish('equity_curve', result['equity_curve'], compression=True)
         sync_publish('trades', result['trades'], compression=True)
+        
+        # Prepare chart data if requested (call formatting functions once and cache)
+        chart_data = None
         if chart:
-            sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
-            sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
-            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart(), compression=True)
-            sync_publish('add_extra_line_chart', _get_add_extra_line_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart(), compression=True)
+            # Store the data for database
+            chart_data = {
+                'candles_chart': _get_formatted_candles_for_frontend(),
+                'orders_chart': _get_formatted_orders_for_frontend(),
+                'add_line_to_candle_chart': _get_add_line_to_candle_chart(),
+                'add_extra_line_chart': _get_add_extra_line_chart(),
+                'add_horizontal_line_to_candle_chart': _get_add_horizontal_line_to_candle_chart(),
+                'add_horizontal_line_to_extra_chart': _get_add_horizontal_line_to_extra_chart()
+            }
+        
+        # Capture strategy codes for each route
+        strategy_codes = {}
+        import os
+        for r in router.routes:
+            key = f"{r.exchange}-{r.symbol}"
+            if key not in strategy_codes:
+                try:
+                    strategy_path = f'strategies/{r.strategy_name}/__init__.py'
+                    
+                    if os.path.exists(strategy_path):
+                        with open(strategy_path, 'r') as f:
+                            content = f.read()
+                        strategy_codes[key] = content
+                except Exception:
+                    pass
+        
+        # Update backtest session in database with results
+        from jesse.models.BacktestSession import update_backtest_session_results, update_backtest_session_status
+        update_backtest_session_results(
+            id=client_id,
+            metrics=result.get('metrics'),
+            equity_curve=result.get('equity_curve'),
+            trades=result.get('trades'),
+            hyperparameters=result.get('hyperparameters'),
+            chart_data=chart_data,
+            execution_duration=result.get('execution_duration'),
+            strategy_codes=strategy_codes if strategy_codes else None
+        )
+        update_backtest_session_status(client_id, 'finished')
 
     # close database connection
     from jesse.services.db import database
@@ -294,17 +348,6 @@ def _get_add_horizontal_line_to_extra_chart():
             'lines': r.strategy._add_horizontal_line_to_extra_chart_values
         })
     return arr
-
-
-def _get_study_name() -> str:
-    routes_count = len(router.routes)
-    more = f"-and-{routes_count - 1}-more" if routes_count > 1 else ""
-    if type(router.routes[0].strategy_name) is str:
-        strategy_name = router.routes[0].strategy_name
-    else:
-        strategy_name = router.routes[0].strategy_name.__name__
-    study_name = f"{strategy_name}-{router.routes[0].exchange}-{router.routes[0].symbol}-{router.routes[0].timeframe}{more}"
-    return study_name
 
 
 def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message: str = None):
@@ -430,6 +473,9 @@ def _step_simulator(
         benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
+        with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -442,7 +488,7 @@ def _step_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    _prepare_routes(hyperparameters)
+    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
 
     # add initial balance
     save_daily_portfolio_balance(is_initial=True)
@@ -455,7 +501,8 @@ def _step_simulator(
 
         # add candles
         for j in candles:
-            short_candle = candles[j]['candles'][i]
+            candles_pipeline = candles_pipelines[j]
+            short_candle = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i)
             if i != 0:
                 previous_short_candle = candles[j]['candles'][i - 1]
                 short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
@@ -565,8 +612,14 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     store.app.time = first_candles_set[0][0]
 
 
-def _prepare_routes(hyperparameters: dict = None) -> None:
+def _prepare_routes(hyperparameters: dict = None,
+                    with_candles_pipeline: bool = True,
+                    candles_pipeline_class = None,
+                    candles_pipeline_kwargs: dict = None,
+                    ) -> Dict[str, BaseCandlesPipeline | None]:
     # initiate strategies
+    candles_pipeline = {}
+
     for r in router.routes:
         # if the r.strategy is str read it from file
         if isinstance(r.strategy_name, str):
@@ -604,8 +657,41 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
+        if with_candles_pipeline:
+            if candles_pipeline_class is not None:
+                # Use the provided pipeline class with kwargs if available
+                kwargs = candles_pipeline_kwargs or {}
+                candles_pipeline[jh.key(r.exchange, r.symbol)] = candles_pipeline_class(**kwargs)
+            else:
+                # Otherwise, fall back to the strategy's pipeline
+                candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline()
+        else:
+            candles_pipeline[jh.key(r.exchange, r.symbol)] = None
 
         selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+
+    # Ensure pipelines exist for data routes as well (no strategy attached)
+    # Keys in `candles` include both trading and data routes; provide a pipeline (or None) for each
+    for dr in getattr(router, 'data_routes', []) or []:
+        key = jh.key(dr.exchange, dr.symbol)
+        if key in candles_pipeline:
+            continue
+        if with_candles_pipeline and candles_pipeline_class is not None:
+            kwargs = candles_pipeline_kwargs or {}
+            candles_pipeline[key] = candles_pipeline_class(**kwargs)
+        else:
+            candles_pipeline[key] = None
+
+    return candles_pipeline
+
+
+def get_candles_from_pipeline(candles_pipeline: Optional[BaseCandlesPipeline], candles: np.ndarray, i: int, candles_step: int = -1) -> np.ndarray:
+    if candles_pipeline is None:
+        if candles_step == -1:
+            return candles[i]
+        else:
+            return candles[i: i+candles_step]
+    return candles_pipeline.get_candles(candles[i: i + candles_pipeline._batch_size], i, candles_step)
 
 
 def _update_progress_bar(
@@ -796,6 +882,9 @@ def _skip_simulator(
         benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
+        with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
 ) -> dict:
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
@@ -805,7 +894,7 @@ def _skip_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    _prepare_routes(hyperparameters)
+    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
 
     # add initial balance
     save_daily_portfolio_balance(is_initial=True)
@@ -816,7 +905,7 @@ def _skip_simulator(
     for i in range(0, length, candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
-        _simulate_new_candles(candles, i, candles_step)
+        _simulate_new_candles(candles, candles_pipelines, i, candles_step)
 
         last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
                                                 last_update_time=last_update_time)
@@ -873,12 +962,32 @@ def _calculate_minimum_candle_step():
     ]
     return np.gcd.reduce(consider_time_frames)
 
-
-def _simulate_new_candles(candles: dict, candle_index: int, candles_step: int) -> None:
+timeframe_to_one_minutes = {
+    timeframes.MINUTE_1: 1,
+    timeframes.MINUTE_3: 3,
+    timeframes.MINUTE_5: 5,
+    timeframes.MINUTE_15: 15,
+    timeframes.MINUTE_30: 30,
+    timeframes.MINUTE_45: 45,
+    timeframes.HOUR_1: 60,
+    timeframes.HOUR_2: 60 * 2,
+    timeframes.HOUR_3: 60 * 3,
+    timeframes.HOUR_4: 60 * 4,
+    timeframes.HOUR_6: 60 * 6,
+    timeframes.HOUR_8: 60 * 8,
+    timeframes.HOUR_12: 60 * 12,
+    timeframes.DAY_1: 60 * 24,
+    timeframes.DAY_3: 60 * 24 * 3,
+    timeframes.WEEK_1: 60 * 24 * 7,
+    timeframes.MONTH_1: 60 * 24 * 30,
+}
+def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandlesPipeline], candle_index: int, candles_step: int) -> None:
     i = candle_index
     # add candles
     for j in candles:
-        short_candles = candles[j]["candles"][i: i + candles_step]
+        candles_pipeline = candles_pipelines[j]
+        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
+        candles[j]['candles'][i:i+candles_step] = short_candles
         if i != 0:
             previous_short_candles = candles[j]["candles"][i - 1]
             # work the same, the fix needs to be done only on the gap of 1m edge candles.

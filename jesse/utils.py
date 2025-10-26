@@ -9,6 +9,8 @@ import jesse.helpers as jh
 from jesse.enums import timeframes
 import statsmodels.api as sm
 
+import jesse_rust
+
 
 def anchor_timeframe(timeframe: str) -> str:
     """
@@ -215,7 +217,7 @@ def subtract_floats(float1: float, float2: float) -> float:
 
     :return: float
     """
-    return float(Decimal(str(float1)) - Decimal(str(float2)))
+    return jesse_rust.subtract_floats(float1, float2)
 
 
 def sum_floats(float1: float, float2: float) -> float:
@@ -227,7 +229,7 @@ def sum_floats(float1: float, float2: float) -> float:
 
     :return: float
     """
-    return float(Decimal(str(float1)) + Decimal(str(float2)))
+    return jesse_rust.sum_floats(float1, float2)
 
 
 def strictly_increasing(series: np.ndarray, lookback: int) -> bool:

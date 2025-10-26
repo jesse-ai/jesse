@@ -9,13 +9,13 @@ from jesse.models import Route
 class RouterClass:
     def __init__(self) -> None:
         self.routes = []
-        self.data_candles = []
-        self.market_data = []
+        self.data_candles = [] # used in legacy code (probably will be replaced in the future with self.data_routes)
+        self.data_routes = [] # same as data_candles but instead of dict, it's a Route object
 
     def _reset(self) -> None:
         self.routes = []
         self.data_candles = []
-        self.market_data = []
+        self.data_routes = []
 
     @property
     def formatted_routes(self) -> list:
@@ -86,13 +86,14 @@ class RouterClass:
 
             self.routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None))
 
-    def set_market_data(self, routes: List[Any]) -> None:
-        self.market_data = []
+    def set_data_routes(self, routes: List[Any]) -> None:
+        self.data_routes = []
         for r in routes:
-            self.market_data.append(Route(*r))
+            self.data_routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], None, None))
 
     def set_data_candles(self, data_candles: list) -> None:
         self.data_candles = data_candles
+        self.set_data_routes(data_candles)
 
 
 router: RouterClass = RouterClass()

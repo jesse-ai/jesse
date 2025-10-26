@@ -1,8 +1,10 @@
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.OptimizationSession import OptimizationSession
+from jesse.models.BacktestSession import BacktestSession
 import json
 import jesse.helpers as jh
+
 
 def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
     result = {
@@ -137,4 +139,52 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'state': session.state_json,
         'exception': session.exception,
         'traceback': session.traceback
+    }
+
+
+def get_backtest_session(session: BacktestSession) -> dict:
+    """
+    Transform a BacktestSession model instance into a dictionary for API responses (listing)
+    """
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'execution_duration': session.execution_duration,
+        'net_profit_percentage': session.net_profit_percentage,
+        'state': json.loads(session.state) if session.state else None,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': session.strategy_codes_json
+    }
+
+
+def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
+    """
+    Transform a BacktestSession model instance with full data for detailed view
+    """
+    # Parse JSON fields and clean infinite values
+    metrics = jh.clean_infinite_values(json.loads(session.metrics)) if session.metrics else None
+    equity_curve = jh.clean_infinite_values(json.loads(session.equity_curve)) if session.equity_curve else []
+    trades = jh.clean_infinite_values(json.loads(session.trades)) if session.trades else []
+    hyperparameters = jh.clean_infinite_values(json.loads(session.hyperparameters)) if session.hyperparameters else None
+    
+    return {
+        'id': str(session.id),
+        'status': session.status,
+        'metrics': metrics,
+        'equity_curve': equity_curve,
+        'trades': trades,
+        'hyperparameters': hyperparameters,
+        'has_chart_data': bool(session.chart_data),
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'execution_duration': session.execution_duration,
+        'state': session.state_json,
+        'exception': session.exception,
+        'traceback': session.traceback,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': session.strategy_codes_json
     }

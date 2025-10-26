@@ -3,7 +3,9 @@ from collections import namedtuple
 import numpy as np
 
 from jesse.helpers import slice_candles
-from jesse.indicators.ma import ma
+
+# Import the high-performance Rust implementation
+from jesse_rust import stoch as stoch_rust  # type: ignore
 
 Stochastic = namedtuple('Stochastic', ['k', 'd'])
 
@@ -28,34 +30,13 @@ def stoch(candles: np.ndarray, fastk_period: int = 14, slowk_period: int = 3, sl
 
     candles = slice_candles(candles, sequential)
 
-    candles_close = candles[:, 2]
-    candles_high = candles[:, 3]
-    candles_low = candles[:, 4]
+    # Convert to float64 for Rust compatibility
+    candles_f64 = np.asarray(candles, dtype=np.float64)
     
-    hh = _rolling_max(candles_high, fastk_period)
-    ll = _rolling_min(candles_low, fastk_period)
-
-    stoch_val = 100 * (candles_close - ll) / (hh - ll)
-    k = ma(stoch_val, period=slowk_period, matype=slowk_matype, sequential=True)
-    d = ma(k, period=slowd_period, matype=slowd_matype, sequential=True)
-
+    # Call the Rust implementation
+    k, d = stoch_rust(candles_f64, fastk_period, slowk_period, slowk_matype, slowd_period, slowd_matype)
+    
     if sequential:
         return Stochastic(k, d)
     else:
         return Stochastic(k[-1], d[-1])
-
-def _rolling_max(x, window):
-    if len(x) < window:
-        return np.full(x.shape, np.nan, dtype=np.float64)
-    windows = np.lib.stride_tricks.sliding_window_view(x, window_shape=window)
-    result = np.full(x.shape, np.nan, dtype=np.float64)
-    result[window - 1:] = np.max(windows, axis=1)
-    return result
-
-def _rolling_min(x, window):
-    if len(x) < window:
-        return np.full(x.shape, np.nan, dtype=np.float64)
-    windows = np.lib.stride_tricks.sliding_window_view(x, window_shape=window)
-    result = np.full(x.shape, np.nan, dtype=np.float64)
-    result[window - 1:] = np.min(windows, axis=1)
-    return result

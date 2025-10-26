@@ -5,6 +5,7 @@ from numba import njit
 
 import jesse.helpers as jh
 from jesse.helpers import slice_candles
+import jesse_rust as jr
 
 
 @njit(cache=True)
@@ -27,7 +28,7 @@ def _ema(arr: np.ndarray, period: int) -> np.ndarray:
 
 def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """
-    DTI by William Blau calculated using numba accelerated EMA loops.
+    DTI by William Blau calculated using Rust implementation for better performance.
 
     :param candles: np.ndarray of candles data
     :param r: period for the first EMA smoothing (default 14)
@@ -37,34 +38,11 @@ def dti(candles: np.ndarray, r: int = 14, s: int = 10, u: int = 5, sequential: b
     :return: float or np.ndarray of DTI values
     """
     candles = slice_candles(candles, sequential)
-    high = candles[:, 3]
-    low = candles[:, 4]
-
-    high_1 = jh.np_shift(high, 1, np.nan)
-    low_1 = jh.np_shift(low, 1, np.nan)
-
-    # Compute upward and downward movements
-    xHMU = np.where(high - high_1 > 0, high - high_1, 0)
-    xLMD = np.where(low - low_1 < 0, -(low - low_1), 0)
-
-    xPrice = xHMU - xLMD
-    xPriceAbs = np.abs(xPrice)
-
-    # Apply triple EMA using the numba accelerated _ema
-    temp = _ema(xPrice, r)
-    temp = _ema(temp, s)
-    xuXA = _ema(temp, u)
-
-    temp_abs = _ema(xPriceAbs, r)
-    temp_abs = _ema(temp_abs, s)
-    xuXAAbs = _ema(temp_abs, u)
-
-    Val1 = 100 * xuXA
-    Val2 = xuXAAbs
-    with np.errstate(divide='ignore', invalid='ignore'):
-        dti_val = np.divide(Val1, Val2, out=np.zeros_like(Val1, dtype=float), where=Val2 != 0)
-
+    
+    # Use the Rust implementation
+    res = jr.dti(candles, r, s, u)
+    
     if sequential:
-        return dti_val
+        return res
     else:
-        return None if np.isnan(dti_val[-1]) else dti_val[-1]
+        return None if np.isnan(res[-1]) else res[-1]

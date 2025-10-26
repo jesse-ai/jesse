@@ -184,6 +184,27 @@ def test_format_currency():
     assert jh.format_currency(100_000_000.23) == '100,000,000.23'
 
 
+def test_format_price():
+    assert jh.format_price(1.12312312312123) == "1.12"
+    # very small numbers use 5 significant digits
+    assert jh.format_price(0.0000123121312) == "0.000012312"
+    assert jh.format_price(12312313.123123123) == "12312313.12"
+    assert jh.format_price(999.9999) == "999.99"
+    # test with negative numbers
+    assert jh.format_price(-1.12312312312123) == "-1.12"
+    # very small negative numbers use 5 significant digits
+    assert jh.format_price(-0.0000123121312) == "-0.000012312"
+    assert jh.format_price(-0.0123121312) == "-0.012312"
+    # test with zero
+    assert jh.format_price(0) == "0.00"
+    # test with None
+    assert jh.format_price(None) == ""
+    # test with a large number without decimals
+    assert jh.format_price(12345) == "12345.00"
+    # test scientific notation
+    assert jh.format_price(1.23e-7) == "0.00000012300"
+
+
 def test_generate_unique_id():
     assert jh.is_valid_uuid(jh.generate_unique_id()) is True
     assert jh.is_valid_uuid('asdfasdfasdfasfsadfsd') is False
@@ -699,3 +720,54 @@ def test_is_almost_equal():
     
     # Test with values that shouldn't be considered equal even with updated tolerance
     assert jh.is_almost_equal(0.001, 0.00101) == False
+
+
+def test_clean_infinite_values():
+    import math
+    
+    # Test with primitive values
+    assert jh.clean_infinite_values(5) == 5
+    assert jh.clean_infinite_values(5.5) == 5.5
+    assert jh.clean_infinite_values("string") == "string"
+    assert jh.clean_infinite_values(None) is None
+    assert jh.clean_infinite_values(math.inf) is None
+    assert jh.clean_infinite_values(-math.inf) is None
+    
+    # Test with lists
+    assert jh.clean_infinite_values([1, 2, 3]) == [1, 2, 3]
+    assert jh.clean_infinite_values([1, math.inf, 3]) == [1, None, 3]
+    assert jh.clean_infinite_values([1, -math.inf, 3]) == [1, None, 3]
+    assert jh.clean_infinite_values([math.inf, -math.inf]) == [None, None]
+    
+    # Test with nested lists
+    assert jh.clean_infinite_values([1, [2, math.inf], 3]) == [1, [2, None], 3]
+    assert jh.clean_infinite_values([[math.inf], [1, 2]]) == [[None], [1, 2]]
+    
+    # Test with dictionaries
+    assert jh.clean_infinite_values({"a": 1, "b": 2}) == {"a": 1, "b": 2}
+    assert jh.clean_infinite_values({"a": 1, "b": math.inf}) == {"a": 1, "b": None}
+    assert jh.clean_infinite_values({"a": -math.inf, "b": 2}) == {"a": None, "b": 2}
+    assert jh.clean_infinite_values({"a": math.inf, "b": -math.inf}) == {"a": None, "b": None}
+    
+    # Test with nested dictionaries
+    assert jh.clean_infinite_values({"a": {"b": math.inf}, "c": 1}) == {"a": {"b": None}, "c": 1}
+    assert jh.clean_infinite_values({"a": {"b": {"c": -math.inf}}}) == {"a": {"b": {"c": None}}}
+    
+    # Test with mixed structures
+    complex_obj = {
+        "numbers": [1, 2, math.inf, -math.inf],
+        "nested": {
+            "list": [math.inf, 3, 4],
+            "dict": {"inf": math.inf, "normal": 5}
+        },
+        "normal": 10
+    }
+    expected = {
+        "numbers": [1, 2, None, None],
+        "nested": {
+            "list": [None, 3, 4],
+            "dict": {"inf": None, "normal": 5}
+        },
+        "normal": 10
+    }
+    assert jh.clean_infinite_values(complex_obj) == expected
