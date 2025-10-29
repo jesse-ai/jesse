@@ -479,3 +479,20 @@ def append_session_logs(session_id: str, session_type: str, log_message: str) ->
         ).where(MonteCarloCandlesSession.id == session_id).execute()
 
 
+def append_monte_carlo_session_logs(session_id: str, log_message: str) -> None:
+    """Append logs to the parent Monte Carlo session"""
+    try:
+        session = MonteCarloSession.get(MonteCarloSession.id == session_id)
+        current_logs = session.logs or ''
+        new_logs = current_logs + log_message + '\n'
+        MonteCarloSession.update(
+            logs=new_logs,
+            updated_at=jh.now_to_timestamp(True)
+        ).where(MonteCarloSession.id == session_id).execute()
+    except Exception as e:
+        # Session doesn't exist yet, silently fail
+        jh.dump(f'exception: {e}')
+        raise
+        pass
+
+

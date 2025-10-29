@@ -229,7 +229,7 @@ class UpdateBacktestSessionNotesRequestJson(BaseModel):
 
 
 class MonteCarloRequestJson(BaseModel):
-    id: str
+    id: Optional[str] = None
     exchange: str
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]
