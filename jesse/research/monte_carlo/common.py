@@ -62,7 +62,7 @@ def _safe_log_message(message: str, pbar, is_error: bool = False) -> None:
             tqdm.write(formatted_message)
     
     if jh.app_mode() == 'monte-carlo':
-        logger.log_monte_carlo(message if not is_error else f"ERROR: {message}")
+        logger.log_monte_carlo(message if not is_error else f"ERROR: {message}", session_id=jh.get_session_id())
 
 
 def _process_scenario_results(

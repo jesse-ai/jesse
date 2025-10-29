@@ -163,6 +163,9 @@ def download_file(mode: str, file_type: str, session_id: str = None):
         path = f'storage/logs/optimize-mode.txt'
         # filename should be "optimize-" + current timestamp
         filename = f'optimize-{jh.timestamp_to_date(jh.now(True))}.txt'
+    elif mode == 'monte-carlo' and file_type == 'log':
+        path = f'storage/logs/monte-carlo-mode/{session_id}.txt'
+        filename = f'monte-carlo-{session_id}.txt'
     else:
         raise Exception(f'Unknown file type: {file_type} or mode: {mode}')
 
@@ -179,6 +182,18 @@ def get_backtest_logs(session_id: str):
         content = f.read()
 
     return jh.compressed_response(content)
+
+
+def get_monte_carlo_logs(session_id: str):
+    path = f'storage/logs/monte-carlo-mode/{session_id}.txt'
+
+    if not os.path.exists(path):
+        return None
+
+    with open(path, 'r') as f:
+        content = f.read()
+            
+    return content
 
 
 def download_backtest_log(session_id: str):

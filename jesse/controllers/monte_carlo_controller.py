@@ -53,7 +53,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
             'error': 'At least one Monte Carlo type must be selected',
             'message': 'Please select either Trades, Candles, or both.'
         }, status_code=400)
-    
+
     # Validate routes
     if not request_json.routes or len(request_json.routes) == 0:
         return JSONResponse({
@@ -61,10 +61,29 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
             'message': 'Please add at least one trading route.'
         }, status_code=400)
 
-    # Immediately enqueue the run task (which now persists the DB session first)
+    # Generate unique session ID if not provided
+    session_id = request_json.id or jh.generate_unique_id()
+    
+    
+
+    # Check if session already exists
+    existing_session = get_monte_carlo_session_by_id(session_id)
+    if existing_session:
+        return JSONResponse({
+            'error': f'Monte Carlo session with ID {session_id} already exists',
+            'message': 'A session with this ID is already running or completed.'
+        }, status_code=409)
+
+    # Check session existence in monte carlo models
+    from jesse.models.MonteCarloSession import get_monte_carlo_session_by_id as db_get_mc_session_by_id
+    if db_get_mc_session_by_id(session_id):
+        return JSONResponse({
+            'error': f'Monte Carlo session with ID {session_id} already exists (in DB)',
+            'message': 'A session with this ID already exists in the database.'
+        }, status_code=409)
     process_manager.add_task(
         run_monte_carlo,
-        request_json.id,
+        session_id,
         request_json.config,
         request_json.exchange,
         request_json.routes,
@@ -81,7 +100,10 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
         request_json.state,
     )
 
-    return JSONResponse({'message': 'Started Monte Carlo simulation...'}, status_code=202)
+    return JSONResponse({
+        'message': 'Started Monte Carlo simulation...',
+        'session_id': session_id
+    }, status_code=202)
 
 
 @router.post("/cancel")
@@ -216,6 +238,8 @@ def get_monte_carlo_session_by_id_endpoint(session_id: str, authorization: Optio
 
     # Transform the session using the transformer
     transformed_session = get_monte_carlo_session_for_load_more(session)
+    # Ensure JSON-safe values (replace NaN/Inf with None)
+    transformed_session = jh.clean_infinite_values(transformed_session)
 
     return JSONResponse({
         'session': transformed_session
@@ -368,6 +392,47 @@ def update_session_notes(session_id: str, request_json: UpdateMonteCarloSessionN
     })
 
 
+@router.post("/sessions/{session_id}/strategy-code")
+def get_session_strategy_code(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the strategy code for a Monte Carlo session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+    
+    session = get_monte_carlo_session_by_id(session_id)
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+    
+    return JSONResponse({
+        'strategy_code': json.loads(session.strategy_codes) if session.strategy_codes else {}
+    })
+
+
+@router.post("/sessions/{session_id}/logs")
+def get_session_logs(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the logs for a Monte Carlo session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+        
+    from jesse.modes import data_provider
+
+    content = data_provider.get_monte_carlo_logs(session_id)
+    
+    if content is None:
+        return JSONResponse({
+            'error': 'Log file not found'
+        }, status_code=404)
+    
+    return JSONResponse({
+        'logs': content
+    })
+    
+    
 @router.post("/purge-sessions")
 def purge_sessions(request_json: dict, authorization: Optional[str] = Header(None)):
     """

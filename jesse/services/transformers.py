@@ -1,9 +1,11 @@
+from unittest import result
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.OptimizationSession import OptimizationSession
 from jesse.models.BacktestSession import BacktestSession
 from jesse.models.MonteCarloSession import MonteCarloSession
 import json
+import math
 import jesse.helpers as jh
 
 
@@ -221,13 +223,136 @@ def get_monte_carlo_session(session: MonteCarloSession) -> dict:
     }
 
 
+def _percentile(arr: list, p: float) -> float:
+    """Calculate the p-th percentile of a list of numbers."""
+    if not arr:
+        return 0.0
+    sorted_arr = sorted(arr)
+    index = (p / 100.0) * (len(sorted_arr) - 1)
+    lower = int(index)
+    upper = min(lower + 1, len(sorted_arr) - 1)
+    weight = index % 1
+    return sorted_arr[lower] * (1 - weight) + sorted_arr[upper] * weight
+
+
+def _extract_candles_summary_metrics(results: dict) -> list:
+    """Extract summary metrics from Monte Carlo candles results."""
+    metrics = []
+    results = json.loads(results)
+
+    if not results or not results.get('scenarios'):
+        return metrics
+
+    original_result = results.get('original')
+    simulation_results = results.get('scenarios', [])
+
+    if not simulation_results:
+        return metrics
+
+    # Metrics to display (in order)
+    metric_keys = [
+        'net_profit_percentage', 'max_drawdown', 'sharpe_ratio',
+        'win_rate', 'total', 'annual_return', 'calmar_ratio'
+    ]
+
+    # Collect values for each metric
+    for key in metric_keys:
+        values = []
+        for scenario in simulation_results:
+            val = scenario.get('metrics', {}).get(key)
+            if isinstance(val, (int, float)) and math.isfinite(val):
+                values.append(float(val))
+
+        if not values:
+            continue
+
+        # Calculate percentiles
+        p5 = _percentile(values, 5)
+        p50 = _percentile(values, 50)
+        p95 = _percentile(values, 95)
+
+        # Get original value from original backtest
+        original = None
+        if original_result and isinstance(original_result, dict) and key in original_result:
+            raw_original = original_result[key]
+            if isinstance(raw_original, (int, float)) and math.isfinite(raw_original):
+                original = float(raw_original)
+
+        # For max_drawdown, flip the percentiles (worst is highest drawdown)
+        if key == 'max_drawdown':
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p95,  # Worst is highest drawdown
+                'median': p50,
+                'best_5': p5    # Best is lowest drawdown
+            })
+        else:
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p5,
+                'median': p50,
+                'best_5': p95
+            })
+
+    return metrics
+
+
+def _extract_trades_summary_metrics(results: dict) -> list:
+    """Extract summary metrics from Monte Carlo trades confidence analysis."""
+    metrics = []
+    results = json.loads(results)
+
+    if not results or 'confidence_analysis' not in results:
+        return metrics
+
+    ca_metrics = results['confidence_analysis']['metrics']
+
+    # Define metrics to display (in order)
+    metric_keys = ['total_return', 'max_drawdown', 'sharpe_ratio', 'calmar_ratio']
+
+    for key in metric_keys:
+        if key not in ca_metrics:
+            continue
+
+        analysis = ca_metrics[key]
+        original = analysis.get('original')
+        percentiles = analysis.get('percentiles', {})
+
+        # Get percentiles
+        p5 = percentiles.get('5th')
+        p50 = percentiles.get('50th')
+        p95 = percentiles.get('95th')
+
+        # For max_drawdown, flip the percentiles (worst is highest drawdown)
+        if key == 'max_drawdown':
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p95,  # Worst is highest drawdown (95th percentile)
+                'median': p50,
+                'best_5': p5    # Best is lowest drawdown (5th percentile)
+            })
+        else:
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p5,
+                'median': p50,
+                'best_5': p95
+            })
+
+    return metrics
+
+
 def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
     """
     Transform a MonteCarloSession model instance with full data for detailed view
     """
     trades_session = session.trades_session
     candles_session = session.candles_session
-    
+
     trades_data = None
     if trades_session:
         trades_data = {
@@ -235,12 +360,12 @@ def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
             'status': trades_session.status,
             'num_scenarios': trades_session.num_scenarios,
             'completed_scenarios': trades_session.completed_scenarios,
-            'results': jh.clean_infinite_values(json.loads(trades_session.results)) if trades_session.results else None,
+            'summary_metrics': _extract_trades_summary_metrics(trades_session.results) if trades_session.results else [],
             'logs': trades_session.logs,
             'exception': trades_session.exception,
-            'traceback': trades_session.traceback
+            'traceback': trades_session.traceback,
         }
-    
+
     candles_data = None
     if candles_session:
         candles_data = {
@@ -250,12 +375,18 @@ def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
             'completed_scenarios': candles_session.completed_scenarios,
             'pipeline_type': candles_session.pipeline_type,
             'pipeline_params': json.loads(candles_session.pipeline_params) if candles_session.pipeline_params else None,
-            'results': jh.clean_infinite_values(json.loads(candles_session.results)) if candles_session.results else None,
             'logs': candles_session.logs,
             'exception': candles_session.exception,
-            'traceback': candles_session.traceback
+            'traceback': candles_session.traceback,
+            'summary_metrics': _extract_candles_summary_metrics(candles_session.results) if candles_session.results else [],
         }
-    
+        # Sanitize nested NaN/Inf across entire candles_data structure
+        candles_data = jh.clean_nan_values(candles_data)
+
+    # Sanitize trades_data as well for completeness
+    if trades_data is not None:
+        trades_data = jh.clean_nan_values(trades_data)
+
     return {
         'id': str(session.id),
         'status': session.status,
@@ -265,6 +396,5 @@ def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
         'updated_at': session.updated_at,
         'title': session.title,
         'description': session.description,
-        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {},
-        'state': session.state_json
+        'state': session.state_json,
     }

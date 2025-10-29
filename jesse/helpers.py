@@ -1136,6 +1136,32 @@ def clear_output():
         click.clear()
 
 
+def clean_nan_values(obj):
+    """
+    Recursively clean NaN values from data structures by replacing them with None.
+    
+    :param obj: The object to clean (can be dict, list, or primitive)
+    :return: The cleaned object with NaN values replaced
+    """
+    import math
+    import numpy as np
+
+    if isinstance(obj, dict):
+        return {k: clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, (float, np.floating)):
+        # Replace NaN with None
+        if math.isnan(float(obj)):
+            return None
+        return float(obj)
+    elif isinstance(obj, (int, np.integer)):
+        # Keep integers as-is (cast NumPy integers to native int)
+        return int(obj)
+    else:
+        return obj
+
+
 def clean_infinite_values(obj):
     """
     Recursively clean infinite values (inf, -inf) from data structures

@@ -80,10 +80,10 @@ class MonteCarloRunner:
         if not ray.is_initialized():
             try:
                 ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
-                logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores")
+                logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores", session_id=self.session_id)
                 self.ray_started_here = True
             except Exception as e:
-                logger.log_monte_carlo(f"Error initializing Ray: {e}. Falling back to 1 CPU.")
+                logger.log_monte_carlo(f"Error initializing Ray: {e}. Falling back to 1 CPU.", session_id=self.session_id)
                 self.cpu_cores = 1
                 ray.init(num_cpus=1, ignore_reinit_error=True)
                 self.ray_started_here = True
@@ -108,8 +108,8 @@ class MonteCarloRunner:
         self.candles_session_id = None
 
     def run(self) -> None:
-        logger.log_monte_carlo(f"Monte Carlo session started with {self.cpu_cores} CPU cores")
-        logger.log_monte_carlo(f"Run trades: {self.run_trades}, Run candles: {self.run_candles}")
+        logger.log_monte_carlo(f"Monte Carlo session started with {self.cpu_cores} CPU cores", session_id=self.session_id)
+        logger.log_monte_carlo(f"Run trades: {self.run_trades}, Run candles: {self.run_candles}", session_id=self.session_id)
 
         try:
             # Publish general info
@@ -117,15 +117,15 @@ class MonteCarloRunner:
 
             # Run trades first (faster)
             if self.run_trades:
-                logger.log_monte_carlo("Starting trades simulation...")
+                logger.log_monte_carlo("Starting trades simulation...", session_id=self.session_id)
                 self._run_trades_simulation()
-                logger.log_monte_carlo("Trades simulation completed")
+                logger.log_monte_carlo("Trades simulation completed", session_id=self.session_id)
 
             # Then run candles
             if self.run_candles:
-                logger.log_monte_carlo("Starting candles simulation...")
+                logger.log_monte_carlo("Starting candles simulation...", session_id=self.session_id)
                 self._run_candles_simulation()
-                logger.log_monte_carlo("Candles simulation completed")
+                logger.log_monte_carlo("Candles simulation completed", session_id=self.session_id)
 
             # Update parent session status to 'finished'
             update_monte_carlo_session_status(self.session_id, 'finished')
@@ -137,14 +137,14 @@ class MonteCarloRunner:
             })
 
         except exceptions.Termination:
-            logger.log_monte_carlo("Monte Carlo simulation terminated by user")
+            logger.log_monte_carlo("Monte Carlo simulation terminated by user", session_id=self.session_id)
             update_monte_carlo_session_status(self.session_id, 'stopped')
             raise
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
-            logger.log_monte_carlo(f"ERROR: Monte Carlo simulation failed with {error_type}: {str(e)}")
-            logger.log_monte_carlo(f"Traceback:\n{error_traceback}")
+            logger.log_monte_carlo(f"ERROR: Monte Carlo simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
+            logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             update_monte_carlo_session_status(self.session_id, 'stopped')
             
             # Store exception in the appropriate child session
@@ -228,8 +228,8 @@ class MonteCarloRunner:
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
-            logger.log_monte_carlo(f"ERROR: Trades simulation failed with {error_type}: {str(e)}")
-            logger.log_monte_carlo(f"Traceback:\n{error_traceback}")
+            logger.log_monte_carlo(f"ERROR: Trades simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
+            logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
             # Store exception in database
             store_session_exception(self.trades_session_id, 'trades', str(e), error_traceback)
@@ -291,13 +291,13 @@ class MonteCarloRunner:
             pipeline_kwargs['batch_size'] = 10080  # 7 days
 
         try:
-            logger.log_monte_carlo(f"Calling _run_candles_with_progress with {self.num_scenarios} scenarios")
-            logger.log_monte_carlo(f"Pipeline: {self.pipeline_type}, kwargs: {pipeline_kwargs}")
+            logger.log_monte_carlo(f"Calling _run_candles_with_progress with {self.num_scenarios} scenarios", session_id=self.session_id)
+            logger.log_monte_carlo(f"Pipeline: {self.pipeline_type}, kwargs: {pipeline_kwargs}", session_id=self.session_id)
             
             # Call monte_carlo_candles from research module with progress tracking
             results = self._run_candles_with_progress(config, pipeline_class, pipeline_kwargs)
             
-            logger.log_monte_carlo(f"Candles simulation returned {len(results.get('scenarios', []))} scenarios")
+            logger.log_monte_carlo(f"Candles simulation returned {len(results.get('scenarios', []))} scenarios", session_id=self.session_id)
 
             # Extract summary metrics for display
             summary_metrics = self._extract_candles_summary_metrics(results)
@@ -321,8 +321,8 @@ class MonteCarloRunner:
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
-            logger.log_monte_carlo(f"ERROR: Candles simulation failed with {error_type}: {str(e)}")
-            logger.log_monte_carlo(f"Traceback:\n{error_traceback}")
+            logger.log_monte_carlo(f"ERROR: Candles simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
+            logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
             # Store exception in database
             store_session_exception(self.candles_session_id, 'candles', str(e), error_traceback)
@@ -407,7 +407,7 @@ class MonteCarloRunner:
         """Run candles simulation with progress tracking"""
         import time
         
-        logger.log_monte_carlo("Inside _run_candles_with_progress")
+        logger.log_monte_carlo("Inside _run_candles_with_progress", session_id=self.session_id)
         
         # Reset start time for this simulation
         self.start_time = jh.now_to_timestamp()
@@ -446,7 +446,7 @@ class MonteCarloRunner:
                     
                     last_update_time = current_time
         
-        logger.log_monte_carlo(f"About to call monte_carlo_candles with {len(self.candles)} candle datasets")
+        logger.log_monte_carlo(f"About to call monte_carlo_candles with {len(self.candles)} candle datasets", session_id=self.session_id)
         
         results = monte_carlo_candles(
             config=config,
