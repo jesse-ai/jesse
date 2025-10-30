@@ -170,6 +170,10 @@ class ReportExceptionRequestJson(BaseModel):
     email: Optional[str] = None
 
 
+class HelpSearchRequestJson(BaseModel):
+    query: str
+
+
 class DeleteCandlesRequestJson(BaseModel):
     exchange: str
     symbol: str
@@ -187,3 +191,23 @@ class UpdateOptimizationSessionStatusRequestJson(BaseModel):
 
 class TerminateOptimizationRequestJson(BaseModel):
     id: str
+
+
+class UpdateBacktestSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
+class GetBacktestSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+
+
+class UpdateBacktestSessionNotesRequestJson(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
