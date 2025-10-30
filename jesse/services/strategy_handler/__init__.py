@@ -88,6 +88,49 @@ def save_strategy(name: str, content: str) -> JSONResponse:
     })
 
 
+def import_strategy(name: str, code: str) -> JSONResponse:
+    import re
+    
+    # Sanitize strategy name to create valid folder name
+    # Remove any characters that aren't alphanumeric, underscore, or hyphen
+    sanitized_name = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
+    # Replace multiple underscores with a single one
+    sanitized_name = re.sub(r'_+', '_', sanitized_name)
+    # Remove leading/trailing underscores
+    sanitized_name = sanitized_name.strip('_')
+    
+    # Ensure name is not empty after sanitization
+    if not sanitized_name:
+        return JSONResponse({
+            'status': 'error',
+            'message': 'Invalid strategy name'
+        }, status_code=400)
+    
+    path = f'strategies/{sanitized_name}'
+
+    # Check if strategy already exists
+    exists = os.path.isdir(path)
+    if exists:
+        return JSONResponse({
+            'status': 'error',
+            'message': f'Strategy "{sanitized_name}" already exists.'
+        }, status_code=409)
+
+    # Create strategy directory
+    os.makedirs(path, exist_ok=True)
+
+    # Write the strategy code to __init__.py
+    with open(f"{path}/__init__.py", "wt") as f:
+        f.write(code)
+
+    return JSONResponse({
+        'status': 'success',
+        'message': f'Strategy "{sanitized_name}" has been imported.',
+        'path': path,
+        'name': sanitized_name
+    })
+
+
 def delete_strategy(name: str) -> JSONResponse:
     path = f'strategies/{name}'
     exists = os.path.isdir(path)
