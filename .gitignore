@@ -147,4 +147,6 @@ testing-*.py
 /storage/full-reports/*.html
 /storage/logs/*
 
-/jesse/lsp
+# lsp
+jesse/lsp/
+pyrightconfig.json
