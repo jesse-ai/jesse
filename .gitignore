@@ -146,3 +146,7 @@ cython_debug/
 testing-*.py
 /storage/full-reports/*.html
 /storage/logs/*
+
+# lsp
+jesse/lsp/
+pyrightconfig.json
