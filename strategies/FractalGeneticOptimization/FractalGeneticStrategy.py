@@ -373,14 +373,22 @@ class FractalGeneticStrategy(Strategy):
         risk_amount = self.balance * risk_per_trade
 
         # Calculate quantity based on stop-loss distance
-        stop_loss_distance = entry_price - stop_loss_price
+        stop_loss_distance = abs(entry_price - stop_loss_price)
         if stop_loss_distance > 0:
             qty = risk_amount / stop_loss_distance
         else:
             qty = self.balance * 0.01 / entry_price  # Fallback to 1% of balance
 
+        # Ensure qty is positive and reasonable
+        qty = abs(qty)
+
+        # Limit position size to max % of balance
+        max_position_pct = self.hp.get('max_position_pct', 0.95)
+        max_qty = (self.balance * max_position_pct) / entry_price
+        qty = min(qty, max_qty)
+
         # Round quantity appropriately
-        qty = utils.size_to_qty(qty * entry_price, entry_price, fee_rate=self.fee_rate)
+        qty = abs(utils.size_to_qty(qty * entry_price, entry_price, fee_rate=self.fee_rate))
 
         # Set entry order
         self.buy = qty, entry_price
@@ -417,14 +425,22 @@ class FractalGeneticStrategy(Strategy):
         risk_amount = self.balance * risk_per_trade
 
         # Calculate quantity based on stop-loss distance
-        stop_loss_distance = stop_loss_price - entry_price
+        stop_loss_distance = abs(stop_loss_price - entry_price)
         if stop_loss_distance > 0:
             qty = risk_amount / stop_loss_distance
         else:
             qty = self.balance * 0.01 / entry_price  # Fallback to 1% of balance
 
+        # Ensure qty is positive and reasonable
+        qty = abs(qty)
+
+        # Limit position size to max % of balance
+        max_position_pct = self.hp.get('max_position_pct', 0.95)
+        max_qty = (self.balance * max_position_pct) / entry_price
+        qty = min(qty, max_qty)
+
         # Round quantity appropriately
-        qty = utils.size_to_qty(qty * entry_price, entry_price, fee_rate=self.fee_rate)
+        qty = abs(utils.size_to_qty(qty * entry_price, entry_price, fee_rate=self.fee_rate))
 
         # Set entry order
         self.sell = qty, entry_price
