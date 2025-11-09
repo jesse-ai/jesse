@@ -122,6 +122,36 @@ async def index_jesse_trade_strategies(
         return JSONResponse({
             'status': 'error',
             'message': f'Error connecting to jesse.trade: {str(e)}'
+        },         status_code=500)
+
+
+@router.get("/periods")
+async def get_jesse_trade_periods(
+        authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    """
+    Get available trading periods from jesse.trade
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    try:
+        response = requests.get(
+            f'{JESSE_API2_URL}/strategies/periods',
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            return JSONResponse(response.json())
+        else:
+            return JSONResponse({
+                'status': 'error',
+                'message': f'Failed to fetch periods: {response.text}'
+            }, status_code=response.status_code)
+    except requests.exceptions.RequestException as e:
+        return JSONResponse({
+            'status': 'error',
+            'message': f'Error connecting to jesse.trade: {str(e)}'
         }, status_code=500)
 
 
