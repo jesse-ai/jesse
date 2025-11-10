@@ -92,19 +92,19 @@ async def index_jesse_trade_strategies(
         sort_by: str = Query("Sharpe Ratio"),
         submitted_after: Optional[str] = Query(None),
         submitted_before: Optional[str] = Query(None),
-        bearer_token: Optional[str] = Query(None),
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+        jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Browse strategies from jesse.trade
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     try:
         headers = {}
-        if bearer_token:
-            headers['Authorization'] = f'Bearer {bearer_token}'
+        if jesse_trade_token:
+            headers['Authorization'] = f'Bearer {jesse_trade_token}'
             
         params = {'period': period, 'sort_by': sort_by}
         if submitted_after:
@@ -166,19 +166,19 @@ async def get_jesse_trade_periods(
 @router.get("/jesse-trade/{slug}")
 async def get_jesse_trade_strategy(
         slug: str,
-        bearer_token: Optional[str] = Query(None),
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+        jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get a specific strategy from jesse.trade
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     try:
         headers = {}
-        if bearer_token:
-            headers['Authorization'] = f'Bearer {bearer_token}'
+        if jesse_trade_token:
+            headers['Authorization'] = f'Bearer {jesse_trade_token}'
             
         response = requests.get(
             f'{JESSE_API2_URL}/strategies/{slug}',
@@ -206,19 +206,19 @@ async def get_jesse_trade_strategy_metrics(
         period: str = Query(...),
         symbol: str = Query(...),
         timeframe: str = Query(...),
-        bearer_token: Optional[str] = Query(None),
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+        jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get metrics for a specific strategy from jesse.trade
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     try:
         headers = {}
-        if bearer_token:
-            headers['Authorization'] = f'Bearer {bearer_token}'
+        if jesse_trade_token:
+            headers['Authorization'] = f'Bearer {jesse_trade_token}'
             
         response = requests.get(
             f'{JESSE_API2_URL}/strategies/{slug}/metrics',
@@ -244,19 +244,20 @@ async def get_jesse_trade_strategy_metrics(
 @router.post("/import")
 async def import_strategy(
         json_request: ImportStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+        jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Import a strategy from jesse.trade
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     try:
         # Fetch the strategy from jesse.trade
         headers = {}
-        if json_request.bearer_token:
-            headers['Authorization'] = f'Bearer {json_request.bearer_token}'
+        if jesse_trade_token:
+            headers['Authorization'] = f'Bearer {jesse_trade_token}'
             
         response = requests.get(
             f'{JESSE_API2_URL}/strategies/{json_request.slug}',
