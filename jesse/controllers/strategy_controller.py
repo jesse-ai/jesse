@@ -2,6 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 import requests
+import re
 
 from jesse.services import auth as authenticator
 from jesse.services.web import (
@@ -279,12 +280,23 @@ async def import_strategy(
                 'status': 'error',
                 'message': 'Strategy code not available. You may not have access to this strategy.'
             }, status_code=403)
-        
+
+        # Extract the Python class name from the code
+        code = strategy_data.get('code')
+        class_match = re.search(r'class\s+(\w+)', code)
+        if not class_match:
+            return JSONResponse({
+                'status': 'error',
+                'message': 'No Python class definition found in strategy code. Cannot import strategy.'
+            }, status_code=400)
+
+        class_name = class_match.group(1)
+
         # Import the strategy
         from jesse.services import strategy_handler
         return strategy_handler.import_strategy(
-            name=strategy_data.get('name'),
-            code=strategy_data.get('code')
+            name=class_name,
+            code=code
         )
         
     except requests.exceptions.RequestException as e:
