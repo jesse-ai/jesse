@@ -90,6 +90,8 @@ def delete_strategy(
 async def index_jesse_trade_strategies(
         period: str = Query(...),
         sort_by: str = Query("Sharpe Ratio"),
+        submitted_after: Optional[str] = Query(None),
+        submitted_before: Optional[str] = Query(None),
         bearer_token: Optional[str] = Query(None),
         authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
@@ -104,9 +106,15 @@ async def index_jesse_trade_strategies(
         if bearer_token:
             headers['Authorization'] = f'Bearer {bearer_token}'
             
+        params = {'period': period, 'sort_by': sort_by}
+        if submitted_after:
+            params['submitted_after'] = submitted_after
+        if submitted_before:
+            params['submitted_before'] = submitted_before
+
         response = requests.get(
             f'{JESSE_API2_URL}/strategies',
-            params={'period': period, 'sort_by': sort_by},
+            params=params,
             headers=headers,
             timeout=10
         )
