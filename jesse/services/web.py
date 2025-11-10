@@ -158,7 +158,6 @@ class DeleteStrategyRequestJson(BaseModel):
 
 class ImportStrategyRequestJson(BaseModel):
     slug: str
-    bearer_token: Optional[str] = None
 
 
 class FeedbackRequestJson(BaseModel):
