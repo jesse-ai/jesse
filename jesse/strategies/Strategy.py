@@ -103,6 +103,8 @@ class Strategy(ABC):
             lineStyle = 0
         elif line_style == 'dotted':
             lineStyle = 1
+        elif line_style == 'dashed':
+            lineStyle = 2
         else:
             raise ValueError(f"Invalid line_style: {line_style}")
 
@@ -131,6 +133,8 @@ class Strategy(ABC):
             lineStyle = 0
         elif line_style == 'dotted':
             lineStyle = 1
+        elif line_style == 'dashed':
+            lineStyle = 2
         else:
             raise ValueError(f"Invalid line_style: {line_style}")
 
