@@ -61,7 +61,7 @@ def install_lsp_server() -> None:
         start_script = os.path.join(target_dir, 'start.sh')
     
     
-    # Skip if already exists (optional - remove if you want to always re-download)
+    # Skip if already exists 
     if os.path.exists(target_dir):
         if jh.is_debuggable('lsp_installer'):
             print(f"Python Language Server already exists at {target_dir}")
@@ -198,9 +198,7 @@ def run_lsp_server():
     jesse_framework_parent = os.path.dirname(JESSE_DIR)  # /home/king/jesse/jesse-ai/jesse    
     
     print("Starting Python Language Server...")
-    print(f"LSP Jesse Bot root: {jesse_bot_root}")
-    print(f"LSP Jesse Framework: {jesse_framework_parent}")
-    print(f"LSP WS URL: ws://localhost:{port}/lsp")
+    print(f"LSP WS started at ws://localhost:{port}/lsp")
     
     # Start the lsp process and return the handle
     try:
