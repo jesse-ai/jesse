@@ -2,6 +2,7 @@ def import_candles(
     exchange: str,
     symbol: str,
     start_date: str,
+    end_date: str = None,
     show_progressbar: bool = True,
 ) -> str:
     from jesse.modes.import_candles_mode import run
@@ -11,6 +12,7 @@ def import_candles(
         exchange=exchange,
         symbol=symbol,
         start_date_str=start_date,
+        end_date_str=end_date,
         running_via_dashboard=False,
         show_progressbar=show_progressbar
     )

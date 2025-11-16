@@ -191,7 +191,7 @@ def _isolated_backtest(
     return result
 
 
-def _format_config(config):
+def _format_config(config, n_trials=None):
     """
     Jesse's required format for user_config is different from what this function accepts (so it
     would be easier to write for the researcher). Hence, we need to reformat the config_dict:
@@ -225,3 +225,9 @@ def _format_config(config):
         },
         'warm_up_candles': config['warm_up_candles']
     }
+    
+    # Add trials if n_trials is provided
+    if n_trials is not None:
+        result['trials'] = n_trials
+    
+    return result
