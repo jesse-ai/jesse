@@ -19,6 +19,10 @@ from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateU
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual import HyperliquidPerpetual
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
+# KuCoin imports
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpot import KuCoinSpot
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinFutures import KuCoinFutures
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinFuturesTestnet import KuCoinFuturesTestnet
 
 
 drivers = {
@@ -39,6 +43,10 @@ drivers = {
     exchanges.GATE_SPOT: GateSpot,
     exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
+    # KuCoin
+    exchanges.KUCOIN_SPOT: KuCoinSpot,
+    exchanges.KUCOIN_FUTURES: KuCoinFutures,
+    exchanges.KUCOIN_FUTURES_TESTNET: KuCoinFuturesTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
