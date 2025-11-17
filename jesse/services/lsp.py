@@ -5,6 +5,7 @@ import shutil
 import tarfile
 import zipfile
 import tempfile
+import json
 import jesse.helpers as jh
 
 #Global variable to store the LSP default port
@@ -12,6 +13,9 @@ LSP_DEFAULT_PORT = 9001
 
 # Global variable to store/track the lsp process
 LSP_PROCESS = None
+
+
+LSP_RELEASE_URL = "https://api.github.com/repos/jesse-ai/python-language-server/releases/latest"
 
 def __get_platform_package_name() -> str:
     """
@@ -42,17 +46,100 @@ def __get_platform_package_name() -> str:
     else:
         raise Exception(f"Unsupported operating system: {system}")
 
+def __save_lsp_version_to_database(lsp_version: str) -> None:
+    """
+    Saves the Python Language Server version to the database.
+    """
+    from jesse.models.Option import Option
+    from jesse.services.db import database
+    database.open_connection()
+   
+    try:
+        # Get the existing config record
+        config_option = Option.get(Option.type == 'config')
+        config_data = json.loads(config_option.json)
+        
+        # Ensure editor section exists
+        if 'editor' not in config_data:
+            config_data['editor'] = {}
+    
+        # Add lsp_version to editor section
+        config_data['editor']['lsp_version'] = lsp_version
+        
+        # Update the config record
+        config_option.json = json.dumps(config_data)
+        config_option.updated_at = jh.now(True)
+        config_option.save()
+        
+    except Exception as e:
+        raise Exception(f"Error saving LSP version: {str(e)}")
+    finally:
+        database.close_connection()
+
+
+def is_lsp_update_available() -> bool:
+    """
+    Checks if an update is available for the Python Language Server.
+    """
+    from jesse.models.Option import Option
+    from jesse.services.db import database
+    database.open_connection()
+    try:
+        config_option = Option.get(Option.type == 'config')
+        config_data = json.loads(config_option.json)
+        lsp_version = config_data.get('editor', {}).get('lsp_version', '')
+        
+        # Get the latest version info 
+        global LSP_RELEASE_URL
+        response = requests.get(LSP_RELEASE_URL, timeout=10)
+        response.raise_for_status()
+        
+        release_data = response.json()
+        latest_version = release_data.get('tag_name', '').lstrip('v')
+        
+        # Compare the latest version with the current version using packaging library
+        from packaging import version
+        # If the current version is not set, return True
+        if lsp_version == '':
+            return False
+        # If the latest version is greater than the current version, return True
+        if version.parse(latest_version) > version.parse(lsp_version):
+            return True
+        else:
+            return False
+            
+    except Exception as e:
+        raise Exception(f"Error checking for LSP update: {str(e)}")
+    finally:
+        database.close_connection()
+
 
 def install_lsp_server() -> None:
     """
     Downloads and installs the Python Language Server from GitHub releases
     based on the current platform and architecture.
-    """
+    """        
     # Define the target directory
     from jesse import JESSE_DIR
     
     target_dir = os.path.join(JESSE_DIR, 'lsp')
     
+    #Update process
+    # If the lsp directory exists(installed), check if an update is available, if so, delete the lsp directory and all its contents and re-install it
+    if os.path.exists(target_dir):
+        try:
+            should_update_lsp = is_lsp_update_available() # Check if an update is available  
+
+            if should_update_lsp:
+                # Delete the lsp directory and all its contents
+                shutil.rmtree(target_dir, ignore_errors=True)
+                # Re-install the Python Language Server
+                return install_lsp_server()
+        except Exception as e:
+            print(jh.color(f"Error checking for LSP update: {str(e)}", 'yellow'))
+            pass
+     
+    #Normal installation process
     #Define the start script based on the platform
     start_script = None
     if platform.system().lower() == 'windows':
@@ -62,7 +149,7 @@ def install_lsp_server() -> None:
     
     
     # Skip if already exists 
-    if os.path.exists(target_dir):
+    if os.path.exists(target_dir) and os.path.exists(start_script):
         if jh.is_debuggable('lsp_installer'):
             print(f"Python Language Server already exists at {target_dir}")
         return
@@ -86,8 +173,8 @@ def install_lsp_server() -> None:
         print(f"Detected platform package: {package_name}")
         
         # Get the latest release
-        repo_url = "https://api.github.com/repos/jesse-ai/python-language-server/releases/latest"
-        response = requests.get(repo_url, timeout=10)
+        global LSP_RELEASE_URL
+        response = requests.get(LSP_RELEASE_URL, timeout=10)
         response.raise_for_status()
         
         release_data = response.json()
@@ -100,7 +187,7 @@ def install_lsp_server() -> None:
                 break
         
         if not download_url:
-            raise Exception(f"Package '{package_name}' not found in latest release")
+            raise Exception(f"Package '{package_name}' not found in latest release")        
         
         print(f"Downloading Python Language Server from {download_url}...")
         
@@ -146,6 +233,10 @@ def install_lsp_server() -> None:
                     shutil.copytree(source_path, dest_path)
                 else:
                     shutil.copy2(source_path, dest_path)
+            
+            #write the lsp version to database into config table
+            lsp_version = release_data.get('tag_name', '').lstrip('v')
+            __save_lsp_version_to_database(lsp_version)
             
             print(jh.color("✓ Python Language Server installed successfully", 'green'))
     
