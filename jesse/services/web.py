@@ -156,6 +156,10 @@ class DeleteStrategyRequestJson(BaseModel):
     name: str
 
 
+class ImportStrategyRequestJson(BaseModel):
+    slug: str
+
+
 class FeedbackRequestJson(BaseModel):
     description: str
     email: Optional[str] = None
