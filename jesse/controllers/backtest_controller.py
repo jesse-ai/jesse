@@ -148,6 +148,7 @@ def get_backtest_session_by_id(session_id: str, authorization: Optional[str] = H
 
     # Transform the session using the transformer
     transformed_session = get_backtest_session_for_load_more(session)
+    transformed_session = jh.clean_infinite_values(transformed_session)
 
     return JSONResponse({
         'session': transformed_session
