@@ -24,16 +24,42 @@ def get_general_info(has_live=False) -> dict:
 
         if access_token:
             # get the account plan info via the access_token
-            response = requests.post(
-                JESSE_API_URL + '/v2/user-info',
-                headers={'Authorization': f'Bearer {access_token}'}
-            )
-            if response.status_code != 200:
-                raise Exception(
-                    f"{response.status_code} error: {response.json()['message']}"
+            try:
+                response = requests.post(
+                    JESSE_API_URL + '/v2/user-info',
+                    headers={'Authorization': f'Bearer {access_token}'},
+                    timeout=10
                 )
-            plan_info = response.json()
-            limits = plan_info['limits']
+                
+                # Check if response is JSON
+                content_type = response.headers.get('Content-Type', '')
+                if 'application/json' not in content_type:
+                    raise Exception(
+                        f"Jesse API returned unexpected content type '{content_type}'. "
+                        f"The service might be temporarily unavailable. Please try again later."
+                    )
+                
+                if response.status_code != 200:
+                    try:
+                        error_message = response.json().get('message', 'Unknown error')
+                    except:
+                        error_message = f"Received status code {response.status_code}"
+                    raise Exception(
+                        f"Failed to get user info from Jesse API: {error_message}"
+                    )
+                
+                plan_info = response.json()
+                limits = plan_info['limits']
+            except requests.exceptions.RequestException as e:
+                raise Exception(
+                    f"Failed to connect to Jesse API. The service might be temporarily unavailable. "
+                    f"Error: {str(e)}"
+                )
+            except ValueError as e:
+                raise Exception(
+                    f"Jesse API returned invalid JSON response. The service might be temporarily unavailable. "
+                    f"Error: {str(e)}"
+                )
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name) and not name.startswith('.')]))
@@ -48,15 +74,26 @@ def get_general_info(has_live=False) -> dict:
     update_info = {}
 
     try:
-        response = requests.get('https://pypi.org/pypi/jesse/json')
-        update_info['jesse_latest_version'] = response.json()['info']['version']
+        response = requests.get('https://pypi.org/pypi/jesse/json', timeout=10)
+        if response.status_code == 200 and 'application/json' in response.headers.get('Content-Type', ''):
+            update_info['jesse_latest_version'] = response.json()['info']['version']
+        else:
+            raise ValueError("Invalid response from PyPI")
+            
         response = requests.get(
-            JESSE_API_URL + '/plugins/live/releases/info'
+            JESSE_API_URL + '/plugins/live/releases/info',
+            timeout=10
         )
-        update_info['jesse_live_latest_version'] = response.json()[0]['version']
+        if response.status_code == 200 and 'application/json' in response.headers.get('Content-Type', ''):
+            update_info['jesse_live_latest_version'] = response.json()[0]['version']
+        else:
+            raise ValueError("Invalid response from Jesse API")
+            
         update_info['is_update_info_available'] = True
-    except Exception:
+    except Exception as e:
         update_info['is_update_info_available'] = False
+        # Log the error for debugging purposes
+        jh.debug(f"Failed to fetch update info: {str(e)}")
 
     res = {
         'exchanges': exchange_info,
