@@ -5,7 +5,6 @@ import shutil
 import tarfile
 import zipfile
 import tempfile
-import json
 import jesse.helpers as jh
 
 #Global variable to store the LSP default port
@@ -17,7 +16,7 @@ LSP_PROCESS = None
 
 LSP_RELEASE_URL = "https://api.github.com/repos/jesse-ai/python-language-server/releases/latest"
 
-def __get_platform_package_name() -> str:
+def _get_platform_package_name() -> str:
     """
     Determines the appropriate package name based on the current platform and architecture.
     
@@ -46,7 +45,7 @@ def __get_platform_package_name() -> str:
     else:
         raise Exception(f"Unsupported operating system: {system}")
 
-def __save_lsp_version(lsp_version: str) -> None:
+def _save_lsp_version(lsp_version: str) -> None:
     """
     Saves the Python Language Server version to a file.
     """
@@ -55,7 +54,7 @@ def __save_lsp_version(lsp_version: str) -> None:
     with open(version_file, 'w') as f:
         f.write(lsp_version)
 
-def __get_lsp_version() -> str:
+def _get_lsp_version() -> str:
     """
     Reads the Python Language Server version from a file.
     Returns empty string if file doesn't exist.
@@ -67,13 +66,53 @@ def __get_lsp_version() -> str:
     with open(version_file, 'r') as f:
         return f.read().strip()
 
+def _compare_versions(version1: str, version2: str) -> int:
+    """
+    Compares two semantic version strings.
+    
+    Args:
+        version1: First version string (e.g., '1.2.3')
+        version2: Second version string (e.g., '1.2.4')
+    
+    Returns:
+        int: -1 if version1 < version2, 0 if equal, 1 if version1 > version2
+    """
+    def normalize_version(v: str) -> list:
+        """Convert version string to list of integers for comparison."""
+        parts = []
+        for part in v.split('.'):
+            try:
+                parts.append(int(part))
+            except ValueError:
+                parts.append(0)
+        return parts
+    
+    v1_parts = normalize_version(version1)
+    v2_parts = normalize_version(version2)
+    
+    max_len = max(len(v1_parts), len(v2_parts))
+    v1_parts.extend([0] * (max_len - len(v1_parts)))
+    v2_parts.extend([0] * (max_len - len(v2_parts)))
+    
+    for i in range(max_len):
+        if v1_parts[i] < v2_parts[i]:
+            return -1
+        elif v1_parts[i] > v2_parts[i]:
+            return 1
+    
+    return 0
+
 def is_lsp_update_available() -> bool:
     """
     Checks if an update is available for the Python Language Server.
     """
     try:
         # Get the current installed version
-        lsp_version = __get_lsp_version()
+        lsp_version = _get_lsp_version()
+        
+        # If the current version is not set, return False
+        if lsp_version == '':
+            return False
         
         # Get the latest version info 
         global LSP_RELEASE_URL
@@ -83,16 +122,8 @@ def is_lsp_update_available() -> bool:
         release_data = response.json()
         latest_version = release_data.get('tag_name', '').lstrip('v')
         
-        # Compare the latest version with the current version using packaging library
-        from packaging import version
-        # If the current version is not set, return False
-        if lsp_version == '':
-            return False
-        # If the latest version is greater than the current version, return True
-        if version.parse(latest_version) > version.parse(lsp_version):
-            return True
-        else:
-            return False
+        # Compare versions
+        return _compare_versions(lsp_version, latest_version) < 0
             
     except Exception as e:
         raise Exception(f"Error checking for LSP update: {str(e)}")
@@ -150,7 +181,7 @@ def install_lsp_server() -> None:
     try:
         # Determine the platform-specific package name
         try:
-            package_name = __get_platform_package_name()
+            package_name = _get_platform_package_name()
         except Exception as e:
             raise Exception(f"Cannot determine platform package name: {str(e)}")
         
@@ -220,7 +251,7 @@ def install_lsp_server() -> None:
             
             # Save the lsp version to file
             lsp_version = release_data.get('tag_name', '').lstrip('v')
-            __save_lsp_version(lsp_version)
+            _save_lsp_version(lsp_version)
             
             print(jh.color("✓ Python Language Server installed successfully", 'green'))
     
