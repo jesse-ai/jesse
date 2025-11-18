@@ -46,48 +46,34 @@ def __get_platform_package_name() -> str:
     else:
         raise Exception(f"Unsupported operating system: {system}")
 
-def __save_lsp_version_to_database(lsp_version: str) -> None:
+def __save_lsp_version(lsp_version: str) -> None:
     """
-    Saves the Python Language Server version to the database.
+    Saves the Python Language Server version to a file.
     """
-    from jesse.models.Option import Option
-    from jesse.services.db import database
-    database.open_connection()
-   
-    try:
-        # Get the existing config record
-        config_option = Option.get(Option.type == 'config')
-        config_data = json.loads(config_option.json)
-        
-        # Ensure editor section exists
-        if 'editor' not in config_data:
-            config_data['editor'] = {}
-    
-        # Add lsp_version to editor section
-        config_data['editor']['lsp_version'] = lsp_version
-        
-        # Update the config record
-        config_option.json = json.dumps(config_data)
-        config_option.updated_at = jh.now(True)
-        config_option.save()
-        
-    except Exception as e:
-        raise Exception(f"Error saving LSP version: {str(e)}")
-    finally:
-        database.close_connection()
+    from jesse import JESSE_DIR
+    version_file = os.path.join(JESSE_DIR, 'lsp', 'VERSION')
+    with open(version_file, 'w') as f:
+        f.write(lsp_version)
 
+def __get_lsp_version() -> str:
+    """
+    Reads the Python Language Server version from a file.
+    Returns empty string if file doesn't exist.
+    """
+    from jesse import JESSE_DIR
+    version_file = os.path.join(JESSE_DIR, 'lsp', 'VERSION')
+    if not os.path.exists(version_file):
+        return ''
+    with open(version_file, 'r') as f:
+        return f.read().strip()
 
 def is_lsp_update_available() -> bool:
     """
     Checks if an update is available for the Python Language Server.
     """
-    from jesse.models.Option import Option
-    from jesse.services.db import database
-    database.open_connection()
     try:
-        config_option = Option.get(Option.type == 'config')
-        config_data = json.loads(config_option.json)
-        lsp_version = config_data.get('editor', {}).get('lsp_version', '')
+        # Get the current installed version
+        lsp_version = __get_lsp_version()
         
         # Get the latest version info 
         global LSP_RELEASE_URL
@@ -99,7 +85,7 @@ def is_lsp_update_available() -> bool:
         
         # Compare the latest version with the current version using packaging library
         from packaging import version
-        # If the current version is not set, return True
+        # If the current version is not set, return False
         if lsp_version == '':
             return False
         # If the latest version is greater than the current version, return True
@@ -110,8 +96,6 @@ def is_lsp_update_available() -> bool:
             
     except Exception as e:
         raise Exception(f"Error checking for LSP update: {str(e)}")
-    finally:
-        database.close_connection()
 
 
 def install_lsp_server() -> None:
@@ -234,9 +218,9 @@ def install_lsp_server() -> None:
                 else:
                     shutil.copy2(source_path, dest_path)
             
-            #write the lsp version to database into config table
+            # Save the lsp version to file
             lsp_version = release_data.get('tag_name', '').lstrip('v')
-            __save_lsp_version_to_database(lsp_version)
+            __save_lsp_version(lsp_version)
             
             print(jh.color("✓ Python Language Server installed successfully", 'green'))
     
