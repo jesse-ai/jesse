@@ -33,4 +33,3 @@ eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0
 jesse-rust==1.0.1
-packaging~=25.0
