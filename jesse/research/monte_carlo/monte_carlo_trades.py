@@ -518,8 +518,8 @@ def print_monte_carlo_trades_summary(results: dict) -> None:
             orig_display = f"{orig*100:.1f}%"; p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
         elif display_name == "Max Drawdown":
             display_name = "Max Drawdown (%)"
-            orig_display = f"{abs(orig)*100:.1f}%"
-            p5_disp = f"{abs(p95)*100:.1f}%"; p50_disp = f"{abs(p50)*100:.1f}%"; p95_disp = f"{abs(p5)*100:.1f}%"
+            orig_display = f"-{abs(orig)*100:.1f}%"
+            p5_disp = f"-{abs(p95)*100:.1f}%"; p50_disp = f"-{abs(p50)*100:.1f}%"; p95_disp = f"-{abs(p5)*100:.1f}%"
         elif display_name in ["Sharpe Ratio", "Calmar Ratio"]:
             orig_display = f"{orig:.2f}"; p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
         else:
