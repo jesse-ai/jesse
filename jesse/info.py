@@ -5,9 +5,9 @@ def is_dev_env() -> bool:
     return ENV_VALUES.get('IS_DEV_ENV', '').upper() == 'TRUE'
 
 if is_dev_env():
-    JESSE_API_URL = 'http://localhost:8040/api'
-    JESSE_API2_URL = 'http://localhost:8080'
-    JESSE_WEBSITE_URL = 'http://localhost:8040'
+    JESSE_API_URL = ENV_VALUES.get('JESSE_API_URL', 'http://localhost:8040/api')
+    JESSE_API2_URL = ENV_VALUES.get('JESSE_API2_URL', 'http://localhost:8080')
+    JESSE_WEBSITE_URL = ENV_VALUES.get('JESSE_WEBSITE_URL', 'http://localhost:8040')
 else:
     JESSE_API_URL = 'https://api1.jesse.trade/api'
     JESSE_API2_URL = 'https://api2.jesse.trade'
