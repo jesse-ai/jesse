@@ -239,52 +239,35 @@ def _extract_candles_summary_metrics(results: dict) -> list:
     metrics = []
     results = json.loads(results)
 
-    if not results or not results.get('scenarios'):
+    if not results or 'confidence_analysis' not in results:
         return metrics
 
-    original_result = results.get('original')
-    simulation_results = results.get('scenarios', [])
+    ca_metrics = results['confidence_analysis']['metrics']
 
-    if not simulation_results:
-        return metrics
+    # Define metrics to display (in order)
+    metric_keys = ['net_profit_percentage', 'max_drawdown', 'sharpe_ratio', 'win_rate', 'total', 'annual_return', 'calmar_ratio']
 
-    # Metrics to display (in order)
-    metric_keys = [
-        'net_profit_percentage', 'max_drawdown', 'sharpe_ratio',
-        'win_rate', 'total', 'annual_return', 'calmar_ratio'
-    ]
-
-    # Collect values for each metric
     for key in metric_keys:
-        values = []
-        for scenario in simulation_results:
-            val = scenario.get('metrics', {}).get(key)
-            if isinstance(val, (int, float)) and math.isfinite(val):
-                values.append(float(val))
-
-        if not values:
+        if key not in ca_metrics:
             continue
 
-        # Calculate percentiles
-        p5 = _percentile(values, 5)
-        p50 = _percentile(values, 50)
-        p95 = _percentile(values, 95)
+        analysis = ca_metrics[key]
+        original = analysis.get('original')
+        percentiles = analysis.get('percentiles', {})
 
-        # Get original value from original backtest
-        original = None
-        if original_result and isinstance(original_result, dict) and key in original_result:
-            raw_original = original_result[key]
-            if isinstance(raw_original, (int, float)) and math.isfinite(raw_original):
-                original = float(raw_original)
+        # Get percentiles
+        p5 = percentiles.get('5th')
+        p50 = percentiles.get('50th')
+        p95 = percentiles.get('95th')
 
         # For max_drawdown, flip the percentiles (worst is highest drawdown)
         if key == 'max_drawdown':
             metrics.append({
                 'metric': key,
                 'original': original,
-                'worst_5': p95,  # Worst is highest drawdown
+                'worst_5': p5,  # Worst is highest drawdown
                 'median': p50,
-                'best_5': p5    # Best is lowest drawdown
+                'best_5': p95    # Best is lowest drawdown
             })
         else:
             metrics.append({
