@@ -304,7 +304,7 @@ def run_lsp_server():
     jesse_framework_parent = os.path.dirname(JESSE_DIR)  # /home/king/jesse/jesse-ai/jesse    
     
     print("Starting Python Language Server...")
-    print(f"LSP WS started at ws://localhost:{port}/lsp")
+    print(f"LSP WS started at ws://localhost:{port}/lsp\n")
     
     # Start the lsp process and return the handle
     try:
