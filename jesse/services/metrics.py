@@ -315,7 +315,11 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
     date_index = pd.date_range(start=start_date, periods=len(daily_balance))
 
-    daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
+    equity_curve = pd.Series(daily_balance, index=date_index)
+    equity_curve = pd.to_numeric(equity_curve, errors='coerce')
+    daily_return = equity_curve.pct_change(1)
+    returns_series = daily_return.dropna()
+    clean_equity = equity_curve.dropna()
 
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
@@ -332,13 +336,34 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
             return np.nan
 
     # Calculate metrics using 365 days for crypto markets
-    max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
-    annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
-    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
-    calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
-    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
-    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
-    serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
+    max_dd = np.nan if len(returns_series) < 2 else max_drawdown(returns_series).iloc[0] * 100
+    annual_return = np.nan if len(returns_series) < 2 else cagr(returns_series, periods=365).iloc[0] * 100
+    sharpe = np.nan if len(returns_series) < 2 else sharpe_ratio(returns_series, periods=365).iloc[0]
+    calmar = np.nan if len(returns_series) < 2 else calmar_ratio(returns_series).iloc[0]
+    sortino = np.nan if len(returns_series) < 2 else sortino_ratio(returns_series, periods=365).iloc[0]
+    omega = np.nan if len(returns_series) < 2 else omega_ratio(returns_series, periods=365).iloc[0]
+    serenity = np.nan if len(returns_series) < 2 else serenity_index(returns_series).iloc[0]
+    ulcer = np.nan
+    if len(returns_series) >= 2:
+        ulcer_value = ulcer_index(returns_series)
+        if isinstance(ulcer_value, pd.Series):
+            ulcer_value = ulcer_value.iloc[0]
+        ulcer = ulcer_value * 100
+    stability_r2 = np.nan
+    if len(clean_equity) >= 2:
+        y = clean_equity.values
+        x = np.arange(len(clean_equity))
+        try:
+            slope, intercept = np.polyfit(x, y, 1)
+            y_pred = intercept + slope * x
+            ss_res = np.sum((y - y_pred) ** 2)
+            ss_tot = np.sum((y - y.mean()) ** 2)
+            stability_r2 = 0.0 if ss_tot == 0 else 1 - (ss_res / ss_tot)
+        except Exception:
+            stability_r2 = np.nan
+    recovery_factor = np.nan
+    if not np.isnan(max_dd) and max_dd != 0 and not np.isnan(net_profit_percentage):
+        recovery_factor = net_profit_percentage / abs(max_dd)
 
     return {
         'total': safe_convert(total_completed, int),
@@ -372,6 +397,9 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'sortino_ratio': safe_convert(sortino),
         'omega_ratio': safe_convert(omega),
         'serenity_index': safe_convert(serenity),
+        'ulcer_index': safe_convert(ulcer),
+        'stability_r2': safe_convert(stability_r2),
+        'recovery_factor': safe_convert(recovery_factor),
         'total_open_trades': safe_convert(total_open_trades, int),
         'open_pl': safe_convert(open_pl),
         'winning_streak': safe_convert(winning_streak, int),
