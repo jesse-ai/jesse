@@ -37,7 +37,7 @@ class BacktestRequestJson(BaseModel):
 
 
 class OptimizationRequestJson(BaseModel):
-    id: str
+    id: Optional[str] = None
     exchange: str
     routes: List[Dict[str, str]]
     data_routes: List[Dict[str, str]]

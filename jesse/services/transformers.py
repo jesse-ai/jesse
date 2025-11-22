@@ -147,7 +147,6 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'traceback': session.traceback,
         'title': session.title,
         'description': session.description,
-        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     }
 
 
