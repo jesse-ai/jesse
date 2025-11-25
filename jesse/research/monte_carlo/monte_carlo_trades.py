@@ -303,13 +303,14 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
         return {'error': 'Invalid equity curve'}
     data = equity_curve[0]['data']
     values = [item['value'] for item in data]
+
     if not values:
         return {'error': 'No data in equity curve'}
     final_value = values[-1]
-    total_return = (final_value - starting_balance) / starting_balance
+    total_return = ((final_value - starting_balance) / starting_balance) * 100
     max_drawdown = _calculate_max_drawdown(values)
     volatility, sharpe_ratio = _calculate_volatility_metrics(values)
-    calmar_ratio = total_return / max_drawdown if max_drawdown > 0 else 0
+    calmar_ratio = total_return / abs(max_drawdown) if max_drawdown < 0 else 0
     return {
         'total_return': total_return,
         'final_value': final_value,
@@ -322,16 +323,23 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
 
 
 def _calculate_max_drawdown(values: List[float]) -> float:
-    peak = values[0] if values else 0
+    """
+    Calculates the maximum drawdown from equity curve values (prices)
+    Same approach as metrics.py: (prices / prices.expanding(min_periods=0).max()).min() - 1
+    """
+    if not values:
+        return 0.0
+
+    # Find running maximum
+    running_max = values[0]
     max_drawdown = 0.0
-    for value in values:
-        if value > peak:
-            peak = value
-        if peak > 0:
-            current_drawdown = (peak - value) / peak
-            current_drawdown = min(MAX_DRAWDOWN_LIMIT, current_drawdown)
-            max_drawdown = max(max_drawdown, current_drawdown)
-    return max_drawdown
+
+    for price in values:
+        running_max = max(running_max, price)
+        drawdown = price / running_max - 1
+        max_drawdown = min(max_drawdown, drawdown)
+
+    return max_drawdown * 100
 
 
 def _calculate_volatility_metrics(values: List[float]) -> Tuple[float, float]:
@@ -366,6 +374,7 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
             if key in result and isinstance(result[key], (int, float)):
                 metrics[key].append(result[key])
     original_metrics = original_result.get('metrics', {})
+
     confidence_analysis: Dict[str, Any] = {}
     for metric_name, values in metrics.items():
         if not values:
@@ -376,11 +385,11 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         if metric_name == 'total_return':
             # Calculate from net_profit_percentage (which is in percentage form)
             net_profit_pct = original_metrics.get('net_profit_percentage', 0)
-            original_value = net_profit_pct / 100  # Convert to decimal
+            original_value = net_profit_pct  # Convert to decimal
         elif metric_name == 'max_drawdown':
             # Original backtest returns max_drawdown already multiplied by 100
             max_dd = original_metrics.get('max_drawdown', 0)
-            original_value = max_dd / 100  # Convert to decimal
+            original_value = max_dd  # Convert to decimal
         else:
             original_value = original_metrics.get(metric_name, 0)
         percentiles = {
@@ -428,6 +437,7 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         'significant_metrics_1pct': sum(1 for m in confidence_analysis.values() if m.get('is_significant_1pct', False)),
         'total_metrics': len(confidence_analysis)
     }
+
     return {
         'summary': summary,
         'metrics': confidence_analysis,
@@ -518,8 +528,8 @@ def print_monte_carlo_trades_summary(results: dict) -> None:
             orig_display = f"{orig*100:.1f}%"; p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
         elif display_name == "Max Drawdown":
             display_name = "Max Drawdown (%)"
-            orig_display = f"-{abs(orig)*100:.1f}%"
-            p5_disp = f"-{abs(p95)*100:.1f}%"; p50_disp = f"-{abs(p50)*100:.1f}%"; p95_disp = f"-{abs(p5)*100:.1f}%"
+            orig_display = f"{(orig):.1f}%"
+            p5_disp = f"{(p5):.1f}%"; p50_disp = f"{(p50):.1f}%"; p95_disp = f"{(p95):.1f}%"
         elif display_name in ["Sharpe Ratio", "Calmar Ratio"]:
             orig_display = f"{orig:.2f}"; p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
         else:

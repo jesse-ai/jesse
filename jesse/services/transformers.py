@@ -259,23 +259,13 @@ def _extract_candles_summary_metrics(results: dict) -> list:
         p50 = percentiles.get('50th')
         p95 = percentiles.get('95th')
 
-        # For max_drawdown, flip the percentiles (worst is highest drawdown)
-        if key == 'max_drawdown':
-            metrics.append({
-                'metric': key,
-                'original': original,
-                'worst_5': p5,  # Worst is highest drawdown
-                'median': p50,
-                'best_5': p95    # Best is lowest drawdown
-            })
-        else:
-            metrics.append({
-                'metric': key,
-                'original': original,
-                'worst_5': p5,
-                'median': p50,
-                'best_5': p95
-            })
+        metrics.append({
+            'metric': key,
+            'original': original,
+            'worst_5': p5,
+            'median': p50,
+            'best_5': p95
+        })
 
     return metrics
 
@@ -305,24 +295,14 @@ def _extract_trades_summary_metrics(results: dict) -> list:
         p5 = percentiles.get('5th')
         p50 = percentiles.get('50th')
         p95 = percentiles.get('95th')
-
-        # For max_drawdown, flip the percentiles (worst is highest drawdown)
-        if key == 'max_drawdown':
-            metrics.append({
-                'metric': key,
-                'original': original,
-                'worst_5': p95,  # Worst is highest drawdown (95th percentile)
-                'median': p50,
-                'best_5': p5    # Best is lowest drawdown (5th percentile)
-            })
-        else:
-            metrics.append({
-                'metric': key,
-                'original': original,
-                'worst_5': p5,
-                'median': p50,
-                'best_5': p95
-            })
+        
+        metrics.append({
+            'metric': key,
+            'original': original,
+            'worst_5': p5,
+            'median': p50,
+            'best_5': p95
+        })
 
     return metrics
 
