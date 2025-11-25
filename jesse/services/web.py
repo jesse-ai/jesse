@@ -156,6 +156,10 @@ class DeleteStrategyRequestJson(BaseModel):
     name: str
 
 
+class ImportStrategyRequestJson(BaseModel):
+    slug: str
+
+
 class FeedbackRequestJson(BaseModel):
     description: str
     email: Optional[str] = None
@@ -168,6 +172,10 @@ class ReportExceptionRequestJson(BaseModel):
     attach_logs: bool
     session_id: Optional[str] = None
     email: Optional[str] = None
+
+
+class HelpSearchRequestJson(BaseModel):
+    query: str
 
 
 class DeleteCandlesRequestJson(BaseModel):
@@ -189,6 +197,21 @@ class TerminateOptimizationRequestJson(BaseModel):
     id: str
 
 
+class UpdateOptimizationSessionNotesRequestJson(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
+
+
+class GetOptimizationSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+
+
 class UpdateBacktestSessionStateRequestJson(BaseModel):
     id: str
     state: dict
@@ -207,3 +230,49 @@ class UpdateBacktestSessionNotesRequestJson(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     strategy_codes: Optional[dict] = None
+
+
+class MonteCarloRequestJson(BaseModel):
+    id: Optional[str] = None
+    exchange: str
+    routes: List[Dict[str, str]]
+    data_routes: List[Dict[str, str]]
+    config: dict
+    start_date: str
+    finish_date: str
+    run_trades: bool
+    run_candles: bool
+    num_scenarios: int
+    fast_mode: bool
+    cpu_cores: int
+    pipeline_type: Optional[str] = 'moving_block_bootstrap'
+    pipeline_params: Optional[dict] = None
+    state: dict
+
+
+class UpdateMonteCarloSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
+class TerminateMonteCarloRequestJson(BaseModel):
+    id: str
+
+
+class CancelMonteCarloRequestJson(BaseModel):
+    id: str
+
+
+class UpdateMonteCarloSessionNotesRequestJson(BaseModel):
+    id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
+
+
+class GetMonteCarloSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None

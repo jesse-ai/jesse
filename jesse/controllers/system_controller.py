@@ -3,7 +3,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
-from jesse.services.web import FeedbackRequestJson, ReportExceptionRequestJson
+from jesse.services.web import FeedbackRequestJson, ReportExceptionRequestJson, HelpSearchRequestJson
 from jesse.services.multiprocessing import process_manager
 import jesse.helpers as jh
 
@@ -79,3 +79,41 @@ def active_workers(authorization: Optional[str] = Header(None)) -> JSONResponse:
     return JSONResponse({
         'data': list(process_manager.active_workers)
     }, status_code=200)
+
+
+@router.post("/help-search")
+def help_search(json_request: HelpSearchRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Proxy endpoint for help center search to avoid CORS issues
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+    
+    import requests
+    from jesse.info import JESSE_API_URL
+    from jesse.services.auth import get_access_token
+    
+    try:
+        url = f'{JESSE_API_URL}/help/search?item={json_request.query}'
+        
+        access_token = get_access_token()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*'
+        }
+        
+        if access_token:
+            headers['Authorization'] = f'Bearer {access_token}'
+        
+        res = requests.get(url, headers=headers, timeout=10)
+        
+        if res.status_code == 200:
+            return JSONResponse(res.json(), status_code=200)
+        else:
+            return JSONResponse({
+                'error': f'Search request failed with status {res.status_code}'
+            }, status_code=res.status_code)
+    except Exception as e:
+        return JSONResponse({
+            'error': str(e)
+        }, status_code=500)

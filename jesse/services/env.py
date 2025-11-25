@@ -19,6 +19,8 @@ if jh.is_unit_testing():
     ENV_VALUES['REDIS_DB'] = 0
     ENV_VALUES['REDIS_PASSWORD'] = ''
     ENV_VALUES['APP_PORT'] = 3000
+    ENV_VALUES['IS_DEV_ENV'] = 'TRUE'
+    ENV_VALUES['LSP_PORT'] = 9001
 
 if jh.is_jesse_project():
     # load env

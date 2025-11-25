@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import ray
 import jesse.helpers as jh
+import jesse.services.logger as logger
 
 # =============================================================================
 # SHARED CONSTANTS
@@ -48,20 +49,33 @@ def _setup_progress_bar(progress_bar: bool, total_scenarios: int, description: s
     return tqdm(total=total_scenarios, desc=description)
 
 
-def _safe_log_message(message: str, pbar) -> None:
+def _safe_log_message(message: str, pbar, is_error: bool = False) -> None:
+    formatted_message = message
+    if is_error:
+        formatted_message = f"{'='*80}\n🚨 ERROR: {message}\n{'='*80}"
+    
     if pbar:
         if jh.is_notebook():
-            print(message)
+            print(formatted_message)
         else:
             from tqdm import tqdm
-            tqdm.write(message)
-    else:
-        jh.debug(message)
+            tqdm.write(formatted_message)
+    
+    if jh.app_mode() == 'monte-carlo':
+        logger.log_monte_carlo(message if not is_error else f"ERROR: {message}", session_id=jh.get_session_id())
 
 
-def _process_scenario_results(scenario_refs: List[Any], pbar) -> List[Dict[str, Any]]:
+def _process_scenario_results(
+    scenario_refs: List[Any],
+    pbar,
+    progress_callback=None,
+    result_callback=None
+) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     remaining_refs = scenario_refs.copy()
+    total_scenarios = len(scenario_refs)
+    completed_count = 0
+    
     while remaining_refs:
         completed_refs, remaining_refs = ray.wait(remaining_refs, num_returns=1, timeout=RAY_WAIT_TIMEOUT)
         for ref in completed_refs:
@@ -70,18 +84,30 @@ def _process_scenario_results(scenario_refs: List[Any], pbar) -> List[Dict[str, 
                 if isinstance(response, dict) and 'result' in response:
                     if response['result'] is not None:
                         results.append(response['result'])
+                        # Stream the result immediately to the caller (for progressive UI updates)
+                        if result_callback is not None:
+                            try:
+                                result_callback(response['result'])
+                            except Exception:
+                                # Do not crash the loop due to callback errors
+                                pass
                     if response.get('log'):
-                        _safe_log_message(response['log'], pbar)
-                    if response.get('error', False):
-                        error_msg = f"Error in scenario: {response.get('log', 'Unknown error')}"
-                        _safe_log_message(error_msg, pbar)
+                        is_error = response.get('error', False)
+                        _safe_log_message(response['log'], pbar, is_error=is_error)
                 else:
                     results.append(response)
             except Exception as e:
                 error_msg = f"Error processing scenario result: {str(e)}"
-                _safe_log_message(error_msg, pbar)
+                _safe_log_message(error_msg, pbar, is_error=True)
+            
             if pbar:
                 pbar.update(1)
+            
+            # Call progress callback with actual completion count
+            completed_count += 1
+            if progress_callback:
+                progress_callback(completed_count)
+    
     return results
 
 

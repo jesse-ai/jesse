@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 import math
 import os
 import gzip
@@ -1040,6 +1041,18 @@ def debug(*item):
         logger.info(f"==> {', '.join(str(x) for x in item)}")
 
 
+def terminal_debug(*item):
+    """
+    Used for debugging when developing Jesse. Prints the item with timestamp in the 
+    terminal only (not logged to file). Uses local timezone.
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if len(item) == 1:
+        dump(f"[{timestamp}] ==> {item[0]}")
+    else:
+        dump(f"[{timestamp}] ==> {', '.join(str(x) for x in item)}")
+
+
 def float_or_none(item):
     """
     Return the float of the value if it's not None
@@ -1121,6 +1134,32 @@ def clear_output():
         clear_output(wait=True)
     else:
         click.clear()
+
+
+def clean_nan_values(obj):
+    """
+    Recursively clean NaN values from data structures by replacing them with None.
+    
+    :param obj: The object to clean (can be dict, list, or primitive)
+    :return: The cleaned object with NaN values replaced
+    """
+    import math
+    import numpy as np
+
+    if isinstance(obj, dict):
+        return {k: clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, (float, np.floating)):
+        # Replace NaN with None
+        if math.isnan(float(obj)):
+            return None
+        return float(obj)
+    elif isinstance(obj, (int, np.integer)):
+        # Keep integers as-is (cast NumPy integers to native int)
+        return int(obj)
+    else:
+        return obj
 
 
 def clean_infinite_values(obj):

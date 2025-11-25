@@ -14,6 +14,7 @@ def _init_main_logger():
     jh.make_directory('storage/logs/backtest-mode')
     jh.make_directory('storage/logs/optimize-mode')
     jh.make_directory('storage/logs/collect-mode')
+    jh.make_directory('storage/logs/monte-carlo-mode')
 
     if jh.is_live():
         filename = f'storage/logs/live-mode/{session_id}.txt'
@@ -150,6 +151,48 @@ def log_optimize_mode(message):
     LOGGERS[file_name].info(message)
 
     # also, publish to redis
+    sync_publish('log', {
+        'id': jh.generate_unique_id(),
+        'timestamp': jh.now_to_timestamp(),
+        'message': message
+    })
+
+
+def log_monte_carlo(message, session_id: str):
+    """Log a message for Monte Carlo mode. Only creates file logs from main process."""
+    # if the type of message is not str, convert it to str
+    if not isinstance(message, str):
+        message = str(message)
+
+    formatted_time = jh.timestamp_to_time(jh.now())[:19]
+    message = f'[{formatted_time}]: ' + message
+
+    # Check if we're in a Ray worker process
+    # Workers should not create file loggers as they can't share the LOGGERS dict properly
+    import ray
+    is_ray_worker = False
+    try:
+        if ray.is_initialized():
+            runtime_ctx = ray.get_runtime_context()
+            is_ray_worker = runtime_ctx.worker.mode == ray.WORKER_MODE
+    except Exception as e:
+        print(f"Error checking Ray worker status: {e}")
+
+    # Only create file logger from main process (not workers)
+    if not is_ray_worker:
+        try:
+            # Append to log file directly instead of using global logger
+            log_file = f"storage/logs/monte-carlo-mode/{session_id}.txt"
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+            # Append the message to the file
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(message + '\n')
+                f.flush()  # Ensure it's written immediately
+        except Exception as e:
+            print(f"Warning: Failed to write to monte carlo log file {log_file}: {e}")
+
+    # Always publish to redis for real-time updates
     sync_publish('log', {
         'id': jh.generate_unique_id(),
         'timestamp': jh.now_to_timestamp(),

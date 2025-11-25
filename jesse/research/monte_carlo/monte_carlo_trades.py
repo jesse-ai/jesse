@@ -112,8 +112,15 @@ def _ray_run_scenario_monte_carlo(
         result['equity_curve'] = equity_curve
         return {'result': result, 'log': None, 'error': False}
     except Exception as e:
-        error_msg = f"Ray Monte Carlo scenario {scenario_index} failed with exception: {str(e)}"
-        return {'result': None, 'log': error_msg, 'error': True}
+        import traceback
+        full_traceback = traceback.format_exc()
+        error_type = type(e).__name__
+        error_msg = str(e)
+        detailed_error = (
+            f"Scenario {scenario_index} failed with {error_type}: {error_msg}\n"
+            f"{full_traceback}"
+        )
+        return {'result': None, 'log': detailed_error, 'error': True}
 
 
 def monte_carlo_trades(
@@ -128,6 +135,8 @@ def monte_carlo_trades(
     num_scenarios: int = 1000,
     progress_bar: bool = False,
     cpu_cores: Optional[int] = None,
+    progress_callback = None,
+    result_callback = None,
 ) -> MonteCarloTradesReturn:
     if cpu_cores is None:
         available_cores = cpu_count()
@@ -149,7 +158,7 @@ def monte_carlo_trades(
         return _run_monte_carlo_simulation(
             config, routes, data_routes, candles, warmup_candles,
             benchmark, hyperparameters, fast_mode, num_scenarios, progress_bar,
-            cpu_cores, ray_started_here
+            cpu_cores, ray_started_here, progress_callback, result_callback
         )
     except Exception as e:
         jh.debug(f"Error during Monte Carlo simulation: {e}")
@@ -162,7 +171,7 @@ def monte_carlo_trades(
 def _run_monte_carlo_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]],
     candles: dict, warmup_candles: dict, benchmark: bool, hyperparameters: dict, fast_mode: bool,
-    num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool
+    num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool, progress_callback=None, result_callback=None
 ) -> dict:
     try:
         original_result = _run_original_backtest(
@@ -178,7 +187,7 @@ def _run_monte_carlo_simulation(
         scenario_refs = _launch_monte_carlo_scenarios(
             num_scenarios, trades_ref, equity_curve_ref, starting_balance
         )
-        results = _process_scenario_results(scenario_refs, pbar)
+        results = _process_scenario_results(scenario_refs, pbar, progress_callback, result_callback)
         if pbar:
             pbar.close()
         print(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
@@ -362,7 +371,18 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         if not values:
             continue
         values_array = np.array(values)
-        original_value = original_metrics.get(metric_name, 0)
+        
+        # Normalize original metrics to match Monte Carlo scenario format (decimal, not percentage)
+        if metric_name == 'total_return':
+            # Calculate from net_profit_percentage (which is in percentage form)
+            net_profit_pct = original_metrics.get('net_profit_percentage', 0)
+            original_value = net_profit_pct / 100  # Convert to decimal
+        elif metric_name == 'max_drawdown':
+            # Original backtest returns max_drawdown already multiplied by 100
+            max_dd = original_metrics.get('max_drawdown', 0)
+            original_value = max_dd / 100  # Convert to decimal
+        else:
+            original_value = original_metrics.get(metric_name, 0)
         percentiles = {
             '5th': np.percentile(values_array, 5),
             '25th': np.percentile(values_array, 25),
@@ -498,8 +518,8 @@ def print_monte_carlo_trades_summary(results: dict) -> None:
             orig_display = f"{orig*100:.1f}%"; p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
         elif display_name == "Max Drawdown":
             display_name = "Max Drawdown (%)"
-            orig_display = f"{abs(orig):.2f}%"
-            p5_disp = f"{abs(p95)*100:.1f}%"; p50_disp = f"{abs(p50)*100:.1f}%"; p95_disp = f"{abs(p5)*100:.1f}%"
+            orig_display = f"-{abs(orig)*100:.1f}%"
+            p5_disp = f"-{abs(p95)*100:.1f}%"; p50_disp = f"-{abs(p50)*100:.1f}%"; p95_disp = f"-{abs(p5)*100:.1f}%"
         elif display_name in ["Sharpe Ratio", "Calmar Ratio"]:
             orig_display = f"{orig:.2f}"; p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
         else:

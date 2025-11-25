@@ -148,6 +148,7 @@ def get_backtest_session_by_id(session_id: str, authorization: Optional[str] = H
 
     # Transform the session using the transformer
     transformed_session = get_backtest_session_for_load_more(session)
+    transformed_session = jh.clean_infinite_values(transformed_session)
 
     return JSONResponse({
         'session': transformed_session
@@ -245,17 +246,37 @@ def get_backtest_session_chart_data(session_id: str, authorization: Optional[str
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     session = get_backtest_session_by_id_from_db(session_id)
-    
+
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
-    
+
     chart_data = jh.clean_infinite_values(json.loads(session.chart_data)) if session.chart_data else None
-    
+
     return JSONResponse({
         'chart_data': chart_data
+    })
+
+
+@router.post("/sessions/{session_id}/strategy-code")
+def get_backtest_session_strategy_codes(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get strategy codes for a specific backtest session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    session = get_backtest_session_by_id_from_db(session_id)
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    return JSONResponse({
+        'strategy_code': json.loads(session.strategy_codes) if session.strategy_codes else {}
     })
 
