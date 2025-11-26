@@ -6,6 +6,9 @@ import tarfile
 import zipfile
 import tempfile
 import json
+import subprocess
+import psutil
+import uuid
 import jesse.helpers as jh
 
 #Global variable to store the LSP default port
@@ -13,6 +16,9 @@ LSP_DEFAULT_PORT = 9001
 
 # Global variable to store/track the lsp process
 LSP_PROCESS = None
+
+# Global variable to store the LSP PID file
+LSP_PID_FILE = os.path.join(os.path.dirname(__file__), "..", "lsp", "lsp.pid")
 
 
 LSP_RELEASE_URL = "https://api.github.com/repos/jesse-ai/python-language-server/releases/latest"
@@ -76,6 +82,94 @@ def __save_lsp_version_to_database(lsp_version: str) -> None:
     finally:
         database.close_connection()
 
+def __save_lsp_process_info_to_file(process: subprocess.Popen, file_path: str, port: int, lsp_uuid: str) -> None:
+    # Save port and unique identifier to file
+    try:
+        data = {
+            "port": port,
+            "uuid": lsp_uuid
+        }
+        with open(file_path, "w") as f:
+            json.dump(data, f)
+
+    except Exception as e:
+        print(jh.color(f"Error saving LSP info to file: {str(e)}", 'yellow'))
+        pass
+
+import psutil
+
+def is_lsp_running() -> bool:
+    global LSP_PID_FILE
+
+    if not os.path.exists(LSP_PID_FILE):
+        return False
+
+    try:
+        with open(LSP_PID_FILE, "r") as f:
+            data = json.load(f)
+            port = data.get("port")
+            expected_uuid = data.get("uuid")
+
+        if not port or not expected_uuid:
+            return False
+
+        # Check if port is actually listening
+        try:
+            for conn in psutil.net_connections(kind='tcp'):
+                if conn.status == 'LISTEN' and conn.laddr.port == port:
+                    return True
+        except psutil.AccessDenied:
+            # Fallback: try to connect to the port
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            try:
+                result = sock.connect_ex(('127.0.0.1', port))
+                sock.close()
+                return result == 0  # Port is open
+            except Exception:
+                sock.close()
+                return False
+
+        return False
+    except Exception as e:
+        print(jh.color(f"Error checking LSP process: {e}", 'yellow'))
+        return False
+
+def terminate_previous_lsp():
+    if not os.path.exists(LSP_PID_FILE):
+        return
+
+    try:
+        with open(LSP_PID_FILE, "r") as f:
+            data = json.load(f)
+            port = data.get("port")
+
+        # Find and terminate process listening on the port
+        try:
+            for conn in psutil.net_connections(kind='tcp'):
+                if conn.status == 'LISTEN' and conn.laddr.port == port:
+                    try:
+                        p = psutil.Process(conn.pid)
+                        print(f"Stopping LSP (PID {p.pid}) on port {port}...")
+                        p.terminate()
+                        try:
+                            p.wait(timeout=5)
+                        except psutil.TimeoutExpired:
+                            p.kill()
+                        break  # Only terminate one process
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+        except psutil.AccessDenied:
+            print(jh.color("Warning: Cannot access network connections to terminate LSP", 'yellow'))
+
+    except Exception as e:
+        print(jh.color(f"Error terminating LSP: {e}", 'yellow'))
+    finally:
+        # Clean up PID file
+        if os.path.exists(LSP_PID_FILE):
+            os.remove(LSP_PID_FILE)
+
 
 def is_lsp_update_available() -> bool:
     """
@@ -112,7 +206,6 @@ def is_lsp_update_available() -> bool:
         raise Exception(f"Error checking for LSP update: {str(e)}")
     finally:
         database.close_connection()
-
 
 def install_lsp_server() -> None:
     """
@@ -244,8 +337,7 @@ def install_lsp_server() -> None:
         raise Exception(f"Failed to download LSP server: {str(e)}")
     except Exception as e:
         raise Exception(f"Error installing LSP server: {str(e)}")
-        
-        
+             
 def run_lsp_server():
     """
     Runs the Python Language Server.
@@ -255,6 +347,10 @@ def run_lsp_server():
     if LSP_PROCESS:
         print(jh.color("Python Language Server is already running", 'yellow'))
         return
+    
+    if is_lsp_running():
+        print(jh.color("Previous Python Language Server is still running. Terminating it...", 'yellow'))
+        terminate_previous_lsp()
     
     from jesse import JESSE_DIR
     lsp_dir = os.path.join(JESSE_DIR, 'lsp')
@@ -293,8 +389,15 @@ def run_lsp_server():
     
     # Start the lsp process and return the handle
     try:
-        import subprocess        
+        import subprocess
+        # Generate unique identifier for this LSP instance
+        lsp_uuid = str(uuid.uuid4())
+
         with open(os.devnull, 'w') as devnull:
+            # Set up environment with UUID for child process identification
+            env = os.environ.copy()
+            env['JESSE_LSP_UUID'] = lsp_uuid
+
             process = subprocess.Popen(
                 [
                     start_script,
@@ -304,9 +407,11 @@ def run_lsp_server():
                 ],
                 stdout=devnull,  # redirect stdout to devnull to suppress LSP output
                 stderr=devnull,  # redirect stderr to devnull to suppress LSP errors
+                env=env,  # Pass UUID in environment
                 shell=False  # since we are using array arguments, we need to set shell to False
             )
         LSP_PROCESS = process
+        __save_lsp_process_info_to_file(process, LSP_PID_FILE, port, lsp_uuid)
         # wait for 0.2 seconds to make sure the process is started
         import time
         time.sleep(0.2)

@@ -22,7 +22,6 @@ from jesse.services.ws_manager import ws_manager
 import uvicorn
 import jesse.helpers as jh
 import time
-
 # variable to know if the live trade plugin is installed
 HAS_LIVE_TRADE_PLUGIN = True
 try:
@@ -246,9 +245,13 @@ def run() -> None:
     else:
         host = "0.0.0.0"
 
-    # run the lsp server
+    # run the lsp server and register the terminate_lsp_server function to be called when the application exits
     try:
-        from jesse.services.lsp import run_lsp_server
+        from jesse.services.lsp import run_lsp_server, terminate_lsp_server
+        import atexit
+        # register the terminate_lsp_server function to be called when the application exits
+        atexit.register(terminate_lsp_server)
+        # run a fresh lsp server
         run_lsp_server()
     except Exception as e:
         print(jh.color(f"Error running Python Language Server: {str(e)}", 'red'))
