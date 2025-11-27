@@ -11,16 +11,95 @@ Jesse is an advanced crypto trading framework for:
 
 ## Requirements
 
-Jesse requires these services running:
+Jesse needs PostgreSQL and Redis. **Don't worry - you can use FREE cloud services!** No Docker or local installation needed.
 
-### 1. PostgreSQL (Database)
+---
+
+## Quick Setup (Cloud - Recommended for Low-Spec Machines)
+
+### Step 1: Set up PostgreSQL (Free - Neon)
+
+1. Go to **https://neon.tech** and sign up (GitHub login works)
+2. Click **"New Project"**
+3. Name it `jesse` and click **Create Project**
+4. Copy these values from the dashboard:
+   - Host (looks like `ep-cool-name-123456.us-east-2.aws.neon.tech`)
+   - Database name (usually `neondb`)
+   - Username
+   - Password
+
+### Step 2: Set up Redis (Free - Upstash)
+
+1. Go to **https://upstash.com** and sign up
+2. Click **"Create Database"**
+3. Select **Redis**, name it `jesse`, pick nearest region
+4. Copy these values from the dashboard:
+   - Endpoint (looks like `helpful-emu-12345.upstash.io`)
+   - Port (`6379`)
+   - Password
+
+### Step 3: Configure Your Project
+
+```bash
+# Copy the template
+cp .env.example .env
+```
+
+Edit `.env` with your cloud credentials:
+
+```bash
+# Application
+PASSWORD=pick_any_password_here
+APP_PORT=9000
+APP_HOST=0.0.0.0
+LSP_PORT=9001
+IS_DEV_ENV=FALSE
+
+# PostgreSQL (from Neon)
+POSTGRES_HOST=ep-cool-name-123456.us-east-2.aws.neon.tech
+POSTGRES_PORT=5432
+POSTGRES_NAME=neondb
+POSTGRES_USERNAME=your-neon-username
+POSTGRES_PASSWORD=your-neon-password
+POSTGRES_SSLMODE=require
+
+# Redis (from Upstash)
+REDIS_HOST=helpful-emu-12345.upstash.io
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=your-upstash-password
+```
+
+### Step 4: Install & Run Jesse
+
+```bash
+# Install Jesse
+pip install jesse
+
+# Run from this project folder
+cd project_template
+jesse run
+```
+
+### Step 5: Open Dashboard
+
+Go to **http://localhost:9000** in your browser
+
+---
+
+## Alternative: Local Setup (If you have a powerful machine)
+
+<details>
+<summary>Click to expand local setup instructions</summary>
+
+### PostgreSQL (Local)
 ```bash
 # Ubuntu/Debian
 sudo apt install postgresql
 sudo -u postgres createdb jesse_db
 sudo -u postgres createuser jesse_user
 
-# Or use Docker
+# Or Docker
 docker run -d --name jesse-postgres \
   -e POSTGRES_DB=jesse_db \
   -e POSTGRES_USER=jesse_user \
@@ -28,38 +107,19 @@ docker run -d --name jesse-postgres \
   -p 5432:5432 postgres:15
 ```
 
-### 2. Redis (Real-time messaging)
+### Redis (Local)
 ```bash
 # Ubuntu/Debian
 sudo apt install redis-server
 sudo systemctl start redis
 
-# Or use Docker
+# Or Docker
 docker run -d --name jesse-redis -p 6379:6379 redis:7
 ```
 
-## Quick Start
+</details>
 
-### 1. Install Jesse
-```bash
-pip install jesse
-# Or from source:
-pip install -e /path/to/jesse
-```
-
-### 2. Set up your project
-```bash
-cp .env.example .env
-# Edit .env with your database credentials
-```
-
-### 3. Start Jesse
-```bash
-jesse run
-```
-
-### 4. Access the dashboard
-Open http://localhost:9000 in your browser
+---
 
 ## Project Structure
 
@@ -74,6 +134,8 @@ project_template/
     ├── logs/
     └── temp/
 ```
+
+---
 
 ## Writing Strategies
 
@@ -114,6 +176,8 @@ class MyStrategy(Strategy):
         return ta.ema(self.candles, 21)
 ```
 
+---
+
 ## Using with Google Antigravity
 
 1. Open this project folder in Antigravity
@@ -122,16 +186,28 @@ class MyStrategy(Strategy):
    - "Create a RSI oversold/overbought strategy"
    - "Add MACD indicator to the GoldenCross strategy"
    - "Optimize the stop loss percentage"
+   - "Create a strategy that uses Bollinger Bands breakout"
+
+---
 
 ## Available Indicators (300+)
 
 Jesse includes technical indicators via `jesse.indicators`:
-- `ta.ema()` - Exponential Moving Average
-- `ta.sma()` - Simple Moving Average
-- `ta.rsi()` - Relative Strength Index
-- `ta.macd()` - MACD
-- `ta.bollinger_bands()` - Bollinger Bands
-- And many more...
+
+| Indicator | Function |
+|-----------|----------|
+| EMA | `ta.ema(candles, period)` |
+| SMA | `ta.sma(candles, period)` |
+| RSI | `ta.rsi(candles, period)` |
+| MACD | `ta.macd(candles)` |
+| Bollinger Bands | `ta.bollinger_bands(candles)` |
+| ATR | `ta.atr(candles, period)` |
+| Stochastic | `ta.stoch(candles)` |
+| ADX | `ta.adx(candles)` |
+
+And 290+ more...
+
+---
 
 ## Supported Exchanges
 
@@ -143,8 +219,37 @@ Jesse includes technical indicators via `jesse.indicators`:
 - Hyperliquid
 - dYdX
 
+---
+
+## Free Cloud Services Summary
+
+| Service | Free Tier | Sign Up |
+|---------|-----------|---------|
+| **Neon** (PostgreSQL) | 512MB storage | https://neon.tech |
+| **Supabase** (PostgreSQL) | 500MB storage | https://supabase.com |
+| **Upstash** (Redis) | 10K commands/day | https://upstash.com |
+| **Redis Cloud** | 30MB storage | https://redis.com/try-free |
+
+---
+
 ## Resources
 
 - [Jesse Documentation](https://docs.jesse.trade)
 - [YouTube Tutorials](https://jesse.trade/youtube)
 - [Discord Community](https://jesse.trade/discord)
+
+---
+
+## Troubleshooting
+
+**"Connection refused" error?**
+- Check your cloud service credentials in `.env`
+- Make sure `POSTGRES_SSLMODE=require` for cloud databases
+
+**"Redis connection error"?**
+- Verify your Upstash password is correct
+- Check the host doesn't include `redis://` prefix
+
+**Dashboard not loading?**
+- Make sure port 9000 isn't blocked
+- Try `APP_HOST=127.0.0.1` instead of `0.0.0.0`
