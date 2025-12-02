@@ -7,6 +7,7 @@ from jesse.exceptions import OrderNotAllowed
 from jesse.models import Position, Exchange
 from jesse.routes import router
 from jesse.services.broker import Broker
+from jesse.services import order_service, exchange_service, position_service
 from jesse.store import store
 
 position: Position = None
@@ -28,6 +29,14 @@ def set_up_without_fee(is_futures_trading=False):
     router.initiate([
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
     ], [])
+    # reset store
+    store.reset() 
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
 
     global position
     global exchange
@@ -52,6 +61,14 @@ def set_up_with_fee(is_futures_trading=False):
     router.initiate([
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '5m', 'strategy': 'Test19'}
     ], [])
+    # reset store
+    store.reset() 
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
 
     global position
     global exchange
@@ -77,10 +94,14 @@ def test_cancel_all_orders():
     # create 2 EXECUTED orders
     o4 = broker.buy_at_market(1)
     # fake it
-    store.orders.execute_pending_market_orders()
+    for o in store.orders.to_execute:
+        order_service.execute_order(o)
+    store.orders.to_execute = []
     o5 = broker.buy_at_market(2)
     # fake it
-    store.orders.execute_pending_market_orders()
+    for o in store.orders.to_execute:
+        order_service.execute_order(o)
+    store.orders.to_execute = []
     assert o4.is_executed
     assert o5.is_executed
 
@@ -110,7 +131,7 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.wallet_balance == 1000
     # open position
     open_position_order = broker.start_profit_at('buy', 1, 60)
-    open_position_order.execute()
+    order_service.execute_order(open_position_order)
     position.current_price = 60
     assert position.is_open is True
     assert position.entry_price == 60
@@ -131,13 +152,13 @@ def test_opening_and_closing_position_with_stop():
     assert exchange.assets['USDT'] == 1000
 
     # execute stop order
-    stop_loss_order.execute()
+    order_service.execute_order(stop_loss_order)
     position.current_price = 40
     assert exchange.assets['USDT'] == 980
 
     assert exchange.wallet_balance == 980
     assert exchange.available_margin == 980
-    take_profit_order.cancel()
+    order_service.cancel_order(take_profit_order)
     assert exchange.available_margin == 980
     assert position.is_close is True
     assert position.entry_price is None
@@ -154,7 +175,9 @@ def test_stop_loss():
     # open position
     broker.buy_at_market(1)
     # fake it
-    store.orders.execute_pending_market_orders()
+    for o in store.orders.to_execute:
+        order_service.execute_order(o)
+    store.orders.to_execute = []
     assert position.is_open is True
     assert position.entry_price == 50
     assert position.qty == 1
@@ -173,7 +196,7 @@ def test_stop_loss():
     assert exchange.wallet_balance == 1000
 
     # execute stop order
-    order.execute()
+    order_service.execute_order(order)
     assert position.is_close is True
     assert position.entry_price is None
     assert position.exit_price == 40

@@ -3,7 +3,7 @@ from typing import List
 import fnc
 
 from jesse.config import config
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.services import selectors
 import jesse.helpers as jh
 
@@ -15,12 +15,6 @@ class OrdersState:
 
         self.storage = {}
         self.active_storage = {}
-
-        for exchange in config['app']['trading_exchanges']:
-            for symbol in config['app']['trading_symbols']:
-                key = f'{exchange}-{symbol}'
-                self.storage[key] = []
-                self.active_storage[key] = []
 
     def reset(self) -> None:
         """
@@ -39,10 +33,10 @@ class OrdersState:
         self.active_storage[key] = []
 
     def add_order(self, order: Order) -> None:
+        """Add order to in-memory state only"""
         key = f'{order.exchange}-{order.symbol}'
         self.storage[key].append(order)
         self.active_storage[key].append(order)
-        Order.store_order_in_db(order)
 
     def remove_order(self, order: Order) -> None:
         key = f'{order.exchange}-{order.symbol}'
@@ -52,15 +46,6 @@ class OrdersState:
         self.active_storage[key] = [
             o for o in self.active_storage[key] if o.id != order.id
         ]
-
-    def execute_pending_market_orders(self) -> None:
-        if not self.to_execute:
-            return
-
-        for o in self.to_execute:
-            o.execute()
-
-        self.to_execute = []
 
     # # # # # # # # # # # # # # # # #
     # getters

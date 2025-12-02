@@ -1,5 +1,5 @@
 import math
-
+from jesse.services import candle_service
 import numpy as np
 import pytest
 
@@ -10,7 +10,7 @@ from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_types
 from jesse.factories import range_candles, candles_from_close_prices
 from jesse.models import ClosedTrade
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
@@ -28,15 +28,15 @@ def test_average_stop_loss_exception():
 def test_average_take_profit_and_average_stop_loss():
     single_route_backtest('Test36')
 
-    assert len(store.completed_trades.trades) == 2
+    assert len(store.closed_trades.trades) == 2
 
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 1
     assert t1.exit_price == 3.5
     assert t1.qty == 2
 
-    t2: ClosedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.closed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 11
     assert t2.exit_price == 13.5
@@ -67,7 +67,7 @@ def test_has_long_entry_orders_property_in_filters():
 def test_can_close_a_long_position_and_go_short_at_the_same_candle():
     single_route_backtest('Test45', is_futures_trading=True, leverage_mode='isolated')
 
-    trades = store.completed_trades.trades
+    trades = store.closed_trades.trades
 
     assert len(trades) == 2
     # the position should no longer stay open because it gets liquidated eventually
@@ -89,7 +89,7 @@ def test_filter_readable_exception():
 def test_filters():
     single_route_backtest('Test37')
 
-    assert len(store.completed_trades.trades) == 0
+    assert len(store.closed_trades.trades) == 0
 
 
 def test_forming_candles():
@@ -112,16 +112,16 @@ def test_forming_candles():
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, data_routes, '2019-04-01', '2019-04-02', candles)
 
     # use math.ceil because it must include forming candle too
-    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)) == math.ceil(1382 / 5)
-    assert len(store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_15)) == math.ceil(
+    assert len(candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)) == math.ceil(1382 / 5)
+    assert len(candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_15)) == math.ceil(
         1382 / 15)
 
 
 def test_increasing_long_position_size_after_opening():
     single_route_backtest('Test16')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 10) / 2
     assert t1.exit_price == 15
@@ -151,9 +151,9 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     # run backtest (dates are fake just to pass)
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    assert len(store.completed_trades.trades) == 2
+    assert len(store.closed_trades.trades) == 2
 
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.35
@@ -163,7 +163,7 @@ def test_is_smart_enough_to_open_positions_via_market_orders():
     assert t1.closed_at == 1547202840000 + 60000
     assert t1.orders[0].type == order_types.MARKET
 
-    t2: ClosedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.closed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 126.58
@@ -191,9 +191,9 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
 
     # run backtest (dates are fake just to pass)
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
-    assert len(store.completed_trades.trades) == 2
+    assert len(store.closed_trades.trades) == 2
 
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.33
     assert t1.exit_price == 128.35
@@ -203,7 +203,7 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
     assert t1.closed_at == 1547202840000 + 60000
     assert t1.orders[0].type == order_types.STOP
 
-    t2: ClosedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.closed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.05
     assert t2.exit_price == 126.58
@@ -217,9 +217,9 @@ def test_is_smart_enough_to_open_positions_via_stop_orders():
 def test_liquidate():
     single_route_backtest('Test31')
 
-    assert len(store.completed_trades.trades) == 2
-    t1: ClosedTrade = store.completed_trades.trades[0]
-    t2: ClosedTrade = store.completed_trades.trades[1]
+    assert len(store.closed_trades.trades) == 2
+    t1: ClosedTrade = store.closed_trades.trades[0]
+    t2: ClosedTrade = store.closed_trades.trades[1]
 
     assert t1.type == 'long'
     assert t1.entry_price == 1
@@ -251,8 +251,8 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
 
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (4 * 2 + 6) / 3
@@ -263,8 +263,8 @@ def test_modifying_stop_loss_after_part_of_position_is_already_reduced_with_stop
 def test_modifying_take_profit_after_opening_position():
     single_route_backtest('Test12')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 16
@@ -275,8 +275,8 @@ def test_modifying_take_profit_after_opening_position():
 def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_profit():
     single_route_backtest('Test13')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (16 * 2 + 11) / 3
@@ -286,12 +286,14 @@ def test_modifying_take_profit_after_part_of_position_is_already_reduced_with_pr
 
 def test_must_not_be_able_to_set_two_similar_routes():
     reset_config()
-    router.set_routes([
+    r = [
         {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': timeframes.MINUTE_5, 'strategy': 'Test01'},
         {'exchange': exchanges.SANDBOX, 'symbol': 'ETH-USDT', 'timeframe': timeframes.MINUTE_30, 'strategy': 'Test02'},
-    ])
+    ]
+    store.reset()
+    
     with pytest.raises(Exception) as err:
-        store.reset(True)
+        router.initiate(r)
     assert str(
         err.value).startswith('each exchange-symbol pair can be traded only once')
 
@@ -299,8 +301,8 @@ def test_must_not_be_able_to_set_two_similar_routes():
 def test_on_reduced_position():
     single_route_backtest('Test18')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == 13
@@ -311,7 +313,7 @@ def test_on_reduced_position():
 def test_on_route_canceled():
     two_routes_backtest('Test27', 'Test28')
 
-    t1 = store.completed_trades.trades[0]
+    t1 = store.closed_trades.trades[0]
 
     assert t1.symbol == 'BTC-USDT'
     assert t1.type == 'long'
@@ -324,11 +326,11 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
     two_routes_backtest('Test29', 'Test30')
 
     # long BTC-USD
-    t1 = store.completed_trades.trades[0]
+    t1 = store.closed_trades.trades[0]
     # short BTC-USD
-    t2 = store.completed_trades.trades[1]
+    t2 = store.closed_trades.trades[1]
     # long ETH-USD
-    t3 = store.completed_trades.trades[2]
+    t3 = store.closed_trades.trades[2]
 
     assert t1.symbol == 'BTC-USDT'
     assert t1.type == 'long'
@@ -354,8 +356,8 @@ def test_on_route_increased_position_and_on_route_reduced_position_and_strategy_
 def test_on_route_open_position():
     two_routes_backtest('Test21', 'Test22')
 
-    t1 = store.completed_trades.trades[0]
-    t2 = store.completed_trades.trades[1]
+    t1 = store.closed_trades.trades[0]
+    t2 = store.closed_trades.trades[1]
 
     assert t1.symbol == 'BTC-USDT'
     assert t1.type == 'long'
@@ -377,8 +379,8 @@ def test_on_route_open_position_like_the_example_on_the_docs():
 def test_on_route_stop_loss():
     two_routes_backtest('Test25', 'Test26')
 
-    t1 = store.completed_trades.trades[0]
-    t2 = store.completed_trades.trades[1]
+    t1 = store.closed_trades.trades[0]
+    t2 = store.closed_trades.trades[1]
 
     assert t2.symbol == 'BTC-USDT'
     assert t2.type == 'long'
@@ -396,8 +398,8 @@ def test_on_route_stop_loss():
 def test_on_route_take_profit():
     two_routes_backtest('Test23', 'Test24')
 
-    t1 = store.completed_trades.trades[0]
-    t2 = store.completed_trades.trades[1]
+    t1 = store.closed_trades.trades[0]
+    t2 = store.closed_trades.trades[1]
 
     assert t2.symbol == 'BTC-USDT'
     assert t2.type == 'long'
@@ -415,8 +417,8 @@ def test_on_route_take_profit():
 def test_opening_position_in_multiple_points():
     single_route_backtest('Test15')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == (7 + 9 + 11) / 3
     assert t1.exit_price == 15
@@ -427,8 +429,8 @@ def test_opening_position_in_multiple_points():
 def test_reducing_position_size_after_opening():
     single_route_backtest('Test17')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 10) / 2
@@ -439,7 +441,7 @@ def test_reducing_position_size_after_opening():
 def test_shared_vars():
     two_routes_backtest('Test32', 'Test33')
 
-    t1 = store.completed_trades.trades[0]
+    t1 = store.closed_trades.trades[0]
 
     assert t1.symbol == 'ETH-USDT'
     assert t1.type == 'long'
@@ -474,13 +476,13 @@ def test_should_buy_and_execute_buy():
         assert p.is_close is True
         assert len(s.trades[0].orders) == 2
         o: Order = s.trades[0].orders[0]
-        short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
+        short_candles = candle_service.get_candles(r.exchange, r.symbol, '1m')
         assert o.price == short_candles[4][2]
         assert o.price == s.candles[0][2]
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
         assert s.trade is None
-        trade: ClosedTrade = store.completed_trades.trades[0]
+        trade: ClosedTrade = store.closed_trades.trades[0]
         assert trade.type == 'long'
         # must include executed orders, in this case it's entry and take_profit
         assert len(trade.orders) == 2
@@ -488,7 +490,7 @@ def test_should_buy_and_execute_buy():
         assert trade.orders[0].type == 'MARKET'
         assert trade.orders[1].side == 'sell'
         assert trade.orders[1].type == 'LIMIT'
-        assert len(store.completed_trades.trades) == 1
+        assert len(store.closed_trades.trades) == 1
 
 
 def test_should_sell_and_execute_sell():
@@ -518,21 +520,21 @@ def test_should_sell_and_execute_sell():
         orders = s.trades[-1].orders
         assert len(orders) == 2
         o: Order = orders[0]
-        short_candles = store.candles.get_candles(r.exchange, r.symbol, '1m')
+        short_candles = candle_service.get_candles(r.exchange, r.symbol, '1m')
         assert o.price == short_candles[4][2]
         assert o.price == s.candles[0][2]
         assert o.created_at == short_candles[4][0] + 60_000
         assert o.is_executed is True
         assert s.trade is None
-        assert len(store.completed_trades.trades) == 1
-        assert store.completed_trades.trades[0].type == 'short'
+        assert len(store.closed_trades.trades) == 1
+        assert store.closed_trades.trades[0].type == 'short'
 
 
 def test_stop_loss_at_multiple_points():
     single_route_backtest('Test11')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'short'
     assert t1.entry_price == 3
     assert t1.exit_price == (6 + 5 + 4) / 3
@@ -553,17 +555,17 @@ def test_strategy_properties():
         assert s.trade is None
         assert s._is_executing is False
         assert s._is_initiated is True
-        np.testing.assert_equal(s.current_candle, store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe))
-        np.testing.assert_equal(s.candles, store.candles.get_candles(r.exchange, r.symbol, r.timeframe))
-        assert s.position == selectors.get_position(r.exchange, r.symbol)
+        np.testing.assert_equal(s.current_candle, candle_service.get_current_candle(r.exchange, r.symbol, r.timeframe))
+        np.testing.assert_equal(s.candles, candle_service.get_candles(r.exchange, r.symbol, r.timeframe))
+        assert s.position == store.positions.get_position(r.exchange, r.symbol)
         assert s.orders == store.orders.get_orders(r.exchange, r.symbol)
 
 
 def test_taking_profit_at_multiple_points():
     single_route_backtest('Test10')
 
-    assert len(store.completed_trades.trades) == 1
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    assert len(store.closed_trades.trades) == 1
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 7
     assert t1.exit_price == (15 + 13 + 11) / 3
@@ -598,7 +600,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     # run backtest (dates are fake just to pass)
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    t1: ClosedTrade = store.completed_trades.trades[0]
+    t1: ClosedTrade = store.closed_trades.trades[0]
     assert t1.type == 'long'
     assert t1.entry_price == 129.23
     assert t1.exit_price == 128.98
@@ -608,7 +610,7 @@ def test_updating_stop_loss_and_take_profit_after_opening_the_position():
     assert t1.closed_at == 1547201700000 + 60000
     assert t1.orders[0].type == order_types.MARKET
 
-    t2: ClosedTrade = store.completed_trades.trades[1]
+    t2: ClosedTrade = store.closed_trades.trades[1]
     assert t2.type == 'short'
     assert t2.entry_price == 128.01
     assert t2.exit_price == 127.66

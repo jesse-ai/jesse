@@ -232,6 +232,21 @@ class UpdateBacktestSessionNotesRequestJson(BaseModel):
     strategy_codes: Optional[dict] = None
 
 
+class GetLiveSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    mode_filter: Optional[str] = None
+
+
+class UpdateLiveSessionNotesRequestJson(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
+
+
 class MonteCarloRequestJson(BaseModel):
     id: Optional[str] = None
     exchange: str

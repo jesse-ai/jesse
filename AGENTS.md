@@ -87,10 +87,10 @@ pytest
 - Handle errors gracefully
 
 ### Code Style
-- Don't write comments for functions unless asked
 - Never try to install new packages - assume they're already installed. if need to install new packages, ask me first.
 - Follow existing patterns and conventions
 - Maintain consistency with the current codebase
+- Try to import only at the top of the file.
 
 ### Jesse-Rust Integration
 - When using Rust functions, **assume they exist** - don't add existence checks

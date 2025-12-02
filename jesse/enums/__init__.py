@@ -109,3 +109,17 @@ class migration_actions:
 class order_submitted_via:
     STOP_LOSS = 'stop-loss'
     TAKE_PROFIT = 'take-profit'
+
+
+@dataclass
+class live_session_statuses:
+    STARTING = 'starting'
+    RUNNING = 'running'
+    STOPPED = 'stopped'
+    TERMINATED = 'terminated'
+
+
+@dataclass
+class live_session_modes:
+    LIVETRADE = 'livetrade'
+    PAPERTRADE = 'papertrade'

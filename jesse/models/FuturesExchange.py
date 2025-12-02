@@ -5,7 +5,7 @@ import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.enums import sides, order_types
 from jesse.exceptions import InsufficientMargin
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.services import selectors
 from jesse.models.Exchange import Exchange
 

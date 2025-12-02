@@ -6,8 +6,8 @@ import pandas as pd
 
 import jesse.helpers as jh
 from jesse.models import ClosedTrade
-from jesse.services import selectors
 from jesse.store import store
+from jesse.routes import router
 
 
 def candles_info(candles_array: np.ndarray) -> dict:
@@ -23,7 +23,7 @@ def candles_info(candles_array: np.ndarray) -> dict:
         duration = f'{period} days'
 
     # type of the exchange
-    trading_exchange = selectors.get_trading_exchange()
+    trading_exchange = store.exchanges.trading_exchange
 
     info = {
         'duration': duration,

@@ -1,15 +1,13 @@
 import os
-
 import arrow
 import numpy as np
 import pytest
-
 import jesse.helpers as jh
+from jesse.routes import router
+from jesse.enums import exchanges, timeframes
 
 
 def test_app_currency():
-    from jesse.routes import router
-    from jesse.enums import exchanges, timeframes
     router.initiate(
         [{'exchange': exchanges.BINANCE_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'

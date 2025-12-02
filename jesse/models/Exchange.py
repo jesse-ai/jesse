@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from jesse.models import Order
-from jesse.services import selectors
+from jesse.models.Order import Order
 import jesse.helpers as jh
 from jesse.libs import DynamicNumpyArray
 from jesse.info import exchange_info
+from jesse.routes import router
+
 
 class Exchange(ABC):
     def __init__(self, name: str, starting_balance: float, fee_rate: float, exchange_type: str):
@@ -28,7 +29,7 @@ class Exchange(ABC):
         # in running session's quote currency
         self.starting_balance = starting_balance
 
-        all_trading_routes = selectors.get_all_trading_routes()
+        all_trading_routes = router.routes
         first_route = all_trading_routes[0]
         # check the settlement_currency is in the exchange info with name equal to the exchange name
         if self.name in exchange_info and 'settlement_currency' in exchange_info[self.name]:

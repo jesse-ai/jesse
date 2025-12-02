@@ -1,14 +1,13 @@
 import numpy as np
 import peewee
-import threading
 
 import jesse.helpers as jh
-from jesse.config import config
 from jesse.services.db import database
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
 from jesse.enums import trade_types
 from jesse.models.Order import Order
 from jesse.enums import order_statuses
+
 
 if database.is_closed():
     database.open_connection()
@@ -52,110 +51,6 @@ class ClosedTrade(peewee.Model):
         self.sell_orders = DynamicNumpyArray((10, 2))
         # to store the actual order objects
         self.orders = []
-
-    @staticmethod
-    def get_trade_by_id(trade_id):
-        return ClosedTrade.get(ClosedTrade.id == trade_id)
-
-    @staticmethod
-    def store_closed_trade_into_db(closed_trade):
-        # check id exist in previous record or not
-        db_trade = ClosedTrade.select().where(ClosedTrade.id == closed_trade.id).first()
-        if db_trade:
-            # update the trade
-            d = {
-                'updated_at': jh.now_to_timestamp(),
-            }
-            if closed_trade.opened_at is not None:
-                d['opened_at'] = closed_trade.opened_at
-            if closed_trade.closed_at is not None:
-                d['closed_at'] = closed_trade.closed_at
-            ClosedTrade.update(**d).where(ClosedTrade.id == closed_trade.id).execute()
-            return
-            
-
-        d = {
-            'id': closed_trade.id,
-            'session_id': closed_trade.session_id,
-            'strategy_name': closed_trade.strategy_name,
-            'symbol': closed_trade.symbol,
-            'exchange': closed_trade.exchange,
-            'type': closed_trade.type,
-            'timeframe': closed_trade.timeframe,
-            'leverage': closed_trade.leverage,
-            'created_at': jh.now_to_timestamp(),
-            'updated_at': jh.now_to_timestamp(),
-            'session_mode': config['app']['trading_mode'],
-            'opened_at': closed_trade.opened_at,
-        }
-        
-        if closed_trade.closed_at is not None:
-            d['closed_at'] = closed_trade.closed_at
-
-        try:
-            ClosedTrade.insert(**d).execute()
-        except Exception as e:
-            jh.dump(f"Error storing closed trade in database: {e}")
-
-    @staticmethod
-    def close_trade_in_db(closed_trade, opened_at=None):
-        d = {
-            'closed_at': closed_trade.closed_at if closed_trade.closed_at else jh.now_to_timestamp(),
-            'updated_at': jh.now_to_timestamp(),
-        }
-        if opened_at:
-            d['opened_at'] = opened_at
-        try:
-            ClosedTrade.update(**d).where(ClosedTrade.id == closed_trade.id).execute()
-        except Exception as e:
-            jh.dump(f"Error closing trade in database: {e}")
-
-    @staticmethod
-    def get_open_trade(exchange_name, symbol, is_initial=False):
-        trade = ClosedTrade.select().where(
-            ClosedTrade.soft_deleted_at == None).where(
-            ClosedTrade.session_mode == 'livetrade').where(
-            ClosedTrade.exchange == exchange_name).where(
-            ClosedTrade.symbol == symbol).where(
-            ClosedTrade.closed_at == None).order_by(
-            ClosedTrade.opened_at.desc()).first()
-
-        if trade is None or not is_initial:
-            return trade
-
-        # Fetch orders for each trade and populate the orders list
-        from jesse.enums import sides
-        exchange_orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).where(Order.order_exist_in_exchange == True).order_by(Order.executed_at))
-        simulated_orders = list(Order.select().where(Order.trade_id == trade.id).where(Order.status == order_statuses.EXECUTED).where(Order.order_exist_in_exchange == False).order_by(Order.executed_at))
-        if len(exchange_orders) == 0:
-            # when trade don't have any exchange orders, we need to check if it has simulated orders
-            if len(simulated_orders) > 0:
-                for simulated_order in simulated_orders:
-                    if simulated_order.side == sides.BUY:
-                        trade.buy_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-                    elif simulated_order.side == sides.SELL:
-                        trade.sell_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-                trade.is_simulated = True
-            return trade
-        trade.orders = {order.exchange_id: order for order in exchange_orders if order.exchange_id}
-        trade.is_simulated = False
-        for o in exchange_orders + simulated_orders:
-            if o.side == sides.BUY:
-                trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
-            elif o.side == sides.SELL:
-                trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
-        if trade.current_qty == 0:
-            ClosedTrade.close_trade_in_db(trade)
-            return None
-        else:
-            return trade
-
-    @staticmethod
-    def disable_trade_in_db(trade_id):
-        d = {
-            'soft_deleted_at': jh.now_to_timestamp(),
-        }
-        ClosedTrade.update(**d).where(ClosedTrade.id == trade_id).execute()
 
     @property
     def to_json(self) -> dict:
@@ -214,7 +109,7 @@ class ClosedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        fee = config['env']['exchanges'][self.exchange]['fee']
+        fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
         return jh.estimate_PNL(
             self.qty, self.entry_price, self.exit_price,
             self.type, fee
@@ -308,35 +203,3 @@ class ClosedTrade(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     ClosedTrade.create_table()
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # # # # # # # # DB FUNCTIONS # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-def store_closed_trade_into_db(closed_trade) -> None:
-    return
-
-    d = {
-        'id': closed_trade.id,
-        'strategy_name': closed_trade.strategy_name,
-        'symbol': closed_trade.symbol,
-        'exchange': closed_trade.exchange,
-        'type': closed_trade.type,
-        'timeframe': closed_trade.timeframe,
-        'entry_price': closed_trade.entry_price,
-        'exit_price': closed_trade.exit_price,
-        'qty': closed_trade.qty,
-        'opened_at': closed_trade.opened_at,
-        'closed_at': closed_trade.closed_at,
-        'leverage': closed_trade.leverage,
-    }
-
-    def async_save() -> None:
-        ClosedTrade.insert(**d).execute()
-        if jh.is_debugging():
-            logger.info(
-                f'Stored the closed trade record for {closed_trade.exchange}-{closed_trade.symbol}-{closed_trade.strategy_name} into database.')
-
-    # async call
-    threading.Thread(target=async_save).start()

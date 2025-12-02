@@ -11,9 +11,14 @@ from jesse.models.BacktestSession import (
     update_backtest_session_state,
     update_backtest_session_notes,
     delete_backtest_session,
-    get_backtest_session_by_id as get_backtest_session_by_id_from_db
+    get_backtest_session_by_id as get_backtest_session_by_id_from_db,
+    update_backtest_session_status,
+    purge_backtest_sessions
 )
 from jesse.services.transformers import get_backtest_session, get_backtest_session_for_load_more
+from jesse.modes.backtest_mode import run as run_backtest
+from jesse.modes.data_provider import get_backtest_logs, download_backtest_log
+
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
@@ -27,8 +32,6 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         return authenticator.unauthorized_response()
 
     jh.validate_cwd()
-
-    from jesse.modes.backtest_mode import run as run_backtest
 
     process_manager.add_task(
         run_backtest,
@@ -62,7 +65,6 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
 
     process_manager.cancel_process(request_json.id)
     
-    from jesse.models.BacktestSession import update_backtest_session_status
     update_backtest_session_status(request_json.id, 'cancelled')
 
     return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'},
@@ -78,7 +80,6 @@ def get_logs(session_id: str, token: str = Query(...)):
         return authenticator.unauthorized_response()
 
     try:
-        from jesse.modes.data_provider import get_backtest_logs
         content = get_backtest_logs(session_id)
 
         if content is None:
@@ -98,7 +99,6 @@ def download_backtest_log(session_id: str, token: str = Query(...)):
         return authenticator.unauthorized_response()
 
     try:
-        from jesse.modes.data_provider import download_backtest_log
         return download_backtest_log(session_id)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -148,7 +148,6 @@ def get_backtest_session_by_id(session_id: str, authorization: Optional[str] = H
 
     # Transform the session using the transformer
     transformed_session = get_backtest_session_for_load_more(session)
-    transformed_session = jh.clean_infinite_values(transformed_session)
 
     return JSONResponse({
         'session': transformed_session
@@ -230,7 +229,6 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
     
     days_old = request_json.get('days_old', None)
     
-    from jesse.models.BacktestSession import purge_backtest_sessions
     deleted_count = purge_backtest_sessions(days_old)
     
     return JSONResponse({

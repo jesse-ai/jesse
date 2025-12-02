@@ -5,14 +5,13 @@ import peewee
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
 from jesse.info import live_trading_exchanges, backtesting_exchanges
+from jesse.repositories import candle_repository
+from jesse.services import candle_service
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
     from jesse.services.db import database
     database.open_connection()
-
-    from jesse.services.candle import generate_candle_from_one_minutes
-    from jesse.models.Candle import fetch_candles_from_db
 
     if 'hyperliquid' not in exchange.lower():
         symbol = symbol.upper()
@@ -38,7 +37,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
         timeframe_to_fetch = timeframe
 
     candles = np.array(
-        fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
+        candle_repository.fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
     )
 
     # if there are no candles in the database, return []
@@ -57,7 +56,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             generated_candles = []
             for i in range(len(candles)):
                 if (i + 1) % one_min_count == 0:
-                    bigger_candle = generate_candle_from_one_minutes(
+                    bigger_candle = candle_service.generate_candle_from_one_minutes(
                         timeframe,
                         candles[(i - (one_min_count - 1)):(i + 1)],
                         True

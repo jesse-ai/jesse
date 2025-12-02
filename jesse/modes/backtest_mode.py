@@ -10,22 +10,23 @@ from jesse.config import config
 from jesse.enums import timeframes, order_types
 from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report
-from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle, \
-    get_candles, inject_warmup_candles_to_store
+from jesse.services import candle_service
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
 from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish, is_process_active
+from jesse.services import order_service
 from timeloop import Timeloop
 from datetime import timedelta
 from jesse.services.progressbar import Progressbar
 from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
+from jesse.services import candle_service, order_service, position_service, exchange_service
 
 
 def run(
@@ -102,10 +103,23 @@ def _execute_backtest(
         r['exchange'] = exchange
     for r in data_routes:
         r['exchange'] = exchange
+    
     # set routes
     router.initiate(routes, data_routes)
-
+    # reset store
+    store.reset()
+    # set session id
     store.app.set_session_id(client_id)
+    # validate routes
+    validate_routes(router)
+    # initiate candle store
+    store.candles.init_storage(5000)
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
 
     # Store backtest session in database (only for UI dashboard, not for CLI/research)
     if not jh.should_execute_silently():
@@ -114,12 +128,6 @@ def _execute_backtest(
             id=client_id,
             status='running'
         )
-
-    # validate routes
-    validate_routes(router)
-
-    # initiate candle store
-    store.candles.init_storage(5000)
 
     # load historical candles
     if candles is None:
@@ -265,7 +273,7 @@ def _execute_backtest(
 def _get_formatted_candles_for_frontend():
     arr = []
     for r in router.routes:
-        candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        candles_arr = candle_service.get_candles(r.exchange, r.symbol, r.timeframe)
         # Find the index where the starting time actually begins.
         starting_index = 0
         for i, c in enumerate(candles_arr):
@@ -384,7 +392,7 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     warmup_candles = {}
     for c in config['app']['considering_candles']:
         exchange, symbol = c[0], c[1]
-        warmup_candles_arr, trading_candle_arr = get_candles(
+        warmup_candles_arr, trading_candle_arr = candle_service.get_candles(
             exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
         )
 
@@ -425,7 +433,7 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
     try:
         for c in config['app']['considering_candles']:
             exchange, symbol = c[0], c[1]
-            inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+            candle_service.inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
     except ValueError as e:
         # Extract exchange and symbol from error message
         match = re.search(r"for (.*?)/(.*?)\?", str(e))
@@ -488,7 +496,12 @@ def _step_simulator(
 
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
-    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
+    candles_pipelines = _prepare_routes(
+        hyperparameters=hyperparameters,
+        with_candles_pipeline=with_candles_pipeline,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs
+    )
 
     # add initial balance
     save_daily_portfolio_balance(is_initial=True)
@@ -509,12 +522,12 @@ def _step_simulator(
             exchange = candles[j]['exchange']
             symbol = candles[j]['symbol']
 
-            store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+            candle_service.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
                                      with_generation=False)
 
             # print short candle
             if jh.is_debuggable('shorter_period_candles'):
-                print_candle(short_candle, True, symbol)
+                candle_service.print_candle(short_candle, True, symbol)
 
             _simulate_price_change_effect(short_candle, exchange, symbol)
 
@@ -528,13 +541,19 @@ def _step_simulator(
                 # until = count - ((i + 1) % count)
 
                 if (i + 1) % count == 0:
-                    generated_candle = generate_candle_from_one_minutes(
+                    generated_candle = candle_service.generate_candle_from_one_minutes(
                         timeframe,
                         candles[j]['candles'][(i - (count - 1)):(i + 1)]
                     )
 
-                    store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
-                                             with_generation=False)
+                    candle_service.add_candle(
+                        generated_candle, 
+                        exchange, 
+                        symbol, 
+                        timeframe, 
+                        with_execution=False,
+                        with_generation=False
+                    )
 
         last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
                                                 last_update_time=last_update_time)
@@ -548,14 +567,14 @@ def _step_simulator(
             elif (i + 1) % count == 0:
                 # print candle
                 if jh.is_debuggable('trading_candles'):
-                    print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
+                    candle_service.print_candle(candle_service.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
                                  r.symbol)
                 r.strategy._execute()
 
             store.orders.update_active_orders(r.exchange, r.symbol)
 
         # now check to see if there's any MARKET orders waiting to be executed
-        _execute_market_orders()
+        order_service.execute_simulated_market_orders()
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
@@ -570,7 +589,7 @@ def _step_simulator(
 
     for r in router.routes:
         r.strategy._terminate()
-        _execute_market_orders()
+        order_service.execute_simulated_market_orders()
 
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
@@ -612,7 +631,8 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     store.app.time = first_candles_set[0][0]
 
 
-def _prepare_routes(hyperparameters: dict = None,
+def _prepare_routes(
+                    hyperparameters: dict = None,
                     with_candles_pipeline: bool = True,
                     candles_pipeline_class = None,
                     candles_pipeline_kwargs: dict = None,
@@ -657,6 +677,8 @@ def _prepare_routes(hyperparameters: dict = None,
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
+
+        # monte-carlo simulation
         if with_candles_pipeline:
             if candles_pipeline_class is not None:
                 # Use the provided pipeline class with kwargs if available
@@ -665,10 +687,10 @@ def _prepare_routes(hyperparameters: dict = None,
             else:
                 # Otherwise, fall back to the strategy's pipeline
                 candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline()
-        else:
+        else: # normal backtest
             candles_pipeline[jh.key(r.exchange, r.symbol)] = None
 
-        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+        store.positions.get_position(r.exchange, r.symbol).strategy = r.strategy
 
     # Ensure pipelines exist for data routes as well (no strategy attached)
     # Keys in `candles` include both trading and data routes; provide a pipeline (or None) for each
@@ -771,8 +793,8 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                 if not order.is_active:
                     continue
 
-                if candle_includes_price(current_temp_candle, order.price):
-                    storable_temp_candle, current_temp_candle = split_candle(current_temp_candle, order.price)
+                if candle_service.candle_includes_price(current_temp_candle, order.price):
+                    storable_temp_candle, current_temp_candle = candle_service.split_candle(current_temp_candle, order.price)
                     _update_all_routes_a_partial_candle(exchange, symbol, storable_temp_candle)
 
                     p = selectors.get_position(exchange, symbol)
@@ -780,7 +802,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
                     executed_order = True
 
-                    order.execute()
+                    order_service.execute_order(order)
                     executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
                     if len(executing_orders) > 1:
                         # extend the candle shape from (6,) to (1,6)
@@ -794,7 +816,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
         if not executed_order:
             # add/update the real_candle to the store so we can move on
-            store.candles.add_candle(
+            candle_service.add_candle(
                 real_candle, exchange, symbol, '1m',
                 with_execution=False,
                 with_generation=False
@@ -817,7 +839,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
     if p.mode != 'isolated':
         return
 
-    if candle_includes_price(candle, p.liquidation_price):
+    if candle_service.candle_includes_price(candle, p.liquidation_price):
         closing_order_side = jh.closing_side(p.type)
 
         # create the market order that is used as the liquidation order
@@ -838,7 +860,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
 
-        order.execute()
+        order_service.execute_order(order)
 
 
 def _generate_outputs(
@@ -913,7 +935,7 @@ def _skip_simulator(
         _execute_routes(i, candles_step)
 
         # now check to see if there's any MARKET orders waiting to be executed
-        _execute_market_orders()
+        order_service.execute_simulated_market_orders()
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
@@ -928,7 +950,7 @@ def _skip_simulator(
 
     for r in router.routes:
         r.strategy._terminate()
-        _execute_market_orders()
+        order_service.execute_simulated_market_orders()
 
     # now that backtest simulation is finished, add finishing balance
     save_daily_portfolio_balance()
@@ -1010,13 +1032,13 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
             count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
 
             if (i + candles_step) % count == 0:
-                generated_candle = generate_candle_from_one_minutes(
+                generated_candle = candle_service.generate_candle_from_one_minutes(
                     timeframe,
                     candles[j]["candles"][
                     i - count + candles_step: i + candles_step],
                 )
 
-                store.candles.add_candle(
+                candle_service.add_candle(
                     generated_candle,
                     exchange,
                     symbol,
@@ -1061,8 +1083,8 @@ def _simulate_price_change_effect_multiple_candles(
                         if not order.is_active:
                             continue
 
-                        if candle_includes_price(current_temp_candle, order.price):
-                            storable_temp_candle, current_temp_candle = split_candle(
+                        if candle_service.candle_includes_price(current_temp_candle, order.price):
+                            storable_temp_candle, current_temp_candle = candle_service.split_candle(
                                 current_temp_candle, order.price
                             )
                             _update_all_routes_a_partial_candle(
@@ -1076,7 +1098,7 @@ def _simulate_price_change_effect_multiple_candles(
                             is_executed_order = True
 
                             store.app.time = storable_temp_candle[0] + 60_000
-                            order.execute()
+                            order_service.execute_order(order)
                             executing_orders = _get_executing_orders(
                                 exchange, symbol, real_candle
                             )
@@ -1089,7 +1111,7 @@ def _simulate_price_change_effect_multiple_candles(
 
                 if not is_executed_order:
                     # add/update the real_candle to the store so we can move on
-                    store.candles.add_candle(
+                    candle_service.add_candle(
                         short_timeframes_candles[i].copy(),
                         exchange,
                         symbol,
@@ -1102,7 +1124,7 @@ def _simulate_price_change_effect_multiple_candles(
                         p.current_price = current_temp_candle[2]
                     break
 
-    store.candles.add_multiple_1m_candles(
+    candle_service.add_multiple_1m_candles(
         short_timeframes_candles,
         exchange,
         symbol,
@@ -1124,7 +1146,7 @@ def _update_all_routes_a_partial_candle(
     This function get called when an order is getting executed you need to update the other timeframe how their last
     candles looks like
     """
-    store.candles.add_candle(
+    candle_service.add_candle(
         storable_temp_candle,
         exchange,
         symbol,
@@ -1141,13 +1163,13 @@ def _update_all_routes_a_partial_candle(
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
-        generated_candle = generate_candle_from_one_minutes(
+        candles_1m = candle_service.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        generated_candle = candle_service.generate_candle_from_one_minutes(
             timeframe,
             candles_1m,
             accept_forming_candles=True
         )
-        store.candles.add_candle(
+        candle_service.add_candle(
             generated_candle,
             exchange,
             symbol,
@@ -1167,8 +1189,8 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
         elif (candle_index + candles_step) % count == 0:
             # print candle
             if jh.is_debuggable("trading_candles"):
-                print_candle(
-                    store.candles.get_current_candle(
+                candle_service.print_candle(
+                    candle_service.get_current_candle(
                         r.exchange, r.symbol, r.timeframe
                     ),
                     False,
@@ -1179,16 +1201,12 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
         store.orders.update_active_orders(r.exchange, r.symbol)
 
 
-def _execute_market_orders():
-    store.orders.execute_pending_market_orders()
-
-
 def _get_executing_orders(exchange, symbol, real_candle):
     orders = store.orders.get_active_orders(exchange, symbol)
     return [
         order
         for order in orders
-        if order.is_active and candle_includes_price(real_candle, order.price)
+        if order.is_active and candle_service.candle_includes_price(real_candle, order.price)
     ]
 
 

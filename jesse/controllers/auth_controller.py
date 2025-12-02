@@ -20,16 +20,12 @@ def login(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
 
 
-@router.post("/terminate-all")
-async def terminate_all(authorization: Optional[str] = Header(None)):
+@router.post("")
+def auth(json_request: LoginRequestJson):
     """
-    Terminate all running processes
+    Authenticate user with password and return a token
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
-
-    process_manager.flush()
-    return JSONResponse({'message': 'terminating all tasks...'})
+    return authenticator.password_to_token(json_request.password)
 
 
 @router.post("/shutdown")

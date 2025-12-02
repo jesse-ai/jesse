@@ -1,6 +1,5 @@
 import numpy as np
 from typing import Optional
-
 from .base_candles import BaseCandlesPipeline
 
 

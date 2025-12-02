@@ -10,9 +10,11 @@ import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
+from jesse.services import order_service, candle_service
+from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
@@ -833,7 +835,17 @@ class Strategy(ABC):
         Simulate market order execution in backtest mode
         """
         if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
-            store.orders.execute_pending_market_orders()
+            if not store.orders.to_execute:
+                return
+
+            for o in store.orders.to_execute:
+                order_service.execute_order(o)
+                
+                # Update order in database for paper trading
+                if jh.is_paper_trading():
+                    order_repository.store_or_update(o)
+
+            store.orders.to_execute = []
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -1010,7 +1022,10 @@ class Strategy(ABC):
 
         # fake execution of market orders in backtest simulation
         if not jh.is_live():
-            store.orders.execute_pending_market_orders()
+            if store.orders.to_execute:
+                for o in store.orders.to_execute:
+                    order_service.execute_order(o)
+                store.orders.to_execute = []
 
         if jh.is_live():
             self.terminate()
@@ -1063,7 +1078,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
+        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
     def open(self) -> float:
@@ -1137,7 +1152,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+        return candle_service.get_candles(self.exchange, self.symbol, self.timeframe)
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
@@ -1149,7 +1164,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(exchange, symbol, timeframe)
+        return candle_service.get_candles(exchange, symbol, timeframe)
 
     @property
     def metrics(self) -> dict:
@@ -1158,7 +1173,7 @@ class Strategy(ABC):
         """
         if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
-                store.completed_trades.trades, store.app.daily_balance, final=False
+                store.closed_trades.trades, store.app.daily_balance, final=False
             )
         return self._cached_metrics[self.trades_count]
 
@@ -1347,7 +1362,7 @@ class Strategy(ABC):
         elif type(self.position.exchange) is FuturesExchange:
             return self.position.exchange.futures_leverage
         else:
-            raise ValueError('exchange type not supported!')
+            raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
 
     @property
     def mark_price(self) -> float:
@@ -1412,9 +1427,9 @@ class Strategy(ABC):
     @property
     def trades(self) -> List[ClosedTrade]:
         """
-        Returns all the completed trades for this strategy.
+        Returns all the closed trades for this strategy.
         """
-        return store.completed_trades.trades
+        return store.closed_trades.trades
 
     @property
     def orders(self) -> List[Order]:

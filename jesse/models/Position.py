@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Union
 
 import numpy as np
@@ -8,7 +7,7 @@ import jesse.services.selectors as selectors
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.models import Order, Exchange
-from jesse.services import logger
+from jesse.services import logger, closed_trade_service
 from jesse.utils import sum_floats, subtract_floats
 
 
@@ -298,8 +297,7 @@ class Position:
         self._close()
 
     def _close(self):
-        from jesse.store import store
-        store.completed_trades.close_trade(self)
+        closed_trade_service.close_trade(self)
 
     def _mutating_reduce(self, qty: float, price: float) -> None:
         if not self._can_mutate_qty:
@@ -378,12 +376,7 @@ class Position:
             raise NotImplementedError('exchange type not implemented')
 
     def _open(self, p_orders: list = None):
-        from jesse.store import store
-        store.completed_trades.open_trade(self, p_orders)
-
-    def _fetch_open_trade(self, trade: dict):
-        from jesse.store import store
-        store.completed_trades.fetch_open_trade(trade)
+        closed_trade_service.open_trade(self, p_orders)
 
     def _on_executed_order(self, order: Order) -> None:
         # futures (live)
@@ -480,15 +473,12 @@ class Position:
         if opening_position:
             # if is_initial:
             #     from jesse.store import store
-            #     store.completed_trades.add_order_record_only(
+            #     store.closed_trades.add_order_record_only(
             #         self.exchange_name, self.symbol, jh.type_to_side(self.type),
             #         self.qty, self.entry_price
             #     )
             self.opened_at = jh.now_to_timestamp()
-            if open_trade:
-                self._fetch_open_trade(open_trade)
-            else:
-                self._open(p_orders)
+            self._open(p_orders)
         elif closing_position:
             self.closed_at = jh.now_to_timestamp()
 

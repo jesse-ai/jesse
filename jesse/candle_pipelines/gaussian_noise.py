@@ -1,5 +1,4 @@
 import numpy as np
-
 import jesse.helpers as jh
 from .base_candles import BaseCandlesPipeline
 
