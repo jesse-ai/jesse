@@ -499,23 +499,13 @@ class MonteCarloRunner:
             p50 = percentiles.get('50th', None)
             p95 = percentiles.get('95th', None)
             
-            # For max_drawdown, flip the percentiles (worst is highest drawdown)
-            if key == 'max_drawdown':
-                metrics.append({
-                    'metric': key,
-                    'original': original,
-                    'worst_5': p95,  # Worst is highest drawdown (95th percentile)
-                    'median': p50,
-                    'best_5': p5     # Best is lowest drawdown (5th percentile)
-                })
-            else:
-                metrics.append({
-                    'metric': key,
-                    'original': original,
-                    'worst_5': p5,
-                    'median': p50,
-                    'best_5': p95
-                })
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p5,
+                'median': p50,
+                'best_5': p95
+            })
         
         return metrics
 
@@ -537,9 +527,6 @@ class MonteCarloRunner:
             'net_profit_percentage', 'max_drawdown', 'sharpe_ratio', 
             'win_rate', 'total', 'annual_return', 'calmar_ratio'
         ]
-        
-        # Metrics that are stored as percentages (already multiplied by 100) in backtest results
-        percentage_metrics = ['net_profit_percentage', 'max_drawdown', 'annual_return']
 
         # Collect values for each metric
         for key in metric_keys:
@@ -548,9 +535,6 @@ class MonteCarloRunner:
                 if 'metrics' in scenario and key in scenario['metrics']:
                     val = scenario['metrics'][key]
                     if isinstance(val, (int, float)) and np.isfinite(val):
-                        # Normalize percentage metrics to decimal form (divide by 100)
-                        if key in percentage_metrics:
-                            val = val / 100
                         values.append(float(val))
             
             if not values:
@@ -566,28 +550,15 @@ class MonteCarloRunner:
             if original_result and 'metrics' in original_result and key in original_result['metrics']:
                 original = original_result['metrics'][key]
                 if isinstance(original, (int, float)) and np.isfinite(original):
-                    # Normalize percentage metrics to decimal form (divide by 100)
-                    if key in percentage_metrics:
-                        original = original / 100
                     original = float(original)
             
-            # For max_drawdown, flip the percentiles (worst is highest drawdown)
-            if key == 'max_drawdown':
-                metrics.append({
-                    'metric': key,
-                    'original': original,
-                    'worst_5': p95,  # Worst is highest drawdown
-                    'median': p50,
-                    'best_5': p5     # Best is lowest drawdown
-                })
-            else:
-                metrics.append({
-                    'metric': key,
-                    'original': original,
-                    'worst_5': p5,
-                    'median': p50,
-                    'best_5': p95
-                })
+            metrics.append({
+                'metric': key,
+                'original': original,
+                'worst_5': p5,
+                'median': p50,
+                'best_5': p95
+            })
         
         return metrics
 

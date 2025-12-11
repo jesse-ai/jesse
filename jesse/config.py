@@ -51,6 +51,8 @@ config = {
             'objective_function': 'sharpe',
             # number of trials per each hyperparameter
             'trials': 200,
+            # number of best candidates to keep and display
+            'best_candidates_count': 20,
         },
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -123,6 +125,9 @@ def set_config(conf: dict) -> None:
         config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
         # number of trials per each hyperparameter
         config['env']['optimization']['trials'] = int(conf['trials'])
+        # best candidates count
+        if 'best_candidates_count' in conf:
+            config['env']['optimization']['best_candidates_count'] = int(conf['best_candidates_count'])
 
     # backtest and live
     if jh.is_backtesting() or jh.is_live():

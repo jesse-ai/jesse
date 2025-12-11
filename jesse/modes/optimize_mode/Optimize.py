@@ -381,6 +381,9 @@ class Optimizer:
                 jh.debug(f"Trial {trial_number} has training metrics: {bool(training_metrics)}")
                 jh.debug(f"Trial {trial_number} has testing metrics: {bool(testing_metrics)}")
 
+            # Get best candidates count from config
+            best_candidates_count = jh.get_config('env.optimization.best_candidates_count', 20)
+
             # Insert into best_trials maintaining sorted order
             insert_idx = 0
             for idx, t in enumerate(self.best_trials):
@@ -390,10 +393,10 @@ class Optimizer:
                 else:
                     insert_idx = idx + 1
 
-            if insert_idx < 20 or len(self.best_trials) < 20:
+            if insert_idx < best_candidates_count or len(self.best_trials) < best_candidates_count:
                 self.best_trials.insert(insert_idx, current_trial_info)
-                # Keep only top 20
-                self.best_trials = self.best_trials[:20]
+                # Keep only top candidates as configured
+                self.best_trials = self.best_trials[:best_candidates_count]
 
             # Update best candidates table
             self._update_best_candidates()

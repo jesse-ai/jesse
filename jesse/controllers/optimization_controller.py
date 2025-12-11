@@ -2,6 +2,7 @@ from fastapi import APIRouter, Header, Query, Body
 from typing import Optional, List
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
+import json
 
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
@@ -33,9 +34,27 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
             'message': 'The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.'
         }, status_code=500)
 
+    # Validate routes
+    if not request_json.routes or len(request_json.routes) == 0:
+        return JSONResponse({
+            'error': 'At least one route is required',
+            'message': 'Please add at least one trading route.'
+        }, status_code=400)
+
+    # Generate unique session ID if not provided
+    session_id = request_json.id or jh.generate_unique_id()
+
+    # Check if session already exists
+    existing_session = get_optimization_session_by_id_from_db(session_id)
+    if existing_session:
+        return JSONResponse({
+            'error': f'Optimization session with ID {session_id} already exists',
+            'message': 'A session with this ID is already running or completed.'
+        }, status_code=409)
+
     process_manager.add_task(
         run_optimization,
-        request_json.id,
+        session_id,
         request_json.config,
         request_json.exchange,
         request_json.routes,
@@ -50,7 +69,10 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.state,
     )
 
-    return JSONResponse({'message': 'Started optimization...'}, status_code=202)
+    return JSONResponse({
+        'message': 'Started optimization...',
+        'session_id': session_id
+    }, status_code=202)
 
 
 @router.post("/rerun")
@@ -310,6 +332,46 @@ def update_session_notes(session_id: str, request_json: UpdateOptimizationSessio
         'message': 'Optimization session notes updated successfully'
     })
 
+
+@router.post("/sessions/{session_id}/get-notes")
+def get_session_notes(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the notes of an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+    
+    session = get_optimization_session_by_id_from_db(session_id)
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    return JSONResponse({
+        'title': session.title,
+        'description': session.description,
+    })
+    
+
+@router.post("/sessions/{session_id}/strategy-codes")
+def get_session_strategy_codes(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the strategy codes of an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+    
+    session = get_optimization_session_by_id_from_db(session_id)
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    return JSONResponse({
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
+    })
 
 @router.post("/purge-sessions")
 def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
