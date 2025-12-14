@@ -1,0 +1,1 @@
+import{d as n,a3 as r,a5 as c,z as i,g as p}from"./BZBcjETW.js";const l=n({__name:"index",setup(u){const o=r(),e=c(),t=Object.keys(e.tabs);if(t.length>0){const s=t[0],a=e.tabs[s];o.push({path:`/live/${a.id}`})}else e.addTab();return(s,a)=>(p(),i("div"))}});export{l as default};

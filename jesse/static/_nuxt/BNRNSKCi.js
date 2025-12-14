@@ -1,0 +1,1 @@
+import{y as a,z as o,g as t,j as s,A as c}from"./BZBcjETW.js";const n={},r={class:"py-10 mx-auto"},l={class:"mx-auto max-w-7xl px-2 md:px-8"},_={class:"max-w-[600px] mx-auto"};function d(e,m){return t(),o("div",r,[s("main",null,[s("div",l,[s("div",_,[c(e.$slots,"default")])])])])}const x=a(n,[["render",d]]);export{x as S};
