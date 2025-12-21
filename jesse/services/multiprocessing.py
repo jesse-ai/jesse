@@ -138,5 +138,3 @@ class ProcessManager:
 
 
 process_manager = ProcessManager()
-# flush all processes on startup to avoid any leftover processes
-# process_manager.flush()
