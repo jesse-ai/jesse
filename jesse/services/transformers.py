@@ -5,6 +5,8 @@ from jesse.models.BacktestSession import BacktestSession
 from jesse.models.MonteCarloSession import MonteCarloSession
 from jesse.models.LiveSession import LiveSession
 from jesse.models.Order import Order
+from jesse.repositories import order_repository
+from jesse.services.multiprocessing import process_manager
 import json
 import jesse.helpers as jh
 
@@ -209,7 +211,6 @@ def get_live_session(session: LiveSession) -> dict:
     Transform a LiveSession model instance into a dictionary for API responses
     """
     try:
-        from jesse.services.multiprocessing import process_manager
         is_active = str(session.id) in process_manager.active_workers
     except Exception:
         is_active = False
@@ -444,8 +445,6 @@ def get_closed_trade_details(trade) -> dict:
     """
     Transform a ClosedTrade model instance for detailed view with orders
     """
-    from jesse.repositories import order_repository
-    
     # Get all orders for this trade
     orders: list[Order] = order_repository.find_by_trade_id(trade.id)
     orders_list = [get_order_details(order) for order in orders]
