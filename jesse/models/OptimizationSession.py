@@ -254,9 +254,10 @@ def get_optimization_session(id: str) -> dict:
 
 def get_optimization_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None) -> list:
     """
-    Returns a list of OptimizationSession objects sorted by most recently updated
+    Returns a list of OptimizationSession objects sorted by most recently updated.
+    Excludes draft sessions by default.
     """
-    query = OptimizationSession.select().order_by(OptimizationSession.updated_at.desc())
+    query = OptimizationSession.select().where(OptimizationSession.status != 'draft').order_by(OptimizationSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -295,12 +296,30 @@ def delete_optimization_session(id: str) -> bool:
 
 
 def update_optimization_session_state(id: str, state: dict) -> None:
-    d = {
-        'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp(True)
-    }
+    """
+    Update or create (upsert) optimization session state. If session doesn't exist, creates as draft.
+    """
+    existing = OptimizationSession.select().where(OptimizationSession.id == id).first()
     
-    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    if existing:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    else:
+        # Create new draft session
+        d = {
+            'id': id,
+            'status': 'draft',
+            'state': json.dumps(state),
+            'completed_trials': 0,
+            'total_trials': 0,
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        OptimizationSession.insert(**d).execute()
 
 
 def update_optimization_session_notes(id: str, title: str = None, description: str = None, strategy_codes: dict = None) -> None:

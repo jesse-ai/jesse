@@ -1,7 +1,6 @@
 from jesse.services.db import database
 from playhouse.migrate import *
 from jesse.enums import migration_actions
-import click
 
 
 def run():
@@ -33,8 +32,8 @@ def run():
     _monte_carlo_session(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, Option
-    database.db.create_tables([Candle, ClosedTrade, Log, Order])
+    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab])
 
     database.close_connection()
 

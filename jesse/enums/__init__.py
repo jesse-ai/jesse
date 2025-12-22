@@ -113,6 +113,7 @@ class order_submitted_via:
 
 @dataclass
 class live_session_statuses:
+    DRAFT = 'draft'
     STARTING = 'starting'
     RUNNING = 'running'
     STOPPED = 'stopped'

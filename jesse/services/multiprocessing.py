@@ -120,9 +120,17 @@ class ProcessManager:
                 for w in self._workers[:]:  # Create a copy of the list to avoid modification during iteration
                     if not w.is_alive():
                         try:
+                            # Get the client_id for this worker before removing it
+                            client_id = self.get_client_id(w.pid)
+                            
                             w.join(timeout=1)
                             w.close()
                             self._workers.remove(w)
+                            
+                            # Remove from Redis active workers set
+                            if client_id:
+                                sync_redis.srem(self._active_workers_key, client_id)
+                                jh.debug(f"Removed finished worker {client_id} from active workers")
                         except Exception as e:
                             jh.debug(f"Error during worker cleanup: {str(e)}")
             except Exception as e:

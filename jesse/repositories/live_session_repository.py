@@ -3,6 +3,9 @@ import json
 import jesse.helpers as jh
 from jesse.models.LiveSession import LiveSession
 from jesse.services.db import database
+from jesse.enums import live_session_statuses
+from jesse.enums import live_session_modes
+
 
 
 def _ensure_db_open() -> None:
@@ -34,14 +37,16 @@ def get_live_sessions(
     mode_filter: str = None
 ) -> List[LiveSession]:
     """
-    Returns a list of LiveSession objects sorted by most recently updated with pagination and filters
+    Returns a list of LiveSession objects sorted by most recently updated with pagination and filters.
+    Excludes draft sessions by default.
     """
     if jh.is_unit_testing():
         return []
     
     _ensure_db_open()
     
-    query = LiveSession.select().order_by(LiveSession.updated_at.desc())
+    
+    query = LiveSession.select().where(LiveSession.status != live_session_statuses.DRAFT).order_by(LiveSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -151,6 +156,41 @@ def update_live_session_state(id: str, state: dict) -> None:
     }
     
     LiveSession.update(**d).where(LiveSession.id == id).execute()
+
+
+def upsert_live_session_state(id: str, state: dict) -> None:
+    """
+    Create or update the state of a live session. If session doesn't exist, creates as draft.
+    """
+    if jh.is_unit_testing():
+        return
+    
+    _ensure_db_open()
+    
+    existing_session = get_live_session_by_id(id)
+    
+    if existing_session:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        LiveSession.update(**d).where(LiveSession.id == id).execute()
+    else:
+        # Extract exchange from state.form if available
+        exchange = state.get('form', {}).get('exchange', '')
+        session_mode = live_session_modes.PAPERTRADE if state.get('form', {}).get('paper_mode', True) else live_session_modes.LIVETRADE
+        
+        d = {
+            'id': id,
+            'status': live_session_statuses.DRAFT,
+            'session_mode': session_mode,
+            'exchange': exchange,
+            'state': json.dumps(state),
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        LiveSession.insert(**d).execute()
 
 
 def update_live_session_notes(

@@ -210,9 +210,10 @@ def get_monte_carlo_session_by_id(id: str):
 
 def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None):
     """
-    Returns a list of MonteCarloSession objects sorted by most recently updated
+    Returns a list of MonteCarloSession objects sorted by most recently updated.
+    Excludes draft sessions by default.
     """
-    query = MonteCarloSession.select().order_by(MonteCarloSession.updated_at.desc())
+    query = MonteCarloSession.select().where(MonteCarloSession.status != 'draft').order_by(MonteCarloSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -265,11 +266,28 @@ def update_monte_carlo_session_status(id: str, status: str) -> None:
 
 
 def update_monte_carlo_session_state(id: str, state: dict) -> None:
-    d = {
-        'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp(True)
-    }
-    MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
+    """
+    Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
+    """
+    existing = MonteCarloSession.select().where(MonteCarloSession.id == id).first()
+    
+    if existing:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
+    else:
+        # Create new draft session
+        d = {
+            'id': id,
+            'status': 'draft',
+            'state': json.dumps(state),
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        MonteCarloSession.insert(**d).execute()
 
 
 def delete_monte_carlo_session(id: str) -> bool:

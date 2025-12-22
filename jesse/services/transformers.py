@@ -5,7 +5,8 @@ from jesse.models.BacktestSession import BacktestSession
 from jesse.models.MonteCarloSession import MonteCarloSession
 from jesse.models.LiveSession import LiveSession
 from jesse.models.Order import Order
-from jesse.repositories import order_repository
+from jesse.enums import live_session_statuses
+from jesse.repositories import order_repository, live_session_repository
 from jesse.services.multiprocessing import process_manager
 import json
 import jesse.helpers as jh
@@ -208,7 +209,8 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
 
 def get_live_session(session: LiveSession) -> dict:
     """
-    Transform a LiveSession model instance into a dictionary for API responses
+    Transform a LiveSession model instance into a dictionary for API responses.
+    Reconciles status with actual worker state.
     """
     try:
         is_active = str(session.id) in process_manager.active_workers
@@ -216,6 +218,18 @@ def get_live_session(session: LiveSession) -> dict:
         is_active = False
 
     status = (session.status or '').lower()
+    
+    # Reconcile status: if DB says starting/running but worker is not active, mark as stopped
+    if status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active:
+        status = live_session_statuses.STOPPED
+        # Update DB to reflect the reconciled status
+        try:
+            live_session_repository.update_live_session_status(str(session.id), live_session_statuses.STOPPED)
+            if not session.finished_at:
+                from jesse.models.LiveSession import LiveSession
+                LiveSession.update(finished_at=jh.now_to_timestamp(True)).where(LiveSession.id == session.id).execute()
+        except Exception as e:
+            jh.debug(f"Error reconciling live session status: {str(e)}")
 
     result = {
         'id': str(session.id),

@@ -10,7 +10,8 @@ from jesse.services.web import (
     GetLogsRequestJson, 
     GetOrdersRequestJson,
     GetLiveSessionsRequestJson,
-    UpdateLiveSessionNotesRequestJson
+    UpdateLiveSessionNotesRequestJson,
+    UpdateLiveSessionStateRequestJson
 )
 import jesse.helpers as jh
 from jesse.repositories import live_session_repository
@@ -226,6 +227,21 @@ def update_session_notes(
     return JSONResponse({
         'message': 'Live session notes updated successfully'
     })
+
+
+@router.post("/update-state")
+def update_state(request_json: UpdateLiveSessionStateRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Upsert live session state (creates draft if doesn't exist, updates if exists)
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    live_session_repository.upsert_live_session_state(request_json.id, request_json.state)
+
+    return JSONResponse({
+        'message': 'Live session state updated successfully'
+    }, status_code=200)
 
 
 @router.post("/purge-sessions")

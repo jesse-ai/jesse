@@ -247,6 +247,11 @@ class UpdateLiveSessionNotesRequestJson(BaseModel):
     strategy_codes: Optional[dict] = None
 
 
+class UpdateLiveSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
 class MonteCarloRequestJson(BaseModel):
     id: Optional[str] = None
     exchange: str
