@@ -392,7 +392,7 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     warmup_candles = {}
     for c in config['app']['considering_candles']:
         exchange, symbol = c[0], c[1]
-        warmup_candles_arr, trading_candle_arr = candle_service.get_candles(
+        warmup_candles_arr, trading_candle_arr = candle_service.get_candles_from_db(
             exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
         )
 

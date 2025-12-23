@@ -2,7 +2,7 @@ import numpy as np
 from typing import Union, Tuple
 from jesse import factories
 import jesse.helpers as jh
-from jesse.services.candle_service import get_candles as _get_candles
+from jesse.services.candle_service import get_candles_from_db as _get_candles
 
 
 def get_candles(

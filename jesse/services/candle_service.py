@@ -206,7 +206,7 @@ def inject_warmup_candles_to_store(candles: np.ndarray, exchange: str, symbol: s
                 )
 
 
-def get_candles(
+def get_candles_from_db(
         exchange: str,
         symbol: str,
         timeframe: str,
