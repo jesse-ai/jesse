@@ -166,7 +166,7 @@ def get_backtest_session(session: BacktestSession) -> dict:
         'updated_at': session.updated_at,
         'execution_duration': session.execution_duration,
         'net_profit_percentage': session.net_profit_percentage,
-        'state': json.loads(session.state) if session.state else None,
+        'state': session.state_json if session.state else None,
         'title': session.title,
         'description': session.description,
         'strategy_codes': session.strategy_codes_json

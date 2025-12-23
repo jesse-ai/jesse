@@ -58,7 +58,12 @@ class MonteCarloSession(peewee.Model):
     def state_json(self):
         if not self.state:
             return {}
-        return json.loads(self.state)
+        s = json.loads(self.state)
+        if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
+            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                if key in s['form']:
+                    s['form'][key] = jh.normalize_bool(s['form'].get(key))
+        return s
 
     @state_json.setter
     def state_json(self, state_data):
@@ -243,6 +248,10 @@ def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str
 
 
 def store_monte_carlo_session(id: str, status: str, state: dict = None, strategy_codes: dict = None) -> None:
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
     d = {
         'id': id,
         'status': status,
@@ -269,6 +278,10 @@ def update_monte_carlo_session_state(id: str, state: dict) -> None:
     """
     Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
     """
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = MonteCarloSession.select().where(MonteCarloSession.id == id).first()
     
     if existing:

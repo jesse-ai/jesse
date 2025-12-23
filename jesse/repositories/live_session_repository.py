@@ -103,12 +103,19 @@ def store_live_session(
             'status': status,
             'session_mode': session_mode,
             'exchange': exchange,
-            'state': json.dumps(state) if state else None,
+            'state': None,
             'finished_at': None,
             'exception': None,
             'traceback': None,
             'updated_at': jh.now_to_timestamp(True)
         }
+        if state:
+            if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+                for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                    if key in state['form']:
+                        state['form'][key] = jh.normalize_bool(state['form'].get(key))
+            d['state'] = json.dumps(state)
+
         LiveSession.update(**d).where(LiveSession.id == id).execute()
     else:
         # Create a new session
@@ -117,10 +124,17 @@ def store_live_session(
             'status': status,
             'session_mode': session_mode,
             'exchange': exchange,
-            'state': json.dumps(state) if state else None,
+            'state': None,
             'created_at': jh.now_to_timestamp(True),
             'updated_at': jh.now_to_timestamp(True)
         }
+        if state:
+            if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+                for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                    if key in state['form']:
+                        state['form'][key] = jh.normalize_bool(state['form'].get(key))
+            d['state'] = json.dumps(state)
+        
         LiveSession.insert(**d).execute()
 
 
@@ -150,6 +164,11 @@ def update_live_session_state(id: str, state: dict) -> None:
     
     _ensure_db_open()
     
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
+    
     d = {
         'state': json.dumps(state),
         'updated_at': jh.now_to_timestamp(True)
@@ -166,6 +185,11 @@ def upsert_live_session_state(id: str, state: dict) -> None:
         return
     
     _ensure_db_open()
+
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
     
     existing_session = get_live_session_by_id(id)
     

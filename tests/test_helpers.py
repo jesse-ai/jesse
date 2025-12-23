@@ -769,3 +769,35 @@ def test_clean_infinite_values():
         "normal": 10
     }
     assert jh.clean_infinite_values(complex_obj) == expected
+
+
+def test_clean_nan_values_keeps_bool():
+    obj = {
+        'a': True,
+        'b': False,
+        'nested': {
+            'c': True,
+            'd': [False, True]
+        }
+    }
+    cleaned = jh.clean_nan_values(obj)
+    assert cleaned['a'] is True
+    assert cleaned['b'] is False
+    assert cleaned['nested']['c'] is True
+    assert cleaned['nested']['d'][0] is False
+    assert cleaned['nested']['d'][1] is True
+
+
+def test_normalize_bool():
+    assert jh.normalize_bool(True) is True
+    assert jh.normalize_bool(False) is False
+    assert jh.normalize_bool(1) is True
+    assert jh.normalize_bool(0) is False
+    assert jh.normalize_bool('1') is True
+    assert jh.normalize_bool('0') is False
+    assert jh.normalize_bool('true') is True
+    assert jh.normalize_bool('false') is False
+    assert jh.normalize_bool(' TRUE ') is True
+    assert jh.normalize_bool(' FALSE ') is False
+    assert jh.normalize_bool(2) is False  # v == 1 is False for 2
+    assert jh.normalize_bool(None) is False  # fallback to bool(None)

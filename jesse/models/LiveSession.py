@@ -63,7 +63,12 @@ class LiveSession(peewee.Model):
         """
         if not self.state:
             return {}
-        return json.loads(self.state)
+        s = json.loads(self.state)
+        if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
+            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                if key in s['form']:
+                    s['form'][key] = jh.normalize_bool(s['form'].get(key))
+        return s
     
     @state_json.setter
     def state_json(self, state_data):
