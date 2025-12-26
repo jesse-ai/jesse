@@ -493,7 +493,7 @@ def get_order_details(order) -> dict:
     Transform an Order model instance for detail/list view
     """
     result = {
-        'id': order.id,
+        'id': str(order.id),
         'trade_id': str(order.trade_id) if order.trade_id else None,
         'exchange_id': order.exchange_id,
         'symbol': order.symbol,
