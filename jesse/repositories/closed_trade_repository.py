@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 import numpy as np
+from peewee import Cast
 
 import jesse.helpers as jh
 from jesse.config import config
@@ -158,6 +159,77 @@ def disable_trade(trade_id: str) -> None:
         "soft_deleted_at": jh.now_to_timestamp(),
     }
     ClosedTrade.update(**d).where(ClosedTrade.id == trade_id).execute()
+
+
+def find_by_filters(
+    id_search: str = None,
+    status_filter: str = None,
+    symbol_filter: str = None,
+    date_filter: str = None,
+    exchange_filter: str = None,
+    type_filter: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> List[ClosedTrade]:
+    if jh.is_unit_testing():
+        return []
+
+    _ensure_db_open()
+
+    # If a previous query failed, the connection can be left in an aborted transaction state.
+    # Rolling back here ensures subsequent SELECTs work.
+    try:
+        database.db.rollback()
+    except Exception:
+        pass
+
+    query = ClosedTrade.select()
+
+    if id_search:
+        # UUID fields can't be searched with ILIKE directly; cast to text first.
+        query = query.where(
+            (Cast(ClosedTrade.id, 'text').contains(id_search)) |
+            (Cast(ClosedTrade.session_id, 'text').contains(id_search))
+        )
+
+    if status_filter:
+        if status_filter == 'open':
+            query = query.where(ClosedTrade.closed_at == None)
+        elif status_filter == 'closed':
+            query = query.where(ClosedTrade.closed_at != None)
+
+    if symbol_filter:
+        query = query.where(ClosedTrade.symbol.contains(symbol_filter))
+
+    if exchange_filter:
+        query = query.where(ClosedTrade.exchange.contains(exchange_filter))
+
+    if type_filter:
+        query = query.where(ClosedTrade.type.contains(type_filter))
+
+    if date_filter:
+        cutoff_timestamp = jh.now_to_timestamp()
+        if date_filter == '7_days':
+            cutoff_timestamp -= 7 * 24 * 60 * 60 * 1000
+        elif date_filter == '30_days':
+            cutoff_timestamp -= 30 * 24 * 60 * 60 * 1000
+        elif date_filter == '90_days':
+            cutoff_timestamp -= 90 * 24 * 60 * 60 * 1000
+        
+        if date_filter != 'all_time':
+            query = query.where(ClosedTrade.opened_at >= cutoff_timestamp)
+
+    query = query.order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc()).limit(limit).offset(offset)
+
+    try:
+        return list(query)
+    except Exception:
+        # Ensure we don't poison the connection for subsequent requests.
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
+        raise
 
 
 def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) -> Optional[ClosedTrade]:

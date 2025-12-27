@@ -296,3 +296,26 @@ class GetMonteCarloSessionsRequestJson(BaseModel):
     title_search: Optional[str] = None
     status_filter: Optional[str] = None
     date_filter: Optional[str] = None
+
+
+class GetOrdersHistoryRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    id_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    symbol_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    exchange_filter: Optional[str] = None
+    type_filter: Optional[str] = None
+    side_filter: Optional[str] = None
+
+
+class GetTradesHistoryRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    id_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    symbol_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    exchange_filter: Optional[str] = None
+    type_filter: Optional[str] = None

@@ -441,6 +441,7 @@ def get_closed_trade_for_list(trade) -> dict:
     result = {
         'id': str(trade.id),
         'symbol': trade.symbol,
+        'exchange': trade.exchange,
         'type': trade.type,
         'entry_price': trade.entry_price,
         'exit_price': trade.exit_price if trade.closed_at else None,

@@ -1,6 +1,7 @@
 from typing import Optional, List, Tuple
 import numpy as np
 import jesse.helpers as jh
+from peewee import Cast
 from jesse.models import Candle
 from jesse.models.Order import Order
 from jesse.enums import order_statuses
@@ -324,6 +325,80 @@ def get_simulated_orders(exchange: str, symbol: str, qty: float = None) -> List[
     if qty:
         query = query.where(Order.qty == qty)
     return list(query.order_by(Order.created_at.desc()))
+
+
+def find_by_filters(
+    id_search: str = None,
+    status_filter: str = None,
+    symbol_filter: str = None,
+    date_filter: str = None,
+    exchange_filter: str = None,
+    type_filter: str = None,
+    side_filter: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> List[Order]:
+    if jh.is_unit_testing():
+        return []
+
+    if not database.is_open():
+        database.open_connection()
+
+    # If a previous query failed, the connection can be left in an aborted transaction state.
+    # Rolling back here ensures subsequent SELECTs work.
+    try:
+        database.db.rollback()
+    except Exception:
+        pass
+
+    query = Order.select()
+
+    if id_search:
+        # UUID fields can't be searched with ILIKE directly; cast to text first.
+        query = query.where(
+            (Cast(Order.id, 'text').contains(id_search)) |
+            (Cast(Order.session_id, 'text').contains(id_search)) |
+            (Order.exchange_id.contains(id_search))
+        )
+
+    if status_filter:
+        query = query.where(Order.status == status_filter)
+
+    if symbol_filter:
+        query = query.where(Order.symbol.contains(symbol_filter))
+
+    if exchange_filter:
+        query = query.where(Order.exchange.contains(exchange_filter))
+
+    if type_filter:
+        query = query.where(Order.type.contains(type_filter))
+
+    if side_filter:
+        query = query.where(Order.side.contains(side_filter))
+
+    if date_filter:
+        cutoff_timestamp = jh.now_to_timestamp()
+        if date_filter == '7_days':
+            cutoff_timestamp -= 7 * 24 * 60 * 60 * 1000
+        elif date_filter == '30_days':
+            cutoff_timestamp -= 30 * 24 * 60 * 60 * 1000
+        elif date_filter == '90_days':
+            cutoff_timestamp -= 90 * 24 * 60 * 60 * 1000
+
+        if date_filter != 'all_time':
+            query = query.where(Order.created_at >= cutoff_timestamp)
+
+    query = query.order_by(Order.created_at.desc()).limit(limit).offset(offset)
+
+    try:
+        return list(query)
+    except Exception:
+        # Ensure we don't poison the connection for subsequent requests.
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
+        raise
 
 
 def delete(order_id: str) -> None:
