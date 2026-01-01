@@ -21,7 +21,6 @@ def run():
     _candle(migrator)
     _completed_trade(migrator)
     _closed_trade(migrator)
-    _daily_balance(migrator)
     _log(migrator)
     _order(migrator)
     _orderbook(migrator)
@@ -32,8 +31,8 @@ def run():
     _monte_carlo_session(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab
-    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab])
+    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot])
 
     database.close_connection()
 
@@ -72,14 +71,6 @@ def _closed_trade(migrator):
     if 'closedtrade' in database.db.get_tables():
         closedtrade_columns = database.db.get_columns('closedtrade')
         _migrate(migrator, fields, closedtrade_columns, 'closedtrade')
-
-
-def _daily_balance(migrator):
-    fields = []
-
-    if 'dailybalance' in database.db.get_tables():
-        dailybalance_columns = database.db.get_columns('dailybalance')
-        _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
 
 
 def _log(migrator):

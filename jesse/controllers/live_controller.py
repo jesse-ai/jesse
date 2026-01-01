@@ -260,3 +260,44 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
         'message': f'Successfully purged {deleted_count} session(s)',
         'deleted_count': deleted_count
     }, status_code=200)
+
+
+@router.get("/equity-curve")
+def get_equity_curve(
+    session_id: str,
+    from_ms: Optional[int] = None,
+    to_ms: Optional[int] = None,
+    timeframe: str = 'auto',
+    max_points: int = 1000,
+    authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    """
+    Get equity curve for a live session with downsampling
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.repositories import live_equity_repository
+
+    try:
+        if from_ms is None:
+            session = live_session_repository.get_live_session_by_id(session_id)
+            if session and getattr(session, 'created_at', None):
+                from_ms = session.created_at
+            else:
+                # fallback: last 24h
+                from_ms = jh.now(True) - (24 * 60 * 60 * 1000)
+
+        result = live_equity_repository.query_equity_curve(
+            session_id=session_id,
+            from_ms=from_ms,
+            to_ms=to_ms,
+            timeframe=timeframe,
+            max_points=max_points
+        )
+
+        return JSONResponse(result, status_code=200)
+    except Exception as e:
+        return JSONResponse({
+            'message': f'Error fetching equity curve: {str(e)}'
+        }, status_code=500)

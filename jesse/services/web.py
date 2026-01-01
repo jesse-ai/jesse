@@ -252,6 +252,14 @@ class UpdateLiveSessionStateRequestJson(BaseModel):
     state: dict
 
 
+class GetEquityCurveRequestJson(BaseModel):
+    session_id: str
+    from_ms: Optional[int] = None
+    to_ms: Optional[int] = None
+    timeframe: str = 'auto'
+    max_points: int = 1000
+
+
 class MonteCarloRequestJson(BaseModel):
     id: Optional[str] = None
     exchange: str
