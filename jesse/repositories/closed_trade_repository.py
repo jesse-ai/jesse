@@ -16,6 +16,28 @@ def _ensure_db_open() -> None:
         database.open_connection()
 
 
+def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
+    """
+    Populate buy_orders and sell_orders arrays from the Order table.
+    This is needed when loading trades from the database so that computed
+    properties like entry_price, exit_price, qty, pnl, etc. work correctly.
+    """
+    orders = list(
+        Order.select()
+        .where(Order.trade_id == trade.id)
+        .where(Order.status == order_statuses.EXECUTED)
+        .order_by(Order.executed_at)
+    )
+
+    for o in orders:
+        if o.side == sides.BUY:
+            trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
+        elif o.side == sides.SELL:
+            trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
+
+    return trade
+
+
 def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
     if jh.is_unit_testing():
         return None
@@ -23,7 +45,11 @@ def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
     _ensure_db_open()
 
     try:
-        return ClosedTrade.select().where(ClosedTrade.id == trade_id).first()
+        trade = ClosedTrade.select().where(ClosedTrade.id == trade_id).first()
+        # add orders to trade
+        if trade:
+            populate_order_arrays(trade)
+        return trade
     except Exception:
         return None
 
@@ -44,7 +70,10 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
     if limit is not None:
         query = query.limit(limit)
     
-    return list[ClosedTrade](query)
+    trades = list(query)
+    for trade in trades:
+        populate_order_arrays(trade)
+    return trades
 
 
 def create(trade_data: dict) -> Optional[ClosedTrade]:
@@ -222,7 +251,10 @@ def find_by_filters(
     query = query.order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc()).limit(limit).offset(offset)
 
     try:
-        return list(query)
+        trades = list(query)
+        for trade in trades:
+            populate_order_arrays(trade)
+        return trades
     except Exception:
         # Ensure we don't poison the connection for subsequent requests.
         try:
