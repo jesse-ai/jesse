@@ -424,7 +424,8 @@ class Optimizer:
             'omega': 'omega_ratio',
             'serenity': 'serenity_index',
             'smart sharpe': 'smart_sharpe',
-            'smart sortino': 'smart_sortino'
+            'smart sortino': 'smart_sortino',
+            'cwr': 'cwr'
         }
         metric_key = mapping.get(objective_function_config, objective_function_config)
 

@@ -70,10 +70,13 @@ def get_fitness(
             elif objective_function_config == 'smart sortino':
                 ratio = training_metrics['smart_sortino']
                 ratio_normalized = jh.normalize(ratio, -.5, 15)
+            elif objective_function_config == 'cwr':
+                ratio = training_metrics['cwr']
+                ratio_normalized = jh.normalize(ratio, -.5, 2)
             else:
                 raise ValueError(
                     f'The entered ratio configuration `{objective_function_config}` for the optimization is unknown. '
-                    f'Choose between sharpe, calmar, sortino, serenity, smart sharpe, smart sortino and omega.'
+                    f'Choose between sharpe, calmar, sortino, serenity, smart sharpe, smart sortino, omega and cwr.'
                 )
 
             # If the ratio is negative then the configuration is not usable
