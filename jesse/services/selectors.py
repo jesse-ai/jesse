@@ -72,8 +72,3 @@ def get_route(exchange: str, symbol: str) -> Optional[Any]:
         ),
         None,
     )
-
-
-def get_all_routes() -> List[Any]:
-    from jesse.routes import router
-    return router.all_formatted_routes
