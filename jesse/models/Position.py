@@ -3,37 +3,34 @@ from typing import Union
 import numpy as np
 
 import jesse.helpers as jh
-import jesse.services.selectors as selectors
 from jesse.enums import trade_types, order_types
 from jesse.exceptions import EmptyPosition, OpenPositionError
-from jesse.models import Order, Exchange
+from jesse.models import Order
 from jesse.services import logger, closed_trade_service
 from jesse.utils import sum_floats, subtract_floats
 
 
 class Position:
-    def __init__(self, exchange_name: str, symbol: str, attributes: dict = None) -> None:
-        self.id = jh.generate_unique_id()
-        self.entry_price = None
-        self.exit_price = None
-        self.current_price = None
-        self.qty = 0
-        self.previous_qty = 0
-        self.opened_at = None
-        self.closed_at = None
-        self._mark_price = None
-        self._funding_rate = None
-        self._next_funding_timestamp = None
-        self._liquidation_price = None
-
+    id: str = None
+    entry_price: float = None
+    exit_price: float = None
+    current_price: float = None
+    qty: float = 0
+    previous_qty: float = 0
+    opened_at: int = None
+    closed_at: int = None
+    _mark_price: float = None
+    _funding_rate: float = None
+    _next_funding_timestamp: int = None
+    _liquidation_price: float = None
+    exchange_name: str = None
+    exchange = None
+    symbol: str = None
+    strategy = None
+    
+    def __init__(self, attributes: dict = None) -> None:
         if attributes is None:
             attributes = {}
-
-        self.exchange_name = exchange_name
-        self.exchange: Exchange = selectors.get_exchange(self.exchange_name)
-
-        self.symbol = symbol
-        self.strategy = None
 
         for a in attributes:
             setattr(self, a, attributes[a])
