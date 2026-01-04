@@ -1,7 +1,6 @@
 from playhouse.postgres_ext import *
 
 import jesse.helpers as jh
-import jesse.services.selectors as selectors
 from jesse.enums import order_statuses, order_submitted_via
 from jesse.services.db import database
 
@@ -128,10 +127,6 @@ class Order(Model):
             'updated_at': self.updated_at,
             'session_mode': self.session_mode,
         }
-
-    @property
-    def position(self):
-        return selectors.get_position(self.exchange, self.symbol)
 
     @property
     def value(self) -> float:

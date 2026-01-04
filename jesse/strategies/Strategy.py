@@ -1443,21 +1443,21 @@ class Strategy(ABC):
         """
         Returns all the entry orders for this position.
         """
-        return store.orders.get_entry_orders(self.exchange, self.symbol)
+        return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
     def exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_exit_orders(self.exchange, self.symbol)
+        return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
     def active_exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
+        return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):

@@ -1,3 +1,4 @@
+from typing import List
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse.config import config
@@ -174,3 +175,68 @@ def initialize_orders_state() -> None:
             key = f'{exchange}-{symbol}'
             store.orders.storage[key] = []
             store.orders.active_storage[key] = []
+
+
+def get_entry_orders(exchange: str, symbol: str) -> List[Order]:
+    p = store.positions.get_position(exchange, symbol)
+    # return all orders if position is not opened yet
+    if p.is_close:
+        return store.orders.get_orders(exchange, symbol).copy()
+
+    all_orders = store.orders.get_active_orders(exchange, symbol)
+    p_side = jh.type_to_side(p.type)
+    entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
+
+    return entry_orders
+
+
+def get_exit_orders(exchange: str, symbol: str) -> List[Order]:
+    """
+    excludes cancel orders but includes executed orders
+    """
+    all_orders = store.orders.get_orders(exchange, symbol)
+    # return empty if no orders
+    if len(all_orders) == 0:
+        return []
+    # return empty if position is not opened yet
+    p = store.positions.get_position(exchange, symbol)
+    if p.is_close:
+        return []
+    else:
+        exit_orders = [o for o in all_orders if o.side != jh.type_to_side(p.type)]
+
+    # exclude cancelled orders
+    exit_orders = [o for o in exit_orders if not o.is_canceled]
+
+    return exit_orders
+
+
+def get_active_exit_orders(exchange: str, symbol: str) -> List[Order]:
+    """
+    excludes cancel orders but includes executed orders
+    """
+    all_orders = store.orders.get_active_orders(exchange, symbol)
+    # return empty if no orders
+    if len(all_orders) == 0:
+        return []
+    # return empty if position is not opened yet
+    p = store.positions.get_position(exchange, symbol)
+    if p.is_close:
+        return []
+    else:
+        exit_orders = [o for o in all_orders if o.side != jh.type_to_side(p.type)]
+
+    # exclude cancelled orders
+    exit_orders = [o for o in exit_orders if not o.is_canceled]
+
+    return exit_orders
+
+
+def update_active_orders(exchange: str, symbol: str):
+    key = f'{exchange}-{symbol}'
+    active_orders = [
+        order
+        for order in store.orders.get_active_orders(exchange, symbol)
+        if not order.is_canceled and not order.is_executed
+    ]
+    store.orders.active_storage[key] = active_orders

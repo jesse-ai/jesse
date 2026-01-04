@@ -4,7 +4,6 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.metrics as stats
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes, order_types
@@ -571,7 +570,7 @@ def _step_simulator(
                                  r.symbol)
                 r.strategy._execute()
 
-            store.orders.update_active_orders(r.exchange, r.symbol)
+            order_service.update_active_orders(r.exchange, r.symbol)
 
         # now check to see if there's any MARKET orders waiting to be executed
         order_service.execute_simulated_market_orders()
@@ -797,7 +796,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     storable_temp_candle, current_temp_candle = candle_service.split_candle(current_temp_candle, order.price)
                     _update_all_routes_a_partial_candle(exchange, symbol, storable_temp_candle)
 
-                    p = selectors.get_position(exchange, symbol)
+                    p = store.positions.get_position(exchange, symbol)
                     p.current_price = storable_temp_candle[2]
 
                     executed_order = True
@@ -821,7 +820,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                 with_execution=False,
                 with_generation=False
             )
-            p = selectors.get_position(exchange, symbol)
+            p = store.positions.get_position(exchange, symbol)
             if p:
                 p.current_price = real_candle[2]
             break
@@ -830,7 +829,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
 
 def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
-    p: Position = selectors.get_position(exchange, symbol)
+    p: Position = store.positions.get_position(exchange, symbol)
 
     if not p:
         return
@@ -1092,7 +1091,7 @@ def _simulate_price_change_effect_multiple_candles(
                                 symbol,
                                 storable_temp_candle,
                             )
-                            p = selectors.get_position(exchange, symbol)
+                            p = store.positions.get_position(exchange, symbol)
                             p.current_price = storable_temp_candle[2]
 
                             is_executed_order = True
@@ -1119,7 +1118,7 @@ def _simulate_price_change_effect_multiple_candles(
                         with_execution=False,
                         with_generation=False,
                     )
-                    p = selectors.get_position(exchange, symbol)
+                    p = store.positions.get_position(exchange, symbol)
                     if p:
                         p.current_price = current_temp_candle[2]
                     break
@@ -1132,7 +1131,7 @@ def _simulate_price_change_effect_multiple_candles(
     store.app.time = real_candle[0] + (60_000 * len(short_timeframes_candles))
     _check_for_liquidations(real_candle, exchange, symbol)
 
-    p = selectors.get_position(exchange, symbol)
+    p = store.positions.get_position(exchange, symbol)
     if p:
         p.current_price = short_timeframes_candles[-1, 2]
 
@@ -1198,7 +1197,7 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
                 )
             r.strategy._execute()
 
-        store.orders.update_active_orders(r.exchange, r.symbol)
+        order_service.update_active_orders(r.exchange, r.symbol)
 
 
 def _get_executing_orders(exchange, symbol, real_candle):
