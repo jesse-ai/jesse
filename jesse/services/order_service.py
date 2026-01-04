@@ -8,6 +8,7 @@ from jesse.store import store
 from jesse.repositories import order_repository
 from jesse.enums import order_types
 from jesse.services import closed_trade_service
+from jesse.services import position_service
 
 
 def create_order(attributes: dict, should_silent: bool = False) -> Order:
@@ -74,7 +75,7 @@ def execute_order(order: Order, silent: bool = False) -> None:
     
     p = store.positions.get_position(order.exchange, order.symbol)
     if p:
-        p._on_executed_order(order)
+        position_service.on_executed_order(p, order)
 
 
 def execute_order_partially(order: Order, silent: bool = False) -> None:
@@ -96,7 +97,7 @@ def execute_order_partially(order: Order, silent: bool = False) -> None:
     p = store.positions.get_position(order.exchange, order.symbol)
     
     if p:
-        p._on_executed_order(order)
+        position_service.on_executed_order(p, order)
 
 
 def execute_simulated_market_orders() -> None:
