@@ -47,7 +47,7 @@ config = {
         # Below configurations are related to the optimize mode
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         'optimization': {
-            # available ratio options: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino, cwr
+            # available ratio options: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino, cwr, ecwr
             'objective_function': 'cwr',
             # number of trials per each hyperparameter
             'trials': 200,
