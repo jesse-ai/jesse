@@ -268,6 +268,31 @@ class Position:
             'mode': self.mode,
         }
 
+    @property
+    def _min_notional_size(self) -> float:
+        if not (jh.is_livetrading() and self.exchange_type == 'spot'):
+            return 0
+
+        return self.exchange.vars['precisions'][self.symbol]['min_notional_size']
+
+    @property
+    def _min_qty(self) -> float:
+        if not (jh.is_livetrading() and self.exchange_type == 'spot'):
+            return 0
+
+        # first check exchange return min_qty or not
+        if 'min_qty' in self.exchange.vars['precisions'][self.symbol]:
+            return self.exchange.vars['precisions'][self.symbol]['min_qty']
+
+        if self._min_notional_size and self.current_price:
+            return self._min_notional_size / self.current_price
+        else:
+            return 0
+
+    @property
+    def _can_mutate_qty(self):
+        return not (self.exchange_type == 'spot' and jh.is_livetrading())
+
     def _mutating_close(self, close_price: float) -> None:
         if self.is_close and self._can_mutate_qty:
             raise EmptyPosition('The position is already closed.')
@@ -478,28 +503,3 @@ class Position:
             self._open(p_orders)
         elif closing_position:
             self.closed_at = jh.now_to_timestamp()
-
-    @property
-    def _min_notional_size(self) -> float:
-        if not (jh.is_livetrading() and self.exchange_type == 'spot'):
-            return 0
-
-        return self.exchange.vars['precisions'][self.symbol]['min_notional_size']
-
-    @property
-    def _min_qty(self) -> float:
-        if not (jh.is_livetrading() and self.exchange_type == 'spot'):
-            return 0
-
-        # first check exchange return min_qty or not
-        if 'min_qty' in self.exchange.vars['precisions'][self.symbol]:
-            return self.exchange.vars['precisions'][self.symbol]['min_qty']
-
-        if self._min_notional_size and self.current_price:
-            return self._min_notional_size / self.current_price
-        else:
-            return 0
-
-    @property
-    def _can_mutate_qty(self):
-        return not (self.exchange_type == 'spot' and jh.is_livetrading())
