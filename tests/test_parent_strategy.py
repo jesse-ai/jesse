@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 import jesse.helpers as jh
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import reset_config
 from jesse.enums import exchanges, timeframes, order_types

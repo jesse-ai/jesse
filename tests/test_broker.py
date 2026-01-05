@@ -1,6 +1,4 @@
 import pytest
-
-import jesse.services.selectors as selectors
 from jesse.config import config, reset_config
 from jesse.enums import exchanges, timeframes, order_types
 from jesse.exceptions import OrderNotAllowed
@@ -9,6 +7,7 @@ from jesse.routes import router
 from jesse.services.broker import Broker
 from jesse.services import order_service, exchange_service, position_service
 from jesse.store import store
+
 
 position: Position = None
 exchange: Exchange = None
@@ -41,9 +40,9 @@ def set_up_without_fee(is_futures_trading=False):
     global position
     global exchange
     global broker
-    position = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
+    position = store.positions.get_position(exchanges.SANDBOX, 'BTC-USDT')
     position.current_price = 50
-    exchange = selectors.get_exchange(exchanges.SANDBOX)
+    exchange = store.exchanges.get_exchange(exchanges.SANDBOX)
     broker = Broker(position, exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)
 
 
@@ -73,9 +72,9 @@ def set_up_with_fee(is_futures_trading=False):
     global position
     global exchange
     global broker
-    position = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
+    position = store.positions.get_position(exchanges.SANDBOX, 'BTC-USDT')
     position.current_price = 50
-    exchange = selectors.get_exchange(exchanges.SANDBOX)
+    exchange = store.exchanges.get_exchange(exchanges.SANDBOX)
     broker = Broker(position, exchanges.SANDBOX, 'BTC-USDT',
                     timeframes.MINUTE_5)
 

@@ -1,5 +1,4 @@
 import jesse.helpers as jh
-import jesse.services.selectors as selectors
 from jesse.config import reset_config
 from jesse.enums import timeframes, exchanges
 from jesse.factories import range_candles
@@ -49,7 +48,7 @@ def test_backtesting_one_route():
 
     # there must be only one positions present
     assert len(store.positions.storage) == 1
-    p = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
+    p = store.positions.get_position(exchanges.SANDBOX, 'BTC-USDT')
     assert p.is_close
     assert p.current_price == last_1[2]
     assert p.current_price == last_5[2]

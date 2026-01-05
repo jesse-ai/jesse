@@ -6,7 +6,6 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
@@ -173,7 +172,7 @@ class Strategy(ABC):
         is just a workaround as a part of not being able to set them inside
         self.__init__() for the purpose of removing __init__() methods from strategies.
         """
-        self.position = selectors.get_position(self.exchange, self.symbol)
+        self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None and len(self.hyperparameters()) > 0:
@@ -186,14 +185,14 @@ class Strategy(ABC):
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
 
     @property
     def _qty_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
     def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
@@ -357,7 +356,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -379,7 +378,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -1203,7 +1202,7 @@ class Strategy(ABC):
 
     @property
     def fee_rate(self) -> float:
-        return selectors.get_exchange(self.exchange).fee_rate
+        return store.exchanges.get_exchange(self.exchange).fee_rate
 
     @property
     def is_long(self) -> bool:
@@ -1260,7 +1259,7 @@ class Strategy(ABC):
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
-            current_exchange = selectors.get_exchange(self.exchange)
+            current_exchange = store.exchanges.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
@@ -1461,7 +1460,7 @@ class Strategy(ABC):
 
     @property
     def exchange_type(self):
-        return selectors.get_exchange(self.exchange).type
+        return store.exchanges.get_exchange(self.exchange).type
 
     @property
     def is_spot_trading(self) -> bool:
@@ -1496,4 +1495,4 @@ class Strategy(ABC):
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']

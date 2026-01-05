@@ -1,7 +1,6 @@
 from jesse.config import config
 from jesse.models import Position
 from jesse.store import store
-from jesse.services import selectors
 import jesse.helpers as jh
 from jesse.exceptions import EmptyPosition, OpenPositionError
 from jesse.services import closed_trade_service
@@ -24,7 +23,7 @@ def create_position(exchange_name: str, symbol: str, attributes: dict = None) ->
     if p.id is None:
         p.id = jh.generate_unique_id()  
     p.exchange_name = exchange_name
-    p.exchange = selectors.get_exchange(exchange_name)
+    p.exchange = store.exchanges.get_exchange(exchange_name)
     p.symbol = symbol
     return p
 
