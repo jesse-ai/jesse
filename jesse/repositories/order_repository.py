@@ -150,6 +150,8 @@ def store_or_update(order: Order) -> None:
         d['order_exist_in_exchange'] = order.order_exist_in_exchange
     if hasattr(order, 'canceled_at'):
         d['canceled_at'] = order.canceled_at
+    if hasattr(order, 'fee'):
+        d['fee'] = order.fee
     
     try:
         Order.insert(**d).execute()

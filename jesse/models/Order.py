@@ -36,6 +36,7 @@ class Order(Model):
     jesse_submitted = BooleanField(default=True)
     submitted_via = CharField(null=True)
     order_exist_in_exchange = BooleanField(default=True)
+    fee = FloatField(null=True)
 
     class Meta:
         from jesse.services.db import database

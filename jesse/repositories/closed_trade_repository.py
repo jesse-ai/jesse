@@ -116,7 +116,11 @@ def update(trade: ClosedTrade) -> None:
 
     d = {
         "updated_at": jh.now_to_timestamp(),
+        "trade_id": trade.id
     }
+    
+    if trade.closed_at is not None:
+        d["closed_at"] = trade.closed_at
 
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
@@ -145,8 +149,8 @@ def store_or_update(trade: ClosedTrade) -> None:
         "type": trade.type,
         "timeframe": trade.timeframe,
         "leverage": trade.leverage,
-        "created_at": trade.created_at if hasattr(trade, "created_at") else jh.now_to_timestamp(),
-        "updated_at": trade.updated_at if hasattr(trade, "updated_at") else jh.now_to_timestamp(),
+        "created_at": trade.created_at if hasattr(trade, "created_at") and trade.created_at else jh.now_to_timestamp(),
+        "updated_at": trade.updated_at if hasattr(trade, "updated_at") and trade.updated_at else jh.now_to_timestamp(),
         "session_mode": config["app"]["trading_mode"],
         "opened_at": trade.opened_at,
     }
