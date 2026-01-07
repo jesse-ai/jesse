@@ -883,3 +883,7 @@ def test_current_route_index():
 
 def test_data_routes():
     two_data_routes_backtest('TestDataRoutes1', 'TestDataRoutes2')
+
+
+def test_on_close_position():
+    single_route_backtest('TestOnClosePosition')

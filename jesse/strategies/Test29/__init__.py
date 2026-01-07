@@ -1,4 +1,6 @@
 from jesse.strategies import Strategy
+from jesse.models.Order import Order
+from jesse.models.ClosedTrade import ClosedTrade
 
 
 # test_on_route_increased_position_and_on_route_reduced_position_and_strategy_vars part 1 - BTC-USD
@@ -34,6 +36,6 @@ class Test29(Strategy):
     def should_cancel_entry(self):
         return False
 
-    def on_close_position(self, order):
+    def on_close_position(self, order: Order, closed_trade: ClosedTrade):
         self.vars['should_long'] = False
         self.vars['should_short'] = False
