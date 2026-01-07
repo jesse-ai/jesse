@@ -13,7 +13,7 @@ class TestCanSubmitTakeProfitOrderWithSizeEqualToCurrentPositionQty(Strategy):
     def on_open_position(self, order) -> None:
         self.take_profit = self.position.qty, 15
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.is_take_profit is True
         assert order.price == 15
 

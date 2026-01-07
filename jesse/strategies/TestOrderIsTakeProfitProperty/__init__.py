@@ -13,5 +13,5 @@ class TestOrderIsTakeProfitProperty(Strategy):
         self.buy = 1, self.price
         self.take_profit = 1, self.price + 5
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.is_take_profit == True

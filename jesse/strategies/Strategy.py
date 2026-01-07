@@ -894,17 +894,27 @@ class Strategy(ABC):
         """
         pass
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order: Order, closed_trade: ClosedTrade) -> None:
         """
-        What should happen after the open position order has been executed
+        What should happen after the close position order has been executed. The closed_trade is trade that has been closed.
+
+        Arguments:
+            order: Order -- the order that has been executed
+            closed_trade: ClosedTrade -- the trade that has been closed
         """
         pass
 
-    def _on_close_position(self, order: Order):
+    def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
+        
+        # get the last closed trade
+        closed_trade = store.closed_trades.trades[-1]
+
         self._broadcast('route-close-position')
         self._execute_cancel()
-        self.on_close_position(order)
+
+        # call the on_close_position event
+        self.on_close_position(order, closed_trade)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
