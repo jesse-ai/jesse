@@ -116,11 +116,12 @@ def update(trade: ClosedTrade) -> None:
 
     d = {
         "updated_at": jh.now_to_timestamp(),
-        "trade_id": trade.id
     }
     
     if trade.closed_at is not None:
         d["closed_at"] = trade.closed_at
+    if trade.opened_at is not None:
+        d['opened_at'] = trade.opened_at
 
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
@@ -302,6 +303,7 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
         .where(Order.order_exist_in_exchange == False)
         .order_by(Order.executed_at)
     )
+    trade.is_simulated = False
 
     if len(exchange_orders) == 0:
         if len(simulated_orders) > 0:
@@ -314,7 +316,6 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
         return trade
 
     trade.orders = {order.exchange_id: order for order in exchange_orders if order.exchange_id}
-    trade.is_simulated = False
     for o in exchange_orders + simulated_orders:
         if o.side == sides.BUY:
             trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))

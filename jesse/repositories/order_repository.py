@@ -86,6 +86,8 @@ def update(order: Order) -> None:
             d['submitted_via'] = order.submitted_via
         if order.qty != 0:
             d['qty'] = order.qty
+        if order.fee:
+            d['fee'] = order.fee
         try:
             Order.update(**d).where(Order.id == order.id).execute()
         except Exception as e:
