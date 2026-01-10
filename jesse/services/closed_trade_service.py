@@ -65,8 +65,8 @@ def open_trade(position, p_orders: list = None) -> None:
     t.symbol = position.symbol
     t.type = position.type
     t.session_id = store.app.session_id
-
-    closed_trade_repository.store_or_update(t)
+    if jh.is_live() or jh.is_paper_trading():
+        closed_trade_repository.store_or_update(t)
     if p_orders:
         for order in p_orders:
             order.trade_id = t.id
