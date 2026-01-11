@@ -21,7 +21,7 @@ class TestCanSubmitTakeProfitAndStopLossAtSameTimeInSpot(Strategy):
             self.take_profit = self.position.qty, 30
             self.stop_loss = self.position.qty, 15
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         last_trade = self.trades[-1]
 
         if self.trades_count == 1:

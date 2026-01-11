@@ -13,7 +13,7 @@ class TestCanSubmitStopLossOrderWithSizeEqualToCurrentPositionQty(Strategy):
     def on_open_position(self, order) -> None:
         self.stop_loss = self.position.qty, 8
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.is_stop_loss is True
         assert order.price == 8
 
