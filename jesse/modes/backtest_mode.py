@@ -137,18 +137,9 @@ def _execute_backtest(
             )
             _handle_warmup_candles(warmup_candles, start_date)
         except exceptions.CandlesNotFound as e:
-            # Extract symbol and exchange from error message
-            match = re.search(r"for (.*?) on (.*?)$", str(e))
-            if match:
-                symbol, exchange = match.groups()
-                raise exceptions.CandlesNotFound({
-                    'message': str(e),
-                    'symbol': symbol,
-                    'exchange': exchange,
-                    'start_date': start_date,
-                    'type': 'missing_candles'
-                })
-            raise e
+            _handle_sync_no_candles(e, start_date)
+        except exceptions.CandleNotFoundInDatabase as e:
+            _handle_sync_no_candles(e, start_date)
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -267,6 +258,33 @@ def _execute_backtest(
     # close database connection
     from jesse.services.db import database
     database.close_connection()
+    
+
+def _handle_sync_no_candles(e, start_date):
+    # Extract symbol and exchange from error message
+    match = re.search(r"for (.*?) on (.*?)$", str(e))
+    if match:
+        symbol, exchange = match.groups()
+        
+        message = f'Missing trading candles for {symbol} on {exchange} from {start_date}'
+        sync_publish(
+            "missing_candles",
+            {
+                "message": message,
+                "symbol": symbol,
+                "exchange": exchange,
+                "start_date": start_date,
+            },
+        )
+        
+        raise exceptions.CandlesNotFound({
+            'message': str(e),
+            'symbol': symbol,
+            'exchange': exchange,
+            'start_date': start_date,
+            'type': 'missing_candles'
+        })
+    raise e
 
 
 def _get_formatted_candles_for_frontend():
