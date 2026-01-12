@@ -171,6 +171,60 @@ def download_file(mode: str, file_type: str, session_id: str = None):
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
 
 
+def download_api_keys(exchange: str, name: str):
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+    from jesse.services.db import database
+    from fastapi.responses import StreamingResponse
+    import io
+    
+    try:
+        database.open_connection()
+        # Get the API key record
+        api_key = ExchangeApiKeys.get((ExchangeApiKeys.exchange_name == exchange) & (ExchangeApiKeys.name == name))
+
+        # Get the API key record
+        api_key = ExchangeApiKeys.get(
+            (ExchangeApiKeys.exchange_name == exchange) &
+            (ExchangeApiKeys.name == name)
+        )
+
+        # Prepare the CSV data
+        csv_data = [
+            ['Name', 'Exchange', 'API Key', 'API Secret'],
+            [api_key.name, api_key.exchange_name, api_key.api_key, api_key.api_secret]
+        ]
+
+        # Add additional fields if they exist
+        additional_fields = api_key.get_additional_fields()
+
+        if 'wallet_address' in additional_fields:
+            csv_data[0].append('Wallet Address')
+            csv_data[1].append(additional_fields['wallet_address'])
+
+        if 'api_passphrase' in additional_fields:
+            csv_data[0].append('API Passphrase')
+            csv_data[1].append(additional_fields['api_passphrase'])
+
+        if 'stark_private_key' in additional_fields:
+            csv_data[0].append('Omni/Stark Key')
+            csv_data[1].append(additional_fields['stark_private_key'])
+
+        # Convert to CSV format
+        csv_string = '\n'.join([','.join(field) for field in csv_data])
+
+        database.close_connection()
+
+        # Return the CSV as a streaming response
+        return StreamingResponse(
+            io.StringIO(csv_string),
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={api_key.name}-{api_key.exchange_name}-api-keys.csv'}
+        )
+
+    except Exception as e:
+        database.close_connection()
+        raise e
+
 def get_backtest_logs(session_id: str):
     path = f"storage/logs/backtest-mode/{session_id}.txt"
 
