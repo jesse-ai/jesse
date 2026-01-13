@@ -327,8 +327,3 @@ class GetTradesHistoryRequestJson(BaseModel):
     date_filter: Optional[str] = None
     exchange_filter: Optional[str] = None
     type_filter: Optional[str] = None
-    
-
-class GetApiKeys(BaseModel):
-    exchange: str
-    name: str

@@ -171,59 +171,58 @@ def download_file(mode: str, file_type: str, session_id: str = None):
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
 
 
-def download_api_keys(exchange: str, name: str):
+def download_api_keys():
     from jesse.models.ExchangeApiKeys import ExchangeApiKeys
     from jesse.services.db import database
     from fastapi.responses import StreamingResponse
     import io
-    
+
     try:
         database.open_connection()
-        # Get the API key record
-        api_key = ExchangeApiKeys.get((ExchangeApiKeys.exchange_name == exchange) & (ExchangeApiKeys.name == name))
 
-        # Get the API key record
-        api_key = ExchangeApiKeys.get(
-            (ExchangeApiKeys.exchange_name == exchange) &
-            (ExchangeApiKeys.name == name)
-        )
+        api_keys = list(ExchangeApiKeys.select())
+        if not api_keys:
+            database.close_connection()
+            return StreamingResponse(
+                io.StringIO("No API keys found"),
+                media_type='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=api-keys.csv'}
+            )
+        import io
+        import csv
 
+        output = io.StringIO()
+        writer = csv.writer(output)
         # Prepare the CSV data
-        csv_data = [
-            ['Name', 'Exchange', 'API Key', 'API Secret'],
-            [api_key.name, api_key.exchange_name, api_key.api_key, api_key.api_secret]
-        ]
+        headers = ['Name', 'Exchange', 'API Key', 'API Secret', 'api_passphrase', 'wallet_address', 'stark_private_key']
+        writer.writerow(headers)
 
-        # Add additional fields if they exist
-        additional_fields = api_key.get_additional_fields()
-
-        if 'wallet_address' in additional_fields:
-            csv_data[0].append('Wallet Address')
-            csv_data[1].append(additional_fields['wallet_address'])
-
-        if 'api_passphrase' in additional_fields:
-            csv_data[0].append('API Passphrase')
-            csv_data[1].append(additional_fields['api_passphrase'])
-
-        if 'stark_private_key' in additional_fields:
-            csv_data[0].append('Omni/Stark Key')
-            csv_data[1].append(additional_fields['stark_private_key'])
-
-        # Convert to CSV format
-        csv_string = '\n'.join([','.join(field) for field in csv_data])
+        for api_key in api_keys:
+            additional_fields = api_key.get_additional_fields()
+            row = [
+                api_key.name,
+                api_key.exchange_name,
+                api_key.api_key,
+                api_key.api_secret,
+                additional_fields['api_passphrase'] if 'api_passphrase' in additional_fields else None,
+                additional_fields['wallet_address'] if 'wallet_address' in additional_fields else None,
+                additional_fields['stark_private_key'] if 'stark_private_key' in additional_fields else None
+            ]
+            writer.writerow(row)
 
         database.close_connection()
 
         # Return the CSV as a streaming response
+        output.seek(0)
         return StreamingResponse(
-            io.StringIO(csv_string),
+            output,
             media_type='text/csv',
-            headers={'Content-Disposition': f'attachment; filename={api_key.name}-{api_key.exchange_name}-api-keys.csv'}
+            headers={'Content-Disposition': 'attachment; filename=api-keys.csv'}
         )
-
     except Exception as e:
         database.close_connection()
         raise e
+
 
 def get_backtest_logs(session_id: str):
     path = f"storage/logs/backtest-mode/{session_id}.txt"
@@ -245,7 +244,7 @@ def get_monte_carlo_logs(session_id: str):
 
     with open(path, 'r') as f:
         content = f.read()
-            
+
     return content
 
 
@@ -254,10 +253,10 @@ def download_backtest_log(session_id: str):
     Returns the log file for a specific backtest session as a downloadable file
     """
     path = f'storage/logs/backtest-mode/{session_id}.txt'
-    
+
     if not os.path.exists(path):
         raise Exception('Log file not found')
-        
+
     filename = f'backtest-{session_id}.txt'
     return FileResponse(
         path=path,
