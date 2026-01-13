@@ -20,6 +20,14 @@ def login(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
 
 
+@router.post("/user-validation")
+def login(json_request: LoginRequestJson):
+    """
+    Authenticate user with password and return a token
+    """
+    return authenticator.user_validation(json_request.password)
+
+
 @router.post("")
 def auth(json_request: LoginRequestJson):
     """
