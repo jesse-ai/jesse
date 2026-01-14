@@ -159,6 +159,40 @@ def max_drawdown(returns):
     return pd.Series([result])
 
 
+def calculate_max_underwater_period(daily_balance: list) -> int:
+    """
+    Calculate the maximum time it takes for balance to recover from a drawdown
+    Args:
+        daily_balance: List of daily balances
+    Returns:
+        Maximum underwater period in days
+    """
+    if len(daily_balance) < 2:
+        return 0
+
+    max_period = 0
+    current_peak = daily_balance[0]
+    peak_date_index = 0
+
+    for i in range(1, len(daily_balance)):
+        current_balance = daily_balance[i]
+
+        # If we're above the previous peak, update the peak
+        if current_balance > current_peak:
+            current_peak = current_balance
+            peak_date_index = i
+
+        # If we're below the previous peak, calculate underwater period
+        else:
+            days_underwater = i - peak_date_index
+
+            # Update max period if this is the longest underwater period so far
+            if days_underwater > max_period:
+                max_period = days_underwater
+
+    return max_period
+
+
 def cagr(returns, rf=0.0, compounded=True, periods=365):
     """
     Calculates the communicative annualized growth return (CAGR%)
@@ -344,6 +378,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
 
     # Calculate metrics using 365 days for crypto markets
     max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
+    max_underwater_period = np.nan if len(daily_balance) < 2 else calculate_max_underwater_period(daily_balance)
     annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
     sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
     calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
@@ -379,6 +414,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'gross_profit': safe_convert(gross_profit),
         'gross_loss': safe_convert(gross_loss),
         'max_drawdown': safe_convert(max_dd),
+        'max_underwater_period': safe_convert(max_underwater_period),
         'annual_return': safe_convert(annual_return),
         'sharpe_ratio': safe_convert(sharpe),
         'calmar_ratio': safe_convert(calmar),
