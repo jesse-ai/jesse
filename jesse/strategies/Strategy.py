@@ -56,11 +56,16 @@ class Strategy(ABC):
         self.trade: ClosedTrade = None
         self.trades_count = 0
 
+        # chart variables
         self._executed_orders = []
         self._add_line_to_candle_chart_values = {}
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
+
+        # Variables used for ML calculations
+        self._ml_data_points = []  # Stores complete data points with features and labels
+        self._current_ml_point = None  # Tracks the currently open data point
 
         self._is_executing = False
         self._is_initiated = False
@@ -78,6 +83,132 @@ class Strategy(ABC):
 
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
+
+    def record_feature(self, name: str, value) -> None:
+        """
+        Record a feature (input) for ML training.
+        These will be the independent variables used to predict outcomes.
+
+        Args:
+            name: Descriptive name of the feature (e.g., 'rsi_value', 'macd_crossover')
+            value: The calculated value of this feature
+        """
+        # If we don't have an open data point, create one
+        if self._current_ml_point is None:
+            current_time = int(self.current_candle[0] / 1000)
+            self._current_ml_point = {
+                'time': current_time,
+                'features': {},
+                'label': None  # Will be set later when trade completes
+            }
+
+        # Add the feature to this data point
+        self._current_ml_point['features'][name] = value
+
+    def record_label(self, name: str, value) -> None:
+        """
+        Record a label (output) for ML training.
+        These are the target variables that the model should predict.
+
+        Args:
+            name: Descriptive name of the label (e.g., 'trade_profit', 'win_loss')
+            value: The actual outcome value
+        """
+        # Set the label for the current open data point
+        if self._current_ml_point is not None:
+            self._current_ml_point['label'] = {
+                'name': name,
+                'value': value
+            }
+
+            # Move this completed data point to our storage and clear the current point
+            self._ml_data_points.append(self._current_ml_point)
+            self._current_ml_point = None
+
+    def export_ml_data(self, directory: str = None) -> bool:
+        """
+        Export all recorded features and labels to CSV files.
+        Returns True if export was successful, False otherwise.
+
+        Args:
+            directory: Optional output directory. Defaults to strategy location.
+        """
+        import os
+        import csv
+
+        try:
+            # Debug: Check if we have data to export
+            jh.debug(f"Exporting ML data - Data points: {len(self._ml_data_points)}")
+
+            # Determine output directory
+            if directory is None:
+                try:
+                    import inspect
+                    frame = inspect.currentframe()
+                    try:
+                        caller_file = inspect.getfile(frame.f_back)
+                        directory = os.path.dirname(caller_file)
+                    finally:
+                        del frame
+                    jh.debug(f"Detected strategy directory: {directory}")
+                except Exception as e:
+                    jh.debug(f"Could not determine strategy path, using cwd: {e}")
+                    directory = os.getcwd()
+
+            # Create ml_data subdirectory
+            try:
+                ml_dir = os.path.join(directory, "ml_data")
+                os.makedirs(ml_dir, exist_ok=True)
+                jh.debug(f"Using output directory: {ml_dir}")
+            except Exception as e:
+                jh.debug(f"Failed to create directory {ml_dir}: {e}")
+                return False
+
+            # Export data points
+            if self._ml_data_points:
+                try:
+                    data_path = os.path.join(ml_dir, f"{self.name}_data.csv")
+                    with open(data_path, 'w', newline='') as f:
+                        writer = csv.writer(f)
+
+                        # Write header: time, label_name, label_value, feature1, feature2, ...
+                        headers = ['time', 'label_name', 'label_value']
+                        # Get all unique feature names across all data points
+                        all_features = set()
+                        for point in self._ml_data_points:
+                            all_features.update(point['features'].keys())
+                        headers.extend(sorted(all_features))
+
+                        writer.writerow(headers)
+
+                        # Write data rows
+                        for point in self._ml_data_points:
+                            if point['label'] is None:
+                                continue  # Skip points without labels
+
+                            row = [
+                                point['time'],
+                                point['label']['name'],
+                                str(point['label']['value'])
+                            ]
+
+                            # Add all feature values (in consistent order)
+                            for feature_name in sorted(all_features):
+                                row.append(str(point['features'].get(feature_name, '')))
+
+                            writer.writerow(row)
+
+                    jh.debug(f"Exported {len(self._ml_data_points)} data points to {data_path}")
+                except Exception as e:
+                    jh.debug(f"Failed to export data: {e}")
+                    return False
+
+            jh.debug("ML data export completed successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Unexpected error during ML data export: {e}")
+            return False
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type

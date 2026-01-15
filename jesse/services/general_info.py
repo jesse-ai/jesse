@@ -2,6 +2,7 @@ import os
 import requests
 import jesse.helpers as jh
 from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL
+from jesse.services.env import is_dev_env
 
 
 def get_general_info(has_live=False) -> dict:
@@ -74,6 +75,10 @@ def get_general_info(has_live=False) -> dict:
     update_info = {}
 
     try:
+        # if we are in local dev, consider offline
+        if is_dev_env():
+            raise ValueError("jesse is running locally, so don't check for updates from pypi")
+            
         response = requests.get('https://pypi.org/pypi/jesse/json', timeout=10)
         if response.status_code == 200 and 'application/json' in response.headers.get('Content-Type', ''):
             update_info['jesse_latest_version'] = response.json()['info']['version']

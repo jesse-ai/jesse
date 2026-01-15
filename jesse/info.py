@@ -1,8 +1,6 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
-from jesse.services.env import ENV_VALUES
+from jesse.services.env import ENV_VALUES, is_dev_env
 
-def is_dev_env() -> bool:
-    return ENV_VALUES.get('IS_DEV_ENV', '').upper() == 'TRUE'
 
 if is_dev_env():
     JESSE_API_URL = ENV_VALUES.get('JESSE_API_URL', 'http://localhost:8040/api')
