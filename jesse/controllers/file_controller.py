@@ -57,10 +57,7 @@ async def import_api_keys(
         # Import API keys
         result = data_provider.import_api_keys_from_csv(csv_content)
 
-        return {
-            'success': True,
-            'data': result
-        }
+        return result
     except Exception as e:
         return {
             'success': False,

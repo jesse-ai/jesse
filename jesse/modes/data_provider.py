@@ -317,8 +317,6 @@ def import_api_keys_from_csv(content: str) -> Dict[str, any]:
         return {
             'success': True,
             'imported_count': len(imported_names),
-            'imported_names': imported_names,
-            'existing_names': len(existing_names)
         }
     except Exception as e:
         database.close_connection()
