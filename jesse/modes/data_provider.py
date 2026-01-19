@@ -7,6 +7,9 @@ import jesse.helpers as jh
 from jesse.info import live_trading_exchanges, backtesting_exchanges
 from jesse.repositories import candle_repository
 from jesse.services import candle_service
+from typing import List, Dict
+import csv
+import io
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -188,8 +191,6 @@ def download_api_keys():
                 media_type='text/csv',
                 headers={'Content-Disposition': 'attachment; filename=api-keys.csv'}
             )
-        import io
-        import csv
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -222,6 +223,106 @@ def download_api_keys():
     except Exception as e:
         database.close_connection()
         raise e
+
+
+def validate_csv_content(content: str) -> bool:
+    """
+    Basic validation: header names + no obvious malicious patterns.
+    """
+    try:
+        # Reject obvious SQL‑injection patterns
+        sql_patterns = [
+            ';--', '/*', '*/', 'xp_', 'sp_',
+            'union ', 'select ', 'insert ', 'update ',
+            'delete ', 'drop ', 'alter ', 'create '
+        ]
+        if any(p.lower() in content.lower() for p in sql_patterns):
+            return False
+
+        # Reject suspicious control chars
+        if any(c in content for c in ['\0', '\x01', '\x1a']):
+            return False
+
+        reader = csv.DictReader(io.StringIO(content))
+        required_columns = {
+            'Name',
+            'Exchange',
+            'API Key',
+            'API Secret'
+        }
+        # Case‑insensitive comparison
+        header_set = {h.strip().lower() for h in reader.fieldnames or []}
+        if not all(col.lower() in header_set for col in required_columns):
+            return False
+
+        return True
+    except Exception:
+        return False
+
+
+def import_api_keys_from_csv(content: str) -> Dict[str, any]:
+    """
+    Import API keys from CSV content string.
+    Returns a dict with success flag and summary info.
+    """
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+    from jesse.services.db import database
+
+    try:
+        database.open_connection()
+        reader = csv.DictReader(io.StringIO(content))
+        imported_names: list[str] = []
+
+        # Keep track of existing names to avoid duplicates
+        existing_names = {k.name for k in ExchangeApiKeys.select(ExchangeApiKeys.name)}
+
+        for row in reader:
+            name = (row.get('Name') or '').strip()
+            if not name or name in existing_names:
+                continue
+
+            exchange = (row.get('Exchange') or '').strip()
+            api_key = (row.get('API Key') or '').strip()
+            api_secret = (row.get('API Secret') or '').strip()
+
+            # Skip rows with missing mandatory fields
+            if not all([name, exchange, api_key, api_secret]):
+                continue
+            
+            additional_fields = {}
+
+            if row.get('api_passphrase'):
+                additional_fields = {
+                    'api_passphrase': (row.get('api_passphrase') or '').strip(),
+                    'wallet_address': (row.get('wallet_address') or '').strip(),
+                    'stark_private_key': (row.get('stark_private_key') or '').strip()
+                }
+
+            # Persist
+            exchange_api_key: ExchangeApiKeys = ExchangeApiKeys.create(
+                id=jh.generate_unique_id(),
+                exchange_name=exchange,
+                name=name,
+                api_key=api_key,
+                api_secret=api_secret,
+                additional_fields=json.dumps(additional_fields),
+                created_at=jh.now_to_datetime(),
+                general_notifications_id=None,
+                error_notifications_id=None
+            )
+
+            imported_names.append(name)
+
+        database.close_connection()
+        return {
+            'success': True,
+            'imported_count': len(imported_names),
+            'imported_names': imported_names,
+            'existing_names': len(existing_names)
+        }
+    except Exception as e:
+        database.close_connection()
+        return {'success': False, 'error': str(e)}
 
 
 def get_backtest_logs(session_id: str):
