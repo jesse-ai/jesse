@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Union
-from jesse.models import Order
+from jesse.models.Order import Order
+
 
 class Exchange(ABC):
     """

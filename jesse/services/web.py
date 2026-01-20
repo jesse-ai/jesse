@@ -232,6 +232,34 @@ class UpdateBacktestSessionNotesRequestJson(BaseModel):
     strategy_codes: Optional[dict] = None
 
 
+class GetLiveSessionsRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    title_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    mode_filter: Optional[str] = None
+
+
+class UpdateLiveSessionNotesRequestJson(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    strategy_codes: Optional[dict] = None
+
+
+class UpdateLiveSessionStateRequestJson(BaseModel):
+    id: str
+    state: dict
+
+
+class GetEquityCurveRequestJson(BaseModel):
+    session_id: str
+    from_ms: Optional[int] = None
+    to_ms: Optional[int] = None
+    timeframe: str = 'auto'
+    max_points: int = 1000
+
+
 class MonteCarloRequestJson(BaseModel):
     id: Optional[str] = None
     exchange: str
@@ -276,3 +304,30 @@ class GetMonteCarloSessionsRequestJson(BaseModel):
     title_search: Optional[str] = None
     status_filter: Optional[str] = None
     date_filter: Optional[str] = None
+
+
+class GetOrdersHistoryRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    id_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    symbol_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    exchange_filter: Optional[str] = None
+    type_filter: Optional[str] = None
+    side_filter: Optional[str] = None
+
+
+class GetTradesHistoryRequestJson(BaseModel):
+    limit: int = 50
+    offset: int = 0
+    id_search: Optional[str] = None
+    status_filter: Optional[str] = None
+    symbol_filter: Optional[str] = None
+    date_filter: Optional[str] = None
+    exchange_filter: Optional[str] = None
+    type_filter: Optional[str] = None
+    
+
+class ImportApiKeyRequestJson(BaseModel):
+    content: str

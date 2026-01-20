@@ -1,15 +1,8 @@
-from jesse.config import config
 from jesse.models import Position
-
 
 class PositionsState:
     def __init__(self) -> None:
         self.storage = {}
-
-        for exchange in config['app']['trading_exchanges']:
-            for symbol in config['app']['trading_symbols']:
-                key = f'{exchange}-{symbol}'
-                self.storage[key] = Position(exchange, symbol)
 
     def count_open_positions(self) -> int:
         c = 0
@@ -18,3 +11,7 @@ class PositionsState:
             if p.is_open:
                 c += 1
         return c
+
+    def get_position(self, exchange: str, symbol: str) -> Position:
+        return self.storage.get(f'{exchange}-{symbol}', None)
+    

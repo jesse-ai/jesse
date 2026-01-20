@@ -1,5 +1,12 @@
 from typing import List, Dict
 import copy
+from jesse.services import candle_service, exchange_service, order_service, position_service
+from jesse.services.validators import validate_routes
+from jesse.modes.backtest_mode import simulator
+from jesse.config import config as jesse_config, reset_config, set_config
+from jesse.routes import router
+from jesse.store import store
+import jesse.helpers as jh 
 
 
 def backtest(
@@ -91,15 +98,6 @@ def _isolated_backtest(
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
 ) -> dict:
-    from jesse.services.validators import validate_routes
-    from jesse.modes.backtest_mode import simulator
-    from jesse.config import config as jesse_config, reset_config
-    from jesse.routes import router
-    from jesse.store import store
-    from jesse.config import set_config
-    from jesse.services.candle import inject_warmup_candles_to_store
-    import jesse.helpers as jh
-
     jesse_config['app']['trading_mode'] = 'backtest'
 
     # inject (formatted) configuration values
@@ -107,11 +105,18 @@ def _isolated_backtest(
 
     # set routes
     router.initiate(routes, data_routes)
-
+    # reset store
+    store.reset()
+    # validate routes
     validate_routes(router)
-
     # initiate candle store
     store.candles.init_storage(5000)
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
 
     # assert that the passed candles are 1m candles
     for key, value in candles.items():
@@ -134,7 +139,7 @@ def _isolated_backtest(
         for c in jesse_config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             # inject warm-up candles
-            inject_warmup_candles_to_store(
+            candle_service.inject_warmup_candles_to_store(
                 warmup_candles_dict[key]['candles'],
                 c[0],
                 c[1]

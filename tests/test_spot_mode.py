@@ -1,7 +1,6 @@
 from jesse.testing_utils import single_route_backtest
 import pytest
 from jesse import exceptions
-import jesse.helpers as jh
 
 
 def test_should_be_able_to_short_in_spot_mode():
@@ -98,7 +97,7 @@ def test_position_open_increase_reduce_close_events_in_spot():
         'TestPositionOpenIncreaseReduceCloseEventsInSpot',
         is_futures_trading=False,
         fee=0.001
-    )
+    ) 
 
 
 def test_balance_and_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_sell_orders():

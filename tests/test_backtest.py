@@ -1,5 +1,4 @@
 import jesse.helpers as jh
-import jesse.services.selectors as selectors
 from jesse.config import reset_config
 from jesse.enums import timeframes, exchanges
 from jesse.factories import range_candles
@@ -7,6 +6,7 @@ from jesse.modes import backtest_mode
 from jesse.routes import router
 from jesse.store import store
 from jesse.config import config
+from jesse.services import candle_service
 
 
 def test_backtesting_one_route():
@@ -27,8 +27,8 @@ def test_backtesting_one_route():
     # run backtest (dates are fake just to pass)
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, [], '2019-04-01', '2019-04-02', candles)
 
-    one_min = store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', '1m')
-    five_min = store.candles.get_candles(exchanges.SANDBOX, 'BTC-USDT', '5m')
+    one_min = candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', '1m')
+    five_min = candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', '5m')
 
     # assert the count of present candles
     assert len(five_min) == 20
@@ -48,7 +48,7 @@ def test_backtesting_one_route():
 
     # there must be only one positions present
     assert len(store.positions.storage) == 1
-    p = selectors.get_position(exchanges.SANDBOX, 'BTC-USDT')
+    p = store.positions.get_position(exchanges.SANDBOX, 'BTC-USDT')
     assert p.is_close
     assert p.current_price == last_1[2]
     assert p.current_price == last_5[2]
@@ -91,9 +91,9 @@ def test_backtesting_three_routes():
         # r3's '15m' timeframe makes r1 and r2 to support
         # '15' timeframe as well. r1 and r2 also make r3
         # to support '5m' timeframe also.
-        r_one_min = store.candles.get_candles(r.exchange, r.symbol, '1m')
-        r_five_min = store.candles.get_candles(r.exchange, r.symbol, '5m')
-        r_fifteen_min = store.candles.get_candles(r.exchange, r.symbol, '15m')
+        r_one_min = candle_service.get_candles(r.exchange, r.symbol, '1m')
+        r_five_min = candle_service.get_candles(r.exchange, r.symbol, '5m')
+        r_fifteen_min = candle_service.get_candles(r.exchange, r.symbol, '15m')
 
         # assert the count of present candles
         assert len(r_one_min) == (5 * 3) * 20
@@ -112,9 +112,9 @@ def test_backtesting_three_routes():
         assert r_last_5[0] == (r_last_15[0] + 60000 * 10)
 
         # assert positions
-        p = selectors.get_position(r.exchange, r.symbol)
+        p = store.positions.get_position(r.exchange, r.symbol)
         assert p.is_close is True
-        last_candle = store.candles.get_candles(r.exchange, r.symbol, '1m')[-1]
+        last_candle = candle_service.get_candles(r.exchange, r.symbol, '1m')[-1]
         assert p.current_price == last_candle[2]
 
         # assert that the strategy has been initiated

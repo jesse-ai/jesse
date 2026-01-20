@@ -1,12 +1,13 @@
 import numpy as np
 import peewee
-import threading
 
 import jesse.helpers as jh
-from jesse.config import config
 from jesse.services.db import database
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
 from jesse.enums import trade_types
+from jesse.models.Order import Order
+from jesse.enums import order_statuses
+
 
 if database.is_closed():
     database.open_connection()
@@ -16,14 +17,19 @@ class ClosedTrade(peewee.Model):
     """A trade is made when a position is opened AND closed."""
 
     id = peewee.UUIDField(primary_key=True)
+    session_id = peewee.UUIDField()
     strategy_name = peewee.CharField()
     symbol = peewee.CharField()
     exchange = peewee.CharField()
     type = peewee.CharField()
     timeframe = peewee.CharField()
     opened_at = peewee.BigIntegerField()
-    closed_at = peewee.BigIntegerField()
+    closed_at = peewee.BigIntegerField(null=True)
     leverage = peewee.IntegerField()
+    created_at = peewee.BigIntegerField()
+    updated_at = peewee.BigIntegerField()
+    session_mode = peewee.CharField()
+    soft_deleted_at = peewee.BigIntegerField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -103,7 +109,7 @@ class ClosedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        fee = config['env']['exchanges'][self.exchange]['fee']
+        fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
         return jh.estimate_PNL(
             self.qty, self.entry_price, self.exit_price,
             self.type, fee
@@ -134,6 +140,8 @@ class ClosedTrade(peewee.Model):
     @property
     def holding_period(self) -> int:
         """How many SECONDS has it taken for the trade to be done."""
+        if self.closed_at is None:
+            return None
         return (self.closed_at - self.opened_at) / 1000
 
     @property
@@ -165,6 +173,18 @@ class ClosedTrade(peewee.Model):
         return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
 
     @property
+    def current_qty(self) -> float:
+        trade_orders = Order.select().where(Order.trade_id == self.id).where(Order.status == order_statuses.EXECUTED).order_by(Order.executed_at)
+        if len(trade_orders) == 0:
+            return 0.0
+        else:
+            import jesse.utils as utils
+            qty = 0.0
+            for order in trade_orders:
+                qty = utils.sum_floats(qty, order.filled_qty)
+            return qty
+
+    @property
     def exit_price(self) -> float:
         if self.is_long:
             orders = self.sell_orders[:]
@@ -183,35 +203,3 @@ class ClosedTrade(peewee.Model):
 # if database is open, create the table
 if database.is_open():
     ClosedTrade.create_table()
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# # # # # # # # # DB FUNCTIONS # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-def store_closed_trade_into_db(closed_trade) -> None:
-    return
-
-    d = {
-        'id': closed_trade.id,
-        'strategy_name': closed_trade.strategy_name,
-        'symbol': closed_trade.symbol,
-        'exchange': closed_trade.exchange,
-        'type': closed_trade.type,
-        'timeframe': closed_trade.timeframe,
-        'entry_price': closed_trade.entry_price,
-        'exit_price': closed_trade.exit_price,
-        'qty': closed_trade.qty,
-        'opened_at': closed_trade.opened_at,
-        'closed_at': closed_trade.closed_at,
-        'leverage': closed_trade.leverage,
-    }
-
-    def async_save() -> None:
-        ClosedTrade.insert(**d).execute()
-        if jh.is_debugging():
-            logger.info(
-                f'Stored the closed trade record for {closed_trade.exchange}-{closed_trade.symbol}-{closed_trade.strategy_name} into database.')
-
-    # async call
-    threading.Thread(target=async_save).start()

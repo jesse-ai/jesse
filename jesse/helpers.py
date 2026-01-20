@@ -1150,6 +1150,9 @@ def clean_nan_values(obj):
         return {k: clean_nan_values(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, bool):
+        # bool is a subclass of int in Python; keep it as boolean
+        return obj
     elif isinstance(obj, (float, np.floating)):
         # Replace NaN with None
         if math.isnan(float(obj)):
@@ -1261,3 +1264,17 @@ def has_live_trade_plugin() -> bool:
     except ModuleNotFoundError:
         return False
     return True
+
+
+def normalize_bool(v: Any) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, int):
+        return v == 1
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ['1', 'true']:
+            return True
+        if s in ['0', 'false']:
+            return False
+    return bool(v)

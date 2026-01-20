@@ -3,9 +3,9 @@ from typing import List
 import numpy as np
 
 import jesse.helpers as jh
-from jesse.services import selectors
 from jesse.libs import DynamicNumpyArray
 from jesse.models import Ticker
+from jesse.routes import router
 
 
 class TickersState:
@@ -13,7 +13,7 @@ class TickersState:
         self.storage = {}
 
     def init_storage(self) -> None:
-        for ar in selectors.get_all_routes():
+        for ar in router.all_formatted_routes:
             exchange, symbol = ar['exchange'], ar['symbol']
             key = jh.key(exchange, symbol)
             self.storage[key] = DynamicNumpyArray((60, 5), drop_at=120)

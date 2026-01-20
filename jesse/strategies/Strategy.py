@@ -6,13 +6,14 @@ import numpy as np
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
+from jesse.services import order_service, candle_service
+from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
@@ -171,7 +172,7 @@ class Strategy(ABC):
         is just a workaround as a part of not being able to set them inside
         self.__init__() for the purpose of removing __init__() methods from strategies.
         """
-        self.position = selectors.get_position(self.exchange, self.symbol)
+        self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None and len(self.hyperparameters()) > 0:
@@ -184,14 +185,14 @@ class Strategy(ABC):
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
 
     @property
     def _qty_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
     def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
@@ -355,7 +356,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -377,7 +378,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -833,7 +834,17 @@ class Strategy(ABC):
         Simulate market order execution in backtest mode
         """
         if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
-            store.orders.execute_pending_market_orders()
+            if not store.orders.to_execute:
+                return
+
+            for o in store.orders.to_execute:
+                order_service.execute_order(o)
+                
+                # Update order in database for paper trading
+                if jh.is_paper_trading():
+                    order_repository.store_or_update(o)
+
+            store.orders.to_execute = []
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -883,17 +894,27 @@ class Strategy(ABC):
         """
         pass
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order: Order, closed_trade: ClosedTrade) -> None:
         """
-        What should happen after the open position order has been executed
+        What should happen after the close position order has been executed. The closed_trade is trade that has been closed.
+
+        Arguments:
+            order: Order -- the order that has been executed
+            closed_trade: ClosedTrade -- the trade that has been closed
         """
         pass
 
-    def _on_close_position(self, order: Order):
+    def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
+        
+        # get the last closed trade
+        closed_trade = store.closed_trades.trades[-1]
+
         self._broadcast('route-close-position')
         self._execute_cancel()
-        self.on_close_position(order)
+
+        # call the on_close_position event
+        self.on_close_position(order, closed_trade)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -1010,7 +1031,10 @@ class Strategy(ABC):
 
         # fake execution of market orders in backtest simulation
         if not jh.is_live():
-            store.orders.execute_pending_market_orders()
+            if store.orders.to_execute:
+                for o in store.orders.to_execute:
+                    order_service.execute_order(o)
+                store.orders.to_execute = []
 
         if jh.is_live():
             self.terminate()
@@ -1063,7 +1087,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
+        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
     def open(self) -> float:
@@ -1137,7 +1161,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+        return candle_service.get_candles(self.exchange, self.symbol, self.timeframe)
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
@@ -1149,7 +1173,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(exchange, symbol, timeframe)
+        return candle_service.get_candles(exchange, symbol, timeframe)
 
     @property
     def metrics(self) -> dict:
@@ -1158,7 +1182,7 @@ class Strategy(ABC):
         """
         if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
-                store.completed_trades.trades, store.app.daily_balance, final=False
+                store.closed_trades.trades, store.app.daily_balance, final=False
             )
         return self._cached_metrics[self.trades_count]
 
@@ -1188,7 +1212,7 @@ class Strategy(ABC):
 
     @property
     def fee_rate(self) -> float:
-        return selectors.get_exchange(self.exchange).fee_rate
+        return store.exchanges.get_exchange(self.exchange).fee_rate
 
     @property
     def is_long(self) -> bool:
@@ -1245,7 +1269,7 @@ class Strategy(ABC):
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
-            current_exchange = selectors.get_exchange(self.exchange)
+            current_exchange = store.exchanges.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
@@ -1347,7 +1371,7 @@ class Strategy(ABC):
         elif type(self.position.exchange) is FuturesExchange:
             return self.position.exchange.futures_leverage
         else:
-            raise ValueError('exchange type not supported!')
+            raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
 
     @property
     def mark_price(self) -> float:
@@ -1412,9 +1436,9 @@ class Strategy(ABC):
     @property
     def trades(self) -> List[ClosedTrade]:
         """
-        Returns all the completed trades for this strategy.
+        Returns all the closed trades for this strategy.
         """
-        return store.completed_trades.trades
+        return store.closed_trades.trades
 
     @property
     def orders(self) -> List[Order]:
@@ -1428,25 +1452,25 @@ class Strategy(ABC):
         """
         Returns all the entry orders for this position.
         """
-        return store.orders.get_entry_orders(self.exchange, self.symbol)
+        return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
     def exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_exit_orders(self.exchange, self.symbol)
+        return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
     def active_exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
+        return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):
-        return selectors.get_exchange(self.exchange).type
+        return store.exchanges.get_exchange(self.exchange).type
 
     @property
     def is_spot_trading(self) -> bool:
@@ -1481,4 +1505,4 @@ class Strategy(ABC):
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']

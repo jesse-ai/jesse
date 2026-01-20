@@ -9,7 +9,7 @@ from timeloop import Timeloop
 
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
-from jesse.models import Candle
+from jesse.models.Candle import Candle
 from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
@@ -390,7 +390,6 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
 
 
 def store_candles_list(candles: List[Dict]) -> None:
-    from jesse.models import Candle
     for c in candles:
         if 'timeframe' not in c:
             raise Exception('Candle has no timeframe')

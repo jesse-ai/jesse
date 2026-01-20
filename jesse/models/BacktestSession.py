@@ -145,7 +145,12 @@ class BacktestSession(peewee.Model):
         """
         if not self.state:
             return {}
-        return json.loads(self.state)
+        s = json.loads(self.state)
+        if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
+            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                if key in s['form']:
+                    s['form'][key] = jh.normalize_bool(s['form'].get(key))
+        return s
     
     @state_json.setter
     def state_json(self, state_data):
@@ -302,9 +307,10 @@ def update_backtest_session_results(
 
 def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None) -> list:
     """
-    Returns a list of BacktestSession objects sorted by most recently updated
+    Returns a list of BacktestSession objects sorted by most recently updated.
+    Excludes draft sessions by default.
     """
-    query = BacktestSession.select().order_by(BacktestSession.updated_at.desc())
+    query = BacktestSession.select().where(BacktestSession.status != 'draft').order_by(BacktestSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -380,12 +386,32 @@ def purge_backtest_sessions(days_old: int = None) -> int:
 
 
 def update_backtest_session_state(id: str, state: dict) -> None:
-    d = {
-        'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp(True)
-    }
+    """
+    Update or create (upsert) backtest session state. If session doesn't exist, creates as draft.
+    """
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
+    existing = BacktestSession.select().where(BacktestSession.id == id).first()
     
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    if existing:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    else:
+        # Create new draft session
+        d = {
+            'id': id,
+            'status': 'draft',
+            'state': json.dumps(state),
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        BacktestSession.insert(**d).execute()
 
 
 def update_backtest_session_notes(id: str, title: str = None, description: str = None, strategy_codes: dict = None) -> None:

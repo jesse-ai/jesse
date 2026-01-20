@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from jesse.routes import router
 from jesse.store import store
-from jesse.services.candle import get_candles
+from jesse.services.candle_service import get_candles_from_db
 from jesse.utils import prices_to_returns
 
 
@@ -36,7 +36,7 @@ def _generate_color(previous_color):
 
 
 def equity_curve(benchmark: bool = False) -> list:
-    if store.completed_trades.count == 0:
+    if store.closed_trades.count == 0:
         return None
 
     result = []
@@ -51,7 +51,7 @@ def equity_curve(benchmark: bool = False) -> list:
     if benchmark:
         initial_balance = daily_balance[0]
         for i, r in enumerate(router.routes):
-            _, daily_candles = get_candles(
+            _, daily_candles = get_candles_from_db(
                 r.exchange, r.symbol, '1D', store.app.starting_time,
                 store.app.ending_time + 1000 * 60 * 60 * 24, is_for_jesse=False, warmup_candles_num=0, caching=True
             )

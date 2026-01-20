@@ -19,5 +19,5 @@ class TestOrderIsStopLossProperty(Strategy):
         self.sell = 1, self.price
         self.stop_loss = 1, self.price + 5
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.is_stop_loss == True

@@ -14,7 +14,7 @@ class TestStrategyVariablesAreResetBeforeOpeningNewPosition(Strategy):
         if self.price == 11:
             self.liquidate()
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         self.take_profit = 1, self.price - 1
         self.stop_loss = 1, self.price - 1
 

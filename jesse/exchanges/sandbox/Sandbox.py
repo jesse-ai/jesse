@@ -1,9 +1,10 @@
+from jesse.models.Order import Order
 import jesse.helpers as jh
+from typing import List
 from jesse.enums import order_types
 from jesse.exchanges.exchange import Exchange
-from jesse.models import Order
 from jesse.store import store
-from typing import Union
+from jesse.services import order_service
 
 
 class Sandbox(Exchange):
@@ -12,7 +13,7 @@ class Sandbox(Exchange):
         self.name = name
 
     def market_order(self, symbol: str, qty: float, current_price: float, side: str, reduce_only: bool) -> Order:
-        order = Order({
+        return order_service.create_order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
             'exchange': self.name,
@@ -23,14 +24,8 @@ class Sandbox(Exchange):
             'price': current_price,
         })
 
-        store.orders.add_order(order)
-
-        store.orders.to_execute.append(order)
-
-        return order
-
     def limit_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
-        order = Order({
+        return order_service.create_order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
             'exchange': self.name,
@@ -41,12 +36,8 @@ class Sandbox(Exchange):
             'price': price,
         })
 
-        store.orders.add_order(order)
-
-        return order
-
     def stop_order(self, symbol: str, qty: float, price: float, side: str, reduce_only: bool) -> Order:
-        order = Order({
+        return order_service.create_order({
             'id': jh.generate_unique_id(),
             'symbol': symbol,
             'exchange': self.name,
@@ -57,22 +48,22 @@ class Sandbox(Exchange):
             'price': price,
         })
 
-        store.orders.add_order(order)
+    def cancel_all_orders(self, symbol: str) -> List[Order]:
+        orders: list[Order] = store.orders.get_active_orders(self.name, symbol)
 
-        return order
-
-    def cancel_all_orders(self, symbol: str) -> None:
-        orders = filter(lambda o: o.is_new,
-                        store.orders.get_active_orders(self.name, symbol))
-
+        canceled_orders: List[Order] = []
         for o in orders:
-            o.cancel()
+            order_service.cancel_order(o)
+            canceled_orders.append(o)
 
         if not jh.is_unit_testing():
             store.orders.storage[f'{self.name}-{symbol}'].clear()
 
+        return canceled_orders
+        
     def cancel_order(self, symbol: str, order_id: str) -> None:
-        store.orders.get_order_by_id(self.name, symbol, order_id).cancel()
+        order = store.orders.get_order_by_id(self.name, symbol, order_id)
+        order_service.cancel_order(order)
 
     def _fetch_precisions(self) -> None:
         pass
