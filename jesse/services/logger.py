@@ -136,19 +136,38 @@ def log_exchange_message(exchange, message):
     LOGGERS[logger_name].info(message)
 
 
-def log_optimize_mode(message):
+def log_optimize_mode(message, session_id: str):
     # if the type of message is not str, convert it to str
     if not isinstance(message, str):
         message = str(message)
 
     formatted_time = jh.timestamp_to_time(jh.now())[:19]
     message = f'[{formatted_time}]: ' + message
-    file_name = 'optimize-mode'
+    
+    # Check if we're in a Ray worker process
+    import ray
+    is_ray_worker = False
+    try:
+        if ray.is_initialized():
+            runtime_ctx = ray.get_runtime_context()
+            is_ray_worker = runtime_ctx.worker.mode == ray.WORKER_MODE
+    except Exception as e:
+        print(f"Error checking Ray worker status: {e}")
 
-    if file_name not in LOGGERS:
-        create_logger_file(file_name)
+    # Only create file logger from main process (not workers)
+    if not is_ray_worker:
+        try:
+            # Append to log file directly instead of using global logger
+            log_file = f"storage/logs/optimize-mode/{session_id}.txt"
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-    LOGGERS[file_name].info(message)
+            # Append the message to the file
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(message + '\n')
+                f.flush()  # Ensure it's written immediately
+        except Exception as e:
+            jh.dump('error')
+            print(f"Warning: Failed to write to optimize mode log file {log_file}: {e}")
 
     # also, publish to redis
     sync_publish('log', {

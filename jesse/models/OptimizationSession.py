@@ -300,7 +300,7 @@ def delete_optimization_session(id: str) -> bool:
         return False
 
 
-def update_optimization_session_state(id: str, state: dict) -> None:
+def update_optimization_session_state(id: str, state: dict, strategy_codes: dict = None) -> None:
     """
     Update or create (upsert) optimization session state. If session doesn't exist, creates as draft.
     """
@@ -316,6 +316,9 @@ def update_optimization_session_state(id: str, state: dict) -> None:
             'state': json.dumps(state),
             'updated_at': jh.now_to_timestamp(True)
         }
+
+        if strategy_codes is not None:
+            d['strategy_codes'] = json.dumps(strategy_codes)
         OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
     else:
         # Create new draft session

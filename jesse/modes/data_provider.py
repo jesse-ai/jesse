@@ -346,6 +346,17 @@ def get_monte_carlo_logs(session_id: str):
     return content
 
 
+def get_optimization_logs(session_id: str):
+    path = f'storage/logs/optimize-mode/{session_id}.txt'
+
+    if not os.path.exists(path):
+        return None
+
+    with open(path, 'r') as f:
+        content = f.read()
+    return content
+
+
 def download_backtest_log(session_id: str):
     """
     Returns the log file for a specific backtest session as a downloadable file

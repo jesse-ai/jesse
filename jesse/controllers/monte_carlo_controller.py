@@ -62,9 +62,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
         }, status_code=400)
 
     # Generate unique session ID if not provided
-    session_id = request_json.id or jh.generate_unique_id()
-    
-    
+    session_id = request_json.id or jh.generate_unique_id()    
 
     # Check if session already exists
     existing_session = get_monte_carlo_session_by_id(session_id)

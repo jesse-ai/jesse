@@ -373,6 +373,29 @@ def get_session_strategy_codes(session_id: str, authorization: Optional[str] = H
         'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     })
 
+
+@router.post("/sessions/{session_id}/logs")
+def get_session_logs(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the logs for an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import data_provider
+
+    content = data_provider.get_optimization_logs(session_id)
+
+    if content is None:
+        return JSONResponse({
+            'error': 'Log file not found'
+        }, status_code=404)
+
+    return JSONResponse({
+        'logs': content
+    })
+
+
 @router.post("/purge-sessions")
 def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
     """
