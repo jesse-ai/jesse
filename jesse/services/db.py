@@ -1,9 +1,13 @@
+import logging
 import threading
 from typing import Optional
 
 from playhouse.pool import PooledPostgresqlExtDatabase
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
+
+# Logger for database connection events (useful for debugging connection issues)
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -31,16 +35,21 @@ class Database:
         self._lock = threading.RLock()  # Reentrant lock for thread safety
 
     def is_closed(self) -> bool:
-        if self.db is None:
-            return True
-        return self.db.is_closed()
+        """Check if the database connection is closed (thread-safe)."""
+        with self._lock:
+            if self.db is None:
+                return True
+            return self.db.is_closed()
 
     def is_open(self) -> bool:
-        if self.db is None:
-            return False
-        return not self.db.is_closed()
+        """Check if the database connection is open (thread-safe)."""
+        with self._lock:
+            if self.db is None:
+                return False
+            return not self.db.is_closed()
 
     def close_connection(self) -> None:
+        """Close the database connection (thread-safe)."""
         with self._lock:
             if self.db:
                 self.db.close()
@@ -62,7 +71,8 @@ class Database:
         try:
             self.db.execute_sql('SELECT 1')
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Connection validation failed: {e}")
             return False
 
     def open_connection(self) -> None:
@@ -83,14 +93,19 @@ class Database:
                 if self._validate_connection():
                     return
                 # Connection is stale, close and recreate
+                logger.info("Detected stale connection, reconnecting...")
                 try:
                     self.db.close()
                 except Exception:
                     pass  # Ignore errors when closing stale connection
                 self.db = None
 
-            # TCP keepalive settings to detect dead connections faster
-            # These are particularly important for long-running processes
+            # TCP keepalive settings for detecting dead connections.
+            # These settings apply to the underlying TCP socket and help detect
+            # network-level issues. Note: When using PgBouncer, these settings
+            # apply to the connection between this client and PgBouncer, not
+            # between PgBouncer and PostgreSQL. For full effectiveness with
+            # PgBouncer, also configure server_check_delay in pgbouncer.ini.
             options = {
                 "keepalives": 1,              # Enable TCP keepalives
                 "keepalives_idle": 60,        # Start probing after 60s idle
@@ -117,7 +132,14 @@ class Database:
                 **options
             )
 
-            self.db.connect()
+            try:
+                self.db.connect()
+                logger.debug("Database connection established successfully")
+            except Exception as e:
+                # Clean up the db object to avoid leaving it in an inconsistent state
+                logger.error(f"Failed to connect to database: {e}")
+                self.db = None
+                raise
 
 
 database = Database()
