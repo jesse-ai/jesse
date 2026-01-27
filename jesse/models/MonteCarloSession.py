@@ -382,6 +382,15 @@ def purge_monte_carlo_sessions(days_old: int = None) -> int:
         return 0
 
 
+def get_running_monte_carlo_session_id():
+    try:
+        session = MonteCarloSession.select().where(MonteCarloSession.status == 'running').order_by(MonteCarloSession.updated_at.desc()).first()
+        if session:
+            return str(session.id)
+        return None
+    except Exception as e:
+        raise e
+
 # Trades Session Functions
 def get_trades_session_by_parent_id(parent_id: str):
     try:
