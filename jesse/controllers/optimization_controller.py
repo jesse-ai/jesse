@@ -8,7 +8,7 @@ from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
@@ -403,12 +403,25 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     days_old = request_json.get('days_old', None)
-    
+
     deleted_count = purge_optimization_sessions(days_old)
-    
+
     return JSONResponse({
         'message': f'Successfully purged {deleted_count} session(s)',
         'deleted_count': deleted_count
     }, status_code=200)
+
+
+@router.get("/running-session")
+def get_running_session(authorization: Optional[str] = Header(None)):
+    """
+    Get the running session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    return JSONResponse({
+        'session_id': get_running_optimization_session_id()
+    })

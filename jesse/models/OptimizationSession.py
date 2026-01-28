@@ -362,16 +362,16 @@ def update_optimization_session_notes(id: str, title: str = None, description: s
 def purge_optimization_sessions(days_old: int = None) -> int:
     try:
         current_timestamp = jh.now_to_timestamp(True)
-        
+
         if days_old is not None:
             days_old = int(days_old)
-        
+
         if days_old is not None and days_old > 0:
             threshold = current_timestamp - (days_old * 24 * 60 * 60 * 1000)
-            
+
             all_sessions = OptimizationSession.select()
             sessions_to_delete = []
-            
+
             for session in all_sessions:
                 try:
                     session_updated_at = int(session.updated_at) if session.updated_at else 0
@@ -379,7 +379,7 @@ def purge_optimization_sessions(days_old: int = None) -> int:
                         sessions_to_delete.append(session.id)
                 except (ValueError, TypeError):
                     continue
-            
+
             deleted_count = 0
             for session_id in sessions_to_delete:
                 try:
@@ -389,8 +389,18 @@ def purge_optimization_sessions(days_old: int = None) -> int:
                     pass
         else:
             deleted_count = OptimizationSession.delete().execute()
-        
+
         return deleted_count
     except Exception as e:
         print(f"Error purging optimization sessions: {e}")
         return 0
+
+
+def get_running_optimization_session_id():
+    try:
+        session = OptimizationSession.select().where(OptimizationSession.status == 'running').order_by(OptimizationSession.updated_at.desc()).first()
+        if session:
+            return str(session.id)
+        return None
+    except Exception as e:
+        raise e
