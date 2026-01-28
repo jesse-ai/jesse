@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union, Optional
-
+import os
+import joblib
+import csv
 import numpy as np
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse import exceptions
@@ -84,14 +85,14 @@ class Strategy(ABC):
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
 
-    def record_feature(self, name: str, value) -> None:
+    def record_features(self, features_dict: dict) -> None:
         """
-        Record a feature (input) for ML training.
+        Record multiple features (inputs) for ML training at once.
         These will be the independent variables used to predict outcomes.
 
         Args:
-            name: Descriptive name of the feature (e.g., 'rsi_value', 'macd_crossover')
-            value: The calculated value of this feature
+            features_dict: Dictionary of {feature_name: value} pairs
+                          (e.g., {'rsi_value': 50, 'macd_crossover': True})
         """
         # If we don't have an open data point, create one
         if self._current_ml_point is None:
@@ -102,8 +103,8 @@ class Strategy(ABC):
                 'label': None  # Will be set later when trade completes
             }
 
-        # Add the feature to this data point
-        self._current_ml_point['features'][name] = value
+        # Add all features to this data point at once
+        self._current_ml_point['features'].update(features_dict)
 
     def record_label(self, name: str, value) -> None:
         """
@@ -209,6 +210,106 @@ class Strategy(ABC):
         except Exception as e:
             logger.error(f"Unexpected error during ML data export: {e}")
             return False
+    def get_ml_prediction(self) -> dict:
+        """
+        Get ML prediction using the most recently recorded features.
+
+        Returns:
+            Dictionary containing:
+            - 'prediction': bool (True/False prediction)
+            - 'probability': float (0-1 probability of positive class)
+
+        Raises:
+            ValueError: If no features have been recorded or model not trained
+            FileNotFoundError: If model files are missing (with detailed path info)
+        """
+        import joblib
+        import numpy as np
+        import os
+
+        # Check if we have features to predict with
+        if self._current_ml_point is None or not self._current_ml_point['features']:
+            raise ValueError("No features recorded for prediction. Call record_features() first.")
+
+        # Method 1: Try to get from the strategy's module path
+        try:
+            module_path = self.__class__.__module__.replace('.', '/') + '/__init__.py'
+            strategy_dir = os.path.dirname(os.path.abspath(module_path))
+        except Exception as e:
+            strategy_dir = None
+
+        # Method 2: Try current working directory
+        if not strategy_dir or not os.path.exists(os.path.join(strategy_dir, "svm_model.pkl")):
+            strategy_dir = os.getcwd()
+
+        # Method 3: Try parent directory if we're in __pycache__
+        if "__pycache__" in strategy_dir:
+            strategy_dir = os.path.dirname(strategy_dir)
+
+        # Final verification of directory
+        if not os.path.isdir(strategy_dir):
+            raise FileNotFoundError(
+                f"Could not determine strategy directory. Tried: {strategy_dir}. "
+                "Please ensure you're running from the strategy directory."
+            )
+
+        # Detailed path information
+        model_path = os.path.join(strategy_dir, "svm_model.pkl")
+        scaler_path = os.path.join(strategy_dir, "scaler.pkl")
+
+        # Check what files actually exist
+        existing_files = [f for f in os.listdir(strategy_dir) if not f.startswith('.')]
+        jh.debug(f"[ML DEBUG] Searching in directory: {strategy_dir}")
+        jh.debug(f"[ML DEBUG] Files found: {existing_files}")
+        jh.debug(f"[ML DEBUG] Looking for: svm_model.pkl, scaler.pkl")
+
+        # Verify model files exist
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Model file NOT FOUND at: {model_path}\n"
+                f"Current directory: {os.getcwd()}\n"
+                f"Files in strategy dir ({strategy_dir}): {existing_files}"
+            )
+        if not os.path.exists(scaler_path):
+            raise FileNotFoundError(
+                f"Scaler file NOT FOUND at: {scaler_path}\n"
+                f"Current directory: {os.getcwd()}\n"
+                f"Files in strategy dir ({strategy_dir}): {existing_files}"
+            )
+
+        # Load model and scaler
+        try:
+            svm_model = joblib.load(model_path)
+            scaler = joblib.load(scaler_path)
+        except Exception as e:
+            raise FileNotFoundError(
+                f"Failed to load model files from {strategy_dir}\n"
+                f"Error: {str(e)}\n"
+                f"Files in directory ({strategy_dir}): {existing_files}"
+            )
+
+        # Get current features
+        current_features = self._current_ml_point['features']
+
+        # Create feature array from current features
+        # We'll use the same order as when training (alphabetical)
+        sorted_features = sorted(current_features.keys())
+        feature_array = np.array([
+            current_features[feature] for feature in sorted_features
+        ]).reshape(1, -1)
+
+        # Scale and predict
+        try:
+            feature_array_scaled = scaler.transform(feature_array)
+            prediction = svm_model.predict(feature_array_scaled)[0]
+            probabilities = svm_model.predict_proba(feature_array_scaled)[0]
+
+            return {
+                'prediction': bool(prediction),
+                'probability': float(probabilities[1])
+            }
+        except Exception as e:
+            raise ValueError(f"Prediction failed: {e}. Check feature consistency with training data.")
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
