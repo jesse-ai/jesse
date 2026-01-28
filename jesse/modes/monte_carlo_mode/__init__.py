@@ -88,7 +88,7 @@ def run(
     existing_session = get_monte_carlo_session_by_id(session_id)
     if existing_session:
         update_monte_carlo_session_status(session_id, 'running')
-        update_monte_carlo_session_state(session_id, state)
+        update_monte_carlo_session_state(session_id, state, strategy_codes)
         if jh.is_debugging():
             jh.debug(f"Resuming existing Monte Carlo session with ID: {session_id}")
     else:

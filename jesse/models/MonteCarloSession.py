@@ -274,7 +274,7 @@ def update_monte_carlo_session_status(id: str, status: str) -> None:
     MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
 
 
-def update_monte_carlo_session_state(id: str, state: dict) -> None:
+def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict = None) -> None:
     """
     Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
     """
@@ -290,6 +290,8 @@ def update_monte_carlo_session_state(id: str, state: dict) -> None:
             'state': json.dumps(state),
             'updated_at': jh.now_to_timestamp(True)
         }
+        if strategy_codes is not None:
+            d['strategy_codes'] = json.dumps(strategy_codes)
         MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
     else:
         # Create new draft session
