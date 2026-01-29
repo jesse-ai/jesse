@@ -18,12 +18,12 @@ def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
     
-    if is_dev_env():
-        return JSONResponse({
-            'data': [    
-                'BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'DOGE-USDT'
-            ]
-        }, status_code=200)
+    # if is_dev_env():
+    #     return JSONResponse({
+    #         'data': [    
+    #             'BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'DOGE-USDT'
+    #         ]
+    #     }, status_code=200)
 
     return get_exchange_supported_symbols(request_json.exchange)
 
