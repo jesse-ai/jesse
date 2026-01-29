@@ -45,3 +45,7 @@ if jh.is_jesse_project():
 
     if not jh.is_unit_testing() and ENV_VALUES['PASSWORD'] == '':
         raise EnvironmentError('You forgot to set the PASSWORD in your .env file')
+
+
+def is_dev_env() -> bool:
+    return ENV_VALUES.get('IS_DEV_ENV', '').upper() == 'TRUE'
