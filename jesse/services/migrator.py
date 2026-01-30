@@ -88,6 +88,7 @@ def _order(migrator):
         {'action': migration_actions.ADD, 'name': 'jesse_submitted', 'type': BooleanField(default=True)},
         {'action': migration_actions.ADD, 'name': 'submitted_via', 'type': CharField(null=True)},
         {'action': migration_actions.ADD, 'name': 'order_exist_in_exchange', 'type': BooleanField(default=True)},
+        {'action': migration_actions.ADD, 'name': 'fee', 'type': FloatField(null=True)},
         {'action': migration_actions.ADD_INDEX, 'indexes': ('session_id',), 'is_unique': False},
     ]
 
