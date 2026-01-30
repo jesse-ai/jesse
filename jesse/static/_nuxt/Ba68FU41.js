@@ -1,1 +1,0 @@
-import{d as n,a4 as c,b as r,C as d,g as i}from"./CCP630y_.js";const b=n({__name:"index",setup(p){const o=c(),t=r(),e=t.tabIds;if(e.length>0){const s=e[0],a=t.tabs[s];o.push({path:`/backtest/${a.id}`})}else t.addTab();return(s,a)=>(i(),d("div"))}});export{b as default};
