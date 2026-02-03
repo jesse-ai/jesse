@@ -52,6 +52,7 @@ def execute_order(order: Order, silent: bool = False) -> None:
     
     order.executed_at = jh.now_to_timestamp()
     order.status = order_statuses.EXECUTED
+    order.fee = order.fee or None
 
     # if it's not live trading, we set the filled qty to the qty. 
     if not jh.is_livetrading():
