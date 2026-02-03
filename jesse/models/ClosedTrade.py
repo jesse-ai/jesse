@@ -100,8 +100,7 @@ class ClosedTrade(peewee.Model):
 
     @property
     def fee(self) -> float:
-        trading_fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
-        return trading_fee * self.qty * (self.entry_price + self.exit_price)
+        return sum(order.fee or 0 for order in self.orders)
 
     @property
     def size(self) -> float:
@@ -109,11 +108,15 @@ class ClosedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
-        return jh.estimate_PNL(
-            self.qty, self.entry_price, self.exit_price,
-            self.type, fee
-        )
+        # calculate raw profit/loss
+        qty = abs(self.qty)
+        profit = qty * (self.exit_price - self.entry_price)
+        
+        if self.type == 'short':
+            profit *= -1
+        
+        # subtract actual fee (which already uses order fees if available)
+        return profit - self.fee
 
     @property
     def pnl_percentage(self) -> float:

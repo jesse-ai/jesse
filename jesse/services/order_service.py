@@ -56,6 +56,12 @@ def execute_order(order: Order, silent: bool = False) -> None:
     # if it's not live trading, we set the filled qty to the qty. 
     if not jh.is_livetrading():
         order.filled_qty = order.qty
+    
+    # set order fee for non-live modes if not already set. In live trading, the fee is fetched by the exchange.
+    if not jh.is_livetrading() and order.fee is None:
+        fee_rate = jh.get_config(f'env.exchanges.{order.exchange}.fee')
+        notional = abs(order.filled_qty or order.qty) * order.price
+        order.fee = fee_rate * notional
 
     if not silent:
         txt = f'EXECUTED order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
@@ -82,6 +88,12 @@ def execute_order(order: Order, silent: bool = False) -> None:
 def execute_order_partially(order: Order, silent: bool = False) -> None:
     order.executed_at = jh.now_to_timestamp()
     order.status = order_statuses.PARTIALLY_FILLED
+    
+    # set order fee for non-live modes if not already set. In live trading, the fee is fetched by the exchange.
+    if not jh.is_livetrading() and order.fee is None:
+        fee_rate = jh.get_config(f'env.exchanges.{order.exchange}.fee')
+        notional = abs(order.filled_qty or order.qty) * order.price
+        order.fee = fee_rate * notional
     
     if not silent:
         txt = f"PARTIALLY FILLED: {order.symbol}, {order.type}, {order.side}, filled qty: {order.filled_qty}, remaining qty: {order.remaining_qty}, price: {jh.format_price(order.price)}"
