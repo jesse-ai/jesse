@@ -33,6 +33,19 @@ class OrdersState:
     def add_order(self, order: Order) -> None:
         """Add order to in-memory state only"""
         key = f'{order.exchange}-{order.symbol}'
+
+        if jh.is_live():
+            # Check if order with same id already exists
+            existing_order = fnc.find(lambda o: o.id == order.id, self.storage.get(key, []))
+            if existing_order:
+                return
+
+            # Check if order with same exchange_id already exists (if exchange_id is set)
+            if hasattr(order, 'exchange_id') and order.exchange_id:
+                existing_exchange_order = fnc.find(lambda o: o.exchange_id == order.exchange_id, self.storage.get(key, []))
+                if existing_exchange_order:
+                    return
+
         self.storage[key].append(order)
         self.active_storage[key].append(order)
 
