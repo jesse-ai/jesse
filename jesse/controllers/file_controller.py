@@ -3,7 +3,8 @@ from typing import Optional
 
 from jesse.services import auth as authenticator
 from jesse.modes import data_provider
-from jesse.services.web import ImportApiKeyRequestJson
+from jesse.services.web import ImportApiKeyRequestJson, LoginRequestJson
+from jesse.services.env import ENV_VALUES
 import jesse.helpers as jh
 router = APIRouter(prefix="/download", tags=["Download"])
 
@@ -21,11 +22,18 @@ def download(mode: str, file_type: str, session_id: str, token: str = Query(...)
 
 
 @router.post("/download-api-keys")
-def download_api_keys(authorization: Optional[str] = Header(None)):
+def download_api_keys(
+    request_json: LoginRequestJson,
+    authorization: Optional[str] = Header(None)
+):
     """
-    Download API Keys
+    Download exchange API Keys - requires password verification
     """
     if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    # Verify password for this sensitive operation
+    if request_json.password != ENV_VALUES['PASSWORD']:
         return authenticator.unauthorized_response()
 
     jh.validate_cwd()
@@ -39,22 +47,23 @@ async def import_api_keys(
     authorization: Optional[str] = Header(None)
 ):
     """
-    Import API keys from CSV text received in the request body.
+    Import exchange API keys from CSV text received in the request body.
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     try:
-        csv_content = request_json.content.strip()           # remove leading/trailing whitespace
+        # remove leading/trailing whitespace
+        csv_content = request_json.content.strip()           
 
-        # Validate CSV content
+        # validate CSV content
         if not data_provider.validate_csv_content(csv_content):
             return {
                 'success': False,
                 'error': 'Invalid CSV content or potential security threat detected'
             }
 
-        # Import API keys
+        # import exchange API keys
         result = data_provider.import_api_keys_from_csv(csv_content)
 
         return result

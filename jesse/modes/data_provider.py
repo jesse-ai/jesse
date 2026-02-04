@@ -10,6 +10,9 @@ from jesse.services import candle_service
 from typing import List, Dict
 import csv
 import io
+from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+from jesse.services.db import database
+from fastapi.responses import StreamingResponse
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -175,11 +178,6 @@ def download_file(mode: str, file_type: str, session_id: str = None):
 
 
 def download_api_keys():
-    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
-    from jesse.services.db import database
-    from fastapi.responses import StreamingResponse
-    import io
-
     try:
         database.open_connection()
 

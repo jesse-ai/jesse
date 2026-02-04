@@ -177,16 +177,16 @@ def calculate_max_underwater_period(daily_balance: list) -> int:
     for i in range(1, len(daily_balance)):
         current_balance = daily_balance[i]
 
-        # If we're above the previous peak, update the peak
-        if current_balance > current_peak:
+        # if we've recovered to or above the previous peak, update the peak
+        if current_balance >= current_peak:
             current_peak = current_balance
             peak_date_index = i
 
-        # If we're below the previous peak, calculate underwater period
+        # if we're below the previous peak, calculate underwater period
         else:
             days_underwater = i - peak_date_index
 
-            # Update max period if this is the longest underwater period so far
+            # update max period if this is the longest underwater period so far
             if days_underwater > max_period:
                 max_period = days_underwater
 

@@ -88,6 +88,7 @@ def _order(migrator):
         {'action': migration_actions.ADD, 'name': 'jesse_submitted', 'type': BooleanField(default=True)},
         {'action': migration_actions.ADD, 'name': 'submitted_via', 'type': CharField(null=True)},
         {'action': migration_actions.ADD, 'name': 'order_exist_in_exchange', 'type': BooleanField(default=True)},
+        {'action': migration_actions.ADD, 'name': 'fee', 'type': FloatField(null=True)},
         {'action': migration_actions.ADD_INDEX, 'indexes': ('session_id',), 'is_unique': False},
     ]
 
@@ -199,16 +200,22 @@ def _migrate(migrator, fields, columns, table):
                     print(
                         f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
                 elif field['action'] == migration_actions.ALLOW_NULL:
-                    migrate(
-                        migrator.drop_not_null(table, field['name'])
-                    )
-                    print(f"'{field['name']}' column successfully updated to accept nullable values in the '{table}' table.")
+                    # Check if column is already nullable
+                    column = next(item for item in columns if item.name == field['name'])
+                    if not column.null:
+                        migrate(
+                            migrator.drop_not_null(table, field['name'])
+                        )
+                        print(f"'{field['name']}' column successfully updated to accept nullable values in the '{table}' table.")
                 elif field['action'] == migration_actions.DENY_NULL:
-                    migrate(
-                        migrator.add_not_null(table, field['name'])
-                    )
-                    print(
-                        f"'{field['name']}' column successfully updated to accept to reject nullable values in the '{table}' table.")
+                    # Check if column is already non-nullable
+                    column = next(item for item in columns if item.name == field['name'])
+                    if column.null:
+                        migrate(
+                            migrator.add_not_null(table, field['name'])
+                        )
+                        print(
+                            f"'{field['name']}' column successfully updated to accept to reject nullable values in the '{table}' table.")
             # if column name doesn't not already exist
             else:
                 if field['action'] == migration_actions.ADD:
