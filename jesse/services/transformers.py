@@ -490,7 +490,8 @@ def get_order_details(order) -> dict:
         'created_at': order.created_at,
         'executed_at': order.executed_at,
         'canceled_at': order.canceled_at,
-        'submitted_via': order.submitted_via
+        'submitted_via': order.submitted_via,
+        'fee': order.fee
     }
     
     return jh.clean_nan_values(jh.clean_infinite_values(result))
