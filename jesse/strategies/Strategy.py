@@ -1738,4 +1738,7 @@ class Strategy(ABC):
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
-        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        try:
+            return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        except KeyError:
+            return None
