@@ -202,7 +202,8 @@ def find_by_exchange_or_client_id(order_dict: dict) -> Optional[Order]:
     if not order and client_id:
         order = Order.select().where(Order.id == client_id).first()
         if not order:
-            order = Order.select().where(Order.id.contains(client_id)).first()
+            # UUID fields can't be searched with ILIKE directly; cast to text first.
+            order = Order.select().where(Cast(Order.id, 'text').contains(client_id)).first()
     return order
 
 
@@ -213,7 +214,8 @@ def find_by_partial_id(partial_id: str, exchange: str = None, symbol: str = None
     if not database.is_open():
         database.open_connection()
 
-    query = Order.select().where(Order.id.contains(partial_id))
+    # UUID fields can't be searched with ILIKE directly; cast to text first.
+    query = Order.select().where(Cast(Order.id, 'text').contains(partial_id))
     
     if exchange:
         query = query.where(Order.exchange == exchange)
