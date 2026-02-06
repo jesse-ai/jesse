@@ -29,6 +29,8 @@ def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
         .order_by(Order.executed_at)
     )
 
+    trade.orders = orders
+
     for o in orders:
         if o.side == sides.BUY:
             trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
