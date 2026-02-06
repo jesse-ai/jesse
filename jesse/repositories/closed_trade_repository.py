@@ -106,6 +106,10 @@ def create(trade_data: dict) -> Optional[ClosedTrade]:
         ClosedTrade.insert(**d).execute()
         return ClosedTrade.get(ClosedTrade.id == d["id"])
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error storing closed trade in database: {e}")
         raise
 
@@ -128,6 +132,10 @@ def update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error updating closed trade in database: {e}")
         raise
 
@@ -164,6 +172,10 @@ def store_or_update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.insert(**d).execute()
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error storing closed trade in database: {e}")
 
 
@@ -182,6 +194,10 @@ def close_trade(trade: ClosedTrade, opened_at: int = None) -> None:
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error closing trade in database: {e}")
 
 

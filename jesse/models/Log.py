@@ -56,4 +56,14 @@ def store_log_into_db(log: dict, log_type: str) -> None:
         'message': log['message']
     }
 
-    Log.insert(**d).execute()
+    try:
+        Log.insert(**d).execute()
+    except Exception:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
+        try:
+            Log.insert(**d).execute()
+        except Exception:
+            pass

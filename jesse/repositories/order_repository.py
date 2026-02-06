@@ -55,6 +55,10 @@ def create(order_data: dict) -> Order:
         Order.insert(**d).execute()
         return Order.get(Order.id == d['id'])
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error storing order in database: {e}")
         raise
 
@@ -66,7 +70,21 @@ def update(order: Order) -> None:
     if not database.is_open():
         database.open_connection()
         
-    db_order = Order.select().where(Order.id == order.id).first()
+    db_order = None
+    if order.exchange_id:
+        db_order = Order.select().where(Order.exchange_id == str(order.exchange_id)).first()
+    if db_order is None and order.id:
+        try:
+            db_order = Order.select().where(Order.id == order.id).first()
+        except Exception:
+            try:
+                database.db.rollback()
+            except Exception:
+                pass
+            matches = find_by_partial_id(str(order.id), order.exchange, order.symbol)
+            if matches and len(matches) == 1:
+                db_order = matches[0]
+
     if db_order:
         d = {
             'updated_at': jh.now_to_timestamp(),
@@ -89,8 +107,12 @@ def update(order: Order) -> None:
         if order.fee:
             d['fee'] = order.fee
         try:
-            Order.update(**d).where(Order.id == order.id).execute()
+            Order.update(**d).where(Order.id == db_order.id).execute()
         except Exception as e:
+            try:
+                database.db.rollback()
+            except Exception:
+                pass
             jh.dump(f"Error updating order in database: {e}")
             raise
 
@@ -158,6 +180,10 @@ def store_or_update(order: Order) -> None:
     try:
         Order.insert(**d).execute()
     except Exception as e:
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
         jh.dump(f"Error storing order in database: {e}")
 
 
