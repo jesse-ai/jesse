@@ -106,4 +106,4 @@ class OrdersState:
         if id == '':
             return None
 
-        return fnc.find(lambda o: id in o.id, reversed(self.storage[key]))
+        return fnc.find(lambda o: id in str(o.id), reversed(self.storage[key]))
