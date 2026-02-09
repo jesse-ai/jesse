@@ -1,4 +1,5 @@
 from typing import Optional, List, Tuple
+import uuid
 import numpy as np
 import jesse.helpers as jh
 from peewee import Cast
@@ -226,7 +227,15 @@ def find_by_exchange_or_client_id(order_dict: dict) -> Optional[Order]:
     if exchange_id:
         order = Order.select().where(Order.exchange_id == exchange_id).first()
     if not order and client_id:
-        order = Order.select().where(Order.id == client_id).first()
+        # check if the client_id is a valid UUID, if it is, use it as is, otherwise, search for the partial id
+        try:
+            uuid.UUID(client_id)
+            is_valid_uuid = True
+        except (ValueError, AttributeError):
+            is_valid_uuid = False
+
+        if is_valid_uuid:
+            order = Order.select().where(Order.id == client_id).first()
         if not order:
             # UUID fields can't be searched with ILIKE directly; cast to text first.
             order = Order.select().where(Cast(Order.id, 'text').contains(client_id)).first()
