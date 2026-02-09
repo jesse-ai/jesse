@@ -137,9 +137,9 @@ def _execute_backtest(
             )
             _handle_warmup_candles(warmup_candles, start_date)
         except exceptions.CandlesNotFound as e:
-            _handle_sync_no_candles(e, start_date)
+            _handle_sync_no_candles(e, start_date, exchange)
         except exceptions.CandleNotFoundInDatabase as e:
-            _handle_sync_no_candles(e, start_date)
+            _handle_sync_no_candles(e, start_date, exchange)
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -260,12 +260,11 @@ def _execute_backtest(
     database.close_connection()
     
 
-def _handle_sync_no_candles(e, start_date):
+def _handle_sync_no_candles(e, start_date, exchange):
     # Extract symbol and exchange from error message
     match = re.search(r"for (.*?) on (.*?)$", str(e))
     if match:
-        symbol, exchange = match.groups()
-        
+        symbol = match.group(1)
         message = f'Missing trading candles for {symbol} on {exchange} from {start_date}'
         sync_publish(
             "missing_candles",
