@@ -266,6 +266,11 @@ def _handle_sync_no_candles(e, start_date, exchange):
     if match:
         symbol = match.group(1)
         message = f'Missing trading candles for {symbol} on {exchange} from {start_date}'
+        warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+        if warmup_num > 0:
+            start_date = jh.date_to_timestamp(start_date) - (
+                warmup_num * jh.timeframe_to_one_minutes(jh.max_timeframe(config['app']['considering_timeframes'])) * 2 * 60_000)
+            start_date = jh.timestamp_to_date(start_date)
         sync_publish(
             "missing_candles",
             {
