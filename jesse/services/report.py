@@ -30,7 +30,7 @@ def positions() -> list:
             'opened_at': p.opened_at,
             'qty': p.qty,
             'value': p.value,
-            'entry': p.entry_price,
+            'entry': None if p.is_close else p.entry_price,
             'current_price': p.current_price,
             'liquidation_price': p.liquidation_price,
             'pnl': p.pnl,

@@ -12,7 +12,7 @@ from jesse.services import closed_trade_service
 from jesse.services import position_service
 
 
-def create_order(attributes: dict, should_silent: bool = False) -> Order:
+def create_order(attributes: dict, should_silent: bool = False, should_store: bool = True) -> Order:
     if attributes.get('created_at') is None:
         attributes['created_at'] = jh.now_to_timestamp()
     
@@ -29,19 +29,20 @@ def create_order(attributes: dict, should_silent: bool = False) -> Order:
                 txt += f', ${jh.format_price(order.price)}'
             logger.info(txt)
     
-    e = store.exchanges.get_exchange(order.exchange)
-    e.on_order_submission(order)
+    # If it's an order to close pre-existing positions, we don't want to include it in calculations.
+    if should_store:
+        e = store.exchanges.get_exchange(order.exchange)
+        e.on_order_submission(order)
 
+        store.orders.add_order(order)
 
-    store.orders.add_order(order)
-
-    # if it's paper trading or backtesting (basicly not live trading), we add the order to the to_execute list to later simulate the execution.
-    if not jh.is_livetrading() and order.type == order_types.MARKET:
-        store.orders.to_execute.append(order)
-    
-    # if it's live/paper trading, we store the order in the database.
-    if jh.is_live():
-        order_repository.store_or_update(order)
+        # if it's paper trading or backtesting (basicly not live trading), we add the order to the to_execute list to later simulate the execution.
+        if not jh.is_livetrading() and order.type == order_types.MARKET:
+            store.orders.to_execute.append(order)
+        
+        # if it's live/paper trading, we store the order in the database.
+        if jh.is_live():
+            order_repository.store_or_update(order)
     
     return order
 
