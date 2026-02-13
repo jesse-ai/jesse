@@ -49,6 +49,7 @@ from jesse.controllers.lsp_controller import router as lsp_router
 from jesse.controllers.closed_trade_controller import router as closed_trade_router
 from jesse.controllers.order_controller import router as order_router
 from jesse.controllers.tabs_controller import router as tabs_router
+from jesse.controllers.ai_model_controller import router as ai_model_router
 
 # register routers
 fastapi_app.include_router(websocket_router)
@@ -67,6 +68,7 @@ fastapi_app.include_router(lsp_router)
 fastapi_app.include_router(closed_trade_router)
 fastapi_app.include_router(order_router)
 fastapi_app.include_router(tabs_router)
+fastapi_app.include_router(ai_model_router)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Trade Plugin

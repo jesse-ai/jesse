@@ -1,5 +1,6 @@
 from jesse.models.ExchangeApiKeys import ExchangeApiKeys
 from jesse.models.NotificationApiKeys import NotificationApiKeys
+from jesse.models.AiModel import AiModel
 from jesse.models.OptimizationSession import OptimizationSession
 from jesse.models.BacktestSession import BacktestSession
 from jesse.models.MonteCarloSession import MonteCarloSession
@@ -32,6 +33,24 @@ def get_exchange_api_key(exchange_api_key: ExchangeApiKeys) -> dict:
             result[key] = value[0:4] + '***...***' + value[-4:]
 
     return result
+
+
+def get_ai_model(ai_model: AiModel) -> dict:
+    api_key = ai_model.api_key
+    if len(api_key) > 8:
+        masked_key = api_key[0:4] + '***...***' + api_key[-4:]
+    else:
+        masked_key = '***...***'
+
+    return {
+        'id': str(ai_model.id),
+        'name': ai_model.name,
+        'provider': ai_model.provider,
+        'base_url': ai_model.base_url,
+        'api_key': masked_key,
+        'model_id': ai_model.model_id,
+        'created_at': ai_model.created_at.isoformat(),
+    }
 
 
 def get_notification_api_key(api_key: NotificationApiKeys, protect_sensitive_data=True) -> dict:

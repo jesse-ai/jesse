@@ -126,6 +126,18 @@ class DeleteNotificationApiKeyRequestJson(BaseModel):
     id: str
 
 
+class StoreAiModelRequestJson(BaseModel):
+    name: str
+    provider: str
+    base_url: str
+    api_key: str
+    model_id: str
+
+
+class DeleteAiModelRequestJson(BaseModel):
+    id: str
+
+
 class ConfigRequestJson(BaseModel):
     current_config: dict
 
