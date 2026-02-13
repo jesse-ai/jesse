@@ -8,6 +8,9 @@ import jesse.helpers as jh
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import fastapi_app
 
+# Default Host and Port for the Jesse API server
+HOST = "0.0.0.0"
+PORT = 9000
 
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse").version)
@@ -80,18 +83,18 @@ def run() -> None:
         print(jh.color(f"Error installing Python Language Server: {str(e)}", "red"))
         pass
 
-    # read port from .env file, if not found, use default
+    # read port from .env file and update the global variables port and host, if not found, use default
+    global HOST, PORT
     from jesse.services.env import ENV_VALUES
 
     if "APP_PORT" in ENV_VALUES:
-        port = int(ENV_VALUES["APP_PORT"])
-    else:
-        port = 9000
+        PORT = int(ENV_VALUES["APP_PORT"])
+    # HOST keeps default value of "0.0.0.0" if not specified
 
     if "APP_HOST" in ENV_VALUES:
-        host = ENV_VALUES["APP_HOST"]
-    else:
-        host = "0.0.0.0"
+        HOST = ENV_VALUES["APP_HOST"]
+
+    # Set global Jesse API configuration for MCP and other services
 
     # run the lsp server
     try:
@@ -101,8 +104,17 @@ def run() -> None:
     except Exception as e:
         print(jh.color(f"Error running Python Language Server: {str(e)}", "red"))
         pass
+    
+    # run the mcp server
+    try:
+        from jesse.mcp import run_mcp_server
+
+        run_mcp_server(jesse_host=HOST, jesse_port=PORT)
+    except Exception as e:
+        print(jh.color(f"Error running MCP Server: {str(e)}", "red"))
+        pass
 
     # run the main application
     process_manager.flush()
-    uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
+    uvicorn.run(fastapi_app, host=HOST, port=PORT, log_level="info")
 

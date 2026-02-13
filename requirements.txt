@@ -18,13 +18,13 @@ wsaccel~=0.6.6
 simplejson~=3.16.0
 aioredis~=1.3.1
 redis~=4.1.4
-fastapi~=0.111.1
-uvicorn~=0.29.0
+fastapi~=0.128.0
+uvicorn~=0.40.0
 websockets>=10.0.0
-python-dotenv~=0.19.2
+python-dotenv~=1.2.1
 aiofiles~=0.7.0
 numba~=0.61.0rc2
-PyJWT~=2.8.0
+PyJWT~=2.11.0
 cryptography~=42.0.5
 ecdsa>=0.16.0
 optuna~=4.2.0
@@ -33,3 +33,4 @@ eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0
 jesse-rust==1.0.1
+mcp==1.26.0
