@@ -95,6 +95,9 @@ def update(order: Order) -> None:
             'exchange_id': order.exchange_id,
         }
         
+        if order.vars:
+            d['vars'] = order.vars
+        
         if order.is_executed:
             d['executed_at'] = getattr(order, 'executed_at', jh.now_to_timestamp())
         if order.is_canceled:
@@ -131,7 +134,10 @@ def store_or_update(order: Order) -> None:
             order_exist = Order.select().where(Order.exchange_id == str(order.exchange_id)).first()
         if not order_exist and order.id:
             order_exist = Order.select().where(Order.id == order.id).first()
-        if not order_exist and order.id and len(str(order.id)) <= 20:
+        if not order_exist and order.vars:
+            if 'algo_id' in order.vars:
+                order_exist = Order.select().where(Order.vars['algo_id'].cast('bigint') == order.vars['algo_id']).first()
+        if not order_exist and order.id and len(str(order.id)) <= 25:
             potential_matches = find_by_partial_id(str(order.id), order.exchange, order.symbol)
             if potential_matches and len(potential_matches) == 1:
                 order_exist = potential_matches[0]
@@ -177,6 +183,8 @@ def store_or_update(order: Order) -> None:
         d['canceled_at'] = order.canceled_at
     if hasattr(order, 'fee'):
         d['fee'] = order.fee
+    if hasattr(order, 'vars'):
+        d['vars'] = order.vars
     
     try:
         Order.insert(**d).execute()
@@ -241,6 +249,17 @@ def find_by_exchange_or_client_id(order_dict: dict) -> Optional[Order]:
             order = Order.select().where(Cast(Order.id, 'text').contains(client_id)).first()
     return order
 
+
+def find_by_vars(exchange: str, symbol: str, vars: dict) -> Optional[Order]:
+    if jh.is_unit_testing():
+        return None
+
+    if not database.is_open():
+        database.open_connection()
+    
+    if 'algo_id' in vars:
+        return Order.select().where(Order.exchange == exchange, Order.symbol == symbol, Order.vars['algo_id'].cast('bigint') == vars['algo_id']).first()
+    return None
 
 def find_by_partial_id(partial_id: str, exchange: str = None, symbol: str = None) -> List[Order]:
     if jh.is_unit_testing():
