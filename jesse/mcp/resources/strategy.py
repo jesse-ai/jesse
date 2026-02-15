@@ -19,6 +19,8 @@ The registered resources include:
    - When and how different methods are called
    - Order placement and position management timing
 
+3. **Indicator Workflow** - See `jesse://indicator-workflow` resource for detailed indicator discovery and usage guidance
+
 These resources are fundamental for creating new strategies and
 understanding Jesse's strategy execution lifecycle.
 """

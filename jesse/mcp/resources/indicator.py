@@ -5,7 +5,10 @@ This module provides comprehensive documentation for Jesse's extensive indicator
 library through the MCP (Model Context Protocol). It serves as the complete
 reference for all 140+ technical indicators available in Jesse.
 
-The registered resource includes:
+The registered resources include:
+- indicator-cheatsheet: Comprehensive overview and usage patterns
+- indicator-details: Guidance for using indicator discovery tools
+- indicator-workflow: Step-by-step guide for discovering and using indicators
 - Detailed candle data structure and access patterns
 - Comprehensive categorized indicator reference (Trend, Momentum, Volatility, etc.)
 - Usage examples for major indicators in each category
@@ -15,6 +18,10 @@ The registered resource includes:
 This resource is essential for strategy developers to discover available indicators
 and understand proper usage patterns for technical analysis.
 """
+
+import os
+import inspect
+import importlib.util
 
 def register_indicator_resources(mcp):
 
@@ -33,6 +40,35 @@ def register_indicator_resources(mcp):
             Indicators are available through:
 
             import jesse.indicators as ta
+
+            ## Available Tools
+
+            ### list_indicators Tool
+
+            **Purpose**: Get a complete list of all technical indicators available in Jesse.
+
+            **Usage**:
+            ```python
+            result = list_indicators()
+            ```
+
+            **Returns**: A structured response containing:
+            - `status`: "success" or "error"
+            - `count`: Number of available indicators (140+)
+            - `indicators`: Array of all indicator names (sorted alphabetically)
+            - `message`: Descriptive message about the result
+
+            **Example Response**:
+            ```json
+            {
+                "status": "success",
+                "count": 147,
+                "indicators": ["sma", "ema", "rsi", "macd", "bollinger_bands", ...],
+                "message": "Found 147 indicators available in Jesse"
+            }
+            ```
+
+            This tool provides the most reliable and up-to-date way to discover all available indicators programmatically.
 
             ## Candle Data Structure
 
@@ -149,18 +185,30 @@ def register_indicator_resources(mcp):
 
             To discover exact indicator names for specialized use cases:
 
-            ```python
-            # Method 1: Check available indicators programmatically
-            import jesse.indicators as ta
-            print(dir(ta))  # Lists all available indicator names
+            #### Method 1: Use the list_indicators Tool
 
-            # Method 2: Explore by category patterns
-            # Trend indicators: sma, ema, dema, tema, wma, hma, kama, alma, frama, vidya, mcginley_dynamic
-            # Momentum: rsi, macd, stochastic, cci, mfi, ao, willr, roc, mom, tsi, uo
-            # Volatility: atr, natr, bollinger_bands, keltner, donchian, chop, mass, vpci
-            # Volume: vwap, vwma, obv, ad, adosc, cmf, kvo
-            # Statistical: beta, correl, linearreg, zscore, stddev, var, skew, kurtosis
-            # Specialized: fisher, schaff_trend_cycle, squeeze_momentum, hurst_exponent, damiani_volatmeter, safezonestop, kaufmanstop
+            The most convenient way to get a complete list of all available indicators is using the `list_indicators` MCP tool:
+
+            ```python
+            # Use the list_indicators tool to get all available indicators
+            result = list_indicators()
+            # Returns: {"status": "success", "count": 140, "indicators": ["sma", "ema", "rsi", ...], "message": "..."}
+            ```
+
+            This tool provides a programmatically generated list of all 140+ indicators available in Jesse.
+
+            #### Method 2: Explore by Category Patterns
+
+            For manual exploration, indicators are organized by category:
+
+            - **Trend**: sma, ema, dema, tema, wma, hma, kama, alma, frama, vidya, mcginley_dynamic
+            - **Momentum**: rsi, macd, stochastic, cci, mfi, ao, willr, roc, mom, tsi, uo
+            - **Volatility**: atr, natr, bollinger_bands, keltner, donchian, chop, mass, vpci
+            - **Volume**: vwap, vwma, obv, ad, adosc, cmf, kvo
+            - **Statistical**: beta, correl, linearreg, zscore, stddev, var, skew, kurtosis
+            - **Specialized**: fisher, schaff_trend_cycle, squeeze_momentum, hurst_exponent, damiani_volatmeter, safezonestop, kaufmanstop
+
+
             ```
 
             **Note**: Focus on the essential indicators above for robust strategies. Use advanced indicators only when you have a specific need and understand their behavior thoroughly. All indicators are available via `import jesse.indicators as ta` followed by `ta.indicator_name()`.
@@ -180,3 +228,202 @@ def register_indicator_resources(mcp):
 
             See `jesse://utilities` resource for comprehensive utils documentation.
             """
+
+    @mcp.resource("jesse://indicator-details")
+    def indicator_details():
+        """
+        Get detailed information about any specific indicator.
+
+        This resource provides comprehensive documentation for individual indicators
+        including parameters, return values, usage examples, and trading interpretations.
+        Use the list_indicators tool to discover available indicator names.
+        """
+        return """
+        # Individual Indicator Details
+
+        This resource explains how to access detailed documentation for any Jesse indicator.
+
+        ## How to Get Indicator Details
+
+        Use the `get_indicator_details` tool with an indicator name to get comprehensive documentation:
+
+        ```python
+        # Get detailed information about RSI
+        result = get_indicator_details("rsi")
+
+        # Get detailed information about MACD
+        result = get_indicator_details("macd")
+        ```
+
+        ## Available Indicators
+
+        Use the `list_indicators` tool to get a complete list of all 177 available indicators.
+
+        ## Information Provided by get_indicator_details Tool
+
+        For each indicator, the tool provides:
+        - Complete function signature with parameters
+        - Parameter descriptions and default values
+        - Return value structure and types
+        - Parsed docstring information
+        - Usage examples
+        - Implementation details
+
+            ## Common Indicators to Explore
+
+        Popular indicators include: rsi, macd, sma, ema, bollinger_bands, stochastic, atr, cci, etc.
+        """
+
+    @mcp.resource("jesse://indicator-workflow")
+    def indicator_workflow():
+        """
+        Get guidance for discovering and using technical indicators in strategies.
+
+        This resource provides a systematic workflow for LLMs to properly integrate
+        indicators into trading strategies using the available MCP tools.
+        """
+        return """
+        # Indicator Discovery and Usage Workflow
+
+        Follow this systematic approach to ensure accurate indicator usage in strategies:
+
+        ## Step 1: List All Available Indicators
+
+        **Always start here** - Never assume indicator names or availability.
+
+        ```python
+        # Use the list_indicators tool to discover all available indicators
+        result = list_indicators()
+        # Returns: {"status": "success", "count": 177, "indicators": ["sma", "ema", "rsi", ...]}
+        ```
+
+        **Why?** Jesse has 177 indicators. Guessing names leads to errors.
+
+        ## Step 2: Select Required Indicators
+
+        Based on your trading strategy requirements, choose appropriate indicators from the list.
+        Common categories include:
+        - **Trend**: sma, ema, macd, adx
+        - **Momentum**: rsi, stochastic, cci, mfi
+        - **Volatility**: bollinger_bands, atr, keltner
+        - **Volume**: obv, vwap, volume
+
+        ## Step 3: Get Detailed Indicator Information
+
+        **For each selected indicator**, use the get_indicator_details tool:
+
+        ```python
+        # Get complete details for each indicator you plan to use
+        rsi_details = get_indicator_details("rsi")
+        macd_details = get_indicator_details("macd")
+        bb_details = get_indicator_details("bollinger_bands")
+        ```
+
+        This provides:
+        - **Function signature** with exact parameter names and defaults
+        - **Return type** (float, numpy array, or namedtuple)
+        - **Parameter specifications** (types, defaults, requirements)
+        - **Usage examples** with proper syntax
+
+        ## Step 4: Implement Indicators Correctly
+
+        Use the details to write proper indicator calls:
+
+        ### Example: RSI (returns single float)
+        ```python
+        # From get_indicator_details("rsi"):
+        # signature: (candles, period=14, source_type="close", sequential=False) -> float
+
+        rsi_value = ta.rsi(self.candles, period=14)
+        # Returns: float between 0-100
+
+        if rsi_value < 30:
+            # Oversold condition
+            return True
+        ```
+
+        ### Example: MACD (returns namedtuple)
+        ```python
+        # From get_indicator_details("macd"):
+        # signature: (candles, fast_period=12, slow_period=26, signal_period=9) -> MACD(macd, signal, hist)
+
+        macd_result = ta.macd(self.candles)
+        # Returns: MACD(macd=..., signal=..., hist=...)
+
+        if macd_result.hist > 0 and macd_result.macd > macd_result.signal:
+            # Bullish MACD crossover
+            return True
+        ```
+
+        ### Example: Bollinger Bands (returns namedtuple)
+        ```python
+        # From get_indicator_details("bollinger_bands"):
+        # signature: (candles, period=20, devup=2.0, devdn=2.0) -> BollingerBands(upper, middle, lower)
+
+        bb = ta.bollinger_bands(self.candles)
+        # Returns: BollingerBands(upper=..., middle=..., lower=...)
+
+        price = self.close
+        if price <= bb.lower:
+            # Price touched lower band
+            return True
+        ```
+
+        ## Step 5: Handle Sequential Data
+
+        For indicators that support sequential mode:
+
+        ```python
+        # Most indicators support sequential=True for full series
+        rsi_series = ta.rsi(self.candles, period=14, sequential=True)
+        # Returns: numpy array of all RSI values
+
+        # Access current value
+        current_rsi = rsi_series[-1]
+
+        # Access previous values for trend analysis
+        prev_rsi = rsi_series[-2]
+        ```
+
+        ## Common Mistakes to Avoid
+
+        ❌ **Wrong**: Guessing indicator names
+        ```python
+        ta.RSI(self.candles)  # Wrong case
+        ta.relative_strength_index(self.candles)  # Wrong name
+        ```
+
+        ✅ **Correct**: Use tools to verify
+        ```python
+        # Check available indicators first
+        indicators = list_indicators()
+        # Then get details
+        details = get_indicator_details("rsi")
+        # Then use correctly
+        rsi = ta.rsi(self.candles, period=14)
+        ```
+
+        ❌ **Wrong**: Misunderstanding return types
+        ```python
+        macd, signal, hist = ta.macd(self.candles)  # Wrong - returns namedtuple
+        rsi, stoch = ta.rsi(self.candles), ta.stochastic(self.candles)  # Wrong types
+        ```
+
+        ✅ **Correct**: Check return types first
+        ```python
+        macd_result = ta.macd(self.candles)
+        macd_value = macd_result.macd  # Access namedtuple field
+        signal_value = macd_result.signal
+        hist_value = macd_result.hist
+        ```
+
+        ## Pro Tips
+
+        1. **Always verify** indicator availability before using
+        2. **Check return types** - many indicators return namedtuples, not simple values
+        3. **Use defaults** unless you have specific requirements
+        4. **Test with sequential=True** for debugging indicator values
+        5. **Document your indicator choices** in strategy comments
+
+        Following this workflow ensures accurate, error-free indicator implementation in your strategies.
+        """

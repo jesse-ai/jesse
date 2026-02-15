@@ -36,6 +36,7 @@ from jesse.mcp.tools.strategy import register_strategy_tools
 from jesse.mcp.tools.backtest import register_backtest_tools
 from jesse.mcp.tools.config import register_config_tools
 from jesse.mcp.tools.candles import register_candles_tools
+from jesse.mcp.tools.indicator import register_indicator_tools
 
 # Global variable to store the Jesse API URL
 # Will be set by the MCP server (server.py) before tools are registered
@@ -63,6 +64,9 @@ def register_tools(mcp):
 
     # Configuration management tools (same as dashboard uses)
     register_config_tools(mcp)
+
+    # Indicator-related tools (listing and using technical indicators)
+    register_indicator_tools(mcp)
 
     # Candle data management tools (importing/managing historical data)
     register_candles_tools(mcp)
