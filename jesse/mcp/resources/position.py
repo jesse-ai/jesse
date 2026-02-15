@@ -1,3 +1,30 @@
+"""
+Jesse MCP Position and Risk Management Resources
+
+This module provides comprehensive guidance for position sizing and risk management
+in Jesse strategies through the MCP (Model Context Protocol). It serves as the
+complete reference for implementing proper risk controls and position management.
+
+The registered resources include:
+
+1. **Position Sizing** (`jesse://position-sizing`):
+   - Utility functions for position sizing (`size_to_qty`, `risk_to_qty`)
+   - Fractional sizing based on available margin
+   - Risk-based sizing with stop loss calculations
+   - Fee-aware position calculations
+   - Common sizing patterns and formulas
+
+2. **Risk Management** (`jesse://risk-management`):
+   - Exit strategy patterns using stop_loss and take_profit
+   - ATR-based risk calculations
+   - Percentage-based risk management
+   - Position update logic for exits
+   - Long and short position handling patterns
+
+These resources are critical for developing robust, risk-aware trading strategies
+that properly manage position sizes and implement effective exit strategies.
+"""
+
 def register_position_resources(mcp):
     @mcp.resource("jesse://position-sizing")
     def position_sizing():
@@ -10,7 +37,7 @@ def register_position_resources(mcp):
         return """
             Position Sizing Reference
 
-            Helpers are available in jesse.utils.
+            Comprehensive utility functions are documented in the `jesse://utilities` resource.
 
             Fractional sizing example:
 

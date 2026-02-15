@@ -1,3 +1,28 @@
+"""
+Jesse MCP Strategy Resources
+
+This module provides essential documentation and templates for Jesse strategy
+development through the MCP (Model Context Protocol). It serves as the primary
+reference for understanding how to create and structure trading strategies.
+
+The registered resources include:
+
+1. **Strategy Template** (`jesse://strategy-template`):
+   - Complete class structure and method signatures
+   - Required imports and inheritance patterns
+   - Basic implementation examples for all strategy methods
+   - Common patterns for entry/exit logic
+
+2. **Execution Model** (`jesse://execution-model`):
+   - Detailed explanation of strategy execution flow
+   - Candle-by-candle processing order
+   - When and how different methods are called
+   - Order placement and position management timing
+
+These resources are fundamental for creating new strategies and
+understanding Jesse's strategy execution lifecycle.
+"""
+
 def register_strategy_resources(mcp):
 
     @mcp.resource("jesse://strategy-template")

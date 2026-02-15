@@ -1,3 +1,19 @@
+"""
+Jesse MCP Backtest Management Resources
+
+This module provides comprehensive documentation and guidance for Jesse's backtest
+management system through the MCP (Model Context Protocol). It serves as the central
+reference for all backtesting-related operations, tools, and best practices.
+
+The registered resource includes:
+- Tool reference documentation for all backtest management functions
+- Usage examples and code snippets
+- Route configuration schemas
+- Error handling guidance
+- Strategy development workflow considerations
+- Best practices for session management and iteration
+"""
+
 def register_backtest_management_resources(mcp):
 
     @mcp.resource("jesse://backtest-management")
@@ -216,12 +232,28 @@ def register_backtest_management_resources(mcp):
             session_details = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
             ```
 
+            ## Supported Exchanges
+
+            Jesse supports the following exchanges for backtesting and live trading:
+
+            ### Spot Exchanges
+            - `"Binance Spot"` - Most popular, reliable data
+            - `"Bybit Spot"` - Alternative data source
+            - `"Coinbase Spot"` - Low fees (0.03%)
+            - `"Bitfinex Spot"` - Additional option
+
+            ### Futures Exchanges
+            - `"Binance Perpetual Futures"` - High leverage (up to 5x)
+            - `"Bybit USDT Perpetual"` - Conservative leverage (up to 2x)
+            - `"Bybit USDC Perpetual"` - USDC settlement
+            - `"Gate USDT Perpetual"` - Additional futures option
+
             ## Route Configuration Schema
 
             Route Object:
             ```json
             {
-              "exchange": "string (exchange name)",
+              "exchange": "string (exchange name - see supported exchanges above)",
               "strategy": "string (strategy class name)",
               "symbol": "string (trading pair)",
               "timeframe": "string (1m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M)"
@@ -231,7 +263,7 @@ def register_backtest_management_resources(mcp):
             Data Route Object:
             ```json
             {
-              "exchange": "string (exchange name)",
+              "exchange": "string (exchange name - see supported exchanges above)",
               "symbol": "string (trading pair)",
               "timeframe": "string (timeframe)"
             }
@@ -248,6 +280,50 @@ def register_backtest_management_resources(mcp):
             - State Conflicts: Retrieve current state before updates
 
             ## Best Practices
+
+            ### Strategy Development Considerations
+
+            When developing and iterating on trading strategies, session management can significantly impact your ability to analyze and compare results:
+
+            **Benefits of New Sessions:**
+            - Clean version control - each session preserves the exact strategy code and configuration
+            - Easy performance comparison across different strategy versions or parameters
+            - Clear audit trail for development history
+            - Ability to revert to previous working configurations
+            - Better organization when testing multiple approaches simultaneously
+
+            **When New Sessions Are Particularly Useful:**
+            - Testing different entry/exit logic or indicator combinations
+            - Significant parameter optimization (RSI levels, profit targets, risk settings)
+            - Comparing the same strategy across different timeframes or symbols
+            - Major algorithmic changes or risk management modifications
+
+            **When Session Reuse May Be Appropriate:**
+            - Fine-tuning parameters within an established strategy configuration
+            - Quick testing of minor adjustments on the same setup
+            - Iterative improvements to a working strategy version
+
+            **Benefits of New Sessions:**
+            - Clean version control and audit trail
+            - Each session stores complete strategy code used
+            - Easy comparison of performance across versions
+            - Clear history of development process
+            - Ability to revert to previous working versions
+
+            **Example Workflow:**
+            ```python
+            # Iteration 1: Create new session with initial strategy
+            draft1 = create_backtest_draft(routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]')
+            run_backtest(draft1.backtest_id, config)
+
+            # Iteration 2: Create NEW session with modified strategy
+            draft2 = create_backtest_draft(routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]')
+            run_backtest(draft2.backtest_id, config)
+
+            # Compare results across sessions
+            session1_results = get_backtest_session(draft1.backtest_id)
+            session2_results = get_backtest_session(draft2.backtest_id)
+            ```
 
             debug_mode can assist during development
             Charts and JSON exports support analysis

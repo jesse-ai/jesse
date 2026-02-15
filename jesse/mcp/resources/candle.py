@@ -1,3 +1,22 @@
+"""
+Jesse MCP Candle Data Resources
+
+This module provides comprehensive documentation and guidance for candle data
+management in Jesse through the MCP (Model Context Protocol). It serves as the
+complete reference for importing, managing, and working with historical market data.
+
+The registered resource covers:
+- Data import procedures and requirements
+- Tool reference for all candle-related functions
+- Supported exchanges, symbols, and timeframes
+- Usage examples and retry mechanisms
+- Success/failure response formats
+- Best practices for data management
+
+This resource is essential for ensuring strategies have access to required
+historical data before backtesting or live trading.
+"""
+
 def register_data_resources(mcp):
 
     @mcp.resource("jesse://candle-management")

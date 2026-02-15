@@ -1,3 +1,23 @@
+"""
+Jesse MCP Configuration Resources
+
+This module provides comprehensive documentation for Jesse's configuration management
+system through the MCP (Model Context Protocol). It serves as the complete reference
+for all configuration-related operations, data structures, and settings.
+
+The registered resource includes:
+- Tool reference for all configuration management functions (get_config, update_config, etc.)
+- Complete configuration schema documentation
+- Exchange and trading pair configurations
+- Backtest, live trading, and optimization settings
+- Fee structures and leverage configurations
+- Usage examples for configuration operations
+- Best practices for configuration management
+
+This resource is essential for understanding and managing Jesse's various
+configuration options across different trading modes and environments.
+"""
+
 def register_config_resources(mcp):
 
     @mcp.resource("jesse://configuration")
