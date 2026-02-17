@@ -85,8 +85,6 @@ class exchanges:
     BITGET_USDT_PERPETUAL_TESTNET = 'Bitget USDT Perpetual Testnet'
     DYDX_PERPETUAL = "Dydx Perpetual"
     DYDX_PERPETUAL_TESTNET = "Dydx Perpetual Testnet"
-    APEX_PRO_PERPETUAL_TESTNET = 'Apex Pro Perpetual Testnet'
-    APEX_PRO_PERPETUAL = 'Apex Pro Perpetual'
     APEX_OMNI_PERPETUAL_TESTNET = 'Apex Omni Perpetual Testnet'
     APEX_OMNI_PERPETUAL = 'Apex Omni Perpetual'
     GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
@@ -111,3 +109,18 @@ class migration_actions:
 class order_submitted_via:
     STOP_LOSS = 'stop-loss'
     TAKE_PROFIT = 'take-profit'
+
+
+@dataclass
+class live_session_statuses:
+    DRAFT = 'draft'
+    STARTING = 'starting'
+    RUNNING = 'running'
+    STOPPED = 'stopped'
+    TERMINATED = 'terminated'
+
+
+@dataclass
+class live_session_modes:
+    LIVETRADE = 'livetrade'
+    PAPERTRADE = 'papertrade'

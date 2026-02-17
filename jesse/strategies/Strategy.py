@@ -1,18 +1,20 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union, Optional
-
+# import os
+# import joblib
+# import csv
 import numpy as np
-
 import jesse.helpers as jh
 import jesse.services.logger as logger
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
+from jesse.services import order_service, candle_service
+from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
@@ -52,20 +54,25 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self.trade: ClosedTrade = None
+        self.trade: ClosedTrade | None = None
         self.trades_count = 0
 
+        # chart variables
         self._executed_orders = []
         self._add_line_to_candle_chart_values = {}
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
 
+        # # Variables used for ML calculations
+        # self._ml_data_points = []  # Stores complete data points with features and labels
+        # self._current_ml_point = None  # Tracks the currently open data point
+
         self._is_executing = False
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position = None
+        self.position: Position | None = None
         self.broker = None
 
         self._cached_methods = {}
@@ -77,6 +84,233 @@ class Strategy(ABC):
 
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
+
+    # def record_features(self, features_dict: dict) -> None:
+    #     """
+    #     Record multiple features (inputs) for ML training at once.
+    #     These will be the independent variables used to predict outcomes.
+
+    #     Args:
+    #         features_dict: Dictionary of {feature_name: value} pairs
+    #                       (e.g., {'rsi_value': 50, 'macd_crossover': True})
+    #     """
+    #     # If we don't have an open data point, create one
+    #     if self._current_ml_point is None:
+    #         current_time = int(self.current_candle[0] / 1000)
+    #         self._current_ml_point = {
+    #             'time': current_time,
+    #             'features': {},
+    #             'label': None  # Will be set later when trade completes
+    #         }
+
+    #     # Add all features to this data point at once
+    #     self._current_ml_point['features'].update(features_dict)
+
+    # def record_label(self, name: str, value) -> None:
+    #     """
+    #     Record a label (output) for ML training.
+    #     These are the target variables that the model should predict.
+
+    #     Args:
+    #         name: Descriptive name of the label (e.g., 'trade_profit', 'win_loss')
+    #         value: The actual outcome value
+    #     """
+    #     # Set the label for the current open data point
+    #     if self._current_ml_point is not None:
+    #         self._current_ml_point['label'] = {
+    #             'name': name,
+    #             'value': value
+    #         }
+
+    #         # Move this completed data point to our storage and clear the current point
+    #         self._ml_data_points.append(self._current_ml_point)
+    #         self._current_ml_point = None
+
+    # def export_ml_data(self, directory: str = None) -> bool:
+    #     """
+    #     Export all recorded features and labels to CSV files.
+    #     Returns True if export was successful, False otherwise.
+
+    #     Args:
+    #         directory: Optional output directory. Defaults to strategy location.
+    #     """
+    #     import os
+    #     import csv
+
+    #     try:
+    #         # Debug: Check if we have data to export
+    #         jh.debug(f"Exporting ML data - Data points: {len(self._ml_data_points)}")
+
+    #         # Determine output directory
+    #         if directory is None:
+    #             try:
+    #                 import inspect
+    #                 frame = inspect.currentframe()
+    #                 try:
+    #                     caller_file = inspect.getfile(frame.f_back)
+    #                     directory = os.path.dirname(caller_file)
+    #                 finally:
+    #                     del frame
+    #                 jh.debug(f"Detected strategy directory: {directory}")
+    #             except Exception as e:
+    #                 jh.debug(f"Could not determine strategy path, using cwd: {e}")
+    #                 directory = os.getcwd()
+
+    #         # Create ml_data subdirectory
+    #         try:
+    #             ml_dir = os.path.join(directory, "ml_data")
+    #             os.makedirs(ml_dir, exist_ok=True)
+    #             jh.debug(f"Using output directory: {ml_dir}")
+    #         except Exception as e:
+    #             jh.debug(f"Failed to create directory {ml_dir}: {e}")
+    #             return False
+
+    #         # Export data points
+    #         if self._ml_data_points:
+    #             try:
+    #                 data_path = os.path.join(ml_dir, f"{self.name}_data.csv")
+    #                 with open(data_path, 'w', newline='') as f:
+    #                     writer = csv.writer(f)
+
+    #                     # Write header: time, label_name, label_value, feature1, feature2, ...
+    #                     headers = ['time', 'label_name', 'label_value']
+    #                     # Get all unique feature names across all data points
+    #                     all_features = set()
+    #                     for point in self._ml_data_points:
+    #                         all_features.update(point['features'].keys())
+    #                     headers.extend(sorted(all_features))
+
+    #                     writer.writerow(headers)
+
+    #                     # Write data rows
+    #                     for point in self._ml_data_points:
+    #                         if point['label'] is None:
+    #                             continue  # Skip points without labels
+
+    #                         row = [
+    #                             point['time'],
+    #                             point['label']['name'],
+    #                             str(point['label']['value'])
+    #                         ]
+
+    #                         # Add all feature values (in consistent order)
+    #                         for feature_name in sorted(all_features):
+    #                             row.append(str(point['features'].get(feature_name, '')))
+
+    #                         writer.writerow(row)
+
+    #                 jh.debug(f"Exported {len(self._ml_data_points)} data points to {data_path}")
+    #             except Exception as e:
+    #                 jh.debug(f"Failed to export data: {e}")
+    #                 return False
+
+    #         jh.debug("ML data export completed successfully")
+    #         return True
+
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error during ML data export: {e}")
+    #         return False
+
+    # def get_ml_prediction(self) -> dict:
+    #     """
+    #     Get ML prediction using the most recently recorded features.
+
+    #     Returns:
+    #         Dictionary containing:
+    #         - 'prediction': bool (True/False prediction)
+    #         - 'probability': float (0-1 probability of positive class)
+
+    #     Raises:
+    #         ValueError: If no features have been recorded or model not trained
+    #         FileNotFoundError: If model files are missing (with detailed path info)
+    #     """
+    #     import joblib
+    #     import numpy as np
+    #     import os
+
+    #     # Check if we have features to predict with
+    #     if self._current_ml_point is None or not self._current_ml_point['features']:
+    #         raise ValueError("No features recorded for prediction. Call record_features() first.")
+
+    #     # Method 1: Try to get from the strategy's module path
+    #     try:
+    #         module_path = self.__class__.__module__.replace('.', '/') + '/__init__.py'
+    #         strategy_dir = os.path.dirname(os.path.abspath(module_path))
+    #     except Exception as e:
+    #         strategy_dir = None
+
+    #     # Method 2: Try current working directory
+    #     if not strategy_dir or not os.path.exists(os.path.join(strategy_dir, "svm_model.pkl")):
+    #         strategy_dir = os.getcwd()
+
+    #     # Method 3: Try parent directory if we're in __pycache__
+    #     if "__pycache__" in strategy_dir:
+    #         strategy_dir = os.path.dirname(strategy_dir)
+
+    #     # Final verification of directory
+    #     if not os.path.isdir(strategy_dir):
+    #         raise FileNotFoundError(
+    #             f"Could not determine strategy directory. Tried: {strategy_dir}. "
+    #             "Please ensure you're running from the strategy directory."
+    #         )
+
+    #     # Detailed path information
+    #     model_path = os.path.join(strategy_dir, "svm_model.pkl")
+    #     scaler_path = os.path.join(strategy_dir, "scaler.pkl")
+
+    #     # Check what files actually exist
+    #     existing_files = [f for f in os.listdir(strategy_dir) if not f.startswith('.')]
+    #     jh.debug(f"[ML DEBUG] Searching in directory: {strategy_dir}")
+    #     jh.debug(f"[ML DEBUG] Files found: {existing_files}")
+    #     jh.debug(f"[ML DEBUG] Looking for: svm_model.pkl, scaler.pkl")
+
+    #     # Verify model files exist
+    #     if not os.path.exists(model_path):
+    #         raise FileNotFoundError(
+    #             f"Model file NOT FOUND at: {model_path}\n"
+    #             f"Current directory: {os.getcwd()}\n"
+    #             f"Files in strategy dir ({strategy_dir}): {existing_files}"
+    #         )
+    #     if not os.path.exists(scaler_path):
+    #         raise FileNotFoundError(
+    #             f"Scaler file NOT FOUND at: {scaler_path}\n"
+    #             f"Current directory: {os.getcwd()}\n"
+    #             f"Files in strategy dir ({strategy_dir}): {existing_files}"
+    #         )
+
+    #     # Load model and scaler
+    #     try:
+    #         svm_model = joblib.load(model_path)
+    #         scaler = joblib.load(scaler_path)
+    #     except Exception as e:
+    #         raise FileNotFoundError(
+    #             f"Failed to load model files from {strategy_dir}\n"
+    #             f"Error: {str(e)}\n"
+    #             f"Files in directory ({strategy_dir}): {existing_files}"
+    #         )
+
+    #     # Get current features
+    #     current_features = self._current_ml_point['features']
+
+    #     # Create feature array from current features
+    #     # We'll use the same order as when training (alphabetical)
+    #     sorted_features = sorted(current_features.keys())
+    #     feature_array = np.array([
+    #         current_features[feature] for feature in sorted_features
+    #     ]).reshape(1, -1)
+
+    #     # Scale and predict
+    #     try:
+    #         feature_array_scaled = scaler.transform(feature_array)
+    #         prediction = svm_model.predict(feature_array_scaled)[0]
+    #         probabilities = svm_model.predict_proba(feature_array_scaled)[0]
+
+    #         return {
+    #             'prediction': bool(prediction),
+    #             'probability': float(probabilities[1])
+    #         }
+    #     except Exception as e:
+    #         raise ValueError(f"Prediction failed: {e}. Check feature consistency with training data.")
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
@@ -171,7 +405,7 @@ class Strategy(ABC):
         is just a workaround as a part of not being able to set them inside
         self.__init__() for the purpose of removing __init__() methods from strategies.
         """
-        self.position = selectors.get_position(self.exchange, self.symbol)
+        self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None and len(self.hyperparameters()) > 0:
@@ -184,14 +418,14 @@ class Strategy(ABC):
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
 
     @property
     def _qty_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
     def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
@@ -355,7 +589,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -377,7 +611,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -833,7 +1067,17 @@ class Strategy(ABC):
         Simulate market order execution in backtest mode
         """
         if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
-            store.orders.execute_pending_market_orders()
+            if not store.orders.to_execute:
+                return
+
+            for o in store.orders.to_execute:
+                order_service.execute_order(o)
+                
+                # Update order in database for paper trading
+                if jh.is_paper_trading():
+                    order_repository.store_or_update(o)
+
+            store.orders.to_execute = []
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -883,17 +1127,27 @@ class Strategy(ABC):
         """
         pass
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order: Order, closed_trade: ClosedTrade) -> None:
         """
-        What should happen after the open position order has been executed
+        What should happen after the close position order has been executed. The closed_trade is trade that has been closed.
+
+        Arguments:
+            order: Order -- the order that has been executed
+            closed_trade: ClosedTrade -- the trade that has been closed
         """
         pass
 
-    def _on_close_position(self, order: Order):
+    def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
+        
+        # get the last closed trade
+        closed_trade = store.closed_trades.trades[-1]
+
         self._broadcast('route-close-position')
         self._execute_cancel()
-        self.on_close_position(order)
+
+        # call the on_close_position event
+        self.on_close_position(order, closed_trade)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -1010,7 +1264,10 @@ class Strategy(ABC):
 
         # fake execution of market orders in backtest simulation
         if not jh.is_live():
-            store.orders.execute_pending_market_orders()
+            if store.orders.to_execute:
+                for o in store.orders.to_execute:
+                    order_service.execute_order(o)
+                store.orders.to_execute = []
 
         if jh.is_live():
             self.terminate()
@@ -1063,7 +1320,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
+        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
     def open(self) -> float:
@@ -1137,7 +1394,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+        return candle_service.get_candles(self.exchange, self.symbol, self.timeframe)
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
@@ -1149,7 +1406,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(exchange, symbol, timeframe)
+        return candle_service.get_candles(exchange, symbol, timeframe)
 
     @property
     def metrics(self) -> dict:
@@ -1158,7 +1415,7 @@ class Strategy(ABC):
         """
         if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
-                store.completed_trades.trades, store.app.daily_balance, final=False
+                store.closed_trades.trades, store.app.daily_balance, final=False
             )
         return self._cached_metrics[self.trades_count]
 
@@ -1188,7 +1445,7 @@ class Strategy(ABC):
 
     @property
     def fee_rate(self) -> float:
-        return selectors.get_exchange(self.exchange).fee_rate
+        return store.exchanges.get_exchange(self.exchange).fee_rate
 
     @property
     def is_long(self) -> bool:
@@ -1245,7 +1502,7 @@ class Strategy(ABC):
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
-            current_exchange = selectors.get_exchange(self.exchange)
+            current_exchange = store.exchanges.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
@@ -1347,7 +1604,7 @@ class Strategy(ABC):
         elif type(self.position.exchange) is FuturesExchange:
             return self.position.exchange.futures_leverage
         else:
-            raise ValueError('exchange type not supported!')
+            raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
 
     @property
     def mark_price(self) -> float:
@@ -1412,9 +1669,9 @@ class Strategy(ABC):
     @property
     def trades(self) -> List[ClosedTrade]:
         """
-        Returns all the completed trades for this strategy.
+        Returns all the closed trades for this strategy.
         """
-        return store.completed_trades.trades
+        return store.closed_trades.trades
 
     @property
     def orders(self) -> List[Order]:
@@ -1428,25 +1685,25 @@ class Strategy(ABC):
         """
         Returns all the entry orders for this position.
         """
-        return store.orders.get_entry_orders(self.exchange, self.symbol)
+        return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
     def exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_exit_orders(self.exchange, self.symbol)
+        return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
     def active_exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
+        return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):
-        return selectors.get_exchange(self.exchange).type
+        return store.exchanges.get_exchange(self.exchange).type
 
     @property
     def is_spot_trading(self) -> bool:
@@ -1481,4 +1738,7 @@ class Strategy(ABC):
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        try:
+            return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        except KeyError:
+            return None

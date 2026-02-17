@@ -8,7 +8,7 @@ from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
@@ -373,6 +373,28 @@ def get_session_strategy_codes(session_id: str, authorization: Optional[str] = H
         'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     })
 
+@router.post("/sessions/{session_id}/logs")
+def get_session_logs(session_id: str, authorization: Optional[str] = Header(None)):
+    """
+    Get the logs for an optimization session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import data_provider
+
+    content = data_provider.get_optimization_logs(session_id)
+
+    if content is None:
+        return JSONResponse({
+            'error': 'Log file not found'
+        }, status_code=404)
+
+    return JSONResponse({
+        'logs': content
+    })
+
+
 @router.post("/purge-sessions")
 def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
     """
@@ -380,12 +402,25 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-    
+
     days_old = request_json.get('days_old', None)
-    
+
     deleted_count = purge_optimization_sessions(days_old)
-    
+
     return JSONResponse({
         'message': f'Successfully purged {deleted_count} session(s)',
         'deleted_count': deleted_count
     }, status_code=200)
+
+
+@router.get("/running-session")
+def get_running_session(authorization: Optional[str] = Header(None)):
+    """
+    Get the running session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    return JSONResponse({
+        'session_id': get_running_optimization_session_id()
+    })

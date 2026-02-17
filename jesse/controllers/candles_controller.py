@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Header
 from starlette.responses import JSONResponse
-
+from jesse.repositories import candle_repository
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson
@@ -91,11 +91,9 @@ def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONRes
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-
-    from jesse.services.candle import get_existing_candles
     
     try:
-        data = get_existing_candles()
+        data = candle_repository.get_existing_candles()
         return JSONResponse({'data': data}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -109,10 +107,8 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.candle import delete_candles
-    
     try:
-        delete_candles(json_request.exchange, json_request.symbol)
+        candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
         return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)

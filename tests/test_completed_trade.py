@@ -5,14 +5,14 @@ import numpy as np
 
 
 def test_completed_trade_in_a_simple_strategy():
-    assert store.completed_trades.trades == []
+    assert store.closed_trades.trades == []
 
     single_route_backtest('CanAddClosedTradeToStore')
 
-    assert len(store.completed_trades.trades) == 1
-    assert store.completed_trades.count == 1
+    assert len(store.closed_trades.trades) == 1
+    assert store.closed_trades.count == 1
 
-    t: ClosedTrade = store.completed_trades.trades[0]
+    t: ClosedTrade = store.closed_trades.trades[0]
 
     assert t.entry_price == 10
     assert t.exit_price == 15

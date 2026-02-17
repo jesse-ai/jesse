@@ -3,6 +3,11 @@ from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.OptimizationSession import OptimizationSession
 from jesse.models.BacktestSession import BacktestSession
 from jesse.models.MonteCarloSession import MonteCarloSession
+from jesse.models.LiveSession import LiveSession
+from jesse.models.Order import Order
+from jesse.enums import live_session_statuses
+from jesse.repositories import order_repository, live_session_repository
+from jesse.services.multiprocessing import process_manager
 import json
 import math
 import jesse.helpers as jh
@@ -147,6 +152,7 @@ def get_optimization_session_for_load_more(session: OptimizationSession) -> dict
         'traceback': session.traceback,
         'title': session.title,
         'description': session.description,
+        'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     }
 
 
@@ -154,18 +160,20 @@ def get_backtest_session(session: BacktestSession) -> dict:
     """
     Transform a BacktestSession model instance into a dictionary for API responses (listing)
     """
-    return {
+    result = {
         'id': str(session.id),
         'status': session.status,
         'created_at': session.created_at,
         'updated_at': session.updated_at,
         'execution_duration': session.execution_duration,
         'net_profit_percentage': session.net_profit_percentage,
-        'state': json.loads(session.state) if session.state else None,
+        'state': session.state_json if session.state else None,
         'title': session.title,
         'description': session.description,
         'strategy_codes': session.strategy_codes_json
     }
+
+    return jh.clean_nan_values(jh.clean_infinite_values(result))
 
 
 def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
@@ -178,7 +186,7 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
     trades = jh.clean_infinite_values(json.loads(session.trades)) if session.trades else []
     hyperparameters = jh.clean_infinite_values(json.loads(session.hyperparameters)) if session.hyperparameters else None
     
-    return {
+    result = {
         'id': str(session.id),
         'status': session.status,
         'metrics': metrics,
@@ -196,6 +204,52 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
         'description': session.description,
         'strategy_codes': session.strategy_codes_json
     }
+
+    return jh.clean_nan_values(jh.clean_infinite_values(result))
+
+
+def get_live_session(session: LiveSession) -> dict:
+    """
+    Transform a LiveSession model instance into a dictionary for API responses.
+    Reconciles status with actual worker state.
+    """
+    try:
+        is_active = str(session.id) in process_manager.active_workers
+    except Exception:
+        is_active = False
+
+    status = (session.status or '').lower()
+    
+    # Reconcile status: if DB says starting/running but worker is not active, mark as stopped
+    if status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active:
+        status = live_session_statuses.STOPPED
+        # Update DB to reflect the reconciled status
+        try:
+            live_session_repository.update_live_session_status(str(session.id), live_session_statuses.STOPPED)
+            if not session.finished_at:
+                from jesse.models.LiveSession import LiveSession
+                LiveSession.update(finished_at=jh.now_to_timestamp(True)).where(LiveSession.id == session.id).execute()
+        except Exception as e:
+            jh.debug(f"Error reconciling live session status: {str(e)}")
+
+    result = {
+        'id': str(session.id),
+        'status': status or session.status,
+        'is_active': is_active,
+        'session_mode': session.session_mode,
+        'exchange': session.exchange,
+        'created_at': session.created_at,
+        'updated_at': session.updated_at,
+        'finished_at': session.finished_at,
+        'state': json.loads(session.state) if session.state else None,
+        'title': session.title,
+        'description': session.description,
+        'strategy_codes': session.strategy_codes_json,
+        'exception': session.exception,
+        'traceback': session.traceback
+    }
+
+    return jh.clean_nan_values(jh.clean_infinite_values(result))
 
 
 def get_monte_carlo_session(session: MonteCarloSession) -> dict:
@@ -359,3 +413,85 @@ def get_monte_carlo_session_for_load_more(session: MonteCarloSession) -> dict:
         'description': session.description,
         'state': session.state_json,
     }
+
+
+def get_closed_trade_for_list(trade) -> dict:
+    """
+    Transform a ClosedTrade model instance for list view
+    """
+    result = {
+        'id': str(trade.id),
+        'symbol': trade.symbol,
+        'exchange': trade.exchange,
+        'type': trade.type,
+        'entry_price': trade.entry_price,
+        'exit_price': trade.exit_price if trade.closed_at else None,
+        'qty': trade.qty,
+        'pnl': trade.pnl if trade.closed_at else None,
+        'pnl_percentage': trade.pnl_percentage if trade.closed_at else None,
+        'opened_at': trade.opened_at,
+        'closed_at': trade.closed_at,
+        'status': 'closed' if trade.closed_at else 'open'
+    }
+    
+    return jh.clean_nan_values(jh.clean_infinite_values(result))
+
+
+def get_closed_trade_details(trade) -> dict:
+    """
+    Transform a ClosedTrade model instance for detailed view with orders
+    """
+    # Get all orders for this trade
+    orders: list[Order] = order_repository.find_by_trade_id(trade.id)
+    orders_list = [get_order_details(order) for order in orders]
+    
+    result = {
+        'id': str(trade.id),
+        'symbol': trade.symbol,
+        'type': trade.type,
+        'entry_price': trade.entry_price,
+        'exit_price': trade.exit_price if trade.closed_at else None,
+        'qty': trade.qty,
+        'pnl': trade.pnl if trade.closed_at else None,
+        'pnl_percentage': trade.pnl_percentage if trade.closed_at else None,
+        'opened_at': trade.opened_at,
+        'closed_at': trade.closed_at,
+        'status': 'closed' if trade.closed_at else 'open',
+        'strategy_name': jh.get_class_name(trade.strategy_name),
+        'exchange': trade.exchange,
+        'timeframe': trade.timeframe,
+        'leverage': trade.leverage,
+        'fee': trade.fee if trade.closed_at else None,
+        'size': trade.size,
+        'holding_period': trade.holding_period if trade.closed_at else None,
+        'orders': orders_list
+    }
+    
+    return jh.clean_nan_values(jh.clean_infinite_values(result))
+
+
+def get_order_details(order) -> dict:
+    """
+    Transform an Order model instance for detail/list view
+    """
+    result = {
+        'id': str(order.id),
+        'trade_id': str(order.trade_id) if order.trade_id else None,
+        'exchange_id': order.exchange_id,
+        'symbol': order.symbol,
+        'exchange': order.exchange,
+        'side': order.side,
+        'type': order.type,
+        'qty': order.qty,
+        'filled_qty': order.filled_qty,
+        'price': order.price,
+        'status': order.status,
+        'reduce_only': order.reduce_only,
+        'created_at': order.created_at,
+        'executed_at': order.executed_at,
+        'canceled_at': order.canceled_at,
+        'submitted_via': order.submitted_via,
+        'fee': order.fee
+    }
+    
+    return jh.clean_nan_values(jh.clean_infinite_values(result))

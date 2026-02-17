@@ -1,20 +1,16 @@
-# silent (pandas) warnings
 import warnings
-from typing import List, Any, Union, Dict, Optional
-
-import numpy as np
+from typing import List, Any, Union, Dict
 import pandas as pd
-from peewee import CharField, FloatField
-
 import jesse.helpers as jh
 from jesse.config import config
 from jesse.routes import router
 from jesse.services import metrics as stats
-from jesse.services import selectors
-from jesse.services.candle import is_bullish
 from jesse.store import store
 from jesse.models import Position
+from jesse.services import candle_service
 
+
+# silent (pandas) warnings
 warnings.filterwarnings("ignore")
 
 
@@ -34,7 +30,7 @@ def positions() -> list:
             'opened_at': p.opened_at,
             'qty': p.qty,
             'value': p.value,
-            'entry': p.entry_price,
+            'entry': None if p.is_close else p.entry_price,
             'current_price': p.current_price,
             'liquidation_price': p.liquidation_price,
             'pnl': p.pnl,
@@ -59,17 +55,9 @@ def candles() -> dict:
             'timeframe': e.timeframe
         })
 
-    # # add data_routes
-    # for e in router.data_candles:
-    #     candle_keys.append({
-    #         'exchange': e['exchange'],
-    #         'symbol': e['symbol'],
-    #         'timeframe': e['timeframe']
-    #     })
-
     for k in candle_keys:
         try:
-            c = store.candles.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
+            c = candle_service.get_current_candle(k['exchange'], k['symbol'], k['timeframe'])
             key = jh.key(k['exchange'], k['symbol'], k['timeframe'])
             candles_dict[key] = {
                 'time': int(c[0] / 1000),
@@ -106,8 +94,8 @@ def livetrade():
         break
 
     # short trades summary
-    if len(store.completed_trades.trades):
-        df = pd.DataFrame.from_records([t.to_dict for t in store.completed_trades.trades])
+    if len(store.closed_trades.trades):
+        df = pd.DataFrame.from_records([t.to_dict for t in store.closed_trades.trades])
         total = len(df)
         winning_trades = len(df.loc[df['PNL'] > 0])
         losing_trades = len(df.loc[df['PNL'] < 0])
@@ -150,16 +138,16 @@ def livetrade():
 
 
 def portfolio_metrics() -> Union[dict, None]:
-    if store.completed_trades.count == 0:
+    if store.closed_trades.count == 0:
         return None
 
-    return stats.trades(store.completed_trades.trades, store.app.daily_balance)
+    return stats.trades(store.closed_trades.trades, store.app.daily_balance)
 
 
 def trades() -> List[dict]:
-    if store.completed_trades.count == 0:
+    if store.closed_trades.count == 0:
         return []
-    return [t.to_dict_with_orders for t in store.completed_trades.trades]
+    return [t.to_dict_with_orders for t in store.closed_trades.trades]
 
 
 def info() -> List[List[Union[str, Any]]]:

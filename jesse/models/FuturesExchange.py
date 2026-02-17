@@ -3,11 +3,11 @@ from numba import njit
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.enums import sides, order_types
+from jesse.enums import sides
 from jesse.exceptions import InsufficientMargin
-from jesse.models import Order
-from jesse.services import selectors
+from jesse.models.Order import Order
 from jesse.models.Exchange import Exchange
+from jesse.store import store
 
 
 class FuturesExchange(Exchange):
@@ -62,7 +62,7 @@ class FuturesExchange(Exchange):
             if asset == self.settlement_currency:
                 continue
 
-            position = selectors.get_position(self.name, f"{asset}-{self.settlement_currency}")
+            position = store.positions.get_position(self.name, f"{asset}-{self.settlement_currency}")
             if position and position.is_open:
                 # Adding the cost of open positions
                 total_spent += position.total_cost

@@ -96,7 +96,12 @@ class OptimizationSession(peewee.Model):
         """
         if not self.state:
             return {}
-        return json.loads(self.state)
+        s = json.loads(self.state)
+        if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
+            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                if key in s['form']:
+                    s['form'][key] = jh.normalize_bool(s['form'].get(key))
+        return s
     
     @state_json.setter
     def state_json(self, state_data):
@@ -254,9 +259,10 @@ def get_optimization_session(id: str) -> dict:
 
 def get_optimization_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None) -> list:
     """
-    Returns a list of OptimizationSession objects sorted by most recently updated
+    Returns a list of OptimizationSession objects sorted by most recently updated.
+    Excludes draft sessions by default.
     """
-    query = OptimizationSession.select().order_by(OptimizationSession.updated_at.desc())
+    query = OptimizationSession.select().where(OptimizationSession.status != 'draft').order_by(OptimizationSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -294,9 +300,42 @@ def delete_optimization_session(id: str) -> bool:
         return False
 
 
-def update_optimization_session_state(id: str, state: dict) -> None:
+def update_optimization_session_state(id: str, state: dict, strategy_codes: dict = None) -> None:
+    """
+    Update or create (upsert) optimization session state. If session doesn't exist, creates as draft.
+    """
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
+    existing = OptimizationSession.select().where(OptimizationSession.id == id).first()
+    
+    if existing:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+
+        if strategy_codes is not None:
+            d['strategy_codes'] = json.dumps(strategy_codes)
+        OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    else:
+        # Create new draft session
+        d = {
+            'id': id,
+            'status': 'draft',
+            'state': json.dumps(state),
+            'completed_trials': 0,
+            'total_trials': 0,
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        OptimizationSession.insert(**d).execute()
+
+
+def update_optimization_session_notes(id: str, title: str = None, description: str = None, strategy_codes: dict = None) -> None:
     d = {
-        'state': json.dumps(state),
         'updated_at': jh.now_to_timestamp(True)
     }
     
@@ -323,16 +362,16 @@ def update_optimization_session_notes(id: str, title: str = None, description: s
 def purge_optimization_sessions(days_old: int = None) -> int:
     try:
         current_timestamp = jh.now_to_timestamp(True)
-        
+
         if days_old is not None:
             days_old = int(days_old)
-        
+
         if days_old is not None and days_old > 0:
             threshold = current_timestamp - (days_old * 24 * 60 * 60 * 1000)
-            
+
             all_sessions = OptimizationSession.select()
             sessions_to_delete = []
-            
+
             for session in all_sessions:
                 try:
                     session_updated_at = int(session.updated_at) if session.updated_at else 0
@@ -340,7 +379,7 @@ def purge_optimization_sessions(days_old: int = None) -> int:
                         sessions_to_delete.append(session.id)
                 except (ValueError, TypeError):
                     continue
-            
+
             deleted_count = 0
             for session_id in sessions_to_delete:
                 try:
@@ -350,8 +389,18 @@ def purge_optimization_sessions(days_old: int = None) -> int:
                     pass
         else:
             deleted_count = OptimizationSession.delete().execute()
-        
+
         return deleted_count
     except Exception as e:
         print(f"Error purging optimization sessions: {e}")
         return 0
+
+
+def get_running_optimization_session_id():
+    try:
+        session = OptimizationSession.select().where(OptimizationSession.status == 'running').order_by(OptimizationSession.updated_at.desc()).first()
+        if session:
+            return str(session.id)
+        return None
+    except Exception as e:
+        raise e

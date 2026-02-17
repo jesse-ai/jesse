@@ -3,6 +3,9 @@ from jesse.services import logger as jesse_logger
 import threading
 import traceback
 from jesse.services.redis import sync_publish
+from jesse.repositories import live_session_repository
+from jesse.store import store
+from jesse.enums import live_session_statuses
 
 
 def register_custom_exception_handler() -> None:
@@ -23,6 +26,18 @@ def register_custom_exception_handler() -> None:
                 jesse_logger.info(
                     str(traceback.format_exc())
                 )
+                
+                # Store exception in live session
+                try:
+                    live_session_repository.store_live_session_exception(
+                        store.app.session_id,
+                        f"{args.exc_type.__name__}: {str(args.exc_value)}",
+                        str(traceback.format_exc())
+                    )
+                    live_session_repository.update_live_session_status(store.app.session_id, live_session_statuses.STOPPED)
+                    live_session_repository.update_live_session_finished(store.app.session_id)
+                except Exception as e:
+                    jh.debug(f'Error storing live session exception: {e}')
 
             sync_publish('exception', {
                 'error': f"{args.exc_type.__name__}: {str(args.exc_value)}",

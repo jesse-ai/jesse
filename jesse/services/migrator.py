@@ -1,7 +1,6 @@
 from jesse.services.db import database
 from playhouse.migrate import *
 from jesse.enums import migration_actions
-import click
 
 
 def run():
@@ -21,7 +20,7 @@ def run():
     # run migrations
     _candle(migrator)
     _completed_trade(migrator)
-    _daily_balance(migrator)
+    _closed_trade(migrator)
     _log(migrator)
     _order(migrator)
     _orderbook(migrator)
@@ -32,8 +31,8 @@ def run():
     _monte_carlo_session(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, Option
-    database.db.create_tables([Candle, ClosedTrade, Log, Order])
+    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot])
 
     database.close_connection()
 
@@ -58,12 +57,20 @@ def _completed_trade(migrator):
         _migrate(migrator, fields, completedtrade_columns, 'completedtrade')
 
 
-def _daily_balance(migrator):
-    fields = []
+def _closed_trade(migrator):
+    fields = [
+        {'action': migration_actions.ADD, 'name': 'session_id', 'type': UUIDField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'created_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'updated_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'session_mode', 'type': CharField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'soft_deleted_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ALLOW_NULL, 'name': 'closed_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD_INDEX, 'indexes': ('session_id',), 'is_unique': False},
+    ]
 
-    if 'dailybalance' in database.db.get_tables():
-        dailybalance_columns = database.db.get_columns('dailybalance')
-        _migrate(migrator, fields, dailybalance_columns, 'dailybalance')
+    if 'closedtrade' in database.db.get_tables():
+        closedtrade_columns = database.db.get_columns('closedtrade')
+        _migrate(migrator, fields, closedtrade_columns, 'closedtrade')
 
 
 def _log(migrator):
@@ -76,14 +83,13 @@ def _log(migrator):
 
 def _order(migrator):
     fields = [
-        # {'name': 'session_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ADD},
-        # {'name': 'trade_id', 'type': UUIDField(index=True, null=True), 'action': migration_actions.ALLOW_NULL},
-        # {'name': 'exchange_id', 'type': CharField(null=True), 'action': migration_actions.ALLOW_NULL},
-        # {'name': 'price', 'type': FloatField(null=True), 'action': migration_actions.ALLOW_NULL},
-        # {'name': 'flag', 'type': CharField(default=False), 'action': migration_actions.DROP},
-        # {'name': 'role', 'type': CharField(default=False), 'action': migration_actions.DROP},
-        # {'name': 'filled_qty', 'type': FloatField(default=0), 'action': migration_actions.ADD},
-        # {'name': 'reduce_only', 'type': BooleanField(default=False), 'action': migration_actions.ADD},
+        {'action': migration_actions.ADD, 'name': 'updated_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'session_mode', 'type': CharField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'jesse_submitted', 'type': BooleanField(default=True)},
+        {'action': migration_actions.ADD, 'name': 'submitted_via', 'type': CharField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'order_exist_in_exchange', 'type': BooleanField(default=True)},
+        {'action': migration_actions.ADD, 'name': 'fee', 'type': FloatField(null=True)},
+        {'action': migration_actions.ADD_INDEX, 'indexes': ('session_id',), 'is_unique': False},
     ]
 
     if 'order' in database.db.get_tables():
@@ -194,16 +200,22 @@ def _migrate(migrator, fields, columns, table):
                     print(
                         f"'{field['name']}' field's type was successfully changed to {field['type']} in the '{table}' table.")
                 elif field['action'] == migration_actions.ALLOW_NULL:
-                    migrate(
-                        migrator.drop_not_null(table, field['name'])
-                    )
-                    print(f"'{field['name']}' column successfully updated to accept nullable values in the '{table}' table.")
+                    # Check if column is already nullable
+                    column = next(item for item in columns if item.name == field['name'])
+                    if not column.null:
+                        migrate(
+                            migrator.drop_not_null(table, field['name'])
+                        )
+                        print(f"'{field['name']}' column successfully updated to accept nullable values in the '{table}' table.")
                 elif field['action'] == migration_actions.DENY_NULL:
-                    migrate(
-                        migrator.add_not_null(table, field['name'])
-                    )
-                    print(
-                        f"'{field['name']}' column successfully updated to accept to reject nullable values in the '{table}' table.")
+                    # Check if column is already non-nullable
+                    column = next(item for item in columns if item.name == field['name'])
+                    if column.null:
+                        migrate(
+                            migrator.add_not_null(table, field['name'])
+                        )
+                        print(
+                            f"'{field['name']}' column successfully updated to accept to reject nullable values in the '{table}' table.")
             # if column name doesn't not already exist
             else:
                 if field['action'] == migration_actions.ADD:

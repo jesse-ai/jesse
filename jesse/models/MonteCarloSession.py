@@ -58,7 +58,12 @@ class MonteCarloSession(peewee.Model):
     def state_json(self):
         if not self.state:
             return {}
-        return json.loads(self.state)
+        s = json.loads(self.state)
+        if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
+            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                if key in s['form']:
+                    s['form'][key] = jh.normalize_bool(s['form'].get(key))
+        return s
 
     @state_json.setter
     def state_json(self, state_data):
@@ -210,9 +215,10 @@ def get_monte_carlo_session_by_id(id: str):
 
 def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None):
     """
-    Returns a list of MonteCarloSession objects sorted by most recently updated
+    Returns a list of MonteCarloSession objects sorted by most recently updated.
+    Excludes draft sessions by default.
     """
-    query = MonteCarloSession.select().order_by(MonteCarloSession.updated_at.desc())
+    query = MonteCarloSession.select().where(MonteCarloSession.status != 'draft').order_by(MonteCarloSession.updated_at.desc())
     
     # Apply title filter (case-insensitive)
     if title_search:
@@ -242,6 +248,10 @@ def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str
 
 
 def store_monte_carlo_session(id: str, status: str, state: dict = None, strategy_codes: dict = None) -> None:
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
     d = {
         'id': id,
         'status': status,
@@ -264,12 +274,35 @@ def update_monte_carlo_session_status(id: str, status: str) -> None:
     MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
 
 
-def update_monte_carlo_session_state(id: str, state: dict) -> None:
-    d = {
-        'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp(True)
-    }
-    MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
+def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict = None) -> None:
+    """
+    Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
+    """
+    if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
+        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            if key in state['form']:
+                state['form'][key] = jh.normalize_bool(state['form'].get(key))
+    existing = MonteCarloSession.select().where(MonteCarloSession.id == id).first()
+    
+    if existing:
+        # Update existing session's state
+        d = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        if strategy_codes is not None:
+            d['strategy_codes'] = json.dumps(strategy_codes)
+        MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
+    else:
+        # Create new draft session
+        d = {
+            'id': id,
+            'status': 'draft',
+            'state': json.dumps(state),
+            'created_at': jh.now_to_timestamp(True),
+            'updated_at': jh.now_to_timestamp(True)
+        }
+        MonteCarloSession.insert(**d).execute()
 
 
 def delete_monte_carlo_session(id: str) -> bool:
@@ -350,6 +383,15 @@ def purge_monte_carlo_sessions(days_old: int = None) -> int:
         print(f"Error purging Monte Carlo sessions: {e}")
         return 0
 
+
+def get_running_monte_carlo_session_id():
+    try:
+        session = MonteCarloSession.select().where(MonteCarloSession.status == 'running').order_by(MonteCarloSession.updated_at.desc()).first()
+        if session:
+            return str(session.id)
+        return None
+    except Exception as e:
+        raise e
 
 # Trades Session Functions
 def get_trades_session_by_parent_id(parent_id: str):

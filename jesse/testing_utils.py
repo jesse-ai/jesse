@@ -45,6 +45,7 @@ def get_downtrend_candles(candles_count=100):
 
 def set_up(is_futures_trading=True, leverage=1, leverage_mode='cross', fee=0):
     reset_config()
+
     config['env']['exchanges'][exchanges.SANDBOX]['balance'] = 10_000
 
     config['env']['exchanges']['Sandbox']['fee'] = fee

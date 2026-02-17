@@ -11,7 +11,7 @@ def tradingview_logs(study_name: str) -> str:
     )
 
     tv_text = f'//@version=4\nstrategy("{study_name}", overlay=true, initial_capital={starting_balance}, commission_type=strategy.commission.percent, commission_value=0.2)\n'
-    for i, t in enumerate(store.completed_trades.trades[::-1][:]):
+    for i, t in enumerate(store.closed_trades.trades[::-1][:]):
         tv_text += '\n'
         for j, o in enumerate(t.orders):
             when = f"time_close == {int(o.executed_at)}"

@@ -5,14 +5,19 @@ import peewee
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
 from jesse.info import live_trading_exchanges, backtesting_exchanges
+from jesse.repositories import candle_repository
+from jesse.services import candle_service
+from typing import List, Dict
+import csv
+import io
+from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+from jesse.services.db import database
+from fastapi.responses import StreamingResponse
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
     from jesse.services.db import database
     database.open_connection()
-
-    from jesse.services.candle import generate_candle_from_one_minutes
-    from jesse.models.Candle import fetch_candles_from_db
 
     if 'hyperliquid' not in exchange.lower():
         symbol = symbol.upper()
@@ -38,7 +43,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
         timeframe_to_fetch = timeframe
 
     candles = np.array(
-        fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
+        candle_repository.fetch_candles_from_db(exchange, symbol, timeframe_to_fetch, start_date, finish_date)
     )
 
     # if there are no candles in the database, return []
@@ -57,7 +62,7 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
             generated_candles = []
             for i in range(len(candles)):
                 if (i + 1) % one_min_count == 0:
-                    bigger_candle = generate_candle_from_one_minutes(
+                    bigger_candle = candle_service.generate_candle_from_one_minutes(
                         timeframe,
                         candles[(i - (one_min_count - 1)):(i + 1)],
                         True
@@ -172,6 +177,150 @@ def download_file(mode: str, file_type: str, session_id: str = None):
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
 
 
+def download_api_keys():
+    try:
+        database.open_connection()
+
+        api_keys = list(ExchangeApiKeys.select())
+        if not api_keys:
+            database.close_connection()
+            return StreamingResponse(
+                io.StringIO("No API keys found"),
+                media_type='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=api-keys.csv'}
+            )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        # Prepare the CSV data
+        headers = ['Name', 'Exchange', 'API Key', 'API Secret', 'api_passphrase', 'wallet_address', 'stark_private_key']
+        writer.writerow(headers)
+
+        for api_key in api_keys:
+            additional_fields = api_key.get_additional_fields()
+            row = [
+                api_key.name,
+                api_key.exchange_name,
+                api_key.api_key,
+                api_key.api_secret,
+                additional_fields['api_passphrase'] if 'api_passphrase' in additional_fields else None,
+                additional_fields['wallet_address'] if 'wallet_address' in additional_fields else None,
+                additional_fields['stark_private_key'] if 'stark_private_key' in additional_fields else None
+            ]
+            writer.writerow(row)
+
+        database.close_connection()
+
+        # Return the CSV as a streaming response
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=api-keys.csv'}
+        )
+    except Exception as e:
+        database.close_connection()
+        raise e
+
+
+def validate_csv_content(content: str) -> bool:
+    """
+    Basic validation: header names + no obvious malicious patterns.
+    """
+    try:
+        # Reject obvious SQL‑injection patterns
+        sql_patterns = [
+            ';--', '/*', '*/', 'xp_', 'sp_',
+            'union ', 'select ', 'insert ', 'update ',
+            'delete ', 'drop ', 'alter ', 'create '
+        ]
+        if any(p.lower() in content.lower() for p in sql_patterns):
+            return False
+
+        # Reject suspicious control chars
+        if any(c in content for c in ['\0', '\x01', '\x1a']):
+            return False
+
+        reader = csv.DictReader(io.StringIO(content))
+        required_columns = {
+            'Name',
+            'Exchange',
+            'API Key',
+            'API Secret'
+        }
+        # Case‑insensitive comparison
+        header_set = {h.strip().lower() for h in reader.fieldnames or []}
+        if not all(col.lower() in header_set for col in required_columns):
+            return False
+
+        return True
+    except Exception:
+        return False
+
+
+def import_api_keys_from_csv(content: str) -> Dict[str, any]:
+    """
+    Import API keys from CSV content string.
+    Returns a dict with success flag and summary info.
+    """
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+    from jesse.services.db import database
+
+    try:
+        database.open_connection()
+        reader = csv.DictReader(io.StringIO(content))
+        imported_names: list[str] = []
+
+        # Keep track of existing names to avoid duplicates
+        existing_names = {k.name for k in ExchangeApiKeys.select(ExchangeApiKeys.name)}
+
+        for row in reader:
+            name = (row.get('Name') or '').strip()
+            if not name or name in existing_names:
+                continue
+
+            exchange = (row.get('Exchange') or '').strip()
+            api_key = (row.get('API Key') or '').strip()
+            api_secret = (row.get('API Secret') or '').strip()
+
+            # Skip rows with missing mandatory fields
+            if not all([name, exchange, api_key, api_secret]):
+                continue
+            
+            additional_fields = {}
+
+            if row.get('api_passphrase'):
+                additional_fields = {
+                    'api_passphrase': (row.get('api_passphrase') or '').strip(),
+                    'wallet_address': (row.get('wallet_address') or '').strip(),
+                    'stark_private_key': (row.get('stark_private_key') or '').strip()
+                }
+
+            # Persist
+            exchange_api_key: ExchangeApiKeys = ExchangeApiKeys.create(
+                id=jh.generate_unique_id(),
+                exchange_name=exchange,
+                name=name,
+                api_key=api_key,
+                api_secret=api_secret,
+                additional_fields=json.dumps(additional_fields),
+                created_at=jh.now_to_datetime(),
+                general_notifications_id=None,
+                error_notifications_id=None
+            )
+
+            imported_names.append(name)
+
+        database.close_connection()
+        return {
+            'success': True,
+            'imported_count': len(imported_names),
+        }
+    except Exception as e:
+        database.close_connection()
+        return {'success': False, 'error': str(e)}
+
+
 def get_backtest_logs(session_id: str):
     path = f"storage/logs/backtest-mode/{session_id}.txt"
 
@@ -192,7 +341,17 @@ def get_monte_carlo_logs(session_id: str):
 
     with open(path, 'r') as f:
         content = f.read()
-            
+    return content
+
+
+def get_optimization_logs(session_id: str):
+    path = f'storage/logs/optimize-mode/{session_id}.txt'
+
+    if not os.path.exists(path):
+        return None
+
+    with open(path, 'r') as f:
+        content = f.read()
     return content
 
 
@@ -201,10 +360,10 @@ def download_backtest_log(session_id: str):
     Returns the log file for a specific backtest session as a downloadable file
     """
     path = f'storage/logs/backtest-mode/{session_id}.txt'
-    
+
     if not os.path.exists(path):
         raise Exception('Log file not found')
-        
+
     filename = f'backtest-{session_id}.txt'
     return FileResponse(
         path=path,

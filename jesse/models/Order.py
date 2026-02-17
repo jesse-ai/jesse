@@ -1,10 +1,6 @@
 from playhouse.postgres_ext import *
 
 import jesse.helpers as jh
-import jesse.services.logger as logger
-import jesse.services.selectors as selectors
-from jesse.config import config
-from jesse.services.notifier import notify
 from jesse.enums import order_statuses, order_submitted_via
 from jesse.services.db import database
 
@@ -33,11 +29,14 @@ class Order(Model):
     price = FloatField(null=True)
     status = CharField(default=order_statuses.ACTIVE)
     created_at = BigIntegerField()
+    updated_at = BigIntegerField()
     executed_at = BigIntegerField(null=True)
     canceled_at = BigIntegerField(null=True)
-
-    # needed in Jesse, but no need to store in database(?)
-    submitted_via = None
+    session_mode = CharField()
+    jesse_submitted = BooleanField(default=True)
+    submitted_via = CharField(null=True)
+    order_exist_in_exchange = BooleanField(default=True)
+    fee = FloatField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -45,7 +44,7 @@ class Order(Model):
         database = database.db
         indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
 
-    def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
+    def __init__(self, attributes: dict = None, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
 
         if attributes is None:
@@ -53,35 +52,6 @@ class Order(Model):
 
         for a, value in attributes.items():
             setattr(self, a, value)
-
-        if self.created_at is None:
-            self.created_at = jh.now_to_timestamp()
-
-        # if jh.is_live():
-        #     from jesse.store import store
-            # self.session_id = store.app.session_id
-            # self.save(force_insert=True)
-
-        if not should_silent:
-            if jh.is_live():
-                self.notify_submission()
-
-            if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
-                txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-                if self.price:
-                    txt += f', ${jh.format_price(self.price)}'
-                logger.info(txt)
-
-        # handle exchange balance for ordered asset
-        e = selectors.get_exchange(self.exchange)
-        e.on_order_submission(self)
-
-    def notify_submission(self) -> None:
-        if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
-            txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${jh.format_price(self.price)}'
-            notify(txt)
 
     @property
     def is_canceled(self) -> bool:
@@ -137,6 +107,7 @@ class Order(Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'trade_id': self.trade_id,
             'session_id': self.session_id,
             'exchange_id': self.exchange_id,
             'symbol': self.symbol,
@@ -149,11 +120,14 @@ class Order(Model):
             'created_at': self.created_at,
             'canceled_at': self.canceled_at,
             'executed_at': self.executed_at,
+            'exchange': self.exchange,
+            'reduce_only': self.reduce_only,
+            'submitted_via': self.submitted_via,
+            'jesse_submitted': self.jesse_submitted,
+            'order_exist_in_exchange': self.order_exist_in_exchange,
+            'updated_at': self.updated_at,
+            'session_mode': self.session_mode,
         }
-
-    @property
-    def position(self):
-        return selectors.get_position(self.exchange, self.symbol)
 
     @property
     def value(self) -> float:
@@ -163,156 +137,6 @@ class Order(Model):
     def remaining_qty(self) -> float:
         return jh.prepare_qty(abs(self.qty) - abs(self.filled_qty), self.side)
 
-    def queue(self):
-        self.status = order_statuses.QUEUED
-        self.canceled_at = None
-        if jh.is_debuggable('order_submission'):
-            txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${jh.format_price(self.price)}'
-                logger.info(txt)
-        self.notify_submission()
 
-    def resubmit(self):
-        # don't allow resubmission if the order is already active or cancelled
-        if not self.is_queued:
-            raise NotSupportedError(f'Cannot resubmit an order that is not queued. Current status: {self.status}')
-
-        # regenerate the order id to avoid errors on the exchange's side
-        self.id = jh.generate_unique_id()
-        self.status = order_statuses.ACTIVE
-        self.canceled_at = None
-        if jh.is_debuggable('order_submission'):
-            txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${jh.format_price(self.price)}'
-                logger.info(txt)
-        self.notify_submission()
-
-    def cancel(self, silent=False, source='') -> None:
-        if self.is_canceled or self.is_executed:
-            return
-
-        # to fix when the cancelled stream's lag causes cancellation of queued orders
-        if source == 'stream' and self.is_queued:
-            return
-
-        self.canceled_at = jh.now_to_timestamp()
-        self.status = order_statuses.CANCELED
-
-        # if jh.is_live():
-        #     self.save()
-
-        if not silent:
-            txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${jh.format_price(self.price)}'
-            if jh.is_debuggable('order_cancellation'):
-                logger.info(txt)
-            if jh.is_live():
-                if config['env']['notifications']['events']['cancelled_orders']:
-                    notify(txt)
-
-        # handle exchange balance
-        e = selectors.get_exchange(self.exchange)
-        e.on_order_cancellation(self)
-
-    def execute(self, silent=False) -> None:
-        if self.is_canceled or self.is_executed:
-            return
-
-        self.executed_at = jh.now_to_timestamp()
-        self.status = order_statuses.EXECUTED
-
-        # if jh.is_live():
-        #     self.save()
-
-        if not silent:
-            txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
-            if self.price:
-                txt += f', ${jh.format_price(self.price)}'
-            # log
-            if jh.is_debuggable('order_execution'):
-                logger.info(txt)
-            # notify
-            if jh.is_live():
-                if config['env']['notifications']['events']['executed_orders']:
-                    notify(txt)
-
-        # log the order of the trade for metrics
-        from jesse.store import store
-        store.completed_trades.add_executed_order(self)
-
-        # handle exchange balance for ordered asset
-        e = selectors.get_exchange(self.exchange)
-        e.on_order_execution(self)
-
-        p = selectors.get_position(self.exchange, self.symbol)
-        if p:
-            p._on_executed_order(self)
-
-    def execute_partially(self, silent=False) -> None:
-        self.executed_at = jh.now_to_timestamp()
-        self.status = order_statuses.PARTIALLY_FILLED
-
-        # if jh.is_live():
-        #     self.save()
-
-        if not silent:
-            txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {jh.format_price(self.price)}"
-            # log
-            if jh.is_debuggable('order_execution'):
-                logger.info(txt)
-            # notify
-            if jh.is_live():
-                if config['env']['notifications']['events']['executed_orders']:
-                    notify(txt)
-
-        # log the order of the trade for metrics
-        from jesse.store import store
-        store.completed_trades.add_executed_order(self)
-
-        p = selectors.get_position(self.exchange, self.symbol)
-
-        if p:
-            p._on_executed_order(self)
-
-
-# if database is open, create the table
 if database.is_open():
     Order.create_table()
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# # # # # # # # # DB FUNCTIONS # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-def store_order_into_db(order) -> None:
-    return
-    from jesse.models.Order import Order
-
-    d = {
-        'id': order.id,
-        'trade_id': order.trade_id,
-        'exchange_id': order.exchange_id,
-        'vars': order.vars,
-        'symbol': order.symbol,
-        'exchange': order.exchange,
-        'side': order.side,
-        'type': order.type,
-        'reduce_only': order.reduce_only,
-        'qty': order.qty,
-        'filled_qty': order.filled_qty,
-        'price': order.price,
-        'status': order.status,
-        'created_at': order.created_at,
-        'executed_at': order.executed_at,
-        'canceled_at': order.canceled_at,
-    }
-
-    def async_save() -> None:
-        Order.insert(**d).execute()
-        if jh.is_debugging():
-            logger.info(f'Stored the executed order record for {order.exchange}-{order.symbol} into database.')
-
-    # async call
-    threading.Thread(target=async_save).start()

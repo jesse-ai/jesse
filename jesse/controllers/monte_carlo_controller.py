@@ -21,7 +21,8 @@ from jesse.models.MonteCarloSession import (
     delete_monte_carlo_session,
     get_monte_carlo_session_by_id,
     update_monte_carlo_session_notes,
-    purge_monte_carlo_sessions
+    purge_monte_carlo_sessions,
+    get_running_monte_carlo_session_id
 )
 from jesse.services.transformers import get_monte_carlo_session, get_monte_carlo_session_for_load_more
 from jesse.modes.monte_carlo_mode import run as run_monte_carlo
@@ -62,9 +63,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
         }, status_code=400)
 
     # Generate unique session ID if not provided
-    session_id = request_json.id or jh.generate_unique_id()
-    
-    
+    session_id = request_json.id or jh.generate_unique_id()    
 
     # Check if session already exists
     existing_session = get_monte_carlo_session_by_id(session_id)
@@ -451,3 +450,14 @@ def purge_sessions(request_json: dict, authorization: Optional[str] = Header(Non
     }, status_code=200)
 
 
+@router.get("/running-session")
+def get_running_session(authorization: Optional[str] = Header(None)):
+    """
+    Get the running session
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    return JSONResponse({
+        'session_id': get_running_monte_carlo_session_id()
+    })

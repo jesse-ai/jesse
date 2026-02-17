@@ -85,7 +85,7 @@ def run(
     if existing_session:
         # Session exists, update it for resuming
         update_optimization_session_status(session_id, 'running')
-        update_optimization_session_state(session_id, state)
+        update_optimization_session_state(session_id, state, strategy_codes)
 
         if jh.is_debugging():
             jh.debug(f"Resuming existing optimization session with ID: {session_id}")

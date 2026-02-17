@@ -7,6 +7,7 @@ from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.services import auth as authenticator
 from jesse.services.redis import sync_redis
 from jesse.services.web import ExchangeSupportedSymbolsRequestJson, StoreExchangeApiKeyRequestJson, DeleteExchangeApiKeyRequestJson
+from jesse.services.env import is_dev_env
 
 
 router = APIRouter(prefix="/exchange", tags=["Exchange"])
@@ -16,6 +17,13 @@ router = APIRouter(prefix="/exchange", tags=["Exchange"])
 def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
+    
+    # if is_dev_env():
+    #     return JSONResponse({
+    #         'data': [    
+    #             'BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'DOGE-USDT'
+    #         ]
+    #     }, status_code=200)
 
     return get_exchange_supported_symbols(request_json.exchange)
 

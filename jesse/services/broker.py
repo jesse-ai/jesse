@@ -3,7 +3,7 @@ from typing import Union
 import jesse.helpers as jh
 from jesse.enums import sides
 from jesse.exceptions import OrderNotAllowed, InvalidStrategy
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.models import Position
 
 

@@ -1,0 +1,1 @@
+import{Q as t,C as s,g as o,R as a,j as n}from"./DqOwpkBS.js";const d={},c={class:"text-center rounded border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-4 text-sm"};function _(r,e){return o(),s("div",c,[a(r.$slots,"default",{},()=>[e[0]||(e[0]=n("span",{class:"text-gray-400"}," Empty ",-1))])])}const l=t(d,[["render",_]]);export{l as _};

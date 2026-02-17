@@ -1,7 +1,6 @@
 from jesse.strategies import Strategy
 from jesse import utils
-import jesse.helpers as jh
-from jesse.services import selectors
+from jesse.store import store
 
 
 class TestProperBalanceHanldingInSpotAfterOrderCancellation(Strategy):
@@ -9,7 +8,7 @@ class TestProperBalanceHanldingInSpotAfterOrderCancellation(Strategy):
         # after the first trade
         if self.price == 89:
             assert self.balance == 9900
-            e = selectors.get_exchange(self.exchange)
+            e = store.exchanges.get_exchange(self.exchange)
             assert e.assets['USDT'] == 9900
             assert e.assets['BTC'] == 0
         
