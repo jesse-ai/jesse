@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union, Optional
-import os
-import joblib
-import csv
+# import os
+# import joblib
+# import csv
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -54,7 +54,7 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self.trade: ClosedTrade = None
+        self.trade: ClosedTrade | None = None
         self.trades_count = 0
 
         # chart variables
@@ -72,7 +72,7 @@ class Strategy(ABC):
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position = None
+        self.position: Position | None = None
         self.broker = None
 
         self._cached_methods = {}
