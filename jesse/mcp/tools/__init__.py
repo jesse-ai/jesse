@@ -38,11 +38,6 @@ from jesse.mcp.tools.config import register_config_tools
 from jesse.mcp.tools.candles import register_candles_tools
 from jesse.mcp.tools.indicator import register_indicator_tools
 
-# Global variable to store the Jesse API URL
-# Will be set by the MCP server (server.py) before tools are registered
-JESSE_API_URL = None
-JESSE_PASSWORD = None
-
 def register_tools(mcp):
     """
     Register all tools for the MCP server.

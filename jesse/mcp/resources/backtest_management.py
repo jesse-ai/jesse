@@ -28,6 +28,8 @@ def register_backtest_management_resources(mcp):
 
             This reference covers the complete set of tools for creating, managing, and running backtests with Jesse.
 
+            **Note**: If you encounter strategy code errors during backtesting, consult `jesse://strategy-development-issues` for troubleshooting common strategy development problems.
+
             ## Tool Reference
 
             ### create_backtest_draft()
@@ -132,18 +134,27 @@ def register_backtest_management_resources(mcp):
 
             ### run_backtest()
 
-            Executes a backtest using provided configuration.
+            Executes a backtest using stored session configuration.
+
+            Automatically loads the current backtest configuration from the database
+            and merges it with the session form data.
 
             Parameters:
             - `session_id`: UUID of the backtest session to run
-            - `config`: Configuration object from `get_backtest_config()['config']`
             - `timeout_seconds` (optional): Maximum wait time (default: 24 hours)
 
+            **Workflow**:
+            ```python
+            # Simply pass session_id - config is auto-loaded
+            result = run_backtest(session_id)
+            ```
+
             Process:
-            1. Parses configuration and merges with session form data
-            2. Validates against BacktestRequestJson model
-            3. Starts backtest execution
-            4. Monitors progress via WebSocket events
+            1. Loads current backtest configuration from database
+            2. Parses configuration and merges with session form data
+            3. Validates against BacktestRequestJson model
+            4. Starts backtest execution
+            5. Monitors progress via WebSocket events
 
             Returns: Success message with metrics or error details
 
@@ -222,11 +233,8 @@ def register_backtest_management_resources(mcp):
 
             ### Running Backtests
             ```python
-            # Get configuration
-            config = get_backtest_config()
-
-            # Execute backtest
-            result = run_backtest("550e8400-e29b-41d4-a716-446655440000", config['config'])
+            # Config is automatically loaded from database
+            result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
 
             # Check results
             session_details = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
@@ -273,10 +281,64 @@ def register_backtest_management_resources(mcp):
 
             Common error scenarios and recovery:
 
-            - Invalid Routes: Check for unique exchange-symbol pairs
+            ### Invalid Routes Error
+
+            **Error**: `InvalidRoutes: each exchange-symbol pair can be traded only once`
+
+            **Cause**: Multiple routes with the same exchange and symbol in a single backtest.
+
+            **Problematic Configuration**:
+            ```json
+            "routes": [
+                {"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "1h"},
+                {"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}
+            ]
+            ```
+
+            **Solution**: Run separate backtests for different timeframes of the same symbol.
+
+            **Correct Approach**:
+            ```python
+            # Backtest 1: 1h timeframe
+            draft1 = create_backtest_draft(
+                routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "1h"}]'
+            )
+
+            # Backtest 2: 4h timeframe
+            draft2 = create_backtest_draft(
+                routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]'
+            )
+            ```
+
+            ### Strategy Execution Errors
+
+            **Error**: `Setting self.take_profit in go_long() not supported for spot trading`
+
+            **Cause**: Attempting to set stop_loss/take_profit in go_long() for spot trading.
+
+            **Solution**: Use `update_position()` method for spot trading exits.
+
+            **Error**: `Strategy.get_candles() missing required positional argument`
+
+            **Cause**: Attempting to access multi-timeframe data within a single strategy.
+
+            **Solution**: Jesse strategies run on one timeframe. Use separate backtests for multi-timeframe analysis.
+
+            ### Configuration Loading Error
+
+            **Error**: `Failed to load backtest config: [error message]`
+
+            **Cause**: Database connectivity issue or corrupted configuration.
+
+            **Solution**: Check Jesse database status and configuration validity.
+
+            **Note**: For comprehensive strategy development troubleshooting, see `jesse://strategy-development-issues`
+
+            ### Other Common Errors
+
             - Missing Data: Import candle data before backtesting
-            - Configuration Errors: Check JSON structure
-            - Timeout Issues: Adjust timeout_seconds parameter
+            - Configuration Errors: Check JSON structure and parameter formats
+            - Timeout Issues: Adjust timeout_seconds parameter (default: 86400 = 24 hours)
             - State Conflicts: Retrieve current state before updates
 
             ## Best Practices
