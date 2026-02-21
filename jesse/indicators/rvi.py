@@ -44,7 +44,10 @@ def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1
     up_avg = ma(up, period=ma_len, matype=matype, sequential=True)
     down_avg = ma(down, period=ma_len, matype=matype, sequential=True)
 
-    result = 100 * (up_avg / (up_avg + down_avg))
+    # Avoid division by zero
+    denominator = up_avg + down_avg
+    with np.errstate(divide='ignore', invalid='ignore'):
+        result = np.where(denominator != 0, 100 * (up_avg / denominator), 50)
 
     return result if sequential else result[-1]
 

@@ -1,7 +1,7 @@
 import time
 
 import click
-import pkg_resources
+from importlib.metadata import version as get_version
 import uvicorn
 
 import jesse.helpers as jh
@@ -10,7 +10,7 @@ from jesse.services.web import fastapi_app
 
 
 @click.group()
-@click.version_option(pkg_resources.get_distribution("jesse").version)
+@click.version_option(get_version("jesse"))
 def cli() -> None:
     """CLI entrypoint for Jesse."""
     pass
@@ -42,7 +42,7 @@ def run() -> None:
  ╚════╝ ╚══════╝╚══════╝╚══════╝╚══════╝
                                         
     """
-    version = pkg_resources.get_distribution("jesse").version
+    version = get_version("jesse")
     print(welcome_message)
     print(f"Main Framework Version: {version}")
 

@@ -1,5 +1,6 @@
 import warnings
-import pkg_resources
+from contextlib import asynccontextmanager
+from importlib.resources import files as importlib_files
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services.web import fastapi_app
@@ -13,7 +14,18 @@ from jesse.cli import cli
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # get the jesse directory
-JESSE_DIR = pkg_resources.resource_filename(__name__, '')
+JESSE_DIR = str(importlib_files(__name__))
+
+# define lifespan (replaces deprecated @on_event("shutdown"))
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    from jesse.services.db import database
+    database.close_connection()
+    from jesse.services.lsp import terminate_lsp_server
+    terminate_lsp_server()
+
+fastapi_app.router.lifespan_context = lifespan
 
 # load homepage
 @fastapi_app.get("/")
@@ -21,13 +33,8 @@ async def index():
     return FileResponse(f"{JESSE_DIR}/static/index.html")
 
 
-@fastapi_app.on_event("shutdown")
-def shutdown_event():
-    from jesse.services.db import database
-    database.close_connection()
-    # terminate the lsp server
-    from jesse.services.lsp import terminate_lsp_server
-    terminate_lsp_server()
+
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #

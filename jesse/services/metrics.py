@@ -133,7 +133,12 @@ def calmar_ratio(returns):
     if years == 0:
         return pd.Series([0.0])
 
-    cagr_ratio = (last_value / first_value) ** (1 / years) - 1
+    # Prevent overflow by limiting the ratio
+    ratio = last_value / first_value
+    # Clip ratio to prevent overflow in power calculation
+    ratio = np.clip(ratio, 1e-10, 1e10)
+    with np.errstate(over='ignore', under='ignore'):
+        cagr_ratio = ratio ** (1 / years) - 1
 
     # Calculate Max Drawdown using cumulative returns
     cum_returns = (1 + returns).cumprod()
@@ -211,8 +216,13 @@ def cagr(returns, rf=0.0, compounded=True, periods=365):
     if years == 0:
         return pd.Series([0.0])
 
+    # Prevent overflow by limiting the ratio
+    ratio = last_value / first_value
+    # Clip ratio to prevent overflow in power calculation
+    ratio = np.clip(ratio, 1e-10, 1e10)
     # Calculate CAGR using quantstats formula
-    result = (last_value / first_value) ** (1 / years) - 1
+    with np.errstate(over='ignore', under='ignore'):
+        result = ratio ** (1 / years) - 1
 
     return pd.Series([result])
 
