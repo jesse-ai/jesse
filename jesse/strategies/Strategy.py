@@ -143,15 +143,11 @@ class Strategy(ABC):
         import csv
 
         try:
-            # Debug: Check if we have data to export
-            jh.debug(f"Exporting ML data - Data points: {len(self._ml_data_points)}")
-
             # Determine output directory
             if directory is None:
                 try:
                     module = sys.modules[self.__class__.__module__]
                     directory = os.path.dirname(os.path.abspath(module.__file__))
-                    jh.debug(f"Detected strategy directory: {directory}")
                 except Exception as e:
                     jh.debug(f"Could not determine strategy path, using cwd: {e}")
                     directory = os.getcwd()
@@ -160,9 +156,8 @@ class Strategy(ABC):
             try:
                 ml_dir = os.path.join(directory, "ml_data")
                 os.makedirs(ml_dir, exist_ok=True)
-                jh.debug(f"Using output directory: {ml_dir}")
             except Exception as e:
-                jh.debug(f"Failed to create directory {ml_dir}: {e}")
+                jh.debug(f"Failed to create ml_data directory: {e}")
                 return False
 
             # Export data points
@@ -199,12 +194,10 @@ class Strategy(ABC):
 
                             writer.writerow(row)
 
-                    jh.debug(f"Exported {len(self._ml_data_points)} data points to {data_path}")
                 except Exception as e:
-                    jh.debug(f"Failed to export data: {e}")
+                    jh.debug(f"Failed to export ML data: {e}")
                     return False
 
-            jh.debug("ML data export completed successfully")
             return True
 
         except Exception as e:
