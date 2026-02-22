@@ -5,6 +5,7 @@ import os
 import joblib
 import csv
 import numpy as np
+import sys
 import jesse.helpers as jh
 import jesse.services.logger as logger
 from jesse import exceptions
@@ -217,11 +218,6 @@ class Strategy(ABC):
             ValueError: If no features have been recorded or model not trained
             FileNotFoundError: If model files are missing (with detailed path info)
         """
-        import joblib
-        import numpy as np
-        import os
-        import sys
-
         # Check if we have features to predict with
         if self._current_ml_point is None or not self._current_ml_point['features']:
             raise ValueError("No features recorded for prediction. Call record_features() first.")
