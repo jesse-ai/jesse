@@ -1,6 +1,6 @@
+import os
 import warnings
 from contextlib import asynccontextmanager
-from importlib.resources import files as importlib_files
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services.web import fastapi_app
@@ -14,7 +14,7 @@ from jesse.cli import cli
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # get the jesse directory
-JESSE_DIR = str(importlib_files(__name__))
+JESSE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # define lifespan (replaces deprecated @on_event("shutdown"))
 @asynccontextmanager
