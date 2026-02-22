@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union, Optional
-import os
-import joblib
-import csv
+# import os
+# import joblib
+# import csv
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -64,11 +64,11 @@ class Strategy(ABC):
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
 
-        # Variables used for ML calculations
-        self._ml_data_points = []  # Stores complete data points with features and labels
-        self._current_ml_point = None  # Tracks the currently open data point
-        self._ml_model = None  # Cached loaded model (loaded once on first prediction)
-        self._ml_scaler = None  # Cached loaded scaler (loaded once on first prediction)
+        # # Variables used for ML calculations
+        # self._ml_data_points = []  # Stores complete data points with features and labels
+        # self._current_ml_point = None  # Tracks the currently open data point
+        # self._ml_model = None  # Cached loaded model (loaded once on first prediction)
+        # self._ml_scaler = None  # Cached loaded scaler (loaded once on first prediction)
 
         self._is_executing = False
         self._is_initiated = False
@@ -87,212 +87,212 @@ class Strategy(ABC):
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
 
-    def record_features(self, features_dict: dict) -> None:
-        """
-        Record multiple features (inputs) for ML training at once.
-        These will be the independent variables used to predict outcomes.
+    # def record_features(self, features_dict: dict) -> None:
+    #     """
+    #     Record multiple features (inputs) for ML training at once.
+    #     These will be the independent variables used to predict outcomes.
 
-        Args:
-            features_dict: Dictionary of {feature_name: value} pairs
-                          (e.g., {'rsi_value': 50, 'macd_crossover': True})
-        """
-        # If we don't have an open data point, create one
-        if self._current_ml_point is None:
-            current_time = int(self.current_candle[0] / 1000)
-            self._current_ml_point = {
-                'time': current_time,
-                'features': {},
-                'label': None  # Will be set later when trade completes
-            }
+    #     Args:
+    #         features_dict: Dictionary of {feature_name: value} pairs
+    #                       (e.g., {'rsi_value': 50, 'macd_crossover': True})
+    #     """
+    #     # If we don't have an open data point, create one
+    #     if self._current_ml_point is None:
+    #         current_time = int(self.current_candle[0] / 1000)
+    #         self._current_ml_point = {
+    #             'time': current_time,
+    #             'features': {},
+    #             'label': None  # Will be set later when trade completes
+    #         }
 
-        # Add all features to this data point at once
-        self._current_ml_point['features'].update(features_dict)
+    #     # Add all features to this data point at once
+    #     self._current_ml_point['features'].update(features_dict)
 
-    def record_label(self, name: str, value) -> None:
-        """
-        Record a label (output) for ML training.
-        These are the target variables that the model should predict.
+    # def record_label(self, name: str, value) -> None:
+    #     """
+    #     Record a label (output) for ML training.
+    #     These are the target variables that the model should predict.
 
-        Args:
-            name: Descriptive name of the label (e.g., 'trade_profit', 'win_loss')
-            value: The actual outcome value
-        """
-        # Set the label for the current open data point
-        if self._current_ml_point is not None:
-            self._current_ml_point['label'] = {
-                'name': name,
-                'value': value
-            }
+    #     Args:
+    #         name: Descriptive name of the label (e.g., 'trade_profit', 'win_loss')
+    #         value: The actual outcome value
+    #     """
+    #     # Set the label for the current open data point
+    #     if self._current_ml_point is not None:
+    #         self._current_ml_point['label'] = {
+    #             'name': name,
+    #             'value': value
+    #         }
 
-            # Move this completed data point to our storage and clear the current point
-            self._ml_data_points.append(self._current_ml_point)
-            self._current_ml_point = None
-        else:
-            jh.debug(f"record_label('{name}') called with no open data point — did you forget to call record_features() first?")
+    #         # Move this completed data point to our storage and clear the current point
+    #         self._ml_data_points.append(self._current_ml_point)
+    #         self._current_ml_point = None
+    #     else:
+    #         jh.debug(f"record_label('{name}') called with no open data point — did you forget to call record_features() first?")
 
-    def export_ml_data(self, directory: str = None) -> bool:
-        """
-        Export all recorded features and labels to CSV files.
-        Returns True if export was successful, False otherwise.
+    # def export_ml_data(self, directory: str = None) -> bool:
+    #     """
+    #     Export all recorded features and labels to CSV files.
+    #     Returns True if export was successful, False otherwise.
 
-        Args:
-            directory: Optional output directory. Defaults to strategy location.
-        """
-        import os
-        import sys
-        import csv
+    #     Args:
+    #         directory: Optional output directory. Defaults to strategy location.
+    #     """
+    #     import os
+    #     import sys
+    #     import csv
 
-        try:
-            # Determine output directory
-            if directory is None:
-                try:
-                    module = sys.modules[self.__class__.__module__]
-                    directory = os.path.dirname(os.path.abspath(module.__file__))
-                except Exception as e:
-                    jh.debug(f"Could not determine strategy path, using cwd: {e}")
-                    directory = os.getcwd()
+    #     try:
+    #         # Determine output directory
+    #         if directory is None:
+    #             try:
+    #                 module = sys.modules[self.__class__.__module__]
+    #                 directory = os.path.dirname(os.path.abspath(module.__file__))
+    #             except Exception as e:
+    #                 jh.debug(f"Could not determine strategy path, using cwd: {e}")
+    #                 directory = os.getcwd()
 
-            # Create ml_data subdirectory
-            try:
-                ml_dir = os.path.join(directory, "ml_data")
-                os.makedirs(ml_dir, exist_ok=True)
-            except Exception as e:
-                jh.debug(f"Failed to create ml_data directory: {e}")
-                return False
+    #         # Create ml_data subdirectory
+    #         try:
+    #             ml_dir = os.path.join(directory, "ml_data")
+    #             os.makedirs(ml_dir, exist_ok=True)
+    #         except Exception as e:
+    #             jh.debug(f"Failed to create ml_data directory: {e}")
+    #             return False
 
-            # Export data points
-            if self._ml_data_points:
-                try:
-                    data_path = os.path.join(ml_dir, f"{self.name}_data.csv")
-                    with open(data_path, 'w', newline='') as f:
-                        writer = csv.writer(f)
+    #         # Export data points
+    #         if self._ml_data_points:
+    #             try:
+    #                 data_path = os.path.join(ml_dir, f"{self.name}_data.csv")
+    #                 with open(data_path, 'w', newline='') as f:
+    #                     writer = csv.writer(f)
 
-                        # Write header: time, label_name, label_value, feature1, feature2, ...
-                        headers = ['time', 'label_name', 'label_value']
-                        # Get all unique feature names across all data points
-                        all_features = set()
-                        for point in self._ml_data_points:
-                            all_features.update(point['features'].keys())
-                        headers.extend(sorted(all_features))
+    #                     # Write header: time, label_name, label_value, feature1, feature2, ...
+    #                     headers = ['time', 'label_name', 'label_value']
+    #                     # Get all unique feature names across all data points
+    #                     all_features = set()
+    #                     for point in self._ml_data_points:
+    #                         all_features.update(point['features'].keys())
+    #                     headers.extend(sorted(all_features))
 
-                        writer.writerow(headers)
+    #                     writer.writerow(headers)
 
-                        # Write data rows
-                        for point in self._ml_data_points:
-                            if point['label'] is None:
-                                continue  # Skip points without labels
+    #                     # Write data rows
+    #                     for point in self._ml_data_points:
+    #                         if point['label'] is None:
+    #                             continue  # Skip points without labels
 
-                            row = [
-                                point['time'],
-                                point['label']['name'],
-                                str(point['label']['value'])
-                            ]
+    #                         row = [
+    #                             point['time'],
+    #                             point['label']['name'],
+    #                             str(point['label']['value'])
+    #                         ]
 
-                            # Add all feature values (in consistent order)
-                            for feature_name in sorted(all_features):
-                                row.append(str(point['features'].get(feature_name, '')))
+    #                         # Add all feature values (in consistent order)
+    #                         for feature_name in sorted(all_features):
+    #                             row.append(str(point['features'].get(feature_name, '')))
 
-                            writer.writerow(row)
+    #                         writer.writerow(row)
 
-                except Exception as e:
-                    jh.debug(f"Failed to export ML data: {e}")
-                    return False
+    #             except Exception as e:
+    #                 jh.debug(f"Failed to export ML data: {e}")
+    #                 return False
 
-            return True
+    #         return True
 
-        except Exception as e:
-            jh.debug(f"Unexpected error during ML data export: {e}")
-            return False
+    #     except Exception as e:
+    #         jh.debug(f"Unexpected error during ML data export: {e}")
+    #         return False
 
-    def get_ml_prediction(self) -> dict:
-        """
-        Get ML prediction using the most recently recorded features.
+    # def get_ml_prediction(self) -> dict:
+    #     """
+    #     Get ML prediction using the most recently recorded features.
 
-        Returns:
-            Dictionary containing:
-            - 'prediction': bool (True/False prediction)
-            - 'probability': float (0-1 probability of positive class)
+    #     Returns:
+    #         Dictionary containing:
+    #         - 'prediction': bool (True/False prediction)
+    #         - 'probability': float (0-1 probability of positive class)
 
-        Raises:
-            ValueError: If no features have been recorded or model not trained
-            FileNotFoundError: If model files are missing (with detailed path info)
-        """
-        import joblib
-        import numpy as np
-        import os
-        import sys
+    #     Raises:
+    #         ValueError: If no features have been recorded or model not trained
+    #         FileNotFoundError: If model files are missing (with detailed path info)
+    #     """
+    #     import joblib
+    #     import numpy as np
+    #     import os
+    #     import sys
 
-        # Check if we have features to predict with
-        if self._current_ml_point is None or not self._current_ml_point['features']:
-            raise ValueError("No features recorded for prediction. Call record_features() first.")
+    #     # Check if we have features to predict with
+    #     if self._current_ml_point is None or not self._current_ml_point['features']:
+    #         raise ValueError("No features recorded for prediction. Call record_features() first.")
 
-        # Resolve strategy directory reliably via the module registry
-        try:
-            module = sys.modules[self.__class__.__module__]
-            strategy_dir = os.path.dirname(os.path.abspath(module.__file__))
-        except Exception as e:
-            raise FileNotFoundError(
-                f"Could not determine strategy directory from module '{self.__class__.__module__}': {e}"
-            )
+    #     # Resolve strategy directory reliably via the module registry
+    #     try:
+    #         module = sys.modules[self.__class__.__module__]
+    #         strategy_dir = os.path.dirname(os.path.abspath(module.__file__))
+    #     except Exception as e:
+    #         raise FileNotFoundError(
+    #             f"Could not determine strategy directory from module '{self.__class__.__module__}': {e}"
+    #         )
 
-        # Load model and scaler once and cache them for the lifetime of this strategy instance
-        if self._ml_model is None or self._ml_scaler is None:
-            model_path = os.path.join(strategy_dir, "svm_model.pkl")
-            scaler_path = os.path.join(strategy_dir, "scaler.pkl")
+    #     # Load model and scaler once and cache them for the lifetime of this strategy instance
+    #     if self._ml_model is None or self._ml_scaler is None:
+    #         model_path = os.path.join(strategy_dir, "svm_model.pkl")
+    #         scaler_path = os.path.join(strategy_dir, "scaler.pkl")
 
-            # Check what files actually exist (for helpful error messages)
-            existing_files = [f for f in os.listdir(strategy_dir) if not f.startswith('.')]
-            jh.debug(f"[ML] Loading model from: {strategy_dir}")
+    #         # Check what files actually exist (for helpful error messages)
+    #         existing_files = [f for f in os.listdir(strategy_dir) if not f.startswith('.')]
+    #         jh.debug(f"[ML] Loading model from: {strategy_dir}")
 
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(
-                    f"Model file NOT FOUND at: {model_path}\n"
-                    f"Current directory: {os.getcwd()}\n"
-                    f"Files in strategy dir ({strategy_dir}): {existing_files}"
-                )
-            if not os.path.exists(scaler_path):
-                raise FileNotFoundError(
-                    f"Scaler file NOT FOUND at: {scaler_path}\n"
-                    f"Current directory: {os.getcwd()}\n"
-                    f"Files in strategy dir ({strategy_dir}): {existing_files}"
-                )
+    #         if not os.path.exists(model_path):
+    #             raise FileNotFoundError(
+    #                 f"Model file NOT FOUND at: {model_path}\n"
+    #                 f"Current directory: {os.getcwd()}\n"
+    #                 f"Files in strategy dir ({strategy_dir}): {existing_files}"
+    #             )
+    #         if not os.path.exists(scaler_path):
+    #             raise FileNotFoundError(
+    #                 f"Scaler file NOT FOUND at: {scaler_path}\n"
+    #                 f"Current directory: {os.getcwd()}\n"
+    #                 f"Files in strategy dir ({strategy_dir}): {existing_files}"
+    #             )
 
-            try:
-                self._ml_model = joblib.load(model_path)
-                self._ml_scaler = joblib.load(scaler_path)
-                jh.debug("[ML] Model and scaler loaded and cached successfully")
-            except Exception as e:
-                raise FileNotFoundError(
-                    f"Failed to load model files from {strategy_dir}\n"
-                    f"Error: {str(e)}\n"
-                    f"Files in directory ({strategy_dir}): {existing_files}"
-                )
+    #         try:
+    #             self._ml_model = joblib.load(model_path)
+    #             self._ml_scaler = joblib.load(scaler_path)
+    #             jh.debug("[ML] Model and scaler loaded and cached successfully")
+    #         except Exception as e:
+    #             raise FileNotFoundError(
+    #                 f"Failed to load model files from {strategy_dir}\n"
+    #                 f"Error: {str(e)}\n"
+    #                 f"Files in directory ({strategy_dir}): {existing_files}"
+    #             )
 
-        svm_model = self._ml_model
-        scaler = self._ml_scaler
+    #     svm_model = self._ml_model
+    #     scaler = self._ml_scaler
 
-        # Get current features
-        current_features = self._current_ml_point['features']
+    #     # Get current features
+    #     current_features = self._current_ml_point['features']
 
-        # Create feature array from current features
-        # We'll use the same order as when training (alphabetical)
-        sorted_features = sorted(current_features.keys())
-        feature_array = np.array([
-            current_features[feature] for feature in sorted_features
-        ]).reshape(1, -1)
+    #     # Create feature array from current features
+    #     # We'll use the same order as when training (alphabetical)
+    #     sorted_features = sorted(current_features.keys())
+    #     feature_array = np.array([
+    #         current_features[feature] for feature in sorted_features
+    #     ]).reshape(1, -1)
 
-        # Scale and predict
-        try:
-            feature_array_scaled = scaler.transform(feature_array)
-            prediction = svm_model.predict(feature_array_scaled)[0]
-            probabilities = svm_model.predict_proba(feature_array_scaled)[0]
+    #     # Scale and predict
+    #     try:
+    #         feature_array_scaled = scaler.transform(feature_array)
+    #         prediction = svm_model.predict(feature_array_scaled)[0]
+    #         probabilities = svm_model.predict_proba(feature_array_scaled)[0]
 
-            return {
-                'prediction': bool(prediction),
-                'probability': float(probabilities[1])
-            }
-        except Exception as e:
-            raise ValueError(f"Prediction failed: {e}. Check feature consistency with training data.")
+    #         return {
+    #             'prediction': bool(prediction),
+    #             'probability': float(probabilities[1])
+    #         }
+    #     except Exception as e:
+    #         raise ValueError(f"Prediction failed: {e}. Check feature consistency with training data.")
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
