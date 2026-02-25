@@ -82,6 +82,20 @@ def create_backtest_draft_service(
                 'details': str(e)
             }
 
+        # Set selectedRoute to first route (primary route for UI display)
+        # Jesse runs all routes in a single session, selectedRoute shows which one is active for display
+        # we update the results/selecttedRoute with this object
+        if routes_list and len(routes_list) > 0:
+            first_route = routes_list[0]
+            selected_route = {
+                'symbol': first_route.get('symbol', 'BTC-USDT'),
+                'timeframe': first_route.get('timeframe', '4h'),
+                'strategy': first_route.get('strategy', 'ExampleStrategy')
+            }
+        else:
+            # Fallback to defaults if no routes provided
+            selected_route = {"symbol": "BTC-USDT", "timeframe": "4h", "strategy": "ExampleStrategy"}
+
         # Create complete state structure
         state_dict = {
             'form': {
@@ -110,7 +124,7 @@ def create_backtest_draft_service(
                 'infoLogs': '',
                 'exception': {'error': '', 'traceback': ''},
                 'charts': {'equity_curve': []},
-                'selectedRoute': {"symbol": "BTC-USDT", "timeframe": "4h", "strategy": "ExampleStrategy"},
+                'selectedRoute': selected_route,
                 'alert': {'message': '', 'type': ''},
                 'info': [],
                 'trades': []
@@ -261,7 +275,9 @@ def get_backtest_session_service(session_id: str) -> dict:
         session_id: ID of the backtest session to retrieve
 
     Returns:
-        Backtest session details including status, metrics, trades, etc.
+        dict with 'data' and 'error' fields:
+        - On success: data contains session info, error is None
+        - On error: error contains error message, data is None
     """
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -279,42 +295,48 @@ def get_backtest_session_service(session_id: str) -> dict:
         if response.status_code == 200:
             data = response.json()
             return {
-                'status': 'success',
-                'session': data.get('session', {}),
+                'data': {
+                    'session': data.get('session', {})
+                },
+                'error': None,
                 'message': 'Backtest session retrieved successfully'
             }
         elif response.status_code == 404:
             return {
-                'status': 'error',
+                'data': None,
+                'error': f'Backtest session {session_id} not found',
                 'message': f'Backtest session {session_id} not found'
             }
         elif response.status_code == 401:
             return {
-                'status': 'error',
+                'data': None,
+                'error': 'Authentication failed',
                 'message': 'Authentication failed'
             }
         else:
             return {
-                'status': 'error',
+                'data': None,
+                'error': f'Failed to retrieve backtest session: {response.text}',
                 'message': f'Failed to retrieve backtest session: {response.text}'
             }
 
     except ValueError as e:
         return {
-            'status': 'error',
+            'data': None,
+            'error': str(e),
             'message': str(e)
         }
     except requests.exceptions.RequestException as e:
         return {
-            'status': 'error',
-            'error': str(e),
-            'message': 'Failed to connect to Jesse API'
+            'data': None,
+            'error': f'Failed to connect to Jesse API: {str(e)}',
+            'message': f'Failed to connect to Jesse API: {str(e)}'
         }
     except Exception as e:
         return {
-            'status': 'error',
-            'error': str(e),
-            'message': 'Failed to retrieve backtest session'
+            'data': None,
+            'error': f'Failed to retrieve backtest session: {str(e)}',
+            'message': f'Failed to retrieve backtest session: {str(e)}'
         }
 
 
@@ -526,13 +548,19 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
 
         # Backtest started successfully, now monitor progress via WebSocket events (real-time callbacks)
         print(f"Backtest {session_id} started. Monitoring progress (timeout: {timeout_seconds}s)...")
-        print(f"📊 Progress: 0/? (starting backtest...)")
+        print(f"📊 Progress: 0/100 (starting backtest...)")
 
         from jesse.mcp.ws_listener import register_callback, unregister_callback, is_connected
 
         # Local state for this backtest monitoring session (dashboard approach)
         local_state = {
             'completed': False,
+            'completion_event': None,  # Store the completion event data
+            'results': {
+                'metrics': None,
+                'equity_curve': None,
+                'trades': None,
+            },
             'latest_progress': None,
             'last_printed_progress': 0,  # Start at 0 to match initial print
         }
@@ -551,15 +579,68 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
                 progress = local_state['latest_progress'].get('current', 0)
                 total = local_state['latest_progress'].get('total', 100)
                 estimated_remaining = local_state['latest_progress'].get('estimated_remaining_seconds', 0)
-
+ 
                 # Only print if progress changed
                 if local_state['last_printed_progress'] != progress:
                     print(f"📊 Progress: {progress}/{total} ({estimated_remaining}s remaining)")
                     local_state['last_printed_progress'] = progress
 
-            # Completion events
-            elif event_type in ['backtest.equity_curve', 'backtest.exception', 'backtest.termination', 'backtest.unexpectedTermination']:
-                local_state['completed'] = True
+            # Collect result events (dashboard accumulates these separately)
+            elif event_type == 'backtest.metrics':
+                local_state['results']['metrics'] = event.get('data', {})
+            elif event_type == 'backtest.equity_curve':
+                # Jesse compresses equity_curve data - decompress it like the dashboard does
+                compressed_data = event.get('data', '')
+                if isinstance(compressed_data, str) and compressed_data:
+                    try:
+                        import gzip
+                        import base64
+                        import json
+                        # Decode base64, decompress gzip, parse JSON
+                        decompressed = gzip.decompress(base64.b64decode(compressed_data))
+                        local_state['results']['equity_curve'] = json.loads(decompressed.decode('utf-8'))
+                    except Exception as e:
+                        print(f"Failed to decompress equity_curve: {e}")
+                        local_state['results']['equity_curve'] = []
+                else:
+                    local_state['results']['equity_curve'] = compressed_data if isinstance(compressed_data, list) else []
+                # equity_curve is Jesse's completion signal for successful backtests
+                if not local_state['completed']:
+                    local_state['completed'] = True
+                    local_state['completion_event'] = {
+                        'type': event_type,
+                        'data': local_state['results']['equity_curve'],
+                        'timestamp': time.time()
+                    }
+            elif event_type == 'backtest.trades':
+                # Jesse compresses trades data - decompress it like the dashboard does
+                compressed_data = event.get('data', '')
+                if isinstance(compressed_data, str) and compressed_data:
+                    try:
+                        import gzip
+                        import base64
+                        import json
+                        # Decode base64, decompress gzip, parse JSON
+                        decompressed = gzip.decompress(base64.b64decode(compressed_data))
+                        local_state['results']['trades'] = json.loads(decompressed.decode('utf-8'))
+                    except Exception as e:
+                        print(f"Failed to decompress trades: {e}")
+                        local_state['results']['trades'] = []
+                else:
+                    local_state['results']['trades'] = compressed_data if isinstance(compressed_data, list) else []
+
+            # Error/completion events - capture the event data for processing
+            # IMPORTANT: backtest.exception always fires BEFORE backtest.unexpectedTermination
+            # (see failure.py: publish 'exception' then publish 'unexpectedTermination')
+            # So we must NOT overwrite the first completion event, or we lose the full error details.
+            elif event_type in ['backtest.exception', 'backtest.termination', 'backtest.unexpectedTermination']:
+                if not local_state['completed']:
+                    local_state['completed'] = True
+                    local_state['completion_event'] = {
+                        'type': event_type,
+                        'data': event.get('data', {}),
+                        'timestamp': time.time()
+                    }
 
         # Register callback for real-time events
         register_callback('backtest', event_callback)
@@ -583,26 +664,65 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
 
                 # Check if backtest completed (updated by callback)
                 if local_state['completed']:
-                    # Backtest completed, get final results
-                    final_session = get_backtest_session_service(session_id)
-                    if final_session.get('status') == 'success':
-                        session_data = final_session.get('session', {})
-                        metrics = session_data.get('metrics', {})
+                    # Backtest completed via WebSocket event - use event data instead of database
+                    completion_event = local_state['completion_event']
 
-                        return {
-                            'status': 'success',
-                            'backtest_id': session_id,
-                            'message': f'Backtest completed successfully in {elapsed_time} seconds',
-                            'completion_time_seconds': elapsed_time,
-                            'metrics': metrics,
-                            'session': session_data
-                        }
+                    if completion_event:
+                        event_type = completion_event['type']
+                        event_data = completion_event['data']
+
+                        # Handle completion based on WebSocket event type
+                        if event_type == 'backtest.equity_curve':
+                            # Successful completion - return all collected results
+                            # Jesse signals completion with equity_curve event
+                            results = local_state['results']
+                            return {
+                                'status': 'success',
+                                'backtest_id': session_id,
+                                'message': 'Backtest completed successfully',
+                                'metrics': results['metrics'] or {},
+                                'equity_curve': results['equity_curve'] or [],
+                                'trades': results['trades'] or []
+                            }
+
+                        elif event_type == 'backtest.exception':
+                            # Exception occurred - use WebSocket event data directly
+                            return {
+                                'status': 'error',
+                                'backtest_id': session_id,
+                                'message': 'Backtest failed',
+                                'error_details': event_data
+                            }
+
+                        elif event_type == 'backtest.termination':
+                            # Backtest was cancelled/terminated normally
+                            return {
+                                'status': 'cancelled',
+                                'backtest_id': session_id,
+                                'message': 'Backtest was cancelled'
+                            }
+                        elif event_type == 'backtest.unexpectedTermination':
+                            # This fires AFTER backtest.exception, so this branch is only reached
+                            # if backtest.exception never fired (e.g. exception in main thread, not a worker thread).
+                            # In that case, fall back to the event_data (generic message).
+                            return {
+                                'status': 'error',
+                                'backtest_id': session_id,
+                                'message': 'Backtest failed',
+                                'error_details': event_data if event_data else {'error': 'Unknown exception occurred'}
+                            }
+                        else:
+                            # Unexpected event type
+                            return {
+                                'status': 'error',
+                                'backtest_id': session_id,
+                                'message': f'Unexpected error event: {event_type}'
+                            }
                     else:
                         return {
                             'status': 'error',
                             'backtest_id': session_id,
-                            'message': f'Backtest failed: {final_session.get("message", "Unknown error")}',
-                            'completion_time_seconds': elapsed_time
+                            'message': 'Backtest completed but no event data was captured'
                         }
 
         finally:

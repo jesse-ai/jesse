@@ -11,3 +11,7 @@ The server sets these values before registering tools.
 # Jesse API configuration
 JESSE_API_URL = None
 JESSE_PASSWORD = None
+
+# MCP Server Port & URL
+MCP_PORT = 9002
+MCP_URL = f"http://localhost:{MCP_PORT}/mcp"

@@ -24,8 +24,6 @@ import jesse.helpers as jh
 # Global variable to store the MCP process handle
 MCP_PROCESS = None
 
-# Global variable to store the MCP server port (default: 9002)
-MCP_PORT = 9002
 
 def _signal_handler(signum, frame):
     """Handle termination signals to gracefully shut down the MCP server."""
@@ -53,24 +51,29 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
         Exception: If the server fails to start or exits immediately
     """
     global MCP_PROCESS
-    global MCP_PORT
-    
-    # define the jesse api url
-    jesse_api_url = f"http://{jesse_host}:{jesse_port}"
     
     # Check if the MCP server is already running
     if MCP_PROCESS and MCP_PROCESS.poll() is None:
         print(jh.color("MCP Server is already running", "yellow"))
         return
     
-    # Read the MCP server port and password from the .env file
+    # Update the MCP config
+    import jesse.mcp.mcp_config as mcp_config
+    
+    # define the jesse api url
+    mcp_config.JESSE_API_URL = f"http://{jesse_host}:{jesse_port}"
+    
+    # Read the MCP server port from the .env file, if not set, use the default port (9002)
     from jesse.services.env import ENV_VALUES
     if 'MCP_PORT' in ENV_VALUES:
-        MCP_PORT = int(ENV_VALUES['MCP_PORT'])
+        mcp_config.MCP_PORT = int(ENV_VALUES['MCP_PORT'])
 
-    # Get password from env (required for WebSocket auth)
-    password = ENV_VALUES.get('PASSWORD', '')
-    if not password:
+    # Update the MCP URL
+    mcp_config.MCP_URL = f"http://localhost:{mcp_config.MCP_PORT}/mcp"
+
+    # Update the Jesse password, it is required for WebSocket authentication
+    mcp_config.JESSE_PASSWORD = ENV_VALUES.get('PASSWORD', '')
+    if not mcp_config.JESSE_PASSWORD:
         raise Exception("PASSWORD not found in .env file. Required for MCP WebSocket authentication.")
 
     # Start the MCP server in a separate process and return the process handle
@@ -81,9 +84,9 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
                 [
                     sys.executable, "-m",
                     "jesse.mcp.server",
-                    "--port", str(MCP_PORT),
-                    "--api_url", jesse_api_url,
-                    "--password", password
+                    "--port", str(mcp_config.MCP_PORT),
+                    "--api_url", mcp_config.JESSE_API_URL,
+                    "--password", mcp_config.JESSE_PASSWORD
                 ],
                 # Do not redirect stdout or stderr so MCP output/errors are visible in the terminal
                 shell=False  # since we are using array arguments, we need to set shell to False
@@ -101,7 +104,7 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
             raise Exception(f"MCP server exited immediately with code {process.poll()}")
         
         # If we reach here, the MCP server started successfully
-        print(jh.color("✓ MCP Server is running at http://localhost:" + str(MCP_PORT) + "/mcp", "green"))
+        print(jh.color("✓ MCP Server is running at " + mcp_config.MCP_URL, "green"))
 
         # Set up signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, _signal_handler)   # Ctrl+C

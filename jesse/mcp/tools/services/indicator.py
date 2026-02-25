@@ -16,7 +16,7 @@ from typing import Dict, Any
 from jesse import JESSE_DIR
 
 
-def list_indicators() -> dict:
+def list_indicators_service() -> dict:
     """
     List all available technical indicators in Jesse.
 
@@ -48,12 +48,12 @@ def list_indicators() -> dict:
         }
 
 
-def get_indicator_details(indicator_name: str) -> dict:
+def get_indicator_details_service(indicator_name: str) -> dict:
     """
     Get detailed information about a specific technical indicator.
 
-    This tool provides comprehensive documentation for any Jesse indicator
-    including parameters, return values, usage examples, and implementation details.
+    This tool provides documentation for Jesse indicators by inspecting
+    the function signature and docstring from the imported module.
 
     Args:
         indicator_name: Name of the indicator (e.g., 'rsi', 'macd', 'sma')

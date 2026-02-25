@@ -29,11 +29,6 @@ args = parser.parse_args()
 # Create the MCP server instance
 mcp = FastMCP("Jesse MCP Server", host="127.0.0.1", port=args.port, json_response=True)
 
-# Set the global Jesse API URL and password for tools to access at runtime
-import jesse.mcp.mcp_config as mcp_config
-mcp_config.JESSE_API_URL = args.api_url
-mcp_config.JESSE_PASSWORD = args.password
-
 # Start WebSocket event listener for real-time updates
 from jesse.mcp.ws_listener import start_listener
 listener_started = start_listener(args.api_url, args.password)

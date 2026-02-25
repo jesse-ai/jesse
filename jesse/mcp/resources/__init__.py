@@ -1,46 +1,34 @@
 """
 Jesse MCP Resources Registration Module
 
-This module serves as the central registry for all MCP (Model Context Protocol) resources
-in the Jesse trading framework. It aggregates and registers all resource handlers that
-provide documentation and reference materials for Jesse's various components.
+This module provides dynamic registration of MCP (Model Context Protocol) resources
+for the Jesse trading framework. It automatically discovers and registers all
+documentation files as MCP resources, making Jesse's comprehensive guides and
+reference materials available to MCP clients.
 
-Resources include:
-- Strategy development guides and templates
-- Indicator documentation and usage examples
-- Position sizing and risk management references
-- Utility functions and helper tools
-- Exchange configurations and trading characteristics
-- Backtesting tools and workflow guidance
-- Market data handling procedures
-- Configuration management references
-- Backtest management best practices
+Resource Discovery:
+The system automatically scans this directory for .md files and registers them
+as MCP resources with URIs in the format: jesse://{filename_without_extension}
+
+Available Resources:
+- backtest_management: Complete backtesting workflow and candle import guidance
+- candle_management: Data import procedures and warmup requirements
+- strategy: Strategy development guides and templates
+- indicator_cheatsheet: Technical indicators reference and usage examples
+- position_risk: Position sizing and risk management references
+- utilities: Helper functions and calculation utilities
+- And more documentation files as they are added...
 
 Adding New Resources:
-To add new MCP resources, create a new module in this directory following the pattern:
-
-1. Create a new file: `your_resource.py`
-2. Define a registration function: `register_your_resource_resources(mcp)`
-3. Use the `@mcp.resource("jesse://your-resource-uri")` decorator
-4. Return documentation strings from your resource functions
-5. Import and call your registration function in this module's `register_resources()`
+To add new MCP resources, simply create a new .md file in this directory.
+The system will automatically register it with the URI: jesse://{filename}
 
 Example:
-    def register_custom_resources(mcp):
-        @mcp.resource("jesse://custom-guide")
-        def custom_guide():
-            return "Your custom documentation here"
+    Create `new_feature.md` → Available as `jesse://new_feature`
+
+The dynamic approach ensures all documentation stays current and accessible
+without manual registration code.
 """
-
-from jesse.mcp.resources.strategy import register_strategy_resources
-from jesse.mcp.resources.indicator import register_indicator_resources
-from jesse.mcp.resources.position import register_position_resources
-from jesse.mcp.resources.backtest import register_backtest_resources
-from jesse.mcp.resources.candle import register_data_resources
-from jesse.mcp.resources.configuration import register_config_resources
-from jesse.mcp.resources.backtest_management import register_backtest_management_resources
-from jesse.mcp.resources.utils import register_utils_resources
-
 
 def register_resources(mcp) -> None:
     """
@@ -53,11 +41,29 @@ def register_resources(mcp) -> None:
     Args:
         mcp: The MCP server instance to register resources with
     """
-    register_strategy_resources(mcp)
-    register_indicator_resources(mcp)
-    register_position_resources(mcp)
-    register_backtest_resources(mcp)
-    register_data_resources(mcp)
-    register_config_resources(mcp)
-    register_backtest_management_resources(mcp)
-    register_utils_resources(mcp)
+    # read all the md files and register them as resources for the mcp
+    import os
+    from functools import partial
+
+    def resource_template(content):
+        """Template function for MCP resources."""
+        return content
+
+    for file in os.listdir(os.path.dirname(__file__)):
+        if file.endswith('.md'):
+            with open(os.path.join(os.path.dirname(__file__), file), 'r') as f:
+                content = f.read()
+            resource_name = file.replace('.md', '')
+            uri = f"jesse://{resource_name}"
+
+            # Create unique function for this resource using partial
+            resource_func = partial(resource_template, content)
+            resource_func.__name__ = f"{resource_name}"  # Give it a unique name
+
+            # Apply the MCP resource decorator
+            decorated_func = mcp.resource(uri)(resource_func)
+
+            # Store reference to prevent garbage collection of dynamically created functions
+            # FastMCP only holds weak references to registered resources, so we need to
+            # keep strong references on the MCP instance to prevent premature GC
+            setattr(mcp, f"_resource_{resource_name}", decorated_func)
