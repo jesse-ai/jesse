@@ -299,6 +299,113 @@ def conditional_value_at_risk(returns, sigma=1, confidence=0.95):
     return c_var if ~np.isnan(c_var) else 0
 
 
+def consistency_weighted_return(returns, periods=365):
+    """
+    Calculates the Consistency-Weighted Return (CWR)
+    CWR combines annualized returns with R² (coefficient of determination)
+    to measure both profitability and consistency
+
+    Formula: CWR = Annualized Returns × R²
+    where R² is calculated without intercept (assuming equity curve starts at 0)
+    """
+    if len(returns) < 2:
+        return pd.Series([0.0])
+
+    returns = _prepare_returns(returns)
+
+    # Calculate cumulative returns (equity curve)
+    cumulative_returns = (1 + returns).cumprod()
+
+    # Create x-axis (time index starting from 0)
+    x = np.arange(len(cumulative_returns))
+    y = cumulative_returns.values
+
+    # Calculate R² without intercept
+    # Using the formula: R² = 1 - (SS_res / SS_tot)
+    # where SS_tot is calculated from origin (no intercept)
+    y_mean = y.mean()
+
+    # Fit linear regression without intercept
+    # slope = (x'y) / (x'x)
+    slope = np.dot(x, y) / np.dot(x, x) if np.dot(x, x) != 0 else 0
+    y_pred = slope * x
+
+    # Calculate R² without intercept
+    ss_res = np.sum((y - y_pred) ** 2)
+    ss_tot = np.sum(y ** 2)  # Total sum of squares from origin (no intercept)
+
+    r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+    # Ensure R² is between 0 and 1
+    r_squared = max(0, min(1, r_squared))
+
+    # Calculate annualized returns
+    total_return = cumulative_returns.iloc[-1] - 1
+    days = (returns.index[-1] - returns.index[0]).days
+    years = float(days) / 365 if days > 0 else 1
+
+    if years == 0:
+        annualized_return = 0
+    else:
+        annualized_return = ((1 + total_return) ** (1 / years) - 1)
+
+    # Calculate CWR
+    cwr = annualized_return * r_squared
+
+    return pd.Series([cwr])
+
+
+def enhanced_consistency_weighted_return(returns, periods=365):
+    """
+    Calculates the Enhanced Consistency-Weighted Return (ECWR)
+    ECWR places stronger emphasis on linearity by squaring the R² coefficient
+
+    Formula: ECWR = Annualized Returns × R²²
+    where R² is calculated without intercept (assuming equity curve starts at 0)
+
+    This metric heavily penalizes strategies with irregular equity curves,
+    favoring only those with very consistent, linear growth patterns.
+    """
+    if len(returns) < 2:
+        return pd.Series([0.0])
+
+    returns = _prepare_returns(returns)
+
+    # Calculate cumulative returns (equity curve)
+    cumulative_returns = (1 + returns).cumprod()
+
+    # Create x-axis (time index starting from 0)
+    x = np.arange(len(cumulative_returns))
+    y = cumulative_returns.values
+
+    # Fit linear regression without intercept
+    # slope = (x'y) / (x'x)
+    slope = np.dot(x, y) / np.dot(x, x) if np.dot(x, x) != 0 else 0
+    y_pred = slope * x
+
+    # Calculate R² without intercept
+    ss_res = np.sum((y - y_pred) ** 2)
+    ss_tot = np.sum(y ** 2)  # Total sum of squares from origin (no intercept)
+
+    r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+    # Ensure R² is between 0 and 1
+    r_squared = max(0, min(1, r_squared))
+
+    # Calculate annualized returns
+    total_return = cumulative_returns.iloc[-1] - 1
+    days = (returns.index[-1] - returns.index[0]).days
+    years = float(days) / 365 if days > 0 else 1
+
+    if years == 0:
+        annualized_return = 0
+    else:
+        annualized_return = ((1 + total_return) ** (1 / years) - 1)
+
+    # Calculate ECWR with squared R² for enhanced linearity focus
+    ecwr = annualized_return * (r_squared ** 2)
+
+    return pd.Series([ecwr])
+
+
 def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
     starting_balance = 0
     current_balance = 0
@@ -395,6 +502,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
     serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
+    cwr = np.nan if len(daily_return) < 2 else consistency_weighted_return(daily_return, periods=365).iloc[0]
+    ecwr = np.nan if len(daily_return) < 2 else enhanced_consistency_weighted_return(daily_return, periods=365).iloc[0]
 
     return {
         'total': safe_convert(total_completed, int),
@@ -431,6 +540,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'sortino_ratio': safe_convert(sortino),
         'omega_ratio': safe_convert(omega),
         'serenity_index': safe_convert(serenity),
+        'cwr': safe_convert(cwr),
+        'ecwr': safe_convert(ecwr),
         'total_open_trades': safe_convert(total_open_trades, int),
         'open_pl': safe_convert(open_pl),
         'winning_streak': safe_convert(winning_streak, int),
