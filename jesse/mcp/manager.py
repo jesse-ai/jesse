@@ -76,6 +76,9 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
     if not mcp_config.JESSE_PASSWORD:
         raise Exception("PASSWORD not found in .env file. Required for MCP WebSocket authentication.")
 
+    # Read the MCP_LOG_IN_TERMINAL from the .env file, if not set, use the default value (False)
+    show_logs_in_terminal = ENV_VALUES.get('MCP_LOG_IN_TERMINAL', 'false').strip().lower() == 'true'
+
     # Start the MCP server in a separate process and return the process handle
     try:
         import subprocess
@@ -89,7 +92,10 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
                     "--password", mcp_config.JESSE_PASSWORD
                 ],
                 # Do not redirect stdout or stderr so MCP output/errors are visible in the terminal
-                shell=False  # since we are using array arguments, we need to set shell to False
+                stdout=devnull if not show_logs_in_terminal else None,
+                stderr=devnull if not show_logs_in_terminal else None,
+                # Since we are using array arguments, we need to set shell to False
+                shell=False  
         )
         # Set the global MCP_PROCESS
         MCP_PROCESS = process
