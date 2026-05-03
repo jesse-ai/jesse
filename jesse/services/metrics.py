@@ -376,9 +376,12 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     open_pl = store.app.total_open_pl
 
     # Calculate average trades per day/week/month
-    duration_ms = store.app.ending_time - store.app.starting_time
-    duration_days = duration_ms / (1000 * 60 * 60 * 24)
-    avg_trades_per_day = total_completed / duration_days if duration_days > 0 else 0
+    if store.app.ending_time is not None and store.app.starting_time is not None:
+        duration_ms = store.app.ending_time - store.app.starting_time
+        duration_days = duration_ms / (1000 * 60 * 60 * 24)
+        avg_trades_per_day = total_completed / duration_days if duration_days > 0 else 0
+    else:
+        avg_trades_per_day = 0
     avg_trades_per_week = avg_trades_per_day * 7
     avg_trades_per_month = avg_trades_per_day * 30.44
 
