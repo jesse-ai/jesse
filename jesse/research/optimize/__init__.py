@@ -79,7 +79,7 @@ def optimize(
     optimal_total: int = 200,
     fast_mode: bool = True,
     cpu_cores: Optional[int] = None,
-    n_trials: Optional[int] = None,
+    trials: int = 200,
     objective_function: str = 'sharpe',
     best_candidates_count: int = 20,
     progress_bar: bool = True,
@@ -116,7 +116,9 @@ def optimize(
     :param optimal_total: Target number of trades used in fitness normalisation.
     :param fast_mode: Pass ``True`` to run backtests in fast (no-chart) mode.
 
-    :param n_trials: Total number of trials to run. Defaults to ``solution_len * 200``.
+    :param trials: Number of trials **per hyperparameter**. The total number of
+        trials that will run is ``trials * number_of_hyperparameters``. Defaults
+        to ``200``, which matches the dashboard optimization mode default.
     :param cpu_cores: Number of Ray workers to use. Defaults to 80% of available cores.
     :param objective_function: One of 'sharpe', 'calmar', 'sortino', 'omega'.
     :param best_candidates_count: How many top candidates to keep in the result.
@@ -181,8 +183,8 @@ def optimize(
         cpu_cores = max(MIN_CPU_CORES, min(cpu_cores, available))
 
     # ----------------------------------------------------------- resolve trials
-    if n_trials is None:
-        n_trials = solution_len * 200
+    # Always multiply by solution_len — identical behaviour to the dashboard.
+    n_trials = solution_len * trials
 
     # ----------------------------------------------- create in-memory study
     optuna.logging.set_verbosity(optuna.logging.WARNING)
