@@ -40,10 +40,24 @@ def add_order_record_only(order: Order) -> None:
     used for correct trade-metrics calculations in persistency support for live mode.
     """
     t = store.closed_trades._get_current_trade(order.exchange, order.symbol)
+
+    # Some exchanges (e.g. Binance) report filled_qty as a *cumulative* running total
+    # across partial fills. If we appended that value on every call we'd inflate qty
+    # and therefore PNL. Instead, we track how much has already been recorded for this
+    # order and only append the incremental amount.
+    prev_recorded: float = getattr(order, '_recorded_fill_qty', 0.0)
+    current_fill: float = abs(order.filled_qty or 0.0)
+    incremental: float = current_fill - prev_recorded
+
+    if incremental <= 0:
+        return
+
+    order._recorded_fill_qty = current_fill
+
     if order.side == sides.BUY:
-        t.buy_orders.append(np.array([abs(order.filled_qty), order.price]))
+        t.buy_orders.append(np.array([incremental, order.price]))
     elif order.side == sides.SELL:
-        t.sell_orders.append(np.array([abs(order.filled_qty), order.price]))
+        t.sell_orders.append(np.array([incremental, order.price]))
     else:
         raise Exception(f"Invalid order side: {order.side}")
 
