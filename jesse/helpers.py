@@ -112,7 +112,7 @@ def dashy_symbol(symbol: str) -> str:
             return s
 
     suffixes = [
-        'UST', 'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
+        'UST', 'FDUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
     ]
 
     for suffix in suffixes:

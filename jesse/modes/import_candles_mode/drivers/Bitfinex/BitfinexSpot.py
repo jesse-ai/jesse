@@ -111,7 +111,8 @@ class BitfinexSpot(CandleExchange):
             symbol = s
             # if has : like CELO:USD, remove the : and make it CELOUSD
             if ':' in symbol:
-                symbol = symbol.replace(':', '')
-            arr.append(jh.dashy_symbol(symbol))
+               arr.append(symbol.replace(':', '-'))
+            else:
+                arr.append(jh.dashy_symbol(symbol))
 
         return arr
