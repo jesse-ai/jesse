@@ -696,16 +696,20 @@ def _prepare_routes(
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
 
-        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
-        # first convert DNS string into hyperparameters
-        if len(r.strategy.dna()) > 0 and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(
+        # Determine hyperparameters for this specific route.
+        # External hyperparameters (passed from optimize mode) take priority;
+        # otherwise fall back to the route's own DNA string.
+        # A per-route local variable is used so the loop never leaks one
+        # strategy's decoded HP into the next strategy.
+        route_hp = hyperparameters
+        if route_hp is None and len(r.strategy.dna()) > 0:
+            route_hp = jh.dna_to_hp(
                 r.strategy.hyperparameters(), r.strategy.dna()
             )
 
         # inject hyperparameters sent within the optimize mode
-        if hyperparameters is not None:
-            r.strategy.hp = hyperparameters
+        if route_hp is not None:
+            r.strategy.hp = route_hp
 
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
