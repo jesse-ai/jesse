@@ -1790,3 +1790,11 @@ class Strategy(ABC):
             return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
         except KeyError:
             return None
+
+    @property
+    def base_asset(self) -> str:
+        return jh.base_asset(self.symbol)
+
+    @property
+    def quote_asset(self) -> str:
+        return jh.quote_asset(self.symbol)
