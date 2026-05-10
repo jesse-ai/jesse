@@ -32,9 +32,8 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     finish_date = jh.now(force_fresh=True)
     start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
 
-    # fetch value of generate_candles_from_1m fresh from the database
-    o = Option.get(Option.type == 'config')
-    generate_candles_from_1m: bool = json.loads(o.json)['live']['generate_candles_from_1m']
+    # reuse already-fetched config row
+    generate_candles_from_1m: bool = db_config['live']['generate_candles_from_1m']
 
     # fetch 1m candles from database
     if generate_candles_from_1m:
