@@ -22,15 +22,15 @@ import traceback
 
 @ray.remote
 def ray_evaluate_trial(
-    user_config,
-    formatted_routes,
-    formatted_data_routes,
-    strategy_hp,
+    user_config_ref,
+    formatted_routes_ref,
+    formatted_data_routes_ref,
+    strategy_hp_ref,
     hp,
-    training_warmup_candles,
-    training_candles,
-    testing_warmup_candles,
-    testing_candles,
+    training_warmup_candles_ref,
+    training_candles_ref,
+    testing_warmup_candles_ref,
+    testing_candles_ref,
     optimal_total,
     fast_mode,
     trial_number,
@@ -38,7 +38,15 @@ def ray_evaluate_trial(
 ):
     """Ray remote function to evaluate a trial"""
     try:
-        # Calculate the fitness score using the provided hyperparameters
+        user_config = ray.get(user_config_ref)
+        formatted_routes = ray.get(formatted_routes_ref)
+        formatted_data_routes = ray.get(formatted_data_routes_ref)
+        strategy_hp = ray.get(strategy_hp_ref)
+        training_warmup_candles = ray.get(training_warmup_candles_ref)
+        training_candles = ray.get(training_candles_ref)
+        testing_warmup_candles = ray.get(testing_warmup_candles_ref)
+        testing_candles = ray.get(testing_candles_ref)
+
         score, training_metrics, testing_metrics = get_fitness(
             user_config,
             formatted_routes,
@@ -479,12 +487,18 @@ class Optimizer:
             best_trial_params = None
 
         try:
-            # Maximum number of active workers (slightly higher than CPU cores to keep CPUs busy)
+            shared_user_config = ray.put(self.user_config)
+            shared_formatted_routes = ray.put(router.formatted_routes)
+            shared_formatted_data_routes = ray.put(router.formatted_data_routes)
+            shared_strategy_hp = ray.put(self.strategy_hp)
+            shared_training_warmup_candles = ray.put(self.training_warmup_candles)
+            shared_training_candles = ray.put(self.training_candles)
+            shared_testing_warmup_candles = ray.put(self.testing_warmup_candles)
+            shared_testing_candles = ray.put(self.testing_candles)
+
             max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
 
-            # Dictionary to keep track of active workers
             active_refs = {}
-            # Begin optimization loop
             while self.completed_trials < self.n_trials:
                 if self.completed_trials == 0:
                     update_optimization_session_trials(
@@ -493,22 +507,19 @@ class Optimizer:
                         [],
                         self.n_trials
                     )
-                # Launch new trials if we have capacity
                 while len(active_refs) < max_workers and self.trial_counter < self.n_trials:
-                    # Generate parameters for this trial
                     hp = self._generate_trial_params()
 
-                    # Launch the trial evaluation
                     ref = ray_evaluate_trial.options(num_cpus=1).remote(
-                        self.user_config,
-                        router.formatted_routes,
-                        router.formatted_data_routes,
-                        self.strategy_hp,
+                        shared_user_config,
+                        shared_formatted_routes,
+                        shared_formatted_data_routes,
+                        shared_strategy_hp,
                         hp,
-                        self.training_warmup_candles,
-                        self.training_candles,
-                        self.testing_warmup_candles,
-                        self.testing_candles,
+                        shared_training_warmup_candles,
+                        shared_training_candles,
+                        shared_testing_warmup_candles,
+                        shared_testing_candles,
                         self.optimal_total,
                         self.fast_mode,
                         self.trial_counter,
