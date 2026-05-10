@@ -1,8 +1,8 @@
+from jesse.services.auth import require_auth
 from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Depends
 from starlette.responses import JSONResponse
 from jesse.repositories import candle_repository
-from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson, PurgeCandlesRequestJson
 import jesse.helpers as jh
@@ -11,14 +11,13 @@ router = APIRouter(prefix="/candles", tags=["Candles"])
 
 
 @router.post("/import")
-def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Import candles for a specific exchange and symbol
     """
     jh.validate_cwd()
 
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.modes import import_candles_mode
 
@@ -34,12 +33,11 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
 
 @router.post("/cancel-import")
-def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
     """
     Cancel an import candles process
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
@@ -48,12 +46,11 @@ def cancel_import_candles(request_json: CancelRequestJson, authorization: Option
 
 
 @router.post("/clear-cache")
-def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
+def clear_candles_database_cache(authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
     """
     Clear the candles database cache
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services.cache import cache
     cache.flush()
@@ -65,12 +62,11 @@ def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
 
 
 @router.post("/get")
-def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Get candles for a specific exchange, symbol, and timeframe
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -85,12 +81,11 @@ def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str
 
 
 @router.post("/existing")
-def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def get_existing_candles(authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Get all existing candles in the database
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
     try:
         data = candle_repository.get_existing_candles()
@@ -100,12 +95,11 @@ def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONRes
 
 
 @router.post("/delete")
-def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Delete candles for a specific exchange and symbol
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
@@ -115,12 +109,11 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
 
 
 @router.post("/purge")
-def purge_candles(json_request: PurgeCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def purge_candles(json_request: PurgeCandlesRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Delete all candles for the given list of exchanges
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         deleted_count = candle_repository.purge_candles_by_exchanges(json_request.exchanges)
