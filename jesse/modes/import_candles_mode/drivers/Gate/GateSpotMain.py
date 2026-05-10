@@ -1,4 +1,7 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
@@ -13,6 +16,20 @@ class GateSpotMain(CandleExchange):
         self.limit = 1000
         self.endpoint = rest_endpoint
 
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+
+    def __del__(self):
+        try:
+            self.session.close()
+        except Exception:
+            pass
+
     def get_starting_time(self, symbol: str) -> int:
         symbol = jh.dashy_to_underline(symbol)
         payload = {
@@ -22,14 +39,13 @@ class GateSpotMain(CandleExchange):
             'from': 1514811660
         }
 
-        response = requests.get(f"{self.endpoint}/candlesticks", params=payload)
+        response = self.session.get(f"{self.endpoint}/candlesticks", params=payload, timeout=30)
         self.validate_response(response)
 
         if response.json() == []:
             raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
 
         data = response.json()
-        # Reverse the data list
 
         return int(data[0]['t'])
 
@@ -45,7 +61,7 @@ class GateSpotMain(CandleExchange):
             'to': int(end_timestamp / 1000),
         }
 
-        response = requests.get(f"{self.endpoint}/candlesticks", params=payload)
+        response = self.session.get(f"{self.endpoint}/candlesticks", params=payload, timeout=30)
         self.validate_response(response)
 
         if response.json() == []:
@@ -69,7 +85,7 @@ class GateSpotMain(CandleExchange):
 
     def get_available_symbols(self) -> list:
         pairs = []
-        response = requests.get(f"{self.endpoint}/currency_pairs")
+        response = self.session.get(f"{self.endpoint}/currency_pairs", timeout=30)
         self.validate_response(response)
         data = response.json()
 

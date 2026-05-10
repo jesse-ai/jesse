@@ -34,7 +34,7 @@ class GateUSDTMain(CandleExchange):
             'from': 1514811660
         }
 
-        response = requests.get(f"{self.endpoint}/usdt/candlesticks", params=payload)
+        response = self.session.get(f"{self.endpoint}/usdt/candlesticks", params=payload, timeout=30)
         self.validate_response(response)
 
         if response.json() == []:
@@ -96,7 +96,7 @@ class GateUSDTMain(CandleExchange):
 
     def get_available_symbols(self) -> list:
         pairs = []
-        response = requests.get(f"{self.endpoint}/usdt/contracts")
+        response = self.session.get(f"{self.endpoint}/usdt/contracts", timeout=30)
         self.validate_response(response)
         data = response.json()
         for p in data:

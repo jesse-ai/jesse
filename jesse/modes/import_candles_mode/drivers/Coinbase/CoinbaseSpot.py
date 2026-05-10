@@ -1,4 +1,7 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.enums import exchanges
@@ -16,14 +19,21 @@ class CoinbaseSpot(CandleExchange):
 
         self.endpoint = 'https://api.coinbase.com/api/v3/brokerage/market/products'
 
-    def get_starting_time(self, symbol: str) -> int:
-        """
-        Because Coinbase's API sucks and does not make this take easy for us,
-        we do it manually for as much symbol as we can!
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
-        :param symbol: str
-        :return: int
-        """
+    def __del__(self):
+        try:
+            self.session.close()
+        except Exception:
+            pass
+
+    def get_starting_time(self, symbol: str) -> int:
         if symbol == 'BTC-USD':
             return 1438387200000
         elif symbol == 'ETH-USD':
@@ -34,10 +44,6 @@ class CoinbaseSpot(CandleExchange):
         return None
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str) -> list:
-        """
-        note1: unlike Bitfinex, Binance does NOT skip candles with volume=0.
-        note2: like Bitfinex, start_time includes the candle and so does the end_time.
-        """
         end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
 
         payload = {
@@ -46,9 +52,10 @@ class CoinbaseSpot(CandleExchange):
             'end': int(end_timestamp / 1000),
         }
 
-        response = requests.get(
+        response = self.session.get(
             f"{self.endpoint}/{symbol}/candles",
-            params=payload
+            params=payload,
+            timeout=30
         )
 
         self.validate_response(response)
@@ -71,7 +78,7 @@ class CoinbaseSpot(CandleExchange):
         ]
 
     def get_available_symbols(self) -> list:
-        response = requests.get(self.endpoint)
+        response = self.session.get(self.endpoint, timeout=30)
         self.validate_response(response)
         data = response.json()['products']
         available_symbols = []

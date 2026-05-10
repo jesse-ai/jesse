@@ -4,7 +4,6 @@ from datetime import timedelta
 from typing import Dict, List, Any, Union
 
 import arrow
-import pydash
 from timeloop import Timeloop
 
 import jesse.helpers as jh
@@ -84,6 +83,15 @@ def run(
     frontend_update_threshold = 100  # Only notify frontend after this many updates when skipping existing candles
     skipped_minutes = 0
     imported_minutes = 0
+
+    from peewee import fn
+    max_ts_query = Candle.select(fn.MAX(Candle.timestamp)).where(
+        Candle.exchange == exchange,
+        Candle.symbol == symbol,
+        (Candle.timeframe == '1m') | (Candle.timeframe.is_null())
+    )
+    max_ts_result = max_ts_query.tuples().first()
+    existing_max_ts = max_ts_result[0] if max_ts_result and max_ts_result[0] is not None else 0
     
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
@@ -93,14 +101,8 @@ def run(
         if temp_start_timestamp > jh.now_to_timestamp():
             break
 
-        # prevent duplicates calls to boost performance
-        count = Candle.select().where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol,
-            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp)
-        ).count()
-        already_exists = count == driver.count
+        # skip batches fully covered by existing data
+        already_exists = existing_max_ts >= temp_end_timestamp
 
         if already_exists:
             skipped_minutes += driver.count
@@ -257,6 +259,15 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         days_count = math.ceil(days_count)
     candles_count = days_count * 1440
     start_date = jh.timestamp_to_arrow(start_timestamp).floor('day')
+
+    from peewee import fn
+    max_ts_result = Candle.select(fn.MAX(Candle.timestamp)).where(
+        Candle.exchange == backup_driver.name,
+        Candle.symbol == symbol,
+        Candle.timeframe == timeframe
+    ).tuples().first()
+    existing_max_ts = max_ts_result[0] if max_ts_result and max_ts_result[0] is not None else 0
+
     for _ in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (backup_driver.count - 1) * 60000
@@ -265,14 +276,7 @@ def _get_candles_from_backup_exchange(exchange: str, backup_driver: CandleExchan
         if temp_start_timestamp > jh.now_to_timestamp():
             break
 
-        # prevent duplicates
-        count = Candle.select().where(
-            Candle.exchange == backup_driver.name,
-            Candle.symbol == symbol,
-            Candle.timeframe == timeframe,
-            Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp)
-        ).count()
-        already_exists = count == backup_driver.count
+        already_exists = existing_max_ts >= temp_end_timestamp
 
         if not already_exists:
             # it's today's candles if temp_end_timestamp < now
@@ -347,10 +351,10 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
     first_candle = temp_candles[0]
     started = False
     loop_length = ((end_timestamp - start_timestamp) / 60000) + 1
+    ts_dict = {c['timestamp']: c for c in temp_candles}
 
     for _ in range(int(loop_length)):
-        candle_for_timestamp = pydash.find(
-            temp_candles, lambda c: c['timestamp'] == start_timestamp)
+        candle_for_timestamp = ts_dict.get(start_timestamp)
 
         if candle_for_timestamp is None:
             if started:
@@ -380,7 +384,6 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
                     'close': first_candle['open'],
                     'volume': 0
                 })
-        # candle is present
         else:
             started = True
             candles.append(candle_for_timestamp)

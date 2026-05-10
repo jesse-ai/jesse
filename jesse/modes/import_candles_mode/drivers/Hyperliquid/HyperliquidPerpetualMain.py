@@ -1,4 +1,7 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
@@ -12,6 +15,20 @@ class HyperliquidPerpetualMain(CandleExchange):
         super().__init__(name=name, count=5000, rate_limit_per_second=10, backup_exchange_class=BinanceSpot)
         self.name = name
         self.endpoint = rest_endpoint
+
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+
+    def __del__(self):
+        try:
+            self.session.close()
+        except Exception:
+            pass
 
     def get_starting_time(self, symbol: str) -> int:
         base_symbol = jh.get_base_asset(symbol)
@@ -27,9 +44,8 @@ class HyperliquidPerpetualMain(CandleExchange):
             'Content-Type': 'application/json',
         }
 
-        response = requests.post(self.endpoint, json=payload, headers=headers)
+        response = self.session.post(self.endpoint, json=payload, headers=headers, timeout=30)
         data = response.json()
-        # Reverse the data list
         data = data[::-1]
 
         return int(data[1]['t'])
@@ -49,7 +65,7 @@ class HyperliquidPerpetualMain(CandleExchange):
         headers = {
             'Content-Type': 'application/json',
         }
-        response = requests.post(self.endpoint, json=payload, headers=headers)
+        response = self.session.post(self.endpoint, json=payload, headers=headers, timeout=30)
         self.validate_response(response)
 
         data = response.json()
@@ -70,7 +86,7 @@ class HyperliquidPerpetualMain(CandleExchange):
         ]
 
     def get_available_symbols(self) -> list:
-        response = requests.post(self.endpoint, json={'type': 'meta'})
+        response = self.session.post(self.endpoint, json={'type': 'meta'}, timeout=30)
         self.validate_response(response)
         data = response.json()['universe']
         pairs = []
