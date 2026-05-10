@@ -1,7 +1,7 @@
 from typing import List, Dict
-import copy
 import os
 import uuid
+import numpy as np
 from jesse.services import candle_service, exchange_service, order_service, position_service
 from jesse.services import charts
 from jesse.services.validators import validate_routes
@@ -136,9 +136,12 @@ def _isolated_backtest(
                 f'the accepted 60000 milliseconds.'
             )
 
-    # make a copy to make sure we don't mutate the past data causing some issues for multiprocessing tasks
-    trading_candles_dict = copy.deepcopy(candles)
-    warmup_candles_dict = copy.deepcopy(warmup_candles)
+    trading_candles_dict = {
+        k: {**v, 'candles': np.copy(v['candles'])} for k, v in candles.items()
+    }
+    warmup_candles_dict = {
+        k: {**v, 'candles': np.copy(v['candles'])} for k, v in warmup_candles.items()
+    } if warmup_candles else {}
 
     # if warmup_candles is passed, use it
     if warmup_candles:
