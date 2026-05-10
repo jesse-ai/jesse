@@ -21,6 +21,7 @@ class BitfinexSpot(CandleExchange):
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
         self.max_retries = 5
         self.base_delay = 3  # Base delay in seconds
+        self.all_unique_symbols = {}
 
     def _make_request(self, url: str, params: dict = None) -> requests.Response:
         for attempt in range(self.max_retries):
@@ -36,7 +37,7 @@ class BitfinexSpot(CandleExchange):
                 time.sleep(delay)
 
     def get_starting_time(self, symbol: str) -> int:
-        dashless_symbol = jh.dashless_symbol(symbol)
+        network_symbol = self.all_unique_symbols.get(symbol)
 
         # hard-code few common symbols
         if symbol == 'BTC-USD':
@@ -49,7 +50,7 @@ class BitfinexSpot(CandleExchange):
             'limit': 5000,
         }
 
-        response = self._make_request(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
+        response = self._make_request(f"{self.endpoint}/trade:1D:t{network_symbol}/hist", params=payload)
 
         self.validate_response(response)
 
@@ -78,11 +79,13 @@ class BitfinexSpot(CandleExchange):
             'limit': self.count,
             'sort': 1
         }
+        if self.all_unique_symbols == {}:
+            self.get_available_symbols()
 
-        dashless_symbol = jh.dashless_symbol(symbol)
+        network_symbol = self.all_unique_symbols.get(symbol)
 
         response = self._make_request(
-            f"{self.endpoint}/trade:{interval}:t{dashless_symbol}/hist",
+            f"{self.endpoint}/trade:{interval}:t{network_symbol}/hist",
             params=payload
         )
 
@@ -108,11 +111,13 @@ class BitfinexSpot(CandleExchange):
         data = response.json()[0]
         arr = []
         for s in data:
-            symbol = s
-            # if has : like CELO:USD, remove the : and make it CELOUSD
-            if ':' in symbol:
-               arr.append(symbol.replace(':', '-'))
+            # if has : like CELO:USD, remove the : and make it CELO-USD
+            if ':' in s:
+               symbol = jh.dashy_symbol(s.replace(':', '-'))
+               arr.append(symbol)
+               self.all_unique_symbols[symbol] = s
             else:
-                arr.append(jh.dashy_symbol(symbol))
-
+                symbol = jh.dashy_symbol(s)
+                arr.append(symbol)
+                self.all_unique_symbols[symbol] = s
         return arr
