@@ -290,7 +290,7 @@ def _get_candles_from_db(
     ).where(
         Candle.exchange == exchange,
         Candle.symbol == symbol,
-        Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+        Candle.timeframe == '1m',
         Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
     ).order_by(Candle.timestamp.asc()).tuples())
 

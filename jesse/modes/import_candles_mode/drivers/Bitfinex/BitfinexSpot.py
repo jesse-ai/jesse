@@ -1,6 +1,8 @@
 import requests
 import time
 from requests.exceptions import ConnectionError, RequestException
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import jesse.helpers as jh
 from jesse import exceptions
@@ -20,25 +22,37 @@ class BitfinexSpot(CandleExchange):
 
         self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
         self.max_retries = 5
-        self.base_delay = 3  # Base delay in seconds
+        self.base_delay = 3
+
+        self.session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[500, 502, 503, 504],
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
     def _make_request(self, url: str, params: dict = None) -> requests.Response:
         for attempt in range(self.max_retries):
             try:
-                response = requests.get(url, params=params)
+                response = self.session.get(url, params=params, timeout=30)
                 return response
             except (ConnectionError, RequestException) as e:
-                if attempt == self.max_retries - 1:  # Last attempt
+                if attempt == self.max_retries - 1:
                     raise e
                 
-                # Exponential backoff with jitter
                 delay = (self.base_delay * 2 ** attempt) + (jh.random_uniform(0, 1))
                 time.sleep(delay)
+
+    def __del__(self):
+        try:
+            self.session.close()
+        except Exception:
+            pass
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
-        # hard-code few common symbols
         if symbol == 'BTC-USD':
             return jh.date_to_timestamp('2015-08-01')
         elif symbol == 'ETH-USD':
@@ -55,20 +69,15 @@ class BitfinexSpot(CandleExchange):
 
         data = response.json()
 
-        # wrong symbol entered
         if not len(data):
             raise exceptions.SymbolNotFound(
                 f"No candle exists for {symbol} in Bitfinex."
             )
 
-        # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str) -> list:
-        # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
-        # instead of limit. Therefore, we use limit number to calculate the end_timestamp
         end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
         interval = timeframe_to_interval(timeframe)
 
@@ -109,7 +118,6 @@ class BitfinexSpot(CandleExchange):
         arr = []
         for s in data:
             symbol = s
-            # if has : like CELO:USD, remove the : and make it CELOUSD
             if ':' in symbol:
                arr.append(symbol.replace(':', '-'))
             else:
