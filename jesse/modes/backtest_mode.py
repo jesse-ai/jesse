@@ -1200,7 +1200,8 @@ def _update_all_routes_a_partial_candle(
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = candle_service.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        arr_1m = store.candles.get_storage(exchange, symbol, '1m')
+        candles_1m = arr_1m[-number_of_needed_candles:]
         generated_candle = candle_service.generate_candle_from_one_minutes(
             timeframe,
             candles_1m,

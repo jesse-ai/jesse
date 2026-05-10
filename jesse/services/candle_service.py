@@ -557,8 +557,9 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
 
         last_candle = get_current_candle(exchange, symbol, timeframe)
         generate_from_count = int((candle[0] - last_candle[0]) / 60_000)
-        number_of_candles = len(get_candles(exchange, symbol, '1m'))
-        short_candles = get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
+        candles_1m = get_candles(exchange, symbol, '1m')
+        number_of_candles = len(candles_1m)
+        short_candles = candles_1m[-1 - generate_from_count:]
 
         if generate_from_count == -1:
             # it's receiving an slightly older candle than the last one. Ignore it
