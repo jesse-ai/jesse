@@ -210,25 +210,35 @@ def optimize(
 
         bar = tqdm(total=n_trials, disable=not progress_bar, desc='Optimizing', unit='trial')
 
-        while completed_trials < n_trials:
-            # ---- launch new workers up to max_workers capacity ----
-            # Deferred import to avoid circular dependency:
-            # research/__init__.py ← optimize/__init__.py ← Optimize.py ← fitness.py ← research/__init__.py
-            from jesse.modes.optimize_mode.Optimize import ray_evaluate_trial  # noqa: PLC0415
+        # Deferred import to avoid circular dependency:
+        # research/__init__.py ← optimize/__init__.py ← Optimize.py ← fitness.py ← research/__init__.py
+        from jesse.modes.optimize_mode.Optimize import ray_evaluate_trial  # noqa: PLC0415
 
+        # Place shared read-only objects in Ray's object store once so that
+        # workers receive lightweight refs instead of full copies per trial.
+        shared_user_config = ray.put(config)
+        shared_formatted_routes = ray.put(router.formatted_routes)
+        shared_formatted_data_routes = ray.put(router.formatted_data_routes)
+        shared_strategy_hp = ray.put(strategy_hp)
+        shared_training_warmup_candles = ray.put(training_warmup_candles)
+        shared_training_candles = ray.put(training_candles)
+        shared_testing_warmup_candles = ray.put(testing_warmup_candles)
+        shared_testing_candles = ray.put(testing_candles)
+
+        while completed_trials < n_trials:
             while len(active_refs) < max_workers and trial_counter < n_trials:
                 hp = _generate_trial_params(strategy_hp)
 
                 ref = ray_evaluate_trial.options(num_cpus=1).remote(
-                    config,
-                    router.formatted_routes,
-                    router.formatted_data_routes,
-                    strategy_hp,
+                    shared_user_config,
+                    shared_formatted_routes,
+                    shared_formatted_data_routes,
+                    shared_strategy_hp,
                     hp,
-                    training_warmup_candles,
-                    training_candles,
-                    testing_warmup_candles,
-                    testing_candles,
+                    shared_training_warmup_candles,
+                    shared_training_candles,
+                    shared_testing_warmup_candles,
+                    shared_testing_candles,
                     optimal_total,
                     fast_mode,
                     trial_counter,

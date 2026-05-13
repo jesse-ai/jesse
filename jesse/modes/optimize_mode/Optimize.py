@@ -22,31 +22,27 @@ import traceback
 
 @ray.remote
 def ray_evaluate_trial(
-    user_config_ref,
-    formatted_routes_ref,
-    formatted_data_routes_ref,
-    strategy_hp_ref,
+    user_config,
+    formatted_routes,
+    formatted_data_routes,
+    strategy_hp,
     hp,
-    training_warmup_candles_ref,
-    training_candles_ref,
-    testing_warmup_candles_ref,
-    testing_candles_ref,
+    training_warmup_candles,
+    training_candles,
+    testing_warmup_candles,
+    testing_candles,
     optimal_total,
     fast_mode,
     trial_number,
     session_id
 ):
-    """Ray remote function to evaluate a trial"""
-    try:
-        user_config = ray.get(user_config_ref)
-        formatted_routes = ray.get(formatted_routes_ref)
-        formatted_data_routes = ray.get(formatted_data_routes_ref)
-        strategy_hp = ray.get(strategy_hp_ref)
-        training_warmup_candles = ray.get(training_warmup_candles_ref)
-        training_candles = ray.get(training_candles_ref)
-        testing_warmup_candles = ray.get(testing_warmup_candles_ref)
-        testing_candles = ray.get(testing_candles_ref)
+    """Ray remote function to evaluate a trial.
 
+    Note: Ray automatically dereferences ObjectRefs before invoking remote
+    functions, so arguments passed via ray.put() arrive here as plain objects.
+    Do NOT call ray.get() on any parameter — it will raise a ValueError.
+    """
+    try:
         score, training_metrics, testing_metrics = get_fitness(
             user_config,
             formatted_routes,
