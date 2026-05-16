@@ -484,3 +484,20 @@ def download_backtest_log(session_id: str):
         media_type='text/plain'
     )
 
+
+def download_live_log(session_id: str):
+    """
+    Returns the log file for a specific live session as a downloadable file
+    """
+    path = f'storage/logs/live-mode/{session_id}.txt'
+
+    if not os.path.exists(path):
+        raise Exception('Log file not found')
+
+    filename = f'live-{session_id}.txt'
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type='text/plain'
+    )
+
