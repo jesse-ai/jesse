@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Query, Depends
 from typing import Optional
 from fastapi.responses import JSONResponse, FileResponse
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth, require_auth_any
+
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
     SignificanceTestRequestJson,
@@ -37,9 +38,8 @@ router = APIRouter(prefix="/significance-test", tags=["Significance Test"])
 async def significance_test(
     request_json: SignificanceTestRequestJson,
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -92,9 +92,8 @@ async def significance_test(
 def cancel_significance_test(
     request_json: CancelSignificanceTestRequestJson,
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
     return JSONResponse(
@@ -107,9 +106,8 @@ def cancel_significance_test(
 def terminate_significance_test(
     request_json: TerminateSignificanceTestRequestJson,
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_significance_test_session_status(request_json.id, 'terminated')
     process_manager.cancel_process(request_json.id)
@@ -123,9 +121,8 @@ def terminate_significance_test(
 def update_state(
     request_json: UpdateSignificanceTestSessionStateRequestJson,
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_significance_test_session_state(request_json.id, request_json.state)
     return JSONResponse({'message': 'Session state updated successfully'})
@@ -135,9 +132,8 @@ def update_state(
 def list_sessions(
     request_json: GetSignificanceTestSessionsRequestJson = GetSignificanceTestSessionsRequestJson(),
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     sessions = get_significance_test_sessions(
         limit=request_json.limit,
@@ -151,9 +147,8 @@ def list_sessions(
 
 
 @router.post("/sessions/{session_id}")
-def get_session(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_session(session_id: str, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
 
     session = get_significance_test_session_by_id(session_id)
     if not session:
@@ -165,11 +160,9 @@ def get_session(session_id: str, authorization: Optional[str] = Header(None)):
 
 
 @router.get("/sessions/{session_id}/chart")
-def get_chart(session_id: str, token: Optional[str] = None, authorization: Optional[str] = Header(None)):
+def get_chart(session_id: str, token: Optional[str] = None, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth_any)):
     # Support token via query param (for <img> src) or Authorization header
-    effective_auth = token or authorization
-    if not authenticator.is_valid_token(effective_auth):
-        return authenticator.unauthorized_response()
 
     session = get_significance_test_session_by_id(session_id)
     if not session:
@@ -185,9 +178,8 @@ def get_chart(session_id: str, token: Optional[str] = None, authorization: Optio
 
 
 @router.post("/sessions/{session_id}/remove")
-def remove_session(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def remove_session(session_id: str, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
 
     session = get_significance_test_session_by_id(session_id)
     if not session:
@@ -205,9 +197,8 @@ def update_notes(
     session_id: str,
     request_json: UpdateSignificanceTestSessionNotesRequestJson,
     authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = get_significance_test_session_by_id(session_id)
     if not session:
@@ -223,9 +214,8 @@ def update_notes(
 
 
 @router.post("/sessions/{session_id}/strategy-code")
-def get_strategy_code(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_strategy_code(session_id: str, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
 
     import json
     session = get_significance_test_session_by_id(session_id)
@@ -239,9 +229,8 @@ def get_strategy_code(session_id: str, authorization: Optional[str] = Header(Non
 
 
 @router.post("/purge-sessions")
-def purge_sessions(request_json: dict, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def purge_sessions(request_json: dict, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
 
     days_old = request_json.get('days_old', None)
     deleted_count = purge_significance_test_sessions(days_old)
@@ -252,8 +241,7 @@ def purge_sessions(request_json: dict, authorization: Optional[str] = Header(Non
 
 
 @router.get("/running-session")
-def get_running_session(authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_running_session(authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)):
 
     return JSONResponse({'session_id': get_running_significance_test_session_id()})

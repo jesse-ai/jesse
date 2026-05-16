@@ -1,10 +1,10 @@
+from jesse.services.auth import require_auth
 from typing import Optional
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Depends
 from fastapi.responses import JSONResponse
 import requests
 import re
 
-from jesse.services import auth as authenticator
 from jesse.services.web import (
     NewStrategyRequestJson,
     GetStrategyRequestJson,
@@ -20,24 +20,22 @@ router = APIRouter(prefix="/strategy", tags=["Strategy"])
 
 
 @router.post("/make")
-def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Create a new strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.generate(json_request.name)
 
 
 @router.get("/all")
-def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def get_strategies(authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
     """
     Get all strategies
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.get_strategies()
@@ -46,13 +44,12 @@ def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
 @router.post("/get")
 def get_strategy(
         json_request: GetStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
     """
     Get a specific strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.get_strategy(json_request.name)
@@ -61,13 +58,12 @@ def get_strategy(
 @router.post("/save")
 def save_strategy(
         json_request: SaveStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
     """
     Save a strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.save_strategy(json_request.name, json_request.content)
@@ -76,13 +72,12 @@ def save_strategy(
 @router.post("/fork")
 def fork_strategy(
         json_request: ForkStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
     """
     Fork a strategy under a new name
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.fork_strategy(json_request.new_name, json_request.content)
@@ -91,13 +86,12 @@ def fork_strategy(
 @router.post("/delete")
 def delete_strategy(
         json_request: DeleteStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
     """
     Delete a strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.delete_strategy(json_request.name)
@@ -110,13 +104,12 @@ async def index_jesse_trade_strategies(
         submitted_after: Optional[str] = Query(None),
         submitted_before: Optional[str] = Query(None),
         authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Browse strategies from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -152,13 +145,12 @@ async def index_jesse_trade_strategies(
 
 @router.get("/periods")
 async def get_jesse_trade_periods(
-        authorization: Optional[str] = Header(None)
+        authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
     """
     Get available trading periods from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         response = requests.get(
@@ -184,13 +176,12 @@ async def get_jesse_trade_periods(
 async def get_jesse_trade_strategy(
         slug: str,
         authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get a specific strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -224,13 +215,12 @@ async def get_jesse_trade_strategy_metrics(
         symbol: str = Query(...),
         timeframe: str = Query(...),
         authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get metrics for a specific strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -262,13 +252,12 @@ async def get_jesse_trade_strategy_metrics(
 async def import_strategy(
         json_request: ImportStrategyRequestJson,
         authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Import a strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         # Fetch the strategy from jesse.trade

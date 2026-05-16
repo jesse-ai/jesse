@@ -1,8 +1,8 @@
+from jesse.services.auth import require_auth
 from typing import Optional
-from fastapi import APIRouter, Header, Body
+from fastapi import APIRouter, Header, Body, Depends
 from fastapi.responses import JSONResponse
 
-from jesse.services import auth as authenticator
 from jesse.repositories import order_repository
 from jesse.services.transformers import get_order_details
 from jesse.models.Order import Order
@@ -12,9 +12,8 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
 @router.get("/{order_id}")
-def get_order_by_id(order_id: str, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_order_by_id(order_id: str, authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)) -> JSONResponse:
 
     try:
         # Fetch order by ID
@@ -44,10 +43,9 @@ def get_order_by_id(order_id: str, authorization: Optional[str] = Header(None)) 
 @router.post("/live-history")
 def get_orders_live_history(
     request_json: GetOrdersHistoryRequestJson = Body(...),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    _auth: None = Depends(require_auth)
 ) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         # Fetch orders with filters
