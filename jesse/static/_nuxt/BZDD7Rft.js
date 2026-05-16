@@ -1,1 +1,0 @@
-import{a1 as l,a2 as m}from"./okI7giZ-.js";function f(e,a){const{title:r,titleTemplate:n,...o}=e;return l({title:r,titleTemplate:n,_flatMeta:o},{...a,transform(t){const s=m({...t._flatMeta});return delete t._flatMeta,{...t,meta:s}}})}export{f as u};
