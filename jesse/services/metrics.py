@@ -133,7 +133,12 @@ def calmar_ratio(returns):
     if years == 0:
         return pd.Series([0.0])
 
-    cagr_ratio = (last_value / first_value) ** (1 / years) - 1
+    # Prevent overflow by limiting the ratio
+    ratio = last_value / first_value
+    # Clip ratio to prevent overflow in power calculation
+    ratio = np.clip(ratio, 1e-10, 1e10)
+    with np.errstate(over='ignore', under='ignore'):
+        cagr_ratio = ratio ** (1 / years) - 1
 
     # Calculate Max Drawdown using cumulative returns
     cum_returns = (1 + returns).cumprod()
@@ -211,8 +216,13 @@ def cagr(returns, rf=0.0, compounded=True, periods=365):
     if years == 0:
         return pd.Series([0.0])
 
+    # Prevent overflow by limiting the ratio
+    ratio = last_value / first_value
+    # Clip ratio to prevent overflow in power calculation
+    ratio = np.clip(ratio, 1e-10, 1e10)
     # Calculate CAGR using quantstats formula
-    result = (last_value / first_value) ** (1 / years) - 1
+    with np.errstate(over='ignore', under='ignore'):
+        result = ratio ** (1 / years) - 1
 
     return pd.Series([result])
 
@@ -365,6 +375,16 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
+    # Calculate average trades per day/week/month
+    if store.app.ending_time is not None and store.app.starting_time is not None:
+        duration_ms = store.app.ending_time - store.app.starting_time
+        duration_days = duration_ms / (1000 * 60 * 60 * 24)
+        avg_trades_per_day = total_completed / duration_days if duration_days > 0 else 0
+    else:
+        avg_trades_per_day = 0
+    avg_trades_per_week = avg_trades_per_day * 7
+    avg_trades_per_month = avg_trades_per_day * 30.44
+
     # Helper function to safely convert values
     def safe_convert(value, convert_type=float):
         try:
@@ -428,6 +448,9 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'largest_losing_trade': safe_convert(largest_losing_trade),
         'largest_winning_trade': safe_convert(largest_winning_trade),
         'current_streak': safe_convert(current_streak[-1], int),
+        'avg_trades_per_day': safe_convert(avg_trades_per_day),
+        'avg_trades_per_week': safe_convert(avg_trades_per_week),
+        'avg_trades_per_month': safe_convert(avg_trades_per_month),
     }
 
 

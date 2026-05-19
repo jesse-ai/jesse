@@ -1,5 +1,6 @@
+import os
 import warnings
-import pkg_resources
+from contextlib import asynccontextmanager
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services.web import fastapi_app
@@ -13,7 +14,18 @@ from jesse.cli import cli
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # get the jesse directory
-JESSE_DIR = pkg_resources.resource_filename(__name__, '')
+JESSE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# define lifespan (replaces deprecated @on_event("shutdown"))
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    from jesse.services.db import database
+    database.close_connection()
+    from jesse.services.lsp import terminate_lsp_server
+    terminate_lsp_server()
+
+fastapi_app.router.lifespan_context = lifespan
 
 # load homepage
 @fastapi_app.get("/")
@@ -21,13 +33,8 @@ async def index():
     return FileResponse(f"{JESSE_DIR}/static/index.html")
 
 
-@fastapi_app.on_event("shutdown")
-def shutdown_event():
-    from jesse.services.db import database
-    database.close_connection()
-    # terminate the lsp server
-    from jesse.services.lsp import terminate_lsp_server
-    terminate_lsp_server()
+
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -38,6 +45,7 @@ from jesse.controllers.optimization_controller import router as optimization_rou
 from jesse.controllers.monte_carlo_controller import router as monte_carlo_router
 from jesse.controllers.exchange_controller import router as exchange_router
 from jesse.controllers.backtest_controller import router as backtest_router
+from jesse.controllers.significance_test_controller import router as significance_test_router
 from jesse.controllers.candles_controller import router as candles_router
 from jesse.controllers.strategy_controller import router as strategy_router
 from jesse.controllers.auth_controller import router as auth_router
@@ -57,6 +65,7 @@ fastapi_app.include_router(optimization_router)
 fastapi_app.include_router(monte_carlo_router)
 fastapi_app.include_router(exchange_router)
 fastapi_app.include_router(backtest_router)
+fastapi_app.include_router(significance_test_router)
 fastapi_app.include_router(candles_router)
 fastapi_app.include_router(strategy_router)
 fastapi_app.include_router(auth_router)

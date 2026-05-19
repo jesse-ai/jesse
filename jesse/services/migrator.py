@@ -29,10 +29,11 @@ def run():
     _exchange_api_keys(migrator)
     _optimization_session(migrator)
     _monte_carlo_session(migrator)
+    _significance_test_session(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot
-    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot])
+    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot, SignificanceTestSession
+    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot, SignificanceTestSession], safe=True)
 
     database.close_connection()
 
@@ -149,6 +150,14 @@ def _monte_carlo_session(migrator):
     if 'montecarlosession' in database.db.get_tables():
         monte_carlo_session_columns = database.db.get_columns('montecarlosession')
         _migrate(migrator, fields, monte_carlo_session_columns, 'montecarlosession')
+
+
+def _significance_test_session(migrator):
+    fields = []
+
+    if 'significancetestsession' in database.db.get_tables():
+        cols = database.db.get_columns('significancetestsession')
+        _migrate(migrator, fields, cols, 'significancetestsession')
 
 
 def _migrate(migrator, fields, columns, table):

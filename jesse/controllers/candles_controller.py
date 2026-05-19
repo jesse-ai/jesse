@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 from jesse.repositories import candle_repository
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson
+from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson, PurgeCandlesRequestJson
 import jesse.helpers as jh
 
 router = APIRouter(prefix="/candles", tags=["Candles"])
@@ -110,5 +110,20 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
     try:
         candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
         return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@router.post("/purge")
+def purge_candles(json_request: PurgeCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Delete all candles for the given list of exchanges
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    try:
+        deleted_count = candle_repository.purge_candles_by_exchanges(json_request.exchanges)
+        return JSONResponse({'message': f'Purged candles for {len(json_request.exchanges)} exchange(s)', 'deleted_count': deleted_count}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)

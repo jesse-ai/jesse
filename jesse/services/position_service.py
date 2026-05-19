@@ -243,6 +243,7 @@ def update_from_stream(position: Position, data: dict, is_initial: bool, open_tr
         #         self.qty, self.entry_price
         #     )
         position.opened_at = jh.now_to_timestamp()
-        _open(position, p_orders)
+        if not open_trade:
+            _open(position, p_orders)
     elif closing_position:
         position.closed_at = jh.now_to_timestamp()

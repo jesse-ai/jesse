@@ -72,3 +72,51 @@ async def import_api_keys(
             'success': False,
             'error': str(e)
         }
+
+
+@router.post("/download-notification-api-keys")
+def download_notification_api_keys(
+    request_json: LoginRequestJson,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Download notification API keys - requires password verification
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    if request_json.password != ENV_VALUES['PASSWORD']:
+        return authenticator.unauthorized_response()
+
+    jh.validate_cwd()
+
+    return data_provider.download_notification_api_keys()
+
+
+@router.post("/import-notification-api-keys")
+async def import_notification_api_keys(
+    request_json: ImportApiKeyRequestJson,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Import notification API keys from CSV text received in the request body.
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    try:
+        csv_content = request_json.content.strip()
+
+        if not data_provider.validate_notification_csv_content(csv_content):
+            return {
+                'success': False,
+                'error': 'Invalid CSV content or potential security threat detected'
+            }
+
+        result = data_provider.import_notification_api_keys_from_csv(csv_content)
+        return result
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }

@@ -37,14 +37,21 @@ def report_exception(
             path_log = f'storage/logs/backtest-mode/{session_id}.txt'
         elif mode == 'live':
             path_log = f'storage/logs/live-mode/{session_id}.txt'
+        elif mode == 'significance-test':
+            path_log = f'storage/logs/significance-test-mode/{session_id}.txt'
             path_exchange_log = f'storage/logs/live-mode/{session_id}-raw-exchange-logs.txt'
         else:
             raise ValueError('Invalid mode')
 
         # attach exchange_log if there's any
-        files = {'log_file': open(path_log, 'rb')}
+        files = {}
+        if jh.file_exists(path_log):
+            files['log_file'] = open(path_log, 'rb')
         if path_exchange_log and jh.file_exists(path_exchange_log):
             files['exchange_log'] = open(path_exchange_log, 'rb')
+            
+        if not files:
+            files = None
     else:
         files = None
 

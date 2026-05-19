@@ -1,7 +1,22 @@
+import os
 import peewee
 import json
 from jesse.services.db import database
 import jesse.helpers as jh
+
+_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+
+
+def _delete_chart_images(session_id: str) -> None:
+    """Remove the six generated chart PNG files for a session, if they exist."""
+    charts_folder = os.path.abspath('storage/backtest-charts')
+    for chart_name in _BACKTEST_CHART_NAMES:
+        path = os.path.join(charts_folder, f'{session_id}_{chart_name}.png')
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
 
 
 if database.is_closed():
@@ -341,6 +356,7 @@ def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = 
 
 def delete_backtest_session(id: str) -> bool:
     try:
+        _delete_chart_images(id)
         BacktestSession.delete().where(BacktestSession.id == id).execute()
         return True
     except Exception as e:
@@ -372,11 +388,15 @@ def purge_backtest_sessions(days_old: int = None) -> int:
             deleted_count = 0
             for session_id in sessions_to_delete:
                 try:
+                    _delete_chart_images(str(session_id))
                     BacktestSession.delete().where(BacktestSession.id == session_id).execute()
                     deleted_count += 1
                 except Exception:
                     pass
         else:
+            all_ids = [str(s.id) for s in BacktestSession.select(BacktestSession.id)]
+            for session_id in all_ids:
+                _delete_chart_images(session_id)
             deleted_count = BacktestSession.delete().execute()
         
         return deleted_count

@@ -112,7 +112,7 @@ def dashy_symbol(symbol: str) -> str:
             return s
 
     suffixes = [
-        'UST', 'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
+        'UST', 'FDUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
     ]
 
     for suffix in suffixes:
@@ -441,6 +441,11 @@ def insert_list(index: int, item, arr: list) -> list:
 def is_backtesting() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'backtest'
+
+
+def is_significance_testing() -> bool:
+    from jesse.config import config
+    return config['app']['trading_mode'] == 'significance_test'
 
 
 def is_debuggable(debug_item) -> bool:

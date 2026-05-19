@@ -1,2 +1,4 @@
+include README.md
+include requirements.txt
 include jesse/static/*
 include jesse/static/**/*

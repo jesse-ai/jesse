@@ -15,6 +15,7 @@ def _init_main_logger():
     jh.make_directory('storage/logs/optimize-mode')
     jh.make_directory('storage/logs/collect-mode')
     jh.make_directory('storage/logs/monte-carlo-mode')
+    jh.make_directory('storage/logs/significance-test-mode')
 
     if jh.is_live():
         filename = f'storage/logs/live-mode/{session_id}.txt'
@@ -22,6 +23,8 @@ def _init_main_logger():
         filename = f'storage/logs/optimize-mode/{session_id}.txt'
     elif jh.is_backtesting():
         filename = f'storage/logs/backtest-mode/{session_id}.txt'
+    elif jh.is_significance_testing():
+        filename = f'storage/logs/significance-test-mode/{session_id}.txt'
     else:
         filename = 'storage/logs/etc.txt'
 

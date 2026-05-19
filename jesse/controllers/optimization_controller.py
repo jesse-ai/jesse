@@ -373,7 +373,6 @@ def get_session_strategy_codes(session_id: str, authorization: Optional[str] = H
         'strategy_codes': json.loads(session.strategy_codes) if session.strategy_codes else {}
     })
 
-
 @router.post("/sessions/{session_id}/logs")
 def get_session_logs(session_id: str, authorization: Optional[str] = Header(None)):
     """

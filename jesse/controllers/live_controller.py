@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Header, Body
+from fastapi import APIRouter, Header, Body, Query
 from fastapi.responses import JSONResponse
 
 from jesse.services import auth as authenticator
@@ -16,6 +16,7 @@ from jesse.services.web import (
 import jesse.helpers as jh
 from jesse.repositories import live_session_repository
 from jesse.services import transformers
+from jesse.modes.data_provider import download_live_log
 from jesse_live import live_mode
 from jesse_live.services.data_provider import get_logs as gl, get_orders as go
 from jesse.enums import live_session_statuses, live_session_modes
@@ -260,6 +261,20 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
         'message': f'Successfully purged {deleted_count} session(s)',
         'deleted_count': deleted_count
     }, status_code=200)
+
+
+@router.get("/download-log/{session_id}")
+def download_live_log_handler(session_id: str, token: str = Query(...)):
+    """
+    Download log file for a specific live session
+    """
+    if not authenticator.is_valid_token(token):
+        return authenticator.unauthorized_response()
+
+    try:
+        return download_live_log(session_id)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 @router.get("/equity-curve")

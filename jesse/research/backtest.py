@@ -1,6 +1,9 @@
 from typing import List, Dict
-import copy
+import os
+import uuid
+import numpy as np
 from jesse.services import candle_service, exchange_service, order_service, position_service
+from jesse.services import charts
 from jesse.services.validators import validate_routes
 from jesse.modes.backtest_mode import simulator
 from jesse.config import config as jesse_config, reset_config, set_config
@@ -26,6 +29,7 @@ def backtest(
         fast_mode: bool = False,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
+        generate_charts: bool = False,
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -76,6 +80,7 @@ def backtest(
         fast_mode=fast_mode,
         candles_pipeline_class=candles_pipeline_class,
         candles_pipeline_kwargs=candles_pipeline_kwargs,
+        generate_charts=generate_charts,
     )
 
 
@@ -97,6 +102,7 @@ def _isolated_backtest(
         fast_mode: bool = False,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
+        generate_charts: bool = False,
 ) -> dict:
     jesse_config['app']['trading_mode'] = 'backtest'
 
@@ -130,9 +136,12 @@ def _isolated_backtest(
                 f'the accepted 60000 milliseconds.'
             )
 
-    # make a copy to make sure we don't mutate the past data causing some issues for multiprocessing tasks
-    trading_candles_dict = copy.deepcopy(candles)
-    warmup_candles_dict = copy.deepcopy(warmup_candles)
+    trading_candles_dict = {
+        k: {**v, 'candles': np.copy(v['candles'])} for k, v in candles.items()
+    }
+    warmup_candles_dict = {
+        k: {**v, 'candles': np.copy(v['candles'])} for k, v in warmup_candles.items()
+    } if warmup_candles else {}
 
     # if warmup_candles is passed, use it
     if warmup_candles:
@@ -162,6 +171,19 @@ def _isolated_backtest(
         candles_pipeline_kwargs=candles_pipeline_kwargs
     )
 
+    # Generate extended chart images while store is still populated (before store.reset())
+    if generate_charts and backtest_result.get('metrics') and backtest_result['metrics'].get('total', 0) > 0:
+        _session_id = str(uuid.uuid4())
+        _charts_folder = os.path.abspath('storage/backtest-charts')
+        charts._plot_backtest_charts(
+            session_id=_session_id,
+            charts_folder=_charts_folder,
+            theme='light',
+            benchmark=benchmark,
+        )
+        backtest_result['charts_session_id'] = _session_id
+        backtest_result['charts_folder'] = _charts_folder
+
     result = {
         'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
         'logs': None,
@@ -184,6 +206,9 @@ def _isolated_backtest(
         result['hyperparameters'] = backtest_result['hyperparameters']
     if generate_logs:
         result['logs'] = backtest_result['logs']
+    if generate_charts and 'charts_session_id' in backtest_result:
+        result['charts_session_id'] = backtest_result['charts_session_id']
+        result['charts_folder'] = backtest_result['charts_folder']
     
     # Always include trades if available (needed for trade-shuffling Monte Carlo)
     if 'trades' in backtest_result:

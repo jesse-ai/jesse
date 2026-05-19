@@ -15,6 +15,14 @@ def delete_candles_from_db(exchange: str, symbol: str) -> None:
     ).execute()
 
 
+def purge_candles_by_exchanges(exchanges: list) -> int:
+    """
+    Deletes all candles for the given list of exchanges. Returns the number of deleted rows.
+    """
+    count = Candle.delete().where(Candle.exchange.in_(exchanges)).execute()
+    return count
+
+
 def get_existing_candles() -> List[dict]:
     """
     Returns a list of all existing candles grouped by exchange and symbol

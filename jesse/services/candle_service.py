@@ -586,6 +586,13 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
             accept_forming_candles=True
         )
 
+        # Fix: force the generated candle's timestamp to the correct period-aligned boundary.
+        # Without this, when a live session starts mid-period (e.g. at 10:36 on an hourly
+        # timeframe), the 1m store only has that one candle, so generate_candle_from_one_minutes
+        # stamps the resulting 1h candle as 10:36 instead of the correct period start 10:00.
+        timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
+        generated_candle[0] = candle[0] - (candle[0] % timeframe_ms)
+
         add_candle(
             generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False
         )

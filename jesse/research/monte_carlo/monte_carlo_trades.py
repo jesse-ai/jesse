@@ -7,6 +7,10 @@ import os
 from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+from matplotlib import pyplot as plt
+
 
 from .common import (
     DEFAULT_CPU_USAGE_RATIO,
@@ -556,10 +560,6 @@ def plot_monte_carlo_trades_chart(results: dict, charts_folder: str = None) -> N
         results: The full results dict returned by monte_carlo_trades().
         charts_folder: Optional folder to save charts in.
     """
-    import matplotlib
-    matplotlib.use('Agg')  # Use non-interactive backend
-    from matplotlib import pyplot as plt
-    
     if 'scenarios' not in results or not results['scenarios']:
         print("No trade shuffle scenarios to plot")
         return

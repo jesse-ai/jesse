@@ -92,6 +92,30 @@ def save_strategy(name: str, content: str) -> JSONResponse:
     })
 
 
+def fork_strategy(new_name: str, content: str) -> JSONResponse:
+    import re
+    path = f'strategies/{new_name}'
+
+    if os.path.isdir(path):
+        return JSONResponse({
+            'status': 'error',
+            'message': f'Strategy "{new_name}" already exists.'
+        }, status_code=409)
+
+    # Replace the class name in the code with the new strategy name
+    updated_content = re.sub(r'(?m)^class\s+(\w+)\b', f'class {new_name}', content)
+
+    os.makedirs(path, exist_ok=True)
+
+    with open(f"{path}/__init__.py", "wt") as fin:
+        fin.write(updated_content)
+
+    return JSONResponse({
+        'status': 'success',
+        'message': f'Strategy "{new_name}" has been created.'
+    })
+
+
 def import_strategy(name: str, code: str) -> JSONResponse:
     import re
     

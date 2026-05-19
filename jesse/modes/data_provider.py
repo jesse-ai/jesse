@@ -321,6 +321,119 @@ def import_api_keys_from_csv(content: str) -> Dict[str, any]:
         return {'success': False, 'error': str(e)}
 
 
+def download_notification_api_keys():
+    try:
+        database.open_connection()
+
+        from jesse.models.NotificationApiKeys import NotificationApiKeys
+        api_keys = list(NotificationApiKeys.select())
+        if not api_keys:
+            database.close_connection()
+            return StreamingResponse(
+                io.StringIO("No notification API keys found"),
+                media_type='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=notification-api-keys.csv'}
+            )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        headers = ['Name', 'Driver', 'bot_token', 'chat_id', 'webhook']
+        writer.writerow(headers)
+
+        for api_key in api_keys:
+            fields = json.loads(api_key.fields)
+            row = [
+                api_key.name,
+                api_key.driver,
+                fields.get('bot_token', ''),
+                fields.get('chat_id', ''),
+                fields.get('webhook', ''),
+            ]
+            writer.writerow(row)
+
+        database.close_connection()
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=notification-api-keys.csv'}
+        )
+    except Exception as e:
+        database.close_connection()
+        raise e
+
+
+def validate_notification_csv_content(content: str) -> bool:
+    try:
+        sql_patterns = [
+            ';--', '/*', '*/', 'xp_', 'sp_',
+            'union ', 'select ', 'insert ', 'update ',
+            'delete ', 'drop ', 'alter ', 'create '
+        ]
+        if any(p.lower() in content.lower() for p in sql_patterns):
+            return False
+        if any(c in content for c in ['\0', '\x01', '\x1a']):
+            return False
+
+        reader = csv.DictReader(io.StringIO(content))
+        required_columns = {'Name', 'Driver'}
+        header_set = {h.strip().lower() for h in reader.fieldnames or []}
+        if not all(col.lower() in header_set for col in required_columns):
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def import_notification_api_keys_from_csv(content: str) -> Dict[str, any]:
+    from jesse.models.NotificationApiKeys import NotificationApiKeys
+    from jesse.services.db import database
+
+    try:
+        database.open_connection()
+        reader = csv.DictReader(io.StringIO(content))
+        imported_names: list[str] = []
+
+        existing_names = {k.name for k in NotificationApiKeys.select(NotificationApiKeys.name)}
+
+        for row in reader:
+            name = (row.get('Name') or '').strip()
+            if not name or name in existing_names:
+                continue
+
+            driver = (row.get('Driver') or '').strip().lower()
+            if driver not in ('telegram', 'discord', 'slack'):
+                continue
+
+            fields = {}
+            if driver == 'telegram':
+                bot_token = (row.get('bot_token') or '').strip()
+                chat_id = (row.get('chat_id') or '').strip()
+                if not bot_token or not chat_id:
+                    continue
+                fields = {'bot_token': bot_token, 'chat_id': chat_id}
+            else:
+                webhook = (row.get('webhook') or '').strip()
+                if not webhook:
+                    continue
+                fields = {'webhook': webhook}
+
+            NotificationApiKeys.create(
+                id=jh.generate_unique_id(),
+                name=name,
+                driver=driver,
+                fields=json.dumps(fields),
+                created_at=jh.now_to_datetime(),
+            )
+            imported_names.append(name)
+
+        database.close_connection()
+        return {'success': True, 'imported_count': len(imported_names)}
+    except Exception as e:
+        database.close_connection()
+        return {'success': False, 'error': str(e)}
+
+
 def get_backtest_logs(session_id: str):
     path = f"storage/logs/backtest-mode/{session_id}.txt"
 
@@ -370,3 +483,21 @@ def download_backtest_log(session_id: str):
         filename=filename,
         media_type='text/plain'
     )
+
+
+def download_live_log(session_id: str):
+    """
+    Returns the log file for a specific live session as a downloadable file
+    """
+    path = f'storage/logs/live-mode/{session_id}.txt'
+
+    if not os.path.exists(path):
+        raise Exception('Log file not found')
+
+    filename = f'live-{session_id}.txt'
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type='text/plain'
+    )
+

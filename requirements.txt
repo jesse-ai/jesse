@@ -34,3 +34,6 @@ msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0
 jesse-rust==1.0.1
 mcp==1.26.0
+joblib~=1.5.3
+scikit-learn~=1.8.0
+matplotlib~=3.10.3

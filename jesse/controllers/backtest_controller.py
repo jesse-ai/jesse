@@ -18,6 +18,8 @@ from jesse.models.BacktestSession import (
 from jesse.services.transformers import get_backtest_session, get_backtest_session_for_load_more
 from jesse.modes.backtest_mode import run as run_backtest
 from jesse.modes.data_provider import get_backtest_logs, download_backtest_log
+import os
+
 
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
@@ -49,10 +51,41 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         request_json.export_csv,
         request_json.export_json,
         request_json.fast_mode,
-        request_json.benchmark
+        request_json.benchmark,
+        request_json.theme
     )
 
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
+
+
+BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+
+
+@router.get("/sessions/{session_id}/charts-image")
+def get_charts_image(
+    session_id: str,
+    chart: str,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Serve a chart PNG image for a specific backtest session.
+    chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl
+    """
+    effective_auth = token or authorization
+    if not authenticator.is_valid_token(effective_auth):
+        return authenticator.unauthorized_response()
+
+    if chart not in BACKTEST_CHART_NAMES:
+        return JSONResponse({'error': f'Unknown chart name: {chart}'}, status_code=400)
+
+    charts_folder = os.path.abspath('storage/backtest-charts')
+    path = os.path.join(charts_folder, f'{session_id}_{chart}.png')
+
+    if not os.path.exists(path):
+        return JSONResponse({'error': 'Chart image not yet available'}, status_code=404)
+
+    return FileResponse(path, media_type='image/png')
 
 
 @router.post("/cancel")
@@ -91,7 +124,7 @@ def get_logs(session_id: str, token: str = Query(...)):
 
 
 @router.get("/download-log/{session_id}")
-def download_backtest_log(session_id: str, token: str = Query(...)):
+def download_backtest_log_handler(session_id: str, token: str = Query(...)):
     """
     Download log file for a specific backtest session
     """

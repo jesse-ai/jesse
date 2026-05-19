@@ -10,6 +10,7 @@ from jesse.services.web import (
     GetStrategyRequestJson,
     SaveStrategyRequestJson,
     DeleteStrategyRequestJson,
+    ForkStrategyRequestJson,
     ImportStrategyRequestJson
 )
 import jesse.helpers as jh
@@ -70,6 +71,21 @@ def save_strategy(
 
     from jesse.services import strategy_handler
     return strategy_handler.save_strategy(json_request.name, json_request.content)
+
+
+@router.post("/fork")
+def fork_strategy(
+        json_request: ForkStrategyRequestJson,
+        authorization: Optional[str] = Header(None)
+) -> JSONResponse:
+    """
+    Fork a strategy under a new name
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.services import strategy_handler
+    return strategy_handler.fork_strategy(json_request.new_name, json_request.content)
 
 
 @router.post("/delete")
