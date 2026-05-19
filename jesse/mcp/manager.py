@@ -18,6 +18,7 @@ Called on shutdown: terminate_mcp_server()
 import sys
 import os
 import signal
+import click
 import jesse.helpers as jh
 
 
@@ -110,7 +111,17 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
             raise Exception(f"MCP server exited immediately with code {process.poll()}")
         
         # If we reach here, the MCP server started successfully
-        print(jh.color("✓ MCP Server is running at " + mcp_config.MCP_URL, "green"))
+        url = mcp_config.MCP_URL
+        border = click.style("─" * (len(url) + 32), fg="cyan", bold=True)
+        print(click.style("┌" + border + "┐", fg="cyan", bold=True))
+        print(
+            click.style("│  ", fg="cyan", bold=True)
+            + click.style("✓ MCP Server is running at ", fg="white", bold=True)
+            + click.style(url, fg="cyan", bold=True)
+            + click.style("  │", fg="cyan", bold=True)
+        )
+        print(click.style("└" + border + "┘", fg="cyan", bold=True))
+        print()
 
         # Set up signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, _signal_handler)   # Ctrl+C

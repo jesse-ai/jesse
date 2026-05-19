@@ -1,4 +1,5 @@
 import time
+import logging
 
 import click
 from importlib.metadata import version as get_version
@@ -47,16 +48,24 @@ def run() -> None:
     """
     version = get_version("jesse")
     print(welcome_message)
-    print(f"Main Framework Version: {version}")
 
-    # Check if jesse-live is installed and display its version
+    version_line = (
+        click.style("  Jesse ", fg="white")
+        + click.style(f"v{version}", fg="yellow", bold=True)
+    )
+
     if jh.has_live_trade_plugin():
         try:
             from jesse_live.version import __version__ as live_version
-
-            print(f"Live Plugin Version: {live_version}")
+            version_line += (
+                click.style("  ·  ", fg="white")
+                + click.style("Live Plugin ", fg="white")
+                + click.style(f"v{live_version}", fg="yellow", bold=True)
+            )
         except ImportError:
             pass
+
+    print(version_line)
 
     jh.validate_cwd()
 
@@ -105,6 +114,19 @@ def run() -> None:
         print(jh.color(f"Error running Python Language Server: {str(e)}", "red"))
         pass
     
+    # print dashboard box and suppress uvicorn's own "running on" line
+    dashboard_url = f"http://localhost:{PORT}"
+    _border = click.style("─" * (len(dashboard_url) + 34), fg="magenta", bold=True)
+    print(click.style("┌" + _border + "┐", fg="magenta", bold=True))
+    print(
+        click.style("│  ", fg="magenta", bold=True)
+        + click.style("⬡ Dashboard is available at ", fg="white", bold=True)
+        + click.style(dashboard_url, fg="magenta", bold=True)
+        + click.style("  │", fg="magenta", bold=True)
+    )
+    print(click.style("└" + _border + "┘", fg="magenta", bold=True))
+    print()
+
     # run the mcp server
     try:
         from jesse.mcp import run_mcp_server
@@ -116,5 +138,12 @@ def run() -> None:
 
     # run the main application
     process_manager.flush()
+
+    class _SuppressUvicornStartup(logging.Filter):
+        def filter(self, record):
+            return "Uvicorn running on" not in record.getMessage()
+
+    logging.getLogger("uvicorn.error").addFilter(_SuppressUvicornStartup())
+
     uvicorn.run(fastapi_app, host=HOST, port=PORT, log_level="info")
 
