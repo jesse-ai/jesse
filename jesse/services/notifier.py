@@ -133,7 +133,7 @@ def _custom_channel_notification(msg: dict):
 
 def _format_msg(msg: str) -> str:
     # if "_" exists in the message, replace it with "\_"
-    msg = msg.replace('_', '\_')
+    msg = msg.replace('_', r'\_')
     # # if "*" exists in the message, replace it with "\*"
     # msg = msg.replace('*', '\*')
     # # if "[" exists in the message, replace it with "\["
