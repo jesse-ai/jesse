@@ -77,8 +77,8 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
     if not mcp_config.JESSE_PASSWORD:
         raise Exception("PASSWORD not found in .env file. Required for MCP WebSocket authentication.")
 
-    # Read the MCP_LOG_IN_TERMINAL from the .env file, if not set, use the default value (False)
-    show_logs_in_terminal = ENV_VALUES.get('MCP_LOG_IN_TERMINAL', 'false').strip().lower() == 'true'
+    # Read the MCP_LOG_IN_TERMINAL from the .env file, if not set, use the default value (True)
+    show_logs_in_terminal = ENV_VALUES.get('MCP_LOG_IN_TERMINAL', 'true').strip().lower() != 'false'
 
     # Start the MCP server in a separate process and return the process handle
     try:
