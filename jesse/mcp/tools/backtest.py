@@ -13,8 +13,6 @@ The tools include:
 - purge_backtest_sessions: Purge old backtest sessions from the database
 """
 
-import asyncio
-
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
@@ -373,158 +371,72 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    async def run_backtest(session_id: str, timeout_seconds: int = 24 * 60 * 60) -> dict:
+    def run_backtest(session_id: str) -> dict:
         """
-        Execute a backtest using stored session configuration and monitor completion.
+        Trigger a backtest and return immediately (fire-and-poll pattern).
 
-        Executes a backtest session that was previously created with create_backtest_draft().
-        The function monitors progress via WebSocket events (same as the dashboard) and
-        returns completion status with results or error details.
-
-        Uses WebSocket events exclusively for real-time monitoring, providing the same
-        information and behavior as the dashboard interface. Jesse signals backtest
-        completion by sending the 'backtest.equity_curve' event. Compressed equity_curve
-        and trades data is automatically decompressed before returning.
+        Starts the backtest for the given session and returns as soon as Jesse
+        acknowledges the request. Does NOT wait for the backtest to finish.
+        Use get_backtest_session(session_id) to poll for progress and results.
 
         Parameters:
             session_id (str): UUID string of the backtest session to execute
                 Shape: UUID format string (e.g., "550e8400-e29b-41d4-a716-446655440000")
-            timeout_seconds (int): Maximum time to wait for completion in seconds
-                Range: 60-604800 (1 minute to 7 days)
-                Default: 86400 (24 hours)
-                Shape: Positive integer
 
         Returns:
-            dict: Execution result with status:
+            dict: Immediate acknowledgement:
 
-            Success Response:
+            Started Response:
             {
-                "status": "success",
+                "status": "started",
                 "backtest_id": "uuid-string",
-                "message": "Backtest completed successfully",
-                "metrics": {
-                    "total_trades": int,
-                    "winning_trades": int,
-                    "losing_trades": int,
-                    "net_profit": float,
-                    "net_profit_percentage": float,
-                    "max_drawdown": float,
-                    "max_drawdown_percentage": float,
-                    "sharpe_ratio": float,
-                    "sortino_ratio": float,
-                    "calmar_ratio": float,
-                    "win_rate": float,
-                    "profit_factor": float,
-                    "expectancy": float,
-                    "expectancy_percentage": float,
-                    "avg_win": float,
-                    "avg_loss": float,
-                    "largest_win": float,
-                    "largest_loss": float,
-                    "avg_holding_period": int,
-                    "total_fees": float,
-                    "total_volume": float,
-                    "starting_balance": float,
-                    "finishing_balance": float
-                },
-                "equity_curve": [
-                    {
-                        "timestamp": int,  // Unix timestamp
-                        "balance": float   // Portfolio balance at this point
-                    },
-                    ...
-                ],
-                "trades": [
-                    {
-                        "id": str,
-                        "symbol": str,          // e.g., "BTC-USDT"
-                        "type": "long|short",
-                        "entry_timestamp": int,
-                        "exit_timestamp": int,
-                        "entry_price": float,
-                        "exit_price": float,
-                        "qty": float,
-                        "fee": float,
-                        "pnl": float,          // Profit/Loss in base currency
-                        "pnl_percentage": float
-                    },
-                    ...
-                ]
+                "message": "Backtest started. Poll get_backtest_session(session_id) to check progress."
             }
 
             Error Response:
             {
                 "status": "error",
-                "backtest_id": "uuid-string",
-                "message": "Backtest failed",
-                "error_details": {
-                    "error": "CandlesNotFound: {'message': 'No candles found for BTC-USDT on Binance Spot between 2023-12-22 and 2023-12-31.', 'symbol': 'BTC-USDT', 'exchange': 'Binance Spot', 'start_date': '2024-01-01', 'type': 'missing_candles'}",
-                    "traceback": "Traceback (most recent call last):\\n  File \"/home/king/jesse/jesse-ai/jesse/jesse/modes/backtest_mode.py\", line 142, in _execute_backtest\\n    _handle_sync_no_candles(e, start_date, exchange)\\n  [... full traceback ...]\\n  raise exceptions.CandlesNotFound({...})\\njesse.exceptions.CandlesNotFound: {'message': 'No candles found...', 'type': 'missing_candles'}"
-                }
+                "message": "error description"
             }
 
-            Cancelled Response:
-            {
-                "status": "cancelled",
-                "backtest_id": "uuid-string",
-                "message": "Backtest was cancelled"
-            }
-
-            Shape: {
-                "status": "success|error|cancelled|unknown",
-                "backtest_id": string,
-                "message": string,
-                "metrics": object|undefined,
-                "equity_curve": array|undefined,
-                "trades": array|undefined,
-                "error_details": object|undefined
-            }
+            Shape: {"status": "started|error", "backtest_id": string, "message": string}
 
         Raises:
             NotFoundError: If session_id does not exist
             ValidationError: If session configuration is invalid
-            TimeoutError: If execution exceeds timeout_seconds
-            DatabaseError: If configuration loading fails
 
         Workflow:
             1. create_backtest_draft() → creates session with configuration
-            2. run_backtest(session_id) → executes and monitors via WebSocket
-            3. Function returns completion status with results or error details
+            2. run_backtest(session_id) → fires the backtest, returns immediately
+            3. Poll get_backtest_session(session_id) every few seconds
+            4. When session status is "finished", results are in metrics/trades/equity_curve
+            5. When session status is "stopped", check session.exception for error details
 
-        Monitoring:
-            - Uses WebSocket events for real-time completion detection
-            - Same event-driven approach as the dashboard
-            - Provides immediate error details for intelligent agent responses
+        Polling:
+            - Check session["data"]["session"]["status"] for: "running", "finished", "stopped", "cancelled"
+            - Results available when status == "finished"
+            - Error details in session["data"]["session"]["exception"] when status == "stopped"
 
         Example:
-            >>> # Execute backtest and wait for completion
+            >>> # Step 1: fire the backtest
             >>> result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
-            >>> if result["status"] == "success":
-            ...     print(f"Profit: ${result['metrics']['net_profit']:.2f}")
-            ...     print(f"Win Rate: {result['metrics']['win_rate']:.1%}")
-            ...     print(f"Total trades: {len(result['trades'])}")
-            ...     print(f"Equity curve points: {len(result['equity_curve'])}")
-            ...     # Access first trade
-            ...     if result['trades']:
-            ...         first_trade = result['trades'][0]
-            ...         print(f"First trade P&L: ${first_trade['pnl']:.2f}")
-            >>> elif result["status"] == "error":
-            ...     error_details = result.get("error_details", {})
-            ...     if "missing_candles" in error_details.get("error", ""):
-            ...         print("Missing candles - importing data...")
-            ...         # Agent can automatically call import_candles()
-            ...     else:
-            ...         print(f"Other error: {error_details.get('error', 'Unknown error')}")
-            ...     else:
-            ...         print(f"Backtest failed: {result['message']}")
-            >>> elif result["status"] == "cancelled":
-            ...     print("Backtest was cancelled")
+            >>> assert result["status"] == "started"
 
-            >>> # With custom timeout (2 hours)
-            >>> result = run_backtest("550e8400-e29b-41d4-a716-446655440000", timeout_seconds=7200)
+            >>> # Step 2: poll until done
+            >>> import time
+            >>> while True:
+            ...     session = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
+            ...     status = session["data"]["session"]["status"]
+            ...     if status == "finished":
+            ...         metrics = session["data"]["session"]["metrics"]
+            ...         print(f"Done! Net profit: {metrics['net_profit']}")
+            ...         break
+            ...     elif status == "stopped":
+            ...         print(f"Failed: {session['data']['session']['exception']}")
+            ...         break
+            ...     time.sleep(5)
         """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, run_backtest_service, session_id, timeout_seconds)
+        return run_backtest_service(session_id)
 
     @mcp.tool()
     def cancel_backtest(session_id: str) -> dict:

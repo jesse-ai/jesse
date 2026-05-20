@@ -12,7 +12,6 @@ code organization and reusability.
 import json
 import uuid
 import requests
-import time
 from hashlib import sha256
 import jesse.mcp.mcp_config as mcp_config
 from jesse.services.web import (
@@ -425,29 +424,20 @@ def get_backtest_sessions_service(
         }
 
 
-def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -> dict:
+def run_backtest_service(session_id: str) -> dict:
     """
-    Execute a backtest using a stored session configuration and monitor progress.
+    Trigger a backtest and return immediately.
 
-    This fetches the backtest form data from a session (created via
-    create_backtest_draft or the dashboard), loads the current backtest
-    config from the database, merges them, and runs the backtest.
-
-    The function blocks and monitors progress via WebSocket events until
-    the backtest completes with success or failure status.
-
-    Workflow:
-    1. use dashboard or create_backtest_draft() → creates session with form data, returns session_id
-    2. (optional) use dashboard or update_backtest_draft() → modify the form data
-    3. run_backtest(session_id) → automatically loads current config and runs backtest
-    4. Monitor progress via WebSocket events until completion
+    Fetches the stored session config, merges it with the current backtest config,
+    fires POST /backtest, and returns as soon as the server acknowledges (202).
+    The caller is responsible for polling get_backtest_session_service(session_id)
+    to track progress and retrieve results.
 
     Args:
         session_id: ID of the backtest session to run
-        timeout_seconds: Maximum time to wait for backtest completion (default: 86400 = 24 * 60 * 60 = 24 hours)
 
     Returns:
-        Success message with results or error details
+        {"status": "started", "backtest_id": session_id} on success, or an error dict.
     """
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -455,7 +445,7 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
     try:
         auth_token_hashed = hash_password(password)
 
-        # First, get the session to retrieve the stored state of the session
+        # Retrieve the stored session to get form config
         session_response = requests.post(
             f'{api_url}/backtest/sessions/{session_id}',
             headers={'Authorization': auth_token_hashed},
@@ -463,26 +453,16 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
         )
 
         if session_response.status_code == 404:
-            return {
-                'status': 'error',
-                'message': f'Backtest session {session_id} not found'
-            }
+            return {'status': 'error', 'message': f'Backtest session {session_id} not found'}
         elif session_response.status_code == 401:
-            return {
-                'status': 'error',
-                'message': 'Authentication failed'
-            }
+            return {'status': 'error', 'message': 'Authentication failed'}
         elif session_response.status_code != 200:
-            return {
-                'status': 'error',
-                'message': f'Failed to retrieve session: {session_response.text}'
-            }
+            return {'status': 'error', 'message': f'Failed to retrieve session: {session_response.text}'}
 
-        # Extract the current state from the session response
         session_data = session_response.json()
         session = session_data.get('session', {})
         state = session.get('state')
-        form = state.get('form')
+        form = state.get('form') if state else None
 
         if not state or not form:
             return {
@@ -490,43 +470,24 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
                 'message': 'No configuration found in session state. Create a draft first using create_backtest_draft.'
             }
 
-        # Parse the form if it's a string
-        if isinstance(form, str):
-            try:
-                form_data = json.loads(form)
-            except json.JSONDecodeError:
-                return {
-                    'status': 'error',
-                    'message': 'Invalid JSON in session state'
-                }
-        else:
-            form_data = form
+        form_data = json.loads(form) if isinstance(form, str) else form
 
-        # Load current backtest configuration automatically
+        # Load current backtest config from Jesse
         from .config import get_backtest_config_service
         config_result = get_backtest_config_service()
         if config_result['status'] != 'success':
-            return {
-                'status': 'error',
-                'message': f'Failed to load backtest config: {config_result.get("message", "Unknown error")}'
-            }
+            return {'status': 'error', 'message': f'Failed to load backtest config: {config_result.get("message", "Unknown error")}'}
         backtest_config = config_result['config']
 
-        # Merge form data with database config and ensure ID matches
         backtest_request_dict = {**form_data, 'config': backtest_config, 'id': session_id}
 
-        # Validate against BacktestRequestJson model
         try:
             backtest_req = BacktestRequestJson(**backtest_request_dict)
             payload = backtest_req.model_dump()
         except ValidationError as e:
-            return {
-                'status': 'error',
-                'message': 'Invalid backtest configuration in session state',
-                'validation_errors': str(e)
-            }
+            return {'status': 'error', 'message': 'Invalid backtest configuration in session state', 'validation_errors': str(e)}
 
-        # Call the backtest controller endpoint to run the backtest
+        # Fire the backtest and return immediately
         response = requests.post(
             f'{api_url}/backtest',
             json=payload,
@@ -534,227 +495,21 @@ def run_backtest_service(session_id: str, timeout_seconds: int = 24 * 60 * 60) -
             timeout=10
         )
 
-        if response.status_code != 202:
-            if response.status_code == 401:
-                return {
-                    'status': 'error',
-                    'message': 'Authentication failed'
-                }
-            else:
-                return {
-                    'status': 'error',
-                    'message': f'Failed to start backtest: {response.text}'
-                }
+        if response.status_code == 202:
+            return {
+                'status': 'started',
+                'backtest_id': session_id,
+                'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
+            }
+        elif response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        else:
+            return {'status': 'error', 'message': f'Failed to start backtest: {response.text}'}
 
-        # Backtest started successfully, now monitor progress via WebSocket events (real-time callbacks)
-        print(f"Backtest {session_id} started. Monitoring progress (timeout: {timeout_seconds}s)...")
-        print(f"📊 Progress: 0/100 (starting backtest...)")
-
-        from jesse.mcp.ws_listener import register_callback, unregister_callback, is_connected
-
-        # Local state for this backtest monitoring session (dashboard approach)
-        local_state = {
-            'completed': False,
-            'completion_event': None,  # Store the completion event data
-            'results': {
-                'metrics': None,
-                'equity_curve': None,
-                'trades': None,
-            },
-            'latest_progress': None,
-            'last_printed_progress': 0,  # Start at 0 to match initial print
-        }
-
-        def event_callback(event: dict):
-            """Process events for this specific backtest session."""
-            # Only process events for our session_id (ID is at root level, not in data)
-            if str(event.get('id', '')) != session_id:
-                return
-
-            event_type = event.get('event', '')
-
-            # Progress events
-            if event_type == 'backtest.progressbar':
-                local_state['latest_progress'] = event.get('data', {})
-                progress = local_state['latest_progress'].get('current', 0)
-                total = local_state['latest_progress'].get('total', 100)
-                estimated_remaining = local_state['latest_progress'].get('estimated_remaining_seconds', 0)
- 
-                # Only print if progress changed
-                if local_state['last_printed_progress'] != progress:
-                    print(f"📊 Progress: {progress}/{total} ({estimated_remaining}s remaining)")
-                    local_state['last_printed_progress'] = progress
-
-            # Collect result events (dashboard accumulates these separately)
-            elif event_type == 'backtest.metrics':
-                local_state['results']['metrics'] = event.get('data', {})
-            elif event_type == 'backtest.equity_curve':
-                # Jesse compresses equity_curve data - decompress it like the dashboard does
-                compressed_data = event.get('data', '')
-                if isinstance(compressed_data, str) and compressed_data:
-                    try:
-                        import gzip
-                        import base64
-                        import json
-                        # Decode base64, decompress gzip, parse JSON
-                        decompressed = gzip.decompress(base64.b64decode(compressed_data))
-                        local_state['results']['equity_curve'] = json.loads(decompressed.decode('utf-8'))
-                    except Exception as e:
-                        print(f"Failed to decompress equity_curve: {e}")
-                        local_state['results']['equity_curve'] = []
-                else:
-                    local_state['results']['equity_curve'] = compressed_data if isinstance(compressed_data, list) else []
-                # equity_curve is Jesse's completion signal for successful backtests
-                if not local_state['completed']:
-                    local_state['completed'] = True
-                    local_state['completion_event'] = {
-                        'type': event_type,
-                        'data': local_state['results']['equity_curve'],
-                        'timestamp': time.time()
-                    }
-            elif event_type == 'backtest.trades':
-                # Jesse compresses trades data - decompress it like the dashboard does
-                compressed_data = event.get('data', '')
-                if isinstance(compressed_data, str) and compressed_data:
-                    try:
-                        import gzip
-                        import base64
-                        import json
-                        # Decode base64, decompress gzip, parse JSON
-                        decompressed = gzip.decompress(base64.b64decode(compressed_data))
-                        local_state['results']['trades'] = json.loads(decompressed.decode('utf-8'))
-                    except Exception as e:
-                        print(f"Failed to decompress trades: {e}")
-                        local_state['results']['trades'] = []
-                else:
-                    local_state['results']['trades'] = compressed_data if isinstance(compressed_data, list) else []
-
-            # Error/completion events - capture the event data for processing
-            # IMPORTANT: backtest.exception always fires BEFORE backtest.unexpectedTermination
-            # (see failure.py: publish 'exception' then publish 'unexpectedTermination')
-            # So we must NOT overwrite the first completion event, or we lose the full error details.
-            elif event_type in ['backtest.exception', 'backtest.termination', 'backtest.unexpectedTermination']:
-                if not local_state['completed']:
-                    local_state['completed'] = True
-                    local_state['completion_event'] = {
-                        'type': event_type,
-                        'data': event.get('data', {}),
-                        'timestamp': time.time()
-                    }
-
-        # Register callback for real-time events
-        register_callback('backtest', event_callback)
-
-        try:
-            max_wait_time = timeout_seconds  # Configurable timeout
-            poll_interval = 2  # Check every 2 seconds
-            elapsed_time = 0
-
-            while elapsed_time < max_wait_time:
-                time.sleep(poll_interval)
-                elapsed_time += poll_interval
-
-                # Check WebSocket connection status
-                if not is_connected():
-                    return {
-                        'status': 'error',
-                        'backtest_id': session_id,
-                        'message': 'WebSocket connection lost during backtest monitoring'
-                    }
-
-                # Check if backtest completed (updated by callback)
-                if local_state['completed']:
-                    # Backtest completed via WebSocket event - use event data instead of database
-                    completion_event = local_state['completion_event']
-
-                    if completion_event:
-                        event_type = completion_event['type']
-                        event_data = completion_event['data']
-
-                        # Handle completion based on WebSocket event type
-                        if event_type == 'backtest.equity_curve':
-                            # Successful completion - return all collected results
-                            # Jesse signals completion with equity_curve event
-                            results = local_state['results']
-                            return {
-                                'status': 'success',
-                                'backtest_id': session_id,
-                                'message': 'Backtest completed successfully',
-                                'metrics': results['metrics'] or {},
-                                'equity_curve': results['equity_curve'] or [],
-                                'trades': results['trades'] or []
-                            }
-
-                        elif event_type == 'backtest.exception':
-                            # Exception occurred - use WebSocket event data directly
-                            return {
-                                'status': 'error',
-                                'backtest_id': session_id,
-                                'message': 'Backtest failed',
-                                'error_details': event_data
-                            }
-
-                        elif event_type == 'backtest.termination':
-                            # Backtest was cancelled/terminated normally
-                            return {
-                                'status': 'cancelled',
-                                'backtest_id': session_id,
-                                'message': 'Backtest was cancelled'
-                            }
-                        elif event_type == 'backtest.unexpectedTermination':
-                            # This fires AFTER backtest.exception, so this branch is only reached
-                            # if backtest.exception never fired (e.g. exception in main thread, not a worker thread).
-                            # In that case, fall back to the event_data (generic message).
-                            return {
-                                'status': 'error',
-                                'backtest_id': session_id,
-                                'message': 'Backtest failed',
-                                'error_details': event_data if event_data else {'error': 'Unknown exception occurred'}
-                            }
-                        else:
-                            # Unexpected event type
-                            return {
-                                'status': 'error',
-                                'backtest_id': session_id,
-                                'message': f'Unexpected error event: {event_type}'
-                            }
-                    else:
-                        return {
-                            'status': 'error',
-                            'backtest_id': session_id,
-                            'message': 'Backtest completed but no event data was captured'
-                        }
-
-        finally:
-            # Always unregister callback when done
-            unregister_callback('backtest', event_callback)
-
-        # Timeout reached
-        return {
-            'status': 'error',
-            'backtest_id': session_id,
-            'message': f'Backtest timed out after {max_wait_time} seconds (configured timeout)',
-            'completion_time_seconds': elapsed_time,
-            'timeout_seconds': max_wait_time
-        }
-
-    except ValueError as e:
-        return {
-            'status': 'error',
-            'message': str(e)
-        }
     except requests.exceptions.RequestException as e:
-        return {
-            'status': 'error',
-            'error': str(e),
-            'message': 'Failed to connect to Jesse API'
-        }
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
     except Exception as e:
-        return {
-            'status': 'error',
-            'error': str(e),
-            'message': 'Failed to run backtest'
-        }
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to run backtest'}
 
 
 def cancel_backtest_service(session_id: str) -> dict:
