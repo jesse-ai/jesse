@@ -13,6 +13,8 @@ The tools include:
 - purge_backtest_sessions: Purge old backtest sessions from the database
 """
 
+import asyncio
+
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
@@ -371,7 +373,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    def run_backtest(session_id: str, timeout_seconds: int = 24 * 60 * 60) -> dict:
+    async def run_backtest(session_id: str, timeout_seconds: int = 24 * 60 * 60) -> dict:
         """
         Execute a backtest using stored session configuration and monitor completion.
 
@@ -521,7 +523,8 @@ def register_backtest_tools(mcp):
             >>> # With custom timeout (2 hours)
             >>> result = run_backtest("550e8400-e29b-41d4-a716-446655440000", timeout_seconds=7200)
         """
-        return run_backtest_service(session_id, timeout_seconds)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, run_backtest_service, session_id, timeout_seconds)
 
     @mcp.tool()
     def cancel_backtest(session_id: str) -> dict:

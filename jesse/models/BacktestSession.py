@@ -237,7 +237,7 @@ def store_backtest_session(
     existing_session = get_backtest_session_by_id(id)
     
     if existing_session:
-        # Update existing session - reset it to fresh state
+        # Update existing session - reset results but preserve state (routes/form config)
         d = {
             'status': status,
             'metrics': None,
@@ -245,7 +245,6 @@ def store_backtest_session(
             'trades': None,
             'hyperparameters': None,
             'chart_data': None,
-            'state': None,
             'exception': None,
             'traceback': None,
             'execution_duration': None,

@@ -12,6 +12,7 @@ import requests
 import uuid
 import time
 from hashlib import sha256
+from typing import Optional
 from .auth import hash_password
 import jesse.mcp.mcp_config as mcp_config
 
@@ -162,7 +163,7 @@ def import_candles_service(
     symbol: str,
     start_date: str,
     blocking: bool = True,
-    import_id: str = None,
+    import_id: Optional[str] = None,
 ) -> dict:
     """
     Import historical candle data for a specific exchange and symbol.

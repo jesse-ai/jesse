@@ -17,6 +17,10 @@ For real-time import progress monitoring, use get_candle_import_progress from ev
 All tools require authentication via Jesse admin password.
 """
 
+import asyncio
+import functools
+from typing import Optional
+
 from jesse.mcp.tools.services.candles import (
     import_candles_service,
     cancel_candle_import_service,
@@ -39,12 +43,12 @@ def register_candles_tools(mcp):
     """
 
     @mcp.tool()
-    def import_candles(
+    async def import_candles(
         exchange: str,
         symbol: str,
         start_date: str,
         blocking: bool = True,
-        import_id: str = None,
+        import_id: Optional[str] = None,
     ) -> dict:
         """
         Import historical candle data from exchanges for backtesting.
@@ -184,13 +188,16 @@ def register_candles_tools(mcp):
             ...                               import_id=import_id)
             >>> # Blocks and waits for completion just like regular import
         """
-        return import_candles_service(
+        loop = asyncio.get_running_loop()
+        fn = functools.partial(
+            import_candles_service,
             exchange=exchange,
             symbol=symbol,
             start_date=start_date,
             blocking=blocking,
             import_id=import_id
         )
+        return await loop.run_in_executor(None, fn)
 
     @mcp.tool()
     def cancel_candle_import(import_id: str) -> dict:
