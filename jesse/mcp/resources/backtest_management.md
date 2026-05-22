@@ -8,9 +8,14 @@ Parameters:
 - `exchange` (optional): Exchange name (default: "Binance Perpetual Futures")
 - `routes`: JSON string array of route configurations
 - `data_routes` (optional): JSON string array of data route configurations
-- `start_date` (optional): Backtest start date (default: "2025-01-01")
-- `finish_date` (optional): Backtest end date (default: "2025-03-01")
+- `start_date` (optional): Backtest start date (default: "2024-01-01")
+- `finish_date` (optional): Backtest end date (default: "2024-03-01")
 - Additional options: debug_mode, export_csv, export_json, export_chart, fast_mode, benchmark
+- `title` (optional): Note title for the MCP-created session. If omitted, MCP generates one with an `MCP Backtest:` prefix.
+- `description` (optional): Full note description. If omitted, MCP generates a short markdown summary.
+- `strategy_summary` (optional): One-sentence summary of the strategy being tested.
+- `change_summary` (optional): What MCP changed before this backtest, if it edited a strategy.
+- `rationale` (optional): Why MCP made the change or ran this test.
 
 Default Configuration:
 ```json
@@ -18,8 +23,8 @@ Default Configuration:
     "exchange": "Binance Perpetual Futures",
     "routes": "[{"exchange":"Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT",    "timeframe": "4h"}]",
     "data_routes": "[]",
-    "start_date": "2025-01-01",
-    "finish_date": "2025-03-01",
+    "start_date": "2024-01-01",
+    "finish_date": "2024-03-01",
     "debug_mode": false,
     "export_csv": false,
     "export_json": false,
@@ -31,6 +36,11 @@ Default Configuration:
 ```
 
 Returns: Session ID (UUID format) and configuration object
+
+MCP-created drafts automatically populate the session notes fields that the dashboard already uses:
+- `title`: Short, searchable title with an `MCP Backtest:` prefix
+- `description`: Markdown-formatted summary focused on strategy, change, rationale, and backtest period
+- `strategy_codes`: Strategy code snapshots when the referenced strategy files are available
 
 ### update_backtest_draft()
 
@@ -63,6 +73,19 @@ Update Process:
 2. Extract state object: `response.session.state.state`
 3. Merge changes with current state
 4. Call `update_backtest_draft()` with merged state
+
+### update_backtest_notes()
+
+Updates the existing notes metadata for a backtest session.
+
+Parameters:
+- `session_id`: UUID of the backtest session to update (required)
+- `title` (optional): Short title shown in session lists
+- `description` (optional): Detailed note or markdown summary
+- `strategy_codes` (optional): JSON object string containing strategy code snapshots
+
+Use this after an AI-driven iteration when the agent has learned the final hypothesis,
+configuration rationale, or relevant conclusion for the session.
 
 ### get_backtest_session()
 

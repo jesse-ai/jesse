@@ -6,6 +6,7 @@ using the backtest controller endpoints like the dashboard does.
 
 The tools include:
 - update_backtest_draft: Create or update a backtest draft configuration
+- update_backtest_notes: Update backtest session title, description, and strategy code notes
 - get_backtest_session: Get details of a specific backtest session by ID
 - get_backtest_sessions: List backtest sessions with optional filters
 - run_backtest: Execute a backtest using BacktestRequestJson configuration
@@ -16,6 +17,7 @@ The tools include:
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
+    update_backtest_notes_service,
     get_backtest_session_service,
     get_backtest_sessions_service,
     run_backtest_service,
@@ -48,7 +50,12 @@ def register_backtest_tools(mcp):
         export_chart: bool = True,
         export_tradingview: bool = False,
         fast_mode: bool = False,
-        benchmark: bool = True
+        benchmark: bool = True,
+        title: str = None,
+        description: str = None,
+        strategy_summary: str = None,
+        change_summary: str = None,
+        rationale: str = None
     ) -> dict:
         """
         Create a new backtest draft session with specified parameters.
@@ -85,6 +92,13 @@ def register_backtest_tools(mcp):
             export_tradingview (bool): Export TradingView Pine Script for chart analysis
             fast_mode (bool): Enable fast mode for quicker execution (reduced precision)
             benchmark (bool): Run benchmark comparison against buy-and-hold strategy
+            title (str, optional): Human-readable note title for this MCP-created session.
+                If omitted, Jesse MCP generates one from the first route.
+            description (str, optional): Note description explaining the session purpose.
+                If omitted, Jesse MCP generates a short markdown summary.
+            strategy_summary (str, optional): One-sentence summary of the strategy being tested.
+            change_summary (str, optional): What changed before this backtest, if MCP edited a strategy.
+            rationale (str, optional): Why the MCP made the change or ran this test.
 
         Returns:
             dict: Session creation confirmation containing:
@@ -118,7 +132,12 @@ def register_backtest_tools(mcp):
             export_chart=export_chart,
             export_tradingview=export_tradingview,
             fast_mode=fast_mode,
-            benchmark=benchmark
+            benchmark=benchmark,
+            title=title,
+            description=description,
+            strategy_summary=strategy_summary,
+            change_summary=change_summary,
+            rationale=rationale
         )
 
     @mcp.tool()
@@ -171,6 +190,45 @@ def register_backtest_tools(mcp):
             >>> result = update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", updated_state)
         """
         return update_backtest_draft_service(backtest_id, state)
+
+    @mcp.tool()
+    def update_backtest_notes(
+        session_id: str,
+        title: str = None,
+        description: str = None,
+        strategy_codes: str = None
+    ) -> dict:
+        """
+        Update notes for an existing backtest session.
+
+        Stores the same note metadata used by the dashboard: title, description,
+        and optional strategy code snapshots. This is useful for AI/MCP generated
+        sessions because the session list can then show why a run was created,
+        what hypothesis it tested, and which strategy version it used.
+
+        Parameters:
+            session_id (str): UUID string of the backtest session to update.
+            title (str, optional): Short session title.
+            description (str, optional): Detailed note or markdown summary.
+            strategy_codes (str, optional): JSON object string of strategy code snapshots.
+                Shape: {"Binance Perpetual Futures-BTC-USDT": "strategy code"}
+
+        Returns:
+            dict: Update result with status, session_id, notes fields, and message.
+
+        Example:
+            >>> update_backtest_notes(
+            ...     "550e8400-e29b-41d4-a716-446655440000",
+            ...     title="AI Backtest: breakout filter",
+            ...     description="Tests a stricter trend filter on BTC-USDT 4h."
+            ... )
+        """
+        return update_backtest_notes_service(
+            session_id=session_id,
+            title=title,
+            description=description,
+            strategy_codes=strategy_codes
+        )
 
     @mcp.tool()
     def get_backtest_session(session_id: str) -> dict:
