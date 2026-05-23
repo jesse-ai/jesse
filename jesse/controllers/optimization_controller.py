@@ -27,13 +27,6 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
 
     jh.validate_cwd()
 
-    # Check Python version before imports
-    if jh.python_version() == (3, 13):
-        return JSONResponse({
-            'error': 'Optimization is not supported on Python 3.13',
-            'message': 'The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.'
-        }, status_code=500)
-
     # Validate routes
     if not request_json.routes or len(request_json.routes) == 0:
         return JSONResponse({
@@ -84,13 +77,6 @@ async def rerun_optimization(request_json: OptimizationRequestJson, authorizatio
         return authenticator.unauthorized_response()
 
     jh.validate_cwd()
-
-    # Check Python version before imports
-    if jh.python_version() == (3, 13):
-        return JSONResponse({
-            'error': 'Optimization is not supported on Python 3.13',
-            'message': 'The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.'
-        }, status_code=500)
 
     # Get the session from the database
     session = get_optimization_session_by_id_from_db(request_json.id)
@@ -242,13 +228,6 @@ async def resume_optimization(request_json: OptimizationRequestJson, authorizati
         return authenticator.unauthorized_response()
 
     jh.validate_cwd()
-
-    # Check Python version before imports
-    if jh.python_version() == (3, 13):
-        return JSONResponse({
-            'error': 'Optimization is not supported on Python 3.13',
-            'message': 'The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.'
-        }, status_code=500)
 
     # Get the session from the database
     session = get_optimization_session_by_id_from_db(request_json.id)

@@ -33,10 +33,6 @@ def run(
     pipeline_params: Optional[dict],
     state: dict,
 ) -> None:
-    if jh.python_version() == (3, 13):
-        raise ValueError(
-            'Monte Carlo mode is not supported on Python 3.13. The "Ray" library used for Monte Carlo does not support Python 3.13 yet. Please use Python 3.12 or lower.')
-
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'monte-carlo'
 
@@ -124,5 +120,3 @@ def run(
     )
 
     runner.run()
-
-

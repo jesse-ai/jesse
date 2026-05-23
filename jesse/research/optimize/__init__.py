@@ -126,13 +126,6 @@ def optimize(
     :return: An :class:`OptimizeReturn` typed dict.
     """
     # ------------------------------------------------------------------ guards
-    if jh.python_version() == (3, 13):
-        raise ValueError(
-            'Optimization is not supported on Python 3.13. '
-            'The Ray library used for optimization does not support Python 3.13 yet. '
-            'Please use Python 3.12 or lower.'
-        )
-
     _supported_objectives = ('sharpe', 'calmar', 'sortino', 'omega')
     if objective_function not in _supported_objectives:
         raise ValueError(

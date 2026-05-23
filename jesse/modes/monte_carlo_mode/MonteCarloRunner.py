@@ -47,10 +47,6 @@ class MonteCarloRunner:
         pipeline_type: Optional[str],
         pipeline_params: Optional[dict],
     ):
-        if jh.python_version() == (3, 13):
-            raise ValueError(
-                'Monte Carlo mode is not supported on Python 3.13. The Ray library does not support Python 3.13 yet. Please use Python 3.12 or lower.')
-
         self.session_id = session_id
         self.user_config = user_config
         self.routes = routes
@@ -561,5 +557,4 @@ class MonteCarloRunner:
             })
         
         return metrics
-
 

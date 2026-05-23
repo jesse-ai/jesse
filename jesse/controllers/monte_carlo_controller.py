@@ -41,13 +41,6 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
 
     jh.validate_cwd()
 
-    # Check Python version before imports
-    if jh.python_version() == (3, 13):
-        return JSONResponse({
-            'error': 'Monte Carlo mode is not supported on Python 3.13',
-            'message': 'The Ray library used for Monte Carlo does not support Python 3.13 yet. Please use Python 3.12 or lower.'
-        }, status_code=500)
-
     # Validate at least one type is selected
     if not request_json.run_trades and not request_json.run_candles:
         return JSONResponse({
@@ -80,6 +73,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
             'error': f'Monte Carlo session with ID {session_id} already exists (in DB)',
             'message': 'A session with this ID already exists in the database.'
         }, status_code=409)
+
     process_manager.add_task(
         run_monte_carlo,
         session_id,
@@ -150,13 +144,6 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson, authorization:
         return authenticator.unauthorized_response()
 
     jh.validate_cwd()
-
-    # Check Python version
-    if jh.python_version() == (3, 13):
-        return JSONResponse({
-            'error': 'Monte Carlo mode is not supported on Python 3.13',
-            'message': 'The Ray library used for Monte Carlo does not support Python 3.13 yet. Please use Python 3.12 or lower.'
-        }, status_code=500)
 
     # Get the session from the database
     session = get_monte_carlo_session_by_id(request_json.id)
