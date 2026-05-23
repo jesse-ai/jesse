@@ -285,6 +285,55 @@ def get_candles_service(
         }
 
 
+def get_candle_import_status_service(import_id: str) -> dict:
+    """
+    Check whether a candle import process is still running.
+
+    Single Redis SISMEMBER call on the server — no database queries, no timeout risk.
+
+    Args:
+        import_id: The import process ID returned by import_candles()
+
+    Returns:
+        {"status": "running"|"finished", "import_id": "...", ...}
+    """
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth_token_hashed = hash_password(password)
+
+        response = requests.post(
+            f'{api_url}/candles/import-status',
+            json={"id": import_id},
+            headers={'Authorization': auth_token_hashed},
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "status": data.get("status"),
+                "import_id": import_id,
+                "message": f"Import {import_id} is {data.get('status')}."
+            }
+        else:
+            return {
+                "status": "error",
+                "import_id": import_id,
+                "error_type": "api_error",
+                "message": f"Failed to get import status: {response.text}"
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "import_id": import_id,
+            "error_type": "network_error",
+            "message": f"Network error checking import status: {str(e)}"
+        }
+
+
 def get_existing_candles_service() -> dict:
     """
     List all imported candle data in the database.

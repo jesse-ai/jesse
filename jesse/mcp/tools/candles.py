@@ -24,6 +24,7 @@ from jesse.mcp.tools.services.candles import (
     cancel_candle_import_service,
     clear_candle_cache_service,
     get_candles_service,
+    get_candle_import_status_service,
     get_existing_candles_service,
     delete_candles_service
 )
@@ -52,8 +53,8 @@ def register_candles_tools(mcp):
 
         Starts the import for the given exchange/symbol and returns as soon as Jesse
         acknowledges the request. Does NOT wait for the import to finish.
-        Poll get_existing_candles() to confirm data has landed, or call
-        cancel_candle_import(import_id) to stop it.
+        Poll get_candle_import_status(import_id) every few seconds until "finished",
+        then optionally verify with get_existing_candles(). Use cancel_candle_import(import_id) to stop it.
 
         All supported timeframes are imported automatically: 1m, 3m, 5m, 15m, 30m,
         45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M.
@@ -187,6 +188,47 @@ def register_candles_tools(mcp):
             ...     print(f"Failed to cancel: {result['message']}")
         """
         return cancel_candle_import_service(import_id)
+
+    @mcp.tool()
+    def get_candle_import_status(import_id: str) -> dict:
+        """
+        Check whether a candle import is still running or has finished.
+
+        Uses a single Redis lookup on the server — no database queries, no timeout risk.
+        This is the preferred polling tool during an active import. Call it every few
+        seconds after import_candles() until status is "finished", then optionally
+        verify coverage with get_existing_candles().
+
+        Parameters:
+            import_id (str): The import process UUID returned by import_candles()
+
+        Returns:
+            dict:
+            {
+                "status": "running" | "finished",
+                "import_id": "uuid-string",
+                "message": "Import <id> is running|finished."
+            }
+
+            On error:
+            {
+                "status": "error",
+                "import_id": "uuid-string",
+                "error_type": "api_error|network_error",
+                "message": "..."
+            }
+
+        Example:
+            >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01")
+            >>> import_id = result["import_id"]
+            >>> import time
+            >>> while True:
+            ...     status = get_candle_import_status(import_id)
+            ...     if status["status"] == "finished":
+            ...         break
+            ...     time.sleep(5)
+        """
+        return get_candle_import_status_service(import_id)
 
     @mcp.tool()
     def clear_candle_cache() -> dict:

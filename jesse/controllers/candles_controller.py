@@ -5,6 +5,7 @@ from jesse.repositories import candle_repository
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson, PurgeCandlesRequestJson
+from jesse.services.redis import is_process_active
 import jesse.helpers as jh
 
 router = APIRouter(prefix="/candles", tags=["Candles"])
@@ -81,6 +82,23 @@ def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str
     return JSONResponse({
         'id': json_request.id,
         'data': arr
+    }, status_code=200)
+
+
+@router.post("/import-status")
+def get_candle_import_status(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Check whether a candle import process is still running.
+
+    Uses a single Redis SISMEMBER call — no database queries.
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    running = bool(is_process_active(request_json.id))
+    return JSONResponse({
+        'import_id': request_json.id,
+        'status': 'running' if running else 'finished',
     }, status_code=200)
 
 
