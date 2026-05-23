@@ -14,8 +14,3 @@ def high_pass(candles: np.ndarray, period: int = 48, source_type: str = "close",
     if sequential:
         return res
     return None if np.isnan(res[-1]) else res[-1]
-
-def high_pass_fast(source, period):
-    """Internal helper - kept for compatibility"""
-    import numpy as np
-    return jr.high_pass(np.ascontiguousarray(source, dtype=np.float64), int(period))
