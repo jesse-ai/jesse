@@ -9,7 +9,7 @@ from jesse_rust import ema as ema_rust
 def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
-    EMA - Exponential Moving Average using Numba for optimization
+    EMA - Exponential Moving Average
 
     :param candles: np.ndarray
     :param period: int - default: 5
