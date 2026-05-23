@@ -10,176 +10,34 @@ code organization and reusability.
 
 import requests
 import uuid
-import time
 from hashlib import sha256
 from typing import Optional
 from .auth import hash_password
 import jesse.mcp.mcp_config as mcp_config
 
 
-def _monitor_import_completion(import_id: str, exchange: str, symbol: str, start_date: str, start_time: float) -> dict:
-    """
-    Monitor an import process until completion using real-time callbacks (dashboard approach).
-
-    Args:
-        import_id: The import ID to monitor
-        exchange: Exchange name
-        symbol: Trading symbol
-        start_date: Start date
-        start_time: When monitoring started (for duration calculation)
-
-    Returns:
-        Completion result dictionary
-    """
-    from jesse.mcp.ws_listener import register_callback, unregister_callback, is_connected
-
-    # Local state for this monitoring session (dashboard approach: listen and forget globally, but track locally)
-    local_state = {
-        'progress_count': 0,
-        'latest_progress': None,
-        'success': False,
-        'error': None,
-        'exception': None,
-    }
-
-    # Track last printed progress to avoid duplicate logs
-    last_printed_progress = None
-
-    def event_callback(event: dict):
-        """Process events for this specific import_id."""
-        # Only process events for our import_id (ID is at root level, not in data)
-        if str(event.get('id', '')) != import_id:
-            return
-
-        event_type = event.get('event', '')
-
-        # Progress events
-        if event_type == 'candles.progressbar':
-            local_state['progress_count'] += 1
-            local_state['latest_progress'] = event.get('data', {})
-
-        # Success alert
-        elif event_type == 'candles.alert' and event.get('data', {}).get('type') == 'success':
-            local_state['success'] = True
-
-        # Error alert
-        elif event_type == 'candles.alert' and event.get('data', {}).get('type') == 'error':
-            local_state['error'] = event.get('data', {})
-
-        # Exception event
-        elif event_type == 'candles.exception':
-            local_state['exception'] = event.get('data', {})
-
-        # Termination event
-        elif event_type == 'candles.termination':
-            local_state['exception'] = event.get('data', {})
-
-    # Register callback for real-time events
-    register_callback('candles', event_callback)
-
-    try:
-        poll_interval = 10  # Check every 10 seconds
-        max_monitor_time = 60 * 60  # Maximum 1 hour of monitoring
-
-        print(f"📊 Progress: 0% (starting import for {symbol} on {exchange})")
-        last_printed_progress = 0
-
-        while time.time() - start_time < max_monitor_time:
-            try:
-                if not is_connected():
-                    print("⚠️  WebSocket not connected, waiting for connection...")
-                    time.sleep(5)
-                    continue
-
-                # Check local state (updated in real-time by callback)
-                if local_state['success']:
-                    duration = int(time.time() - start_time)
-                    return {
-                        "status": "completed",
-                        "action": "candle_import_completed",
-                        "import_id": import_id,
-                        "exchange": exchange,
-                        "symbol": symbol,
-                        "start_date": start_date,
-                        "duration_seconds": duration,
-                        "progress_events_count": local_state['progress_count'],
-                        "message": f"Successfully imported {symbol} candles from {exchange} in {duration}s"
-                    }
-
-                elif local_state['error'] or local_state['exception']:
-                    duration = int(time.time() - start_time)
-                    error_details = []
-                    if local_state['exception']:
-                        error_details.append(str(local_state['exception']))
-                    if local_state['error']:
-                        error_details.append(str(local_state['error']))
-
-                    return {
-                        "status": "failed",
-                        "action": "candle_import_failed",
-                        "import_id": import_id,
-                        "exchange": exchange,
-                        "symbol": symbol,
-                        "start_date": start_date,
-                        "duration_seconds": duration,
-                        "error_details": error_details,
-                        "progress_events_count": local_state['progress_count'],
-                        "message": f"Failed to import {symbol} candles from {exchange} after {duration}s"
-                    }
-
-                # Still in progress, show status only when it changes
-                if local_state['latest_progress']:
-                    progress_pct = local_state['latest_progress'].get('current', 0)
-                    # Only print if progress changed
-                    if progress_pct != last_printed_progress:
-                        print(f"📊 Progress: {progress_pct}%")
-                        last_printed_progress = progress_pct
-
-            except Exception as e:
-                print(f"⚠️  Error checking progress: {e}")
-
-            time.sleep(poll_interval)
-
-        # Timeout reached
-        duration = int(time.time() - start_time)
-        return {
-            "status": "timeout",
-            "action": "candle_import_timeout",
-            "import_id": import_id,
-            "exchange": exchange,
-            "symbol": symbol,
-            "start_date": start_date,
-            "duration_seconds": duration,
-            "message": f"Import monitoring timed out after {duration}s (process may still be running in background)"
-        }
-
-    finally:
-        # Always unregister callback when done
-        unregister_callback('candles', event_callback)
-
-
 def import_candles_service(
     exchange: str,
     symbol: str,
     start_date: str,
-    blocking: bool = True,
     import_id: Optional[str] = None,
 ) -> dict:
     """
-    Import historical candle data for a specific exchange and symbol.
+    Trigger a candle import and return immediately.
 
-    Downloads historical candle data from the specified exchange starting from
-    the given date. By default, this function blocks and waits for completion.
+    Fires POST /candles/import and returns as soon as the server acknowledges (202).
+    The caller is responsible for polling get_existing_candles_service() to confirm
+    the data has landed.
 
     Args:
-        exchange: Exchange name (e.g., 'binance', 'bybit', 'coinbase')
+        exchange: Exchange name (e.g., 'Binance Spot', 'Bybit USDT Perpetual')
         symbol: Trading symbol (e.g., 'BTC-USDT', 'ETH-USDT')
         start_date: Start date in YYYY-MM-DD format
-        blocking: If True, wait for import completion. If False, return import_id immediately (default: True)
-        import_id: Optional import ID to reuse (for retries). If None, generates a new unique ID.
+        import_id: Optional import ID to reuse for retrying a previous import.
+                   If None, a new unique ID is generated.
 
     Returns:
-        Success confirmation with import results or error message
+        {"status": "started", "import_id": "...", ...} on success, or an error dict.
     """
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -187,14 +45,9 @@ def import_candles_service(
     try:
         auth_token_hashed = hash_password(password)
 
-        # Use provided import_id or generate new one
         if import_id is None:
             import_id = str(uuid.uuid4())
-        else:
-            # Reusing import_id for retry (dashboard behavior)
-            print(f"🔄 Retrying import with existing ID: {import_id}")
 
-        # Make API request to import candles
         response = requests.post(
             f'{api_url}/candles/import',
             json={
@@ -208,23 +61,15 @@ def import_candles_service(
         )
 
         if response.status_code == 202:
-            # Dashboard behavior: Import process started successfully
-            # Backend handles all errors and retries internally
-            if not blocking:
-                return {
-                    "status": "success",
-                    "action": "candle_import_started",
-                    "import_id": import_id,
-                    "exchange": exchange,
-                    "symbol": symbol,
-                    "start_date": start_date,
-                    "message": f"Started importing {symbol} candles from {exchange} starting {start_date}. Use get_candle_import_progress with import_id to track progress."
-                }
-
-            # Blocking mode: wait for completion
-            start_time = time.time()
-
-            return _monitor_import_completion(import_id, exchange, symbol, start_date, start_time)
+            return {
+                "status": "started",
+                "action": "candle_import_started",
+                "import_id": import_id,
+                "exchange": exchange,
+                "symbol": symbol,
+                "start_date": start_date,
+                "message": f"Candle import started for {symbol} on {exchange}. Poll get_existing_candles() to confirm completion, or cancel_candle_import(import_id) to stop it."
+            }
         else:
             return {
                 "status": "error",
@@ -235,21 +80,14 @@ def import_candles_service(
                 "message": f"Failed to start candle import: {response.text}"
             }
 
-    except ValueError as e:
-        return {
-            "status": "error",
-            "action": "config_error",
-            "message": str(e)
-        }
     except Exception as e:
-        # Initial API call failed - import couldn't start
         return {
             "status": "error",
             "action": "candle_import_failed",
             "exchange": exchange,
             "symbol": symbol,
             "error_type": "network_error",
-            "message": f"Failed to start candle import - network error calling Jesse API: {str(e)}"
+            "message": f"Failed to start candle import: {str(e)}"
         }
 
 

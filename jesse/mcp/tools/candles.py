@@ -17,8 +17,6 @@ For real-time import progress monitoring, use get_candle_import_progress from ev
 All tools require authentication via Jesse admin password.
 """
 
-import asyncio
-import functools
 from typing import Optional
 
 from jesse.mcp.tools.services.candles import (
@@ -43,161 +41,89 @@ def register_candles_tools(mcp):
     """
 
     @mcp.tool()
-    async def import_candles(
+    def import_candles(
         exchange: str,
         symbol: str,
         start_date: str,
-        blocking: bool = True,
         import_id: Optional[str] = None,
     ) -> dict:
         """
-        Import historical candle data from exchanges for backtesting.
+        Trigger a candle import and return immediately (fire-and-poll pattern).
 
-        Downloads historical candle (OHLCV) data from the specified exchange starting from
-        the given date. Supports both blocking (waits for completion) and non-blocking modes.
-        All supported timeframes are automatically imported: 1m, 3m, 5m, 15m, 30m, 45m,
-        1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M.
+        Starts the import for the given exchange/symbol and returns as soon as Jesse
+        acknowledges the request. Does NOT wait for the import to finish.
+        Poll get_existing_candles() to confirm data has landed, or call
+        cancel_candle_import(import_id) to stop it.
+
+        All supported timeframes are imported automatically: 1m, 3m, 5m, 15m, 30m,
+        45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M.
 
         Parameters:
-            exchange (str): Exchange name for data import. Supported exchanges include:
-                - "Binance Spot" - Most popular, reliable data
-                - "Binance Perpetual Futures" - High leverage futures
-                - "Bybit Spot" - Alternative data source
-                - "Bybit USDT Perpetual" - Futures trading
-                - "Bybit USDC Perpetual" - USDC settlement futures
-                - "Coinbase Spot" - Low fees (0.03%)
-                - "Bitfinex Spot" - Additional option
-                - "Gate USDT Perpetual" - Additional futures option
-                Shape: String matching supported exchange names
-            symbol (str): Trading pair symbol (e.g., "BTC-USDT", "ETH-USDT", "DOGE-USDT")
-                Shape: String in format "BASE-QUOTE" (e.g., "BTC-USDT")
+            exchange (str): Exchange name. Supported values:
+                - "Binance Spot", "Binance Perpetual Futures"
+                - "Bybit Spot", "Bybit USDT Perpetual", "Bybit USDC Perpetual"
+                - "Coinbase Spot", "Bitfinex Spot", "Gate USDT Perpetual"
+            symbol (str): Trading pair in "BASE-QUOTE" format (e.g., "BTC-USDT")
             start_date (str): Import start date in YYYY-MM-DD format
-                Data will be imported from this date until present
-                Shape: String in "YYYY-MM-DD" format
-            blocking (bool): Whether to wait for import completion or return immediately
-                - True: Blocks and monitors progress until completion (default)
-                - False: Returns immediately with import_id for async monitoring
-                Shape: Boolean
-            import_id (str, optional): UUID string to reuse for retrying failed imports
-                If provided, resumes previous failed import
-                If None, generates new unique import ID
-                Shape: UUID format string or None
+            import_id (str, optional): Reuse a previous import ID to retry a failed import.
+                If None, a new unique ID is generated.
 
         Returns:
-            dict: Import result with status and metadata:
+            dict: Immediate acknowledgement:
 
-            Blocking Mode Success Response:
+            Started Response:
             {
-                "status": "completed",
-                "action": "candle_import_completed",
-                "import_id": "uuid-string",
-                "exchange": "string",
-                "symbol": "string",
-                "start_date": "YYYY-MM-DD",
-                "duration_seconds": int,
-                "progress_events_count": int,
-                "message": "Successfully imported BTC-USDT candles from Binance Spot in 45s"
-            }
-
-            Blocking Mode Error Response:
-            {
-                "status": "failed|timeout",
-                "action": "candle_import_failed|candle_import_timeout",
-                "import_id": "uuid-string",
-                "exchange": "string",
-                "symbol": "string",
-                "start_date": "YYYY-MM-DD",
-                "duration_seconds": int,
-                "error_details": ["error_description"],
-                "message": "Failed to import BTC-USDT candles from Binance Spot after 120s"
-            }
-
-            Non-Blocking Mode Success Response:
-            {
-                "status": "success",
+                "status": "started",
                 "action": "candle_import_started",
                 "import_id": "uuid-string",
                 "exchange": "string",
                 "symbol": "string",
                 "start_date": "YYYY-MM-DD",
-                "message": "Started importing BTC-USDT candles from Binance Spot starting 2024-01-01"
+                "message": "..."
             }
 
-            Error Response (API/Configuration):
+            Error Response:
             {
                 "status": "error",
-                "action": "candle_import_failed|config_error",
+                "action": "candle_import_failed",
                 "exchange": "string",
                 "symbol": "string",
                 "error_type": "api_error|network_error",
-                "message": "Failed to start candle import: [error details]"
+                "message": "..."
             }
-
-            Shape: {
-                "status": "completed|failed|timeout|success|error",
-                "action": string,
-                "import_id": string,
-                "exchange": string,
-                "symbol": string,
-                "start_date": string,
-                "duration_seconds": int|undefined,
-                "progress_events_count": int|undefined,
-                "error_details": array[string]|undefined,
-                "message": string
-            }
-
-        Raises:
-            ValidationError: If exchange/symbol/start_date format is invalid
-            NetworkError: If Jesse API is unreachable
-            AuthenticationError: If Jesse password is incorrect
-
-        Behavior:
-            - Imports all supported timeframes automatically (no need to specify timeframe)
-            - Blocking mode (default): Tool call blocks synchronously until import completes
-            - WebSocket monitoring happens internally - agent just waits for final result
-            - Non-blocking mode: Returns immediately with import_id for external monitoring
-            - Retry with same import_id to resume failed imports efficiently
 
         Workflow:
-            1. Call import_candles() with blocking=True (default)
-            2. Tool handles all WebSocket monitoring internally
-            3. Tool returns final result when import completes (success/failure/timeout)
-            4. No additional monitoring or polling needed by the caller
+            1. Call import_candles() → returns immediately with import_id
+            2. Poll get_existing_candles() periodically until the symbol appears
+            3. Use cancel_candle_import(import_id) to abort if needed
+            4. To retry a failed import, pass the same import_id back
 
         Example:
-            >>> # Simple blocking import (recommended approach)
+            >>> # Step 1: fire the import
             >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01")
-            >>> # Tool blocks here, monitoring WebSocket internally...
-            >>> if result["status"] == "completed":
-            ...     print(f"✅ Import successful! Duration: {result['duration_seconds']}s")
-            ...     print(f"📊 Progress updates received: {result['progress_events_count']}")
-            >>> elif result["status"] == "failed":
-            ...     print(f"❌ Import failed: {result['message']}")
-            >>> elif result["status"] == "timeout":
-            ...     print(f"⏰ Import timed out after {result['duration_seconds']}s")
+            >>> assert result["status"] == "started"
+            >>> import_id = result["import_id"]
 
-            >>> # Non-blocking import (advanced - returns immediately)
-            >>> result = import_candles("Binance Spot", "ETH-USDT", "2024-01-01", blocking=False)
-            >>> if result["status"] == "success":
-            ...     import_id = result["import_id"]
-            ...     print(f"🚀 Import started with ID: {import_id}")
-            ...     # Import continues in background - you'd need external monitoring
+            >>> # Step 2: poll until data appears
+            >>> import time
+            >>> while True:
+            ...     existing = get_existing_candles()
+            ...     symbols = [c["symbol"] for c in existing.get("candle_sets", [])]
+            ...     if "BTC-USDT" in symbols:
+            ...         print("Import complete!")
+            ...         break
+            ...     time.sleep(15)
 
-            >>> # Retry failed import (same blocking behavior)
-            >>> retry_result = import_candles("Binance Spot", "ETH-USDT", "2024-01-01",
-            ...                               import_id=import_id)
-            >>> # Blocks and waits for completion just like regular import
+            >>> # Retry a failed import with the same ID
+            >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01",
+            ...                         import_id=import_id)
         """
-        loop = asyncio.get_running_loop()
-        fn = functools.partial(
-            import_candles_service,
+        return import_candles_service(
             exchange=exchange,
             symbol=symbol,
             start_date=start_date,
-            blocking=blocking,
             import_id=import_id
         )
-        return await loop.run_in_executor(None, fn)
 
     @mcp.tool()
     def cancel_candle_import(import_id: str) -> dict:
