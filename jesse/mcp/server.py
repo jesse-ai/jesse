@@ -42,7 +42,7 @@ sys.excepthook = _log_uncaught_exception
 parser = argparse.ArgumentParser(description='Jesse MCP Server')
 parser.add_argument('--port', type=int, required=True, help='Port to run the MCP server on')
 parser.add_argument('--api_url', type=str, required=True, help='Jesse API URL')
-parser.add_argument('--password', type=str, required=True, help='Jesse admin password for WebSocket auth')
+parser.add_argument('--password', type=str, required=True, help='Jesse admin password for HTTP API auth')
 args = parser.parse_args()
 
 # Initialize shared runtime config for this subprocess.
@@ -54,17 +54,6 @@ mcp_config.MCP_URL = f"http://localhost:{args.port}/mcp"
 
 # Create the MCP server instance
 mcp = FastMCP("Jesse MCP Server", host=MCP_HOST, port=args.port, json_response=True)
-
-# Start WebSocket event listener for real-time updates
-from jesse.mcp.ws_listener import start_listener
-try:
-    listener_started = start_listener(args.api_url, args.password)
-    if listener_started:
-        logger.info("Started WebSocket event listener for %s", args.api_url)
-    else:
-        logger.warning("WebSocket listener already running")
-except Exception:
-    logger.exception("Failed to start WebSocket listener")
 
 # Register all available resources
 from jesse.mcp.resources import register_resources
