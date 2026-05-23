@@ -4,7 +4,7 @@ import numpy as np
 
 import jesse.helpers as jh
 from jesse.libs import DynamicNumpyArray
-from jesse.models import Ticker
+from jesse.models.Ticker import Ticker
 from jesse.routes import router
 
 
