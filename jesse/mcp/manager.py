@@ -64,9 +64,10 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
     # define the jesse api url
     mcp_config.JESSE_API_URL = f"http://{jesse_host}:{jesse_port}"
     
-    # Read the MCP server port from the .env file, if not set, use the default port (9002)
     from jesse.services.env import ENV_VALUES
-    if 'MCP_PORT' in ENV_VALUES:
+
+    # Read the MCP server port from the .env file, if not set, use the default port (9002)
+    if ENV_VALUES.get('MCP_PORT'):
         mcp_config.MCP_PORT = int(ENV_VALUES['MCP_PORT'])
 
     # Update the MCP URL

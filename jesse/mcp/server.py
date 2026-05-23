@@ -10,10 +10,10 @@ This module is the entry point for the Jesse MCP server. It:
 
 USAGE:
 ------
-Run directly: python -m jesse.mcp.server --port 9002 --api_url http://localhost:9000
+Run directly: python -m jesse.mcp.server --port 9002 --api_url http://localhost:9000 --password your_password
 Or via manager: manager.py handles subprocess creation with proper arguments
 
-The server runs on 127.0.0.1 and accepts connections from MCP clients (like Cursor).
+The server runs on 0.0.0.0 and accepts connections from MCP clients (like Cursor).
 """
 
 import argparse
@@ -28,6 +28,7 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
 )
 logger = logging.getLogger("jesse.mcp.server")
+MCP_HOST = "0.0.0.0"
 
 
 def _log_uncaught_exception(exc_type, exc_value, exc_tb):
@@ -52,7 +53,7 @@ mcp_config.MCP_PORT = args.port
 mcp_config.MCP_URL = f"http://localhost:{args.port}/mcp"
 
 # Create the MCP server instance
-mcp = FastMCP("Jesse MCP Server", host="127.0.0.1", port=args.port, json_response=True)
+mcp = FastMCP("Jesse MCP Server", host=MCP_HOST, port=args.port, json_response=True)
 
 # Start WebSocket event listener for real-time updates
 from jesse.mcp.ws_listener import start_listener
