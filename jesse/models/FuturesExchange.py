@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+import jesse_rust as jr
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
@@ -176,9 +176,8 @@ class FuturesExchange(Exchange):
             self._started_balance = self._wallet_balance
 
 
-@njit(cache=True)
 def find_order_index(orders, order_array):
-    for i in range(len(orders)):
-        if np.all(orders[i] == order_array):
-            return i
-    return -1
+    return jr.find_order_index(
+        np.ascontiguousarray(orders, dtype=np.float64),
+        np.ascontiguousarray(order_array, dtype=np.float64),
+    )
