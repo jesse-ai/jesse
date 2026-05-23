@@ -88,7 +88,7 @@ def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str
 @router.post("/import-status")
 def get_candle_import_status(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
     """
-    Check whether a candle import process is still running.
+    Check whether a candle import process is still running. Used in MCP to check whether a previous import process is still running.
 
     Uses a single Redis SISMEMBER call — no database queries.
     """
