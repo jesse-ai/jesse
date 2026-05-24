@@ -20,11 +20,11 @@ jobs:
   build:
     runs-on:  ${{matrix.os}}
     strategy:
+      fail-fast: false
       matrix:
-        # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest, macos-latest]
-        # os: [ubuntu-latest]
-        # python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        # ubuntu-latest = x86_64; ubuntu-24.04-arm = aarch64 (free for public repos).
+        # macos-latest is Apple Silicon (arm64) on GitHub-hosted runners.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
         python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
