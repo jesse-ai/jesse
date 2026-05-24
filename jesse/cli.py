@@ -75,16 +75,18 @@ def run(skip_agent_rules: bool) -> None:
 
     jh.validate_cwd()
 
+    print("")
+
     # sync the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) with the bundled rules
     if not skip_agent_rules:
         try:
             from jesse.mcp.agent_rules import sync_agent_rules
 
             sync_agent_rules()
+            print("")
         except Exception as e:
-            print(jh.color(f"  ⚠ Could not sync agent rules: {str(e)}", "yellow"))
-
-    print("")
+            print(f"Could not sync agent rules: {str(e)}")
+            print("")
 
     # run all the db migrations
     from jesse.services.migrator import run as run_migrations

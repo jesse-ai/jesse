@@ -18,8 +18,6 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Optional
 
-import click
-
 RULES_FILENAMES = ["AGENTS.md", "CLAUDE.md", "mcp-rules.md"]
 DEFAULT_FILENAME = "AGENTS.md"
 START_RE = re.compile(r"<!--\s*JESSE-RULES-START\s+v([^\s>]+)\s*-->")
@@ -54,7 +52,7 @@ def sync_agent_rules(cwd: Optional[Path] = None, verbose: bool = True) -> None:
         target = cwd / DEFAULT_FILENAME
         target.write_text(_make_block(jesse_version, rules_body), encoding="utf-8")
         if verbose:
-            print(click.style(f"  ✓ Agent rules created ({DEFAULT_FILENAME})", fg="green"))
+            print(f"Agent rules created ({DEFAULT_FILENAME})")
         return
 
     content = existing.read_text(encoding="utf-8")
@@ -65,7 +63,7 @@ def sync_agent_rules(cwd: Optional[Path] = None, verbose: bool = True) -> None:
         existing_version = m.group(1)
         if existing_version == jesse_version:
             if verbose:
-                print(click.style(f"  ✓ Agent rules already up to date ({existing.name})", fg="green"))
+                print(f"Agent rules already up to date ({existing.name})")
             return
         block_end = end_idx + len(END_MARKER)
         if block_end < len(content) and content[block_end] == "\n":
@@ -74,25 +72,18 @@ def sync_agent_rules(cwd: Optional[Path] = None, verbose: bool = True) -> None:
         new_content = content[:m.start()] + new_block + content[block_end:]
         existing.write_text(new_content, encoding="utf-8")
         if verbose:
-            print(click.style(
-                f"  ✓ Agent rules updated to v{jesse_version} ({existing.name})",
-                fg="green",
-            ))
+            print(f"Agent rules updated to v{jesse_version} ({existing.name})")
         return
 
     if content.lstrip().startswith(LEGACY_OPENING):
         existing.write_text(_make_block(jesse_version, rules_body), encoding="utf-8")
         if verbose:
-            print(click.style(
-                f"  ✓ Agent rules migrated to v{jesse_version} ({existing.name})",
-                fg="green",
-            ))
+            print(f"Agent rules migrated to v{jesse_version} ({existing.name})")
         return
 
     if verbose:
-        print(click.style(
-            f"  ⚠ {existing.name} looks customized; not modifying. "
+        print(
+            f"{existing.name} looks customized; not modifying. "
             f"Wrap your Jesse section with <!-- JESSE-RULES-START vX --> "
-            f"... {END_MARKER} to enable auto-sync.",
-            fg="yellow",
-        ))
+            f"... {END_MARKER} to enable auto-sync."
+        )
