@@ -20,7 +20,6 @@ jobs:
   build:
     runs-on:  ${{matrix.os}}
     strategy:
-      fail-fast: false
       matrix:
         # ubuntu-latest    = Linux x86_64
         # ubuntu-24.04-arm = Linux aarch64 (free for public repos)
