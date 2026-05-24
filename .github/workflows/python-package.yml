@@ -27,6 +27,11 @@ jobs:
         # windows-latest   = Windows x86_64 (no ARM target; Windows-on-ARM excluded)
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
         python-version: ['3.10', '3.11', '3.12', '3.13']
+        exclude:
+          # ray has no Windows wheel for Python 3.13 yet (as of ray 2.55.1).
+          # Drop this exclude once upstream ships ray-*-cp313-cp313-win_amd64.whl.
+          - os: windows-latest
+            python-version: '3.13'
 
     steps:
       - name: Checkout
