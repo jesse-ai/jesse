@@ -2,3 +2,5 @@ include README.md
 include requirements.txt
 include jesse/static/*
 include jesse/static/**/*
+include jesse/mcp/*.md
+include jesse/mcp/resources/*.md

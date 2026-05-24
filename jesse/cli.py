@@ -34,7 +34,13 @@ def install_live(strict: bool) -> None:
 
 
 @cli.command()
-def run() -> None:
+@click.option(
+    "--skip-agent-rules",
+    is_flag=True,
+    default=False,
+    help="Skip syncing the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) in the project directory.",
+)
+def run(skip_agent_rules: bool) -> None:
     """Start the Jesse application server."""
     # Display welcome message
     welcome_message = """
@@ -68,6 +74,15 @@ def run() -> None:
     print(version_line)
 
     jh.validate_cwd()
+
+    # sync the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) with the bundled rules
+    if not skip_agent_rules:
+        try:
+            from jesse.mcp.agent_rules import sync_agent_rules
+
+            sync_agent_rules()
+        except Exception as e:
+            print(jh.color(f"  ⚠ Could not sync agent rules: {str(e)}", "yellow"))
 
     print("")
 
