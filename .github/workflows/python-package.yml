@@ -22,9 +22,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ubuntu-latest = x86_64; ubuntu-24.04-arm = aarch64 (free for public repos).
-        # macos-latest is Apple Silicon (arm64) on GitHub-hosted runners.
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        # ubuntu-latest    = Linux x86_64
+        # ubuntu-24.04-arm = Linux aarch64 (free for public repos)
+        # macos-latest     = Apple Silicon (arm64) on GitHub-hosted runners
+        # windows-latest   = Windows x86_64 (no ARM target; Windows-on-ARM excluded)
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
         python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
