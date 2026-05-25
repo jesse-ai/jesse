@@ -58,6 +58,7 @@ Key resources include:
 - jesse://candle - Data import and candle data management
 - jesse://configuration - System configuration and exchange settings
 - jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
+- jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
 
 **CRITICAL**: Always consult `jesse://backtest-management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
@@ -153,7 +154,7 @@ Note: Use `get_candle_import_status(import_id)` for polling during an active imp
 Import Resume Rule (MCP reconnect-safe):
 - Always store the import_id returned. If the conversation is interrupted, resume by checking coverage first.
 - After reconnect, first verify coverage with `get_existing_candles()` (or `get_candles()` for the exact route timeframe).
-- If data is still incomplete, call `import_candles(exchange, symbol, start_date)` again — the server automatically skips candles that are already stored, so re-running from the same `start_date` is safe and efficient.
+- If data is still incomplete, call `import_candles(exchange, symbol, start_date)` again — the server automatically skips candles that are already stored, so re-running from the same `start_datea` is safe and efficient.
 - Note: passing the same `import_id` does NOT resume from a checkpoint; it simply starts a new process. The deduplication is handled by the storage layer regardless of import_id.
 
 Reference: See `jesse://candle` resource for detailed import procedures, parameters, and examples.
@@ -161,6 +162,33 @@ Reference: See `jesse://candle` resource for detailed import procedures, paramet
 === CONFIGURATION MANAGEMENT ===
 
 Configuration Access: Use MCP tools to read and modify Jesse configuration settings.
+
+## CRITICAL: Do NOT use `update_config` to work around bugs
+
+`update_config` writes the user's saved settings (balances, fees,
+leverage, exchange selections, etc.). It is meant for **user-driven
+configuration changes only** — when the user explicitly asks to "set my
+balance to X" or "change the fee for Binance Spot".
+
+Prohibited uses (these are hard errors, not judgment calls):
+- **Working around an MCP tool error.** If `run_backtest` /
+  `run_monte_carlo` / any other tool fails with a config-shape, missing-key,
+  or KeyError-style message, the fix belongs in the MCP code — NOT in the
+  user's settings. Surface the failure to the user with the exact error
+  text and stop. Do not "patch the config to satisfy the runner".
+- **Injecting fields a runner expects.** Different Jesse runners read
+  config differently (e.g. `MonteCarloRunner` and the Optimize runner
+  expect a singular `exchange` dict that the dashboard's `backtest`
+  section doesn't carry). That mismatch is an MCP-side responsibility
+  to build the right shape before firing — not the user's problem.
+- **Silently mutating user settings without their say-so.** Changing
+  balance, fee, leverage, exchange selection, or any other value the
+  user owns requires explicit user instruction.
+
+The server now recursive-merges `update_config` payloads (a partial
+write no longer wipes other sections), but this rule still stands —
+the merge fix limits blast radius, it does not authorize agent-driven
+settings rewrites.
 
 Reference: See `jesse://configuration` resource for detailed configuration structure, parameters, and examples.
 
@@ -300,3 +328,137 @@ Reuse / resumption:
 
 Reference: See `jesse://significance_test` for detailed tool docs, examples,
 and result interpretation.
+
+=== MONTE CARLO SIMULATION (ROBUSTNESS ANALYSIS) ===
+
+Monte Carlo (MC) estimates the distribution of a strategy's outcomes by
+re-running it across many resampled variants of the data. It tells you
+whether a backtest result was lucky and what the downside tail looks like.
+
+Two modes are available:
+- **Candles** (default) — resamples the underlying price series via a
+  bootstrap pipeline and re-runs the strategy on each variant. Main mode.
+- **Trades** (optional, default off) — re-orders the executed trade
+  sequence. Mostly diagnostic; usually skip unless the user explicitly asks.
+
+**CRITICAL — do NOT enable `run_trades` by default.** When the user asks
+"run Monte Carlo" or "check for overfitting", run candles only
+(`run_trades=False`, `run_candles=True`). Enable `run_trades=True` ONLY when
+the user uses words like "shuffle trade order", "trade-sequencing risk",
+"trades resampling", or explicitly says "run both modes". A generic "run
+Monte Carlo" is NOT permission to run trades MC — it doubles the runtime
+and contributes almost no extra signal.
+
+Defaults the agent should use unless the user overrides:
+- `num_scenarios=200`, `run_candles=True`, `run_trades=False`.
+  200 scenarios is enough for stable percentile bands. Bump to 500–1000 only
+  when the user explicitly wants tighter tail estimates.
+
+When to use MC:
+- After a backtest with promising results — check whether it's overfit.
+- The user asks "is this strategy lucky / overfit / robust?".
+- Comparing two strategy variants — the variant whose `original` sits closer
+  to (or below) `median` is the more trustworthy one, even if its raw
+  backtest sharpe is lower.
+
+Same run-first / don't-pre-check-candles rule as backtests:
+1. Stage a draft with `create_monte_carlo_draft(...)`.
+2. Fire `run_monte_carlo(session_id)` (returns immediately).
+3. Poll `get_monte_carlo_session(session_id)` until `status` is
+   `"finished"`, `"stopped"`, or `"terminated"`. **See polling discipline
+   below — keep polling until terminal, no exceptions.**
+4. ONLY on a missing-candle error, import candles starting ~2 months before
+   `start_date` and then `resume_monte_carlo(session_id)`.
+
+Polling discipline (applies to MC, RST, backtest, and any other
+fire-and-poll tool):
+
+- **Keep polling until a terminal status is reached.** Terminal =
+  `finished` / `stopped` / `terminated`. Do NOT stop polling because
+  "it's taking a while" or "progress hasn't moved". Reporting "done" to
+  the user before status is terminal is a hard error.
+- **Adapt the interval to expected remaining time** — don't pound the
+  server every second on a long run. Suggested adaptive schedule:
+
+  | Elapsed since fire | Poll interval |
+  |---|---|
+  | 0 – 1 min | every 5 s |
+  | 1 – 5 min | every 15 s |
+  | 5 – 15 min | every 30 s |
+  | 15 – 60 min | every 60 s |
+  | > 1 h | every 2–3 min |
+
+- If the session exposes a progress signal (e.g. MC's
+  `candles_session.completed_scenarios`, ETA fields), use it: estimate
+  remaining time and set the next poll to roughly
+  `min(remaining_eta / 5, max_interval)`.
+- For candles MC specifically, `completed_scenarios` often stays at 0
+  for a long time because the runner batches across CPU cores and
+  reports only when the batch ends. That's not a stuck run — keep
+  polling.
+- If polling exceeds ~2 hours with no terminal status AND no progress
+  signal, surface the session_id to the user and ask whether to keep
+  waiting, cancel, or terminate. Do not silently give up.
+
+Interpreting `summary_metrics` — the primary question MC answers is **"is
+this strategy overfit?"**, and the answer comes from comparing `original`
+to `best_5` and `median`:
+
+- `original`: the metric from the unaltered strategy run.
+- `best_5`: 95th-percentile MC scenario (the lucky tail).
+- `median`: 50th-percentile MC scenario.
+- `worst_5`: 5th-percentile MC scenario (the unlucky tail).
+
+**The four-number rule applies to candles MC ONLY.** Trades MC is a
+different question — see "Interpreting trades MC" below.
+
+For candles MC, on metrics where higher is better (sharpe, net_profit,
+win_rate, calmar):
+
+| Where `original` falls | Verdict |
+|---|---|
+| `original > best_5` | **Overfit / suspect.** The real backtest beat 95% of resampled paths — it sits in the luckiest tail. Do NOT trust the result. |
+| `best_5 >= original > median` | Borderline. The backtest is above median MC but inside the plausible range. Better than overfit, still not great. |
+| `original ≈ median` | **Good.** The backtest is representative of typical MC outcomes — no luck premium. |
+| `original < median` | **Fantastic.** The real result is conservative vs what MC suggests the strategy can do — strong evidence it's not overfit. |
+
+For max_drawdown the comparison flips (lower is better): a `worst_5` that
+the user can't stomach is the dealbreaker regardless of overfit.
+
+For candles MC always report `original`, `median`, `best_5` (for the
+overfit check) AND `worst_5` (for the downside-tail check) on the key
+metrics — `sharpe_ratio` above all, then `net_profit_percentage` /
+`max_drawdown` / `calmar_ratio`.
+
+Interpreting trades MC (when run_trades=True): trades MC only shuffles
+the ORDER of the already-executed trades — it does not change which
+trades happen, their P&Ls, win rate, total return, or sharpe. So:
+
+- `total_return`, `win_rate`, and any non-path-dependent metric are
+  **invariant under shuffling** and carry no information. Do NOT report
+  their percentile bands or run the overfit comparison on them — it's
+  noise.
+- The ONLY metric trades MC informs is `max_drawdown` (and by extension
+  `calmar_ratio`, which is derived from drawdown). Different trade
+  orderings stack losses differently → different drawdown paths. Report
+  `max_drawdown` percentiles to surface drawdown-path risk: how bad
+  could the equity-curve trough have been if the wins and losses had
+  arrived in a different order?
+- If the user asks "is this strategy overfit?", trades MC does NOT
+  answer that question — candles MC does. Don't use trades-MC numbers
+  to argue about overfit.
+
+Diagnostics:
+- If a session ends in `stopped`/`terminated`, call `get_monte_carlo_logs(...)`
+  to find the underlying error before reporting back.
+- For visual / custom-stat work, `get_monte_carlo_equity_curves(...)` returns
+  the per-scenario Portfolio equity series.
+
+Resume rule:
+- Most of the time the agent creates its own MC sessions. Use
+  `resume_monte_carlo(session_id)` to pick up a `stopped`/`terminated`
+  session on user request (e.g. after an interruption) — do NOT use it for
+  brand-new runs.
+
+Reference: See `jesse://monte_carlo` for detailed tool docs, examples, and
+the standard workflow.

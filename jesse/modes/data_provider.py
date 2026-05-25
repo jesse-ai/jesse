@@ -140,7 +140,17 @@ def update_config(client_config: dict):
     # at this point there must already be one option record for "config" existing, so:
     o = Option.get(Option.type == 'config')
 
-    o.json = json.dumps(client_config)
+    # Recursive-merge the client payload onto the stored config rather than
+    # replacing wholesale. client_config wins on leaf conflicts, but any keys
+    # it omits are preserved — a partial payload (e.g. one section) no longer
+    # wipes unrelated sections. The dashboard always sends the full settings
+    # object so its behavior is unchanged; partial-payload callers like the
+    # MCP server (or any future scripted client) can update a single section
+    # without nuking the rest of the config.
+    existing = json.loads(o.json) if o.json else {}
+    merged = jh.merge_dicts(existing, client_config)
+
+    o.json = json.dumps(merged)
     o.updated_at = jh.now(True)
 
     o.save()

@@ -20,3 +20,17 @@ from .significance_test import (
     cancel_significance_test_service,
     purge_significance_test_sessions_service,
 )
+from .monte_carlo import (
+    create_monte_carlo_draft_service,
+    update_monte_carlo_draft_service,
+    update_monte_carlo_notes_service,
+    get_monte_carlo_session_service,
+    get_monte_carlo_sessions_service,
+    get_monte_carlo_equity_curves_service,
+    get_monte_carlo_logs_service,
+    run_monte_carlo_service,
+    resume_monte_carlo_service,
+    cancel_monte_carlo_service,
+    terminate_monte_carlo_service,
+    purge_monte_carlo_sessions_service,
+)
