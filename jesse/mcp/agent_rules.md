@@ -54,7 +54,7 @@ Key resources include:
 - jesse://indicator - Step-by-step guide for discovering and using indicators and Essential indicators and candle data access
 - jesse://position_risk - Position sizing utilities and formulas and Risk management patterns and exit strategies
 - jesse://utilities - Helper functions for calculations and analysis
-- jesse://backtest-management - Backtest creation, configuration, workflow and common strategy development pitfalls   and solutions 
+- jesse://backtest-management - Backtest creation, configuration, workflow and common strategy development pitfalls and solutions
 - jesse://candle - Data import and candle data management
 - jesse://configuration - System configuration and exchange settings
 - jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
@@ -84,7 +84,7 @@ Indicators & Utilities:
 - Use only documented indicators and utilities (consult MCP resources. fetch only the required snippet.)
 - Do not invent indicator names or parameters
 - **CRITICAL**: Always use `list_indicators` tool first, then `get_indicator_details` for each indicator
-- Follow the systematic workflow in `jesse://indicator-workflow` resource
+- Follow the systematic workflow in `jesse://indicator` resource
 - Consult MCP resources for available options and usage patterns. fetch only the required snippet.
 
 
@@ -286,8 +286,9 @@ same workflow without first building a full strategy.
 Constraints (enforced server-side):
 - Exactly ONE trading route per significance test (no multi-symbol/multi-tf).
 - The strategy file must already exist on disk before running.
-- Missing candle data fails the run; import candles first (same as backtests,
-  starting ~2 months before `start_date`).
+- Do NOT pre-check candle availability. Run the significance test first;
+  if it fails with a missing-candle error, then import (starting ~2 months
+  before `start_date`) and retry. Same rule as backtests.
 
 Reuse / resumption:
 - `run_significance_test()` returns immediately; the simulation runs in the
