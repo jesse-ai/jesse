@@ -341,7 +341,7 @@ draft2 = create_backtest_draft(
 
 ### Other Common Errors
 
-- Missing Data: Import candle data before backtesting
+- Missing Data: do NOT pre-import. Run the backtest first; if it fails with a missing-candle error, then import (starting ~2 months before `start_date`) and retry. Never call `get_existing_candles()` as a pre-flight gate.
 - Configuration Errors: Check JSON structure and parameter formats
 - Timeout Issues: Adjust timeout_seconds parameter (default: 86400 = 24 hours)
 - State Conflicts: Retrieve current state before updates

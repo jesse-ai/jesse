@@ -57,6 +57,7 @@ Key resources include:
 - jesse://backtest-management - Backtest creation, configuration, workflow and common strategy development pitfalls   and solutions 
 - jesse://candle - Data import and candle data management
 - jesse://configuration - System configuration and exchange settings
+- jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
 
 **CRITICAL**: Always consult `jesse://backtest-management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
@@ -167,6 +168,22 @@ Reference: See `jesse://configuration` resource for detailed configuration struc
 
 Backtest Creation: Use MCP tools to create, run, and manage backtests.
 
+## CRITICAL: Do NOT pre-check candle availability
+
+Never call `get_existing_candles()`, `get_candles()`, or any other candle inspection tool before running a backtest. The backtest engine is the authoritative source of whether the required data is available — let it report a missing-candle error if data is missing, then react.
+
+Correct order:
+1. Create the draft and call `run_backtest(session_id)` immediately.
+2. Poll `get_backtest_session(session_id)` until finished or stopped.
+3. ONLY if it stops with a missing-candle error, import data starting
+   ~2 months before the user's `start_date` and then retry.
+
+Pre-checking wastes time and tokens, and the existing-candles metadata
+(date ranges, aggregated coverage) often does not match what the backtest
+actually needs once warmup buffers and route timeframes are considered.
+The only acceptable use of `get_existing_candles()` is when the user
+explicitly asks "what data do I have?" — never as a pre-flight gate.
+
 ## Prohibited: Multiple Routes with Same Exchange-Symbol Pair
 
 You must not create backtests with multiple routes having the same exchange and symbol. This will cause:
@@ -210,3 +227,75 @@ Backtest Resume Rule (MCP reconnect-safe):
 - Avoid duplicate concurrent runs for the same exchange-symbol-strategy-timeframe and date range.
 
 Reference: See `jesse://backtest-management` resource for detailed tool documentation, examples, and advanced usage patterns.
+
+=== RULE SIGNIFICANCE TESTING (ENTRY SIGNAL VALIDATION) ===
+
+Rule Significance Testing (RST) statistically proves whether an entry signal has
+a genuine edge or is indistinguishable from random entries on the same candles.
+It returns a p-value. Interpretation: `< 0.05` = significant edge (proceed),
+`0.05–0.10` = borderline (flag as inconclusive), `> 0.10` = HARD STOP
+(indistinguishable from random — do not silently proceed to a full backtest).
+
+**MANDATORY pre-flight when the ENTRY rule is new or changed:**
+
+When a user proposes a NEW strategy idea / hypothesis, or asks you to change a
+strategy's ENTRY rule (e.g. "buy when RSI < 30 and MACD crosses up"), you must
+validate that entry signal BEFORE building out the full strategy, position
+sizing, exits, etc.
+
+Scope — this rule only fires when the entry logic itself is new or changed:
+- ✅ Fire RST: new strategy idea; changed `should_long` / `should_short` /
+  entry indicators / entry filters; swapping one entry rule for another.
+- ❌ Skip RST: changes that don't touch entry logic — exit rules, stop-loss /
+  take-profit math, position sizing, risk per trade, trailing logic, route /
+  timeframe / symbol swaps on the SAME entry, parameter tuning of exit-only
+  values, refactoring without semantic change.
+
+Override — if the user explicitly tells you to skip the significance test
+(e.g. "don't run RST", "just build it", "skip the validation step"), do NOT
+run it. Their instruction takes precedence; note in your reply that you
+skipped it at their request so the decision is auditable.
+
+Workflow:
+1. Write a MINIMAL strategy that implements ONLY the entry signal (no exits
+   tuned, no risk management). Use `create_strategy()` / `write_strategy()`.
+2. Create a significance test draft: `create_significance_test_draft(...)`
+   - Use a meaningful date window (1–2 years).
+   - Use `n_simulations >= 2000` for stable p-values.
+   - Populate `hypothesis` and `rationale` so the session is self-describing.
+3. Fire it: `run_significance_test(session_id)` — returns immediately.
+4. Poll `get_significance_test_session(session_id)` every few seconds until
+   `status` is `"finished"`, `"stopped"`, or `"terminated"`.
+5. Inspect `results.p_value`:
+   - `p_value < 0.05`  → edge confirmed. Proceed to build the full strategy.
+   - `0.05 <= p_value <= 0.10` → borderline. Surface the number to the user
+     explicitly, flag it as inconclusive, and ask whether to proceed, refine
+     the signal, change timeframe or widen the date window. Do NOT
+     pretend it's a confirmed edge.
+   - `p_value > 0.10` → **HARD STOP**. The signal is indistinguishable from
+     random. Report the result and ask the user whether to refine or abandon
+     the idea. Do NOT silently proceed to a full backtest — that wastes the
+     user's time on a signal that didn't beat random.
+6. Always report `observed_mean`, `annualized_return`, `p_value`,
+   `n_simulations`, and `n_observations` to the user.
+
+**Standalone use:** When the user explicitly asks to "validate this entry
+signal", "test if this rule has an edge", or anything similar, run exactly the
+same workflow without first building a full strategy.
+
+Constraints (enforced server-side):
+- Exactly ONE trading route per significance test (no multi-symbol/multi-tf).
+- The strategy file must already exist on disk before running.
+- Missing candle data fails the run; import candles first (same as backtests,
+  starting ~2 months before `start_date`).
+
+Reuse / resumption:
+- `run_significance_test()` returns immediately; the simulation runs in the
+  background. Store the `session_id` so you can resume polling after any
+  interruption with the same `get_significance_test_session(session_id)` call.
+- Reusing a `session_id` for a brand-new run requires the prior session to be
+  in `draft` state; otherwise the server returns 409. Create a new draft for a
+  new run instead of reusing finished IDs.
+
+Reference: See `jesse://significance_test` for detailed tool docs, examples,
+and result interpretation.

@@ -8,9 +8,21 @@ Historical candle data is required for backtesting strategies. Import data for a
 
 ## Import Process
 
-1. Check existing data with `get_existing_candles()`
-2. Import missing data with `import_candles()` (blocking by default)
-3. Verify completion with `get_existing_candles()`
+DO NOT pre-check candle availability before running a backtest. Run the
+backtest first and only import on a missing-data error. Pre-checking with
+`get_existing_candles()` wastes time and tokens, and the backtest engine
+itself is the authoritative source of whether the required data is present
+for a given route, timeframe, and date range.
+
+Correct flow:
+
+1. Run the backtest (see `jesse://backtest-management`).
+2. If — and only if — it fails with a missing-candle error, call
+   `import_candles()` starting ~2 months before the user's `start_date`.
+3. Poll `get_candle_import_status(import_id)` until `"finished"`, then
+   retry the backtest.
+4. Use `get_existing_candles()` only for explicit user-driven inspection
+   (e.g. "what data do I have?"), never as a pre-flight gate.
 
 ## Tool Reference
 
