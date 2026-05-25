@@ -52,20 +52,32 @@ async def significance_test(
     session_id = request_json.id or jh.generate_unique_id()
 
     existing = get_significance_test_session_by_id(session_id)
-    if existing:
+    if existing and existing.status != 'draft':
         return JSONResponse(
             {'error': f'Session {session_id} already exists.'},
             status_code=409,
         )
 
-    # Create the session record immediately so the frontend can find it while
-    # candles are still loading in the background process
-    store_significance_test_session(
-        id=session_id,
-        status='running',
-        state=request_json.state,
-        theme=request_json.theme,
-    )
+    if existing:
+        # Reuse a pre-staged draft (created via /significance-test/update-state by
+        # the dashboard, MCP, or other clients). Promote it to 'running' and refresh
+        # state/theme with whatever the start request carries.
+        update_significance_test_session_state(session_id, request_json.state)
+        update_significance_test_session_status(session_id, 'running')
+        if request_json.theme:
+            from jesse.models.SignificanceTestSession import SignificanceTestSession
+            SignificanceTestSession.update(theme=request_json.theme).where(
+                SignificanceTestSession.id == session_id
+            ).execute()
+    else:
+        # Create the session record immediately so the frontend can find it while
+        # candles are still loading in the background process
+        store_significance_test_session(
+            id=session_id,
+            status='running',
+            state=request_json.state,
+            theme=request_json.theme,
+        )
 
     process_manager.add_task(
         run_significance_test,

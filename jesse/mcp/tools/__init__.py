@@ -37,6 +37,7 @@ from jesse.mcp.tools.backtest import register_backtest_tools
 from jesse.mcp.tools.config import register_config_tools
 from jesse.mcp.tools.candles import register_candles_tools
 from jesse.mcp.tools.indicator import register_indicator_tools
+from jesse.mcp.tools.significance_test import register_significance_test_tools
 
 def register_tools(mcp):
     """
@@ -65,3 +66,6 @@ def register_tools(mcp):
 
     # Candle data management tools (importing/managing historical data)
     register_candles_tools(mcp)
+
+    # Rule Significance Test tools (validate entry signals statistically)
+    register_significance_test_tools(mcp)

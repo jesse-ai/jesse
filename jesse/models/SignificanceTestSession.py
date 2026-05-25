@@ -129,13 +129,29 @@ def update_significance_test_session_status(session_id: str, status: str):
 
 
 def update_significance_test_session_state(session_id: str, state: dict, strategy_codes: dict = None):
-    update_data = {
-        'state': json.dumps(state),
-        'updated_at': jh.now_to_timestamp(),
-    }
-    if strategy_codes is not None:
-        update_data['strategy_codes'] = json.dumps(strategy_codes)
-    SignificanceTestSession.update(**update_data).where(SignificanceTestSession.id == session_id).execute()
+    """
+    Upsert significance test session state. If the row is missing it is created with
+    status='draft' so MCP / external clients can stage a session before starting it.
+    """
+    existing = SignificanceTestSession.select().where(SignificanceTestSession.id == session_id).first()
+    if existing:
+        update_data = {
+            'state': json.dumps(state),
+            'updated_at': jh.now_to_timestamp(),
+        }
+        if strategy_codes is not None:
+            update_data['strategy_codes'] = json.dumps(strategy_codes)
+        SignificanceTestSession.update(**update_data).where(SignificanceTestSession.id == session_id).execute()
+    else:
+        now = jh.now_to_timestamp()
+        SignificanceTestSession.create(
+            id=session_id,
+            status='draft',
+            state=json.dumps(state),
+            strategy_codes=json.dumps(strategy_codes) if strategy_codes is not None else None,
+            created_at=now,
+            updated_at=now,
+        )
 
 
 def update_significance_test_session_results(session_id: str, results: dict, chart_path: str = None):
