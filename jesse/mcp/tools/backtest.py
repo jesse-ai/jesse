@@ -326,6 +326,7 @@ def register_backtest_tools(mcp):
             # Success case
             return {
                 'data': result.get('data', {}),
+                'dashboard_url': result.get('dashboard_url', ''),
                 'error': None,
                 'message': result.get('message', 'Session retrieved successfully')
             }
@@ -333,6 +334,7 @@ def register_backtest_tools(mcp):
             # Error case
             return {
                 'data': None,
+                'dashboard_url': result.get('dashboard_url', ''),
                 'error': result.get('error'),
                 'message': result.get('message', result.get('error', 'Unknown error'))
             }

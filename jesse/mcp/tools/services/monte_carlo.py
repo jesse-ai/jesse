@@ -323,6 +323,7 @@ def create_monte_carlo_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
             'message': f'Monte Carlo draft created with ID: {session_id}',
         }
         if notes_result.get('status') != 'success':
@@ -424,6 +425,7 @@ def get_monte_carlo_session_service(session_id: str) -> dict:
             data = response.json()
             return {
                 'data': {'session': data.get('session', {})},
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
                 'error': None,
                 'message': 'Monte Carlo session retrieved successfully',
             }
@@ -613,6 +615,7 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
         return {
             'status': 'started',
             'session_id': payload['id'],
+            'dashboard_url': mcp_config.dashboard_url('monte_carlo', payload['id']),
             'message': (
                 'Monte Carlo simulation started. '
                 'Poll get_monte_carlo_session(session_id) until status is "finished".'
@@ -652,6 +655,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
             return {
                 'status': 'started',
                 'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
                 'message': (
                     f'Monte Carlo session {session_id} is already running. '
                     'Poll get_monte_carlo_session(session_id) for progress.'
@@ -661,6 +665,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
             return {
                 'status': 'error',
                 'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
                 'message': (
                     f'Monte Carlo session {session_id} has already finished. '
                     'Read results via get_monte_carlo_session(session_id), or '

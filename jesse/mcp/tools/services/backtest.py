@@ -361,6 +361,7 @@ def create_backtest_draft_service(
                     'strategy_code_keys': list(strategy_codes.keys()),
                     'strategy_codes_captured': len(strategy_codes)
                 },
+                'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id}'
             }
             if notes_result and notes_result.get('status') != 'success':
@@ -377,6 +378,7 @@ def create_backtest_draft_service(
                 'status': 'success',
                 'backtest_id': backtest_id,
                 'draft_state': state_dict,
+                'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id} (state not persisted)',
                 'warning': 'Could not persist state to database'
             }
@@ -595,6 +597,7 @@ def get_backtest_session_service(session_id: str) -> dict:
                 'data': {
                     'session': data.get('session', {})
                 },
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'error': None,
                 'message': 'Backtest session retrieved successfully'
             }
@@ -797,6 +800,7 @@ def run_backtest_service(session_id: str) -> dict:
             return {
                 'status': 'started',
                 'backtest_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
             }
         elif response.status_code == 401:

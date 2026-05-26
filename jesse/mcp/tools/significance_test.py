@@ -181,11 +181,13 @@ def register_significance_test_tools(mcp):
         if result.get('error') is None:
             return {
                 'data': result.get('data', {}),
+                'dashboard_url': result.get('dashboard_url', ''),
                 'error': None,
                 'message': result.get('message', 'Session retrieved successfully'),
             }
         return {
             'data': None,
+            'dashboard_url': result.get('dashboard_url', ''),
             'error': result.get('error'),
             'message': result.get('message', result.get('error', 'Unknown error')),
         }

@@ -109,6 +109,32 @@ Code Generation:
 - No markdown, explanations, or commentary outside code
 - Ensure strategies are immediately testable
 
+### CRITICAL: Always surface the dashboard URL in every reply that reports a session
+
+Every backtest, Monte Carlo, and rule significance test response from
+the MCP carries a `dashboard_url` field. This is the single highest-
+leverage piece of information you give the user — one click and they
+see the equity curve, trades table, scenario charts, and everything
+else you can't fit in a chat reply.
+
+You MUST include the dashboard URL whenever you mention a session in
+a user-facing reply. This is not optional. It applies to:
+- Final result summaries ("Backtest finished. Sharpe = …")
+- Interim progress updates ("Running, 40% done")
+- Error reports ("Stopped with exception …")
+- Iteration logs in optimization workflows
+- The Markdown report file (see below)
+
+Format:
+- **Chat replies**: Markdown link, e.g.
+  `[View on dashboard](http://127.0.0.1:9000/#/backtest/<id>)`
+- **Report file**: a `Dashboard:` line with the plain URL
+- If `dashboard_url` is empty in the response, say "dashboard URL
+  unavailable" — do NOT silently omit the line.
+
+Do not wait for the user to ask for the URL. If you just received a
+response with a `dashboard_url`, the URL goes in your next reply.
+
 ### Mandatory Optimization Report Output
 
 After completing any strategy optimization/backtest task, you must generate a Markdown report file.
@@ -128,10 +154,14 @@ Minimum report content:
 - Setup issues/constraints encountered (for example invalid date range, missing candles, retries)
 - Iteration log (up to requested max iterations) with:
   - backtest/session ID
+  - **Dashboard URL for that session** (from the `dashboard_url` field on
+    every MCP response — this is mandatory, not optional)
   - what changed from previous iteration
   - key metrics (at minimum Sharpe, net profit or net profit %, trade count, and drawdown if available)
   - short conclusion for that iteration
 - Final selected strategy variant and best metrics
+- **Dashboard URL for the final session** (Monte Carlo and rule-significance
+  sessions, when present, must also have their URLs listed)
 - Clear statement on whether target metric was achieved
 - Recommended next step (for example new iteration cycle, timeframe change, out-of-sample validation)
 

@@ -234,6 +234,7 @@ def create_significance_test_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
             'message': f'Significance test draft created with ID: {session_id}',
         }
         if notes_result.get('status') != 'success':
@@ -335,6 +336,7 @@ def get_significance_test_session_service(session_id: str) -> dict:
             data = response.json()
             return {
                 'data': {'session': data.get('session', {})},
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'error': None,
                 'message': 'Significance test session retrieved successfully',
             }
@@ -459,6 +461,7 @@ def run_significance_test_service(session_id: str) -> dict:
             return {
                 'status': 'started',
                 'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': (
                     'Rule significance test started. '
                     'Poll get_significance_test_session(session_id) until status is "finished".'
