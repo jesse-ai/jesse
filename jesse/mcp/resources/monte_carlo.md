@@ -203,51 +203,61 @@ progress in a long run.
 ### run_monte_carlo(session_id)
 
 Fire-and-poll. Returns `{ "status": "started", "session_id": ... }` when the
-server accepts (HTTP 202). Then poll `get_monte_carlo_session` until
-`status == "finished"` (or `stopped` / `terminated`). **See "Polling
-discipline" below — keep polling until a terminal status is reached, no
-exceptions.**
+server accepts (HTTP 202). Then keep checking `get_monte_carlo_session`
+until `status == "finished"` (or `stopped` / `terminated`). **See "Checking
+for results" below — keep checking until a terminal status is reached, no
+exceptions, and never ask the user to drive the loop.**
 
-## Polling discipline
+## Checking for results
 
 Monte Carlo runs are slow — candles MC re-runs the full strategy on
 `num_scenarios` resampled price series. A 200-scenario candles MC on a
 one-year window typically takes minutes; longer windows or more scenarios
-can take **30+ minutes or hours**. Polling has two requirements:
+can take **30+ minutes or hours**. Three requirements when checking:
 
-1. **Keep polling until terminal status.** Terminal statuses are
-   `finished`, `stopped`, `terminated`. Do NOT stop polling because
+1. **Keep checking until terminal status.** Terminal statuses are
+   `finished`, `stopped`, `terminated`. Do NOT stop checking because
    "it's taking a while" or "progress hasn't moved" — candles MC often
    processes all scenarios in a batch and only updates
    `completed_scenarios` at the end. Reporting "done" before
    `status` is terminal is a hard error.
-2. **Adapt the poll interval to expected remaining time.** Pounding the
-   server every second on a 30-minute run wastes turns. Use the
-   adaptive schedule below.
+2. **Never ask the user to drive the loop.** Do not say "let me know
+   when you'd like me to check again", "want me to keep checking?", or
+   anything similar. The user expects autonomous progress to
+   completion. Just keep checking.
+3. **Adapt the interval to expected remaining time** so you don't
+   hammer the server every second on a 30-minute run. Use the
+   schedule below.
 
-Adaptive polling schedule (when `status == "running"`):
+Adaptive check schedule (when `status == "running"`):
 
-| Elapsed since fire | Poll interval |
+| Elapsed since fire | Check every |
 |---|---|
-| 0 – 1 min | every 5 s |
-| 1 – 5 min | every 15 s |
-| 5 – 15 min | every 30 s |
-| 15 – 60 min | every 60 s |
-| > 1 h | every 2–3 min |
+| 0 – 1 min | 5 s |
+| 1 – 5 min | 15 s |
+| 5 – 15 min | 30 s |
+| 15 – 60 min | 60 s |
+| > 1 h | 2 – 3 min |
 
 Refinements:
 - If `candles_session.completed_scenarios > 0`, you can estimate ETA as
-  `elapsed * (num_scenarios / completed_scenarios)`. Set the next poll
+  `elapsed * (num_scenarios / completed_scenarios)`. Set the next check
   to roughly `min(remaining_eta / 5, max_interval)`.
 - If `completed_scenarios` is still 0 after several minutes, that's
   expected for candles MC — it batches across `cpu_cores` workers and
-  reports only at the end. Don't conclude it's stuck.
-- If polling exceeds 2 hours with no terminal status AND no scenario
-  progress, surface this to the user with the session_id and ask
-  whether to keep waiting, cancel, or terminate.
+  reports only at the end. **Don't conclude it's stuck, and don't ask
+  the user what to do — keep checking.**
+- The ONLY case where surfacing a "what should I do?" question is
+  acceptable is after at least ~2 hours of elapsed time with no terminal
+  status AND no scenario progress at all. Even then, keep periodically
+  checking in the background.
 
-Status semantics for polling:
-- `running` → keep polling
+User-facing language: in your chat replies, say **"checking for
+results"** or **"checking again"** — not "polling". "Polling" is
+engineering jargon and confuses non-technical readers.
+
+Status semantics:
+- `running` → keep checking
 - `finished` → done, read `summary_metrics`
 - `stopped` → run failed; fetch `get_monte_carlo_logs(sid)` for the
   underlying error and report it to the user

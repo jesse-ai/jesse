@@ -175,11 +175,13 @@ Data Import: Use MCP tools to import and manage historical candle data for backt
 
 Import Workflow (mandatory):
 1. Call `import_candles()` — it returns immediately with `{"status": "started", "import_id": "..."}`.
-2. **Immediately and automatically** begin polling `get_candle_import_status(import_id)` every few seconds — do NOT ask the user to check or wait. This is your responsibility.
-3. Keep polling until `status` is `"finished"`.
+2. **Immediately and automatically** begin checking `get_candle_import_status(import_id)` every few seconds — do NOT ask the user to check or wait. This is your responsibility.
+3. Keep checking until `status` is `"finished"`.
 4. Only then report completion to the user.
 
-Note: Use `get_candle_import_status(import_id)` for polling during an active import — it's a fast Redis lookup. Only call `get_existing_candles()` when you need to inspect what data is in the database (e.g. to verify date coverage after completion).
+User-facing language: tell the user you're "checking for import progress" / "checking again", not "polling".
+
+Note: Use `get_candle_import_status(import_id)` for checking during an active import — it's a fast Redis lookup. Only call `get_existing_candles()` when you need to inspect what data is in the database (e.g. to verify date coverage after completion).
 
 Import Resume Rule (MCP reconnect-safe):
 - Always store the import_id returned. If the conversation is interrupted, resume by checking coverage first.
@@ -394,41 +396,53 @@ When to use MC:
 Same run-first / don't-pre-check-candles rule as backtests:
 1. Stage a draft with `create_monte_carlo_draft(...)`.
 2. Fire `run_monte_carlo(session_id)` (returns immediately).
-3. Poll `get_monte_carlo_session(session_id)` until `status` is
-   `"finished"`, `"stopped"`, or `"terminated"`. **See polling discipline
-   below — keep polling until terminal, no exceptions.**
+3. Keep checking `get_monte_carlo_session(session_id)` until `status` is
+   `"finished"`, `"stopped"`, or `"terminated"`. **See "Checking for
+   results" below — keep checking until terminal, no exceptions, and
+   never ask the user to drive the loop.**
 4. ONLY on a missing-candle error, import candles starting ~2 months before
    `start_date` and then `resume_monte_carlo(session_id)`.
 
-Polling discipline (applies to MC, RST, backtest, and any other
+Checking for results (applies to MC, RST, backtest, and any other
 fire-and-poll tool):
 
-- **Keep polling until a terminal status is reached.** Terminal =
-  `finished` / `stopped` / `terminated`. Do NOT stop polling because
-  "it's taking a while" or "progress hasn't moved". Reporting "done" to
-  the user before status is terminal is a hard error.
-- **Adapt the interval to expected remaining time** — don't pound the
-  server every second on a long run. Suggested adaptive schedule:
+- **Keep checking until the run reaches a terminal status — finished,
+  stopped, or terminated.** This is not optional and not subject to your
+  judgment about how long is "too long". A 30-minute or 3-hour candles
+  MC is normal; the agent is expected to keep checking the entire time.
+- **NEVER ask the user "should I keep checking?" or "let me know when
+  you'd like me to check again."** That is a hard error. The user
+  expects autonomous progress to completion; asking them to drive the
+  loop wastes their time and breaks trust. Just keep checking.
+- **NEVER stop because progress appears stuck.** Specifically for
+  candles MC, `candles_session.completed_scenarios` often stays at 0
+  for a long time because the runner batches scenarios across CPU
+  cores and only reports when a batch completes. That is not a stuck
+  run — keep checking.
+- **Adapt the interval to expected remaining time** so you're not
+  hammering the server every second on a long run. Suggested cadence:
 
-  | Elapsed since fire | Poll interval |
+  | Elapsed since fire | Check every |
   |---|---|
-  | 0 – 1 min | every 5 s |
-  | 1 – 5 min | every 15 s |
-  | 5 – 15 min | every 30 s |
-  | 15 – 60 min | every 60 s |
-  | > 1 h | every 2–3 min |
+  | 0 – 1 min | 5 s |
+  | 1 – 5 min | 15 s |
+  | 5 – 15 min | 30 s |
+  | 15 – 60 min | 60 s |
+  | > 1 h | 2 – 3 min |
 
-- If the session exposes a progress signal (e.g. MC's
-  `candles_session.completed_scenarios`, ETA fields), use it: estimate
-  remaining time and set the next poll to roughly
+  If the session exposes a progress signal (`completed_scenarios`,
+  `estimated_remaining_seconds`, etc.), use it: estimate remaining
+  time and set the next check to roughly
   `min(remaining_eta / 5, max_interval)`.
-- For candles MC specifically, `completed_scenarios` often stays at 0
-  for a long time because the runner batches across CPU cores and
-  reports only when the batch ends. That's not a stuck run — keep
-  polling.
-- If polling exceeds ~2 hours with no terminal status AND no progress
-  signal, surface the session_id to the user and ask whether to keep
-  waiting, cancel, or terminate. Do not silently give up.
+- The ONLY case where you may surface a "what should I do?" question
+  is after at least ~2 hours of elapsed time with no terminal status
+  AND no progress signal at all — at that point ask whether to cancel
+  or terminate. Even then, keep periodically checking in the
+  background; do not stop the loop while waiting for an answer.
+
+User-facing language: when you tell the user what you're doing, say
+**"checking for results"** or **"checking again"** — not "polling".
+"Polling" is engineering jargon and confuses non-technical readers.
 
 Interpreting `summary_metrics` — the primary question MC answers is **"is
 this strategy overfit?"**, and the answer comes from comparing `original`
