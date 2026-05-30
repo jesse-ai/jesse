@@ -347,24 +347,12 @@ def purge_optimization_sessions(days_old: int = None) -> int:
         if days_old is not None and days_old > 0:
             threshold = current_timestamp - (days_old * 24 * 60 * 60 * 1000)
 
-            all_sessions = OptimizationSession.select()
-            sessions_to_delete = []
-
-            for session in all_sessions:
-                try:
-                    session_updated_at = int(session.updated_at) if session.updated_at else 0
-                    if session_updated_at < threshold:
-                        sessions_to_delete.append(session.id)
-                except (ValueError, TypeError):
-                    continue
-
-            deleted_count = 0
-            for session_id in sessions_to_delete:
-                try:
-                    OptimizationSession.delete().where(OptimizationSession.id == session_id).execute()
-                    deleted_count += 1
-                except Exception:
-                    pass
+            deleted_count = (
+                OptimizationSession
+                .delete()
+                .where(OptimizationSession.updated_at < threshold)
+                .execute()
+            )
         else:
             deleted_count = OptimizationSession.delete().execute()
 

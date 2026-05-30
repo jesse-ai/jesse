@@ -349,27 +349,20 @@ def purge_monte_carlo_sessions(days_old: int = None) -> int:
         if days_old is not None and days_old > 0:
             threshold = current_timestamp - (days_old * 24 * 60 * 60 * 1000)
             
-            all_sessions = MonteCarloSession.select()
-            sessions_to_delete = []
-            
-            for session in all_sessions:
-                try:
-                    session_updated_at = int(session.updated_at) if session.updated_at else 0
-                    if session_updated_at < threshold:
-                        sessions_to_delete.append(session.id)
-                except (ValueError, TypeError):
-                    continue
+            session_ids = [
+                str(s.id) for s in
+                MonteCarloSession.select(MonteCarloSession.id).where(MonteCarloSession.updated_at < threshold)
+            ]
             
             deleted_count = 0
-            for session_id in sessions_to_delete:
+            for session_id in session_ids:
                 try:
                     if delete_monte_carlo_session(session_id):
                         deleted_count += 1
                 except Exception:
                     pass
         else:
-            # Delete all sessions
-            all_sessions = MonteCarloSession.select()
+            all_sessions = MonteCarloSession.select(MonteCarloSession.id)
             deleted_count = 0
             for session in all_sessions:
                 try:

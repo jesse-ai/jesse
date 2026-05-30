@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import numpy as np
 from peewee import Cast
@@ -16,28 +16,39 @@ def _ensure_db_open() -> None:
         database.open_connection()
 
 
-def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
-    """
-    Populate buy_orders and sell_orders arrays from the Order table.
-    This is needed when loading trades from the database so that computed
-    properties like entry_price, exit_price, qty, pnl, etc. work correctly.
-    """
+def _batch_populate_order_arrays(trades: List[ClosedTrade]) -> List[ClosedTrade]:
+    if not trades:
+        return trades
+
+    trade_ids = [t.id for t in trades]
     orders = list(
         Order.select()
-        .where(Order.trade_id == trade.id)
-        .where(Order.status == order_statuses.EXECUTED)
+        .where(
+            Order.trade_id.in_(trade_ids),
+            Order.status == order_statuses.EXECUTED
+        )
         .order_by(Order.executed_at)
     )
 
-    trade.orders = orders
-
+    orders_by_trade: Dict[str, list] = {tid: [] for tid in trade_ids}
     for o in orders:
-        if o.side == sides.BUY:
-            trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
-        elif o.side == sides.SELL:
-            trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
+        orders_by_trade.setdefault(o.trade_id, []).append(o)
 
-    return trade
+    for trade in trades:
+        trade.orders = orders_by_trade.get(trade.id, [])
+        for o in trade.orders:
+            if o.side == sides.BUY:
+                trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
+            elif o.side == sides.SELL:
+                trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
+
+    return trades
+
+
+def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
+    if trade is None:
+        return trade
+    return _batch_populate_order_arrays([trade])[0]
 
 
 def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
@@ -48,7 +59,6 @@ def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
 
     try:
         trade = ClosedTrade.select().where(ClosedTrade.id == trade_id).first()
-        # add orders to trade
         if trade:
             populate_order_arrays(trade)
         return trade
@@ -65,7 +75,6 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
     query = (
         ClosedTrade.select()
         .where(ClosedTrade.session_id == session_id)
-        # Sort by: open trades first (closed_at IS NULL), then by most recent opened_at
         .order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc())
     )
     
@@ -73,8 +82,7 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
         query = query.limit(limit)
     
     trades = list(query)
-    for trade in trades:
-        populate_order_arrays(trade)
+    _batch_populate_order_arrays(trades)
     return trades
 
 
@@ -275,8 +283,7 @@ def find_by_filters(
 
     try:
         trades = list(query)
-        for trade in trades:
-            populate_order_arrays(trade)
+        _batch_populate_order_arrays(trades)
         return trades
     except Exception:
         # Ensure we don't poison the connection for subsequent requests.

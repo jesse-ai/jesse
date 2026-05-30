@@ -317,28 +317,17 @@ def purge_live_sessions(days_old: int = None) -> int:
         
         if days_old is not None and days_old > 0:
             threshold = current_timestamp - (days_old * 24 * 60 * 60 * 1000)
-            
-            all_sessions = LiveSession.select()
-            sessions_to_delete = []
-            
-            for session in all_sessions:
-                try:
-                    session_updated_at = int(session.updated_at) if session.updated_at else 0
-                    if session_updated_at < threshold:
-                        sessions_to_delete.append(session.id)
-                except (ValueError, TypeError):
-                    continue
-            
-            deleted_count = 0
-            for session_id in sessions_to_delete:
-                try:
-                    LiveSession.delete().where(LiveSession.id == session_id).execute()
-                    deleted_count += 1
-                except Exception:
-                    pass
+
+            deleted_count = (
+                LiveSession
+                .delete()
+                .where(LiveSession.updated_at < threshold)
+                .execute()
+            )
+            return deleted_count
         else:
-            # Delete all sessions
             deleted_count = LiveSession.delete().execute()
+            return deleted_count
         
         return deleted_count
     except Exception as e:

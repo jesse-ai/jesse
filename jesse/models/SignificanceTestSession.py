@@ -201,23 +201,23 @@ def delete_significance_test_session(session_id: str):
 
 def purge_significance_test_sessions(days_old: int = None):
     import arrow
+    import os
+
     if days_old is None:
         sessions = list(SignificanceTestSession.select())
     else:
         cutoff = arrow.utcnow().shift(days=-days_old).int_timestamp * 1000
         sessions = list(SignificanceTestSession.select().where(SignificanceTestSession.created_at < cutoff))
 
-    count = 0
     for session in sessions:
         if session.chart_path:
-            import os
             try:
                 os.remove(session.chart_path)
             except Exception:
                 pass
         session.delete_instance()
-        count += 1
-    return count
+
+    return len(sessions)
 
 
 def get_running_significance_test_session_id():
