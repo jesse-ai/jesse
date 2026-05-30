@@ -55,9 +55,20 @@ def execute_order(order: Order, silent: bool = False) -> None:
     order.status = order_statuses.EXECUTED
     order.fee = order.fee or None
 
-    # if it's not live trading, we set the filled qty to the qty. 
+    # if it's not live trading, we set the filled qty to the qty.
     if not jh.is_livetrading():
-        order.filled_qty = order.qty
+        # a reduce_only order can only fill up to the size of the open position. If its
+        # stated qty exceeds the remaining position (e.g. a stop-loss left oversized after
+        # partial take-profits), the actual fill is capped to what closes the position.
+        if order.reduce_only:
+            p = store.positions.get_position(order.exchange, order.symbol)
+            position_qty = p.qty if p else 0.0
+            if position_qty != 0 and abs(order.qty) > abs(position_qty):
+                order.filled_qty = -position_qty
+            else:
+                order.filled_qty = order.qty
+        else:
+            order.filled_qty = order.qty
     
     # set order fee for non-live modes if not already set. In live trading, the fee is fetched by the exchange.
     if not jh.is_livetrading() and order.fee is None:

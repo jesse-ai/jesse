@@ -211,3 +211,63 @@ def test_should_not_submit_reduce_only_orders_when_position_is_closed():
 
     with pytest.raises(OrderNotAllowed):
         broker.reduce_position_at(1, 20, 20)
+
+
+def test_oversized_reduce_only_order_uses_actual_filled_qty():
+    """
+    Regression: when a reduce_only stop-loss is left with a stated qty larger than the
+    remaining position (e.g. a stop-loss not resized after a partial take-profit), the
+    engine caps the actual fill via reduce_only. The trade's exit_price VWAP and fee must
+    use that capped (actual) qty, not the stated qty — otherwise net_profit drifts below
+    the real wallet balance change.
+    """
+    set_up_with_fee(is_futures_trading=True)
+
+    starting_balance = exchange.wallet_balance
+    assert starting_balance == 1000
+
+    # open a long position of qty 1 @ 50
+    broker.buy_at_market(1)
+    for o in store.orders.to_execute:
+        order_service.execute_order(o)
+    store.orders.to_execute = []
+    assert position.qty == 1
+    assert position.entry_price == 50
+
+    # take partial profit: sell 0.7 @ 80 (limit), position -> 0.3
+    position.current_price = 50
+    tp_order = broker.reduce_position_at(0.7, 80, 50)
+    order_service.execute_order(tp_order)
+    position.current_price = 80
+    assert round(position.qty, 8) == 0.3
+
+    # submit an OVERSIZED stop-loss: stated qty 1 (full) while only 0.3 remains, @ 40
+    sl_order = broker.reduce_position_at(1, 40, 80)
+    assert sl_order.reduce_only is True
+    assert sl_order.qty == -1  # stated qty is oversized vs the remaining 0.3
+
+    # execute the stop -> reduce_only caps the actual fill to the remaining 0.3
+    order_service.execute_order(sl_order)
+    position.current_price = 40
+    assert position.is_close is True
+
+    # the actual fill is capped to the remaining position, not the stated qty
+    assert round(sl_order.filled_qty, 8) == -0.3
+
+    trade = store.closed_trades.trades[-1]
+
+    # exit_price VWAP must weight the SL leg by the ACTUAL 0.3, not the stated 1.0:
+    # (0.7*80 + 0.3*40) / (0.7+0.3) = 68, NOT (0.7*80 + 1.0*40) / 1.7 = 56.47
+    assert round(trade.exit_price, 8) == 68
+
+    # fee must be charged on the actual filled qty across all legs
+    expected_fee = (1 * 50 + 0.7 * 80 + 0.3 * 40) * 0.002
+    assert round(trade.fee, 8) == round(expected_fee, 8)
+
+    # headline check: per-trade net profit equals the real wallet balance change
+    wallet_delta = exchange.wallet_balance - starting_balance
+    assert round(trade.pnl, 8) == round(wallet_delta, 8)
+
+    # this test closes a position, so clean up the shared store to avoid leaking the
+    # closed trade into tests that assume an empty store at their start
+    store.reset()

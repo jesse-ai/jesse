@@ -651,6 +651,10 @@ def test_reduce_only_market_orders():
     single_route_backtest('TestReduceOnlyMarketOrders', is_futures_trading=True, leverage=1)
 
 
+def test_oversized_reduce_only_exit_accounting():
+    single_route_backtest('TestOversizedReduceOnlyExitAccounting', trend='down', fee=0.001)
+
+
 def test_liquidation_in_isolated_mode_for_short_trades():
     single_route_backtest(
         'TestLiquidationInIsolatedModeForShortTrade', is_futures_trading=True, leverage=2,

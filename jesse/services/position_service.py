@@ -177,7 +177,9 @@ def on_executed_order(position: Position, order: Order) -> None:
         price = order.price
 
         if position.exchange and position.exchange.type == 'futures':
-            position.exchange.charge_fee(qty * price)
+            # fee is charged on what actually filled, not the stated qty (a reduce_only
+            # order may fill less than its stated qty when it exceeds the open position).
+            position.exchange.charge_fee(order.filled_qty * price)
 
         # order opens position
         if position.qty == 0:
