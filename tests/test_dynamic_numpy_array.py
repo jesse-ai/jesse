@@ -174,6 +174,68 @@ def test_append_multiple_grows_geometrically():
     )
 
 
+def test_append_multiple_varied_batch_sizes():
+    """append_multiple must hold the correct valid data regardless of batch
+    sizes relative to the bucket size (small, equal, and much larger batches),
+    including a single batch larger than the current capacity."""
+    a = DynamicNumpyArray((10, 6))
+    expected = []
+    rng = np.random.default_rng(seed=7)
+    for bs in [1, 5, 10, 23, 100, 3, 50, 7, 200]:
+        batch = rng.standard_normal((bs, 6))
+        a.append_multiple(batch)
+        expected.extend(batch.tolist())
+
+    assert a.index == len(expected) - 1
+    np.testing.assert_array_equal(a.array[:a.index + 1], np.array(expected))
+    # capacity must always be large enough to hold the valid region
+    assert a.array.shape[0] >= a.index + 1
+
+
+def test_geometric_growth_never_overflows():
+    """After every append the write index must remain within capacity — guards
+    against an off-by-one in the doubling condition."""
+    a = DynamicNumpyArray((4, 6))
+    for i in range(3000):
+        a.append(np.arange(6, dtype=float) + i)
+        assert a.index < a.array.shape[0]
+    np.testing.assert_array_equal(a[2999], np.arange(6, dtype=float) + 2999)
+
+
+def test_append_multiple_then_append_no_overflow():
+    """Mirror the real backtest flow: candles are warmed up in chunks via
+    append_multiple() and then streamed in one-by-one via append() on the SAME
+    storage (see candle_service.add_multiple_1m_candles -> add_candle).
+
+    The previous linear-bucket implementation assumed capacity stayed a
+    multiple of bucket_size, an invariant append_multiple could break, so a
+    chunked warmup (e.g. 1500 + 800 into a bucket_size=1000 array) followed by
+    single appends overflowed with an IndexError. Geometric growth keys off the
+    actual capacity, so it must keep correct data without ever overflowing.
+    """
+    a = DynamicNumpyArray((1000, 6))
+    expected = []
+
+    # chunked warmup via append_multiple
+    for chunk in (1500, 800):
+        batch = np.arange(len(expected) * 6, (len(expected) + chunk) * 6, dtype=float).reshape(chunk, 6)
+        a.append_multiple(batch)
+        expected.extend(batch.tolist())
+
+    # then stream single candles in, well past the warmed-up capacity
+    for i in range(5000):
+        row = np.full(6, 1_000_000.0 + i)
+        a.append(row)
+        expected.append(row.tolist())
+        # the write index must always stay within the allocated buffer
+        assert a.index < a.array.shape[0]
+
+    assert a.index == len(expected) - 1
+    np.testing.assert_array_equal(a.array[:a.index + 1], np.array(expected))
+    np.testing.assert_array_equal(a[0], np.array([0, 1, 2, 3, 4, 5], dtype=float))
+    np.testing.assert_array_equal(a[-1], np.full(6, 1_000_000.0 + 4999))
+
+
 def test_drop_at():
     a = DynamicNumpyArray((100, 6), drop_at=6)
 
