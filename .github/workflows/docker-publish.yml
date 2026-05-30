@@ -1,0 +1,190 @@
+name: Publish Jesse (PyPI + Docker)
+
+# On a version tag (v*) push this publishes to PyPI and Docker Hub IN PARALLEL:
+#   - `pypi` job  -> builds and uploads the package to PyPI
+#   - `build`/`merge` jobs -> build salehmir/jesse for linux/amd64 + linux/arm64
+#     on native runners, merge into one multi-arch tag, and push to Docker Hub.
+# The two are independent: if one fails the other still publishes (just cut a new
+# version to retry the failed one).
+#
+# A manual run (workflow_dispatch) skips PyPI entirely and just rebuilds/pushes
+# salehmir/jesse:latest — useful as a credentials smoke test.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+
+env:
+  IMAGE: salehmir/jesse
+
+jobs:
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    # Only publish to PyPI on a real version tag, never on a manual smoke-test run.
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify tag matches package version
+        # Mirrors release.sh: the pushed tag, setup.py and jesse/version.py must all agree,
+        # so PyPI and the Docker tag can never disagree about the version.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          setup_v="$(sed -nE 's/^VERSION = "([^"]+)"$/\1/p' setup.py)"
+          pkg_v="$(sed -nE 's/^__version__ = "([^"]+)"$/\1/p' jesse/version.py)"
+          echo "tag=$tag  setup.py=$setup_v  jesse/version.py=$pkg_v"
+          if [ "$tag" != "$setup_v" ] || [ "$setup_v" != "$pkg_v" ]; then
+            echo "::error::Version mismatch — tag=$tag, setup.py=$setup_v, jesse/version.py=$pkg_v"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+  build:
+    # Independent of the `pypi` job — Docker and PyPI publish in parallel.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm   # native ARM runner (free for public repos)
+
+    steps:
+      - name: Prepare platform pair
+        run: echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          # No tags here — each arch is pushed by digest and merged later.
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # Avoid an unintended extra "unknown/unknown" attestation entry in the manifest.
+          provenance: false
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: [ build ]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # On a v* tag push: publish both the version (e.g. 2.2.0) and `latest`.
+          # On manual dispatch: publish `latest` only.
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect result
+        run: docker buildx imagetools inspect ${{ env.IMAGE }}:latest
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [ pypi, build, merge ]
+    # Run even if an earlier job failed, so failures get reported too.
+    if: always()
+    steps:
+      - name: Send Telegram notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PYPI_RESULT: ${{ needs.pypi.result }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          REF: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$PYPI_RESULT" in
+            success) pypi_line="PyPI: ✅ published" ;;
+            skipped) pypi_line="PyPI: ⏭️ skipped (manual run)" ;;
+            *)       pypi_line="PyPI: ❌ failed" ;;
+          esac
+          if [ "$MERGE_RESULT" = "success" ]; then
+            docker_line="Docker: ✅ pushed (latest + version tag)"
+          elif [ "$MERGE_RESULT" = "skipped" ]; then
+            docker_line="Docker: ⏭️ skipped"
+          else
+            docker_line="Docker: ❌ failed"
+          fi
+          text="🚀 Jesse release ${REF}
+          ${pypi_line}
+          ${docker_line}
+          image: ${{ env.IMAGE }}
+          ${RUN_URL}"
+          curl -sS --fail -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "disable_web_page_preview=true" \
+            --data-urlencode "text=${text}"
