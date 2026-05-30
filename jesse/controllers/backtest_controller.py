@@ -286,7 +286,7 @@ def get_backtest_session_chart_data(session_id: str, authorization: Optional[str
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    chart_data = jh.clean_infinite_values(json.loads(session.chart_data)) if session.chart_data else None
+    chart_data = jh.clean_nan_values(jh.clean_infinite_values(json.loads(session.chart_data))) if session.chart_data else None
 
     return JSONResponse({
         'chart_data': chart_data
