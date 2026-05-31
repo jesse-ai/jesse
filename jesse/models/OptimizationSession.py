@@ -1,8 +1,19 @@
+import os
 import peewee
 import json
 from jesse.services.db import database
 import jesse.helpers as jh
 import json
+
+
+def _delete_log_file(session_id: str) -> None:
+    """Remove the optimize-mode log file for a session, if it exists."""
+    path = os.path.abspath(f'storage/logs/optimize-mode/{session_id}.txt')
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
 
 
 if database.is_closed():
@@ -271,6 +282,7 @@ def get_optimization_sessions(limit: int = 50, offset: int = 0, title_search: st
 
 def delete_optimization_session(id: str) -> bool:
     try:
+        _delete_log_file(id)
         OptimizationSession.delete().where(OptimizationSession.id == id).execute()
         return True
     except Exception as e:
@@ -361,11 +373,15 @@ def purge_optimization_sessions(days_old: int = None) -> int:
             deleted_count = 0
             for session_id in sessions_to_delete:
                 try:
+                    _delete_log_file(str(session_id))
                     OptimizationSession.delete().where(OptimizationSession.id == session_id).execute()
                     deleted_count += 1
                 except Exception:
                     pass
         else:
+            all_ids = [str(s.id) for s in OptimizationSession.select(OptimizationSession.id)]
+            for session_id in all_ids:
+                _delete_log_file(session_id)
             deleted_count = OptimizationSession.delete().execute()
 
         return deleted_count
