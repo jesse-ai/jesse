@@ -106,7 +106,7 @@ Jesse Indicator Reference
     ### Volatility & Channels
     ```python
     ta.atr(self.candles, period=14)       # Average True Range
-    ta.bollinger_bands(self.candles)       # Bollinger Bands (upper, middle, lower)
+    ta.bollinger_bands(self.candles)       # Bollinger Bands (upperband, middleband, lowerband)
     ta.keltner(self.candles)              # Keltner Channels
     ta.donchian(self.candles)             # Donchian Channels
     ```
@@ -321,13 +321,13 @@ if macd_result.hist > 0 and macd_result.macd > macd_result.signal:
 ### Example: Bollinger Bands (returns namedtuple)
 ```python
 # From get_indicator_details("bollinger_bands"):
-# signature: (candles, period=20, devup=2.0, devdn=2.0) -> BollingerBands(upper, middle, lower)
+# signature: (candles, period=20, devup=2.0, devdn=2.0) -> BollingerBands(upperband, middleband, lowerband)
 
 bb = ta.bollinger_bands(self.candles)
-# Returns: BollingerBands(upper=..., middle=..., lower=...)
+# Returns: BollingerBands(upperband=..., middleband=..., lowerband=...)
 
 price = self.close
-if price <= bb.lower:
+if price <= bb.lowerband:
     # Price touched lower band
     return True
 ```

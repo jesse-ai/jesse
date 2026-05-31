@@ -325,9 +325,9 @@ draft2 = create_backtest_draft(
 
 **Error**: `Strategy.get_candles() missing required positional argument`
 
-**Cause**: Attempting to access multi-timeframe data within a single strategy.
+**Cause**: Calling `self.get_candles()` with too few arguments — it requires all three: `exchange`, `symbol`, and `timeframe`.
 
-**Solution**: Jesse strategies run on one timeframe. Use separate backtests for multi-timeframe analysis.
+**Solution**: Multi-timeframe access within a single strategy IS supported. Call `self.get_candles(self.exchange, self.symbol, '4h')` with all three arguments (Jesse handles lookahead across timeframes internally). See the Multi-Timeframe section of `jesse://strategy`.
 
 ### Configuration Loading Error
 
@@ -408,26 +408,23 @@ strategy development for backtesting, based on real development experiences.
 
 === 1. Multi-Timeframe Data Access ===
 
-PROBLEM: Attempting to access higher timeframe data within strategy logic
+PROBLEM: `self.get_candles()` raises "missing required positional argument"
 ```
-# WRONG - This doesn't work as expected
+# WRONG - get_candles needs exchange, symbol AND timeframe
 candles_4h = self.get_candles('4h')
-candles_1h = self.get_candles('1h')
 ```
 
-SOLUTION: Jesse strategies run on a single timeframe. For multi-timeframe strategies:
-- Create separate backtests for each timeframe
-- Use the primary timeframe for execution
-- Access indicators from the strategy's assigned timeframe only
-
-CORRECT APPROACH: Run separate backtests for different timeframes
+SOLUTION: Multi-timeframe access within ONE strategy is fully supported. Call
+self.get_candles(exchange, symbol, timeframe) with all three arguments — Jesse
+handles lookahead bias across timeframes internally, so a higher-timeframe
+candle's close is never future data.
 ```
-# Backtest 1: 4h timeframe strategy
-{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}
-
-# Backtest 2: 1h timeframe strategy
-{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "1h"}
+# CORRECT - read a higher timeframe inside the same strategy
+candles_4h = self.get_candles(self.exchange, self.symbol, '4h')
+trend_ema = ta.ema(candles_4h, 50)
 ```
+Typically expose it as a @property (e.g. candles_4h). See the Multi-Timeframe
+section of jesse://strategy for the canonical pattern.
 
 === 2. Balance vs Capital Confusion ===
 
@@ -598,7 +595,7 @@ When encountering errors:
 → Use update_position() for spot trading exits
 
 "Strategy.get_candles() missing required positional argument"
-→ Strategies work on single timeframe; use separate backtests for multi-timeframe
+→ get_candles needs all three args: self.get_candles(self.exchange, self.symbol, '4h'). Multi-timeframe within one strategy is supported (see jesse://strategy).
 
 "'Strategy' object has no attribute 'capital'"
 → Use self.balance instead of self.capital

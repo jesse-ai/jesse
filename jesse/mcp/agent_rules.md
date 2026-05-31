@@ -51,16 +51,18 @@ Jesse provides comprehensive documentation through MCP resources.
 Key resources include:
 
 - jesse://strategy - Strategy structure and required methods and How strategies execute candle-by-candle
+- jesse://strategy_examples - Library of complete, worked example strategies (full, runnable references)
 - jesse://indicator - Step-by-step guide for discovering and using indicators and Essential indicators and candle data access
 - jesse://position_risk - Position sizing utilities and formulas and Risk management patterns and exit strategies
 - jesse://utilities - Helper functions for calculations and analysis
-- jesse://backtest-management - Backtest creation, configuration, workflow and common strategy development pitfalls and solutions
+- jesse://backtest_management - Backtest creation, configuration, workflow and common strategy development pitfalls and solutions
+- jesse://backtest_metrics - Backtest result metrics reference and interpretation
 - jesse://candle - Data import and candle data management
 - jesse://configuration - System configuration and exchange settings
 - jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
 - jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
 
-**CRITICAL**: Always consult `jesse://backtest-management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
+**CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
 
 
@@ -87,6 +89,24 @@ Indicators & Utilities:
 - **CRITICAL**: Always use `list_indicators` tool first, then `get_indicator_details` for each indicator
 - Follow the systematic workflow in `jesse://indicator` resource
 - Consult MCP resources for available options and usage patterns. fetch only the required snippet.
+
+
+=== STRATEGY CODING RULES ===
+
+High-signal Jesse strategy-authoring gotchas (full detail in jesse://strategy):
+
+- Smart orders auto-select type: set `self.buy`/`self.sell = qty, price` and Jesse picks the order type from price vs current price — equal/near current = MARKET; for a BUY, price below current = LIMIT, price above = STOP (mirror for SELL: above = LIMIT, below = STOP). Never hand-pick market/limit/stop.
+- Read the current stop with `self.average_stop_loss`, never `self.stop_loss[1]`. After formatting, `self.stop_loss` is a 2D array `[[qty, price], ...]`, so `[1]` is the second order row (often IndexError), not a price.
+- There is NO `self.trailing_stop` attribute. Implement trailing stops by reassigning `self.stop_loss = self.position.qty, <new_price>` inside `update_position()` (e.g. `min(self.average_stop_loss, self.ema)` for longs).
+- Lookahead bias is handled internally — do NOT shift to a previous candle's indicator value. The current (closed) candle's close is not future data, even on larger timeframes.
+- Default the indicator source to closing price and do NOT pass optional params: unless the user asks, omit `period`/`source` so each indicator uses its defaults (closing price is already the default source).
+- Do NOT write filter functions unless explicitly asked — use plain `if` conditions inside `go_long`/`go_short`.
+- `self.position.qty` is 0 / unavailable inside `go_long`/`go_short` (position isn't open yet). It's only meaningful from `on_open_position` onward.
+- Inside `on_open_position`, check `self.is_long` / `self.is_short` before setting `self.stop_loss` / `self.take_profit`.
+- On **spot**, shorting is unsupported: `should_short()` must return `False`, leverage is always `1`, and `stop_loss`/`take_profit` must be set in `on_open_position()` (not `go_long()`).
+- Size from `self.available_margin` (or balance/capital), price, and `self.fee_rate` via sizing utilities (`size_to_qty`, `risk_to_qty`) — never hardcode a fixed quantity.
+
+For full structure, lifecycle, and complete runnable examples see jesse://strategy and jesse://strategy_examples.
 
 
 === STRATEGY DEVELOPMENT ===
@@ -286,7 +306,7 @@ Backtest Resume Rule (MCP reconnect-safe):
 - If failed due to missing candles, import the missing data (with warmup buffer), then rerun from updated draft/session settings.
 - Avoid duplicate concurrent runs for the same exchange-symbol-strategy-timeframe and date range.
 
-Reference: See `jesse://backtest-management` resource for detailed tool documentation, examples, and advanced usage patterns.
+Reference: See `jesse://backtest_management` resource for detailed tool documentation, examples, and advanced usage patterns.
 
 === RULE SIGNIFICANCE TESTING (ENTRY SIGNAL VALIDATION) ===
 

@@ -16,7 +16,7 @@ for a given route, timeframe, and date range.
 
 Correct flow:
 
-1. Run the backtest (see `jesse://backtest-management`).
+1. Run the backtest (see `jesse://backtest_management`).
 2. If — and only if — it fails with a missing-candle error, call
    `import_candles()` starting ~2 months before the user's `start_date`.
 3. Poll `get_candle_import_status(import_id)` until `"finished"`, then
