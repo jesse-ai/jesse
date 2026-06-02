@@ -18,31 +18,37 @@ def start_notifier_loop():
     tl = Timeloop()
     @tl.job(interval=timedelta(seconds=0.5))
     def handle_time():
-        if len(MSG_QUEUE) > 0:
-            msg = MSG_QUEUE.pop(0)
+        # Guard the whole loop body: a single bad message or transient error must
+        # never kill the notifier thread (timeloop does not restart a dead job).
+        try:
+            if len(MSG_QUEUE) > 0:
+                msg = MSG_QUEUE.pop(0)
 
-            notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False) if store.app.notifications_api_key else None
+                notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False) if store.app.notifications_api_key else None
 
-            if msg['type'] == 'info':
-                if msg['webhook'] is None and notification_keys:
-                    if notification_keys['driver'] == 'telegram':
-                        _telegram(msg['content'], notification_keys['bot_token'], notification_keys['chat_id'])
-                    elif notification_keys['driver'] == 'discord':
-                        _discord(msg['content'], webhook_address=notification_keys['webhook'])
-                    elif notification_keys['driver'] == 'slack':
-                        _slack(msg['content'], webhook_address=notification_keys['webhook'])
-                elif notification_keys:
-                    _custom_channel_notification(msg)
+                if msg['type'] == 'info':
+                    if msg['webhook'] is None and notification_keys:
+                        if notification_keys['driver'] == 'telegram':
+                            _telegram(msg['content'], notification_keys['bot_token'], notification_keys['chat_id'])
+                        elif notification_keys['driver'] == 'discord':
+                            _discord(msg['content'], webhook_address=notification_keys['webhook'])
+                        elif notification_keys['driver'] == 'slack':
+                            _slack(msg['content'], webhook_address=notification_keys['webhook'])
+                    elif notification_keys:
+                        _custom_channel_notification(msg)
 
-            # elif msg['type'] == 'error' and error_notifications:
-            #     if error_notifications['driver'] == 'telegram':
-            #         _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
-            #     elif error_notifications['driver'] == 'discord':
-            #         _discord(msg['content'], webhook_address=error_notifications['webhook'])
-            #     elif error_notifications['driver'] == 'slack':
-            #         _slack(msg['content'], webhook_address=error_notifications['webhook'])
-            else:
-                raise ValueError(f'Unknown message type: {msg["type"]}')
+                # elif msg['type'] == 'error' and error_notifications:
+                #     if error_notifications['driver'] == 'telegram':
+                #         _telegram_errors(msg['content'], error_notifications['bot_token'], error_notifications['chat_id'])
+                #     elif error_notifications['driver'] == 'discord':
+                #         _discord(msg['content'], webhook_address=error_notifications['webhook'])
+                #     elif error_notifications['driver'] == 'slack':
+                #         _slack(msg['content'], webhook_address=error_notifications['webhook'])
+                else:
+                    raise ValueError(f'Unknown message type: {msg["type"]}')
+        except Exception as e:
+            from jesse.services import logger
+            logger.error(f'Notifier loop error (non-fatal): {type(e).__name__}: {e}', send_notification=False)
 
     tl.start()
 
@@ -69,15 +75,16 @@ def _telegram(msg: str, token: str, chat_id: str) -> None:
 
     try:
         response = requests.get(
-            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}'
+            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}',
+            timeout=15
         )
         if response.status_code // 100 != 2:
             err_msg = f'Telegram ERROR [{response.status_code}]: {response.text}'
             if response.status_code // 100 == 4:
                 err_msg += f'\nParameters: {msg}'
             logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Telegram ERROR: ConnectionError', send_notification=False)
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Telegram ERROR (non-fatal): {type(e).__name__}', send_notification=False)
 
 
 def _discord(msg: str, webhook_address=None) -> None:
@@ -87,14 +94,14 @@ def _discord(msg: str, webhook_address=None) -> None:
         return
 
     try:
-        response = requests.post(webhook_address, {'content': msg})
+        response = requests.post(webhook_address, {'content': msg}, timeout=15)
         if response.status_code // 100 != 2:
             err_msg = f'Discord ERROR [{response.status_code}]: {response.text}'
             if response.status_code // 100 == 4:
                 err_msg += f'\nParameters: {msg}'
             logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Discord ERROR: ConnectionError', send_notification=False)
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Discord ERROR (non-fatal): {type(e).__name__}', send_notification=False)
 
 
 def _slack(msg: str, webhook_address) -> None:
@@ -108,14 +115,14 @@ def _slack(msg: str, webhook_address) -> None:
     }
 
     try:
-        response = requests.post(webhook_address, json=payload)
+        response = requests.post(webhook_address, json=payload, timeout=15)
         if response.status_code // 100 != 2:
             err_msg = f'Slack ERROR [{response.status_code}]: {response.text}'
             if response.status_code // 100 == 4:
                 err_msg += f'\nParameters: {msg}'
             logger.error(err_msg, send_notification=False)
-    except requests.exceptions.ConnectionError:
-        logger.error('Slack ERROR: ConnectionError', send_notification=False)
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Slack ERROR (non-fatal): {type(e).__name__}', send_notification=False)
 
 
 def _custom_channel_notification(msg: dict):
