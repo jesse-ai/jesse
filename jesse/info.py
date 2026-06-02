@@ -30,6 +30,11 @@ DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_1
 HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
                          timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
 
+# Lighter natively serves these candle resolutions: 1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d, 1w.
+# We expose the ones Jesse supports as trading timeframes (1w is dropped).
+LIGHTER_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                      timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
+
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
     exchanges_enums.BYBIT_USDT_PERPETUAL: {
@@ -398,6 +403,38 @@ exchange_info = {
         "type": "futures",
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": HYPERLIQUID_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+    },
+    # Lighter (ZK-rollup orderbook perp DEX, USDC-settled).
+    # backtesting is False: Lighter only serves a ~130-day rolling candle window, too
+    # shallow for meaningful backtests. The import driver is still registered so the live
+    # runtime can fetch warm-up candles.
+    exchanges_enums.LIGHTER_PERPETUAL: {
+        "name": exchanges_enums.LIGHTER_PERPETUAL,
+        "url": "https://lighter.xyz",
+        "fee": 0.0,  # Lighter currently charges 0 maker/taker fees on perps
+        "type": "futures",
+        "settlement_currency": "USDC",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": LIGHTER_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    exchanges_enums.LIGHTER_PERPETUAL_TESTNET: {
+        "name": exchanges_enums.LIGHTER_PERPETUAL_TESTNET,
+        "url": "https://testnet.app.lighter.xyz",
+        "fee": 0.0,
+        "type": "futures",
+        "settlement_currency": "USDC",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": LIGHTER_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": True,
