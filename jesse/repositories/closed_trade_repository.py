@@ -333,7 +333,7 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
             trade.is_simulated = True
         return trade
 
-    trade.orders = {order.exchange_id: order for order in exchange_orders if order.exchange_id}
+    trade.orders = [order for order in exchange_orders if order.exchange_id]
     for o in exchange_orders + simulated_orders:
         if o.side == sides.BUY:
             trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
