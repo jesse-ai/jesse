@@ -32,7 +32,7 @@ Calculates quantity based on risk parameters.
 
 **Parameters:**
 - `capital`: Available capital
-- `risk_per_capital`: Risk percentage (0.01 = 1%)
+- `risk_per_capital`: Risk percentage as a whole number (1 = 1%, 3 = 3%)
 - `entry_price`: Entry price
 - `stop_loss_price`: Stop loss price
 - `precision`: Quantity precision (default: 8)
@@ -53,13 +53,13 @@ Converts quantity to dollar position size.
 
 ### estimate_risk(entry_price, stop_price)
 
-Estimates risk percentage for a trade.
+Estimates the absolute risk per unit (the price distance between entry and stop).
 
 **Parameters:**
 - `entry_price`: Entry price
 - `stop_price`: Stop loss price
 
-**Returns:** Risk percentage (0.02 = 2%)
+**Returns:** `abs(entry_price - stop_price)` — a price distance, not a percentage
 
 ### limit_stop_loss(entry_price, stop_price, trade_type, max_allowed_risk_percentage)
 
@@ -69,7 +69,7 @@ Ensures stop loss doesn't exceed maximum allowed risk.
 - `entry_price`: Entry price
 - `stop_price`: Stop loss price
 - `trade_type`: "long" or "short"
-- `max_allowed_risk_percentage`: Maximum allowed risk (0.05 = 5%)
+- `max_allowed_risk_percentage`: Maximum allowed risk as a whole-number percent (5 = 5%)
 
 **Returns:** Adjusted stop price if needed
 
