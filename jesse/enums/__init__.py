@@ -91,6 +91,8 @@ class exchanges:
     GATE_SPOT = 'Gate Spot'
     HYPERLIQUID_PERPETUAL = 'Hyperliquid Perpetual'
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
+    LIGHTER_PERPETUAL = 'Lighter Perpetual'
+    LIGHTER_PERPETUAL_TESTNET = 'Lighter Perpetual Testnet'
 
 
 @dataclass
