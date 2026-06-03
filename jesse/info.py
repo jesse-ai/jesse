@@ -418,7 +418,8 @@ exchange_info = {
         "url": "https://lighter.xyz",
         "fee": 0.0,  # Lighter currently charges 0 maker/taker fees on perps
         "type": "futures",
-        "settlement_currency": "USDC",
+        # Lighter displays markets as BASE-USD (collateral is USDC, handled in the driver);
+        # omit settlement_currency so Jesse derives "USD" from the symbol, like Hyperliquid.
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": LIGHTER_TIMEFRAMES,
         "modes": {
@@ -432,7 +433,7 @@ exchange_info = {
         "url": "https://testnet.app.lighter.xyz",
         "fee": 0.0,
         "type": "futures",
-        "settlement_currency": "USDC",
+        # markets display as BASE-USD; settlement_currency derived from the symbol (USD)
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": LIGHTER_TIMEFRAMES,
         "modes": {
