@@ -24,15 +24,24 @@ def start_notifier_loop():
             notification_keys = get_notification_api_key(store.app.notifications_api_key, protect_sensitive_data=False) if store.app.notifications_api_key else None
 
             if msg['type'] == 'info':
-                if msg['webhook'] is None and notification_keys:
-                    if notification_keys['driver'] == 'telegram':
-                        _telegram(msg['content'], notification_keys['bot_token'], notification_keys['chat_id'])
-                    elif notification_keys['driver'] == 'discord':
-                        _discord(msg['content'], webhook_address=notification_keys['webhook'])
-                    elif notification_keys['driver'] == 'slack':
-                        _slack(msg['content'], webhook_address=notification_keys['webhook'])
-                elif notification_keys:
+                # If the message contains a webhook field, prefer using that (ad-hoc webhook)
+                if msg.get('webhook'):
                     _custom_channel_notification(msg)
+                elif notification_keys:
+                    driver = notification_keys.get('driver')
+                    if driver == 'telegram':
+                        _telegram(msg['content'], notification_keys.get('bot_token'), notification_keys.get('chat_id'))
+                    elif driver == 'discord':
+                        _discord(msg['content'], webhook_address=notification_keys.get('webhook'))
+                    elif driver == 'slack':
+                        _slack(msg['content'], webhook_address=notification_keys.get('webhook'))
+                    elif driver in ('webhook', 'custom', 'http'):
+                        # generic webhook stored in the API key
+                        _custom_channel_notification({'content': msg['content'], 'webhook': notification_keys.get('webhook')})
+                    else:
+                        # Unknown/unsupported driver — log it so the user can diagnose
+                        from jesse.services import logger
+                        logger.error(f'Unknown notification driver: {driver}', send_notification=False)
 
             # elif msg['type'] == 'error' and error_notifications:
             #     if error_notifications['driver'] == 'telegram':
@@ -119,16 +128,36 @@ def _slack(msg: str, webhook_address) -> None:
 
 
 def _custom_channel_notification(msg: dict):
-    webhook = msg['webhook']
+    webhook = msg.get('webhook')
+    content = msg.get('content') or msg.get('message') or ''
 
+    from jesse.services import logger
+
+    if not webhook:
+        logger.error('Custom webhook notification called without a webhook URL', send_notification=False)
+        return
+
+    # Slack webhook
     if webhook.startswith('https://hooks.slack.com'):
-        # a slack webhook
-        _slack(msg['content'], webhook)
+        _slack(content, webhook)
+    # Discord webhook
     elif webhook.startswith('https://discord.com/api/webhooks'):
-        # a discord webhook
-        _discord(msg['content'], webhook)
+        _discord(content, webhook)
     else:
-        raise ValueError(f'Custom Webhook {webhook}. seems to be neither a discord or slack webhook')
+        # Try a generic POST with JSON body. Many services accept 'content' or 'text'.
+        try:
+            response = requests.post(webhook, json={'content': content, 'text': content})
+            # If not successful, try a form-encoded fallback
+            if response.status_code // 100 != 2:
+                response = requests.post(webhook, data={'content': content})
+
+            if response.status_code // 100 != 2:
+                err_msg = f'Webhook ERROR [{response.status_code}]: {response.text}'
+                logger.error(err_msg, send_notification=False)
+        except requests.exceptions.ConnectionError:
+            logger.error('Webhook ERROR: ConnectionError', send_notification=False)
+        except Exception as e:
+            logger.error(f'Webhook ERROR: {e}', send_notification=False)
 
 
 def _format_msg(msg: str) -> str:

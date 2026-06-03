@@ -169,7 +169,6 @@ def log_optimize_mode(message, session_id: str):
                 f.write(message + '\n')
                 f.flush()  # Ensure it's written immediately
         except Exception as e:
-            jh.dump('error')
             print(f"Warning: Failed to write to optimize mode log file {log_file}: {e}")
 
     # also, publish to redis
