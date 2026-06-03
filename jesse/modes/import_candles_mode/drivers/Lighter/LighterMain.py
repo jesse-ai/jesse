@@ -27,14 +27,15 @@ class LighterMain(CandleExchange):
         super().__init__(name=name, count=500, rate_limit_per_second=10,
                          backup_exchange_class=BinancePerpetualFutures)
         self.endpoint = rest_endpoint.rstrip('/')
-        # symbol (dashy, e.g. 'BTC-USDC') -> integer market_id
+        # symbol (dashy, e.g. 'BTC-USD') -> integer market_id. Lighter displays markets as
+        # BASE-USD (collateral is USDC), so we use -USD to match the exchange UI.
         self._market_ids = {}
 
     def _market_id(self, symbol: str) -> int:
         if not self._market_ids:
             self.get_available_symbols()
         base = jh.get_base_asset(symbol)
-        dashy = base + '-USDC'
+        dashy = base + '-USD'
         if dashy not in self._market_ids:
             raise ValueError(f'Symbol "{symbol}" is not listed on {self.name}')
         return self._market_ids[dashy]
@@ -48,7 +49,7 @@ class LighterMain(CandleExchange):
         for market in data.get('order_book_details', []):
             # perp markets only; skip anything not actively trading
             base = market['symbol']
-            dashy = base + '-USDC'
+            dashy = base + '-USD'
             self._market_ids[dashy] = int(market['market_id'])
             symbols.append(dashy)
 
