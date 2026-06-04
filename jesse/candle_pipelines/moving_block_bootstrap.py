@@ -3,7 +3,7 @@ from .base_candles import BaseCandlesPipeline
 
 
 class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
-    def __init__(self, batch_size: int, **_ignored) -> None:
+    def __init__(self, batch_size: int, seed: int = None, **_ignored) -> None:
         """
         Generate synthetic candles by moving-block bootstrap on multivariate
         tuples of (delta_close, delta_high, delta_low).
@@ -14,6 +14,10 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
             Size of the internal regeneration buffer in minutes. The pipeline
             derives a reasonable bootstrap block length from this, so there is
             no separate block-size argument.
+        seed : int, optional
+            Seed for the internal RNG. Leave None for independent random
+            scenarios (the normal case); pass an int for reproducible output
+            (used by tests asserting the fast and full simulators are identical).
         """
         super().__init__(batch_size)
 
@@ -25,7 +29,8 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         self._block_size = derived_block_size
 
         # Independent RNG per pipeline instance to avoid identical scenarios
-        self._rng = np.random.default_rng()
+        # (seedable for reproducible tests).
+        self._rng = np.random.default_rng(seed)
 
     def _bootstrap_blocks(self, arr: np.ndarray, n: int) -> np.ndarray:
         """
