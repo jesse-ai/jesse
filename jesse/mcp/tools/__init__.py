@@ -39,6 +39,7 @@ from jesse.mcp.tools.candles import register_candles_tools
 from jesse.mcp.tools.indicator import register_indicator_tools
 from jesse.mcp.tools.significance_test import register_significance_test_tools
 from jesse.mcp.tools.monte_carlo import register_monte_carlo_tools
+from jesse.mcp.tools.optimization import register_optimization_tools
 
 def register_tools(mcp):
     """
@@ -73,3 +74,6 @@ def register_tools(mcp):
 
     # Monte Carlo simulation tools (robustness analysis of finished strategies)
     register_monte_carlo_tools(mcp)
+
+    # Optimization tools (hyperparameter tuning with train/test split)
+    register_optimization_tools(mcp)
