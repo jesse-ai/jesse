@@ -137,20 +137,28 @@ def set_config(conf: dict) -> None:
         config['env']['logging'] = conf['logging']
         # exchanges
         for key, e in conf['exchanges'].items():
+            # The dashboard sends each exchange entry carrying its own 'name', but the
+            # exchanges map is keyed by exchange name and scripted/MCP callers pass the
+            # entries without a redundant 'name'. Fall back to the dict key so both the
+            # dashboard payload and the natural dict-keyed config (what /config returns)
+            # work. Without this, a missing 'name' raised KeyError deep inside a spawned
+            # backtest/RST worker, which then exited silently (the traceback was lost on
+            # the os._exit() that follows), leaving the MCP/dashboard session stuck.
+            name = e.get('name') or key
             if not jh.is_live() and e['type']:
                 exchange_type = e['type']
             else:
-                exchange_type = get_exchange_type(e['name'])
-            config['env']['exchanges'][e['name']] = {
+                exchange_type = get_exchange_type(name)
+            config['env']['exchanges'][name] = {
                 'fee': float(e['fee']),
                 'type': exchange_type,
                 'balance': float(e['balance'])
             }
-            if config['env']['exchanges'][e['name']]['type'] == 'futures':
+            if config['env']['exchanges'][name]['type'] == 'futures':
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
-                config['env']['exchanges'][e['name']]['futures_leverage'] = int(e.get('futures_leverage', 1))
+                config['env']['exchanges'][name]['futures_leverage'] = int(e.get('futures_leverage', 1))
                 # accepted values are: 'cross' and 'isolated'
-                config['env']['exchanges'][e['name']]['futures_leverage_mode'] = e.get('futures_leverage_mode', 'cross')
+                config['env']['exchanges'][name]['futures_leverage_mode'] = e.get('futures_leverage_mode', 'cross')
 
     # live mode only
     if jh.is_live():

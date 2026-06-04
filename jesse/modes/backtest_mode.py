@@ -105,7 +105,7 @@ def _execute_backtest(
         r['exchange'] = exchange
     for r in data_routes:
         r['exchange'] = exchange
-    
+
     # set routes
     router.initiate(routes, data_routes)
     # reset store
@@ -140,9 +140,9 @@ def _execute_backtest(
             )
             _handle_warmup_candles(warmup_candles, start_date)
         except exceptions.CandlesNotFound as e:
-            _handle_sync_no_candles(e, start_date, exchange)
+            _handle_sync_no_candles(e, start_date, exchange, client_id=client_id, finish_date=finish_date)
         except exceptions.CandleNotFoundInDatabase as e:
-            _handle_sync_no_candles(e, start_date, exchange)
+            _handle_sync_no_candles(e, start_date, exchange, client_id=client_id, finish_date=finish_date)
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -272,32 +272,63 @@ def _execute_backtest(
     database.close_connection()
     
 
-def _handle_sync_no_candles(e, start_date, exchange):
-    # Extract symbol and exchange from error message
-    match = re.search(r"for (.*?) on (.*?)$", str(e))
-    if match:
-        symbol = match.group(1)
-        message = f'Missing trading candles for {symbol} on {exchange} from {start_date}'
+def _handle_sync_no_candles(e, start_date, exchange, client_id=None, finish_date=None):
+    # Prefer the structured payload the missing-candle helpers raise; only fall back
+    # to parsing the message string if the symbol isn't carried on the exception.
+    symbol = None
+    payload = e.args[0] if getattr(e, 'args', None) else None
+    if isinstance(payload, dict):
+        symbol = payload.get('symbol')
+    if not symbol:
+        match = re.search(r"for (.*?) on (.*?)$", str(e))
+        if match:
+            symbol = match.group(1)
+
+    if symbol:
+        # Compute the earliest date the run actually needs (warm-up candles included)
+        # so the error tells the agent/user exactly what to import to fix it.
         warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+        required_start = start_date
         if warmup_num > 0:
-            start_date = jh.date_to_timestamp(start_date) - (
+            required_start_ts = jh.date_to_timestamp(start_date) - (
                 warmup_num * jh.timeframe_to_one_minutes(jh.max_timeframe(config['app']['considering_timeframes'])) * 2 * 60_000)
-            start_date = jh.timestamp_to_date(start_date)
+            required_start = jh.timestamp_to_date(required_start_ts)
+
+        message = (
+            f"Missing candles for {symbol} on {exchange}. This run needs data from "
+            f"{required_start}" + (f" to {finish_date}" if finish_date else "") +
+            f" (which includes {warmup_num} warm-up candles before the start date). "
+            f"Import candles for {symbol} on {exchange} starting {required_start}, then re-run."
+        )
+
         sync_publish(
             "missing_candles",
             {
                 "message": message,
                 "symbol": symbol,
                 "exchange": exchange,
-                "start_date": start_date,
+                "start_date": required_start,
             },
         )
-        
+
+        # Persist a terminal error on the session so MCP/dashboard callers stop polling
+        # a session that would otherwise stay "running" forever. Previously the
+        # candle-shortage path raised without ever marking the session stopped, which
+        # surfaced to API clients as a silent hang.
+        if client_id is not None and not jh.should_execute_silently():
+            from jesse.models.BacktestSession import (
+                store_backtest_session_exception,
+                update_backtest_session_status,
+            )
+            store_backtest_session_exception(client_id, message, '')
+            update_backtest_session_status(client_id, 'stopped')
+
         raise exceptions.CandlesNotFound({
-            'message': str(e),
+            'message': message,
             'symbol': symbol,
             'exchange': exchange,
-            'start_date': start_date,
+            'start_date': required_start,
+            'finish_date': finish_date,
             'type': 'missing_candles'
         })
     raise e

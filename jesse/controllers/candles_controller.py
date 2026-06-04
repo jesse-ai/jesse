@@ -96,10 +96,29 @@ def get_candle_import_status(request_json: CancelRequestJson, authorization: Opt
         return authenticator.unauthorized_response()
 
     running = bool(is_process_active(request_json.id))
-    return JSONResponse({
+    response = {
         'import_id': request_json.id,
         'status': 'running' if running else 'finished',
-    }, status_code=200)
+    }
+
+    # Attach live progress (percent complete, ETA, date reached so far) when the import
+    # is still running so callers can see real movement instead of a blind "running".
+    # When finished, clean up any lingering progress key.
+    import json
+    from jesse.services.redis import sync_redis
+    from jesse.modes.import_candles_mode import candle_import_progress_key
+    progress_key = candle_import_progress_key(request_json.id)
+    try:
+        if running:
+            raw = sync_redis.get(progress_key)
+            if raw:
+                response['progress'] = json.loads(raw)
+        else:
+            sync_redis.delete(progress_key)
+    except Exception:
+        pass
+
+    return JSONResponse(response, status_code=200)
 
 
 @router.post("/existing")
