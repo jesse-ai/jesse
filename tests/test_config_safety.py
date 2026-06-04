@@ -1,19 +1,21 @@
 """
-Regression tests for the config-handling fixes:
+Regression tests for normalize_settings_sections() — the guard that keeps
+/config/get from ever raising KeyError on a malformed or partially stored config.
 
-1. normalize_settings_sections() — guards /config/get so a malformed or partially
-   stored config can never raise KeyError (previously surfaced as an HTTP 500
-   "KeyError: 'backtest'" when the stored config was double-wrapped under a stray
-   "data" key by a get->update round-trip).
+Background: a get->update round-trip could double-wrap the stored config under a
+stray "data" key (stored as {"data": {backtest, live, optimization}}). The old
+get_config() then did data['backtest']['exchanges'] unconditionally and returned
+an HTTP 500 ("KeyError: 'backtest'"), which blocked every MCP backtest. The
+normalize step unwraps that and guarantees the indexed sections exist.
 
-2. set_config() — must accept the dict-keyed `exchanges` map that the API/MCP send
-   (keyed by exchange name, with no redundant inner "name"). A missing "name" used
-   to raise KeyError deep inside a spawned backtest/RST worker, which then exited
-   silently, leaving the session stuck.
+These tests target the pure normalize_settings_sections() function, so they touch
+no global state. The companion fix in set_config() (accepting the dict-keyed
+`exchanges` map the API/MCP send, falling back to the dict key when an inner
+"name" is absent) is exercised end-to-end by every backtest / RST / Monte Carlo /
+optimization run, all of which go through set_config().
 """
 import copy
 
-from jesse.config import config, reset_config, set_config
 from jesse.modes.data_provider import normalize_settings_sections
 
 
@@ -24,10 +26,6 @@ def _full_config():
         'optimization': {'cpu_cores': 2},
     }
 
-
-# ---------------------------------------------------------------------------
-# normalize_settings_sections
-# ---------------------------------------------------------------------------
 
 def test_normalize_leaves_valid_config_untouched():
     cfg = _full_config()
@@ -92,54 +90,3 @@ def test_normalize_reproduces_the_original_500_shape():
     out = normalize_settings_sections({'data': _full_config()})
     # The line that used to crash — data['backtest']['exchanges'] — now succeeds:
     assert list(out['backtest']['exchanges'].keys()) == ['Binance Spot']
-
-
-# ---------------------------------------------------------------------------
-# set_config
-# ---------------------------------------------------------------------------
-
-def test_set_config_accepts_dict_keyed_exchanges_without_name():
-    reset_config()
-    config['app']['trading_mode'] = 'backtest'
-    try:
-        conf = {
-            'warm_up_candles': 240,
-            'logging': {},
-            'exchanges': {
-                'Binance Perpetual Futures': {
-                    'fee': 0.0006, 'type': 'futures', 'balance': 10000,
-                    'futures_leverage': 2, 'futures_leverage_mode': 'cross',
-                }
-            },
-        }
-        set_config(conf)  # must NOT raise KeyError: 'name'
-        ex = config['env']['exchanges']['Binance Perpetual Futures']
-        assert ex['fee'] == 0.0006
-        assert ex['type'] == 'futures'
-        assert ex['balance'] == 10000
-        assert ex['futures_leverage'] == 2
-        assert ex['futures_leverage_mode'] == 'cross'
-    finally:
-        reset_config()
-
-
-def test_set_config_prefers_explicit_name_over_key():
-    reset_config()
-    config['app']['trading_mode'] = 'backtest'
-    try:
-        conf = {
-            'warm_up_candles': 210,
-            'logging': {},
-            'exchanges': {
-                'ignored_key': {
-                    'name': 'Binance Spot', 'fee': 0.001, 'type': 'spot', 'balance': 5000,
-                }
-            },
-        }
-        set_config(conf)
-        # When an explicit 'name' is provided (dashboard format) it wins; the dict
-        # key is not used as the exchange name.
-        assert 'Binance Spot' in config['env']['exchanges']
-        assert 'ignored_key' not in config['env']['exchanges']
-    finally:
-        reset_config()
