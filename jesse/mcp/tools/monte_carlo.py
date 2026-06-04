@@ -48,7 +48,7 @@ def register_monte_carlo_tools(mcp):
         num_scenarios: int = 200,
         run_trades: bool = False,
         run_candles: bool = True,
-        fast_mode: bool = False,
+        fast_mode: bool = True,
         cpu_cores: int = None,
         pipeline_type: str = 'moving_block_bootstrap',
         pipeline_params: str = None,
@@ -81,7 +81,14 @@ def register_monte_carlo_tools(mcp):
             run_candles: Whether to run the candles resampler (default True).
                 Candles MC is the main mode — it resamples the underlying
                 price series and re-runs the strategy on each variant.
-            fast_mode: Skip charts/heavy outputs for speed (default False).
+            fast_mode: Use the fast resampling-and-replay path (default True).
+                Strongly recommended for candle Monte Carlo: the full
+                step-simulator can blow up on synthetic bootstrapped candles
+                (risk-sized strategies size positions off a momentarily tiny
+                ATR, the balance compounds to overflow, and scenarios die with
+                InsufficientMargin / Infinity). The fast path is robust and is
+                what the dashboard's healthy runs use. Only set False if you
+                specifically need the step simulator and accept those caveats.
             cpu_cores: Worker count. Defaults to (cpu_count - 1, capped at 4).
             pipeline_type: Candle resampling pipeline. Default
                 "moving_block_bootstrap". Other options depend on the

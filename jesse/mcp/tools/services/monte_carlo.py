@@ -74,6 +74,10 @@ def _default_mc_config(exchange_name: Optional[str]) -> dict:
         exchange['futures_leverage_mode'] = 'cross'
     return {
         'warm_up_candles': 210,
+        # MonteCarloRunner reads starting_balance + fee at the TOP LEVEL (not inside exchange),
+        # so they must be surfaced here or they silently fall back to defaults (10000 / 0.0005).
+        'starting_balance': exchange['balance'],
+        'fee': exchange['fee'],
         'exchange': exchange,
     }
 
@@ -200,7 +204,7 @@ def create_monte_carlo_draft_service(
     num_scenarios: int = 200,
     run_trades: bool = False,
     run_candles: bool = True,
-    fast_mode: bool = False,
+    fast_mode: bool = True,  # robust path; the step simulator blows up on synthetic candles (see tool doc)
     cpu_cores: Optional[int] = None,
     pipeline_type: Optional[str] = 'moving_block_bootstrap',
     pipeline_params: Optional[str] = None,
