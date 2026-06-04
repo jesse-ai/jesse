@@ -312,11 +312,29 @@ def get_candle_import_status_service(import_id: str) -> dict:
 
         if response.status_code == 200:
             data = response.json()
-            return {
+            result = {
                 "status": data.get("status"),
                 "import_id": import_id,
                 "message": f"Import {import_id} is {data.get('status')}."
             }
+            # Surface live progress (percent complete, ETA, date reached so far) while
+            # the import runs, so the caller sees it advancing instead of a blind "running".
+            progress = data.get("progress")
+            if progress:
+                result["progress"] = progress
+                pct = progress.get("current")
+                eta = progress.get("estimated_remaining_seconds")
+                reached = progress.get("current_date")
+                bits = []
+                if pct is not None:
+                    bits.append(f"{pct}% complete")
+                if reached:
+                    bits.append(f"reached {reached}")
+                if eta is not None:
+                    bits.append(f"~{round(eta)}s remaining")
+                if bits:
+                    result["message"] = f"Import {import_id} is running ({', '.join(bits)})."
+            return result
         else:
             return {
                 "status": "error",

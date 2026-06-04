@@ -85,6 +85,48 @@ def get_candles(exchange: str, symbol: str, timeframe: str):
     ]
 
 
+_SETTINGS_SECTIONS = ('backtest', 'live', 'optimization')
+
+
+def normalize_settings_sections(data: dict) -> dict:
+    """
+    Make a settings/config dict safe to index, so /config/get can never 500 on a
+    malformed or partially-stored config. Pure (no I/O) and idempotent, which keeps
+    it unit-testable in isolation.
+
+    Tolerates two failure modes seen in the wild:
+
+    1. Double-wrap. The /config/get response wraps the config under a top-level
+       "data" key; if that response is ever fed back into /config/update, the real
+       sections get nested under a stray "data" key (stored as {"data": {...}}).
+       We unwrap that — but ONLY when the real sections are absent at the top level,
+       so a legitimate config is never disturbed.
+    2. Missing / non-dict sections. A first-write or partial config may lack
+       'backtest' / 'live' / 'optimization' (or have them set to null). We coerce
+       each to a dict and guarantee the 'exchanges' maps that callers index into.
+
+    Returns the normalized dict (the unwrapped inner dict when applicable).
+    """
+    if not isinstance(data, dict):
+        return {s: ({'exchanges': {}} if s in ('backtest', 'live') else {}) for s in _SETTINGS_SECTIONS}
+
+    # Unwrap a stray 'data' wrapper only when none of the real sections live at the
+    # top level but they do live one layer down. This guard means a valid config
+    # (which always has 'backtest' at the top) is never unwrapped.
+    if not any(s in data for s in _SETTINGS_SECTIONS) and isinstance(data.get('data'), dict):
+        inner = data['data']
+        if any(s in inner for s in _SETTINGS_SECTIONS):
+            data = inner
+
+    for section in _SETTINGS_SECTIONS:
+        if not isinstance(data.get(section), dict):
+            data[section] = {}
+    data['backtest'].setdefault('exchanges', {})
+    data['live'].setdefault('exchanges', {})
+
+    return data
+
+
 def get_config(client_config: dict, has_live=False) -> dict:
     from jesse.services.db import database
     database.open_connection()
@@ -97,6 +139,11 @@ def get_config(client_config: dict, has_live=False) -> dict:
         # merge it with client's config (because it could include new keys added),
         # update it in the database, and then return it
         data = jh.merge_dicts(client_config, json.loads(o.json))
+
+        # Defensive: tolerate a malformed or partial stored config so /config/get can
+        # never 500 (e.g. a double-wrapped config from a get->update round-trip, or a
+        # config missing the sections indexed just below). See normalize_settings_sections.
+        data = normalize_settings_sections(data)
 
         # make sure the list of BACKTEST exchanges is up to date
         for k in list(data['backtest']['exchanges'].keys()):

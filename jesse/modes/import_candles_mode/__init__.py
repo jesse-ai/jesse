@@ -1,3 +1,4 @@
+import json
 import math
 import time
 from datetime import timedelta
@@ -14,10 +15,36 @@ from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, is_process_active
+from jesse.services.redis import sync_publish, is_process_active, sync_redis
+from jesse.services.env import ENV_VALUES
 from jesse.store import store
 from jesse import exceptions
 from jesse.services.progressbar import Progressbar
+
+
+def candle_import_progress_key(client_id: str) -> str:
+    return f"{ENV_VALUES.get('APP_PORT', '9000')}|candle-import-progress|{client_id}"
+
+
+def _store_import_progress(client_id: str, current, estimated_remaining_seconds, current_date: str) -> None:
+    """
+    Persist live import progress to Redis so /candles/import-status (and the MCP
+    get_candle_import_status tool) can report real progress — percent complete,
+    ETA, and the date reached so far — instead of only running/finished. Best-effort:
+    a Redis hiccup must never break an import. The key carries a TTL so it self-cleans.
+    """
+    try:
+        sync_redis.set(
+            candle_import_progress_key(client_id),
+            json.dumps({
+                'current': current,
+                'estimated_remaining_seconds': estimated_remaining_seconds,
+                'current_date': current_date,
+            }),
+            ex=86400,
+        )
+    except Exception:
+        pass
 
 
 def run(
@@ -161,7 +188,18 @@ def run(
 
         if i % 2 == 0:
             progressbar.update()
-            
+
+            # Persist progress to Redis for every import (dashboard or MCP) so the
+            # import-status endpoint can report percent/ETA/date-reached. This is what
+            # lets an agent see an import actually advancing instead of polling a blind
+            # "running" until it gives up.
+            _store_import_progress(
+                client_id,
+                progressbar.current,
+                progressbar.estimated_remaining_seconds,
+                start_date.format('YYYY-MM-DD'),
+            )
+
             # For existing candles, throttle frontend updates
             if already_exists:
                 frontend_update_counter += 1
