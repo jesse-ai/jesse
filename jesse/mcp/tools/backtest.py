@@ -24,6 +24,7 @@ from .services import (
     cancel_backtest_service,
     purge_backtest_sessions_service
 )
+from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 def register_backtest_tools(mcp):
     """
@@ -431,6 +432,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
+    @gated(weight=CREDIT_WEIGHTS["run_backtest"])
     def run_backtest(session_id: str) -> dict:
         """
         Trigger a backtest and return immediately (fire-and-poll pattern).
