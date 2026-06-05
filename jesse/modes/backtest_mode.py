@@ -583,6 +583,13 @@ def _step_simulator(
             if i != 0:
                 previous_short_candle = candles[j]['candles'][i - 1]
                 short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+            # Persist the synthetic candle back into the array so the higher-timeframe
+            # generation below (and the next iteration's gap-fix reference) are built from the
+            # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
+            # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
+            # real candles while fills ran on the synthetic prices, so the full (step) simulator
+            # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
+            candles[j]['candles'][i] = short_candle
             exchange = candles[j]['exchange']
             symbol = candles[j]['symbol']
 
