@@ -25,6 +25,7 @@ from .services import (
     cancel_significance_test_service,
     purge_significance_test_sessions_service,
 )
+from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 
 def register_significance_test_tools(mcp):
@@ -222,6 +223,7 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
+    @gated(weight=CREDIT_WEIGHTS["run_significance_test"])
     def run_significance_test(session_id: str) -> dict:
         """
         Fire a Rule Significance Test for a previously created draft and return immediately.

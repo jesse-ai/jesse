@@ -33,6 +33,7 @@ from .services import (
     terminate_monte_carlo_service,
     purge_monte_carlo_sessions_service,
 )
+from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 
 def register_monte_carlo_tools(mcp):
@@ -313,6 +314,7 @@ def register_monte_carlo_tools(mcp):
         return get_monte_carlo_logs_service(session_id)
 
     @mcp.tool()
+    @gated(weight=CREDIT_WEIGHTS["run_monte_carlo"])
     def run_monte_carlo(session_id: str) -> dict:
         """
         Fire a Monte Carlo simulation for a previously created draft and return immediately.

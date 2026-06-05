@@ -33,6 +33,7 @@ from .services import (
     terminate_optimization_service,
     purge_optimization_sessions_service,
 )
+from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 
 def register_optimization_tools(mcp):
@@ -234,6 +235,7 @@ def register_optimization_tools(mcp):
         return get_optimization_logs_service(session_id)
 
     @mcp.tool()
+    @gated(weight=CREDIT_WEIGHTS["run_optimization"])
     def run_optimization(session_id: str) -> dict:
         """
         Start a previously created optimization draft and return immediately.
