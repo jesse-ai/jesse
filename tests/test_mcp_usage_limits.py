@@ -88,7 +88,7 @@ def test_default_weights_and_limit():
     assert ul.CREDIT_WEIGHTS["run_monte_carlo"] == 1
     assert ul.CREDIT_WEIGHTS["run_optimization"] == 1
     assert ul.FREE_DAILY_CREDITS == 100
-    assert ul.GUEST_DAILY_CREDITS == 50
+    assert ul.GUEST_DAILY_CREDITS == 0      # guests can't run research tools at all
 
 
 def test_weights_overridable_via_env(monkeypatch):
@@ -252,14 +252,15 @@ def test_free_over_limit_returns_structured_response_without_running():
     assert blocked["reset_at"]                   # ISO timestamp present
 
 
-def test_guest_over_limit_nudges_to_log_in():
+def test_guest_is_blocked_and_nudged_to_sign_up():
+    # Guests get 0 — the very first run is blocked, with a sign-up nudge (no daily reset).
     redis = FakeRedis()
-    tool, calls = _make_gated(50, "guest", redis, limit=50)
-    assert tool()["status"] == "started"            # 50/50 ok
-    blocked = tool()                                 # over
+    tool, calls = _make_gated(1, "guest", redis, limit=0)
+    blocked = tool()
+    assert calls["n"] == 0                            # tool body never ran
     assert blocked["status"] == "limit_reached"
     assert blocked["is_guest"] is True
-    assert "Log in" in blocked["message"]            # guests get the log-in nudge
+    assert "Sign up" in blocked["message"]           # nudge to create a (free) account
     assert "Upgrade to premium" not in blocked["message"]
 
 

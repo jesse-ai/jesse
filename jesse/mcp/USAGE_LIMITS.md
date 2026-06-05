@@ -18,15 +18,15 @@ Everything else (config/candle/strategy/indicator reads, *draft*
 creation/updates, status polls, `get_*_session`, logs, cancel/terminate,
 purge, …) is FREE and unmetered.
 
-Daily budgets (UTC day): **guests = 50**, **free (logged-in) = 100**; any paid plan
-is **unlimited**.
+Daily budgets (UTC day): **guests = 0** (no research runs at all — they must sign up),
+**free (logged-in) = 100**; any paid plan is **unlimited**.
 
 All of the above are config constants in `jesse/mcp/usage_limits.py` and are
 overridable via environment variables:
 
 | Env var                              | Default | Meaning                          |
 |--------------------------------------|---------|----------------------------------|
-| `MCP_GUEST_DAILY_CREDITS`            | 50      | Daily budget for guests (no token)|
+| `MCP_GUEST_DAILY_CREDITS`            | 0       | Daily budget for guests (no token); 0 = must sign up|
 | `MCP_FREE_DAILY_CREDITS`             | 100     | Daily budget for free (logged-in)|
 | `MCP_CREDIT_WEIGHT_BACKTEST`         | 1       | Credit cost of `run_backtest`    |
 | `MCP_CREDIT_WEIGHT_SIGNIFICANCE_TEST`| 1       | Credit cost of `run_significance_test`|
@@ -46,9 +46,9 @@ reads the `plan` field (`free` / `guest` / `basic` / `pro` / `enterprise` /
 - Any PAID plan (anything that isn't `free`/`guest`) → always allowed (unlimited).
 - **`free`** (logged in, not paid) → metered at the free budget (100/day); the
   over-limit nudge is "upgrade to premium".
-- **`guest`** — i.e. NO license token at all → metered at the smaller guest budget
-  (50/day); the over-limit nudge is "log in for a higher limit". A missing token
-  means *guest*, NOT *error*, so this is deliberately not fail-open.
+- **`guest`** — i.e. NO license token at all → guest budget is **0** by default, so
+  guests get **no research runs** and are nudged to **sign up** for a free account.
+  A missing token means *guest*, NOT *error*, so this is deliberately not fail-open.
 - **Plan undetermined** — a real backend error (token present but `/v2/user-info`
   is unreachable / non-200 / malformed) → **FAIL OPEN** (allow the run, log a
   warning). We never block a legit user because our own metering plumbing is down —
@@ -63,7 +63,8 @@ reads the `plan` field (`free` / `guest` / `basic` / `pro` / `enterprise` /
 
 When a user is over budget, the gated tool returns this structured dict (it does
 NOT raise — that would break the MCP client). The `message` and `is_guest` differ
-for guests (nudged to log in) vs free users (nudged to upgrade):
+for guests (nudged to **sign up** for a free account) vs free users (nudged to
+**upgrade** to premium):
 
 ```json
 {
