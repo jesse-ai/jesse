@@ -567,7 +567,7 @@ def _build_run_payload(session_id: str, form: dict, config: dict, state: dict) -
         'run_trades': bool(form.get('run_trades', False)),
         'run_candles': bool(form.get('run_candles', True)),
         'num_scenarios': int(form.get('num_scenarios', 200)),
-        'fast_mode': bool(form.get('fast_mode', False)),
+        'fast_mode': bool(form.get('fast_mode', True)),
         'cpu_cores': int(form.get('cpu_cores', _default_cpu_cores())),
         'pipeline_type': form.get('pipeline_type') or 'moving_block_bootstrap',
         'pipeline_params': form.get('pipeline_params'),

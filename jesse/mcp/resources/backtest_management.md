@@ -30,7 +30,7 @@ Default Configuration:
     "export_json": false,
     "export_chart": true,
     "export_tradingview": false,
-    "fast_mode": false,
+    "fast_mode": true,
     "benchmark": true
 }
 ```

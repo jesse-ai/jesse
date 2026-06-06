@@ -125,7 +125,7 @@ Stages a draft you can then run.
 - `num_scenarios` — int (default **200**, recommend 200–1000)
 - `run_trades` — bool (default **False**)
 - `run_candles` — bool (default **True**)
-- `fast_mode` — bool (default False; skip charts/heavy outputs)
+- `fast_mode` — bool (default **True**; fast resampling-and-replay path, robust on synthetic candles — recommended)
 - `cpu_cores` — int (default: `cpu_count - 1`, capped at 4)
 - `pipeline_type` — str (default `"moving_block_bootstrap"`)
 - `pipeline_params` — optional JSON object string

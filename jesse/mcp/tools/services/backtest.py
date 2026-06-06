@@ -197,7 +197,7 @@ def create_backtest_draft_service(
     export_json: bool = False,
     export_chart: bool = True,
     export_tradingview: bool = False,
-    fast_mode: bool = False,
+    fast_mode: bool = True,
     benchmark: bool = True,
     title: Optional[str] = None,
     description: Optional[str] = None,
@@ -222,7 +222,7 @@ def create_backtest_draft_service(
         export_json: Export results as JSON
         export_chart: Export chart data
         export_tradingview: Export TradingView pine script
-        fast_mode: Enable fast mode
+        fast_mode: Enable fast mode (default True)
         benchmark: Run benchmark comparison
         title: Optional note title. Defaults to an MCP-generated title.
         description: Optional note description. Defaults to a short MCP-generated markdown note.
