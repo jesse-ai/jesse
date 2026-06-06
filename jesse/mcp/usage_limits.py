@@ -70,9 +70,10 @@ def _env_int(name: str, default: int) -> int:
 # unlimited. Override with MCP_FREE_DAILY_CREDITS (e.g. export MCP_FREE_DAILY_CREDITS=200).
 FREE_DAILY_CREDITS = _env_int("MCP_FREE_DAILY_CREDITS", 100)
 
-# Daily budget for GUEST users (no license token at all) — smaller than the free tier,
-# to nudge them to log in. Override with MCP_GUEST_DAILY_CREDITS.
-GUEST_DAILY_CREDITS = _env_int("MCP_GUEST_DAILY_CREDITS", 50)
+# Daily budget for GUEST users (no license token at all). Default 0 — without an
+# account, guests can't run the research tools at all. Override with
+# MCP_GUEST_DAILY_CREDITS if you ever want to grant guests a small daily allowance.
+GUEST_DAILY_CREDITS = _env_int("MCP_GUEST_DAILY_CREDITS", 0)
 
 # Per-tool credit cost. Every expensive run — backtest, significance test, Monte Carlo,
 # optimization — costs exactly 1 credit; there is no weighting. (Kept per-tool and
@@ -198,7 +199,7 @@ def _plan_is_premium(plan: str) -> bool:
     The license backend's free tier reports 'free' (and signed-out/guest reports
     'guest'); every paid plan (basic / pro / enterprise / lifetime / premium / …)
     is treated as unlimited. Anything we don't recognize as free is treated as
-    paid — failing toward NOT blocking, since this is a soft nudge, not a wall.
+    paid — failing toward NOT blocking; the limit is meant to be lenient, not strict.
     """
     if not plan:
         return False
@@ -374,8 +375,9 @@ def _limit_reached_response(result: ConsumeResult, is_guest: bool = False) -> di
     """
     Build the friendly, structured 'limit_reached' dict returned to the client.
 
-    A guest (no license token) is nudged to LOG IN — even a free account gets a
-    higher daily limit. A free user is nudged to UPGRADE to premium (unlimited).
+    A guest (no license token) is told a free account is required — by default guests
+    can't run the research tools at all. A free user is shown that premium has no
+    daily limit.
     """
     default_limit = GUEST_DAILY_CREDITS if is_guest else FREE_DAILY_CREDITS
     limit = result.limit if result.limit is not None else default_limit
@@ -383,9 +385,9 @@ def _limit_reached_response(result: ConsumeResult, is_guest: bool = False) -> di
     reset_at = result.reset_at or _reset_at_iso()
     if is_guest:
         message = (
-            f"Daily guest limit reached ({used} of {limit} research runs used today). "
-            f"Log in to get a higher daily limit, or go premium for unlimited runs. "
-            f"Resets at 00:00 UTC."
+            "Running research through the AI assistant — backtests, Monte Carlo, "
+            "optimizations, and significance tests — requires a Jesse account. "
+            "Sign up for free at jesse.trade to get started."
         )
     else:
         message = (
@@ -437,9 +439,9 @@ def gated(weight: int, meter_factory=get_usage_meter, plan_getter=get_user_plan)
             if plan is None:
                 return func(*args, **kwargs)
 
-            # 4) Guest (no license token) or free → meter it. Guests get the smaller
-            #    daily allowance + a "log in for more" nudge; free users get the full
-            #    allowance + an "upgrade to premium" nudge.
+            # 4) Guest (no license token) or free → meter it. Guests get the guest
+            #    allowance (0 by default → a free account is required); free users get
+            #    the free allowance, with premium noted as having no daily limit.
             is_guest = str(plan).strip().lower() == 'guest'
             limit = GUEST_DAILY_CREDITS if is_guest else FREE_DAILY_CREDITS
             try:
