@@ -247,20 +247,20 @@ def test_free_over_limit_returns_structured_response_without_running():
     assert blocked["limit"] == 50
     assert blocked["is_guest"] is False
     assert "Upgrade to premium" in blocked["message"]
-    assert "Log in" not in blocked["message"]    # free users get the upgrade nudge, not log-in
+    assert "Sign up" not in blocked["message"]   # free users get the premium message, not the account one
     assert "00:00 UTC" in blocked["message"]
     assert blocked["reset_at"]                   # ISO timestamp present
 
 
-def test_guest_is_blocked_and_nudged_to_sign_up():
-    # Guests get 0 — the very first run is blocked, with a sign-up nudge (no daily reset).
+def test_guest_is_blocked_and_told_an_account_is_required():
+    # Guests get 0 — the very first run is blocked, with an account-required message (no reset).
     redis = FakeRedis()
     tool, calls = _make_gated(1, "guest", redis, limit=0)
     blocked = tool()
     assert calls["n"] == 0                            # tool body never ran
     assert blocked["status"] == "limit_reached"
     assert blocked["is_guest"] is True
-    assert "Sign up" in blocked["message"]           # nudge to create a (free) account
+    assert "account" in blocked["message"].lower()   # message states a free account is required
     assert "Upgrade to premium" not in blocked["message"]
 
 
