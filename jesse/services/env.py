@@ -32,17 +32,21 @@ if jh.is_jesse_project():
 
     # validation for existence of .env file
     if len(list(ENV_VALUES.keys())) == 0:
-        jh.error(
+        # NOTE: print directly here instead of jh.error(). This code runs at import time,
+        # before the rest of Jesse is initialized, and env.py is imported by
+        # jesse.services.redis. jh.error() calls is_live() -> jesse.config ->
+        # jesse.modes.utils -> jesse.services.logger -> jesse.services.redis, which is
+        # still mid-import — so jh.error() here triggers a circular ImportError that hides
+        # this very message. A plain stderr print + os._exit keeps the message visible.
+        print(
             '.env file is missing from within your local project. '
             'This usually happens when you\'re in the wrong directory. '
             '\n\nIf you haven\'t created a Jesse project yet, do that by running: \n'
             'jesse make-project {name}\n'
             'And then go into that project, and run the same command.',
-            force_print=True
+            file=sys.stderr,
         )
         os._exit(1)
-        jh.terminate_app()
-        # raise FileNotFoundError('.env file is missing from within your local project. This usually happens when you\'re in the wrong directory. You can create one by running "cp .env.example .env"')
 
     if not jh.is_unit_testing() and ENV_VALUES['PASSWORD'] == '':
         raise EnvironmentError('You forgot to set the PASSWORD in your .env file')
