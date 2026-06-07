@@ -402,7 +402,7 @@ def import_notification_api_keys_from_csv(content: str) -> Dict[str, any]:
                 continue
 
             driver = (row.get('Driver') or '').strip().lower()
-            if driver not in ('telegram', 'discord', 'slack'):
+            if driver not in ('telegram', 'discord', 'slack', 'webhook'):
                 continue
 
             fields = {}

@@ -146,10 +146,10 @@ def _custom_channel_notification(msg: dict):
     else:
         # Try a generic POST with JSON body. Many services accept 'content' or 'text'.
         try:
-            response = requests.post(webhook, json={'content': content, 'text': content})
+            response = requests.post(webhook, json={'text': content})
             # If not successful, try a form-encoded fallback
             if response.status_code // 100 != 2:
-                response = requests.post(webhook, data={'content': content})
+                response = requests.post(webhook, data={'text': content})
 
             if response.status_code // 100 != 2:
                 err_msg = f'Webhook ERROR [{response.status_code}]: {response.text}'
