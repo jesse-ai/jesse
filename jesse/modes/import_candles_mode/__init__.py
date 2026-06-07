@@ -26,6 +26,30 @@ def candle_import_progress_key(client_id: str) -> str:
     return f"{ENV_VALUES.get('APP_PORT', '9000')}|candle-import-progress|{client_id}"
 
 
+def _print_import_progressbar(exchange: str, symbol: str, percent: float, remaining_seconds: float,
+                              reached_date: str) -> None:
+    """
+    Render a compact, visual progress bar for CLI / research imports (the
+    `show_progressbar=True` path). Replaces the bare "Progress: X% - N seconds"
+    line with a filled bar, a human-readable ETA, and the date reached so far.
+    """
+    width = 32
+    filled = max(0, min(width, int(round(width * percent / 100))))
+    bar = '█' * filled + '░' * (width - filled)
+
+    secs = max(0, int(round(remaining_seconds)))
+    if secs >= 3600:
+        eta = f'{secs // 3600}h {secs % 3600 // 60:02d}m'
+    elif secs >= 60:
+        eta = f'{secs // 60}m {secs % 60:02d}s'
+    else:
+        eta = f'{secs}s'
+
+    print(f'  Importing {symbol} on {exchange}')
+    print(f'  [{bar}] {percent:5.1f}%')
+    print(f'  reached {reached_date}  •  ETA {eta}')
+
+
 def _store_import_progress(client_id: str, current, estimated_remaining_seconds, current_date: str) -> None:
     """
     Persist live import progress to Redis so /candles/import-status (and the MCP
@@ -220,8 +244,13 @@ def run(
             
             if show_progressbar:
                 jh.clear_output()
-                print(
-                    f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+                _print_import_progressbar(
+                    exchange,
+                    symbol,
+                    progressbar.current,
+                    progressbar.estimated_remaining_seconds,
+                    start_date.format('YYYY-MM-DD'),
+                )
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
