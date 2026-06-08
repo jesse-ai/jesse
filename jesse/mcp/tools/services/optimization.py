@@ -259,9 +259,27 @@ def create_optimization_draft_service(
             'warm_up_candles': int(warm_up_candles),
         }
 
+        # Persist the FULL results shape the dashboard's optimization store expects (see
+        # dashboard-v1 stores/optimizationStore.ts state()). The frontend's loadSession patches
+        # this state in and then reads nested objects directly (results.progressbar.current,
+        # results.exception.error); a partial shape here left those undefined and crashed
+        # "Failed to load session". Keep this in sync with the store's default results.
         state_dict = {
             'form': form_data,
             'results': {
+                'showResults': False,
+                'executing': False,
+                'logsModal': False,
+                'status': '',
+                'progressbar': {'current': 0, 'estimated_remaining_seconds': 0},
+                'routes_info': [],
+                'best_candidates': [],
+                'metrics': [],
+                'generalInfo': [],
+                'selectedObjectiveMetric': '',
+                'infoLogs': '',
+                'info': [],
+                'exception': {'error': '', 'traceback': ''},
                 'alert': {'message': '', 'type': ''},
             },
         }
