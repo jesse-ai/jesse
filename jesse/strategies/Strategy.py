@@ -1368,7 +1368,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
+        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe)
 
     @property
     def open(self) -> float:
