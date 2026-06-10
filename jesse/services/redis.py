@@ -24,7 +24,12 @@ if jh.is_jesse_project():
         async_redis = asyncio.run(init_redis())
         sync_redis = sync_redis_lib.Redis(
             host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
-            password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+            password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None,
+            socket_keepalive=True,
+            socket_connect_timeout=10,
+            socket_timeout=60,
+            retry_on_timeout=True,
+            health_check_interval=30,
         )
 
 
@@ -74,4 +79,9 @@ def is_process_active(client_id: str) -> bool:
     if jh.is_unit_testing():
         return False
 
-    return sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)
+    try:
+        return sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)
+    except Exception as e:
+        # Don't kill the subprocess on transient Redis errors — assume alive
+        jh.terminal_debug(f"Redis sismember error (assuming active): {e}")
+        return True
