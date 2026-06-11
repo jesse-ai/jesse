@@ -857,12 +857,16 @@ def _get_fixed_jumped_candle(
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
-    if previous_candle[2] < candle[1]:
-        candle[1] = previous_candle[2]
-        candle[4] = min(previous_candle[2], candle[4])
-    elif previous_candle[2] > candle[1]:
-        candle[1] = previous_candle[2]
-        candle[3] = max(previous_candle[2], candle[3])
+    previous_close = previous_candle[2]
+    candle_open = candle[1]
+    if previous_close < candle_open:
+        candle[1] = previous_close
+        if previous_close < candle[4]:
+            candle[4] = previous_close
+    elif previous_close > candle_open:
+        candle[1] = previous_close
+        if previous_close > candle[3]:
+            candle[3] = previous_close
 
     return candle
 
@@ -872,6 +876,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
 
     # the vast majority of candles have no order waiting to be executed inside
     # them, so only pay for the candle copy + execution loop when needed.
+    any_order_executed = False
     if executing_orders:
         current_temp_candle = real_candle.copy()
         if len(executing_orders) > 1:
@@ -893,6 +898,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     p.current_price = storable_temp_candle[2]
 
                     executed_order = True
+                    any_order_executed = True
 
                     order_service.execute_order(order)
                     executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
@@ -907,21 +913,27 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
             if not executed_order:
                 break
 
-    # add/update the real_candle to the store so we can move on
-    candle_service.add_candle(
-        real_candle, exchange, symbol, '1m',
-        with_execution=False,
-        with_generation=False
-    )
+    if any_order_executed:
+        # partial candles were stored during order execution; restore the
+        # real_candle in the store so we can move on. When nothing executed,
+        # the caller (_step_simulator) already added this exact candle right
+        # before calling us, so there is nothing to restore.
+        candle_service.add_candle(
+            real_candle, exchange, symbol, '1m',
+            with_execution=False,
+            with_generation=False
+        )
+
     p = store.positions.get_position(exchange, symbol)
     if p:
         p.current_price = real_candle[2]
 
-    _check_for_liquidations(real_candle, exchange, symbol)
+    _check_for_liquidations(real_candle, exchange, symbol, position=p)
 
 
-def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
-    p: Position = store.positions.get_position(exchange, symbol)
+def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str, position: Position = None) -> None:
+    # accept an already-fetched position to avoid a second lookup on the hot path
+    p: Position = position if position is not None else store.positions.get_position(exchange, symbol)
 
     if not p:
         return
