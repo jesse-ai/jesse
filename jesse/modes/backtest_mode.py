@@ -849,22 +849,20 @@ def _get_fixed_jumped_candle(
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
-    current_temp_candle = real_candle.copy()
-    executed_order = False
-
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
-    if len(executing_orders) > 1:
-        # extend the candle shape from (6,) to (1,6)
-        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
-    while True:
-        if len(executing_orders) == 0:
+    # the vast majority of candles have no order waiting to be executed inside
+    # them, so only pay for the candle copy + execution loop when needed.
+    if executing_orders:
+        current_temp_candle = real_candle.copy()
+        if len(executing_orders) > 1:
+            # extend the candle shape from (6,) to (1,6)
+            executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
+
+        while True:
             executed_order = False
-        else:
-            for index, order in enumerate(executing_orders):
-                if index == len(executing_orders) - 1 and not order.is_active:
-                    executed_order = False
 
+            for index, order in enumerate(executing_orders):
                 if not order.is_active:
                     continue
 
@@ -886,20 +884,19 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
                     break
-                else:
-                    executed_order = False
 
-        if not executed_order:
-            # add/update the real_candle to the store so we can move on
-            candle_service.add_candle(
-                real_candle, exchange, symbol, '1m',
-                with_execution=False,
-                with_generation=False
-            )
-            p = store.positions.get_position(exchange, symbol)
-            if p:
-                p.current_price = real_candle[2]
-            break
+            if not executed_order:
+                break
+
+    # add/update the real_candle to the store so we can move on
+    candle_service.add_candle(
+        real_candle, exchange, symbol, '1m',
+        with_execution=False,
+        with_generation=False
+    )
+    p = store.positions.get_position(exchange, symbol)
+    if p:
+        p.current_price = real_candle[2]
 
     _check_for_liquidations(real_candle, exchange, symbol)
 
@@ -1278,10 +1275,15 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
 
 def _get_executing_orders(exchange, symbol, real_candle):
     orders = store.orders.get_active_orders(exchange, symbol)
+    if not orders:
+        return []
+    # inlined candle_includes_price() with the candle's high/low hoisted out of the loop
+    high = real_candle[3]
+    low = real_candle[4]
     return [
         order
         for order in orders
-        if order.is_active and candle_service.candle_includes_price(real_candle, order.price)
+        if order.is_active and low <= order.price <= high
     ]
 
 
