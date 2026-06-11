@@ -18,6 +18,7 @@ import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
 from jesse.constants import TIMEFRAME_PRIORITY
 from jesse.constants import SUPPORTED_COLORS
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
@@ -489,19 +490,23 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
+@lru_cache
+def _is_pytest_script() -> bool:
+    # Check if the code is being executed from the pytest command-line tool.
+    # sys.argv[0] doesn't change within a process, so compute this once.
+    return os.path.basename(sys.argv[0]) in ("pytest", "py.test")
+
+
 def is_unit_testing() -> bool:
     """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
-    # Check if the PYTEST_CURRENT_TEST environment variable is set.
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    # Check if the PYTEST_CURRENT_TEST environment variable is set (and non-empty).
+    # The membership test first avoids the internal KeyError that os.environ.get()
+    # raises/catches on every call in the common (non-test) case — this function
+    # sits on the hot path via get_config().
+    if "PYTEST_CURRENT_TEST" in os.environ and os.environ["PYTEST_CURRENT_TEST"]:
         return True
 
-    # Check if the code is being executed from the pytest command-line tool.
-    script_name = os.path.basename(sys.argv[0])
-    if script_name in ["pytest", "py.test"]:
-        return True
-
-    # Otherwise, the code is not running by running pytest or PyCharm's test runner.
-    return False
+    return _is_pytest_script()
 
 
 def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
@@ -1228,8 +1233,12 @@ def gzip_compress(data):
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.utils import timeframe_to_one_minutes
-    return timeframe_to_one_minutes(timeframe)
+    try:
+        return TIMEFRAME_TO_ONE_MINUTES[timeframe]
+    except KeyError:
+        # delegate to the canonical implementation for the proper InvalidTimeframe error
+        from jesse.utils import timeframe_to_one_minutes
+        return timeframe_to_one_minutes(timeframe)
 
 
 def compressed_response(content: str) -> dict:

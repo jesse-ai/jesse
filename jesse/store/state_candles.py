@@ -41,8 +41,9 @@ class CandlesState:
 
 
     def forming_estimation(self, exchange: str, symbol: str, timeframe: str) -> tuple:
-        long_key = jh.key(exchange, symbol, timeframe)
-        short_key = jh.key(exchange, symbol, '1m')
+        # inline jh.key() — this is on the hot path of every indicator call
+        long_key = f'{exchange}-{symbol}-{timeframe}'
+        short_key = f'{exchange}-{symbol}-1m'
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
         current_1m_count = len(self.get_storage(exchange, symbol, '1m'))
         dif = current_1m_count % required_1m_to_complete_count
