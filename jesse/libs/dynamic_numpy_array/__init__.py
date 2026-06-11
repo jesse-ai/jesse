@@ -25,21 +25,23 @@ class DynamicNumpyArray:
         return self.index + 1
 
     def __getitem__(self, i):
+        index = self.index
         if isinstance(i, slice):
             start = 0 if i.start is None else i.start
-            stop = self.index + 1 if i.stop is None else i.stop
+            stop = index + 1 if i.stop is None else i.stop
 
             if stop < 0:
-                stop = (self.index + 1) - abs(stop)
-            stop = min(stop, self.index + 1)
+                stop += index + 1
+            if stop > index + 1:
+                stop = index + 1
             return self.array[start:stop]
         else:
             if i < 0:
-                i = (self.index + 1) - abs(i)
+                i += index + 1
 
             # validation
-            if self.index == -1 or i > self.index or i < 0:
-                raise IndexError(f'list assignment index out of range. self.index={self.index}, i={i}')
+            if index == -1 or i > index or i < 0:
+                raise IndexError(f'list assignment index out of range. self.index={index}, i={i}')
 
             return self.array[i]
 
@@ -58,7 +60,7 @@ class DynamicNumpyArray:
             return
 
         if i < 0:
-            i = (self.index + 1) - abs(i)
+            i += self.index + 1
 
         # validation
         if i > self.index or i < 0:

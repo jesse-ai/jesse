@@ -413,11 +413,15 @@ def add_candle(
         with_generation: bool = True,
         with_skip: bool = True
 ) -> None:
+    is_live = jh.is_live()
+
     # overwrite with_generation based on the config value for live sessions
-    if jh.is_live() and not jh.get_config('env.data.generate_candles_from_1m'):
+    if is_live and not jh.get_config('env.data.generate_candles_from_1m'):
         with_generation = False
 
-    if candle[0] == 0:
+    candle_timestamp = candle[0]
+
+    if candle_timestamp == 0:
         if jh.is_debugging():
             logger.error(
                 f"DEBUGGING-VALUE: please report to Saleh: candle[0] is zero. \nFull candle: {candle}\n"
@@ -426,7 +430,7 @@ def add_candle(
 
     arr: DynamicNumpyArray = store.candles.get_storage(exchange, symbol, timeframe)
 
-    if jh.is_live():
+    if is_live:
         # ignore if candle is still being initially imported
         if with_skip and f'{exchange}-{symbol}' not in store.candles.initiated_pairs:
             return
@@ -437,17 +441,25 @@ def add_candle(
 
         # ignore new candle at the time of execution because it messes
         # the count of candles without actually having an impact
-        if candle[0] >= jh.now():
+        if candle_timestamp >= jh.now():
             return
 
         _store_or_update_candle_into_db(exchange, symbol, timeframe, candle)
 
+    last_index = arr.index
+
     # initial
-    if len(arr) == 0:
+    if last_index == -1:
         arr.append(candle)
+        return
+
+    # read the last candle's timestamp once as a plain scalar instead of
+    # building an intermediate row view (arr[-1][0]) for every comparison —
+    # this function runs twice per simulated minute.
+    last_candle_timestamp = arr.array[last_index, 0]
 
     # if it's new, add
-    elif candle[0] > arr[-1][0]:
+    if candle_timestamp > last_candle_timestamp:
         arr.append(candle)
 
         # generate other timeframes
@@ -455,18 +467,18 @@ def add_candle(
             _generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
     # if it's the last candle again, update
-    elif candle[0] == arr[-1][0]:
-        arr[-1] = candle
+    elif candle_timestamp == last_candle_timestamp:
+        arr.array[last_index] = candle
 
         # regenerate other timeframes
         if with_generation and timeframe == '1m':
             _generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
     # allow updating of the previous candle.
-    elif candle[0] < arr[-1][0]:
+    elif candle_timestamp < last_candle_timestamp:
         # loop through the last 20 items in arr to find it. If so, update it.
         for i in range(max(20, len(arr) - 1)):
-            if arr[-i][0] == candle[0]:
+            if arr[-i][0] == candle_timestamp:
                 arr[-i] = candle
                 break
     else:

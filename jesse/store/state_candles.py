@@ -19,10 +19,9 @@ class CandlesState:
         self.are_all_initiated = True
 
     def get_storage(self, exchange: str, symbol: str, timeframe: str) -> DynamicNumpyArray:
-        key = jh.key(exchange, symbol, timeframe)
-
+        # inline jh.key() — this is called multiple times per simulated minute
         try:
-            return self.storage[key]
+            return self.storage[f'{exchange}-{symbol}-{timeframe}']
         except KeyError:
             raise RouteNotFound(symbol, timeframe)
 
