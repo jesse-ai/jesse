@@ -22,6 +22,17 @@ from jesse.services.color import generate_unique_hex_color
 from jesse.research.ml import load_ml_model as _load_ml_model
 
 
+def _np_array_equal(a1, a2) -> bool:
+    # semantically identical to np.array_equal, minus its dispatch overhead for
+    # the small ndarray pairs compared on every candle in
+    # _detect_and_handle_entry_and_exit_modifications
+    if type(a1) is np.ndarray and type(a2) is np.ndarray:
+        if a1.shape != a2.shape:
+            return False
+        return bool((a1 == a2).all())
+    return np.array_equal(a1, a2)
+
+
 class Strategy(ABC):
     """
     The parent strategy class which every strategy must extend. It is the heart of the framework!
@@ -849,7 +860,7 @@ class Strategy(ABC):
                 self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.buy, self._buy):
+                if not _np_array_equal(self.buy, self._buy):
                     self._buy = self.buy.copy()
 
                     # cancel orders
@@ -865,7 +876,7 @@ class Strategy(ABC):
                 self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.sell, self._sell):
+                if not _np_array_equal(self.sell, self._sell):
                     self._sell = self.sell.copy()
 
                     # cancel orders
@@ -881,7 +892,7 @@ class Strategy(ABC):
                 self._prepare_stop_loss(False)
 
                 # if stop_loss has been modified
-                if not np.array_equal(self.stop_loss, self._stop_loss):
+                if not _np_array_equal(self.stop_loss, self._stop_loss):
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -924,7 +935,7 @@ class Strategy(ABC):
                 self._prepare_take_profit(False)
 
                 # if _take_profit has been modified
-                if not np.array_equal(self.take_profit, self._take_profit):
+                if not _np_array_equal(self.take_profit, self._take_profit):
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -970,7 +981,7 @@ class Strategy(ABC):
         if (
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
-                and np.array_equal(self.stop_loss, self.take_profit)
+                and _np_array_equal(self.stop_loss, self.take_profit)
                 and len(self.stop_loss) > 0
         ):
             raise exceptions.InvalidStrategy(
