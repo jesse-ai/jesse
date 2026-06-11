@@ -28,6 +28,7 @@ from jesse.services.progressbar import Progressbar
 from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.services import candle_service, order_service, position_service, exchange_service
 from jesse_rust import candle_from_one_minutes as candle_from_one_minutes_rust
+from jesse_rust import fix_jumped_candles as fix_jumped_candles_rust
 
 
 def run(
@@ -597,31 +598,70 @@ def _step_simulator(
     update_active_orders = order_service.update_active_orders
     execute_simulated_market_orders = order_service.execute_simulated_market_orders
 
+    # When a pair has no candles pipeline, the per-minute 1m work is fully
+    # deterministic upfront: the jumped-candle fix only reads closes (which it
+    # never writes), so one Rust pass over the whole series is bit-exact
+    # equivalent to applying it minute by minute; and since the series is
+    # strictly increasing in time, every per-minute add_candle is a plain
+    # append. So we gap-fix once, bulk-copy the candles into the storage
+    # buffer, and per minute just advance the storage index instead of paying
+    # for add_candle + DynamicNumpyArray.append on every single minute.
+    prefilled = []
+    for candles_arr, candles_pipeline, exchange, symbol in candles_info:
+        arr_1m = None
+        if (
+            candles_pipeline is None
+            and candles_arr.dtype == np.float64
+            and candles_arr.flags.writeable
+            and len(candles_arr) == length
+            and not (candles_arr[:, 0] == 0).any()
+            and (length < 2 or (np.diff(candles_arr[:, 0]) > 0).all())
+        ):
+            storage = store.candles.get_storage(exchange, symbol, '1m')
+            base = storage.index + 1
+            if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
+                fix_jumped_candles_rust(candles_arr)
+                needed = base + length
+                if needed > len(storage.array):
+                    new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
+                    new_array[:base] = storage.array[:base]
+                    storage.array = new_array
+                storage.array[base:base + length] = candles_arr
+                arr_1m = storage
+        prefilled.append(arr_1m)
+    candles_info = [info + (prefilled[idx],) for idx, info in enumerate(candles_info)]
+
     for i in range(length):
         # update time
         store_app.time = first_candles_set[i, 0] + 60_000
         i_next = i + 1
 
         # add candles
-        for candles_arr, candles_pipeline, exchange, symbol in candles_info:
-            if candles_pipeline is None:
+        for candles_arr, candles_pipeline, exchange, symbol, arr_1m in candles_info:
+            if arr_1m is not None:
+                # candles were gap-fixed and copied into the storage buffer
+                # upfront; "appending" this minute's candle is an index bump
                 short_candle = candles_arr[i]
+                arr_1m.index += 1
             else:
-                short_candle = candles_pipeline.get_candles(
-                    candles_arr[i: i + candles_pipeline._batch_size], i, -1
-                )
-            if i != 0:
-                short_candle = _get_fixed_jumped_candle(candles_arr[i - 1], short_candle)
-            # Persist the synthetic candle back into the array so the higher-timeframe
-            # generation below (and the next iteration's gap-fix reference) are built from the
-            # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
-            # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
-            # real candles while fills ran on the synthetic prices, so the full (step) simulator
-            # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
-            candles_arr[i] = short_candle
+                if candles_pipeline is None:
+                    short_candle = candles_arr[i]
+                else:
+                    short_candle = candles_pipeline.get_candles(
+                        candles_arr[i: i + candles_pipeline._batch_size], i, -1
+                    )
+                if i != 0:
+                    short_candle = _get_fixed_jumped_candle(candles_arr[i - 1], short_candle)
+                # Persist the synthetic candle back into the array so the higher-timeframe
+                # generation below (and the next iteration's gap-fix reference) are built from the
+                # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
+                # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
+                # real candles while fills ran on the synthetic prices, so the full (step) simulator
+                # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
+                candles_arr[i] = short_candle
 
-            add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
-                       with_generation=False)
+                add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                           with_generation=False)
 
             # print short candle
             if print_shorter_period_candles:
