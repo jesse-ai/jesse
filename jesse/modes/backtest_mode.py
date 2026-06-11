@@ -572,80 +572,99 @@ def _step_simulator(
 
     progressbar = Progressbar(length, step=420)
     last_update_time = None
+
+    # hoist loop-invariant lookups out of the per-minute hot loop
+    candles_info = [
+        (candles[j]['candles'], candles_pipelines[j], candles[j]['exchange'], candles[j]['symbol'])
+        for j in candles
+    ]
+    # bigger timeframes to generate (1m needs no work)
+    generating_timeframes = [
+        (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+        for timeframe in config['app']['considering_timeframes']
+        if timeframe != timeframes.MINUTE_1
+    ]
+    routes_info = [
+        (r, TIMEFRAME_TO_ONE_MINUTES[r.timeframe], r.strategy, r.exchange, r.symbol)
+        for r in router.routes
+    ]
+    print_shorter_period_candles = jh.is_debuggable('shorter_period_candles')
+    print_trading_candles = jh.is_debuggable('trading_candles')
+    store_app = store.app
+    add_candle = candle_service.add_candle
+    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
+    update_active_orders = order_service.update_active_orders
+    execute_simulated_market_orders = order_service.execute_simulated_market_orders
+
     for i in range(length):
         # update time
-        store.app.time = first_candles_set[i][0] + 60_000
+        store_app.time = first_candles_set[i, 0] + 60_000
+        i_next = i + 1
 
         # add candles
-        for j in candles:
-            candles_pipeline = candles_pipelines[j]
-            short_candle = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i)
+        for candles_arr, candles_pipeline, exchange, symbol in candles_info:
+            if candles_pipeline is None:
+                short_candle = candles_arr[i]
+            else:
+                short_candle = candles_pipeline.get_candles(
+                    candles_arr[i: i + candles_pipeline._batch_size], i, -1
+                )
             if i != 0:
-                previous_short_candle = candles[j]['candles'][i - 1]
-                short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
+                short_candle = _get_fixed_jumped_candle(candles_arr[i - 1], short_candle)
             # Persist the synthetic candle back into the array so the higher-timeframe
             # generation below (and the next iteration's gap-fix reference) are built from the
             # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
             # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
             # real candles while fills ran on the synthetic prices, so the full (step) simulator
             # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
-            candles[j]['candles'][i] = short_candle
-            exchange = candles[j]['exchange']
-            symbol = candles[j]['symbol']
+            candles_arr[i] = short_candle
 
-            candle_service.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
-                                     with_generation=False)
+            add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                       with_generation=False)
 
             # print short candle
-            if jh.is_debuggable('shorter_period_candles'):
+            if print_shorter_period_candles:
                 candle_service.print_candle(short_candle, True, symbol)
 
             _simulate_price_change_effect(short_candle, exchange, symbol)
 
             # generate and add candles for bigger timeframes
-            for timeframe in config['app']['considering_timeframes']:
-                # for 1m, no work is needed
-                if timeframe == '1m':
-                    continue
-
-                count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
-                # until = count - ((i + 1) % count)
-
-                if (i + 1) % count == 0:
-                    generated_candle = candle_service.generate_candle_from_one_minutes(
+            for timeframe, count in generating_timeframes:
+                if i_next % count == 0:
+                    generated_candle = generate_candle_from_one_minutes(
                         timeframe,
-                        candles[j]['candles'][(i - (count - 1)):(i + 1)]
+                        candles_arr[(i_next - count):i_next]
                     )
 
-                    candle_service.add_candle(
-                        generated_candle, 
-                        exchange, 
-                        symbol, 
-                        timeframe, 
+                    add_candle(
+                        generated_candle,
+                        exchange,
+                        symbol,
+                        timeframe,
                         with_execution=False,
                         with_generation=False
                     )
 
-        last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
-                                                last_update_time=last_update_time)
+        if not run_silently:
+            last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
+                                                    last_update_time=last_update_time)
 
         # now that all new generated candles are ready, execute
-        for r in router.routes:
-            count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
+        for r, count, strategy, exchange, symbol in routes_info:
             # 1m timeframe
-            if r.timeframe == timeframes.MINUTE_1:
-                r.strategy._execute()
-            elif (i + 1) % count == 0:
+            if count == 1:
+                strategy._execute()
+            elif i_next % count == 0:
                 # print candle
-                if jh.is_debuggable('trading_candles'):
-                    candle_service.print_candle(candle_service.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
-                                 r.symbol)
-                r.strategy._execute()
+                if print_trading_candles:
+                    candle_service.print_candle(candle_service.get_current_candle(exchange, symbol, r.timeframe), False,
+                                 symbol)
+                strategy._execute()
 
-            order_service.update_active_orders(r.exchange, r.symbol)
+            update_active_orders(exchange, symbol)
 
         # now check to see if there's any MARKET orders waiting to be executed
-        order_service.execute_simulated_market_orders()
+        execute_simulated_market_orders()
 
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
