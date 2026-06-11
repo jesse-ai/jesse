@@ -1248,17 +1248,23 @@ def _simulate_new_candles(
                     previous_short_candles, short_candles[0]
                 )
 
-        _simulate_price_change_effect_multiple_candles(
+        real_candle = _simulate_price_change_effect_multiple_candles(
             short_candles, exchange, symbol, storage_1m
         )
 
         # generate and add candles for bigger timeframes
         for timeframe, count in htf_info:
             if i_step % count == 0:
-                generated_candle = generate_candle_from_one_minutes(
-                    timeframe,
-                    candles_arr[i_step - count: i_step],
-                )
+                if count == candles_step:
+                    # the step's real candle was just built from these exact
+                    # rows through the exact same code path (same <=4320/dtype
+                    # branch), so rebuilding it would be bit-identical work
+                    generated_candle = real_candle
+                else:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles_arr[i_step - count: i_step],
+                    )
 
                 add_candle(
                     generated_candle,
@@ -1273,7 +1279,7 @@ def _simulate_new_candles(
 def _simulate_price_change_effect_multiple_candles(
         short_timeframes_candles: np.ndarray, exchange: str, symbol: str,
         prefilled_storage_1m=None,
-) -> None:
+) -> np.ndarray:
     if len(short_timeframes_candles) <= 4320 and short_timeframes_candles.dtype == np.float64:
         # bit-exact Rust kernel for the common case (see generate_candle_from_one_minutes)
         real_candle = candle_from_one_minutes_rust(short_timeframes_candles)
@@ -1372,6 +1378,8 @@ def _simulate_price_change_effect_multiple_candles(
     p = store.positions.get_position(exchange, symbol)
     if p:
         p.current_price = short_timeframes_candles[-1, 2]
+
+    return real_candle
 
 
 def _update_all_routes_a_partial_candle(
