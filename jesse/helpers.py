@@ -497,16 +497,28 @@ def _is_pytest_script() -> bool:
     return os.path.basename(sys.argv[0]) in ("pytest", "py.test")
 
 
+_is_unit_testing_outside_pytest = None
+
+
 def is_unit_testing() -> bool:
     """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
-    # Check if the PYTEST_CURRENT_TEST environment variable is set (and non-empty).
-    # The membership test first avoids the internal KeyError that os.environ.get()
-    # raises/catches on every call in the common (non-test) case — this function
-    # sits on the hot path via get_config().
-    if "PYTEST_CURRENT_TEST" in os.environ and os.environ["PYTEST_CURRENT_TEST"]:
-        return True
+    # This function sits on the hot path via get_config(), so avoid the
+    # (surprisingly expensive) os.environ lookup when possible.
+    if 'pytest' in sys.modules:
+        # inside a pytest process the PYTEST_CURRENT_TEST env variable comes and
+        # goes per test phase, so it must be checked dynamically every time.
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return True
+        return _is_pytest_script()
 
-    return _is_pytest_script()
+    # pytest is not imported in this process. The only way we can still be "unit
+    # testing" is having inherited pytest's environment/argv (e.g. a subprocess
+    # spawned from a test) — both of which are fixed for the process lifetime,
+    # so compute the answer once.
+    global _is_unit_testing_outside_pytest
+    if _is_unit_testing_outside_pytest is None:
+        _is_unit_testing_outside_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or _is_pytest_script()
+    return _is_unit_testing_outside_pytest
 
 
 def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
