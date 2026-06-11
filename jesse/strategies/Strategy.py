@@ -29,6 +29,16 @@ def _np_array_equal(a1, a2) -> bool:
     if type(a1) is np.ndarray and type(a2) is np.ndarray:
         if a1.shape != a2.shape:
             return False
+        n = a1.size
+        if n <= 8:
+            # scalar compares for tiny arrays — same float (and NaN) semantics
+            # as (a1 == a2).all(), without the ufunc dispatch cost
+            f1 = a1.flat
+            f2 = a2.flat
+            for i in range(n):
+                if f1[i] != f2[i]:
+                    return False
+            return True
         return bool((a1 == a2).all())
     return np.array_equal(a1, a2)
 
