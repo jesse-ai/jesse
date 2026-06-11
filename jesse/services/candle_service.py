@@ -11,6 +11,7 @@ from jesse.store import store
 from jesse.config import config
 from jesse.repositories import candle_repository
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
+from jesse_rust import candle_from_one_minutes as _candle_from_one_minutes_rust
 
 
 def generate_candle_from_one_minutes(
@@ -25,6 +26,12 @@ def generate_candle_from_one_minutes(
         raise ValueError(
             f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
         )
+
+    # the Rust kernel is bit-exact vs numpy for blocks up to 4320 rows (every
+    # timeframe through "3D"); beyond that numpy's buffered reduce changes the
+    # summation order, so fall back to the original numpy expression there.
+    if len(candles) <= 4320 and candles.dtype == np.float64:
+        return _candle_from_one_minutes_rust(candles)
 
     return np.array([
         candles[0][0],

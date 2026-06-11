@@ -27,6 +27,7 @@ from datetime import timedelta
 from jesse.services.progressbar import Progressbar
 from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.services import candle_service, order_service, position_service, exchange_service
+from jesse_rust import candle_from_one_minutes as candle_from_one_minutes_rust
 
 
 def run(
@@ -1154,16 +1155,20 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
 def _simulate_price_change_effect_multiple_candles(
         short_timeframes_candles: np.ndarray, exchange: str, symbol: str
 ) -> None:
-    real_candle = np.array(
-        [
-            short_timeframes_candles[0][0],
-            short_timeframes_candles[0][1],
-            short_timeframes_candles[-1][2],
-            short_timeframes_candles[:, 3].max(),
-            short_timeframes_candles[:, 4].min(),
-            short_timeframes_candles[:, 5].sum(),
-        ]
-    )
+    if len(short_timeframes_candles) <= 4320 and short_timeframes_candles.dtype == np.float64:
+        # bit-exact Rust kernel for the common case (see generate_candle_from_one_minutes)
+        real_candle = candle_from_one_minutes_rust(short_timeframes_candles)
+    else:
+        real_candle = np.array(
+            [
+                short_timeframes_candles[0][0],
+                short_timeframes_candles[0][1],
+                short_timeframes_candles[-1][2],
+                short_timeframes_candles[:, 3].max(),
+                short_timeframes_candles[:, 4].min(),
+                short_timeframes_candles[:, 5].sum(),
+            ]
+        )
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
     if len(executing_orders) > 0:
         if len(executing_orders) > 1:
