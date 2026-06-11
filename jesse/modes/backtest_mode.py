@@ -1066,12 +1066,70 @@ def _skip_simulator(
     save_daily_portfolio_balance(is_initial=True)
 
     candles_step = _calculate_minimum_candle_step()
+
+    # Skip-mode analogue of the step simulator's 1m-storage prefill (see
+    # _step_simulator). For pipeline-less pairs, the only mutations the
+    # per-step loop ever applies to the input series are the step-boundary
+    # jumped-candle fixes (the fix reads only the previous candle's close,
+    # which no fix ever writes, so applying them upfront in ascending order is
+    # bit-exact), and each order-free step's add_multiple_1m_candles is a
+    # plain append of those exact rows. So: apply the boundary fixes once,
+    # bulk-copy the fixed series into the 1m storage buffer, and let
+    # order-free steps advance the storage index instead of re-copying rows
+    # every step. Steps in which orders execute keep the original write path
+    # untouched (their per-minute add_candle calls overwrite the prefilled
+    # rows and the trailing add_multiple_1m_candles restores them, exactly as
+    # before). Guards fall back to the original path.
+    prefilled = {}
+    for j in candles:
+        candles_arr = candles[j]['candles']
+        if (
+            candles_pipelines[j] is None
+            and candles_arr.dtype == np.float64
+            and candles_arr.flags.writeable
+            and len(candles_arr) == length
+            and not (candles_arr[:, 0] == 0).any()
+            and (length < 2 or (np.diff(candles_arr[:, 0]) > 0).all())
+        ):
+            storage = store.candles.get_storage(candles[j]['exchange'], candles[j]['symbol'], '1m')
+            base = storage.index + 1
+            if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
+                # the per-step loop gap-fixes ONLY the first candle of each
+                # step against the previous minute; replicate exactly that
+                # (and only that), in the same ascending order
+                for b in range(candles_step, length, candles_step):
+                    _get_fixed_jumped_candle(candles_arr[b - 1], candles_arr[b])
+                needed = base + length
+                if needed > len(storage.array):
+                    new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
+                    new_array[:base] = storage.array[:base]
+                    storage.array = new_array
+                storage.array[base:base + length] = candles_arr
+                prefilled[j] = storage
+
+    # hoist the per-step loop invariants out of the hot loop
+    pairs_info = [
+        (
+            candles[j]['candles'],
+            candles_pipelines[j],
+            candles[j]['exchange'],
+            candles[j]['symbol'],
+            prefilled.get(j),
+        )
+        for j in candles
+    ]
+    htf_info = [
+        (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+        for timeframe in config['app']['considering_timeframes']
+        if timeframe != '1m'
+    ]
+
     progressbar = Progressbar(length, step=candles_step)
     last_update_time = None
     for i in range(0, length, candles_step):
         # update time moved to _simulate_price_change_effect__multiple_candles
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
-        _simulate_new_candles(candles, candles_pipelines, i, candles_step)
+        _simulate_new_candles(candles, candles_pipelines, i, candles_step, pairs_info, htf_info)
 
         last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
                                                 last_update_time=last_update_time)
@@ -1147,42 +1205,62 @@ timeframe_to_one_minutes = {
     timeframes.WEEK_1: 60 * 24 * 7,
     timeframes.MONTH_1: 60 * 24 * 30,
 }
-def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandlesPipeline], candle_index: int, candles_step: int) -> None:
+def _simulate_new_candles(
+        candles: dict,
+        candles_pipelines: Dict[str, BaseCandlesPipeline],
+        candle_index: int,
+        candles_step: int,
+        pairs_info: list = None,
+        htf_info: list = None,
+) -> None:
     i = candle_index
+    # loop invariants (precomputed once by _skip_simulator; rebuilt here only
+    # if this function is called standalone)
+    if pairs_info is None:
+        pairs_info = [
+            (candles[j]['candles'], candles_pipelines[j], candles[j]['exchange'], candles[j]['symbol'], None)
+            for j in candles
+        ]
+    if htf_info is None:
+        htf_info = [
+            (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+            for timeframe in config['app']['considering_timeframes']
+            if timeframe != '1m'
+        ]
+
+    i_step = i + candles_step
+    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
+    add_candle = candle_service.add_candle
+
     # add candles
-    for j in candles:
-        candles_pipeline = candles_pipelines[j]
-        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
-        candles[j]['candles'][i:i+candles_step] = short_candles
-        if i != 0:
-            previous_short_candles = candles[j]["candles"][i - 1]
-            # work the same, the fix needs to be done only on the gap of 1m edge candles.
-            short_candles[0] = _get_fixed_jumped_candle(
-                previous_short_candles, short_candles[0]
-            )
-        exchange = candles[j]["exchange"]
-        symbol = candles[j]["symbol"]
+    for candles_arr, candles_pipeline, exchange, symbol, storage_1m in pairs_info:
+        if storage_1m is not None:
+            # gap-fixed upfront and already copied into the 1m storage buffer;
+            # the write-back below would be a self-assignment, so skip it too
+            short_candles = candles_arr[i:i_step]
+        else:
+            short_candles = get_candles_from_pipeline(candles_pipeline, candles_arr, i, candles_step)
+            candles_arr[i:i_step] = short_candles
+            if i != 0:
+                previous_short_candles = candles_arr[i - 1]
+                # work the same, the fix needs to be done only on the gap of 1m edge candles.
+                short_candles[0] = _get_fixed_jumped_candle(
+                    previous_short_candles, short_candles[0]
+                )
 
         _simulate_price_change_effect_multiple_candles(
-            short_candles, exchange, symbol
+            short_candles, exchange, symbol, storage_1m
         )
 
         # generate and add candles for bigger timeframes
-        for timeframe in config["app"]["considering_timeframes"]:
-            # for 1m, no work is needed
-            if timeframe == "1m":
-                continue
-
-            count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
-
-            if (i + candles_step) % count == 0:
-                generated_candle = candle_service.generate_candle_from_one_minutes(
+        for timeframe, count in htf_info:
+            if i_step % count == 0:
+                generated_candle = generate_candle_from_one_minutes(
                     timeframe,
-                    candles[j]["candles"][
-                    i - count + candles_step: i + candles_step],
+                    candles_arr[i_step - count: i_step],
                 )
 
-                candle_service.add_candle(
+                add_candle(
                     generated_candle,
                     exchange,
                     symbol,
@@ -1193,7 +1271,8 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
 
 
 def _simulate_price_change_effect_multiple_candles(
-        short_timeframes_candles: np.ndarray, exchange: str, symbol: str
+        short_timeframes_candles: np.ndarray, exchange: str, symbol: str,
+        prefilled_storage_1m=None,
 ) -> None:
     if len(short_timeframes_candles) <= 4320 and short_timeframes_candles.dtype == np.float64:
         # bit-exact Rust kernel for the common case (see generate_candle_from_one_minutes)
@@ -1210,6 +1289,7 @@ def _simulate_price_change_effect_multiple_candles(
             ]
         )
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+    had_executing_orders = len(executing_orders) > 0
     if len(executing_orders) > 0:
         if len(executing_orders) > 1:
             executing_orders = _sort_execution_orders(executing_orders, short_timeframes_candles)
@@ -1272,11 +1352,20 @@ def _simulate_price_change_effect_multiple_candles(
                         p.current_price = current_temp_candle[2]
                     break
 
-    candle_service.add_multiple_1m_candles(
-        short_timeframes_candles,
-        exchange,
-        symbol,
-    )
+    if prefilled_storage_1m is not None and not had_executing_orders:
+        # the rows for this step are already sitting (gap-fixed) in the
+        # storage buffer right after the current index, and nothing executed,
+        # so add_multiple_1m_candles' append is just an index advance. When
+        # orders DID execute, the per-minute loop above already advanced the
+        # index via add_candle, and add_multiple_1m_candles must run its
+        # override branch to restore the real rows — exactly as before.
+        prefilled_storage_1m.index += len(short_timeframes_candles)
+    else:
+        candle_service.add_multiple_1m_candles(
+            short_timeframes_candles,
+            exchange,
+            symbol,
+        )
     store.app.time = real_candle[0] + (60_000 * len(short_timeframes_candles))
     _check_for_liquidations(real_candle, exchange, symbol)
 
