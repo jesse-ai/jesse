@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
-from jesse_rust import sma as sma_rust
+from jesse_rust import sma as sma_rust, sma_last as sma_last_rust
 
 
 def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
@@ -25,6 +25,6 @@ def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    res = sma_rust(source, period)
-
-    return res if sequential else res[-1]
+    if sequential:
+        return sma_rust(source, period)
+    return np.float64(sma_last_rust(source, period))
