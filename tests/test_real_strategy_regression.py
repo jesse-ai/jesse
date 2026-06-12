@@ -9,6 +9,10 @@ values captured from `master` @ EXPECTED_FROM_SHA — i.e. from the code *before
 perf-backtests optimizations. Any future divergence from these numbers means the
 backtest engine's behavior changed, not just its speed.
 
+A third test (test_fast_mode_equivalence) asserts that the step (fast_mode=False)
+and fast (fast_mode=True) simulators produce identical trades on gapless data —
+see its docstring for why it deliberately avoids gapped data and max_drawdown.
+
 The candle generator mirrors jesse-bench's: a seeded geometric random walk with a
 slow sinusoidal drift (np.random.default_rng), so inputs are bit-identical across
 branches and machines.
@@ -45,6 +49,18 @@ SINGLE_ROUTE_SCENARIO = dict(
     data_routes=[('BTC-USDT', '4h')],
     seed_base=7001,
     fast_mode=False,    # exercises the step (per-1m-candle) simulator
+)
+
+# Used by test_fast_mode_equivalence below (fast_mode is overridden per run, so the
+# value here is irrelevant). Shorter window than SINGLE_ROUTE_SCENARIO so the step
+# (per-1m-candle) run stays quick — this scenario is run TWICE.
+FAST_MODE_EQUIVALENCE_SCENARIO = dict(
+    days=150,           # ~5 months of 1m candles (216,000 trading candles)
+    warmup_days=40,     # exactly 240 4h-candles of warmup for the HTF indicators
+    routes=[('BTC-USDT', '1h', 'RealStrategyRegression1')],
+    data_routes=[('BTC-USDT', '4h')],
+    seed_base=9001,
+    fast_mode=False,    # placeholder; overridden by the test
 )
 
 MULTI_ROUTE_SCENARIO = dict(
@@ -285,3 +301,47 @@ def test_real_strategy_multi_route():
     (pre-optimization).
     """
     assert run_scenario(MULTI_ROUTE_SCENARIO) == MULTI_ROUTE_EXPECTED
+
+
+@pytest.mark.slow
+def test_fast_mode_equivalence():
+    """
+    The same real-strategy backtest run twice — fast_mode=False (step, per-1m-candle
+    simulator) then fast_mode=True (fast, skip simulator) — over the same
+    deterministic candles must produce IDENTICAL trades: same trades_hash (every
+    closed trade's prices/qty/fees/PNL/timestamps), trade counts, net profit,
+    finishing balance and total fee. This holds on master too, so it's an invariant
+    the perf optimizations must preserve, not a new behavior.
+
+    CLEAN (gapless) DATA ONLY: there is a known, pre-existing divergence between the
+    two simulators on GAPPED candle data — they fill gaps ("jumped candles") at
+    different granularities, so trades can legitimately differ when gaps exist. That
+    bug predates the perf-backtests branch (it reproduces on master) and must not be
+    codified here; this test verifies its inputs are strictly contiguous 1m candles
+    so it only asserts the equivalence that genuinely holds on both branches.
+    """
+    scenario = FAST_MODE_EQUIVALENCE_SCENARIO
+
+    # Verify the generator really produces gapless 1m candles (see docstring): every
+    # timestamp step is exactly 60,000 ms, including across the warmup/trading seam.
+    w, c = _gen_candles(scenario['seed_base'], scenario['days'], scenario['warmup_days'])
+    all_ts = np.concatenate([w[:, 0], c[:, 0]])
+    assert np.all(np.diff(all_ts) == 60000.0), 'generator produced gapped candles'
+
+    fp_step = run_scenario({**scenario, 'fast_mode': False})
+    fp_fast = run_scenario({**scenario, 'fast_mode': True})
+
+    # Sanity: the scenario must actually trade, otherwise equality is vacuous.
+    assert fp_step['trades_count'] > 0
+
+    # Intentionally NOT compared: 'max_drawdown' (and any other equity-curve-shaped
+    # metric). The step simulator samples equity once per 1m candle while the fast
+    # simulator samples it once per skip block, so the drawdown trough is measured
+    # at different granularities and legitimately differs between modes even when
+    # every trade is identical.
+    trade_keys = (
+        'trades_hash', 'trades_count', 'total', 'total_winning_trades',
+        'total_losing_trades', 'longs_count', 'shorts_count', 'total_open_trades',
+        'net_profit', 'finishing_balance', 'fee',
+    )
+    assert {k: fp_step[k] for k in trade_keys} == {k: fp_fast[k] for k in trade_keys}

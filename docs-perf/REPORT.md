@@ -74,9 +74,9 @@ Nothing here is "looks the same"; everything is **bit-for-bit**:
    strict guards (dtype / writeable / no zero timestamps / strictly increasing
    timestamps / warmup continuity) and **fall back to the original code path** when any
    guard fails.
-5. **Real-strategy regression tests** (`tests/test_real_strategy_regression.py`): two
+5. **Real-strategy regression tests** (`tests/test_real_strategy_regression.py`): three
    pytest tests run full `jesse.research.backtest()` sessions with *real* strategies
-   adapted from the maintainer's bot project and assert the complete result
+   adapted from the maintainer's bot project. The first two assert the complete result
    fingerprint (bench-style: key metrics @ 6 decimals + per-trade sha256) against
    values captured from **master @ `0987c304`** (pre-optimization):
    - `test_real_strategy_single_route`: ~1 year of 1m candles (525,600), BTC-USDT @ 1h,
@@ -87,10 +87,23 @@ Nothing here is "looks the same"; everything is **bit-for-bit**:
      Donchian-ATR trend @ 1h (`RealStrategyRegression2`), ADX/Williams%R @ 15m
      (`RealStrategyRegression3`), Alligator @ 1h — two extra 4h data routes, **fast**
      simulator. 104 trades (64L/40S), trades_hash `80e934a1e814f77a`.
+   - `test_fast_mode_equivalence`: the third runs the same single-route scenario
+     (shorter: ~5 months, 216,000 1m candles, seed 9001) **twice** — `fast_mode=False`
+     (step) then `fast_mode=True` — and asserts the two modes produce **identical
+     trades**: same trades_hash, trade counts, net profit, finishing balance and fee.
+     `max_drawdown` is deliberately *not* compared (the two simulators sample the
+     equity curve at different granularities, so the drawdown trough legitimately
+     differs even with identical trades), and the test verifies its candles are
+     strictly gapless 1m data, because on **gapped** data the two simulators have a
+     known pre-existing divergence (gap-filling at different granularities, present
+     on master too) that this test must not codify. Verified to pass on master
+     `0987c304` as well (12.7 s there vs 7.6 s here) — step==fast on clean data is a
+     master invariant this branch preserves, and it was sanity-checked to fail when
+     one run's inputs are perturbed.
 
-   Both pass identically on master (18.0 s / 11.0 s) and on this branch
+   All pass identically on master (18.0 s / 11.0 s) and on this branch
    (4.6 s / 5.1 s on the Pi — the speedup is visible in the runtimes), with candles
-   from the same seeded generator as jesse-bench. Suite total is now **500 passed**.
+   from the same seeded generator as jesse-bench. Suite total is now **501 passed**.
    They are marked `@pytest.mark.slow` (deselect with `-m "not slow"`) but run by
    default. Note: the tests pre-register their exchange's sandbox driver to dodge a
    pre-existing (master-too) quirk where the API singleton freezes its driver map at
