@@ -74,6 +74,28 @@ Nothing here is "looks the same"; everything is **bit-for-bit**:
    strict guards (dtype / writeable / no zero timestamps / strictly increasing
    timestamps / warmup continuity) and **fall back to the original code path** when any
    guard fails.
+5. **Real-strategy regression tests** (`tests/test_real_strategy_regression.py`): two
+   pytest tests run full `jesse.research.backtest()` sessions with *real* strategies
+   adapted from the maintainer's bot project and assert the complete result
+   fingerprint (bench-style: key metrics @ 6 decimals + per-trade sha256) against
+   values captured from **master @ `0987c304`** (pre-optimization):
+   - `test_real_strategy_single_route`: ~1 year of 1m candles (525,600), BTC-USDT @ 1h,
+     multi-timeframe Alligator + ADX/CMO/StochRSI system (`RealStrategyRegression1`,
+     from AlligatorV2) with a 4h data route, **step** simulator. 69 trades
+     (32L/37S), trades_hash `048ce3b5dc049429`.
+   - `test_real_strategy_multi_route`: ~6 months × 3 routes (777,600 1m candles):
+     Donchian-ATR trend @ 1h (`RealStrategyRegression2`), ADX/Williams%R @ 15m
+     (`RealStrategyRegression3`), Alligator @ 1h — two extra 4h data routes, **fast**
+     simulator. 104 trades (64L/40S), trades_hash `80e934a1e814f77a`.
+
+   Both pass identically on master (18.0 s / 11.0 s) and on this branch
+   (4.6 s / 5.1 s on the Pi — the speedup is visible in the runtimes), with candles
+   from the same seeded generator as jesse-bench. Suite total is now **500 passed**.
+   They are marked `@pytest.mark.slow` (deselect with `-m "not slow"`) but run by
+   default. Note: the tests pre-register their exchange's sandbox driver to dodge a
+   pre-existing (master-too) quirk where the API singleton freezes its driver map at
+   first construction, silently dropping all orders for any *new* exchange name in
+   later same-process backtests.
 
 ---
 
