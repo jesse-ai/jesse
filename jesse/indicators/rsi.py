@@ -25,4 +25,6 @@ def rsi(candles: np.ndarray, period: int = 14, source_type: str = "close", seque
     p = np.asarray(source, dtype=np.float64)
     if sequential:
         return rsi_rust(p, period)
+    # bit-for-bit identical to rsi_rust(p, period)[-1], minus the
+    # full-series allocation (the scalar kernel runs the same recurrence)
     return np.float64(rsi_last_rust(p, period))

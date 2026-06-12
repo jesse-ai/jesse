@@ -18,4 +18,6 @@ def atr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
 
     if sequential:
         return rust_atr(candles, period)
+    # bit-for-bit identical to rust_atr(candles, period)[-1], minus the
+    # full-series allocation (the scalar kernel runs the same recurrence)
     return np.float64(rust_atr_last(candles, period))

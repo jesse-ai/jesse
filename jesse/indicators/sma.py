@@ -27,4 +27,6 @@ def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
 
     if sequential:
         return sma_rust(source, period)
+    # bit-for-bit identical to sma_rust(source, period)[-1], minus the
+    # full-series allocation (the scalar kernel runs the same recurrence)
     return np.float64(sma_last_rust(source, period))

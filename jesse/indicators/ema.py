@@ -26,4 +26,6 @@ def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
 
     if sequential:
         return ema_rust(source, period)
+    # bit-for-bit identical to ema_rust(source, period)[-1], minus the
+    # full-series allocation (the scalar kernel runs the same recurrence)
     return np.float64(ema_last_rust(source, period))

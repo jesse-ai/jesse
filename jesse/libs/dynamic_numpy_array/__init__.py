@@ -25,6 +25,9 @@ class DynamicNumpyArray:
         return self.index + 1
 
     def __getitem__(self, i):
+        # hot path (runs per simulated minute): hoist the attribute read and
+        # use `i += index + 1` instead of the old abs()-based negative-index
+        # math — identical arithmetic for the negative values it applies to
         index = self.index
         if isinstance(i, slice):
             start = 0 if i.start is None else i.start

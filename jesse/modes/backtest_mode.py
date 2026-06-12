@@ -606,23 +606,37 @@ def _step_simulator(
     # append. So we gap-fix once, bulk-copy the candles into the storage
     # buffer, and per minute just advance the storage index instead of paying
     # for add_candle + DynamicNumpyArray.append on every single minute.
+    # If ANY guard below fails, arr_1m stays None and that pair takes the
+    # original per-minute path in the loop — the prefill is purely opt-in.
     prefilled = []
     for candles_arr, candles_pipeline, exchange, symbol in candles_info:
         arr_1m = None
         if (
+            # pipelines rewrite candles batch-by-batch — can't precompute
             candles_pipeline is None
+            # storage buffer and the Rust fix kernel are float64
             and candles_arr.dtype == np.float64
+            # fix_jumped_candles_rust mutates the array in place
             and candles_arr.flags.writeable
+            # the loop below indexes candles_arr[i] for i in range(length)
             and len(candles_arr) == length
+            # a zero timestamp takes add_candle's special debug/return path
             and not (candles_arr[:, 0] == 0).any()
+            # strictly increasing timestamps guarantee every per-minute
+            # add_candle would have hit its plain-append branch (never the
+            # update/backfill branches), which is all an index bump replicates
             and (length < 2 or (np.diff(candles_arr[:, 0]) > 0).all())
         ):
             storage = store.candles.get_storage(exchange, symbol, '1m')
             base = storage.index + 1
+            # warmup continuity: the series must strictly follow whatever
+            # warmup candles already sit in storage, for the same reason
             if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
                 fix_jumped_candles_rust(candles_arr)
                 needed = base + length
                 if needed > len(storage.array):
+                    # grow the buffer once upfront (same end state that
+                    # DynamicNumpyArray.append's geometric growth reaches)
                     new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
                     new_array[:base] = storage.array[:base]
                     storage.array = new_array
@@ -686,6 +700,8 @@ def _step_simulator(
                         with_generation=False
                     )
 
+        # when run_silently, _update_progress_bar is a no-op that still paid
+        # for a call + time.time() every minute — skip it entirely
         if not run_silently:
             last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
                                                     last_update_time=last_update_time)
@@ -1079,7 +1095,9 @@ def _skip_simulator(
     # every step. Steps in which orders execute keep the original write path
     # untouched (their per-minute add_candle calls overwrite the prefilled
     # rows and the trailing add_multiple_1m_candles restores them, exactly as
-    # before). Guards fall back to the original path.
+    # before). Guards fall back to the original path: if any of them fails,
+    # the pair is simply absent from `prefilled` and is handled exactly as it
+    # used to be (see _step_simulator's prefill for the per-guard rationale).
     prefilled = {}
     for j in candles:
         candles_arr = candles[j]['candles']
@@ -1093,6 +1111,8 @@ def _skip_simulator(
         ):
             storage = store.candles.get_storage(candles[j]['exchange'], candles[j]['symbol'], '1m')
             base = storage.index + 1
+            # warmup continuity: the series must strictly follow whatever
+            # warmup candles already sit in storage
             if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
                 # the per-step loop gap-fixes ONLY the first candle of each
                 # step against the previous minute; replicate exactly that
@@ -1101,6 +1121,8 @@ def _skip_simulator(
                     _get_fixed_jumped_candle(candles_arr[b - 1], candles_arr[b])
                 needed = base + length
                 if needed > len(storage.array):
+                    # grow the buffer once upfront (same end state that
+                    # DynamicNumpyArray growth reaches)
                     new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
                     new_array[:base] = storage.array[:base]
                     storage.array = new_array
