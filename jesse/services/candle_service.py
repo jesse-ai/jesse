@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 import arrow
-from jesse.exceptions import CandleNotFoundInDatabase, InvalidDateRange
+from jesse.exceptions import CandleNotFoundInDatabase, InvalidDateRange, RouteNotFound
 import jesse.helpers as jh
 from jesse.services import logger
 from jesse.routes import router
@@ -11,6 +11,7 @@ from jesse.store import store
 from jesse.config import config
 from jesse.repositories import candle_repository
 from jesse.libs.dynamic_numpy_array import DynamicNumpyArray
+from jesse_rust import candle_from_one_minutes as _candle_from_one_minutes_rust
 
 
 def generate_candle_from_one_minutes(
@@ -25,6 +26,12 @@ def generate_candle_from_one_minutes(
         raise ValueError(
             f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
         )
+
+    # the Rust kernel is bit-exact vs numpy for blocks up to 4320 rows (every
+    # timeframe through "3D"); beyond that numpy's buffered reduce changes the
+    # summation order, so fall back to the original numpy expression there.
+    if len(candles) <= 4320 and candles.dtype == np.float64:
+        return _candle_from_one_minutes_rust(candles)
 
     return np.array([
         candles[0][0],
@@ -413,11 +420,15 @@ def add_candle(
         with_generation: bool = True,
         with_skip: bool = True
 ) -> None:
+    is_live = jh.is_live()
+
     # overwrite with_generation based on the config value for live sessions
-    if jh.is_live() and not jh.get_config('env.data.generate_candles_from_1m'):
+    if is_live and not jh.get_config('env.data.generate_candles_from_1m'):
         with_generation = False
 
-    if candle[0] == 0:
+    candle_timestamp = candle[0]
+
+    if candle_timestamp == 0:
         if jh.is_debugging():
             logger.error(
                 f"DEBUGGING-VALUE: please report to Saleh: candle[0] is zero. \nFull candle: {candle}\n"
@@ -426,7 +437,7 @@ def add_candle(
 
     arr: DynamicNumpyArray = store.candles.get_storage(exchange, symbol, timeframe)
 
-    if jh.is_live():
+    if is_live:
         # ignore if candle is still being initially imported
         if with_skip and f'{exchange}-{symbol}' not in store.candles.initiated_pairs:
             return
@@ -437,17 +448,25 @@ def add_candle(
 
         # ignore new candle at the time of execution because it messes
         # the count of candles without actually having an impact
-        if candle[0] >= jh.now():
+        if candle_timestamp >= jh.now():
             return
 
         _store_or_update_candle_into_db(exchange, symbol, timeframe, candle)
 
+    last_index = arr.index
+
     # initial
-    if len(arr) == 0:
+    if last_index == -1:
         arr.append(candle)
+        return
+
+    # read the last candle's timestamp once as a plain scalar instead of
+    # building an intermediate row view (arr[-1][0]) for every comparison —
+    # this function runs twice per simulated minute.
+    last_candle_timestamp = arr.array[last_index, 0]
 
     # if it's new, add
-    elif candle[0] > arr[-1][0]:
+    if candle_timestamp > last_candle_timestamp:
         arr.append(candle)
 
         # generate other timeframes
@@ -455,18 +474,18 @@ def add_candle(
             _generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
     # if it's the last candle again, update
-    elif candle[0] == arr[-1][0]:
-        arr[-1] = candle
+    elif candle_timestamp == last_candle_timestamp:
+        arr.array[last_index] = candle
 
         # regenerate other timeframes
         if with_generation and timeframe == '1m':
             _generate_bigger_timeframes(candle, exchange, symbol, with_execution)
 
     # allow updating of the previous candle.
-    elif candle[0] < arr[-1][0]:
+    elif candle_timestamp < last_candle_timestamp:
         # loop through the last 20 items in arr to find it. If so, update it.
         for i in range(max(20, len(arr) - 1)):
-            if arr[-i][0] == candle[0]:
+            if arr[-i][0] == candle_timestamp:
                 arr[-i] = candle
                 break
     else:
@@ -610,38 +629,51 @@ def batch_add_candle(
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    # this runs on every single indicator call, so storage access is done with
+    # plain dict lookups instead of going through forming_estimation +
+    # get_storage (which rebuild the same key strings several times per call).
+    storage = store.candles.storage
+
     # no need to worry for forming candles when timeframe == 1m
     if timeframe == '1m':
-        arr: DynamicNumpyArray = store.candles.get_storage(exchange, symbol, '1m')
-        if len(arr) == 0:
+        arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
+        if arr is None:
+            raise RouteNotFound(symbol, '1m')
+        if arr.index == -1:
             return np.zeros((0, 6))
-        else:
-            return arr[:]
+        return arr.array[:arr.index + 1]
 
     # other timeframes
-    dif, long_key, short_key = store.candles.forming_estimation(exchange, symbol, timeframe)
-    long_count = len(store.candles.get_storage(exchange, symbol, timeframe))
-    short_count = len(store.candles.get_storage(exchange, symbol, '1m'))
+    required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
+    short_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
+    if short_arr is None:
+        raise RouteNotFound(symbol, '1m')
+    short_count = short_arr.index + 1
+    dif = short_count % required_1m_to_complete_count
+
+    long_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-{timeframe}')
+    if long_arr is None:
+        raise RouteNotFound(symbol, timeframe)
+    long_count = long_arr.index + 1
 
     if dif == 0 and long_count == 0:
         return np.zeros((0, 6))
 
     # complete candle
     if dif == 0:
-        return store.candles.storage[long_key][:long_count]
+        return long_arr.array[:long_count]
     # generate forming candle only if NOT in live mode
     elif not jh.is_live():
         forming_candle = generate_candle_from_one_minutes(
             timeframe,
-            store.candles.storage[short_key][short_count - dif:short_count],
+            short_arr.array[short_count - dif:short_count],
             True
         )
-        existing_candles_arr: DynamicNumpyArray = store.candles.storage[long_key]
         add_candle(forming_candle, exchange, symbol, timeframe, with_execution=False, with_generation=False, with_skip=False)
-        return existing_candles_arr[:]
+        return long_arr.array[:long_arr.index + 1]
     # in live mode, just return the complete candles
     else:
-        return store.candles.storage[long_key][:long_count]
+        return long_arr.array[:long_count]
 
 
 def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
