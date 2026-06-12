@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Any, Dict, Optional
-from gymnasium import spaces
+# gymnasium spaces are only used as type hints here; we keep this module free of the RL
+# deps (gymnasium/ray) so importing jesse.store never requires them. Spaces are typed as Any.
 
 
 class ReinforcementLearningState:
@@ -54,19 +55,19 @@ class ReinforcementLearningState:
         """Check if episode is done"""
         return self._is_done
     
-    def set_action_space(self, action_space: spaces.Space):
+    def set_action_space(self, action_space: Any):
         """Set action space from strategy"""
         self._action_space = action_space
     
-    def get_action_space(self) -> Optional[spaces.Space]:
+    def get_action_space(self) -> Optional[Any]:
         """Get action space"""
         return self._action_space
     
-    def set_observation_space(self, observation_space: spaces.Space):
+    def set_observation_space(self, observation_space: Any):
         """Set observation space from strategy"""
         self._observation_space = observation_space
     
-    def get_observation_space(self) -> Optional[spaces.Space]:
+    def get_observation_space(self) -> Optional[Any]:
         """Get observation space"""
         return self._observation_space
     

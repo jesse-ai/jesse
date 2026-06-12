@@ -1222,7 +1222,7 @@ def finalize_simulation() -> None:
     """
     for r in router.routes:
         r.strategy._terminate()
-        _execute_market_orders()
+        order_service.execute_simulated_market_orders()
     
     # Save final balance
     save_daily_portfolio_balance()
@@ -1254,7 +1254,14 @@ def run_simulation_iter(
     save_daily_portfolio_balance(is_initial=True)
 
     length = _simulation_minutes_length(candles)
-    
+
+    # Local aliases to the modern service functions: this generator predates the move of
+    # these helpers from store/global scope into candle_service / order_service.
+    add_candle = candle_service.add_candle
+    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
+    print_candle = candle_service.print_candle
+    update_active_orders = order_service.update_active_orders
+
     if fast_mode:
         # Use fast mode (skip simulator approach)
         candles_step = _calculate_minimum_candle_step()
@@ -1263,7 +1270,7 @@ def run_simulation_iter(
         while idx < length:
             _simulate_new_candles(candles, pipelines, idx, candles_step)
             _execute_routes(idx, candles_step)  # calls r.strategy._execute() -> _check_agent_action()
-            _execute_market_orders()
+            order_service.execute_simulated_market_orders()
 
             if idx != 0 and idx % 1440 == 0:
                 save_daily_portfolio_balance()
@@ -1288,7 +1295,7 @@ def run_simulation_iter(
                 exchange = candles[j]['exchange']
                 symbol = candles[j]['symbol']
 
-                store.candles.add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
                                          with_generation=False)
 
                 # print short candle
@@ -1311,7 +1318,7 @@ def run_simulation_iter(
                             candles[j]['candles'][(i - (count - 1)):(i + 1)]
                         )
 
-                        store.candles.add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
+                        add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
                                                  with_generation=False)
 
             # now that all new generated candles are ready, execute
@@ -1327,10 +1334,10 @@ def run_simulation_iter(
                                      r.symbol)
                     r.strategy._execute()
 
-                store.orders.update_active_orders(r.exchange, r.symbol)
+                update_active_orders(r.exchange, r.symbol)
 
             # now check to see if there's any MARKET orders waiting to be executed
-            _execute_market_orders()
+            order_service.execute_simulated_market_orders()
 
             if i != 0 and i % 1440 == 0:
                 save_daily_portfolio_balance()
