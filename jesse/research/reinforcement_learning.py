@@ -21,7 +21,7 @@ from jesse.modes.backtest_mode import (
 from jesse.config import config as jesse_config, set_config, reset_config
 from jesse.routes import router
 from jesse.services.validators import validate_routes
-from jesse.services.candle import inject_warmup_candles_to_store
+from jesse.services.candle_service import inject_warmup_candles_to_store
 import jesse.services.metrics as stats
 import jesse.services.report as report
 
@@ -585,6 +585,9 @@ def train_rl_agent(
     num_iterations: int = 100,
     num_workers: int = 2,
     checkpoint_freq: int = 10,
+    rollout_fragment_length: int = 64,
+    train_batch_size: int = 64,
+    num_steps_sampled_before_learning_starts: int = 256,
 ) -> dict:
     """
     Train reinforcement learning agent with enhanced trading metrics output
@@ -607,28 +610,43 @@ def train_rl_agent(
     if algorithm != 'DQN':
         raise ValueError("Currently only DQN algorithm is supported")
     
-    # Optimize Ray initialization for better CPU utilization
+    # ----- Resource allocation tuned for a single multi-core machine -----
+    # The original configuration over-subscribed the CPUs: it reserved 2 cores for the
+    # driver (num_cpus_for_main_process=2) PLUS a separate learner actor (num_learners=1)
+    # on top of N env-runner actors -> N+3 cores of demand against only N+2 cores from
+    # ray.init(num_cpus=num_workers+2). With one core permanently short, the env-runners
+    # and the learner time-sliced the same cores and never truly ran in parallel, which is
+    # why training pinned ~1 core regardless of num_workers. On a single machine we instead
+    # keep the learner *in the driver process* (num_learners=0, see .learners() below) and
+    # give every env-runner its own dedicated core: N runners + 1 driver/learner == N+1
+    # cores, which fits a 4-core box exactly at N=3 with zero over-subscription.
+    total_cpus = psutil.cpu_count() or (num_workers + 1)
+    ray_cpus = min(total_cpus, num_workers + 1)
     if not ray.is_initialized():
         try:
             ray.init(
-                num_cpus=num_workers + 2,  # +2 for trainer and evaluation processes
+                num_cpus=ray_cpus,
                 object_store_memory=1000000000,  # 1GB object store
                 ignore_reinit_error=True,
                 log_to_driver=False,  # Reduce logging overhead
-                local_mode=False  # Ensure multi-processing mode
+                include_dashboard=False,
             )
-            jh.debug(f"Ray initialized with {num_workers + 2} CPUs for RL training")
+            jh.debug(f"Ray initialized with {ray_cpus} CPUs ({num_workers} env-runners + 1 driver/learner) for RL training")
         except Exception as e:
             jh.debug(f"Ray initialization failed: {e}, falling back to minimal config")
-            ray.init(num_cpus=num_workers + 1, ignore_reinit_error=True)
+            ray.init(num_cpus=ray_cpus, ignore_reinit_error=True)
     
     # Register environment
     tune.register_env("jesse_env", lambda config: JesseRLEnvironment(config))
     
-    # Optimize batch sizes and rollout configuration for multi-core usage
-    # Scale batch size with number of workers for better parallel utilization
-    train_batch_size = max(32, num_workers * 16)  # At least 16 samples per worker
-    rollout_fragment_length = max(50, 200 // num_workers)  # Distribute rollout work
+    # Sampling/learning sizes come from the keyword args (see the signature).
+    # IMPORTANT: rollout_fragment_length is kept CONSTANT (independent of num_workers).
+    # The original code used `200 // num_workers`, which shrank each worker's share so the
+    # *total* env-steps sampled per iteration stayed ~constant (~200) no matter how many
+    # workers there were -- i.e. adding workers split the same fixed amount of work instead
+    # of adding throughput, which silently cancelled the whole point of multiprocessing.
+    # With a constant fragment length, N env-runners sample N x rollout_fragment_length
+    # steps per iteration in parallel, so throughput scales with the number of workers.
     
     # Create optimized DQN configuration
     dqn_config = (
@@ -654,12 +672,13 @@ def train_rl_agent(
             lr=0.0001,
             train_batch_size=train_batch_size,
             target_network_update_freq=500,
+            num_steps_sampled_before_learning_starts=256,
         ).learners(
-            num_learners=1,
+            num_learners=0,  # in-process learner: no separate actor/core -> no CPU over-subscription on one box
             num_gpus_per_learner=0,
         )
         .resources(
-            num_cpus_for_main_process=2,  # Trainer gets 2 CPUs for neural network training
+            num_cpus_for_main_process=1,  # driver + in-process learner share one core
         )
     )
     
