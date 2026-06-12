@@ -2,6 +2,7 @@ import ray
 from ray import tune
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.algorithms.dqn import DQN, DQNConfig
+from ray.rllib.algorithms.ppo import PPOConfig
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -22,6 +23,7 @@ from jesse.config import config as jesse_config, set_config, reset_config
 from jesse.routes import router
 from jesse.services.validators import validate_routes
 from jesse.services.candle_service import inject_warmup_candles_to_store
+from jesse.services import exchange_service, order_service, position_service
 import jesse.services.metrics as stats
 import jesse.services.report as report
 
@@ -247,8 +249,11 @@ class JesseRLEnvironment(gym.Env):
         self.backtest_config = config.get('backtest_config')
         self.routes = config.get('routes')
         self.data_routes = config.get('data_routes')
-        self.candles = config.get('candles')
-        self.warmup_candles = config.get('warmup_candles')
+        # Candles may be passed as a Ray ObjectRef so the (potentially large) arrays live in
+        # the shared object store once instead of being pickled into every env-runner. Resolve
+        # the ref here, once per worker. Plain dicts pass straight through.
+        self.candles = self._resolve(config.get('candles'))
+        self.warmup_candles = self._resolve(config.get('warmup_candles'))
         self.max_steps = config.get('max_steps', 1000)
         
         # Initialize environment state
@@ -272,6 +277,13 @@ class JesseRLEnvironment(gym.Env):
         
         # Don't call reset() here - let Ray/RLlib call it when ready
     
+    @staticmethod
+    def _resolve(obj):
+        """Dereference a Ray ObjectRef (shared candles); pass plain objects through unchanged."""
+        if isinstance(obj, ray.ObjectRef):
+            return ray.get(obj)
+        return obj
+
     @property
     def action_space(self):
         return self._action_space
@@ -372,10 +384,19 @@ class JesseRLEnvironment(gym.Env):
         
         # NOW reset store (after routes are initialized)
         store.reset()
-        
+
         # Initialize candle storage
         store.candles.init_storage(5000)
-        
+
+        # Initialize exchanges/orders/positions state. This mirrors research.backtest's
+        # _isolated_backtest(): the simulation generator's _prepare_routes() assigns each
+        # position its strategy (store.positions.get_position(...).strategy = ...), which
+        # requires the positions state to exist first. Without this the very first step()
+        # raises 'NoneType has no attribute strategy' and the episode aborts immediately.
+        exchange_service.initialize_exchanges_state()
+        order_service.initialize_orders_state()
+        position_service.initialize_positions_state()
+
         # Validate candles only once (cache validation result)
         if not hasattr(self, '_candles_validated'):
             self._validate_candle_timeframes()
@@ -473,6 +494,29 @@ class JesseRLEnvironment(gym.Env):
             return np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype), 0.0, True, False, {}
 
 
+def _greedy_action(trainer, obs, action_space):
+    """Greedy action from a restored RLlib module on the new API stack (Discrete actions),
+    with graceful fallbacks. forward_inference returns action-distribution logits, so we
+    argmax them; if anything about the module API differs, fall back to the older
+    compute_single_action, then finally to a random action so evaluation never crashes."""
+    try:
+        import torch
+        module = trainer.get_module()
+        batch = {"obs": torch.as_tensor(np.asarray(obs)[None], dtype=torch.float32)}
+        out = module.forward_inference(batch)
+        if "actions" in out:
+            act = out["actions"]
+        else:
+            act = torch.argmax(out["action_dist_inputs"], dim=-1)
+        act = act.detach().cpu().numpy() if hasattr(act, "detach") else np.asarray(act)
+        return int(np.asarray(act).reshape(-1)[0])
+    except Exception:
+        try:
+            return trainer.compute_single_action(obs, explore=False)
+        except Exception:
+            return action_space.sample()
+
+
 def _run_quick_evaluation_episode(trainer, config, routes, data_routes, candles, warmup_candles):
     """Run a single evaluation episode to extract current trading performance"""
     try:
@@ -490,24 +534,7 @@ def _run_quick_evaluation_episode(trainer, config, routes, data_routes, candles,
         truncated = False
         
         while not (done or truncated):
-            # Use the newer Ray RLlib API for action computation
-            try:
-                # Try the new RLModule API first (Ray 2.8+)
-                if hasattr(trainer, 'get_module'):
-                    module = trainer.get_module()
-                    action_dict = module.forward_inference({'obs': np.expand_dims(obs, axis=0)})
-                    action = action_dict['actions'][0]  # Extract single action from batch
-                else:
-                    # Fallback to older API
-                    action = trainer.compute_single_action(obs, explore=False)
-            except (AttributeError, TypeError) as e:
-                # If all else fails, try the deprecated method
-                try:
-                    action = trainer.compute_single_action(obs)
-                except Exception:
-                    # Last resort: random action
-                    action = env.action_space.sample()
-            
+            action = _greedy_action(trainer, obs, env.action_space)
             obs, reward, done, truncated, info = env.step(action)
         
         # Extract trading metrics from completed episode
@@ -575,6 +602,71 @@ def _summarize_training_with_trading_metrics(result: dict, iteration: int,
 
 
 
+SUPPORTED_ALGORITHMS = ('DQN', 'PPO')
+
+
+def _build_algo_config(
+    algorithm: str,
+    env_config: dict,
+    num_workers: int,
+    rollout_fragment_length: int,
+    train_batch_size: int,
+    num_steps_sampled_before_learning_starts: int,
+):
+    """Build the RLlib AlgorithmConfig for the requested algorithm.
+
+    All algorithms share the single-machine resource model: the learner runs *in the
+    driver process* (num_learners=0) and each env-runner gets its own core, so there is
+    no CPU over-subscription. rollout_fragment_length is kept constant (per worker) so
+    that adding workers adds parallel sampling throughput instead of splitting a fixed
+    amount of work.
+
+    - DQN  : off-policy, single serial learner. Good sample efficiency, but end-to-end
+             throughput is ultimately capped by the learner, so it scales sub-linearly.
+    - PPO  : on-policy. Rollout collection is embarrassingly parallel across env-runners
+             and there is no replay buffer / single-learner bottleneck, so throughput
+             scales much better with num_workers -- the right choice on many-core boxes.
+    """
+    shared_env_runners = dict(num_env_runners=num_workers, num_envs_per_env_runner=1)
+    shared_learners = dict(num_learners=0, num_gpus_per_learner=0)
+
+    if algorithm == 'DQN':
+        return (
+            DQNConfig()
+            .environment(env="jesse_env", env_config=env_config)
+            .framework("torch")
+            .env_runners(rollout_fragment_length=rollout_fragment_length, **shared_env_runners)
+            .training(
+                lr=0.0001,
+                train_batch_size=train_batch_size,
+                target_network_update_freq=500,
+                num_steps_sampled_before_learning_starts=num_steps_sampled_before_learning_starts,
+            )
+            .learners(**shared_learners)
+            .resources(num_cpus_for_main_process=1)
+        )
+
+    # PPO: scale the per-iteration batch with the worker count so every runner collects a
+    # meaningful chunk in parallel (rollout_fragment_length='auto' divides the batch evenly).
+    per_worker_steps = max(rollout_fragment_length * 4, 256)
+    ppo_train_batch = max(train_batch_size, max(num_workers, 1) * per_worker_steps)
+    minibatch = min(128, ppo_train_batch)
+    return (
+        PPOConfig()
+        .environment(env="jesse_env", env_config=env_config)
+        .framework("torch")
+        .env_runners(rollout_fragment_length='auto', **shared_env_runners)
+        .training(
+            lr=0.0003,
+            train_batch_size=ppo_train_batch,
+            minibatch_size=minibatch,
+            num_epochs=10,
+        )
+        .learners(**shared_learners)
+        .resources(num_cpus_for_main_process=1)
+    )
+
+
 def train_rl_agent(
     config: dict,
     routes: List[Dict[str, str]],
@@ -607,9 +699,10 @@ def train_rl_agent(
         Training results with summaries, trading metrics, and checkpoints
     """
     
-    if algorithm != 'DQN':
-        raise ValueError("Currently only DQN algorithm is supported")
-    
+    algorithm = (algorithm or 'DQN').upper()
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
+
     # ----- Resource allocation tuned for a single multi-core machine -----
     # The original configuration over-subscribed the CPUs: it reserved 2 cores for the
     # driver (num_cpus_for_main_process=2) PLUS a separate learner actor (num_learners=1)
@@ -639,51 +732,35 @@ def train_rl_agent(
     # Register environment
     tune.register_env("jesse_env", lambda config: JesseRLEnvironment(config))
     
-    # Sampling/learning sizes come from the keyword args (see the signature).
-    # IMPORTANT: rollout_fragment_length is kept CONSTANT (independent of num_workers).
-    # The original code used `200 // num_workers`, which shrank each worker's share so the
-    # *total* env-steps sampled per iteration stayed ~constant (~200) no matter how many
-    # workers there were -- i.e. adding workers split the same fixed amount of work instead
-    # of adding throughput, which silently cancelled the whole point of multiprocessing.
-    # With a constant fragment length, N env-runners sample N x rollout_fragment_length
-    # steps per iteration in parallel, so throughput scales with the number of workers.
-    
-    # Create optimized DQN configuration
-    dqn_config = (
-        DQNConfig()
-        .environment(
-            env="jesse_env",
-            env_config={
-                'backtest_config': config,
-                'routes': routes,
-                'data_routes': data_routes,
-                'candles': candles,
-                'warmup_candles': warmup_candles,
-                'max_steps': 1000,
-            }
-        )
-        .framework("torch")
-        .env_runners(
-            num_env_runners=num_workers,
-            num_envs_per_env_runner=1,  # One environment per worker to avoid resource conflicts
-            rollout_fragment_length=rollout_fragment_length,
-        )
-        .training(
-            lr=0.0001,
-            train_batch_size=train_batch_size,
-            target_network_update_freq=500,
-            num_steps_sampled_before_learning_starts=256,
-        ).learners(
-            num_learners=0,  # in-process learner: no separate actor/core -> no CPU over-subscription on one box
-            num_gpus_per_learner=0,
-        )
-        .resources(
-            num_cpus_for_main_process=1,  # driver + in-process learner share one core
-        )
+    # Build the algorithm config (DQN or PPO). Sampling/learning sizes come from the
+    # keyword args. rollout_fragment_length is kept CONSTANT per worker so that adding
+    # workers adds parallel sampling throughput instead of splitting a fixed amount of work
+    # (the original `200 // num_workers` shrank each worker's share and silently cancelled
+    # the benefit of multiprocessing). See _build_algo_config for the per-algorithm details.
+    # Put the (potentially large) candle arrays in Ray's shared object store once, and pass
+    # lightweight ObjectRefs to the env-runners instead of pickling the full arrays into every
+    # worker's config. The env resolves the refs in JesseRLEnvironment._resolve().
+    candles_ref = ray.put(candles)
+    warmup_ref = ray.put(warmup_candles) if warmup_candles is not None else None
+    env_config = {
+        'backtest_config': config,
+        'routes': routes,
+        'data_routes': data_routes,
+        'candles': candles_ref,
+        'warmup_candles': warmup_ref,
+        'max_steps': 1000,
+    }
+    algo_config = _build_algo_config(
+        algorithm,
+        env_config,
+        num_workers,
+        rollout_fragment_length,
+        train_batch_size,
+        num_steps_sampled_before_learning_starts,
     )
-    
+
     # Create trainer
-    trainer = dqn_config.build_algo()
+    trainer = algo_config.build_algo()
     
     # Initialize performance monitoring
     perf_monitor = PerformanceMonitor(num_workers)
@@ -828,35 +905,36 @@ def evaluate_rl_agent(
         Evaluation results
     """
     
-    if algorithm != 'DQN':
-        raise ValueError("Currently only DQN algorithm is supported")
-    
+    algorithm = (algorithm or 'DQN').upper()
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
+
     # Initialize Ray
     if not ray.is_initialized():
         ray.init()
-    
+
     # Register environment
     tune.register_env("jesse_env", lambda config: JesseRLEnvironment(config))
-    
-    # Create DQN configuration
-    dqn_config = (
-        DQNConfig()
-        .environment(
-            env="jesse_env",
-            env_config={
-                'backtest_config': config,
-                'routes': routes,
-                'data_routes': data_routes,
-                'candles': candles,
-                'warmup_candles': warmup_candles,
-                'max_steps': 1000,
-            }
-        )
+
+    # Build a matching (inference-only) config and restore the checkpoint into it.
+    env_config = {
+        'backtest_config': config,
+        'routes': routes,
+        'data_routes': data_routes,
+        'candles': candles,
+        'warmup_candles': warmup_candles,
+        'max_steps': 1000,
+    }
+    ConfigClass = DQNConfig if algorithm == 'DQN' else PPOConfig
+    eval_config = (
+        ConfigClass()
+        .environment(env="jesse_env", env_config=env_config)
         .framework("torch")
+        .env_runners(num_env_runners=0)
     )
-    
+
     # Create trainer and restore checkpoint
-    trainer = dqn_config.build_algo()
+    trainer = eval_config.build_algo()
     trainer.restore(checkpoint_path)
     
     # Evaluation
@@ -878,13 +956,7 @@ def evaluate_rl_agent(
         episode_reward = 0
         
         while not (done or truncated):
-            # Use the newer RLlib API to avoid deprecation warnings
-            try:
-                # Try new API first
-                action = trainer.compute_single_action(obs)
-            except TypeError:
-                # Fallback for older versions
-                action = trainer.compute_single_action(obs, deterministic=True)
+            action = _greedy_action(trainer, obs, env.action_space)
             obs, reward, done, truncated, info = env.step(action)
             episode_reward += reward
         
