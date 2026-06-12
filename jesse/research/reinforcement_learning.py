@@ -457,8 +457,12 @@ class JesseRLEnvironment(gym.Env):
             except StopIteration:
                 # No more candles; finalize episode
                 finalize_simulation()
-                obs = store.rl.get_observation() or np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype)
-                return obs, 0.0, True, True, {}
+                obs = store.rl.get_observation()
+                if obs is None:
+                    obs = np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype)
+                # last-step reward still matters (mark-to-market close of the final bar)
+                final_reward = store.rl.get_reward() or 0.0
+                return obs, float(final_reward), True, True, {}
             
             self.current_step += 1
             
