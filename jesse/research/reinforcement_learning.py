@@ -249,11 +249,8 @@ class JesseRLEnvironment(gym.Env):
         self.backtest_config = config.get('backtest_config')
         self.routes = config.get('routes')
         self.data_routes = config.get('data_routes')
-        # Candles may be passed as a Ray ObjectRef so the (potentially large) arrays live in
-        # the shared object store once instead of being pickled into every env-runner. Resolve
-        # the ref here, once per worker. Plain dicts pass straight through.
-        self.candles = self._resolve(config.get('candles'))
-        self.warmup_candles = self._resolve(config.get('warmup_candles'))
+        self.candles = config.get('candles')
+        self.warmup_candles = config.get('warmup_candles')
         self.max_steps = config.get('max_steps', 1000)
         
         # Initialize environment state
@@ -277,13 +274,6 @@ class JesseRLEnvironment(gym.Env):
         
         # Don't call reset() here - let Ray/RLlib call it when ready
     
-    @staticmethod
-    def _resolve(obj):
-        """Dereference a Ray ObjectRef (shared candles); pass plain objects through unchanged."""
-        if isinstance(obj, ray.ObjectRef):
-            return ray.get(obj)
-        return obj
-
     @property
     def action_space(self):
         return self._action_space
@@ -487,10 +477,16 @@ class JesseRLEnvironment(gym.Env):
             info = {}
             return obs, reward, terminated, truncated, info
         except Exception as e:
-            print(f"==> ERROR in step: {e}")
             import traceback
             traceback.print_exc()
-            # Return safe defaults (terminated=True, truncated=False)
+            # A failure on the very first step of an episode is a structural/setup bug (e.g.
+            # uninitialised state, a broken strategy hook) that would otherwise be silently
+            # swallowed and turn every episode into a 1-step no-op -- so surface it loudly.
+            # Mid-episode failures are treated as a terminal state so one bad episode doesn't
+            # kill a long training run.
+            if self.current_step == 0:
+                raise RuntimeError(f"JesseRLEnvironment.step() failed on the first step: {e}") from e
+            print(f"==> ERROR in step at step {self.current_step}: {e}")
             return np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype), 0.0, True, False, {}
 
 
@@ -737,17 +733,17 @@ def train_rl_agent(
     # workers adds parallel sampling throughput instead of splitting a fixed amount of work
     # (the original `200 // num_workers` shrank each worker's share and silently cancelled
     # the benefit of multiprocessing). See _build_algo_config for the per-algorithm details.
-    # Put the (potentially large) candle arrays in Ray's shared object store once, and pass
-    # lightweight ObjectRefs to the env-runners instead of pickling the full arrays into every
-    # worker's config. The env resolves the refs in JesseRLEnvironment._resolve().
-    candles_ref = ray.put(candles)
-    warmup_ref = ray.put(warmup_candles) if warmup_candles is not None else None
+    # NOTE: candles are passed by value in env_config. We deliberately do NOT ray.put() them
+    # and pass an ObjectRef instead: RLlib stores env_config as the EnvRunner actor's
+    # constructor arguments, and if an actor restarts (which RLlib does on transient errors),
+    # a constructor ObjectRef that has gone out of scope makes the restart fail and the whole
+    # run hangs (ray-project/ray#53727). RLlib already broadcasts env_config efficiently.
     env_config = {
         'backtest_config': config,
         'routes': routes,
         'data_routes': data_routes,
-        'candles': candles_ref,
-        'warmup_candles': warmup_ref,
+        'candles': candles,
+        'warmup_candles': warmup_candles,
         'max_steps': 1000,
     }
     algo_config = _build_algo_config(
