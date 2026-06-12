@@ -557,11 +557,10 @@ def _step_simulator(
 
     begin_time_track = time.time()
 
-    length = _simulation_minutes_length(candles)
+    key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
+    first_candles_set = candles[key]['candles']
 
-    # NOTE (RL branch): normal step backtests use this perf-optimized inline loop. The RL
-    # environment drives run_simulation_iter() directly (see jesse/research/reinforcement_learning.py),
-    # so _step_simulator no longer needs to go through the generator.
+    length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
     candles_pipelines = _prepare_routes(
         hyperparameters=hyperparameters,
@@ -1075,17 +1074,13 @@ def _skip_simulator(
 
     begin_time_track = time.time()
 
-    # Create generator for fast simulation
-    sim_generator = run_simulation_iter(
-        candles,
-        hyperparameters=hyperparameters,
-        with_candles_pipeline=with_candles_pipeline,
-        candles_pipeline_class=candles_pipeline_class,
-        candles_pipeline_kwargs=candles_pipeline_kwargs,
-        fast_mode=True
-    )
-
     length = _simulation_minutes_length(candles)
+    _prepare_times_before_simulation(candles)
+    candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
+
+    # add initial balance
+    save_daily_portfolio_balance(is_initial=True)
+
     candles_step = _calculate_minimum_candle_step()
 
     # Skip-mode analogue of the step simulator's 1m-storage prefill (see
@@ -1158,8 +1153,6 @@ def _skip_simulator(
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, candles_pipelines, i, candles_step, pairs_info, htf_info)
 
-    # Run through the generator
-    for i in sim_generator:
         last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
                                                 last_update_time=last_update_time)
 
