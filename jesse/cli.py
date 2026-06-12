@@ -1,0 +1,166 @@
+import time
+import logging
+
+import click
+from importlib.metadata import version as get_version
+import uvicorn
+
+import jesse.helpers as jh
+from jesse.services.multiprocessing import process_manager
+from jesse.services.web import fastapi_app
+
+# Default Host and Port for the Jesse API server
+HOST = "0.0.0.0"
+PORT = 9000
+
+@click.group()
+@click.version_option(get_version("jesse"))
+def cli() -> None:
+    """CLI entrypoint for Jesse."""
+    pass
+
+
+@cli.command()
+@click.option(
+    "--strict/--no-strict",
+    default=True,
+    help="Default is the strict mode which will raise an exception if the values for license is not set.",
+)
+def install_live(strict: bool) -> None:
+    """Install and configure the live trading plugin."""
+    from jesse.services.installer import install
+
+    install(is_live_plugin_already_installed=jh.has_live_trade_plugin(), strict=strict)
+
+
+@cli.command()
+@click.option(
+    "--skip-agent-rules",
+    is_flag=True,
+    default=False,
+    help="Skip syncing the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) in the project directory.",
+)
+def run(skip_agent_rules: bool) -> None:
+    """Start the Jesse application server."""
+    # Display welcome message
+    welcome_message = """
+     ██╗███████╗███████╗███████╗███████╗
+     ██║██╔════╝██╔════╝██╔════╝██╔════╝
+     ██║█████╗  ███████╗███████╗█████╗  
+██   ██║██╔══╝  ╚════██║╚════██║██╔══╝  
+╚█████╔╝███████╗███████║███████║███████╗
+ ╚════╝ ╚══════╝╚══════╝╚══════╝╚══════╝
+                                        
+    """
+    version = get_version("jesse")
+    print(welcome_message)
+
+    version_line = (
+        click.style("  Jesse ", fg="white")
+        + click.style(f"v{version}", fg="yellow", bold=True)
+    )
+
+    if jh.has_live_trade_plugin():
+        try:
+            from jesse_live.version import __version__ as live_version
+            version_line += (
+                click.style("  ·  ", fg="white")
+                + click.style("Live Plugin ", fg="white")
+                + click.style(f"v{live_version}", fg="yellow", bold=True)
+            )
+        except ImportError:
+            pass
+
+    print(version_line)
+
+    jh.validate_cwd()
+
+    print("")
+
+    # sync the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) with the bundled rules
+    if not skip_agent_rules:
+        try:
+            from jesse.mcp.agent_rules import sync_agent_rules
+
+            sync_agent_rules()
+            print("")
+        except Exception as e:
+            print(f"Could not sync agent rules: {str(e)}")
+            print("")
+
+    # run all the db migrations
+    from jesse.services.migrator import run as run_migrations
+    import peewee
+
+    try:
+        run_migrations()
+    except peewee.OperationalError:
+        sleep_seconds = 10
+        print(f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again.")
+        time.sleep(sleep_seconds)
+        run_migrations()
+
+    # Install Python Language Server if needed
+    try:
+        from jesse.services.lsp import install_lsp_server
+
+        install_lsp_server()
+    except Exception as e:
+        print(jh.color(f"Error installing Python Language Server: {str(e)}", "red"))
+        pass
+
+    # read port from .env file and update the global variables port and host, if not found, use default
+    global HOST, PORT
+    from jesse.services.env import ENV_VALUES
+
+    if "APP_PORT" in ENV_VALUES:
+        PORT = int(ENV_VALUES["APP_PORT"])
+    # HOST keeps default value of "0.0.0.0" if not specified
+
+    if "APP_HOST" in ENV_VALUES:
+        HOST = ENV_VALUES["APP_HOST"]
+
+    # Set global Jesse API configuration for MCP and other services
+
+    # run the lsp server
+    try:
+        from jesse.services.lsp import run_lsp_server
+
+        run_lsp_server()
+    except Exception as e:
+        print(jh.color(f"Error running Python Language Server: {str(e)}", "red"))
+        pass
+    
+    # print dashboard box and suppress uvicorn's own "running on" line
+    dashboard_url = f"http://localhost:{PORT}"
+    _border = click.style("─" * (len(dashboard_url) + 34), fg="magenta", bold=True)
+    print(click.style("┌" + _border + "┐", fg="magenta", bold=True))
+    print(
+        click.style("│  ", fg="magenta", bold=True)
+        + click.style("⬡ Dashboard is available at ", fg="white", bold=True)
+        + click.style(dashboard_url, fg="magenta", bold=True)
+        + click.style("  │", fg="magenta", bold=True)
+    )
+    print(click.style("└" + _border + "┘", fg="magenta", bold=True))
+    print()
+
+    # run the mcp server
+    try:
+        from jesse.mcp import run_mcp_server
+
+        run_mcp_server(jesse_host=HOST, jesse_port=PORT)
+    except Exception as e:
+        print(jh.color(f"Error running MCP Server: {str(e)}", "red"))
+        pass
+
+    # run the main application
+    process_manager.flush()
+
+    class _SuppressUvicornStartup(logging.Filter):
+        def filter(self, record):
+            return "Uvicorn running on" not in record.getMessage()
+
+    logging.getLogger("uvicorn.error").addFilter(_SuppressUvicornStartup())
+
+    uvicorn.run(fastapi_app, host=HOST, port=PORT, log_level="info")
+

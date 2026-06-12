@@ -33,11 +33,16 @@ def ray_evaluate_trial(
     testing_candles,
     optimal_total,
     fast_mode,
-    trial_number
+    trial_number,
+    session_id
 ):
-    """Ray remote function to evaluate a trial"""
+    """Ray remote function to evaluate a trial.
+
+    Note: Ray automatically dereferences ObjectRefs before invoking remote
+    functions, so arguments passed via ray.put() arrive here as plain objects.
+    Do NOT call ray.get() on any parameter — it will raise a ValueError.
+    """
     try:
-        # Calculate the fitness score using the provided hyperparameters
         score, training_metrics, testing_metrics = get_fitness(
             user_config,
             formatted_routes,
@@ -49,12 +54,13 @@ def ray_evaluate_trial(
             testing_warmup_candles,
             testing_candles,
             optimal_total,
-            fast_mode
+            fast_mode,
+            session_id
         )
 
         # Log the trial details if debugging is enabled
         if jh.is_debugging():
-            logger.log_optimize_mode(f"Ray Trial {trial_number}: Score={score}, Params={hp}")
+            logger.log_optimize_mode(f"Ray Trial {trial_number}: Score={score}, Params={hp}", session_id )
 
         return {
             'trial_number': trial_number,
@@ -66,12 +72,12 @@ def ray_evaluate_trial(
     except exceptions.RouteNotFound as e:
         # Convert RouteNotFound to a standard RuntimeError to avoid serialization issues
         error_msg = str(e)
-        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with RouteNotFound: {error_msg}")
-        logger.log_optimize_mode(f"Trial {trial_number} hyperparameters: {hp}")
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with RouteNotFound: {error_msg}", session_id )
+        logger.log_optimize_mode(f"Trial {trial_number} hyperparameters: {hp}", session_id )
         raise RuntimeError(f"RouteNotFound: {error_msg}")
     except Exception as e:
         # Log and re-raise other exceptions
-        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with exception: {str(e)}")
+        logger.log_optimize_mode(f"Ray Trial {trial_number} failed with exception: {str(e)}", session_id )
         raise
 
 # Optimizer class that uses Ray for hyperparameter optimization
@@ -90,11 +96,6 @@ class Optimizer:
             optimal_total: int,
             cpu_cores: int,
     ) -> None:
-        # Check for Python 3.13 first thing
-        if jh.python_version() == (3, 13):
-            raise ValueError(
-                'Optimization is not supported on Python 3.13. The Ray library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
-
         self.session_id = session_id
 
         # Retrieve the target strategy and its hyperparameter configuration
@@ -149,17 +150,13 @@ class Optimizer:
             load_if_exists=True
         )
 
-        # Buffer to accumulate objective curve data points (one point per trial)
-        self.objective_curve_buffer = []
-        self.total_objective_curve_buffer = []
-
         # Initialize Ray if not already
         if not ray.is_initialized():
             try:
                 ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
-                logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores")
+                logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores", self.session_id )
             except Exception as e:
-                logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.")
+                logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.", self.session_id )
                 self.cpu_cores = 1
                 ray.init(num_cpus=1, ignore_reinit_error=True)
 
@@ -196,12 +193,12 @@ class Optimizer:
             # Get completed trials from the Optuna study
             completed_trials = session_data.completed_trials
             if not completed_trials:
-                logger.log_optimize_mode("No previous trials found. Starting new optimization session.")
+                logger.log_optimize_mode("No previous trials found. Starting new optimization session.", self.session_id )
                 return
 
             # Update completed trials count
             self.completed_trials = completed_trials
-            logger.log_optimize_mode(f"Loaded {self.completed_trials} completed trials from previous session")
+            logger.log_optimize_mode(f"Loaded {self.completed_trials} completed trials from previous session", self.session_id )
             self.best_trials = replace_inf_with_null(json.loads(session_data.best_trials))
             # Update best candidates display
             self._update_best_candidates()
@@ -212,18 +209,16 @@ class Optimizer:
             # Set trial counter to start from after the last trial
             self.trial_counter = completed_trials
 
-            self.total_objective_curve_buffer = json.loads(session_data.objective_curve.replace('-Infinity', 'null').replace('Infinity', 'null'))
             # Update the database with loaded trials
             update_optimization_session_trials(
                 self.session_id,
                 self.completed_trials,
                 self.best_trials,
-                self.total_objective_curve_buffer,
                 self.n_trials
             )
 
         except Exception as e:
-            logger.log_optimize_mode(f"Error loading previous trials: {e}")
+            logger.log_optimize_mode(f"Error loading previous trials: {e}", self.session_id )
             # Reset counters in case of failure
             self.completed_trials = 0
             self.trial_counter = 0
@@ -319,7 +314,7 @@ class Optimizer:
             return True
 
         except Exception as e:
-            logger.log_optimize_mode(f"Error creating Optuna trial: {e}")
+            logger.log_optimize_mode(f"Error creating Optuna trial: {e}", self.session_id )
             return False
 
     def _process_trial_result(self, result):
@@ -355,9 +350,6 @@ class Optimizer:
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
 
-        # Process trial metrics for objective curve
-        self._process_trial_metrics(trial_number, training_metrics, testing_metrics)
-
         # Add to best trials if the score is valid
         if score > 0.0001:
             # Convert parameters to DNA (base64)
@@ -381,6 +373,9 @@ class Optimizer:
                 jh.debug(f"Trial {trial_number} has training metrics: {bool(training_metrics)}")
                 jh.debug(f"Trial {trial_number} has testing metrics: {bool(testing_metrics)}")
 
+            # Get best candidates count from config
+            best_candidates_count = jh.get_config('env.optimization.best_candidates_count', 20)
+
             # Insert into best_trials maintaining sorted order
             insert_idx = 0
             for idx, t in enumerate(self.best_trials):
@@ -390,10 +385,10 @@ class Optimizer:
                 else:
                     insert_idx = idx + 1
 
-            if insert_idx < 20 or len(self.best_trials) < 20:
+            if insert_idx < best_candidates_count or len(self.best_trials) < best_candidates_count:
                 self.best_trials.insert(insert_idx, current_trial_info)
-                # Keep only top 20
-                self.best_trials = self.best_trials[:20]
+                # Keep only top candidates as configured
+                self.best_trials = self.best_trials[:best_candidates_count]
 
             # Update best candidates table
             self._update_best_candidates()
@@ -406,7 +401,6 @@ class Optimizer:
                     self.session_id,
                     self.completed_trials,
                     self.best_trials,
-                    self.total_objective_curve_buffer,
                     self.n_trials
                 )
 
@@ -454,37 +448,7 @@ class Optimizer:
         # Send top candidates to the dashboard
         sync_publish('best_candidates', best_candidates)
 
-    def _process_trial_metrics(self, trial_number, training_metrics, testing_metrics):
-        """Process metrics from a completed trial to update objective curve"""
-        # Only add to buffer if both metrics exist and are not empty
-        if training_metrics and testing_metrics:
-            data_point = {
-                'trial': trial_number + 1,
-                'training': training_metrics,
-                'testing': testing_metrics
-            }
-            self.objective_curve_buffer.append(data_point)
 
-            if jh.is_debugging():
-                jh.debug(f"Added trial {trial_number + 1} to objective curve buffer with metrics")
-        else:
-            if jh.is_debugging():
-                jh.debug(f"Skipped trial {trial_number + 1} - missing metrics. Training: {bool(training_metrics)}, Testing: {bool(testing_metrics)}")
-
-        # Publish a batch every 5 trials or when buffer reaches 10 items
-        buffer_size = len(self.objective_curve_buffer)
-        if buffer_size >= 10 or (buffer_size > 0 and self.completed_trials % 5 == 0):
-            if jh.is_debugging():
-                jh.debug(f"Publishing objective curve LEN: {len(self.objective_curve_buffer)}")
-            sync_publish('objective_curve', self.objective_curve_buffer)
-
-            if len(self.objective_curve_buffer) > 0 and len(self.total_objective_curve_buffer) > 0:
-                if self.objective_curve_buffer[0]['trial'] > self.total_objective_curve_buffer[-1]['trial']:
-                    self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
-            else:
-                self.total_objective_curve_buffer.extend(self.objective_curve_buffer)
-
-            self.objective_curve_buffer = []
 
     def _set_progressbar_index(self, index):
         """Manually set the progressbar index for resuming sessions efficiently"""
@@ -497,10 +461,10 @@ class Optimizer:
 
     def run(self) -> optuna.trial.FrozenTrial:
         # Log the start of the optimization session
-        logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores")
+        logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores", self.session_id )
 
         if self.completed_trials > 0:
-            logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed")
+            logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed", self.session_id )
             # Make sure the progress bar is synchronized
             self._set_progressbar_index(self.completed_trials)
 
@@ -509,45 +473,48 @@ class Optimizer:
             best_trial_value = self.study.best_value if self.study.trials else 0.0
             best_trial_params = self.study.best_params if self.study.trials else None
         except (ValueError, AttributeError) as e:
-            logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.")
+            logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.", self.session_id )
             best_trial_value = 0.0
             best_trial_params = None
 
         try:
-            # Maximum number of active workers (slightly higher than CPU cores to keep CPUs busy)
+            shared_user_config = ray.put(self.user_config)
+            shared_formatted_routes = ray.put(router.formatted_routes)
+            shared_formatted_data_routes = ray.put(router.formatted_data_routes)
+            shared_strategy_hp = ray.put(self.strategy_hp)
+            shared_training_warmup_candles = ray.put(self.training_warmup_candles)
+            shared_training_candles = ray.put(self.training_candles)
+            shared_testing_warmup_candles = ray.put(self.testing_warmup_candles)
+            shared_testing_candles = ray.put(self.testing_candles)
+
             max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
 
-            # Dictionary to keep track of active workers
             active_refs = {}
-            # Begin optimization loop
             while self.completed_trials < self.n_trials:
                 if self.completed_trials == 0:
                     update_optimization_session_trials(
                         self.session_id,
                         0,
                         [],
-                        [],
                         self.n_trials
                     )
-                # Launch new trials if we have capacity
                 while len(active_refs) < max_workers and self.trial_counter < self.n_trials:
-                    # Generate parameters for this trial
                     hp = self._generate_trial_params()
 
-                    # Launch the trial evaluation
                     ref = ray_evaluate_trial.options(num_cpus=1).remote(
-                        self.user_config,
-                        router.formatted_routes,
-                        router.formatted_data_routes,
-                        self.strategy_hp,
+                        shared_user_config,
+                        shared_formatted_routes,
+                        shared_formatted_data_routes,
+                        shared_strategy_hp,
                         hp,
-                        self.training_warmup_candles,
-                        self.training_candles,
-                        self.testing_warmup_candles,
-                        self.testing_candles,
+                        shared_training_warmup_candles,
+                        shared_training_candles,
+                        shared_testing_warmup_candles,
+                        shared_testing_candles,
                         self.optimal_total,
                         self.fast_mode,
-                        self.trial_counter
+                        self.trial_counter,
+                        self.session_id
                     )
 
                     # Store the reference
@@ -585,17 +552,11 @@ class Optimizer:
                         jh.debug(f'Exception raised in the ray method for trial {trial_number}: {e}')
                         raise e
 
-            # Publish any remaining data in the buffer
-            if self.objective_curve_buffer:
-                jh.debug(f"Publishing remaining {len(self.objective_curve_buffer)} data points in buffer")
-                sync_publish('objective_curve', self.objective_curve_buffer)
-                self.objective_curve_buffer = []
-
             # Get the best trial from the study
             try:
                 best_trial = self.study.best_trial
             except (ValueError, AttributeError) as e:
-                logger.log_optimize_mode(f"Could not access best trial at the end: {e}")
+                logger.log_optimize_mode(f"Could not access best trial at the end: {e}", self.session_id )
                 # Create a dummy trial if no best trial exists
                 best_trial = None
 
@@ -604,7 +565,6 @@ class Optimizer:
                 self.session_id,
                 self.completed_trials,
                 self.best_trials,
-                self.total_objective_curve_buffer,
                 self.n_trials
             )
 
@@ -619,12 +579,12 @@ class Optimizer:
 
         except exceptions.Termination:
             # Handle user-initiated termination
-            logger.log_optimize_mode("Optimization terminated by user")
+            logger.log_optimize_mode("Optimization terminated by user", self.session_id )
             # Update session status to 'stopped'
             update_optimization_session_status(self.session_id, 'stopped')
             raise
         except Exception as e:
-            logger.log_optimize_mode(f"Error during optimization: {e}")
+            logger.log_optimize_mode(f"Error during optimization: {e}", self.session_id )
             # Update session status to 'stopped' due to error
             update_optimization_session_status(self.session_id, 'stopped')
             from jesse.models.OptimizationSession import add_session_exception
@@ -636,7 +596,7 @@ class Optimizer:
 
         # Create an empty FrozenTrial if best_trial is None
         if best_trial is None:
-            logger.log_optimize_mode("No best trial found. Returning empty result.")
+            logger.log_optimize_mode("No best trial found. Returning empty result.", self.session_id )
             from optuna.trial import FrozenTrial
             return FrozenTrial(
                 number=0,

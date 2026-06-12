@@ -19,7 +19,7 @@ from .monte_carlo_candles import (
     print_monte_carlo_candles_summary,
     plot_monte_carlo_candles_chart
 )
-from .candle_pipelines import (
+from jesse.candle_pipelines import (
     GaussianNoiseCandlesPipeline,
     MovingBlockBootstrapCandlesPipeline
 )

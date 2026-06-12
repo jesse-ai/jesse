@@ -3,7 +3,7 @@ import numpy as np
 import jesse.helpers as jh
 from jesse.libs import DynamicNumpyArray
 from jesse.models.Trade import Trade
-from jesse.services import selectors
+from jesse.routes import router
 
 
 class TradesState:
@@ -12,7 +12,7 @@ class TradesState:
         self.temp_storage = {}
 
     def init_storage(self) -> None:
-        for ar in selectors.get_all_routes():
+        for ar in router.all_formatted_routes:
             exchange, symbol = ar['exchange'], ar['symbol']
             key = jh.key(exchange, symbol)
             self.storage[key] = DynamicNumpyArray((60, 6), drop_at=120)

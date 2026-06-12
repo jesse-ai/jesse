@@ -7,7 +7,7 @@ import numpy as np
 def test_open_pl_and_total_open_trades():
     single_route_backtest('Test40')
 
-    assert len(store.completed_trades.trades) == 1
+    assert len(store.closed_trades.trades) == 1
     assert store.app.total_open_trades == 1
     assert store.app.total_open_pl == 97  # 99 - 2
 
@@ -15,9 +15,9 @@ def test_open_pl_and_total_open_trades():
 def test_metrics_for_trades_without_fee():
     single_route_backtest('TestMetrics1')
 
-    trades = store.completed_trades.trades
+    trades = store.closed_trades.trades
     assert len(trades) == 1
-    stats = metrics.trades(store.completed_trades.trades, store.app.daily_balance)
+    stats = metrics.trades(store.closed_trades.trades, store.app.daily_balance)
 
     assert stats['total'] == 1
     assert stats['starting_balance'] == 10000
@@ -62,8 +62,8 @@ def test_metrics_for_trades_without_fee():
 #
 #     # run backtest (dates are fake just to pass)
 #     backtest_mode.run('2019-04-01', '2019-04-02', candles)
-#     assert len(store.completed_trades.trades) == 1
-#     stats_trades = stats.trades(store.completed_trades.trades)
+#     assert len(store.closed_trades.trades) == 1
+#     stats_trades = stats.trades(store.closed_trades.trades)
 #
 #     assert stats_trades == {
 #         'total': 1,

@@ -2,7 +2,7 @@ import threading
 from typing import Union
 
 import jesse.helpers as jh
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.services import logger
 
 

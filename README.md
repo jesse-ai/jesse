@@ -45,6 +45,8 @@ In fact, it is so simple that in case you already know Python, you can get start
 - 🔔 **Advanced Alerts**: Create real-time alerts within your strategies for effective monitoring.
 - 🤖 **JesseGPT**: Jesse has its own GPT, JesseGPT, that can help you write strategies, optimize them, debug them, and much more.
 - 🔧 **Built-in Code Editor**: Write, edit, and debug your strategies with a built-in code editor.
+- 🎲 **Monte Carlo Analysis**: Stress-test your strategies with trade-order shuffling and candles-based simulations to distinguish skill from luck and guard against overfitting.
+- 🧠 **Machine Learning**: A built-in ML pipeline — gather labelled training data from backtests, train scikit-learn models (binary, multiclass, or regression), and deploy predictions directly inside your strategies.
 - 📺 **Youtube Channel**: Jesse has a Youtube channel with screencast tutorials that go through example strategies step by step.
 
 ## Dive Deeper into Jesse's Capabilities
@@ -87,6 +89,30 @@ Accelerate research using the benchmark feature. Run batch backtests, compare ac
 Leverage our AI assistant even with limited Python knowledge. Get help writing and improving strategies, implementing ideas, debugging, optimizing, and understanding code. Your personal AI quant.
 
 ![AI](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/gpt.gif)
+
+### Monte Carlo Analysis
+Stress-test your strategies beyond a single historical path. Jesse's Monte Carlo mode runs hundreds of simulations using **trade-order shuffling** (tests whether trade timing drove your results) and **candles-based** (tests robustness under slightly different market conditions) methods. Use it to distinguish skill from luck, understand the range of outcomes you can realistically expect, and catch overfitting early.
+
+### Machine Learning
+Jesse includes a complete, end-to-end ML pipeline built for trading strategies:
+
+1. **Gather data** — run a backtest in gather mode; call `record_features({...})` at each signal bar and `record_label(name, value)` when the outcome is known. Data is auto-saved to CSV.
+2. **Train a model** — call `train_model()` with any scikit-learn–compatible estimator and choose a task type: `"binary"` classification, `"multiclass"` classification, or `"regression"`. Get a full report with feature importance, calibration, and metrics.
+3. **Deploy** — switch to deploy mode and call `ml_predict()` or `ml_predict_proba()` inside your strategy. Model loading, scaling, and feature ordering are handled automatically.
+
+```python
+# Gather phase — inside your strategy
+def before(self):
+    self.record_features({
+        'rsi': ta.rsi(self.candles),
+        'adx': ta.adx(self.candles),
+    })
+
+# Deploy phase — gate entries with model confidence
+def should_long(self):
+    proba = self.ml_predict_proba()
+    return proba['long'] > 0.65
+```
 
 ### Optimize Your Strategies
 Unsure about optimal parameters? Let the optimization mode decide using simple syntax. Fine-tune any strategy parameter with the Optuna library and easy cross-validation.

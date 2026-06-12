@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 import math
 import os
 import gzip
@@ -17,6 +18,7 @@ import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
 from jesse.constants import TIMEFRAME_PRIORITY
 from jesse.constants import SUPPORTED_COLORS
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
@@ -111,7 +113,7 @@ def dashy_symbol(symbol: str) -> str:
             return s
 
     suffixes = [
-        'UST', 'FDUSD', 'TUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
+        'UST', 'FDUSD', 'EUT', 'EUR', 'GBP', 'JPY', 'MIM', 'TRY'
     ]
 
     for suffix in suffixes:
@@ -442,6 +444,11 @@ def is_backtesting() -> bool:
     return config['app']['trading_mode'] == 'backtest'
 
 
+def is_significance_testing() -> bool:
+    from jesse.config import config
+    return config['app']['trading_mode'] == 'significance_test'
+
+
 def is_debuggable(debug_item) -> bool:
     from jesse.config import config
     try:
@@ -483,19 +490,35 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
+@lru_cache
+def _is_pytest_script() -> bool:
+    # Check if the code is being executed from the pytest command-line tool.
+    # sys.argv[0] doesn't change within a process, so compute this once.
+    return os.path.basename(sys.argv[0]) in ("pytest", "py.test")
+
+
+_is_unit_testing_outside_pytest = None
+
+
 def is_unit_testing() -> bool:
     """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
-    # Check if the PYTEST_CURRENT_TEST environment variable is set.
-    if os.environ.get("PYTEST_CURRENT_TEST"):
-        return True
+    # This function sits on the hot path via get_config(), so avoid the
+    # (surprisingly expensive) os.environ lookup when possible.
+    if 'pytest' in sys.modules:
+        # inside a pytest process the PYTEST_CURRENT_TEST env variable comes and
+        # goes per test phase, so it must be checked dynamically every time.
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return True
+        return _is_pytest_script()
 
-    # Check if the code is being executed from the pytest command-line tool.
-    script_name = os.path.basename(sys.argv[0])
-    if script_name in ["pytest", "py.test"]:
-        return True
-
-    # Otherwise, the code is not running by running pytest or PyCharm's test runner.
-    return False
+    # pytest is not imported in this process. The only way we can still be "unit
+    # testing" is having inherited pytest's environment/argv (e.g. a subprocess
+    # spawned from a test) — both of which are fixed for the process lifetime,
+    # so compute the answer once.
+    global _is_unit_testing_outside_pytest
+    if _is_unit_testing_outside_pytest is None:
+        _is_unit_testing_outside_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or _is_pytest_script()
+    return _is_unit_testing_outside_pytest
 
 
 def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
@@ -1040,6 +1063,18 @@ def debug(*item):
         logger.info(f"==> {', '.join(str(x) for x in item)}")
 
 
+def terminal_debug(*item):
+    """
+    Used for debugging when developing Jesse. Prints the item with timestamp in the 
+    terminal only (not logged to file). Uses local timezone.
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if len(item) == 1:
+        dump(f"[{timestamp}] ==> {item[0]}")
+    else:
+        dump(f"[{timestamp}] ==> {', '.join(str(x) for x in item)}")
+
+
 def float_or_none(item):
     """
     Return the float of the value if it's not None
@@ -1123,6 +1158,57 @@ def clear_output():
         click.clear()
 
 
+def clean_nan_values(obj):
+    """
+    Recursively clean NaN values from data structures by replacing them with None.
+    
+    :param obj: The object to clean (can be dict, list, or primitive)
+    :return: The cleaned object with NaN values replaced
+    """
+    import math
+    import numpy as np
+
+    if isinstance(obj, dict):
+        return {k: clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, bool):
+        # bool is a subclass of int in Python; keep it as boolean
+        return obj
+    elif isinstance(obj, (float, np.floating)):
+        # Replace NaN with None
+        if math.isnan(float(obj)):
+            return None
+        return float(obj)
+    elif isinstance(obj, (int, np.integer)):
+        # Keep integers as-is (cast NumPy integers to native int)
+        return int(obj)
+    else:
+        return obj
+
+
+def clean_infinite_values(obj):
+    """
+    Recursively clean infinite values (inf, -inf) from data structures
+    by replacing them with None or 0
+    
+    :param obj: The object to clean (can be dict, list, or primitive)
+    :return: The cleaned object with infinite values replaced
+    """
+    import math
+    
+    if isinstance(obj, dict):
+        return {k: clean_infinite_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_infinite_values(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
+
+
 def get_class_name(cls):
     # if it's a string, return it
     if isinstance(cls, str):
@@ -1159,8 +1245,12 @@ def gzip_compress(data):
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.utils import timeframe_to_one_minutes
-    return timeframe_to_one_minutes(timeframe)
+    try:
+        return TIMEFRAME_TO_ONE_MINUTES[timeframe]
+    except KeyError:
+        # delegate to the canonical implementation for the proper InvalidTimeframe error
+        from jesse.utils import timeframe_to_one_minutes
+        return timeframe_to_one_minutes(timeframe)
 
 
 def compressed_response(content: str) -> dict:
@@ -1200,3 +1290,17 @@ def has_live_trade_plugin() -> bool:
     except ModuleNotFoundError:
         return False
     return True
+
+
+def normalize_bool(v: Any) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, int):
+        return v == 1
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ['1', 'true']:
+            return True
+        if s in ['0', 'false']:
+            return False
+    return bool(v)

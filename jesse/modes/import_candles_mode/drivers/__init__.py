@@ -11,14 +11,14 @@ from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetual import Byb
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetualTestnet import BybitUSDCPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import BybitSpotTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
-from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet import ApexOmniPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import ApexOmniPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual import HyperliquidPerpetual
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetual import LighterPerpetual
+from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetualTestnet import LighterPerpetualTestnet
 
 
 drivers = {
@@ -31,14 +31,14 @@ drivers = {
     exchanges.BYBIT_USDT_PERPETUAL_TESTNET: BybitUSDTPerpetualTestnet,
     exchanges.BYBIT_USDC_PERPETUAL: BybitUSDCPerpetual,
     exchanges.BYBIT_USDC_PERPETUAL_TESTNET: BybitUSDCPerpetualTestnet,
-    exchanges.APEX_PRO_PERPETUAL_TESTNET: ApexProPerpetualTestnet,
-    exchanges.APEX_PRO_PERPETUAL: ApexProPerpetual,
     exchanges.APEX_OMNI_PERPETUAL_TESTNET: ApexOmniPerpetualTestnet,
     exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
     exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
     exchanges.GATE_SPOT: GateSpot,
     exchanges.HYPERLIQUID_PERPETUAL: HyperliquidPerpetual,
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
+    exchanges.LIGHTER_PERPETUAL: LighterPerpetual,
+    exchanges.LIGHTER_PERPETUAL_TESTNET: LighterPerpetualTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,

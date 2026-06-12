@@ -1,10 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, Header
 from starlette.responses import JSONResponse
-
+from jesse.repositories import candle_repository
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson
+from jesse.services.web import ImportCandlesRequestJson, CancelRequestJson, GetCandlesRequestJson, DeleteCandlesRequestJson, PurgeCandlesRequestJson
+from jesse.services.redis import is_process_active
 import jesse.helpers as jh
 
 router = APIRouter(prefix="/candles", tags=["Candles"])
@@ -84,6 +85,42 @@ def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str
     }, status_code=200)
 
 
+@router.post("/import-status")
+def get_candle_import_status(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Check whether a candle import process is still running. Used in MCP to check whether a previous import process is still running.
+
+    Uses a single Redis SISMEMBER call — no database queries.
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    running = bool(is_process_active(request_json.id))
+    response = {
+        'import_id': request_json.id,
+        'status': 'running' if running else 'finished',
+    }
+
+    # Attach live progress (percent complete, ETA, date reached so far) when the import
+    # is still running so callers can see real movement instead of a blind "running".
+    # When finished, clean up any lingering progress key.
+    import json
+    from jesse.services.redis import sync_redis
+    from jesse.modes.import_candles_mode import candle_import_progress_key
+    progress_key = candle_import_progress_key(request_json.id)
+    try:
+        if running:
+            raw = sync_redis.get(progress_key)
+            if raw:
+                response['progress'] = json.loads(raw)
+        else:
+            sync_redis.delete(progress_key)
+    except Exception:
+        pass
+
+    return JSONResponse(response, status_code=200)
+
+
 @router.post("/existing")
 def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONResponse:
     """
@@ -91,11 +128,9 @@ def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONRes
     """
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
-
-    from jesse.services.candle import get_existing_candles
     
     try:
-        data = get_existing_candles()
+        data = candle_repository.get_existing_candles()
         return JSONResponse({'data': data}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -109,10 +144,23 @@ def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Option
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    from jesse.services.candle import delete_candles
-    
     try:
-        delete_candles(json_request.exchange, json_request.symbol)
+        candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
         return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@router.post("/purge")
+def purge_candles(json_request: PurgeCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    """
+    Delete all candles for the given list of exchanges
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    try:
+        deleted_count = candle_repository.purge_candles_by_exchanges(json_request.exchanges)
+        return JSONResponse({'message': f'Purged candles for {len(json_request.exchanges)} exchange(s)', 'deleted_count': deleted_count}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)

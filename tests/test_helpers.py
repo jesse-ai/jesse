@@ -1,15 +1,13 @@
 import os
-
 import arrow
 import numpy as np
 import pytest
-
 import jesse.helpers as jh
+from jesse.routes import router
+from jesse.enums import exchanges, timeframes
 
 
 def test_app_currency():
-    from jesse.routes import router
-    from jesse.enums import exchanges, timeframes
     router.initiate(
         [{'exchange': exchanges.BINANCE_SPOT, 'symbol': 'ETH-USD', 'timeframe': timeframes.HOUR_3, 'strategy': 'Test19'}])
     assert jh.app_currency() == 'USD'
@@ -720,3 +718,86 @@ def test_is_almost_equal():
     
     # Test with values that shouldn't be considered equal even with updated tolerance
     assert jh.is_almost_equal(0.001, 0.00101) == False
+
+
+def test_clean_infinite_values():
+    import math
+    
+    # Test with primitive values
+    assert jh.clean_infinite_values(5) == 5
+    assert jh.clean_infinite_values(5.5) == 5.5
+    assert jh.clean_infinite_values("string") == "string"
+    assert jh.clean_infinite_values(None) is None
+    assert jh.clean_infinite_values(math.inf) is None
+    assert jh.clean_infinite_values(-math.inf) is None
+    
+    # Test with lists
+    assert jh.clean_infinite_values([1, 2, 3]) == [1, 2, 3]
+    assert jh.clean_infinite_values([1, math.inf, 3]) == [1, None, 3]
+    assert jh.clean_infinite_values([1, -math.inf, 3]) == [1, None, 3]
+    assert jh.clean_infinite_values([math.inf, -math.inf]) == [None, None]
+    
+    # Test with nested lists
+    assert jh.clean_infinite_values([1, [2, math.inf], 3]) == [1, [2, None], 3]
+    assert jh.clean_infinite_values([[math.inf], [1, 2]]) == [[None], [1, 2]]
+    
+    # Test with dictionaries
+    assert jh.clean_infinite_values({"a": 1, "b": 2}) == {"a": 1, "b": 2}
+    assert jh.clean_infinite_values({"a": 1, "b": math.inf}) == {"a": 1, "b": None}
+    assert jh.clean_infinite_values({"a": -math.inf, "b": 2}) == {"a": None, "b": 2}
+    assert jh.clean_infinite_values({"a": math.inf, "b": -math.inf}) == {"a": None, "b": None}
+    
+    # Test with nested dictionaries
+    assert jh.clean_infinite_values({"a": {"b": math.inf}, "c": 1}) == {"a": {"b": None}, "c": 1}
+    assert jh.clean_infinite_values({"a": {"b": {"c": -math.inf}}}) == {"a": {"b": {"c": None}}}
+    
+    # Test with mixed structures
+    complex_obj = {
+        "numbers": [1, 2, math.inf, -math.inf],
+        "nested": {
+            "list": [math.inf, 3, 4],
+            "dict": {"inf": math.inf, "normal": 5}
+        },
+        "normal": 10
+    }
+    expected = {
+        "numbers": [1, 2, None, None],
+        "nested": {
+            "list": [None, 3, 4],
+            "dict": {"inf": None, "normal": 5}
+        },
+        "normal": 10
+    }
+    assert jh.clean_infinite_values(complex_obj) == expected
+
+
+def test_clean_nan_values_keeps_bool():
+    obj = {
+        'a': True,
+        'b': False,
+        'nested': {
+            'c': True,
+            'd': [False, True]
+        }
+    }
+    cleaned = jh.clean_nan_values(obj)
+    assert cleaned['a'] is True
+    assert cleaned['b'] is False
+    assert cleaned['nested']['c'] is True
+    assert cleaned['nested']['d'][0] is False
+    assert cleaned['nested']['d'][1] is True
+
+
+def test_normalize_bool():
+    assert jh.normalize_bool(True) is True
+    assert jh.normalize_bool(False) is False
+    assert jh.normalize_bool(1) is True
+    assert jh.normalize_bool(0) is False
+    assert jh.normalize_bool('1') is True
+    assert jh.normalize_bool('0') is False
+    assert jh.normalize_bool('true') is True
+    assert jh.normalize_bool('false') is False
+    assert jh.normalize_bool(' TRUE ') is True
+    assert jh.normalize_bool(' FALSE ') is False
+    assert jh.normalize_bool(2) is False  # v == 1 is False for 2
+    assert jh.normalize_bool(None) is False  # fallback to bool(None)

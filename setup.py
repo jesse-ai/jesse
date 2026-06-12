@@ -1,12 +1,16 @@
+from pathlib import Path
+
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = "1.10.9"
+VERSION = "2.3.4"
 DESCRIPTION = "A trading framework for cryptocurrencies"
-with open("requirements.txt", "r", encoding="utf-8") as f:
+BASE_DIR = Path(__file__).resolve().parent
+
+with open(BASE_DIR / "requirements.txt", "r", encoding="utf-8") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
 
-with open("README.md", "r", encoding="utf-8") as f:
+with open(BASE_DIR / "README.md", "r", encoding="utf-8") as f:
     LONG_DESCRIPTION = f.read()
 
 setup(

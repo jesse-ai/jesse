@@ -1,0 +1,775 @@
+"""
+Jesse Monte Carlo Service Functions
+
+Mirrors the structure of the significance_test / backtest service modules so
+the MCP agent can stage and run Monte Carlo simulations with the same
+draft / run / poll workflow it already knows.
+
+Endpoints used (all under /monte-carlo):
+    POST /update-state                          create or update a draft
+    POST /sessions/{id}                         retrieve one session
+    POST /sessions                              list sessions
+    POST /sessions/{id}/notes                   update notes / strategy code
+    POST /sessions/{id}/equity-curves           equity curve data
+    POST /sessions/{id}/logs                    log file content
+    POST                                        start the simulation
+    POST /resume                                resume an existing session
+    POST /cancel                                cooperative cancel
+    POST /terminate                             force-terminate
+    POST /purge-sessions                        delete old sessions
+"""
+
+import json
+import os
+import uuid
+import requests
+from multiprocessing import cpu_count
+from typing import Optional
+
+import jesse.mcp.mcp_config as mcp_config
+from .auth import hash_password
+
+
+def _default_cpu_cores() -> int:
+    try:
+        return max(1, min(cpu_count() - 1, 4))
+    except Exception:
+        return 2
+
+
+# Standard parameters for the moving_block_bootstrap candle pipeline. These
+# match the dashboard's hardcoded defaults — the dashboard's `newSession`
+# action reads them as plain numbers, so passing null/None here crashes the
+# UI when a user opens the session.
+_DEFAULT_MOVING_BLOCK_BOOTSTRAP_PARAMS = {
+    'batch_size': 10080,
+    'close_sigma': 0.001,
+    'high_sigma': 0.0001,
+    'low_sigma': 0.0001,
+}
+
+
+def _default_mc_config(exchange_name: Optional[str]) -> dict:
+    """
+    Build the config payload the Monte Carlo runner expects.
+
+    MonteCarloRunner reads `user_config['exchange']` (singular dict), which
+    is a DIFFERENT shape from the dashboard's `backtest` config section
+    (which has a plural `exchanges` dict keyed by name). Sending the
+    backtest config here triggers KeyError: 'exchange' inside the runner.
+
+    We mirror the same hardcoded-default approach used by the significance
+    test service, inferring `type` from the exchange name so Spot exchanges
+    don't get tagged as `futures`.
+    """
+    name = (exchange_name or '').lower()
+    is_spot = 'spot' in name
+    exchange = {
+        'balance': 10_000,
+        'fee': 0.0006,
+        'type': 'spot' if is_spot else 'futures',
+    }
+    if not is_spot:
+        exchange['futures_leverage'] = 1
+        exchange['futures_leverage_mode'] = 'cross'
+    return {
+        'warm_up_candles': 210,
+        # MonteCarloRunner reads starting_balance + fee at the TOP LEVEL (not inside exchange),
+        # so they must be surfaced here or they silently fall back to defaults (10000 / 0.0005).
+        'starting_balance': exchange['balance'],
+        'fee': exchange['fee'],
+        'exchange': exchange,
+    }
+
+
+def _build_default_title(routes_list: list) -> str:
+    if routes_list:
+        first = routes_list[0]
+        if isinstance(first, dict):
+            symbol = first.get('symbol') or 'Unknown Symbol'
+            timeframe = first.get('timeframe') or 'Unknown Timeframe'
+            strategy = first.get('strategy') or 'Unknown Strategy'
+            suffix = f" +{len(routes_list) - 1}" if len(routes_list) > 1 else ""
+            return f"MCP Monte Carlo: {strategy} on {symbol} {timeframe}{suffix}"
+    return "MCP Monte Carlo"
+
+
+def _normalize_title(title: str) -> str:
+    title = title.strip() if title else "MCP Monte Carlo"
+    lowered = title.lower()
+    if "mcp" in lowered and "monte" in lowered:
+        return title
+    return f"MCP Monte Carlo: {title}"
+
+
+def _build_default_description(
+    exchange: str,
+    routes_list: list,
+    start_date: str,
+    finish_date: str,
+    num_scenarios: int,
+    run_trades: bool,
+    run_candles: bool,
+    pipeline_type: Optional[str],
+    strategy_summary: Optional[str],
+    hypothesis: Optional[str],
+    rationale: Optional[str],
+) -> str:
+    first = routes_list[0] if routes_list else {}
+    strategy_default = (
+        f"`{first.get('strategy', 'Unknown')}` on `{first.get('symbol', 'unknown')}` "
+        f"using the `{first.get('timeframe', 'unknown')}` timeframe."
+    )
+    types = []
+    if run_candles:
+        types.append("candles")
+    if run_trades:
+        types.append("trades")
+    types_text = ", ".join(types) if types else "none"
+
+    summary_lines = [
+        f"- **Strategy:** {strategy_summary or strategy_default}",
+    ]
+    if hypothesis:
+        summary_lines.append(f"- **Hypothesis:** {hypothesis}")
+    if rationale:
+        summary_lines.append(f"- **Rationale:** {rationale}")
+    summary_lines.extend([
+        f"- **Period:** `{start_date}` to `{finish_date}`",
+        f"- **Exchange:** `{exchange}`",
+        f"- **Scenarios:** {num_scenarios}",
+        f"- **Mode:** {types_text}",
+        f"- **Candles pipeline:** `{pipeline_type or 'moving_block_bootstrap'}`",
+    ])
+    return (
+        "## MCP Monte Carlo Notes\n\n"
+        "Generated by **Jesse MCP**.\n\n"
+        "### Summary\n\n"
+        + "\n".join(summary_lines)
+    )
+
+
+def _collect_strategy_codes(routes_list: list) -> dict:
+    strategy_codes = {}
+    for route in routes_list:
+        if not isinstance(route, dict):
+            continue
+        exchange = route.get('exchange')
+        symbol = route.get('symbol')
+        strategy = route.get('strategy')
+        if not exchange or not symbol or not strategy:
+            continue
+        key = f"{exchange}-{symbol}"
+        if key in strategy_codes:
+            continue
+        path = os.path.join('strategies', strategy, '__init__.py')
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    strategy_codes[key] = f.read()
+        except Exception:
+            pass
+    return strategy_codes
+
+
+def _post_notes(api_url: str, auth: str, session_id: str, title: Optional[str],
+                description: Optional[str], strategy_codes: Optional[dict]) -> dict:
+    payload = {
+        'id': session_id,
+        'title': title,
+        'description': description,
+        'strategy_codes': strategy_codes,
+    }
+    response = requests.post(
+        f'{api_url}/monte-carlo/sessions/{session_id}/notes',
+        json=payload,
+        headers={'Authorization': auth},
+        timeout=10,
+    )
+    if response.status_code == 200:
+        return {'status': 'success', 'message': 'Notes updated'}
+    if response.status_code == 401:
+        return {'status': 'error', 'message': 'Authentication failed'}
+    if response.status_code == 404:
+        return {'status': 'error', 'message': f'Session {session_id} not found'}
+    return {'status': 'error', 'message': f'Failed to update notes: {response.text}'}
+
+
+def create_monte_carlo_draft_service(
+    exchange: str = "Binance Perpetual Futures",
+    routes: str = '[{"exchange": "Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
+    data_routes: str = '[]',
+    start_date: str = "2024-01-01",
+    finish_date: str = "2024-03-01",
+    num_scenarios: int = 200,
+    run_trades: bool = False,
+    run_candles: bool = True,
+    fast_mode: bool = True,  # robust path; the step simulator blows up on synthetic candles (see tool doc)
+    cpu_cores: Optional[int] = None,
+    pipeline_type: Optional[str] = 'moving_block_bootstrap',
+    pipeline_params: Optional[str] = None,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    strategy_summary: Optional[str] = None,
+    hypothesis: Optional[str] = None,
+    rationale: Optional[str] = None,
+) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        session_id = str(uuid.uuid4())
+
+        try:
+            routes_list = json.loads(routes)
+            data_routes_list = json.loads(data_routes)
+        except json.JSONDecodeError as e:
+            return {'status': 'error', 'message': 'Invalid JSON for routes/data_routes', 'details': str(e)}
+
+        if not isinstance(routes_list, list) or not isinstance(data_routes_list, list):
+            return {'status': 'error', 'message': 'routes and data_routes must be JSON arrays'}
+
+        if not routes_list:
+            return {'status': 'error', 'message': 'At least one trading route is required.'}
+
+        if not run_trades and not run_candles:
+            return {'status': 'error',
+                    'message': 'At least one Monte Carlo type must be selected (run_trades or run_candles).'}
+
+        resolved_pipeline_type = pipeline_type or 'moving_block_bootstrap'
+        parsed_pipeline_params: Optional[dict] = None
+        if pipeline_params:
+            try:
+                parsed_pipeline_params = json.loads(pipeline_params)
+                if not isinstance(parsed_pipeline_params, dict):
+                    return {'status': 'error', 'message': 'pipeline_params must be a JSON object string'}
+            except json.JSONDecodeError as e:
+                return {'status': 'error', 'message': 'Invalid JSON for pipeline_params', 'details': str(e)}
+
+        # Always persist a non-null pipeline_params object — the dashboard's
+        # session-clone path reads sub-keys directly and crashes on null.
+        # Defaults only apply when the pipeline is moving_block_bootstrap;
+        # custom pipelines must supply their own params.
+        if parsed_pipeline_params is None:
+            parsed_pipeline_params = (
+                dict(_DEFAULT_MOVING_BLOCK_BOOTSTRAP_PARAMS)
+                if resolved_pipeline_type == 'moving_block_bootstrap'
+                else {}
+            )
+
+        form_data = {
+            'id': session_id,
+            'exchange': exchange,
+            'routes': routes_list,
+            'data_routes': data_routes_list,
+            'start_date': start_date,
+            'finish_date': finish_date,
+            'num_scenarios': int(num_scenarios),
+            'run_trades': bool(run_trades),
+            'run_candles': bool(run_candles),
+            'fast_mode': bool(fast_mode),
+            'cpu_cores': int(cpu_cores) if cpu_cores is not None else _default_cpu_cores(),
+            'pipeline_type': resolved_pipeline_type,
+            'pipeline_params': parsed_pipeline_params,
+        }
+
+        state_dict = {
+            'form': form_data,
+            'results': {
+                'alert': {'message': '', 'type': ''},
+            },
+        }
+
+        response = requests.post(
+            f'{api_url}/monte-carlo/update-state',
+            json={'id': session_id, 'state': state_dict},
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        if response.status_code != 200:
+            return {'status': 'error', 'message': f'Failed to persist draft: {response.text}'}
+
+        note_title = _normalize_title(title or _build_default_title(routes_list))
+        note_description = description or _build_default_description(
+            exchange=exchange,
+            routes_list=routes_list,
+            start_date=start_date,
+            finish_date=finish_date,
+            num_scenarios=int(num_scenarios),
+            run_trades=bool(run_trades),
+            run_candles=bool(run_candles),
+            pipeline_type=pipeline_type,
+            strategy_summary=strategy_summary,
+            hypothesis=hypothesis,
+            rationale=rationale,
+        )
+        strategy_codes = _collect_strategy_codes(routes_list)
+        notes_result = _post_notes(
+            api_url=api_url,
+            auth=auth,
+            session_id=session_id,
+            title=note_title,
+            description=note_description,
+            strategy_codes=strategy_codes or None,
+        )
+
+        result = {
+            'status': 'success',
+            'session_id': session_id,
+            'draft_state': state_dict,
+            'notes': {
+                'title': note_title,
+                'description': note_description,
+                'strategy_code_keys': list(strategy_codes.keys()),
+                'strategy_codes_captured': len(strategy_codes),
+            },
+            'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
+            'message': f'Monte Carlo draft created with ID: {session_id}',
+        }
+        if notes_result.get('status') != 'success':
+            result['warning'] = notes_result.get('message')
+        return result
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to create Monte Carlo draft'}
+
+
+def update_monte_carlo_draft_service(session_id: str, state: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        state_dict = json.loads(state)
+
+        response = requests.post(
+            f'{api_url}/monte-carlo/update-state',
+            json={'id': session_id, 'state': state_dict},
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+
+        if response.status_code == 200:
+            return {
+                'status': 'success',
+                'session_id': session_id,
+                'draft_state': state_dict,
+                'message': 'Monte Carlo draft updated successfully',
+            }
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to update draft: {response.text}'}
+
+    except json.JSONDecodeError as e:
+        return {'status': 'error', 'error': 'Invalid JSON format', 'details': str(e),
+                'message': 'Failed to parse state JSON'}
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to update Monte Carlo draft'}
+
+
+def update_monte_carlo_notes_service(
+    session_id: str,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    strategy_codes: Optional[str] = None,
+) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        parsed_codes = None
+        if strategy_codes is not None:
+            parsed_codes = json.loads(strategy_codes)
+            if not isinstance(parsed_codes, dict):
+                return {'status': 'error', 'message': 'strategy_codes must be a JSON object string'}
+
+        result = _post_notes(api_url, auth, session_id, title, description, parsed_codes)
+        if result.get('status') == 'success':
+            return {
+                'status': 'success',
+                'session_id': session_id,
+                'title': title,
+                'description': description,
+                'strategy_code_keys': list(parsed_codes.keys()) if parsed_codes else [],
+                'strategy_codes_captured': len(parsed_codes) if parsed_codes else 0,
+                'message': 'Monte Carlo session notes updated successfully',
+            }
+        return result
+
+    except json.JSONDecodeError as e:
+        return {'status': 'error', 'error': 'Invalid JSON format', 'details': str(e),
+                'message': 'Failed to parse strategy_codes JSON'}
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to update Monte Carlo notes'}
+
+
+def get_monte_carlo_session_service(session_id: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        response = requests.post(
+            f'{api_url}/monte-carlo/sessions/{session_id}',
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'data': {'session': data.get('session', {})},
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
+                'error': None,
+                'message': 'Monte Carlo session retrieved successfully',
+            }
+        if response.status_code == 404:
+            return {'data': None, 'error': f'Session {session_id} not found',
+                    'message': f'Session {session_id} not found'}
+        if response.status_code == 401:
+            return {'data': None, 'error': 'Authentication failed', 'message': 'Authentication failed'}
+        return {'data': None, 'error': f'Failed to retrieve session: {response.text}',
+                'message': f'Failed to retrieve session: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'data': None, 'error': f'Failed to connect to Jesse API: {str(e)}',
+                'message': f'Failed to connect to Jesse API: {str(e)}'}
+    except Exception as e:
+        return {'data': None, 'error': f'Failed to retrieve session: {str(e)}',
+                'message': f'Failed to retrieve session: {str(e)}'}
+
+
+def get_monte_carlo_sessions_service(
+    limit: int = 50,
+    offset: int = 0,
+    title_search: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    date_filter: Optional[str] = None,
+) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        payload = {
+            'limit': int(limit),
+            'offset': int(offset),
+            'title_search': title_search,
+            'status_filter': status_filter,
+            'date_filter': date_filter,
+        }
+        response = requests.post(
+            f'{api_url}/monte-carlo/sessions',
+            json=payload,
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'status': 'success',
+                'sessions': data.get('sessions', []),
+                'count': data.get('count', 0),
+                'message': f'Retrieved {data.get("count", 0)} Monte Carlo session(s)',
+            }
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to retrieve sessions: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve Monte Carlo sessions'}
+
+
+def get_monte_carlo_equity_curves_service(session_id: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        response = requests.post(
+            f'{api_url}/monte-carlo/sessions/{session_id}/equity-curves',
+            headers={'Authorization': auth},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'status': 'success',
+                'session_id': session_id,
+                'trades': data.get('trades'),
+                'candles': data.get('candles'),
+                'message': 'Equity curves retrieved successfully',
+            }
+        if response.status_code == 404:
+            return {'status': 'error', 'message': f'Session {session_id} not found'}
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to retrieve equity curves: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve equity curves'}
+
+
+def get_monte_carlo_logs_service(session_id: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        response = requests.post(
+            f'{api_url}/monte-carlo/sessions/{session_id}/logs',
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'status': 'success',
+                'session_id': session_id,
+                'logs': data.get('logs', ''),
+                'message': 'Logs retrieved successfully',
+            }
+        if response.status_code == 404:
+            return {'status': 'error', 'message': f'Log file for session {session_id} not found'}
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to retrieve logs: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve Monte Carlo logs'}
+
+
+def _build_run_payload(session_id: str, form: dict, config: dict, state: dict) -> dict:
+    return {
+        'id': session_id,
+        'exchange': form.get('exchange'),
+        'routes': form.get('routes', []),
+        'data_routes': form.get('data_routes', []),
+        'config': config,
+        'start_date': form.get('start_date'),
+        'finish_date': form.get('finish_date'),
+        'run_trades': bool(form.get('run_trades', False)),
+        'run_candles': bool(form.get('run_candles', True)),
+        'num_scenarios': int(form.get('num_scenarios', 200)),
+        'fast_mode': bool(form.get('fast_mode', True)),
+        'cpu_cores': int(form.get('cpu_cores', _default_cpu_cores())),
+        'pipeline_type': form.get('pipeline_type') or 'moving_block_bootstrap',
+        'pipeline_params': form.get('pipeline_params'),
+        'state': state if isinstance(state, dict) else {},
+    }
+
+
+def _fetch_session(api_url: str, auth: str, session_id: str):
+    """Fetch a Monte Carlo session and return (form, state, status, err)."""
+    response = requests.post(
+        f'{api_url}/monte-carlo/sessions/{session_id}',
+        headers={'Authorization': auth},
+        timeout=10,
+    )
+    if response.status_code == 404:
+        return None, None, None, {'status': 'error', 'message': f'Session {session_id} not found'}
+    if response.status_code == 401:
+        return None, None, None, {'status': 'error', 'message': 'Authentication failed'}
+    if response.status_code != 200:
+        return None, None, None, {'status': 'error', 'message': f'Failed to retrieve session: {response.text}'}
+
+    session_data = response.json().get('session', {})
+    session_status = session_data.get('status')
+    state = session_data.get('state')
+    if isinstance(state, str):
+        try:
+            state = json.loads(state)
+        except json.JSONDecodeError:
+            state = {}
+    form = state.get('form') if isinstance(state, dict) else None
+    if isinstance(form, str):
+        form = json.loads(form)
+    if not form:
+        return None, None, session_status, {
+            'status': 'error',
+            'message': 'No form found in session state. Create a draft first using create_monte_carlo_draft.',
+        }
+    return form, state if isinstance(state, dict) else {}, session_status, None
+
+
+def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
+    response = requests.post(
+        f'{api_url}{path}',
+        json=payload,
+        headers={'Authorization': auth},
+        timeout=10,
+    )
+    if response.status_code in (200, 202):
+        return {
+            'status': 'started',
+            'session_id': payload['id'],
+            'dashboard_url': mcp_config.dashboard_url('monte_carlo', payload['id']),
+            'message': (
+                'Monte Carlo simulation started. '
+                'Poll get_monte_carlo_session(session_id) until status is "finished".'
+            ),
+        }
+    if response.status_code == 401:
+        return {'status': 'error', 'message': 'Authentication failed'}
+    if response.status_code == 409:
+        return {'status': 'error', 'message': f'Session {payload["id"]} is already running or completed.'}
+    if response.status_code == 404:
+        return {'status': 'error', 'message': f'Session {payload["id"]} not found'}
+    return {'status': 'error', 'message': f'Failed to start Monte Carlo: {response.text}'}
+
+
+def _run_or_resume(session_id: str, op_label: str) -> dict:
+    """
+    Shared implementation for run_monte_carlo / resume_monte_carlo.
+
+    Both go to POST /monte-carlo/resume, not POST /monte-carlo. The main
+    endpoint rejects any pre-existing session row with 409, but our
+    create_monte_carlo_draft has already created the row to persist the
+    form. /resume is the endpoint that *requires* an existing row and
+    kicks off the worker. (significance_test's controller has explicit
+    draft-promotion in its main endpoint, which the MC controller does
+    not — so we work around it here.)
+    """
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        form, state, session_status, err = _fetch_session(api_url, auth, session_id)
+        if err:
+            return err
+
+        if session_status == 'running':
+            return {
+                'status': 'started',
+                'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
+                'message': (
+                    f'Monte Carlo session {session_id} is already running. '
+                    'Poll get_monte_carlo_session(session_id) for progress.'
+                ),
+            }
+        if session_status == 'finished':
+            return {
+                'status': 'error',
+                'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
+                'message': (
+                    f'Monte Carlo session {session_id} has already finished. '
+                    'Read results via get_monte_carlo_session(session_id), or '
+                    'create a new draft for a fresh run.'
+                ),
+            }
+
+        payload = _build_run_payload(session_id, form, _default_mc_config(form.get('exchange')), state)
+        return _fire(api_url, auth, '/monte-carlo/resume', payload)
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': f'Failed to {op_label} Monte Carlo'}
+
+
+def run_monte_carlo_service(session_id: str) -> dict:
+    return _run_or_resume(session_id, 'run')
+
+
+def resume_monte_carlo_service(session_id: str) -> dict:
+    return _run_or_resume(session_id, 'resume')
+
+
+def cancel_monte_carlo_service(session_id: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        response = requests.post(
+            f'{api_url}/monte-carlo/cancel',
+            json={'id': session_id},
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 202:
+            return {'status': 'success', 'session_id': session_id,
+                    'message': f'Monte Carlo {session_id} cancellation requested'}
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to cancel: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to cancel Monte Carlo'}
+
+
+def terminate_monte_carlo_service(session_id: str) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        response = requests.post(
+            f'{api_url}/monte-carlo/terminate',
+            json={'id': session_id},
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 202:
+            return {'status': 'success', 'session_id': session_id,
+                    'message': f'Monte Carlo {session_id} terminated'}
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to terminate: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to terminate Monte Carlo'}
+
+
+def purge_monte_carlo_sessions_service(days_old: Optional[int] = None) -> dict:
+    api_url = mcp_config.JESSE_API_URL
+    password = mcp_config.JESSE_PASSWORD
+
+    try:
+        auth = hash_password(password)
+        payload = {'days_old': days_old}
+        response = requests.post(
+            f'{api_url}/monte-carlo/purge-sessions',
+            json=payload,
+            headers={'Authorization': auth},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            deleted_count = data.get('deleted_count', 0)
+            return {
+                'status': 'success',
+                'deleted_count': deleted_count,
+                'message': f'Successfully purged {deleted_count} Monte Carlo session(s)',
+            }
+        if response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        return {'status': 'error', 'message': f'Failed to purge sessions: {response.text}'}
+
+    except requests.exceptions.RequestException as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e), 'message': 'Failed to purge Monte Carlo sessions'}

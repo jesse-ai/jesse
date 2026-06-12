@@ -7,6 +7,10 @@ import os
 from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+from matplotlib import pyplot as plt
+
 
 from .common import (
     DEFAULT_CPU_USAGE_RATIO,
@@ -112,8 +116,15 @@ def _ray_run_scenario_monte_carlo(
         result['equity_curve'] = equity_curve
         return {'result': result, 'log': None, 'error': False}
     except Exception as e:
-        error_msg = f"Ray Monte Carlo scenario {scenario_index} failed with exception: {str(e)}"
-        return {'result': None, 'log': error_msg, 'error': True}
+        import traceback
+        full_traceback = traceback.format_exc()
+        error_type = type(e).__name__
+        error_msg = str(e)
+        detailed_error = (
+            f"Scenario {scenario_index} failed with {error_type}: {error_msg}\n"
+            f"{full_traceback}"
+        )
+        return {'result': None, 'log': detailed_error, 'error': True}
 
 
 def monte_carlo_trades(
@@ -128,6 +139,8 @@ def monte_carlo_trades(
     num_scenarios: int = 1000,
     progress_bar: bool = False,
     cpu_cores: Optional[int] = None,
+    progress_callback = None,
+    result_callback = None,
 ) -> MonteCarloTradesReturn:
     if cpu_cores is None:
         available_cores = cpu_count()
@@ -149,7 +162,7 @@ def monte_carlo_trades(
         return _run_monte_carlo_simulation(
             config, routes, data_routes, candles, warmup_candles,
             benchmark, hyperparameters, fast_mode, num_scenarios, progress_bar,
-            cpu_cores, ray_started_here
+            cpu_cores, ray_started_here, progress_callback, result_callback
         )
     except Exception as e:
         jh.debug(f"Error during Monte Carlo simulation: {e}")
@@ -162,7 +175,7 @@ def monte_carlo_trades(
 def _run_monte_carlo_simulation(
     config: dict, routes: List[Dict[str, str]], data_routes: List[Dict[str, str]],
     candles: dict, warmup_candles: dict, benchmark: bool, hyperparameters: dict, fast_mode: bool,
-    num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool
+    num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool, progress_callback=None, result_callback=None
 ) -> dict:
     try:
         original_result = _run_original_backtest(
@@ -178,7 +191,7 @@ def _run_monte_carlo_simulation(
         scenario_refs = _launch_monte_carlo_scenarios(
             num_scenarios, trades_ref, equity_curve_ref, starting_balance
         )
-        results = _process_scenario_results(scenario_refs, pbar)
+        results = _process_scenario_results(scenario_refs, pbar, progress_callback, result_callback)
         if pbar:
             pbar.close()
         print(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
@@ -294,13 +307,14 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
         return {'error': 'Invalid equity curve'}
     data = equity_curve[0]['data']
     values = [item['value'] for item in data]
+
     if not values:
         return {'error': 'No data in equity curve'}
     final_value = values[-1]
-    total_return = (final_value - starting_balance) / starting_balance
+    total_return = ((final_value - starting_balance) / starting_balance) * 100
     max_drawdown = _calculate_max_drawdown(values)
     volatility, sharpe_ratio = _calculate_volatility_metrics(values)
-    calmar_ratio = total_return / max_drawdown if max_drawdown > 0 else 0
+    calmar_ratio = total_return / abs(max_drawdown) if max_drawdown < 0 else 0
     return {
         'total_return': total_return,
         'final_value': final_value,
@@ -313,16 +327,23 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
 
 
 def _calculate_max_drawdown(values: List[float]) -> float:
-    peak = values[0] if values else 0
+    """
+    Calculates the maximum drawdown from equity curve values (prices)
+    Same approach as metrics.py: (prices / prices.expanding(min_periods=0).max()).min() - 1
+    """
+    if not values:
+        return 0.0
+
+    # Find running maximum
+    running_max = values[0]
     max_drawdown = 0.0
-    for value in values:
-        if value > peak:
-            peak = value
-        if peak > 0:
-            current_drawdown = (peak - value) / peak
-            current_drawdown = min(MAX_DRAWDOWN_LIMIT, current_drawdown)
-            max_drawdown = max(max_drawdown, current_drawdown)
-    return max_drawdown
+
+    for price in values:
+        running_max = max(running_max, price)
+        drawdown = price / running_max - 1
+        max_drawdown = min(max_drawdown, drawdown)
+
+    return max_drawdown * 100
 
 
 def _calculate_volatility_metrics(values: List[float]) -> Tuple[float, float]:
@@ -357,12 +378,24 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
             if key in result and isinstance(result[key], (int, float)):
                 metrics[key].append(result[key])
     original_metrics = original_result.get('metrics', {})
+
     confidence_analysis: Dict[str, Any] = {}
     for metric_name, values in metrics.items():
         if not values:
             continue
         values_array = np.array(values)
-        original_value = original_metrics.get(metric_name, 0)
+        
+        # Normalize original metrics to match Monte Carlo scenario format (decimal, not percentage)
+        if metric_name == 'total_return':
+            # Calculate from net_profit_percentage (which is in percentage form)
+            net_profit_pct = original_metrics.get('net_profit_percentage', 0)
+            original_value = net_profit_pct  # Convert to decimal
+        elif metric_name == 'max_drawdown':
+            # Original backtest returns max_drawdown already multiplied by 100
+            max_dd = original_metrics.get('max_drawdown', 0)
+            original_value = max_dd  # Convert to decimal
+        else:
+            original_value = original_metrics.get(metric_name, 0)
         percentiles = {
             '5th': np.percentile(values_array, 5),
             '25th': np.percentile(values_array, 25),
@@ -408,6 +441,7 @@ def _calculate_confidence_intervals(original_result: dict, simulation_results: l
         'significant_metrics_1pct': sum(1 for m in confidence_analysis.values() if m.get('is_significant_1pct', False)),
         'total_metrics': len(confidence_analysis)
     }
+
     return {
         'summary': summary,
         'metrics': confidence_analysis,
@@ -498,8 +532,8 @@ def print_monte_carlo_trades_summary(results: dict) -> None:
             orig_display = f"{orig*100:.1f}%"; p5_disp = f"{p5*100:.1f}%"; p50_disp = f"{p50*100:.1f}%"; p95_disp = f"{p95*100:.1f}%"
         elif display_name == "Max Drawdown":
             display_name = "Max Drawdown (%)"
-            orig_display = f"{abs(orig):.2f}%"
-            p5_disp = f"{abs(p95)*100:.1f}%"; p50_disp = f"{abs(p50)*100:.1f}%"; p95_disp = f"{abs(p5)*100:.1f}%"
+            orig_display = f"{(orig):.1f}%"
+            p5_disp = f"{(p5):.1f}%"; p50_disp = f"{(p50):.1f}%"; p95_disp = f"{(p95):.1f}%"
         elif display_name in ["Sharpe Ratio", "Calmar Ratio"]:
             orig_display = f"{orig:.2f}"; p5_disp = f"{p5:.2f}"; p50_disp = f"{p50:.2f}"; p95_disp = f"{p95:.2f}"
         else:
@@ -526,10 +560,6 @@ def plot_monte_carlo_trades_chart(results: dict, charts_folder: str = None) -> N
         results: The full results dict returned by monte_carlo_trades().
         charts_folder: Optional folder to save charts in.
     """
-    import matplotlib
-    matplotlib.use('Agg')  # Use non-interactive backend
-    from matplotlib import pyplot as plt
-    
     if 'scenarios' not in results or not results['scenarios']:
         print("No trade shuffle scenarios to plot")
         return

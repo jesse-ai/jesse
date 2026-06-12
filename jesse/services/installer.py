@@ -49,17 +49,19 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     if not is_64_bit:
         raise NotImplementedError(f'Only 64-bit machines are supported')
 
-    is_arm = platform.machine().startswith('arm')
+    # platform.machine() returns 'arm64' on macOS but 'aarch64' on Linux (e.g. an
+    # arm64 Docker container on Apple Silicon), so both must be matched.
+    is_arm = platform.machine().lower() in ('arm64', 'aarch64')
     print('is_arm', is_arm)
-    # arm versions of linux and windows are not supported
-    if is_arm and (os_name in ['linux', 'windows']):
-        raise NotImplementedError(f'ARM versions of {os_name} are not supported. If you need them, send a request to contact@jesse.trade')
+    # ARM is supported on macOS and Linux; Windows on ARM is not.
+    if is_arm and os_name == 'windows':
+        raise NotImplementedError('ARM versions of Windows are not supported. If you need them, send a request to contact@jesse.trade')
 
     # format os_name to something acceptable for the API
     if os_name == 'mac':
         formatted_os_name = 'macOS - M1' if is_arm else 'macOS - Intel'
     elif os_name == 'linux':
-        formatted_os_name = 'Linux - x86_64'
+        formatted_os_name = 'Linux - aarch64' if is_arm else 'Linux - x86_64'
     # windows
     else:
         formatted_os_name = 'Windows 10 - 64 bit'

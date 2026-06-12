@@ -1,23 +1,48 @@
 from abc import ABC, abstractmethod
 from time import sleep
 from typing import List, Dict, Union, Optional
-
+import os
+import csv
 import numpy as np
-from gymnasium import spaces
-
+import sys
+# NOTE: gymnasium (the RL dep) is imported lazily inside the RL methods below, so that
+# normal jesse (backtest/live) does not require gymnasium to be installed.
 import jesse.helpers as jh
 import jesse.services.logger as logger
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.enums import sides, order_submitted_via, order_types
 from jesse.models import ClosedTrade, Order, Route, FuturesExchange, SpotExchange, Position
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
+from jesse.services import order_service, candle_service
+from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
 from jesse.services.color import generate_unique_hex_color
+from jesse.research.ml import load_ml_model as _load_ml_model
+
+
+def _np_array_equal(a1, a2) -> bool:
+    # semantically identical to np.array_equal, minus its dispatch overhead for
+    # the small ndarray pairs compared on every candle in
+    # _detect_and_handle_entry_and_exit_modifications
+    if type(a1) is np.ndarray and type(a2) is np.ndarray:
+        if a1.shape != a2.shape:
+            return False
+        n = a1.size
+        if n <= 8:
+            # scalar compares for tiny arrays — same float (and NaN) semantics
+            # as (a1 == a2).all(), without the ufunc dispatch cost
+            f1 = a1.flat
+            f2 = a2.flat
+            for i in range(n):
+                if f1[i] != f2[i]:
+                    return False
+            return True
+        return bool((a1 == a2).all())
+    return np.array_equal(a1, a2)
 
 
 class Strategy(ABC):
@@ -53,20 +78,29 @@ class Strategy(ABC):
         self.take_profit = None
         self._take_profit = None
 
-        self.trade: ClosedTrade = None
+        self.trade: ClosedTrade | None = None
         self.trades_count = 0
 
+        # chart variables
         self._executed_orders = []
         self._add_line_to_candle_chart_values = {}
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
 
+        # Variables used for ML calculations
+        self.ml_mode = getattr(type(self), 'ml_mode', 'gather')
+        self._ml_data_points = []
+        self._current_ml_point = None
+        self._ml_model = None
+        self._ml_scaler = None
+        self._ml_feature_importance = None
+
         self._is_executing = False
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position = None
+        self.position: Position | None = None
         self.broker = None
 
         self._cached_methods = {}
@@ -81,6 +115,236 @@ class Strategy(ABC):
 
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
+
+    def record_features(self, features_dict: dict) -> None:
+        """
+        Record multiple features (inputs) for ML training at once.
+        These will be the independent variables used to predict outcomes.
+
+        Args:
+            features_dict: Dictionary of {feature_name: value} pairs
+                          (e.g., {'rsi_value': 50, 'macd_crossover': True})
+        """
+        # If we don't have an open data point, create one
+        if self._current_ml_point is None:
+            current_time = int(self.current_candle[0] / 1000)
+            self._current_ml_point = {
+                'time': current_time,
+                'features': {},
+                'label': None  # Will be set later when trade completes
+            }
+
+        # Add all features to this data point at once
+        self._current_ml_point['features'].update(features_dict)
+
+    def record_label(self, name: str, value) -> None:
+        """
+        Record a label (output) for ML training.
+        These are the target variables that the model should predict.
+
+        Args:
+            name: Descriptive name of the label (e.g., 'trade_profit', 'win_loss')
+            value: The actual outcome value
+        """
+        # Set the label for the current open data point
+        if self._current_ml_point is not None:
+            self._current_ml_point['label'] = {
+                'name': name,
+                'value': value 
+            }
+
+            # Move this completed data point to our storage and clear the current point
+            self._ml_data_points.append(self._current_ml_point)
+            self._current_ml_point = None
+        else:
+            jh.debug(f"record_label('{name}') called with no open data point — did you forget to call record_features() first?")
+
+    def export_ml_data(self, directory: str | None = None) -> bool:
+        """
+        Export all recorded features and labels to CSV files.
+        Returns True if export was successful, False otherwise.
+
+        Args:
+            directory: Optional output directory. Defaults to strategy location.
+        """
+        try:
+            # Determine output directory
+            if directory is None:
+                try:
+                    module = sys.modules[self.__class__.__module__]
+                    directory = os.path.dirname(os.path.abspath(module.__file__))
+                except Exception as e:
+                    jh.debug(f"Could not determine strategy path, using cwd: {e}")
+                    directory = os.getcwd()
+
+            # Create ml_data subdirectory
+            try:
+                ml_dir = os.path.join(directory, "ml_data")
+                os.makedirs(ml_dir, exist_ok=True)
+            except Exception as e:
+                jh.debug(f"Failed to create ml_data directory: {e}")
+                return False
+
+            # Export data points
+            if self._ml_data_points:
+                try:
+                    data_path = os.path.join(ml_dir, f"{self.name}_data.csv")
+                    with open(data_path, 'w', newline='') as f:
+                        writer = csv.writer(f)
+
+                        # Write header: time, label_name, label_value, feature1, feature2, ...
+                        headers = ['time', 'label_name', 'label_value']
+                        # Get all unique feature names across all data points
+                        all_features = set()
+                        for point in self._ml_data_points:
+                            all_features.update(point['features'].keys())
+                        headers.extend(sorted(all_features))
+
+                        writer.writerow(headers)
+
+                        # Write data rows
+                        for point in self._ml_data_points:
+                            if point['label'] is None:
+                                continue  # Skip points without labels
+
+                            row = [
+                                point['time'],
+                                point['label']['name'],
+                                str(point['label']['value'])
+                            ]
+
+                            # Add all feature values (in consistent order)
+                            for feature_name in sorted(all_features):
+                                row.append(str(point['features'].get(feature_name, '')))
+
+                            writer.writerow(row)
+
+                except Exception as e:
+                    jh.debug(f"Failed to export ML data: {e}")
+                    return False
+
+            return True
+
+        except Exception as e:
+            jh.debug(f"Unexpected error during ML data export: {e}")
+            return False
+
+    def _load_ml_artifacts(self) -> None:
+        """
+        Load the model, scaler, and (if present) feature importance from the
+        strategy's own directory and cache them on the instance.
+
+        After this call:
+            ``self._ml_model``              – fitted estimator
+            ``self._ml_scaler``             – fitted StandardScaler
+            ``self._ml_feature_importance`` – feature importance dict (or None)
+
+        The method is idempotent: if the model is already loaded it returns
+        immediately, so it is safe to call internally on every bar without
+        any extra guard.
+        """
+        if self._ml_model is not None:
+            return
+
+        try:
+            module = sys.modules[self.__class__.__module__]
+            strategy_dir = os.path.dirname(os.path.abspath(module.__file__))
+        except Exception as e:
+            raise FileNotFoundError(
+                f"Could not determine strategy directory from module '{self.__class__.__module__}': {e}"
+            )
+
+        artefacts = _load_ml_model(strategy_dir)
+        self._ml_model              = artefacts["model"]
+        self._ml_scaler             = artefacts["scaler"]
+        self._ml_feature_importance = artefacts.get("feature_importance")
+
+    def ml_features(self) -> dict:
+        """
+        Override this method to define the features used for both ML data gathering
+        and inference. It is the single source of truth for feature computation —
+        define it once and the framework uses it in both gather mode (via
+        ``record_features``) and deploy mode (via ``ml_predict`` /
+        ``ml_predict_proba``).
+
+        Called automatically by ``ml_predict()`` and ``ml_predict_proba()``.
+
+        Returns:
+            dict: ``{feature_name: value}`` pairs. All values should be normalised
+                  (ratios, z-scores, log-returns) so the model generalises across
+                  different price regimes.
+
+        Example::
+
+            def ml_features(self) -> dict:
+                import jesse.indicators as ta
+                atr   = ta.atr(self.candles) + 1e-9
+                price = self.price
+                return {
+                    "rsi_centered":    (ta.rsi(self.candles) - 50) / 50,
+                    "atr_pct":         atr / price,
+                    "ema9_dist":       (price - ta.ema(self.candles, 9))
+                                       / (ta.ema(self.candles, 9) + 1e-9),
+                    "supertrend_dist": (price - ta.supertrend(self.candles).trend) / atr,
+                }
+        """
+        raise NotImplementedError(
+            "Override ml_features() in your strategy to define ML features. "
+            "Return a dict of {feature_name: value} pairs."
+        )
+
+    def ml_predict(self) -> float:
+        """
+        For **regression** models. Loads the model lazily (idempotent), builds
+        features by calling ``self.ml_features()``, scales them with the fitted
+        scaler, and returns the scalar prediction.
+
+        You do not need to load the model manually — it is handled
+        internally. You also never need to touch ``self._ml_scaler`` or
+        ``self._ml_model`` directly.
+
+        Returns:
+            float: The model's scalar prediction (e.g. an expected log-return).
+
+        Raises:
+            NotImplementedError: If ``ml_features()`` has not been overridden.
+            FileNotFoundError:   If ``model.pkl`` / ``scaler.pkl`` are missing.
+        """
+        self._load_ml_artifacts()
+        feats = self.ml_features()
+        keys  = sorted(feats.keys())
+        X     = np.array([[feats[k] for k in keys]])
+        return float(self._ml_model.predict(self._ml_scaler.transform(X))[0])
+
+    def ml_predict_proba(self) -> dict:
+        """
+        For **classification** models (binary or multiclass). Loads the model
+        lazily (idempotent), builds features by calling ``self.ml_features()``,
+        scales them, and returns a probability dict keyed by class label.
+
+        You do not need to load the model manually — it is handled
+        internally. You also never need to touch ``self._ml_scaler`` or
+        ``self._ml_model`` directly.
+
+        Returns:
+            dict: ``{class_label: probability}`` mapping.
+
+            - Binary model   → ``{0: float, 1: float}``
+            - Multiclass model → e.g. ``{-1: float, 0: float, 1: float}``
+
+            Use ``.get(1, 0.0)`` to safely retrieve the probability of a
+            specific class without risking a ``KeyError``.
+
+        Raises:
+            NotImplementedError: If ``ml_features()`` has not been overridden.
+            FileNotFoundError:   If ``model.pkl`` / ``scaler.pkl`` are missing.
+        """
+        self._load_ml_artifacts()
+        feats = self.ml_features()
+        keys  = sorted(feats.keys())
+        X     = np.array([[feats[k] for k in keys]])
+        probs = self._ml_model.predict_proba(self._ml_scaler.transform(X))[0]
+        return {int(cls): float(p) for cls, p in zip(self._ml_model.classes_, probs)}
 
     def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
         # validate value's type
@@ -175,7 +439,7 @@ class Strategy(ABC):
         is just a workaround as a part of not being able to set them inside
         self.__init__() for the purpose of removing __init__() methods from strategies.
         """
-        self.position = selectors.get_position(self.exchange, self.symbol)
+        self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
         if self.hp is None and len(self.hyperparameters()) > 0:
@@ -188,14 +452,14 @@ class Strategy(ABC):
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
 
     @property
     def _qty_precision(self) -> int:
         """
         used when live trading because few exchanges require numbers to have a specific precision
         """
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
+        return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['qty_precision']
 
     def _broadcast(self, msg: str) -> None:
         """Broadcasts the event to all OTHER strategies
@@ -362,7 +626,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -384,7 +648,7 @@ class Strategy(ABC):
         if jh.is_livetrading():
             price_to_compare = jh.round_price_for_live_mode(
                 self.price,
-                selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
+                store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['price_precision']
             )
         else:
             price_to_compare = self.price
@@ -614,7 +878,7 @@ class Strategy(ABC):
                 self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.buy, self._buy):
+                if not _np_array_equal(self.buy, self._buy):
                     self._buy = self.buy.copy()
 
                     # cancel orders
@@ -630,7 +894,7 @@ class Strategy(ABC):
                 self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.sell, self._sell):
+                if not _np_array_equal(self.sell, self._sell):
                     self._sell = self.sell.copy()
 
                     # cancel orders
@@ -646,7 +910,7 @@ class Strategy(ABC):
                 self._prepare_stop_loss(False)
 
                 # if stop_loss has been modified
-                if not np.array_equal(self.stop_loss, self._stop_loss):
+                if not _np_array_equal(self.stop_loss, self._stop_loss):
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -689,7 +953,7 @@ class Strategy(ABC):
                 self._prepare_take_profit(False)
 
                 # if _take_profit has been modified
-                if not np.array_equal(self.take_profit, self._take_profit):
+                if not _np_array_equal(self.take_profit, self._take_profit):
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -735,7 +999,7 @@ class Strategy(ABC):
         if (
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
-                and np.array_equal(self.stop_loss, self.take_profit)
+                and _np_array_equal(self.stop_loss, self.take_profit)
                 and len(self.stop_loss) > 0
         ):
             raise exceptions.InvalidStrategy(
@@ -843,7 +1107,17 @@ class Strategy(ABC):
         Simulate market order execution in backtest mode
         """
         if jh.is_backtesting() or jh.is_unit_testing() or jh.is_paper_trading():
-            store.orders.execute_pending_market_orders()
+            if not store.orders.to_execute:
+                return
+
+            for o in store.orders.to_execute:
+                order_service.execute_order(o)
+                
+                # Update order in database for paper trading
+                if jh.is_paper_trading():
+                    order_repository.store_or_update(o)
+
+            store.orders.to_execute = []
 
     def _on_open_position(self, order: Order) -> None:
         self.increased_count = 1
@@ -893,17 +1167,27 @@ class Strategy(ABC):
         """
         pass
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order: Order, closed_trade: ClosedTrade) -> None:
         """
-        What should happen after the open position order has been executed
+        What should happen after the close position order has been executed. The closed_trade is trade that has been closed.
+
+        Arguments:
+            order: Order -- the order that has been executed
+            closed_trade: ClosedTrade -- the trade that has been closed
         """
         pass
 
-    def _on_close_position(self, order: Order):
+    def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
+        
+        # get the last closed trade
+        closed_trade = store.closed_trades.trades[-1]
+
         self._broadcast('route-close-position')
         self._execute_cancel()
-        self.on_close_position(order)
+
+        # call the on_close_position event
+        self.on_close_position(order, closed_trade)
 
         self._detect_and_handle_entry_and_exit_modifications()
 
@@ -991,10 +1275,10 @@ class Strategy(ABC):
             return
 
         self._is_executing = True
-        
+
         # Cache the current price at the start of execution
         self._cached_price = self.close
-        
+
         self.before()
         self._check()
         self.after()
@@ -1004,6 +1288,46 @@ class Strategy(ABC):
         self._cached_price = None
         self._is_executing = False
         self.index += 1
+
+    def _execute_for_signal_test(self) -> tuple:
+        """
+        Signal-only execution used by rule_significance_test().
+
+        Mirrors _execute() exactly in setup (before(), after(), index increment,
+        cache management) so the strategy state evolves naturally, but never
+        submits any orders. This means the strategy is always in a "no position"
+        state throughout the run, which is exactly what we want: we are testing
+        the raw entry signal, not the position-management logic.
+
+        Returns:
+            (signal, close_price) where signal is:
+                +1  if should_long() returns True
+                -1  if should_short() returns True
+                 0  if both return False
+        """
+        if self._is_executing:
+            return 0, self.close
+
+        self._is_executing = True
+        self._cached_price = self.close
+        close_price = self.close
+
+        try:
+            self.before()
+            should_long = self.should_long()
+            should_short = self.should_short()
+            self.after()
+        finally:
+            self._clear_cached_methods()
+            self._cached_price = None
+            self._is_executing = False
+            self.index += 1
+
+        if should_long:
+            return 1, close_price
+        elif should_short:
+            return -1, close_price
+        return 0, close_price
 
     def _terminate(self) -> None:
         """
@@ -1020,7 +1344,10 @@ class Strategy(ABC):
 
         # fake execution of market orders in backtest simulation
         if not jh.is_live():
-            store.orders.execute_pending_market_orders()
+            if store.orders.to_execute:
+                for o in store.orders.to_execute:
+                    order_service.execute_order(o)
+                store.orders.to_execute = []
 
         if jh.is_live():
             self.terminate()
@@ -1077,7 +1404,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
+        return candle_service.get_current_candle(self.exchange, self.symbol, self.timeframe).copy()
 
     @property
     def open(self) -> float:
@@ -1151,7 +1478,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(self.exchange, self.symbol, self.timeframe)
+        return candle_service.get_candles(self.exchange, self.symbol, self.timeframe)
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
@@ -1163,7 +1490,7 @@ class Strategy(ABC):
 
         :return: np.ndarray
         """
-        return store.candles.get_candles(exchange, symbol, timeframe)
+        return candle_service.get_candles(exchange, symbol, timeframe)
 
     @property
     def metrics(self) -> dict:
@@ -1172,7 +1499,7 @@ class Strategy(ABC):
         """
         if self.trades_count not in self._cached_metrics:
             self._cached_metrics[self.trades_count] = metrics.trades(
-                store.completed_trades.trades, store.app.daily_balance, final=False
+                store.closed_trades.trades, store.app.daily_balance, final=False
             )
         return self._cached_metrics[self.trades_count]
 
@@ -1202,7 +1529,7 @@ class Strategy(ABC):
 
     @property
     def fee_rate(self) -> float:
-        return selectors.get_exchange(self.exchange).fee_rate
+        return store.exchanges.get_exchange(self.exchange).fee_rate
 
     @property
     def is_long(self) -> bool:
@@ -1259,7 +1586,7 @@ class Strategy(ABC):
 
         if jh.is_livetrading() and round_for_live_mode:
             # in livetrade mode, we'll need them rounded
-            current_exchange = selectors.get_exchange(self.exchange)
+            current_exchange = store.exchanges.get_exchange(self.exchange)
 
             # skip rounding if the exchange doesn't have values for 'precisions'
             if 'precisions' not in current_exchange.vars:
@@ -1361,7 +1688,7 @@ class Strategy(ABC):
         elif type(self.position.exchange) is FuturesExchange:
             return self.position.exchange.futures_leverage
         else:
-            raise ValueError('exchange type not supported!')
+            raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
 
     @property
     def mark_price(self) -> float:
@@ -1426,9 +1753,9 @@ class Strategy(ABC):
     @property
     def trades(self) -> List[ClosedTrade]:
         """
-        Returns all the completed trades for this strategy.
+        Returns all the closed trades for this strategy.
         """
-        return store.completed_trades.trades
+        return store.closed_trades.trades
 
     @property
     def orders(self) -> List[Order]:
@@ -1442,25 +1769,25 @@ class Strategy(ABC):
         """
         Returns all the entry orders for this position.
         """
-        return store.orders.get_entry_orders(self.exchange, self.symbol)
+        return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
     def exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_exit_orders(self.exchange, self.symbol)
+        return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
     def active_exit_orders(self):
         """
         Returns all the exit orders for this position.
         """
-        return store.orders.get_active_exit_orders(self.exchange, self.symbol)
+        return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
     def exchange_type(self):
-        return selectors.get_exchange(self.exchange).type
+        return store.exchanges.get_exchange(self.exchange).type
 
     @property
     def is_spot_trading(self) -> bool:
@@ -1495,90 +1822,66 @@ class Strategy(ABC):
         if not jh.is_live():
             raise ValueError('self.min_qty is only available in live modes')
 
-        return selectors.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        try:
+            return store.exchanges.get_exchange(self.exchange).vars['precisions'][self.symbol]['min_qty']
+        except KeyError:
+            return None
+
+    @property
+    def base_asset(self) -> str:
+        return jh.base_asset(self.symbol)
+
+    @property
+    def quote_asset(self) -> str:
+        return jh.quote_asset(self.symbol)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Reinforcement Learning Methods
+    # gymnasium is imported lazily so normal jesse doesn't require the RL deps.
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    def get_observation_space(self) -> spaces.Space:
-        """
-        Define the observation space for the RL agent.
-        This should be implemented in the strategy.
-        
-        Returns:
-            gym.spaces.Space: The observation space
-        """
-        # Default implementation - should be overridden in strategy
+    def get_observation_space(self):
+        """Define the observation space for the RL agent. Override in your strategy."""
+        from gymnasium import spaces
         return spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
 
-    def get_action_space(self) -> spaces.Space:
-        """
-        Define the action space for the RL agent.
-        This should be implemented in the strategy.
-        
-        Returns:
-            gym.spaces.Space: The action space
-        """
-        # Default implementation - should be overridden in strategy
-        # 0: hold, 1: buy, 2: sell
+    def get_action_space(self):
+        """Define the action space for the RL agent (0: hold, 1: buy, 2: sell). Override in your strategy."""
+        from gymnasium import spaces
         return spaces.Discrete(3)
 
     def get_observation(self) -> np.ndarray:
-        """
-        Get current observation for the RL agent.
-        This should be implemented in the strategy.
-        
-        Returns:
-            np.ndarray: Current observation
-        """
-        # Default implementation - should be overridden in strategy
+        """Get the current observation for the RL agent. Override in your strategy."""
         return np.zeros(10, dtype=np.float32)
 
     def calculate_reward(self) -> float:
-        """
-        Calculate reward for the RL agent.
-        This should be implemented in the strategy.
-        
-        Returns:
-            float: Calculated reward
-        """
-        # Default implementation - should be overridden in strategy
+        """Calculate the reward for the RL agent. Override in your strategy."""
         return 0.0
 
     def _check_agent_action(self) -> None:
-        """
-        Check and execute RL agent action if available.
-        This method is called during strategy execution.
-        """
+        """Check and execute the RL agent action if available (called during strategy execution)."""
         if not jh.is_backtesting() or not store.rl.has_action():
             return
-        
+
         # Get action from RL agent
         self.current_action = store.rl.get_action()
-        
+
         # Update observation and reward
         observation = self.get_observation()
         reward = self.calculate_reward()
-        
+
         # Check if episode should end based on strategy logic
         episode_done = self.is_rl_episode_done()
-        
+
         store.rl.set_observation(observation)
         store.rl.set_reward(reward)
         store.rl.set_done(episode_done)
         store.rl.increment_step()
-        
+
         # Clear action after processing
         store.rl.clear_action()
 
     def is_rl_episode_done(self) -> bool:
-        """
-        Check if RL episode should end.
-        This can be overridden in the strategy.
-        
-        Returns:
-            bool: Whether episode should end
-        """
-        # Default implementation - episode ends when position is closed
+        """Check if the RL episode should end. Override in your strategy."""
+        # Default: episode ends only when the candles run out.
         return False

@@ -2,7 +2,8 @@ from random import randint
 
 import jesse.helpers as jh
 from jesse.enums import exchanges, sides, order_types, order_statuses
-from jesse.models import Order
+from jesse.models.Order import Order
+from jesse.services import order_service
 
 first_timestamp = 1552309186171
 
@@ -37,4 +38,4 @@ def fake_order(attributes: dict = None) -> Order:
         'price': attributes.get('price', price),
         'status': attributes.get('status', status),
         'created_at': attributes.get('created_at', created_at),
-    })
+    }) 

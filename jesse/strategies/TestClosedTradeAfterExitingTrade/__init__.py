@@ -20,7 +20,7 @@ class TestClosedTradeAfterExitingTrade(Strategy):
     def should_cancel_entry(self):
         return False
 
-    def on_close_position(self, order):
+    def on_close_position(self, order, closed_trade):
         assert self.trades_count == 1
 
         trade = self.trades[0]

@@ -1,18 +1,19 @@
 from jesse.enums import exchanges
 from jesse.models import Position
 from jesse.testing_utils import set_up, single_route_backtest
+from jesse.services import position_service
 
 
 def test_increase_a_long_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 50,
         'qty': 2,
     })
 
-    p._mutating_increase(2, 100)
+    position_service._mutating_increase(p, 2, 100)
 
     assert p.qty == 4
     assert p.entry_price == 75
@@ -21,20 +22,20 @@ def test_increase_a_long_position():
 def test_increase_a_short_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 50,
         'qty': -2,
     })
 
-    p._mutating_increase(2, 40)
+    position_service._mutating_increase(p, 2, 40)
 
     assert p.qty == -4
     assert p.entry_price == 45
 
 
 def test_initiating_position():
-    position = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'current_price': 100,
         'qty': 0
     })
@@ -52,13 +53,13 @@ def test_initiating_position():
 def test_is_able_to_close_via_reduce_position_too():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 50,
         'qty': 2,
     })
 
-    p._mutating_reduce(2, 50)
+    position_service._mutating_reduce(p, 2, 50)
 
     assert p.qty == 0
 
@@ -66,14 +67,14 @@ def test_is_able_to_close_via_reduce_position_too():
 def test_open_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT')
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT')
 
     assert p.qty == 0
     assert p.entry_price is None
     assert p.exit_price is None
     assert p.current_price is None
 
-    p._mutating_open(1, 50)
+    position_service._mutating_open(p, 1, 50)
 
     assert p.qty == 1
     assert p.entry_price == 50
@@ -81,7 +82,7 @@ def test_open_position():
 
 
 def test_position_is_close():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 60,
         'qty': 0,
@@ -93,7 +94,7 @@ def test_position_is_close():
 
 
 def test_position_is_open():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 60,
         'qty': 2,
@@ -106,7 +107,7 @@ def test_position_is_open():
 
 def test_position_pnl():
     # long winning position
-    p1: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p1: Position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 100,
         'current_price': 110,
         'qty': 2,
@@ -114,7 +115,7 @@ def test_position_pnl():
     assert p1.pnl == 20
 
     # long losing position
-    p2: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p2: Position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 100,
         'current_price': 90,
         'qty': 2,
@@ -122,7 +123,7 @@ def test_position_pnl():
     assert p2.pnl == -20
 
     # short winning position
-    p3: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p3: Position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 100,
         'current_price': 90,
         'qty': -2,
@@ -130,7 +131,7 @@ def test_position_pnl():
     assert p3.pnl == 20
 
     # short losing position
-    p3: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p3: Position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 100,
         'current_price': 110,
         'qty': -2,
@@ -139,7 +140,7 @@ def test_position_pnl():
 
 
 def test_position_pnl_percentage():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 60,
         'qty': 2,
@@ -160,8 +161,8 @@ def test_position_pnl_percentage():
 
 def test_position_roi():
     set_up()
-    p = Position(exchanges.SANDBOX, 'BTC-USDT')
-    p._mutating_open(3, 100)
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT')
+    position_service._mutating_open(p, 3, 100)
     p.current_price = 110
 
     assert p.value == 330
@@ -171,13 +172,13 @@ def test_position_roi():
 
 
 def test_position_type():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 0})
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 0})
     assert p.type == 'close'
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
     assert p.type == 'long'
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'current_price': 100,
         'qty': -1
     })
@@ -185,13 +186,13 @@ def test_position_type():
 
 
 def test_position_value():
-    long_position = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
-    short_position = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': -1})
+    long_position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
+    short_position = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': -1})
 
     assert long_position.value == 100
     assert short_position.value == 100
 
-    closed_position_value = Position(exchanges.SANDBOX, 'BTC-USDT', {'qty': 0})
+    closed_position_value = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {'qty': 0})
     assert closed_position_value.value == 0
 
 
@@ -206,13 +207,13 @@ def test_position_with_leverage():
 def test_reduce_a_long_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 50,
         'qty': 2,
     })
 
-    p._mutating_reduce(1, 50)
+    position_service._mutating_reduce(p, 1, 50)
 
     assert p.qty == 1
 
@@ -220,13 +221,13 @@ def test_reduce_a_long_position():
 def test_reduce_a_short_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
+    p = position_service.create_position(exchanges.SANDBOX, 'BTC-USDT', {
         'entry_price': 50,
         'current_price': 50,
         'qty': -2,
     })
 
-    p._mutating_reduce(1, 50)
+    position_service._mutating_reduce(p, 1, 50)
 
     assert p.qty == -1
 

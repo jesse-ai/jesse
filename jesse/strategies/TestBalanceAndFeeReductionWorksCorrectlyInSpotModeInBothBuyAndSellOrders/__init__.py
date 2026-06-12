@@ -62,7 +62,7 @@ class TestBalanceAndFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders(S
         assert self.balance == 9966 + 14.970015
         self.vars['called_on_reduced_position'] = True
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.qty == -1.998
         assert self.balance == 9966 + 14.970015 + 33.932034
         self.vars['called_on_close_position'] = True

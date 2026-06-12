@@ -20,7 +20,7 @@ class TestStopOrderShouldConsiderExecutedTakeProfitOrdersInSpot(Strategy):
         assert self.position.qty == 1
         self.stop_loss = 1, self.price - 1
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         last_trade = self.trades[-1]
 
         if self.trades_count == 1:

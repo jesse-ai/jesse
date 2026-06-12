@@ -3,6 +3,7 @@ from jesse.enums import exchanges
 from jesse.factories import fake_order
 from jesse.store import store
 from jesse.routes import router
+from jesse.services import exchange_service, order_service, position_service
 import jesse.helpers as jh
 
 
@@ -14,6 +15,14 @@ def set_up():
         {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USD', 'timeframe': '1m', 'strategy': 'TestVanillaStrategy'}
     ]
     router.initiate(routes)
+    # reset store
+    store.reset() 
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
 
 
 def test_add_new_order():

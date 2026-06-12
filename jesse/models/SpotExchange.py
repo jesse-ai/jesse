@@ -1,7 +1,7 @@
 import jesse.helpers as jh
 from jesse.enums import sides
 from jesse.exceptions import InsufficientBalance
-from jesse.models import Order
+from jesse.models.Order import Order
 from jesse.models.Exchange import Exchange
 from jesse.enums import order_types
 from jesse.utils import sum_floats, subtract_floats

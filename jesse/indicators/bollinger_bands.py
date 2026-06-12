@@ -10,9 +10,11 @@ from jesse.indicators.median_ad import median_ad
 # Try to import the high-performance Rust implementation
 try:
     from jesse_rust import bollinger_bands as bb_rust  # type: ignore
+    from jesse_rust import bollinger_bands_last as bb_last_rust  # type: ignore
     from jesse_rust import moving_std
 except ImportError:  # pragma: no cover
     bb_rust = None  # type: ignore
+    bb_last_rust = None  # type: ignore
     from jesse_rust import moving_std
 
 
@@ -69,7 +71,13 @@ def bollinger_bands(
 
     # Use optimized Rust implementation for standard case (SMA + standard deviation)
     if bb_rust is not None and matype == 0 and devtype == 0:
-        upperbands, middlebands, lowerbands = bb_rust(source.astype(np.float64), period, devup, devdn)
+        if source.dtype != np.float64:
+            source = source.astype(np.float64)
+        if not sequential:
+            # same Rust recurrence, but skips allocating the full output series
+            u, m, l = bb_last_rust(source, period, devup, devdn)
+            return BollingerBands(np.float64(u), np.float64(m), np.float64(l))
+        upperbands, middlebands, lowerbands = bb_rust(source, period, devup, devdn)
     else:
         # Handle special cases or fallback
         if matype == 24 or matype == 29:

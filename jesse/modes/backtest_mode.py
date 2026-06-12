@@ -1,31 +1,34 @@
+import os
 import time
 import re
 from typing import Dict, List, Tuple, Optional
 import numpy as np
 import jesse.helpers as jh
 import jesse.services.metrics as stats
-import jesse.services.selectors as selectors
 from jesse import exceptions
 from jesse.config import config
 from jesse.enums import timeframes, order_types
 from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
-from jesse.research.monte_carlo.candle_pipelines import BaseCandlesPipeline
+from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report
-from jesse.services.candle import generate_candle_from_one_minutes, print_candle, candle_includes_price, split_candle, \
-    get_candles, inject_warmup_candles_to_store
+from jesse.services import candle_service
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
 from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish, is_process_active
+from jesse.services import order_service
 from timeloop import Timeloop
 from datetime import timedelta
 from jesse.services.progressbar import Progressbar
 from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
+from jesse.services import candle_service, order_service, position_service, exchange_service
+from jesse_rust import candle_from_one_minutes as candle_from_one_minutes_rust
+from jesse_rust import fix_jumped_candles as fix_jumped_candles_rust
 
 
 def run(
@@ -43,7 +46,8 @@ def run(
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
-        benchmark: bool = False
+        benchmark: bool = False,
+        theme: str = 'light'
 ) -> None:
     if not jh.is_unit_testing():
         # at every second, we check to see if it's time to execute stuff
@@ -66,7 +70,7 @@ def run(
 
     _execute_backtest(
         client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles, chart,
-        tradingview, csv, json, fast_mode, benchmark
+        tradingview, csv, json, fast_mode, benchmark, theme
     )
 
 
@@ -85,7 +89,8 @@ def _execute_backtest(
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
-        benchmark: bool = False
+        benchmark: bool = False,
+        theme: str = 'light'
 ):
     """
     Executes the backtest that has been initiated from within the dashboard. The purpose of extracting these
@@ -102,16 +107,31 @@ def _execute_backtest(
         r['exchange'] = exchange
     for r in data_routes:
         r['exchange'] = exchange
+
     # set routes
     router.initiate(routes, data_routes)
-
+    # reset store
+    store.reset()
+    # set session id
     store.app.set_session_id(client_id)
-
     # validate routes
     validate_routes(router)
-
     # initiate candle store
     store.candles.init_storage(5000)
+    # initialize exchanges state
+    exchange_service.initialize_exchanges_state()
+    # initialize orders state
+    order_service.initialize_orders_state()
+    # initialize positions state
+    position_service.initialize_positions_state()
+
+    # Store backtest session in database (only for UI dashboard, not for CLI/research)
+    if not jh.should_execute_silently():
+        from jesse.models.BacktestSession import store_backtest_session
+        store_backtest_session(
+            id=client_id,
+            status='running'
+        )
 
     # load historical candles
     if candles is None:
@@ -122,18 +142,9 @@ def _execute_backtest(
             )
             _handle_warmup_candles(warmup_candles, start_date)
         except exceptions.CandlesNotFound as e:
-            # Extract symbol and exchange from error message
-            match = re.search(r"for (.*?) on (.*?)$", str(e))
-            if match:
-                symbol, exchange = match.groups()
-                raise exceptions.CandlesNotFound({
-                    'message': str(e),
-                    'symbol': symbol,
-                    'exchange': exchange,
-                    'start_date': start_date,
-                    'type': 'missing_candles'
-                })
-            raise e
+            _handle_sync_no_candles(e, start_date, exchange, client_id=client_id, finish_date=finish_date)
+        except exceptions.CandleNotFoundInDatabase as e:
+            _handle_sync_no_candles(e, start_date, exchange, client_id=client_id, finish_date=finish_date)
 
     if not jh.should_execute_silently():
         sync_publish('general_info', {
@@ -155,7 +166,6 @@ def _execute_backtest(
             generate_tradingview=tradingview,
             generate_csv=csv,
             generate_json=json,
-            generate_equity_curve=True,
             benchmark=benchmark,
             generate_hyperparameters=True,
             fast_mode=fast_mode,
@@ -182,10 +192,19 @@ def _execute_backtest(
             # retry the backtest simulation
             _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
-                chart, tradingview, csv, json, fast_mode, benchmark
+                chart, tradingview, csv, json, fast_mode, benchmark, theme
             )
+            return
         else:
             raise e
+    except Exception as e:
+        # Store exception in database (only for UI dashboard)
+        if not jh.should_execute_silently():
+            import traceback
+            from jesse.models.BacktestSession import store_backtest_session_exception, update_backtest_session_status
+            store_backtest_session_exception(client_id, str(e), traceback.format_exc())
+            update_backtest_session_status(client_id, 'stopped')
+        raise
 
     if result and not jh.should_execute_silently():
         sync_publish('alert', {
@@ -194,25 +213,133 @@ def _execute_backtest(
         })
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
-        sync_publish('equity_curve', result['equity_curve'], compression=True)
         sync_publish('trades', result['trades'], compression=True)
+
+        # Generate six analytical chart images (equity_curve, drawdown, underwater,
+        # monthly_heatmap, monthly_distribution, trade_pnl).
+        # Must be called BEFORE store.reset() since it reads from the live store.
+        _charts_folder = os.path.abspath('storage/backtest-charts')
+        charts._plot_backtest_charts(
+            session_id=client_id,
+            charts_folder=_charts_folder,
+            theme=theme,
+            benchmark=benchmark,
+        )
+        # Notify the frontend that all six images are ready.
+        sync_publish('charts_image_ready', {'session_id': client_id})
+        
+        # Prepare chart data if requested (call formatting functions once and cache)
+        chart_data = None
         if chart:
-            sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
-            sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
-            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart(), compression=True)
-            sync_publish('add_extra_line_chart', _get_add_extra_line_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart(), compression=True)
-            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart(), compression=True)
+            # Store the data for database
+            chart_data = {
+                'candles_chart': _get_formatted_candles_for_frontend(),
+                'orders_chart': _get_formatted_orders_for_frontend(),
+                'add_line_to_candle_chart': _get_add_line_to_candle_chart(),
+                'add_extra_line_chart': _get_add_extra_line_chart(),
+                'add_horizontal_line_to_candle_chart': _get_add_horizontal_line_to_candle_chart(),
+                'add_horizontal_line_to_extra_chart': _get_add_horizontal_line_to_extra_chart()
+            }
+        
+        # Capture strategy codes for each route
+        strategy_codes = {}
+        for r in router.routes:
+            key = f"{r.exchange}-{r.symbol}"
+            if key not in strategy_codes:
+                try:
+                    strategy_path = f'strategies/{r.strategy_name}/__init__.py'
+                    
+                    if os.path.exists(strategy_path):
+                        with open(strategy_path, 'r') as f:
+                            content = f.read()
+                        strategy_codes[key] = content
+                except Exception:
+                    pass
+        
+        # Update backtest session in database with results
+        from jesse.models.BacktestSession import update_backtest_session_results, update_backtest_session_status
+        update_backtest_session_results(
+            id=client_id,
+            metrics=result.get('metrics'),
+            trades=result.get('trades'),
+            hyperparameters=result.get('hyperparameters'),
+            chart_data=chart_data,
+            execution_duration=result.get('execution_duration'),
+            strategy_codes=strategy_codes if strategy_codes else None
+        )
+        update_backtest_session_status(client_id, 'finished')
 
     # close database connection
     from jesse.services.db import database
     database.close_connection()
+    
+
+def _handle_sync_no_candles(e, start_date, exchange, client_id=None, finish_date=None):
+    # Prefer the structured payload the missing-candle helpers raise; only fall back
+    # to parsing the message string if the symbol isn't carried on the exception.
+    symbol = None
+    payload = e.args[0] if getattr(e, 'args', None) else None
+    if isinstance(payload, dict):
+        symbol = payload.get('symbol')
+    if not symbol:
+        match = re.search(r"for (.*?) on (.*?)$", str(e))
+        if match:
+            symbol = match.group(1)
+
+    if symbol:
+        # Compute the earliest date the run actually needs (warm-up candles included)
+        # so the error tells the agent/user exactly what to import to fix it.
+        warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+        required_start = start_date
+        if warmup_num > 0:
+            required_start_ts = jh.date_to_timestamp(start_date) - (
+                warmup_num * jh.timeframe_to_one_minutes(jh.max_timeframe(config['app']['considering_timeframes'])) * 2 * 60_000)
+            required_start = jh.timestamp_to_date(required_start_ts)
+
+        message = (
+            f"Missing candles for {symbol} on {exchange}. This run needs data from "
+            f"{required_start}" + (f" to {finish_date}" if finish_date else "") +
+            f" (which includes {warmup_num} warm-up candles before the start date). "
+            f"Import candles for {symbol} on {exchange} starting {required_start}, then re-run."
+        )
+
+        sync_publish(
+            "missing_candles",
+            {
+                "message": message,
+                "symbol": symbol,
+                "exchange": exchange,
+                "start_date": required_start,
+            },
+        )
+
+        # Persist a terminal error on the session so MCP/dashboard callers stop polling
+        # a session that would otherwise stay "running" forever. Previously the
+        # candle-shortage path raised without ever marking the session stopped, which
+        # surfaced to API clients as a silent hang.
+        if client_id is not None and not jh.should_execute_silently():
+            from jesse.models.BacktestSession import (
+                store_backtest_session_exception,
+                update_backtest_session_status,
+            )
+            store_backtest_session_exception(client_id, message, '')
+            update_backtest_session_status(client_id, 'stopped')
+
+        raise exceptions.CandlesNotFound({
+            'message': message,
+            'symbol': symbol,
+            'exchange': exchange,
+            'start_date': required_start,
+            'finish_date': finish_date,
+            'type': 'missing_candles'
+        })
+    raise e
 
 
 def _get_formatted_candles_for_frontend():
     arr = []
     for r in router.routes:
-        candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        candles_arr = candle_service.get_candles(r.exchange, r.symbol, r.timeframe)
         # Find the index where the starting time actually begins.
         starting_index = 0
         for i, c in enumerate(candles_arr):
@@ -331,7 +458,7 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     warmup_candles = {}
     for c in config['app']['considering_candles']:
         exchange, symbol = c[0], c[1]
-        warmup_candles_arr, trading_candle_arr = get_candles(
+        warmup_candles_arr, trading_candle_arr = candle_service.get_candles_from_db(
             exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
         )
 
@@ -372,7 +499,7 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
     try:
         for c in config['app']['considering_candles']:
             exchange, symbol = c[0], c[1]
-            inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
+            candle_service.inject_warmup_candles_to_store(warmup_candles[jh.key(exchange, symbol)]['candles'], exchange, symbol)
     except ValueError as e:
         # Extract exchange and symbol from error message
         match = re.search(r"for (.*?)/(.*?)\?", str(e))
@@ -430,24 +557,175 @@ def _step_simulator(
 
     begin_time_track = time.time()
 
-    # Create generator for step-by-step simulation
-    sim_generator = run_simulation_iter(
-        candles,
+    length = _simulation_minutes_length(candles)
+
+    # NOTE (RL branch): normal step backtests use this perf-optimized inline loop. The RL
+    # environment drives run_simulation_iter() directly (see jesse/research/reinforcement_learning.py),
+    # so _step_simulator no longer needs to go through the generator.
+    _prepare_times_before_simulation(candles)
+    candles_pipelines = _prepare_routes(
         hyperparameters=hyperparameters,
         with_candles_pipeline=with_candles_pipeline,
         candles_pipeline_class=candles_pipeline_class,
-        candles_pipeline_kwargs=candles_pipeline_kwargs,
-        fast_mode=False
+        candles_pipeline_kwargs=candles_pipeline_kwargs
     )
 
-    length = _simulation_minutes_length(candles)
+    # add initial balance
+    save_daily_portfolio_balance(is_initial=True)
+
     progressbar = Progressbar(length, step=420)
     last_update_time = None
 
-    # Run through the generator
-    for i in sim_generator:
-        last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
-                                                last_update_time=last_update_time)
+    # hoist loop-invariant lookups out of the per-minute hot loop
+    candles_info = [
+        (candles[j]['candles'], candles_pipelines[j], candles[j]['exchange'], candles[j]['symbol'])
+        for j in candles
+    ]
+    # bigger timeframes to generate (1m needs no work)
+    generating_timeframes = [
+        (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+        for timeframe in config['app']['considering_timeframes']
+        if timeframe != timeframes.MINUTE_1
+    ]
+    routes_info = [
+        (r, TIMEFRAME_TO_ONE_MINUTES[r.timeframe], r.strategy, r.exchange, r.symbol)
+        for r in router.routes
+    ]
+    print_shorter_period_candles = jh.is_debuggable('shorter_period_candles')
+    print_trading_candles = jh.is_debuggable('trading_candles')
+    store_app = store.app
+    add_candle = candle_service.add_candle
+    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
+    update_active_orders = order_service.update_active_orders
+    execute_simulated_market_orders = order_service.execute_simulated_market_orders
+
+    # When a pair has no candles pipeline, the per-minute 1m work is fully
+    # deterministic upfront: the jumped-candle fix only reads closes (which it
+    # never writes), so one Rust pass over the whole series is bit-exact
+    # equivalent to applying it minute by minute; and since the series is
+    # strictly increasing in time, every per-minute add_candle is a plain
+    # append. So we gap-fix once, bulk-copy the candles into the storage
+    # buffer, and per minute just advance the storage index instead of paying
+    # for add_candle + DynamicNumpyArray.append on every single minute.
+    # If ANY guard below fails, arr_1m stays None and that pair takes the
+    # original per-minute path in the loop — the prefill is purely opt-in.
+    prefilled = []
+    for candles_arr, candles_pipeline, exchange, symbol in candles_info:
+        arr_1m = None
+        if (
+            # pipelines rewrite candles batch-by-batch — can't precompute
+            candles_pipeline is None
+            # storage buffer and the Rust fix kernel are float64
+            and candles_arr.dtype == np.float64
+            # fix_jumped_candles_rust mutates the array in place
+            and candles_arr.flags.writeable
+            # the loop below indexes candles_arr[i] for i in range(length)
+            and len(candles_arr) == length
+            # a zero timestamp takes add_candle's special debug/return path
+            and not (candles_arr[:, 0] == 0).any()
+            # strictly increasing timestamps guarantee every per-minute
+            # add_candle would have hit its plain-append branch (never the
+            # update/backfill branches), which is all an index bump replicates
+            and (length < 2 or (np.diff(candles_arr[:, 0]) > 0).all())
+        ):
+            storage = store.candles.get_storage(exchange, symbol, '1m')
+            base = storage.index + 1
+            # warmup continuity: the series must strictly follow whatever
+            # warmup candles already sit in storage, for the same reason
+            if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
+                fix_jumped_candles_rust(candles_arr)
+                needed = base + length
+                if needed > len(storage.array):
+                    # grow the buffer once upfront (same end state that
+                    # DynamicNumpyArray.append's geometric growth reaches)
+                    new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
+                    new_array[:base] = storage.array[:base]
+                    storage.array = new_array
+                storage.array[base:base + length] = candles_arr
+                arr_1m = storage
+        prefilled.append(arr_1m)
+    candles_info = [info + (prefilled[idx],) for idx, info in enumerate(candles_info)]
+
+    for i in range(length):
+        # update time
+        store_app.time = first_candles_set[i, 0] + 60_000
+        i_next = i + 1
+
+        # add candles
+        for candles_arr, candles_pipeline, exchange, symbol, arr_1m in candles_info:
+            if arr_1m is not None:
+                # candles were gap-fixed and copied into the storage buffer
+                # upfront; "appending" this minute's candle is an index bump
+                short_candle = candles_arr[i]
+                arr_1m.index += 1
+            else:
+                if candles_pipeline is None:
+                    short_candle = candles_arr[i]
+                else:
+                    short_candle = candles_pipeline.get_candles(
+                        candles_arr[i: i + candles_pipeline._batch_size], i, -1
+                    )
+                if i != 0:
+                    short_candle = _get_fixed_jumped_candle(candles_arr[i - 1], short_candle)
+                # Persist the synthetic candle back into the array so the higher-timeframe
+                # generation below (and the next iteration's gap-fix reference) are built from the
+                # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
+                # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
+                # real candles while fills ran on the synthetic prices, so the full (step) simulator
+                # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
+                candles_arr[i] = short_candle
+
+                add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
+                           with_generation=False)
+
+            # print short candle
+            if print_shorter_period_candles:
+                candle_service.print_candle(short_candle, True, symbol)
+
+            _simulate_price_change_effect(short_candle, exchange, symbol)
+
+            # generate and add candles for bigger timeframes
+            for timeframe, count in generating_timeframes:
+                if i_next % count == 0:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles_arr[(i_next - count):i_next]
+                    )
+
+                    add_candle(
+                        generated_candle,
+                        exchange,
+                        symbol,
+                        timeframe,
+                        with_execution=False,
+                        with_generation=False
+                    )
+
+        # when run_silently, _update_progress_bar is a no-op that still paid
+        # for a call + time.time() every minute — skip it entirely
+        if not run_silently:
+            last_update_time = _update_progress_bar(progressbar, run_silently, i, candle_step=420,
+                                                    last_update_time=last_update_time)
+
+        # now that all new generated candles are ready, execute
+        for r, count, strategy, exchange, symbol in routes_info:
+            # 1m timeframe
+            if count == 1:
+                strategy._execute()
+            elif i_next % count == 0:
+                # print candle
+                if print_trading_candles:
+                    candle_service.print_candle(candle_service.get_current_candle(exchange, symbol, r.timeframe), False,
+                                 symbol)
+                strategy._execute()
+
+            update_active_orders(exchange, symbol)
+
+        # now check to see if there's any MARKET orders waiting to be executed
+        execute_simulated_market_orders()
+
+        if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
 
     _finish_progress_bar(progressbar, run_silently)
 
@@ -456,6 +734,16 @@ def _step_simulator(
         # print executed time for the backtest session
         finish_time_track = time.time()
         execution_duration = round(finish_time_track - begin_time_track, 2)
+
+    for r in router.routes:
+        r.strategy._terminate()
+        order_service.execute_simulated_market_orders()
+
+    # now that backtest simulation is finished, add finishing balance
+    save_daily_portfolio_balance()
+
+    # set the ending time for the backtest session
+    store.app.ending_time = store.app.time + 60_000
 
     result = _generate_outputs(
         candles,
@@ -491,7 +779,8 @@ def _prepare_times_before_simulation(candles: dict) -> None:
     store.app.time = first_candles_set[0][0]
 
 
-def _prepare_routes(hyperparameters: dict = None,
+def _prepare_routes(
+                    hyperparameters: dict = None,
                     with_candles_pipeline: bool = True,
                     candles_pipeline_class = None,
                     candles_pipeline_kwargs: dict = None,
@@ -522,20 +811,26 @@ def _prepare_routes(hyperparameters: dict = None,
         r.strategy.symbol = r.symbol
         r.strategy.timeframe = r.timeframe
 
-        # read the dna from strategy's dna() and use it for injecting inject hyperparameters
-        # first convert DNS string into hyperparameters
-        if len(r.strategy.dna()) > 0 and hyperparameters is None:
-            hyperparameters = jh.dna_to_hp(
+        # Determine hyperparameters for this specific route.
+        # External hyperparameters (passed from optimize mode) take priority;
+        # otherwise fall back to the route's own DNA string.
+        # A per-route local variable is used so the loop never leaks one
+        # strategy's decoded HP into the next strategy.
+        route_hp = hyperparameters
+        if route_hp is None and len(r.strategy.dna()) > 0:
+            route_hp = jh.dna_to_hp(
                 r.strategy.hyperparameters(), r.strategy.dna()
             )
 
         # inject hyperparameters sent within the optimize mode
-        if hyperparameters is not None:
-            r.strategy.hp = hyperparameters
+        if route_hp is not None:
+            r.strategy.hp = route_hp
 
         # init few objects that couldn't be initiated in Strategy __init__
         # it also injects hyperparameters into self.hp in case the route does not uses any DNAs
         r.strategy._init_objects()
+
+        # monte-carlo simulation
         if with_candles_pipeline:
             if candles_pipeline_class is not None:
                 # Use the provided pipeline class with kwargs if available
@@ -544,10 +839,10 @@ def _prepare_routes(hyperparameters: dict = None,
             else:
                 # Otherwise, fall back to the strategy's pipeline
                 candles_pipeline[jh.key(r.exchange, r.symbol)] = r.strategy.candles_pipeline()
-        else:
+        else: # normal backtest
             candles_pipeline[jh.key(r.exchange, r.symbol)] = None
 
-        selectors.get_position(r.exchange, r.symbol).strategy = r.strategy
+        store.positions.get_position(r.exchange, r.symbol).strategy = r.strategy
 
     # Ensure pipelines exist for data routes as well (no strategy attached)
     # Keys in `candles` include both trading and data routes; provide a pipeline (or None) for each
@@ -620,46 +915,50 @@ def _get_fixed_jumped_candle(
     :param previous_candle: np.ndarray
     :param candle: np.ndarray
     """
-    if previous_candle[2] < candle[1]:
-        candle[1] = previous_candle[2]
-        candle[4] = min(previous_candle[2], candle[4])
-    elif previous_candle[2] > candle[1]:
-        candle[1] = previous_candle[2]
-        candle[3] = max(previous_candle[2], candle[3])
+    previous_close = previous_candle[2]
+    candle_open = candle[1]
+    if previous_close < candle_open:
+        candle[1] = previous_close
+        if previous_close < candle[4]:
+            candle[4] = previous_close
+    elif previous_close > candle_open:
+        candle[1] = previous_close
+        if previous_close > candle[3]:
+            candle[3] = previous_close
 
     return candle
 
 
 def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol: str) -> None:
-    current_temp_candle = real_candle.copy()
-    executed_order = False
-
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
-    if len(executing_orders) > 1:
-        # extend the candle shape from (6,) to (1,6)
-        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
-    while True:
-        if len(executing_orders) == 0:
+    # the vast majority of candles have no order waiting to be executed inside
+    # them, so only pay for the candle copy + execution loop when needed.
+    any_order_executed = False
+    if executing_orders:
+        current_temp_candle = real_candle.copy()
+        if len(executing_orders) > 1:
+            # extend the candle shape from (6,) to (1,6)
+            executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
+
+        while True:
             executed_order = False
-        else:
-            for index, order in enumerate(executing_orders):
-                if index == len(executing_orders) - 1 and not order.is_active:
-                    executed_order = False
 
+            for index, order in enumerate(executing_orders):
                 if not order.is_active:
                     continue
 
-                if candle_includes_price(current_temp_candle, order.price):
-                    storable_temp_candle, current_temp_candle = split_candle(current_temp_candle, order.price)
+                if candle_service.candle_includes_price(current_temp_candle, order.price):
+                    storable_temp_candle, current_temp_candle = candle_service.split_candle(current_temp_candle, order.price)
                     _update_all_routes_a_partial_candle(exchange, symbol, storable_temp_candle)
 
-                    p = selectors.get_position(exchange, symbol)
+                    p = store.positions.get_position(exchange, symbol)
                     p.current_price = storable_temp_candle[2]
 
                     executed_order = True
+                    any_order_executed = True
 
-                    order.execute()
+                    order_service.execute_order(order)
                     executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
                     if len(executing_orders) > 1:
                         # extend the candle shape from (6,) to (1,6)
@@ -668,26 +967,31 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
                     break
-                else:
-                    executed_order = False
 
-        if not executed_order:
-            # add/update the real_candle to the store so we can move on
-            store.candles.add_candle(
-                real_candle, exchange, symbol, '1m',
-                with_execution=False,
-                with_generation=False
-            )
-            p = selectors.get_position(exchange, symbol)
-            if p:
-                p.current_price = real_candle[2]
-            break
+            if not executed_order:
+                break
 
-    _check_for_liquidations(real_candle, exchange, symbol)
+    if any_order_executed:
+        # partial candles were stored during order execution; restore the
+        # real_candle in the store so we can move on. When nothing executed,
+        # the caller (_step_simulator) already added this exact candle right
+        # before calling us, so there is nothing to restore.
+        candle_service.add_candle(
+            real_candle, exchange, symbol, '1m',
+            with_execution=False,
+            with_generation=False
+        )
+
+    p = store.positions.get_position(exchange, symbol)
+    if p:
+        p.current_price = real_candle[2]
+
+    _check_for_liquidations(real_candle, exchange, symbol, position=p)
 
 
-def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> None:
-    p: Position = selectors.get_position(exchange, symbol)
+def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str, position: Position = None) -> None:
+    # accept an already-fetched position to avoid a second lookup on the hot path
+    p: Position = position if position is not None else store.positions.get_position(exchange, symbol)
 
     if not p:
         return
@@ -696,7 +1000,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
     if p.mode != 'isolated':
         return
 
-    if candle_includes_price(candle, p.liquidation_price):
+    if candle_service.candle_includes_price(candle, p.liquidation_price):
         closing_order_side = jh.closing_side(p.type)
 
         # create the market order that is used as the liquidation order
@@ -717,7 +1021,7 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 
         logger.info(f'{p.symbol} liquidated at {p.liquidation_price}')
 
-        order.execute()
+        order_service.execute_order(order)
 
 
 def _generate_outputs(
@@ -783,13 +1087,89 @@ def _skip_simulator(
 
     length = _simulation_minutes_length(candles)
     candles_step = _calculate_minimum_candle_step()
+
+    # Skip-mode analogue of the step simulator's 1m-storage prefill (see
+    # _step_simulator). For pipeline-less pairs, the only mutations the
+    # per-step loop ever applies to the input series are the step-boundary
+    # jumped-candle fixes (the fix reads only the previous candle's close,
+    # which no fix ever writes, so applying them upfront in ascending order is
+    # bit-exact), and each order-free step's add_multiple_1m_candles is a
+    # plain append of those exact rows. So: apply the boundary fixes once,
+    # bulk-copy the fixed series into the 1m storage buffer, and let
+    # order-free steps advance the storage index instead of re-copying rows
+    # every step. Steps in which orders execute keep the original write path
+    # untouched (their per-minute add_candle calls overwrite the prefilled
+    # rows and the trailing add_multiple_1m_candles restores them, exactly as
+    # before). Guards fall back to the original path: if any of them fails,
+    # the pair is simply absent from `prefilled` and is handled exactly as it
+    # used to be (see _step_simulator's prefill for the per-guard rationale).
+    prefilled = {}
+    for j in candles:
+        candles_arr = candles[j]['candles']
+        if (
+            candles_pipelines[j] is None
+            and candles_arr.dtype == np.float64
+            and candles_arr.flags.writeable
+            and len(candles_arr) == length
+            and not (candles_arr[:, 0] == 0).any()
+            and (length < 2 or (np.diff(candles_arr[:, 0]) > 0).all())
+        ):
+            storage = store.candles.get_storage(candles[j]['exchange'], candles[j]['symbol'], '1m')
+            base = storage.index + 1
+            # warmup continuity: the series must strictly follow whatever
+            # warmup candles already sit in storage
+            if base == 0 or candles_arr[0, 0] > storage.array[base - 1, 0]:
+                # the per-step loop gap-fixes ONLY the first candle of each
+                # step against the previous minute; replicate exactly that
+                # (and only that), in the same ascending order
+                for b in range(candles_step, length, candles_step):
+                    _get_fixed_jumped_candle(candles_arr[b - 1], candles_arr[b])
+                needed = base + length
+                if needed > len(storage.array):
+                    # grow the buffer once upfront (same end state that
+                    # DynamicNumpyArray growth reaches)
+                    new_array = np.zeros((needed,) + storage.array.shape[1:], dtype=storage.array.dtype)
+                    new_array[:base] = storage.array[:base]
+                    storage.array = new_array
+                storage.array[base:base + length] = candles_arr
+                prefilled[j] = storage
+
+    # hoist the per-step loop invariants out of the hot loop
+    pairs_info = [
+        (
+            candles[j]['candles'],
+            candles_pipelines[j],
+            candles[j]['exchange'],
+            candles[j]['symbol'],
+            prefilled.get(j),
+        )
+        for j in candles
+    ]
+    htf_info = [
+        (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+        for timeframe in config['app']['considering_timeframes']
+        if timeframe != '1m'
+    ]
+
     progressbar = Progressbar(length, step=candles_step)
     last_update_time = None
+    for i in range(0, length, candles_step):
+        # update time moved to _simulate_price_change_effect__multiple_candles
+        # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
+        _simulate_new_candles(candles, candles_pipelines, i, candles_step, pairs_info, htf_info)
 
     # Run through the generator
     for i in sim_generator:
         last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
                                                 last_update_time=last_update_time)
+
+        _execute_routes(i, candles_step)
+
+        # now check to see if there's any MARKET orders waiting to be executed
+        order_service.execute_simulated_market_orders()
+
+        if i != 0 and i % 1440 == 0:
+            save_daily_portfolio_balance()
 
     _finish_progress_bar(progressbar, run_silently)
 
@@ -798,6 +1178,16 @@ def _skip_simulator(
         # print executed time for the backtest session
         finish_time_track = time.time()
         execution_duration = round(finish_time_track - begin_time_track, 2)
+
+    for r in router.routes:
+        r.strategy._terminate()
+        order_service.execute_simulated_market_orders()
+
+    # now that backtest simulation is finished, add finishing balance
+    save_daily_portfolio_balance()
+
+    # set the ending time for the backtest session
+    store.app.ending_time = store.app.time + 60_000
 
     result = _generate_outputs(
         candles,
@@ -969,42 +1359,74 @@ timeframe_to_one_minutes = {
     timeframes.WEEK_1: 60 * 24 * 7,
     timeframes.MONTH_1: 60 * 24 * 30,
 }
-def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandlesPipeline], candle_index: int, candles_step: int) -> None:
+def _simulate_new_candles(
+        candles: dict,
+        candles_pipelines: Dict[str, BaseCandlesPipeline],
+        candle_index: int,
+        candles_step: int,
+        pairs_info: list = None,
+        htf_info: list = None,
+) -> None:
     i = candle_index
-    # add candles
-    for j in candles:
-        candles_pipeline = candles_pipelines[j]
-        short_candles = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i, candles_step)
-        candles[j]['candles'][i:i+candles_step] = short_candles
-        if i != 0:
-            previous_short_candles = candles[j]["candles"][i - 1]
-            # work the same, the fix needs to be done only on the gap of 1m edge candles.
-            short_candles[0] = _get_fixed_jumped_candle(
-                previous_short_candles, short_candles[0]
-            )
-        exchange = candles[j]["exchange"]
-        symbol = candles[j]["symbol"]
+    # loop invariants (precomputed once by _skip_simulator; rebuilt here only
+    # if this function is called standalone)
+    if pairs_info is None:
+        pairs_info = [
+            (candles[j]['candles'], candles_pipelines[j], candles[j]['exchange'], candles[j]['symbol'], None)
+            for j in candles
+        ]
+    if htf_info is None:
+        htf_info = [
+            (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+            for timeframe in config['app']['considering_timeframes']
+            if timeframe != '1m'
+        ]
 
-        _simulate_price_change_effect_multiple_candles(
-            short_candles, exchange, symbol
+    i_step = i + candles_step
+    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
+    add_candle = candle_service.add_candle
+
+    # add candles
+    for candles_arr, candles_pipeline, exchange, symbol, storage_1m in pairs_info:
+        if storage_1m is not None:
+            # gap-fixed upfront and already copied into the 1m storage buffer;
+            # the write-back below would be a self-assignment, so skip it too
+            short_candles = candles_arr[i:i_step]
+        else:
+            short_candles = get_candles_from_pipeline(candles_pipeline, candles_arr, i, candles_step)
+            candles_arr[i:i_step] = short_candles
+            if i != 0:
+                previous_short_candles = candles_arr[i - 1]
+                # work the same, the fix needs to be done only on the gap of 1m edge candles.
+                short_candles[0] = _get_fixed_jumped_candle(
+                    previous_short_candles, short_candles[0]
+                )
+
+        real_candle = _simulate_price_change_effect_multiple_candles(
+            short_candles, exchange, symbol, storage_1m
         )
 
         # generate and add candles for bigger timeframes
-        for timeframe in config["app"]["considering_timeframes"]:
-            # for 1m, no work is needed
-            if timeframe == "1m":
-                continue
+        for timeframe, count in htf_info:
+            if i_step % count == 0:
+                if count == candles_step and (storage_1m is not None or candles_pipeline is None):
+                    # the step's real candle was just built from these exact
+                    # rows through the exact same code path (same <=4320/dtype
+                    # branch), so rebuilding it would be bit-identical work.
+                    # Gated to the cases where short_candles are views of
+                    # candles_arr (prefill, or no pipeline): with a pipeline,
+                    # short_candles is the pipeline's own buffer and the
+                    # jump-fix lands after the write-back, so the historical
+                    # behavior built the HTF candle from the pre-fix rows in
+                    # candles_arr — rebuild below to preserve that exactly.
+                    generated_candle = real_candle
+                else:
+                    generated_candle = generate_candle_from_one_minutes(
+                        timeframe,
+                        candles_arr[i_step - count: i_step],
+                    )
 
-            count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
-
-            if (i + candles_step) % count == 0:
-                generated_candle = generate_candle_from_one_minutes(
-                    timeframe,
-                    candles[j]["candles"][
-                    i - count + candles_step: i + candles_step],
-                )
-
-                store.candles.add_candle(
+                add_candle(
                     generated_candle,
                     exchange,
                     symbol,
@@ -1015,19 +1437,25 @@ def _simulate_new_candles(candles: dict, candles_pipelines: Dict[str, BaseCandle
 
 
 def _simulate_price_change_effect_multiple_candles(
-        short_timeframes_candles: np.ndarray, exchange: str, symbol: str
-) -> None:
-    real_candle = np.array(
-        [
-            short_timeframes_candles[0][0],
-            short_timeframes_candles[0][1],
-            short_timeframes_candles[-1][2],
-            short_timeframes_candles[:, 3].max(),
-            short_timeframes_candles[:, 4].min(),
-            short_timeframes_candles[:, 5].sum(),
-        ]
-    )
+        short_timeframes_candles: np.ndarray, exchange: str, symbol: str,
+        prefilled_storage_1m=None,
+) -> np.ndarray:
+    if len(short_timeframes_candles) <= 4320 and short_timeframes_candles.dtype == np.float64:
+        # bit-exact Rust kernel for the common case (see generate_candle_from_one_minutes)
+        real_candle = candle_from_one_minutes_rust(short_timeframes_candles)
+    else:
+        real_candle = np.array(
+            [
+                short_timeframes_candles[0][0],
+                short_timeframes_candles[0][1],
+                short_timeframes_candles[-1][2],
+                short_timeframes_candles[:, 3].max(),
+                short_timeframes_candles[:, 4].min(),
+                short_timeframes_candles[:, 5].sum(),
+            ]
+        )
     executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+    had_executing_orders = len(executing_orders) > 0
     if len(executing_orders) > 0:
         if len(executing_orders) > 1:
             executing_orders = _sort_execution_orders(executing_orders, short_timeframes_candles)
@@ -1049,8 +1477,8 @@ def _simulate_price_change_effect_multiple_candles(
                         if not order.is_active:
                             continue
 
-                        if candle_includes_price(current_temp_candle, order.price):
-                            storable_temp_candle, current_temp_candle = split_candle(
+                        if candle_service.candle_includes_price(current_temp_candle, order.price):
+                            storable_temp_candle, current_temp_candle = candle_service.split_candle(
                                 current_temp_candle, order.price
                             )
                             _update_all_routes_a_partial_candle(
@@ -1058,13 +1486,13 @@ def _simulate_price_change_effect_multiple_candles(
                                 symbol,
                                 storable_temp_candle,
                             )
-                            p = selectors.get_position(exchange, symbol)
+                            p = store.positions.get_position(exchange, symbol)
                             p.current_price = storable_temp_candle[2]
 
                             is_executed_order = True
 
                             store.app.time = storable_temp_candle[0] + 60_000
-                            order.execute()
+                            order_service.execute_order(order)
                             executing_orders = _get_executing_orders(
                                 exchange, symbol, real_candle
                             )
@@ -1077,7 +1505,7 @@ def _simulate_price_change_effect_multiple_candles(
 
                 if not is_executed_order:
                     # add/update the real_candle to the store so we can move on
-                    store.candles.add_candle(
+                    candle_service.add_candle(
                         short_timeframes_candles[i].copy(),
                         exchange,
                         symbol,
@@ -1085,22 +1513,33 @@ def _simulate_price_change_effect_multiple_candles(
                         with_execution=False,
                         with_generation=False,
                     )
-                    p = selectors.get_position(exchange, symbol)
+                    p = store.positions.get_position(exchange, symbol)
                     if p:
                         p.current_price = current_temp_candle[2]
                     break
 
-    store.candles.add_multiple_1m_candles(
-        short_timeframes_candles,
-        exchange,
-        symbol,
-    )
+    if prefilled_storage_1m is not None and not had_executing_orders:
+        # the rows for this step are already sitting (gap-fixed) in the
+        # storage buffer right after the current index, and nothing executed,
+        # so add_multiple_1m_candles' append is just an index advance. When
+        # orders DID execute, the per-minute loop above already advanced the
+        # index via add_candle, and add_multiple_1m_candles must run its
+        # override branch to restore the real rows — exactly as before.
+        prefilled_storage_1m.index += len(short_timeframes_candles)
+    else:
+        candle_service.add_multiple_1m_candles(
+            short_timeframes_candles,
+            exchange,
+            symbol,
+        )
     store.app.time = real_candle[0] + (60_000 * len(short_timeframes_candles))
     _check_for_liquidations(real_candle, exchange, symbol)
 
-    p = selectors.get_position(exchange, symbol)
+    p = store.positions.get_position(exchange, symbol)
     if p:
         p.current_price = short_timeframes_candles[-1, 2]
+
+    return real_candle
 
 
 def _update_all_routes_a_partial_candle(
@@ -1112,7 +1551,7 @@ def _update_all_routes_a_partial_candle(
     This function get called when an order is getting executed you need to update the other timeframe how their last
     candles looks like
     """
-    store.candles.add_candle(
+    candle_service.add_candle(
         storable_temp_candle,
         exchange,
         symbol,
@@ -1129,13 +1568,13 @@ def _update_all_routes_a_partial_candle(
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = store.candles.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
-        generated_candle = generate_candle_from_one_minutes(
+        candles_1m = candle_service.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        generated_candle = candle_service.generate_candle_from_one_minutes(
             timeframe,
             candles_1m,
             accept_forming_candles=True
         )
-        store.candles.add_candle(
+        candle_service.add_candle(
             generated_candle,
             exchange,
             symbol,
@@ -1155,8 +1594,8 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
         elif (candle_index + candles_step) % count == 0:
             # print candle
             if jh.is_debuggable("trading_candles"):
-                print_candle(
-                    store.candles.get_current_candle(
+                candle_service.print_candle(
+                    candle_service.get_current_candle(
                         r.exchange, r.symbol, r.timeframe
                     ),
                     False,
@@ -1164,19 +1603,20 @@ def _execute_routes(candle_index: int, candles_step: int) -> None:
                 )
             r.strategy._execute()
 
-        store.orders.update_active_orders(r.exchange, r.symbol)
-
-
-def _execute_market_orders():
-    store.orders.execute_pending_market_orders()
+        order_service.update_active_orders(r.exchange, r.symbol)
 
 
 def _get_executing_orders(exchange, symbol, real_candle):
     orders = store.orders.get_active_orders(exchange, symbol)
+    if not orders:
+        return []
+    # inlined candle_includes_price() with the candle's high/low hoisted out of the loop
+    high = real_candle[3]
+    low = real_candle[4]
     return [
         order
         for order in orders
-        if order.is_active and candle_includes_price(real_candle, order.price)
+        if order.is_active and low <= order.price <= high
     ]
 
 

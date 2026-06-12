@@ -1,9 +1,15 @@
 from jesse.enums import exchanges as exchanges_enums, timeframes
+from jesse.services.env import ENV_VALUES, is_dev_env
 
-JESSE_API_URL = 'https://api1.jesse.trade/api'
-# JESSE_API_URL = 'http://localhost:8040/api'
-JESSE_WEBSITE_URL = 'https://jesse.trade'
-# JESSE_WEBSITE_URL = 'http://localhost:8040'
+
+if is_dev_env():
+    JESSE_API_URL = ENV_VALUES.get('JESSE_API_URL', 'http://localhost:8040/api')
+    JESSE_API2_URL = ENV_VALUES.get('JESSE_API2_URL', 'http://localhost:8080')
+    JESSE_WEBSITE_URL = ENV_VALUES.get('JESSE_WEBSITE_URL', 'http://localhost:8040')
+else:
+    JESSE_API_URL = 'https://api1.jesse.trade/api'
+    JESSE_API2_URL = 'https://api2.jesse.trade'
+    JESSE_WEBSITE_URL = 'https://jesse.trade'
 
 BYBIT_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
                     timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
@@ -11,7 +17,7 @@ BINANCE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUT
                       timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
 COINBASE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5,
                        timeframes.MINUTE_15, timeframes.HOUR_1, timeframes.HOUR_6, timeframes.DAY_1]
-APEX_PRO_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+APEX_OMNI_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                        timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_12, timeframes.DAY_1]
 GATE_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_6, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1, timeframes.WEEK_1]
@@ -23,6 +29,11 @@ DYDX_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_1
                    timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
 HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.MINUTE_5, timeframes.MINUTE_15,
                          timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+
+# Lighter natively serves these candle resolutions: 1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d, 1w.
+# We expose the ones Jesse supports as trading timeframes (1w is dropped).
+LIGHTER_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                      timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
@@ -207,40 +218,13 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
-    # APEX_PRO_PERPETUAL_TESTNET
-    exchanges_enums.APEX_PRO_PERPETUAL_TESTNET: {
-        "name": exchanges_enums.APEX_PRO_PERPETUAL_TESTNET,
-        "url": "https://testnet.pro.apex.exchange/trade/BTCUSD",
-        "fee": 0.0005,
-        "type": "futures",
-        "supported_leverage_modes": ["cross"],
-        "supported_timeframes": APEX_PRO_TIMEFRAMES,
-        "modes": {
-            "backtesting": False,
-            "live_trading": False,
-        },
-        "required_live_plan": "free",
-    },
-    exchanges_enums.APEX_PRO_PERPETUAL: {
-        "name": exchanges_enums.APEX_PRO_PERPETUAL,
-        "url": "https://pro.apex.exchange/trade/BTCUSD",
-        "fee": 0.0005,
-        "type": "futures",
-        "supported_leverage_modes": ["cross"],
-        "supported_timeframes": APEX_PRO_TIMEFRAMES,
-        "modes": {
-            "backtesting": False,
-            "live_trading": False,
-        },
-        "required_live_plan": "premium",
-    },
     exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET: {
         "name": exchanges_enums.APEX_OMNI_PERPETUAL_TESTNET,
         "url": "https://testnet.omni.apex.exchange/trade/BTCUSD",
         "fee": 0.0005,
         "type": "futures",
         "supported_leverage_modes": ["cross"],
-        "supported_timeframes": APEX_PRO_TIMEFRAMES,
+        "supported_timeframes": APEX_OMNI_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": False,
@@ -253,7 +237,7 @@ exchange_info = {
         "fee": 0.0005,
         "type": "futures",
         "supported_leverage_modes": ["cross"],
-        "supported_timeframes": APEX_PRO_TIMEFRAMES,
+        "supported_timeframes": APEX_OMNI_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": True,
@@ -419,6 +403,39 @@ exchange_info = {
         "type": "futures",
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": HYPERLIQUID_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+    },
+    # Lighter (ZK-rollup orderbook perp DEX, USDC-settled).
+    # backtesting is False: Lighter only serves a ~130-day rolling candle window, too
+    # shallow for meaningful backtests. The import driver is still registered so the live
+    # runtime can fetch warm-up candles.
+    exchanges_enums.LIGHTER_PERPETUAL: {
+        "name": exchanges_enums.LIGHTER_PERPETUAL,
+        "url": "https://lighter.xyz",
+        "fee": 0.0,  # Lighter currently charges 0 maker/taker fees on perps
+        "type": "futures",
+        # Lighter displays markets as BASE-USD (collateral is USDC, handled in the driver);
+        # omit settlement_currency so Jesse derives "USD" from the symbol, like Hyperliquid.
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": LIGHTER_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    exchanges_enums.LIGHTER_PERPETUAL_TESTNET: {
+        "name": exchanges_enums.LIGHTER_PERPETUAL_TESTNET,
+        "url": "https://testnet.app.lighter.xyz",
+        "fee": 0.0,
+        "type": "futures",
+        # markets display as BASE-USD; settlement_currency derived from the symbol (USD)
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": LIGHTER_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": True,

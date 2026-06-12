@@ -1,3 +1,4 @@
+import json
 import math
 import time
 from datetime import timedelta
@@ -9,15 +10,65 @@ from timeloop import Timeloop
 
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
-from jesse.models import Candle
+from jesse.models.Candle import Candle
 from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, is_process_active
+from jesse.services.redis import sync_publish, is_process_active, sync_redis
+from jesse.services.env import ENV_VALUES
 from jesse.store import store
 from jesse import exceptions
 from jesse.services.progressbar import Progressbar
+
+
+def candle_import_progress_key(client_id: str) -> str:
+    return f"{ENV_VALUES.get('APP_PORT', '9000')}|candle-import-progress|{client_id}"
+
+
+def _print_import_progressbar(exchange: str, symbol: str, percent: float, remaining_seconds: float,
+                              reached_date: str) -> None:
+    """
+    Render a compact, visual progress bar for CLI / research imports (the
+    `show_progressbar=True` path). Replaces the bare "Progress: X% - N seconds"
+    line with a filled bar, a human-readable ETA, and the date reached so far.
+    """
+    width = 32
+    filled = max(0, min(width, int(round(width * percent / 100))))
+    bar = '█' * filled + '░' * (width - filled)
+
+    secs = max(0, int(round(remaining_seconds)))
+    if secs >= 3600:
+        eta = f'{secs // 3600}h {secs % 3600 // 60:02d}m'
+    elif secs >= 60:
+        eta = f'{secs // 60}m {secs % 60:02d}s'
+    else:
+        eta = f'{secs}s'
+
+    print(f'  Importing {symbol} on {exchange}')
+    print(f'  [{bar}] {percent:5.1f}%')
+    print(f'  reached {reached_date}  •  ETA {eta}')
+
+
+def _store_import_progress(client_id: str, current, estimated_remaining_seconds, current_date: str) -> None:
+    """
+    Persist live import progress to Redis so /candles/import-status (and the MCP
+    get_candle_import_status tool) can report real progress — percent complete,
+    ETA, and the date reached so far — instead of only running/finished. Best-effort:
+    a Redis hiccup must never break an import. The key carries a TTL so it self-cleans.
+    """
+    try:
+        sync_redis.set(
+            candle_import_progress_key(client_id),
+            json.dumps({
+                'current': current,
+                'estimated_remaining_seconds': estimated_remaining_seconds,
+                'current_date': current_date,
+            }),
+            ex=86400,
+        )
+    except Exception:
+        pass
 
 
 def run(
@@ -161,7 +212,18 @@ def run(
 
         if i % 2 == 0:
             progressbar.update()
-            
+
+            # Persist progress to Redis for every import (dashboard or MCP) so the
+            # import-status endpoint can report percent/ETA/date-reached. This is what
+            # lets an agent see an import actually advancing instead of polling a blind
+            # "running" until it gives up.
+            _store_import_progress(
+                client_id,
+                progressbar.current,
+                progressbar.estimated_remaining_seconds,
+                start_date.format('YYYY-MM-DD'),
+            )
+
             # For existing candles, throttle frontend updates
             if already_exists:
                 frontend_update_counter += 1
@@ -182,8 +244,13 @@ def run(
             
             if show_progressbar:
                 jh.clear_output()
-                print(
-                    f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
+                _print_import_progressbar(
+                    exchange,
+                    symbol,
+                    progressbar.current,
+                    progressbar.estimated_remaining_seconds,
+                    start_date.format('YYYY-MM-DD'),
+                )
 
         # sleep so that the exchange won't get angry at us
         if not already_exists:
@@ -390,7 +457,6 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
 
 
 def store_candles_list(candles: List[Dict]) -> None:
-    from jesse.models import Candle
     for c in candles:
         if 'timeframe' not in c:
             raise Exception('Candle has no timeframe')

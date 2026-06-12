@@ -23,7 +23,7 @@ def _formatted_inputs_for_isolated_backtest(user_config, routes):
 def get_fitness(
         user_config: dict, routes: list, data_routes: list, strategy_hp, hp: dict,
         training_warmup_candles: dict, training_candles: dict,
-        testing_warmup_candles: dict, testing_candles: dict, optimal_total: int, fast_mode: bool
+        testing_warmup_candles: dict, testing_candles: dict, optimal_total: int, fast_mode: bool, session_id
 ) -> tuple:
     """
     Evaluates the fitness (i.e. backtest performance) of the strategy
@@ -79,7 +79,7 @@ def get_fitness(
             # If the ratio is negative then the configuration is not usable
             if ratio < 0:
                 score = 0.0001
-                logger.log_optimize_mode(f"NEGATIVE RATIO: hp is not usable => {objective_function_config}: {ratio}, total: {training_metrics['total']}")
+                logger.log_optimize_mode(f"NEGATIVE RATIO: hp is not usable => {objective_function_config}: {ratio}, total: {training_metrics['total']}", session_id )
                 return score, training_metrics, {}
 
             # Run backtest for testing period
@@ -96,13 +96,13 @@ def get_fitness(
             # Calculate fitness score
             score = total_effect_rate * ratio_normalized
             if np.isnan(score):
-                logger.log_optimize_mode(f'Score is nan. hp configuration is invalid')
+                logger.log_optimize_mode(f'Score is nan. hp configuration is invalid', session_id)
                 score = 0.0001
             else:
                 logger.log_optimize_mode(f"hp config is usable => {objective_function_config}: {round(ratio, 2)}, total: {training_metrics['total']}, "
-                                       f"pnl%: {round(training_metrics['net_profit_percentage'], 2)}%, win-rate: {round(training_metrics['win_rate']*100, 2)}%")
+                                       f"pnl%: {round(training_metrics['net_profit_percentage'], 2)}%, win-rate: {round(training_metrics['win_rate']*100, 2)}%", session_id)
         else:
-            logger.log_optimize_mode('Less than 5 trades in the training data. hp configuration is invalid')
+            logger.log_optimize_mode('Less than 5 trades in the training data. hp configuration is invalid', session_id)
             score = 0.0001
             training_metrics = {}
             testing_metrics = {}
@@ -121,5 +121,5 @@ def get_fitness(
             "type": exc_type.__name__,
             "message": str(e)
         }
-        logger.log_optimize_mode(f"Trial evaluation failed: {traceback_details}")
+        logger.log_optimize_mode(f"Trial evaluation failed: {traceback_details}", session_id)
         return 0.0001, {}, {}

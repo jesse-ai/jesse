@@ -4,7 +4,7 @@ class TestMarketOrderForLowPriceDifference(Strategy):
     def on_open_position(self, order):
         assert order.type == 'MARKET'
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.type == 'MARKET'
 
     def should_long(self) -> bool:

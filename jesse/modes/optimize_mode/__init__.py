@@ -26,10 +26,6 @@ def run(
         cpu_cores: int,
         state: dict,
 ) -> None:
-    if jh.python_version() == (3, 13):
-        raise ValueError(
-            'Optimization is not supported on Python 3.13. The "Ray" library used for optimization does not support Python 3.13 yet. Please use Python 3.12 or lower.')
-
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
 
@@ -41,62 +37,113 @@ def run(
     if cpu_cores > max_cpu_cores:
         raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
 
-    # inject config
-    set_config(user_config)
-    # add exchange to routes
-    for r in routes:
-        r['exchange'] = exchange
-    for r in data_routes:
-        r['exchange'] = exchange
-    # set routes
-    router.initiate(routes, data_routes)
-    store.app.set_session_id(session_id)
-    register_custom_exception_handler()
-    # validate routes
-    validate_routes(router)
+    # Persist a terminal error on any setup/run failure (most commonly insufficient
+    # candles for the training/testing windows, or a malformed config) so MCP/dashboard
+    # callers stop polling a session that would otherwise stay stuck. Without this, a
+    # candle shortage raised here surfaced to API clients as a silent hang.
+    try:
+        # inject config
+        set_config(user_config)
+        # add exchange to routes
+        for r in routes:
+            r['exchange'] = exchange
+        for r in data_routes:
+            r['exchange'] = exchange
+        # set routes
+        router.initiate(routes, data_routes)
+        store.app.set_session_id(session_id)
+        register_custom_exception_handler()
+        # validate routes
+        validate_routes(router)
 
-    # load historical candles
-    training_warmup_candles, training_candles, testing_warmup_candles, testing_candles = _get_training_and_testing_candles(
-        training_start_date,
-        training_finish_date,
-        testing_start_date,
-        testing_finish_date
-    )
-
-    # Check if we're resuming an existing session
-    existing_session = get_optimization_session_by_id(session_id)
-
-    if existing_session:
-        # Session exists, update it for resuming
-        update_optimization_session_status(session_id, 'running')
-        update_optimization_session_state(session_id, state)
-
-        if jh.is_debugging():
-            jh.debug(f"Resuming existing optimization session with ID: {session_id}")
-    else:
-        # Session doesn't exist, create a new one
-        store_optimization_session(
-            id=session_id,
-            status='running'
+        # load historical candles
+        training_warmup_candles, training_candles, testing_warmup_candles, testing_candles = _get_training_and_testing_candles(
+            training_start_date,
+            training_finish_date,
+            testing_start_date,
+            testing_finish_date
         )
-        update_optimization_session_state(session_id, state)
 
-        if jh.is_debugging():
-            jh.debug(f"Created new optimization session with ID: {session_id}")
+        # Capture strategy codes for each route
+        import os
+        strategy_codes = {}
+        for r in router.routes:
+            key = f"{r.exchange}-{r.symbol}"
+            if key not in strategy_codes:
+                try:
+                    strategy_path = f'strategies/{r.strategy_name}/__init__.py'
 
-    optimizer = Optimizer(
-        session_id,
-        user_config,
-        training_warmup_candles,
-        training_candles,
-        testing_warmup_candles,
-        testing_candles,
-        fast_mode,
-        optimal_total,
-        cpu_cores
-    )
+                    if os.path.exists(strategy_path):
+                        with open(strategy_path, 'r') as f:
+                            content = f.read()
+                        strategy_codes[key] = content
+                except Exception:
+                    pass
 
-    optimizer.run()
+        # Check if we're resuming an existing session
+        existing_session = get_optimization_session_by_id(session_id)
+
+        if existing_session:
+            # Session exists, update it for resuming
+            update_optimization_session_status(session_id, 'running')
+            update_optimization_session_state(session_id, state, strategy_codes)
+
+            if jh.is_debugging():
+                jh.debug(f"Resuming existing optimization session with ID: {session_id}")
+        else:
+            # Session doesn't exist, create a new one
+            store_optimization_session(
+                id=session_id,
+                status='running',
+                strategy_codes=strategy_codes if strategy_codes else None
+            )
+            update_optimization_session_state(session_id, state)
+
+            if jh.is_debugging():
+                jh.debug(f"Created new optimization session with ID: {session_id}")
+
+        optimizer = Optimizer(
+            session_id,
+            user_config,
+            training_warmup_candles,
+            training_candles,
+            testing_warmup_candles,
+            testing_candles,
+            fast_mode,
+            optimal_total,
+            cpu_cores
+        )
+
+        optimizer.run()
+    except Exception as e:
+        import traceback as _tb
+        from jesse.exceptions import CandlesNotFound, CandleNotFoundInDatabase
+        from jesse.models.OptimizationSession import (
+            get_optimization_session_by_id as _get_session,
+            store_optimization_session as _store_session,
+            update_optimization_session_status as _update_status,
+            add_session_exception as _add_exception,
+        )
+        if isinstance(e, (CandlesNotFound, CandleNotFoundInDatabase)):
+            payload = e.args[0] if getattr(e, 'args', None) else None
+            symbol = payload.get('symbol') if isinstance(payload, dict) else (routes[0].get('symbol') if routes else None)
+            warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+            message = (
+                f"Missing candles for {symbol} on {exchange}. Optimization needs candles for BOTH the "
+                f"training window ({training_start_date} to {training_finish_date}) and the testing window "
+                f"({testing_start_date} to {testing_finish_date}), plus ~{warmup_num} warm-up candles before "
+                f"each start. Import enough candles for {symbol} on {exchange} and re-run."
+            )
+        else:
+            message = str(e)
+        try:
+            if _get_session(session_id) is None:
+                _store_session(id=session_id, status='stopped')
+            _add_exception(session_id, message, _tb.format_exc())
+            _update_status(session_id, 'stopped')
+        except Exception:
+            pass
+        raise
 
 
 def _get_training_and_testing_candles(

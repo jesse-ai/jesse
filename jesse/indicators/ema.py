@@ -3,13 +3,13 @@ from typing import Union
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
-from jesse_rust import ema as ema_rust
+from jesse_rust import ema as ema_rust, ema_last as ema_last_rust
 
 
 def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:
     """
-    EMA - Exponential Moving Average using Numba for optimization
+    EMA - Exponential Moving Average
 
     :param candles: np.ndarray
     :param period: int - default: 5
@@ -24,5 +24,8 @@ def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    result = ema_rust(source, period)
-    return result if sequential else result[-1]
+    if sequential:
+        return ema_rust(source, period)
+    # bit-for-bit identical to ema_rust(source, period)[-1], minus the
+    # full-series allocation (the scalar kernel runs the same recurrence)
+    return np.float64(ema_last_rust(source, period))

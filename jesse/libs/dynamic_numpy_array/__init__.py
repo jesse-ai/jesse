@@ -25,21 +25,26 @@ class DynamicNumpyArray:
         return self.index + 1
 
     def __getitem__(self, i):
+        # hot path (runs per simulated minute): hoist the attribute read and
+        # use `i += index + 1` instead of the old abs()-based negative-index
+        # math — identical arithmetic for the negative values it applies to
+        index = self.index
         if isinstance(i, slice):
             start = 0 if i.start is None else i.start
-            stop = self.index + 1 if i.stop is None else i.stop
+            stop = index + 1 if i.stop is None else i.stop
 
             if stop < 0:
-                stop = (self.index + 1) - abs(stop)
-            stop = min(stop, self.index + 1)
+                stop += index + 1
+            if stop > index + 1:
+                stop = index + 1
             return self.array[start:stop]
         else:
             if i < 0:
-                i = (self.index + 1) - abs(i)
+                i += index + 1
 
             # validation
-            if self.index == -1 or i > self.index or i < 0:
-                raise IndexError(f'list assignment index out of range. self.index={self.index}, i={i}')
+            if index == -1 or i > index or i < 0:
+                raise IndexError(f'list assignment index out of range. self.index={index}, i={i}')
 
             return self.array[i]
 
@@ -58,7 +63,7 @@ class DynamicNumpyArray:
             return
 
         if i < 0:
-            i = (self.index + 1) - abs(i)
+            i += self.index + 1
 
         # validation
         if i > self.index or i < 0:
@@ -69,10 +74,16 @@ class DynamicNumpyArray:
     def append(self, item: np.ndarray) -> None:
         self.index += 1
 
-        # expand if the arr is almost full
-        if self.index != 0 and (self.index + 1) % self.bucket_size == 0:
-            new_bucket = np.zeros(self.shape)
-            self.array = np.concatenate((self.array, new_bucket), axis=0)
+        # Grow the buffer when full, doubling capacity (geometric growth) so
+        # that total bytes copied across all appends is O(N) rather than the
+        # O(N^2 / bucket_size) of linear-bucket growth via np.concatenate.
+        if self.index >= len(self.array):
+            new_size = max(len(self.array) * 2, max(self.bucket_size, 1))
+            new_shape = (new_size,) + tuple(self.array.shape[1:])
+            new_array = np.zeros(new_shape, dtype=self.array.dtype)
+            if self.index > 0:
+                new_array[:self.index] = self.array[:self.index]
+            self.array = new_array
 
         # drop N% of the beginning values to free memory
         if (
@@ -109,18 +120,21 @@ class DynamicNumpyArray:
         self.bucket_size = self.shape[0]
 
     def append_multiple(self, items: np.ndarray) -> None:
-        self.index += len(items)
+        n_new = len(items)
+        old_index = self.index
+        self.index += n_new
 
-        # expand if the arr will be greater than the maximum
-        if self.index != 0 and (self.index + 1) >= len(self.array):
-            # in case the shape is smaller than  len(items)
-            if isinstance(self.shape, int):
-                shape = max(self.shape, len(items))
-            else:
-                shape = list(self.shape)
-                shape[0] = max(len(items), shape[0])
-            new_bucket = np.zeros(shape)
-            self.array = np.concatenate((self.array, new_bucket), axis=0)
+        # Grow the buffer geometrically (double) when needed. Must accommodate
+        # `self.index + 1` total elements; ensure we double-or-better to avoid
+        # degrading to linear growth when many small batches are appended.
+        if self.index + 1 > len(self.array):
+            min_required = self.index + 1
+            new_size = max(min_required, len(self.array) * 2, max(self.bucket_size, 1))
+            new_shape = (new_size,) + tuple(self.array.shape[1:])
+            new_array = np.zeros(new_shape, dtype=self.array.dtype)
+            if old_index >= 0:
+                new_array[:old_index + 1] = self.array[:old_index + 1]
+            self.array = new_array
 
         # drop N% of the beginning values to free memory
         if (
@@ -132,7 +146,7 @@ class DynamicNumpyArray:
             self.index -= shift_num
             self.array = np_shift(self.array, -shift_num)
 
-        self.array[self.index - len(items) + 1 : self.index + 1] = items
+        self.array[self.index - n_new + 1 : self.index + 1] = items
 
     def delete(self, index: int, axis=None) -> None:
         self.array = np.delete(self.array, index, axis=axis)

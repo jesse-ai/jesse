@@ -1,13 +1,13 @@
 import numpy as np
-from numba import njit
+import jesse_rust as jr
 
 import jesse.helpers as jh
 import jesse.services.logger as logger
-from jesse.enums import sides, order_types
+from jesse.enums import sides
 from jesse.exceptions import InsufficientMargin
-from jesse.models import Order
-from jesse.services import selectors
+from jesse.models.Order import Order
 from jesse.models.Exchange import Exchange
+from jesse.store import store
 
 
 class FuturesExchange(Exchange):
@@ -62,7 +62,7 @@ class FuturesExchange(Exchange):
             if asset == self.settlement_currency:
                 continue
 
-            position = selectors.get_position(self.name, f"{asset}-{self.settlement_currency}")
+            position = store.positions.get_position(self.name, f"{asset}-{self.settlement_currency}")
             if position and position.is_open:
                 # Adding the cost of open positions
                 total_spent += position.total_cost
@@ -176,9 +176,8 @@ class FuturesExchange(Exchange):
             self._started_balance = self._wallet_balance
 
 
-@njit(cache=True)
 def find_order_index(orders, order_array):
-    for i in range(len(orders)):
-        if np.all(orders[i] == order_array):
-            return i
-    return -1
+    return jr.find_order_index(
+        np.ascontiguousarray(orders, dtype=np.float64),
+        np.ascontiguousarray(order_array, dtype=np.float64),
+    )

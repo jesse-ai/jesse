@@ -35,3 +35,13 @@ def get_access_token():
 
     return ENV_VALUES['LICENSE_API_TOKEN']
 
+
+def user_validation(password: str) -> JSONResponse:
+    if password != ENV_VALUES['PASSWORD']:
+        return unauthorized_response()
+
+    auth_token = sha256(password.encode('utf-8')).hexdigest()
+
+    return JSONResponse({
+        'auth_token': auth_token,
+    }, status_code=200)

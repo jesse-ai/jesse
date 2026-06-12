@@ -35,7 +35,7 @@ class TestBalancesAreHandledCorrectlyForCancellingOrdersInSpot(Strategy):
             assert self.average_take_profit == 80
             assert self.average_stop_loss == 30
 
-    def on_close_position(self, order) -> None:
+    def on_close_position(self, order, closed_trade) -> None:
         assert order.is_take_profit is True
         assert self.price == 80
         assert self.position.qty == 0

@@ -2,9 +2,7 @@ from typing import List
 
 import fnc
 
-from jesse.config import config
-from jesse.models import Order
-from jesse.services import selectors
+from jesse.models.Order import Order
 import jesse.helpers as jh
 
 
@@ -15,12 +13,6 @@ class OrdersState:
 
         self.storage = {}
         self.active_storage = {}
-
-        for exchange in config['app']['trading_exchanges']:
-            for symbol in config['app']['trading_symbols']:
-                key = f'{exchange}-{symbol}'
-                self.storage[key] = []
-                self.active_storage[key] = []
 
     def reset(self) -> None:
         """
@@ -39,7 +31,21 @@ class OrdersState:
         self.active_storage[key] = []
 
     def add_order(self, order: Order) -> None:
+        """Add order to in-memory state only"""
         key = f'{order.exchange}-{order.symbol}'
+
+        if jh.is_live():
+            # Check if order with same id already exists
+            existing_order = fnc.find(lambda o: o.id == order.id, self.storage.get(key, []))
+            if existing_order:
+                return
+
+            # Check if order with same exchange_id already exists (if exchange_id is set)
+            if hasattr(order, 'exchange_id') and order.exchange_id:
+                existing_exchange_order = fnc.find(lambda o: o.exchange_id == order.exchange_id, self.storage.get(key, []))
+                if existing_exchange_order:
+                    return
+
         self.storage[key].append(order)
         self.active_storage[key].append(order)
 
@@ -51,15 +57,6 @@ class OrdersState:
         self.active_storage[key] = [
             o for o in self.active_storage[key] if o.id != order.id
         ]
-
-    def execute_pending_market_orders(self) -> None:
-        if not self.to_execute:
-            return
-
-        for o in self.to_execute:
-            o.execute()
-
-        self.to_execute = []
 
     # # # # # # # # # # # # # # # # #
     # getters
@@ -109,65 +106,4 @@ class OrdersState:
         if id == '':
             return None
 
-        return fnc.find(lambda o: id in o.id, reversed(self.storage[key]))
-
-    def get_entry_orders(self, exchange: str, symbol: str) -> List[Order]:
-        # return all orders if position is not opened yet
-        p = selectors.get_position(exchange, symbol)
-        if p.is_close:
-            return self.get_orders(exchange, symbol).copy()
-
-        all_orders = self.get_active_orders(exchange, symbol)
-        p_side = jh.type_to_side(p.type)
-        entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
-
-        return entry_orders
-
-    def get_exit_orders(self, exchange: str, symbol: str) -> List[Order]:
-        """
-        excludes cancel orders but includes executed orders
-        """
-        all_orders = self.get_orders(exchange, symbol)
-        # return empty if no orders
-        if len(all_orders) == 0:
-            return []
-        # return empty if position is not opened yet
-        p = selectors.get_position(exchange, symbol)
-        if p.is_close:
-            return []
-        else:
-            exit_orders = [o for o in all_orders if o.side != jh.type_to_side(p.type)]
-
-        # exclude cancelled orders
-        exit_orders = [o for o in exit_orders if not o.is_canceled]
-
-        return exit_orders
-
-    def get_active_exit_orders(self, exchange: str, symbol: str) -> List[Order]:
-        """
-        excludes cancel orders but includes executed orders
-        """
-        all_orders = self.get_active_orders(exchange, symbol)
-        # return empty if no orders
-        if len(all_orders) == 0:
-            return []
-        # return empty if position is not opened yet
-        p = selectors.get_position(exchange, symbol)
-        if p.is_close:
-            return []
-        else:
-            exit_orders = [o for o in all_orders if o.side != jh.type_to_side(p.type)]
-
-        # exclude cancelled orders
-        exit_orders = [o for o in exit_orders if not o.is_canceled]
-
-        return exit_orders
-
-    def update_active_orders(self, exchange: str, symbol: str):
-        key = f'{exchange}-{symbol}'
-        active_orders = [
-            order
-            for order in self.get_active_orders(exchange, symbol)
-            if not order.is_canceled and not order.is_executed
-        ]
-        self.active_storage[key] = active_orders
+        return fnc.find(lambda o: id in str(o.id), reversed(self.storage[key]))
