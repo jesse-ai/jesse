@@ -93,6 +93,8 @@ class exchanges:
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
     LIGHTER_PERPETUAL = 'Lighter Perpetual'
     LIGHTER_PERPETUAL_TESTNET = 'Lighter Perpetual Testnet'
+    KUCOIN_SPOT = 'KuCoin Spot'
+    KUCOIN_USDT_PERPETUAL = 'KuCoin USDT Perpetual'
 
 
 @dataclass

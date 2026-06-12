@@ -19,6 +19,8 @@ from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual im
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetual import LighterPerpetual
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetualTestnet import LighterPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpot import KuCoinSpot
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinUSDTPerpetual import KuCoinUSDTPerpetual
 
 
 drivers = {
@@ -39,11 +41,13 @@ drivers = {
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
     exchanges.LIGHTER_PERPETUAL: LighterPerpetual,
     exchanges.LIGHTER_PERPETUAL_TESTNET: LighterPerpetualTestnet,
+    exchanges.KUCOIN_USDT_PERPETUAL: KuCoinUSDTPerpetual,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+    exchanges.KUCOIN_SPOT: KuCoinSpot,
 }
 
 

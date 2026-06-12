@@ -35,7 +35,42 @@ HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.M
 LIGHTER_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                       timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 
+# KuCoin spot natively serves 1min,5min,15min,30min,1hour,2hour,4hour,6hour,8hour,12hour,1day,1week.
+# KuCoin futures granularities (minutes): 1,5,15,30,60,120,240,480,720,1440,10080.
+# We expose the resolutions both markets share that Jesse supports as trading timeframes.
+KUCOIN_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
+                     timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+
 exchange_info = {
+    # KUCOIN_SPOT
+    exchanges_enums.KUCOIN_SPOT: {
+        "name": exchanges_enums.KUCOIN_SPOT,
+        "url": JESSE_WEBSITE_URL + "/kucoin",
+        "fee": 0.001,  # spot taker fee 0.1%
+        "type": "spot",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KUCOIN_TIMEFRAMES,
+        "modes": {
+            "backtesting": True,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    # KUCOIN_USDT_PERPETUAL
+    exchanges_enums.KUCOIN_USDT_PERPETUAL: {
+        "name": exchanges_enums.KUCOIN_USDT_PERPETUAL,
+        "url": JESSE_WEBSITE_URL + "/kucoin",
+        "fee": 0.0006,  # futures taker fee 0.06%
+        "type": "futures",
+        "settlement_currency": "USDT",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KUCOIN_TIMEFRAMES,
+        "modes": {
+            "backtesting": True,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
     # BYBIT_USDT_PERPETUAL
     exchanges_enums.BYBIT_USDT_PERPETUAL: {
         "name": exchanges_enums.BYBIT_USDT_PERPETUAL,
