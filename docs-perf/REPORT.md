@@ -132,9 +132,12 @@ jesse commits** (no Rust dependency, can be reviewed independently).
    (there `short_candles` *is* a view, so the rows are identical), which is why every
    fingerprint and test still passes. Arguably the new value is *more* consistent (it
    matches the candle fills ran on, and matches the step simulator), but it is a
-   behavior delta for pipeline users. Options: accept as a fix, or gate the
-   `count == candles_step` reuse on `storage_1m is not None` (non-pipeline) to make the
-   commit strictly behavior-preserving.
+   behavior delta for pipeline users. **RESOLVED before review:** the reuse is now gated
+   on `(storage_1m is not None or candles_pipeline is None)` (commit after the docs
+   pass), so pipeline sessions take the original rebuild path and the branch is strictly
+   behavior-preserving everywhere. Fingerprints re-verified after the gate
+   (`results/*-gatecheck.json`). If you'd rather adopt the more-consistent post-fix
+   value for pipelines too, that's a one-line follow-up — flagged here as your call.
 2. **Pre-existing, untouched:** the fast/step divergence on gapped/synthetic data (skip
    sim gap-fixes only step-boundary candles; step sim fixes every minute). Both prefills
    replicate their own simulator's existing behavior exactly. Also pre-existing:

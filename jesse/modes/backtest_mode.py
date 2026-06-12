@@ -1277,10 +1277,16 @@ def _simulate_new_candles(
         # generate and add candles for bigger timeframes
         for timeframe, count in htf_info:
             if i_step % count == 0:
-                if count == candles_step:
+                if count == candles_step and (storage_1m is not None or candles_pipeline is None):
                     # the step's real candle was just built from these exact
                     # rows through the exact same code path (same <=4320/dtype
-                    # branch), so rebuilding it would be bit-identical work
+                    # branch), so rebuilding it would be bit-identical work.
+                    # Gated to the cases where short_candles are views of
+                    # candles_arr (prefill, or no pipeline): with a pipeline,
+                    # short_candles is the pipeline's own buffer and the
+                    # jump-fix lands after the write-back, so the historical
+                    # behavior built the HTF candle from the pre-fix rows in
+                    # candles_arr — rebuild below to preserve that exactly.
                     generated_candle = real_candle
                 else:
                     generated_candle = generate_candle_from_one_minutes(
