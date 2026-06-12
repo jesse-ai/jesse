@@ -21,6 +21,9 @@ from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetual import Lig
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetualTestnet import LighterPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpot import KuCoinSpot
 from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinUSDTPerpetual import KuCoinUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenSpot import KrakenSpot
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetual import KrakenPerpetual
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetualTestnet import KrakenPerpetualTestnet
 
 
 drivers = {
@@ -42,12 +45,15 @@ drivers = {
     exchanges.LIGHTER_PERPETUAL: LighterPerpetual,
     exchanges.LIGHTER_PERPETUAL_TESTNET: LighterPerpetualTestnet,
     exchanges.KUCOIN_USDT_PERPETUAL: KuCoinUSDTPerpetual,
+    exchanges.KRAKEN_PERPETUAL: KrakenPerpetual,
+    exchanges.KRAKEN_PERPETUAL_TESTNET: KrakenPerpetualTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
     exchanges.KUCOIN_SPOT: KuCoinSpot,
+    exchanges.KRAKEN_SPOT: KrakenSpot,
 }
 
 
