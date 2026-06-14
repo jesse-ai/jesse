@@ -35,6 +35,11 @@ HYPERLIQUID_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_3, timeframes.M
 LIGHTER_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
                       timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.HOUR_12, timeframes.DAY_1]
 
+# Kraken (both Spot WS-v2 OHLC and Futures charts) supports these resolutions in minutes:
+# 1, 5, 15, 30, 60, 240, 1440. We map them to Jesse timeframes.
+KRAKEN_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                     timeframes.MINUTE_30, timeframes.HOUR_1, timeframes.HOUR_4, timeframes.DAY_1]
+
 exchange_info = {
     # BYBIT_USDT_PERPETUAL
     exchanges_enums.BYBIT_USDT_PERPETUAL: {
@@ -436,6 +441,53 @@ exchange_info = {
         # markets display as BASE-USD; settlement_currency derived from the symbol (USD)
         "supported_leverage_modes": ["cross", "isolated"],
         "supported_timeframes": LIGHTER_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+    },
+    # KRAKEN_SPOT
+    exchanges_enums.KRAKEN_SPOT: {
+        "name": exchanges_enums.KRAKEN_SPOT,
+        "url": JESSE_WEBSITE_URL + "/kraken",
+        # Kraken spot taker fee at the lowest volume tier is ~0.40% (0.26% maker).
+        # We use 0.0026 as a representative value; the real fee depends on the account's 30d volume tier.
+        "fee": 0.0026,
+        "type": "spot",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KRAKEN_TIMEFRAMES,
+        "modes": {
+            # Kraken's public OHLC REST endpoint only serves the most recent 720 candles
+            # (a rolling window), so it cannot be used for historical backtesting.
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    # KRAKEN_PERPETUAL (Kraken Pro Futures — PF_ multi-collateral linear perpetuals, USD-margined)
+    exchanges_enums.KRAKEN_PERPETUAL: {
+        "name": exchanges_enums.KRAKEN_PERPETUAL,
+        "url": JESSE_WEBSITE_URL + "/kraken",
+        "fee": 0.0005,
+        "type": "futures",
+        # PF_ perpetuals are USD-quoted, multi-collateral; settlement_currency derived from symbol (USD)
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KRAKEN_TIMEFRAMES,
+        "modes": {
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
+    # KRAKEN_PERPETUAL_TESTNET (demo-futures.kraken.com)
+    exchanges_enums.KRAKEN_PERPETUAL_TESTNET: {
+        "name": exchanges_enums.KRAKEN_PERPETUAL_TESTNET,
+        "url": JESSE_WEBSITE_URL + "/kraken",
+        "fee": 0.0005,
+        "type": "futures",
+        "supported_leverage_modes": ["cross", "isolated"],
+        "supported_timeframes": KRAKEN_TIMEFRAMES,
         "modes": {
             "backtesting": False,
             "live_trading": True,
