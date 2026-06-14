@@ -19,6 +19,12 @@ class KrakenSpotMain(CandleExchange):
     needs the most recent N candles.
     """
 
+    # Kraken uses its own ticker for a few base assets (Bitcoin = XBT, Dogecoin = XDG) in the
+    # AssetPairs 'wsname'. Normalize them to the market-standard names Jesse uses, both inbound
+    # (wsname -> Jesse symbol) and outbound (Jesse symbol -> Kraken altname).
+    _KRAKEN_BASE_ALIASES = {'XBT': 'BTC', 'XDG': 'DOGE'}            # Kraken -> Jesse
+    _JESSE_TO_KRAKEN_BASE = {v: k for k, v in _KRAKEN_BASE_ALIASES.items()}  # Jesse -> Kraken
+
     def __init__(self, name: str, rest_endpoint: str) -> None:
         from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 
@@ -48,15 +54,15 @@ class KrakenSpotMain(CandleExchange):
         if data.get('error'):
             raise exceptions.SymbolNotFound(str(data['error']))
         for altname, info in data['result'].items():
-            wsname = info.get('wsname')  # e.g. "XBT/USD" -> dashy "XBT-USD"; we normalize XBT<->BTC
+            wsname = info.get('wsname')  # e.g. "XBT/USD" -> dashy "BTC-USD"; we normalize Kraken aliases
             if not wsname:
                 continue
             base, quote = wsname.split('/')
-            # Kraken displays BTC as XBT; normalize to Jesse's BTC convention
-            if base == 'XBT':
-                base = 'BTC'
-            if quote == 'XBT':
-                quote = 'BTC'
+            # Kraken uses its own tickers for some assets (BTC=XBT, DOGE=XDG); normalize to Jesse's
+            # standard names so e.g. Dogecoin shows up as DOGE-USD, not XDG-USD (which the trade/WS
+            # API would then reject because it only speaks the standard DOGE name).
+            base = self._KRAKEN_BASE_ALIASES.get(base, base)
+            quote = self._KRAKEN_BASE_ALIASES.get(quote, quote)
             jesse_symbol = f'{base}-{quote}'
             self._altname_cache[jesse_symbol] = info['altname']
             self._wsname_to_altname[jesse_symbol] = info['altname']
@@ -65,11 +71,12 @@ class KrakenSpotMain(CandleExchange):
         self._load_asset_pairs()
         if symbol in self._altname_cache:
             return self._altname_cache[symbol]
-        # fallback: build an altname directly (BTC->XBT)
+        # fallback: build an altname directly, mapping standard names back to Kraken's (BTC->XBT,
+        # DOGE->XDG)
         base = jh.get_base_asset(symbol)
         quote = jh.get_quote_asset(symbol)
-        if base == 'BTC':
-            base = 'XBT'
+        base = self._JESSE_TO_KRAKEN_BASE.get(base, base)
+        quote = self._JESSE_TO_KRAKEN_BASE.get(quote, quote)
         return base + quote
 
     def get_starting_time(self, symbol: str) -> int:
