@@ -393,7 +393,7 @@ def download_notification_api_keys():
 
         output = io.StringIO()
         writer = csv.writer(output)
-        headers = ['Name', 'Driver', 'bot_token', 'chat_id', 'webhook']
+        headers = ['Name', 'Driver', 'bot_token', 'chat_id', 'webhook', 'payload_key', 'payload_template']
         writer.writerow(headers)
 
         for api_key in api_keys:
@@ -404,6 +404,8 @@ def download_notification_api_keys():
                 fields.get('bot_token', ''),
                 fields.get('chat_id', ''),
                 fields.get('webhook', ''),
+                fields.get('payload_key', ''),
+                fields.get('payload_template', ''),
             ]
             writer.writerow(row)
 
@@ -473,6 +475,15 @@ def import_notification_api_keys_from_csv(content: str) -> Dict[str, any]:
                 if not webhook:
                     continue
                 fields = {'webhook': webhook}
+                # generic webhook drivers may customize the request body: a custom JSON
+                # payload key (defaults to 'text'), or a full JSON payload template.
+                if driver == 'webhook':
+                    payload_key = (row.get('payload_key') or '').strip()
+                    if payload_key:
+                        fields['payload_key'] = payload_key
+                    payload_template = (row.get('payload_template') or '').strip()
+                    if payload_template:
+                        fields['payload_template'] = payload_template
 
             NotificationApiKeys.create(
                 id=jh.generate_unique_id(),

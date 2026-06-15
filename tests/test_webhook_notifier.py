@@ -52,3 +52,69 @@ def test_non_2xx_on_both_attempts_logs_error():
         post.side_effect = [MagicMock(status_code=500, text='err'), MagicMock(status_code=500, text='err')]
         notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'c'})
         assert log_err.called
+
+
+# --- configurable payload key ---
+
+def test_custom_payload_key_is_used():
+    with patch.object(notifier.requests, 'post') as post:
+        post.return_value = MagicMock(status_code=200)
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'hi', 'payload_key': 'content'})
+        post.assert_called_once_with('https://example.com/hook', json={'content': 'hi'}, timeout=15)
+
+
+def test_payload_key_falls_back_to_text_when_none():
+    with patch.object(notifier.requests, 'post') as post:
+        post.return_value = MagicMock(status_code=200)
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'hi', 'payload_key': None})
+        post.assert_called_once_with('https://example.com/hook', json={'text': 'hi'}, timeout=15)
+
+
+# --- full payload template ---
+
+def test_payload_template_substitutes_message_and_posts_verbatim():
+    with patch.object(notifier.requests, 'post') as post:
+        post.return_value = MagicMock(status_code=200)
+        tmpl = '{"text": "{{message}}", "priority": "high", "tags": ["jesse"]}'
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'ALERT', 'payload_template': tmpl})
+        post.assert_called_once_with(
+            'https://example.com/hook',
+            json={'text': 'ALERT', 'priority': 'high', 'tags': ['jesse']},
+            timeout=15,
+        )
+
+
+def test_payload_template_substitutes_at_any_depth():
+    with patch.object(notifier.requests, 'post') as post:
+        post.return_value = MagicMock(status_code=200)
+        tmpl = '{"attachments": [{"body": {"msg": "{{message}}"}}]}'
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'deep', 'payload_template': tmpl})
+        _, kwargs = post.call_args
+        assert kwargs['json'] == {'attachments': [{'body': {'msg': 'deep'}}]}
+
+
+def test_payload_template_takes_precedence_over_payload_key():
+    with patch.object(notifier.requests, 'post') as post:
+        post.return_value = MagicMock(status_code=200)
+        notifier._custom_channel_notification({
+            'webhook': 'https://example.com/hook', 'content': 'x',
+            'payload_key': 'content', 'payload_template': '{"msg": "{{message}}"}',
+        })
+        _, kwargs = post.call_args
+        assert kwargs['json'] == {'msg': 'x'}
+
+
+def test_invalid_payload_template_logs_and_does_not_post():
+    with patch.object(notifier.requests, 'post') as post, patch('jesse.services.logger.error') as log_err:
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'x', 'payload_template': 'not-json{'})
+        post.assert_not_called()
+        assert log_err.called
+
+
+def test_template_does_not_form_fallback():
+    # a templated POST is explicit JSON — a non-2xx must NOT retry as form-encoded
+    with patch.object(notifier.requests, 'post') as post, patch('jesse.services.logger.error') as log_err:
+        post.return_value = MagicMock(status_code=500, text='err')
+        notifier._custom_channel_notification({'webhook': 'https://example.com/hook', 'content': 'x', 'payload_template': '{"a": "{{message}}"}'})
+        assert post.call_count == 1
+        assert log_err.called
