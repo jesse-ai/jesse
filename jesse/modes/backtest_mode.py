@@ -1256,12 +1256,24 @@ def run_simulation_iter(
     update_active_orders = order_service.update_active_orders
 
     if fast_mode:
-        # Use fast mode (skip simulator approach)
+        # Use fast mode (skip simulator approach). Hoist the per-step loop invariants
+        # out of the hot loop exactly as _skip_simulator does — previously
+        # _simulate_new_candles was called WITHOUT pairs_info/htf_info, so it rebuilt
+        # both lists on every single candle (a measurable per-step cost for RL).
         candles_step = _calculate_minimum_candle_step()
+        pairs_info = [
+            (candles[j]['candles'], pipelines[j], candles[j]['exchange'], candles[j]['symbol'], None)
+            for j in candles
+        ]
+        htf_info = [
+            (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
+            for timeframe in config['app']['considering_timeframes']
+            if timeframe != '1m'
+        ]
         idx = 0
 
         while idx < length:
-            _simulate_new_candles(candles, pipelines, idx, candles_step)
+            _simulate_new_candles(candles, pipelines, idx, candles_step, pairs_info, htf_info)
             _execute_routes(idx, candles_step)  # calls r.strategy._execute() -> _check_agent_action()
             order_service.execute_simulated_market_orders()
 
