@@ -49,6 +49,12 @@ jobs:
           python -m pip install setuptools wheel
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install -e . -U
+          # RL extras (gymnasium + torch + stable-baselines3) so the RL tests actually
+          # RUN here instead of skipping. This step also doubles as the answer to
+          # "does Stable-Baselines3 install on this {OS, Python}?" — if it fails, that
+          # cell goes red. (torch/sb3/gymnasium have broad wheel coverage; ray, a core
+          # dep, already gates windows+3.13, which is excluded above.)
+          pip install gymnasium torch stable-baselines3
       - name: Test with pytest
         shell: bash
         env:
