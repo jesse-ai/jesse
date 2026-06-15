@@ -1020,3 +1020,77 @@ def evaluate_rl_agent(
         'min_reward': np.min(episode_rewards),
         'max_reward': np.max(episode_rewards),
     }
+
+
+# ============================================================================
+# Stable-Baselines3 trainer (stablebaseline3-perf branch)
+# ----------------------------------------------------------------------------
+# The original `stablebaseline3` branch trained SB3 on a SINGLE JesseRLEnvironment
+# (no multiprocessing), which pinned sampling to one core. This trains SB3 with
+# `SubprocVecEnv` so each env-runner gets its own process/core — the actual lever
+# for throughput — on the perf-merged env. Benchmarks: 1 env ~2.7k steps/s,
+# 7 envs ~8k steps/s (~3x). (perf-backtests itself does not speed RL stepping;
+# RL advances one candle at a time through a generator.)
+# ============================================================================
+def _make_sb3_env(env_config):
+    def _f():
+        return JesseRLEnvironment(env_config)
+    return _f
+
+
+def train_rl_agent_sb3(config, routes, data_routes, candles, warmup_candles=None,
+                       algorithm: str = 'DQN', total_timesteps: int = 300_000,
+                       n_envs: int = None, max_steps: int = 1000,
+                       random_episode_start: bool = True):
+    """Train an SB3 agent across `n_envs` parallel JesseRLEnvironment processes."""
+    import time
+    import psutil
+    from stable_baselines3 import DQN, PPO, A2C
+    from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+
+    if n_envs is None:
+        n_envs = max(1, (psutil.cpu_count() or 8) - 1)
+    env_config = {'backtest_config': config, 'routes': routes, 'data_routes': data_routes,
+                  'candles': candles, 'warmup_candles': warmup_candles,
+                  'max_steps': max_steps, 'random_episode_start': random_episode_start}
+    VecCls = SubprocVecEnv if n_envs > 1 else DummyVecEnv
+    venv = VecCls([_make_sb3_env(env_config) for _ in range(n_envs)])
+    algorithm = (algorithm or 'DQN').upper()
+    common = dict(policy='MlpPolicy', env=venv, verbose=0, device='cpu')
+    if algorithm == 'DQN':
+        model = DQN(learning_rate=1e-4, buffer_size=100_000, learning_starts=2000,
+                    batch_size=128, target_update_interval=1000, train_freq=4, **common)
+    elif algorithm == 'PPO':
+        model = PPO(n_steps=256, batch_size=256, n_epochs=5, **common)
+    else:
+        model = A2C(n_steps=32, **common)
+    print(f"SB3 {algorithm}: training {total_timesteps} steps across {n_envs} env processes...")
+    t0 = time.time()
+    model.learn(total_timesteps=total_timesteps, progress_bar=False)
+    dur = time.time() - t0
+    venv.close()
+    return {'model': model, 'n_envs': n_envs, 'algorithm': algorithm,
+            'total_timesteps': total_timesteps, 'training_duration': dur,
+            'throughput_steps_per_s': (total_timesteps / dur) if dur else 0.0}
+
+
+def evaluate_rl_agent_sb3(model, config, routes, data_routes, candles,
+                          warmup_candles=None, max_steps: int = None, num_episodes: int = 1):
+    """Greedy backtest of a trained SB3 model over the given candles."""
+    env = JesseRLEnvironment({'backtest_config': config, 'routes': routes,
+                              'data_routes': data_routes, 'candles': candles,
+                              'warmup_candles': warmup_candles,
+                              'max_steps': max_steps or 10_000_000,
+                              'random_episode_start': False})
+    rewards = []
+    for _ in range(num_episodes):
+        obs, _ = env.reset()
+        done = trunc = False
+        ep = 0.0
+        while not (done or trunc):
+            a, _ = model.predict(obs, deterministic=True)
+            obs, r, done, trunc, _ = env.step(int(a))
+            ep += r
+        rewards.append(ep)
+    return {'episode_rewards': rewards, 'mean_reward': float(np.mean(rewards)),
+            'metrics': _extract_trading_metrics_from_episode()}
