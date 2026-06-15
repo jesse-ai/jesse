@@ -261,6 +261,12 @@ class JesseRLEnvironment(gym.Env):
         # for a single exchange), each episode trades a randomly-chosen symbol from the
         # pool. One policy then learns across many assets, which generalizes far better
         # than memorizing a single symbol. Backward-compatible: absent -> single-asset.
+        # RL training does not need trades persisted to the database (they live in
+        # memory via report.trades()). Writing every trade — across many parallel
+        # env-runner processes — is a per-step cost and a DB-contention hazard.
+        from jesse.repositories import closed_trade_repository
+        closed_trade_repository.set_persistence(False)
+
         self.candles_pool = config.get('candles_pool')
         self.pool_exchange = config.get('pool_exchange')
         if self.candles_pool:
@@ -345,17 +351,21 @@ class JesseRLEnvironment(gym.Env):
             'exchanges': {
                 config['exchange']: exchange_config
             },
+            # All logging OFF during RL: each order/position event otherwise calls the
+            # logger which writes a row to the database (jesse.services.logger ->
+            # store_log_into_db). At thousands of trades x parallel env-runners that is a
+            # large per-step cost and a DB-contention hazard. Training never reads these.
             'logging': {
-                'balance_update': True,
-                'order_cancellation': True,
-                'order_execution': True,
-                'order_submission': True,
-                'position_closed': True,
-                'position_increased': True,
-                'position_opened': True,
-                'position_reduced': True,
+                'balance_update': False,
+                'order_cancellation': False,
+                'order_execution': False,
+                'order_submission': False,
+                'position_closed': False,
+                'position_increased': False,
+                'position_opened': False,
+                'position_reduced': False,
                 'shorter_period_candles': False,
-                'trading_candles': True
+                'trading_candles': False
             },
             'warm_up_candles': config['warm_up_candles']
         }
