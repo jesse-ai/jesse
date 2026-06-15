@@ -1,8 +1,7 @@
-import ray
-from ray import tune
-from ray.rllib.env.env_context import EnvContext
-from ray.rllib.algorithms.dqn import DQN, DQNConfig
-from ray.rllib.algorithms.ppo import PPOConfig
+# NOTE: ray / RLlib are imported LAZILY inside the RLlib trainer functions only.
+# The environment (JesseRLEnvironment) — used by the SB3 path too — must import
+# without pulling in ray, both because SB3 is the supported trainer and because
+# `import ray` rewrites sys.path[0] (breaking jesse's unit-test strategy lookup).
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -242,7 +241,7 @@ class JesseRLEnvironment(gym.Env):
     Jesse Reinforcement Learning Environment - Optimized for multi-core performance
     """
     
-    def __init__(self, config: EnvContext):
+    def __init__(self, config):
         super().__init__()
         
         # Store configuration
@@ -308,10 +307,12 @@ class JesseRLEnvironment(gym.Env):
     def _get_strategy_instance_for_spaces(self):
         """Get strategy instance just for defining spaces (minimal setup)"""
         route = self.routes[0]
-        strategy_name = route['strategy']
-        
-        # Import strategy class directly for space definitions
-        StrategyClass = jh.get_strategy_class(strategy_name)
+        strategy = route['strategy']
+
+        # Accept either a strategy name (str) or a strategy class directly (the latter
+        # lets callers/tests bypass jesse's sys.path-based strategy-file lookup, exactly
+        # like research.backtest does).
+        StrategyClass = strategy if isinstance(strategy, type) else jh.get_strategy_class(strategy)
         strategy_instance = StrategyClass()
         
         # Set minimal attributes needed for space definitions
@@ -508,8 +509,12 @@ class JesseRLEnvironment(gym.Env):
             try:
                 next(self._sim_generator)  # advances one candle-chunk; strategy processes action internally
             except StopIteration:
-                # No more candles; finalize episode
-                finalize_simulation()
+                # No more candles. run_simulation_iter ALREADY called finalize_simulation()
+                # when the loop ended (right before the generator stopped) — calling it again
+                # here double-records the final daily-balance point and double-terminates
+                # strategies, which skews daily-based metrics (Sharpe/Sortino/Calmar) so the
+                # RL backtest diverges from a normal research.backtest(). Just read the final
+                # state and return; do NOT finalize again.
                 obs = store.rl.get_observation()
                 if obs is None:
                     obs = np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype)
@@ -680,6 +685,9 @@ def _build_algo_config(
              and there is no replay buffer / single-learner bottleneck, so throughput
              scales much better with num_workers -- the right choice on many-core boxes.
     """
+    from ray.rllib.algorithms.dqn import DQNConfig
+    from ray.rllib.algorithms.ppo import PPOConfig
+
     shared_env_runners = dict(num_env_runners=num_workers, num_envs_per_env_runner=1)
     shared_learners = dict(num_learners=0, num_gpus_per_learner=0)
 
@@ -754,6 +762,9 @@ def train_rl_agent(
         Training results with summaries, trading metrics, and checkpoints
     """
     
+    import ray
+    from ray import tune
+
     algorithm = (algorithm or 'DQN').upper()
     if algorithm not in SUPPORTED_ALGORITHMS:
         raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
@@ -961,6 +972,11 @@ def evaluate_rl_agent(
         Evaluation results
     """
     
+    import ray
+    from ray import tune
+    from ray.rllib.algorithms.dqn import DQNConfig
+    from ray.rllib.algorithms.ppo import PPOConfig
+
     algorithm = (algorithm or 'DQN').upper()
     if algorithm not in SUPPORTED_ALGORITHMS:
         raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
