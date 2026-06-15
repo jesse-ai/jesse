@@ -28,6 +28,12 @@ cryptography~=42.0.5
 ecdsa>=0.16.0
 optuna~=4.2.0
 ray
+
+# reinforcement learning (SB3 training path + the JesseRLEnvironment)
+gymnasium
+torch
+stable-baselines3
+
 eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0

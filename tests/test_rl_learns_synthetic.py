@@ -16,12 +16,6 @@ import os
 import subprocess
 import sys
 
-import pytest
-
-pytest.importorskip("gymnasium")
-pytest.importorskip("stable_baselines3")
-pytest.importorskip("torch")
-
 
 def test_rl_agent_learns_easy_market():
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

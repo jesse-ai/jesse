@@ -17,12 +17,6 @@ import os
 import subprocess
 import sys
 
-import pytest
-
-# The RL env imports gymnasium; skip cleanly where the RL extras aren't installed so
-# this never breaks the core test suite (gymnasium/torch are RL extras, not core deps).
-pytest.importorskip("gymnasium")
-
 
 def test_rl_env_matches_normal_backtest():
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
