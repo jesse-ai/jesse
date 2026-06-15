@@ -1,0 +1,63 @@
+# Installs the RL extras (gymnasium + torch + stable-baselines3) and runs the RL
+# tests across OS x Python. The install step itself answers "does Stable-Baselines3
+# install on this {OS, Python}?"; a green job means SB3 installs AND trains end-to-end
+# on the JesseRLEnvironment there. fail-fast is off so every matrix cell reports.
+
+name: RL tests (SB3)
+
+on:
+  push:
+    branches: [ stablebaseline3 ]
+  pull_request:
+    branches: [ stablebaseline3, master ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rl-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-latest    = Linux x86_64
+        # ubuntu-24.04-arm = Linux aarch64
+        # macos-latest     = Apple Silicon (arm64)
+        # windows-latest   = Windows x86_64
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        exclude:
+          # ray (a core jesse dependency — needed even to `import jesse`) has no Windows
+          # wheel for Python 3.13 yet, so jesse itself can't be installed on that cell.
+          - os: windows-latest
+            python-version: '3.13'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install jesse + RL extras (gymnasium, torch, stable-baselines3)
+        shell: bash
+        run: |
+          python -m ensurepip --upgrade
+          python -m pip install --upgrade pip setuptools wheel
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e . -U
+          # The RL extras under test. If any of these has no wheel for this {OS, Python},
+          # this step fails — which is exactly the answer we want for that cell.
+          pip install gymnasium torch stable-baselines3
+      - name: Run RL tests (SB3 install + train, RL-simulator parity)
+        shell: bash
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+        run: |
+          python -m pytest tests/test_sb3_training.py tests/test_rl_simulator_parity.py -v
