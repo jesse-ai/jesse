@@ -34,6 +34,8 @@ def start_notifier_loop():
                             _discord(msg['content'], webhook_address=notification_keys['webhook'])
                         elif notification_keys['driver'] == 'slack':
                             _slack(msg['content'], webhook_address=notification_keys['webhook'])
+                        elif notification_keys['driver'] == 'webhook':
+                            _custom_channel_notification({'content': msg['content'], 'webhook': notification_keys['webhook']})
                     elif notification_keys:
                         _custom_channel_notification(msg)
 
@@ -126,16 +128,38 @@ def _slack(msg: str, webhook_address) -> None:
 
 
 def _custom_channel_notification(msg: dict):
-    webhook = msg['webhook']
+    from jesse.services import logger
 
+    webhook = msg.get('webhook')
+    if not webhook:
+        logger.error('Custom webhook notification called without a webhook URL', send_notification=False)
+        return
+
+    content = msg.get('content', '')
+
+    # Slack and Discord expect their own payload shapes — route to the dedicated senders.
     if webhook.startswith('https://hooks.slack.com'):
-        # a slack webhook
-        _slack(msg['content'], webhook)
-    elif webhook.startswith('https://discord.com/api/webhooks'):
-        # a discord webhook
-        _discord(msg['content'], webhook)
-    else:
-        raise ValueError(f'Custom Webhook {webhook}. seems to be neither a discord or slack webhook')
+        _slack(content, webhook)
+        return
+    if webhook.startswith('https://discord.com/api/webhooks'):
+        _discord(content, webhook)
+        return
+
+    # Generic webhook: POST JSON, falling back to form-encoded. 'text' is the field name
+    # most widely accepted across notification services. timeout matches the other senders
+    # so a slow endpoint can't stall the notifier loop.
+    try:
+        response = requests.post(webhook, json={'text': content}, timeout=15)
+        if response.status_code // 100 != 2:
+            response = requests.post(webhook, data={'text': content}, timeout=15)
+        if response.status_code // 100 != 2:
+            logger.error(f'Webhook ERROR [{response.status_code}]: {response.text}', send_notification=False)
+    except requests.exceptions.ConnectionError:
+        logger.error('Webhook ERROR: ConnectionError', send_notification=False)
+    except requests.exceptions.Timeout:
+        logger.error('Webhook ERROR: timed out', send_notification=False)
+    except Exception as e:
+        logger.error(f'Webhook ERROR: {e}', send_notification=False)
 
 
 def _format_msg(msg: str) -> str:
