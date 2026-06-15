@@ -11,6 +11,23 @@ from jesse.models.Order import Order
 from jesse.services.db import database
 
 
+# When False, trade rows are NOT written to the database. RL training / research
+# sessions toggle this off: persisting thousands of trades per episode across many
+# parallel env-runner processes is a real per-step cost and a DB-contention hazard,
+# and the trades are already available in memory (report.trades()). Dashboard
+# backtests leave it True so the UI can read trades from the database.
+_persistence_enabled = True
+
+
+def set_persistence(enabled: bool) -> None:
+    global _persistence_enabled
+    _persistence_enabled = enabled
+
+
+def _skip_write() -> bool:
+    return jh.is_unit_testing() or not _persistence_enabled
+
+
 def _ensure_db_open() -> None:
     if not database.is_open():
         database.open_connection()
@@ -79,7 +96,7 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
 
 
 def create(trade_data: dict) -> Optional[ClosedTrade]:
-    if jh.is_unit_testing():
+    if _skip_write():
         return None
 
     _ensure_db_open()
@@ -115,7 +132,7 @@ def create(trade_data: dict) -> Optional[ClosedTrade]:
 
 
 def update(trade: ClosedTrade) -> None:
-    if jh.is_unit_testing():
+    if _skip_write():
         return
 
     _ensure_db_open()
@@ -141,7 +158,7 @@ def update(trade: ClosedTrade) -> None:
 
 
 def store_or_update(trade: ClosedTrade) -> None:
-    if jh.is_unit_testing():
+    if _skip_write():
         return
 
     _ensure_db_open()
@@ -180,7 +197,7 @@ def store_or_update(trade: ClosedTrade) -> None:
 
 
 def close_trade(trade: ClosedTrade, opened_at: int = None) -> None:
-    if jh.is_unit_testing():
+    if _skip_write():
         return
 
     _ensure_db_open()
@@ -209,7 +226,7 @@ def close_trade(trade: ClosedTrade, opened_at: int = None) -> None:
 
 
 def disable_trade(trade_id: str) -> None:
-    if jh.is_unit_testing():
+    if _skip_write():
         return
 
     _ensure_db_open()
