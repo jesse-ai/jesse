@@ -1058,6 +1058,12 @@ def train_rl_agent_sb3(config, routes, data_routes, candles, warmup_candles=None
     train_freq: DQN gradient step every N env-steps. 8 (default) is ~19% faster than
     4 with the same sample-efficiency in our benchmarks (the learner is the dominant
     cost once the env is optimized); lower it toward 4 if a task needs more updates.
+
+    PORTABILITY: when n_envs > 1 this uses SB3's SubprocVecEnv. On Windows and macOS
+    (which use the 'spawn' start method) the calling script MUST be guarded by
+    `if __name__ == '__main__':`, otherwise each spawned worker re-imports and re-runs
+    the script (recursive process creation). On Linux ('fork') the guard is not required
+    but is still good practice. Set n_envs=1 to run single-process anywhere.
     """
     import time
     import psutil
