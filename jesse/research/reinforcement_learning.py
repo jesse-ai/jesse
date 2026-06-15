@@ -252,7 +252,24 @@ class JesseRLEnvironment(gym.Env):
         self.candles = config.get('candles')
         self.warmup_candles = config.get('warmup_candles')
         self.max_steps = config.get('max_steps', 1000)
-        
+        # When True, each episode starts at a random offset into the candle array
+        # (window length = max_steps). Across many episodes this samples the entire
+        # (multi-year) history instead of replaying only the first max_steps candles.
+        self.random_episode_start = config.get('random_episode_start', False)
+
+        # Multi-asset training: if a candle pool is provided ({symbol: candle_array}
+        # for a single exchange), each episode trades a randomly-chosen symbol from the
+        # pool. One policy then learns across many assets, which generalizes far better
+        # than memorizing a single symbol. Backward-compatible: absent -> single-asset.
+        self.candles_pool = config.get('candles_pool')
+        self.pool_exchange = config.get('pool_exchange')
+        if self.candles_pool:
+            self._route_template = dict(self.routes[0])
+            _sym0 = next(iter(self.candles_pool))
+            self.candles = {f"{self.pool_exchange}-{_sym0}": {
+                'exchange': self.pool_exchange, 'symbol': _sym0,
+                'candles': self.candles_pool[_sym0]}}
+
         # Initialize environment state
         self.current_step = 0
         self._sim_generator = None
@@ -360,7 +377,17 @@ class JesseRLEnvironment(gym.Env):
             
         # Reset episode counters
         self.current_step = 0
-        
+
+        # Multi-asset: pick this episode's symbol from the pool and rebuild
+        # self.candles / self.routes for it (the rest of reset() is symbol-agnostic).
+        if self.candles_pool:
+            _syms = list(self.candles_pool.keys())
+            _sym = _syms[int(np.random.randint(len(_syms)))]
+            self.candles = {f"{self.pool_exchange}-{_sym}": {
+                'exchange': self.pool_exchange, 'symbol': _sym,
+                'candles': self.candles_pool[_sym]}}
+            self.routes = [dict(self._route_template, symbol=_sym)]
+
         # Fresh config each episode
         reset_config()
         
@@ -375,8 +402,21 @@ class JesseRLEnvironment(gym.Env):
         # NOW reset store (after routes are initialized)
         store.reset()
 
-        # Initialize candle storage
-        store.candles.init_storage(5000)
+        # Decide this episode's candle window. window = max_steps (episode length);
+        # with random_episode_start the window begins at a random offset so training
+        # samples the whole history across episodes rather than only candles[0:max_steps].
+        _primary = next(iter(self.candles.values()))['candles']
+        _total_len = len(_primary)
+        _window = self.max_steps if (self.max_steps and self.max_steps > 0) else _total_len
+        _window = min(_window, _total_len)
+        if self.random_episode_start and _total_len > _window:
+            self._episode_start = int(np.random.randint(0, _total_len - _window + 1))
+        else:
+            self._episode_start = 0
+        self._episode_window = _window
+
+        # Initialize candle storage (must hold the whole episode window)
+        store.candles.init_storage(max(5000, _window + 10))
 
         # Initialize exchanges/orders/positions state. This mirrors research.backtest's
         # _isolated_backtest(): the simulation generator's _prepare_routes() assigns each
@@ -395,11 +435,14 @@ class JesseRLEnvironment(gym.Env):
         # OPTIMIZATION: Use shallow copy instead of deep copy for large candle arrays
         # The candle data itself doesn't need to be modified, only the dict structure
         self.trading_candles_dict = {}
+        _s, _e = self._episode_start, self._episode_start + self._episode_window
         for key, value in self.candles.items():
+            arr = value['candles']
             self.trading_candles_dict[key] = {
                 'exchange': value['exchange'],
                 'symbol': value['symbol'],
-                'candles': value['candles']  # Reference same array instead of copying
+                # slice this episode's window (a view, no copy)
+                'candles': arr[_s:_e]
             }
         
         # Same optimization for warmup candles
@@ -680,6 +723,8 @@ def train_rl_agent(
     rollout_fragment_length: int = 64,
     train_batch_size: int = 64,
     num_steps_sampled_before_learning_starts: int = 256,
+    max_steps: int = 1000,
+    random_episode_start: bool = False,
 ) -> dict:
     """
     Train reinforcement learning agent with enhanced trading metrics output
@@ -748,7 +793,8 @@ def train_rl_agent(
         'data_routes': data_routes,
         'candles': candles,
         'warmup_candles': warmup_candles,
-        'max_steps': 1000,
+        'max_steps': max_steps,
+        'random_episode_start': random_episode_start,
     }
     algo_config = _build_algo_config(
         algorithm,
