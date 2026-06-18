@@ -44,19 +44,30 @@ def _run():
     EXCH, SYM = 'Binance Perpetual Futures', 'BTC-USDT'
 
     def easy_candles(n=4000, regime=20, step=0.005, noise=0.0001, seed=1):
+        # Synthetic 1-minute BTC candles with a perfectly alternating trend:
+        # every `regime` candles the drift flips between +step and -step per bar.
+        # Starting price ~$20k. The pattern is trivially learnable — an RL agent
+        # that picks up on recent return sign should dominate buy-and-hold.
         rng = np.random.default_rng(seed)
+        # Align timestamp to a clean minute boundary (ms epoch)
         ts0 = 1_600_000_000_000; ts0 -= ts0 % 60_000
         rets = np.empty(n)
         for i in range(n):
+            # Direction flips every `regime` bars: even blocks go up, odd go down
             d = 1.0 if (i // regime) % 2 == 0 else -1.0
             rets[i] = d * step + noise * rng.standard_normal()
+        # Log-normal price so it never goes negative
         close = 20_000 * np.exp(np.cumsum(rets))
+        # Each bar opens at the previous bar's close (gapless)
         open_ = np.empty(n); open_[0] = close[0]; open_[1:] = close[:-1]
+        # Tiny random wick on each side (proportional to price, ~0.01% amplitude)
         hl = np.abs(rng.normal(0, 0.0001, n)) * close
         high = np.maximum(open_, close) + hl
         low = np.clip(np.minimum(open_, close) - hl, 1e-6, None)
         vol = rng.uniform(10, 100, n)
+        # One timestamp per bar, spaced 60 000 ms (1 minute) apart
         ts = ts0 + np.arange(n, dtype=np.int64) * 60_000
+        # Jesse candle format: [timestamp, open, close, high, low, volume]
         arr = np.column_stack([ts, open_, close, high, low, vol]).astype(np.float64)
         return {f'{EXCH}-{SYM}': {'exchange': EXCH, 'symbol': SYM, 'candles': arr}}
 
