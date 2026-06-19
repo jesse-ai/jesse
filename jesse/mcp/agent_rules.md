@@ -37,6 +37,11 @@ Prohibited Actions:
 - Simulating results or fabricating data
 - Bypassing or working around MCP errors using alternative methods — if the MCP is not available or timing out, halt and notify the user immediately
 
+Exception:
+- Report files under `strategies/<StrategyName>/reports/` may be created or updated using workspace file-editing tools when Jesse MCP does not provide a dedicated report-writing capability.
+- This exception applies only to the required Markdown report artifacts described in these instructions.
+- Strategy code, configuration changes, candle imports, backtests, Monte Carlo runs, significance tests, and all trading-related operations must still use Jesse MCP tools exclusively.
+
 Environment Constraints:
 - No direct file system access
 - No system environment access
@@ -165,6 +170,7 @@ Report creation requirements:
 - Required path pattern: `strategies/<StrategyName>/reports/<REPORT_FILENAME>.md`
 - Example: strategy `BTCSharpeIter` -> `strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md`
 - If the `reports` folder does not exist, create it before writing the report.
+- If Jesse MCP does not provide a dedicated tool for report creation, the required Markdown report and its `reports` directory may be created under the exception defined in `TOOL USAGE RULES`.
 - **HARD STOP RULE**: Do not end the task, return final results, or mark work as complete until the report file has been created successfully.
 - **VERIFICATION RULE**: Before final response, explicitly verify the report path exists and include that exact path in the user-facing completion message.
 - **FAILURE HANDLING**: If report creation fails for any reason, retry with a corrected path/name and do not continue to finalization until successful.
