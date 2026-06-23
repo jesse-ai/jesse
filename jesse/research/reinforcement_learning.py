@@ -1,17 +1,37 @@
-# NOTE: ray / RLlib are imported LAZILY inside the RLlib trainer functions only.
-# The environment (JesseRLEnvironment) — used by the SB3 path too — must import
-# without pulling in ray, both because SB3 is the supported trainer and because
-# `import ray` rewrites sys.path[0] (breaking jesse's unit-test strategy lookup).
-import gymnasium as gym
-from gymnasium import spaces
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-import copy
-import psutil
-import time
-import threading
+"""
+Reinforcement learning for Jesse — train an agent that makes trading decisions
+inside a Jesse backtest.
 
-from jesse.research.backtest import backtest as _backtest
+A Jesse backtest is wrapped as a standard Gymnasium environment,
+``JesseRLEnvironment``: every ``step()`` hands the agent's action to your
+strategy, advances the simulation by one candle, and reads back the new
+observation, reward and done-flag through the ``store.rl`` bridge. Training is
+done via ``train_rl_agent`` / ``evaluate_rl_agent``,
+which run the environment across ``n_envs`` parallel processes for throughput.
+
+Importing this module requires the RL extras — Gymnasium, NumPy and
+Stable-Baselines3 (which pulls in PyTorch):
+``pip install stable-baselines3 gymnasium torch``.
+"""
+import hashlib
+import inspect
+import importlib
+import json
+import os
+import platform
+import sys
+import time
+import traceback
+from dataclasses import dataclass
+
+import gymnasium as gym
+import numpy as np
+import psutil
+from stable_baselines3 import DQN, PPO
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecNormalize
+from stable_baselines3.common.utils import set_random_seed
+
 import jesse.helpers as jh
 from jesse.store import store
 from jesse.modes.backtest_mode import (
@@ -20,97 +40,11 @@ from jesse.modes.backtest_mode import (
 )
 from jesse.config import config as jesse_config, set_config, reset_config
 from jesse.routes import router
+from jesse.repositories import closed_trade_repository
 from jesse.services.validators import validate_routes
 from jesse.services.candle_service import inject_warmup_candles_to_store
 from jesse.services import exchange_service, order_service, position_service
-import jesse.services.metrics as stats
 import jesse.services.report as report
-
-
-class PerformanceMonitor:
-    """Monitor CPU and memory usage during RL training"""
-    
-    def __init__(self, num_workers: int):
-        self.num_workers = num_workers
-        self.monitoring = False
-        self.cpu_usage_history = []
-        self.memory_usage_history = []
-        self.cpu_count = psutil.cpu_count()
-        self._monitor_thread = None
-    
-    def start_monitoring(self):
-        """Start monitoring in a separate thread"""
-        self.monitoring = True
-        self.cpu_usage_history = []
-        self.memory_usage_history = []
-        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
-        self._monitor_thread.start()
-        jh.debug(f"Performance monitoring started. System has {self.cpu_count} CPUs, using {self.num_workers} workers")
-    
-    def stop_monitoring(self):
-        """Stop monitoring and return summary"""
-        self.monitoring = False
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=1)
-        
-        if self.cpu_usage_history:
-            avg_cpu = np.mean(self.cpu_usage_history)
-            max_cpu = np.max(self.cpu_usage_history)
-            avg_memory = np.mean(self.memory_usage_history)
-            
-            expected_cpu_usage = (self.num_workers / self.cpu_count) * 100
-            efficiency = avg_cpu / expected_cpu_usage if expected_cpu_usage > 0 else 0
-            
-            return {
-                'avg_cpu_percent': avg_cpu,
-                'max_cpu_percent': max_cpu,
-                'avg_memory_percent': avg_memory,
-                'expected_cpu_percent': expected_cpu_usage,
-                'cpu_efficiency': efficiency,
-                'total_cpus': self.cpu_count,
-                'workers_used': self.num_workers
-            }
-        return {}
-    
-    def _monitor_loop(self):
-        """Monitor CPU and memory usage in a loop"""
-        while self.monitoring:
-            try:
-                cpu_percent = psutil.cpu_percent(interval=1)
-                memory_percent = psutil.virtual_memory().percent
-                
-                self.cpu_usage_history.append(cpu_percent)
-                self.memory_usage_history.append(memory_percent)
-            except Exception:
-                pass  # Continue silently
-
-
-def _fmt(x, decimals=2, sci=False):
-    """Format number for display"""
-    if x is None:
-        return "NA"
-    try:
-        x = float(x)
-        return f"{x:.2e}" if sci else f"{x:.{decimals}f}"
-    except Exception:
-        return str(x)
-
-
-def _get_any(d, keys):
-    """Get first available key from dict"""
-    for k in keys:
-        v = d.get(k)
-        if v is not None:
-            return v
-    return None
-
-
-def _get_nested(d, parent, key):
-    """Get nested value from dict"""
-    p = d.get(parent)
-    if isinstance(p, dict):
-        return p.get(key)
-    return None
 
 
 def _extract_trading_metrics_from_episode():
@@ -162,80 +96,6 @@ def _extract_trading_metrics_from_episode():
     }
 
 
-def _enhanced_episode_summary(trading_metrics: dict, episode_num: int) -> str:
-    """Create detailed episode summary with trading metrics"""
-    if trading_metrics['total_trades'] == 0:
-        return f"Episode {episode_num}: No trades executed"
-    
-    profit_loss = trading_metrics['net_profit_percentage']
-    profit_symbol = "+" if profit_loss >= 0 else ""
-    
-    return (
-        f"Episode {episode_num} Complete:\n"
-        f"    Portfolio:     ${trading_metrics['starting_balance']:,.0f} → "
-        f"${trading_metrics['finishing_balance']:,.0f} ({profit_symbol}{profit_loss:.2f}%)\n"
-        f"    Trading:       {trading_metrics['total_trades']} trades, "
-        f"{trading_metrics['total_winning_trades']} wins, "
-        f"{trading_metrics['total_losing_trades']} losses "
-        f"(Win Rate: {trading_metrics['win_rate']:.1f}%)\n"
-        f"    Performance:   Sharpe: {trading_metrics['sharpe_ratio']:.2f}, "
-        f"Max DD: {trading_metrics['max_drawdown']:.1f}%, "
-        f"Calmar: {trading_metrics['calmar_ratio']:.2f}\n"
-        f"    Positions:     Longs: {trading_metrics['longs_percentage']:.1f}%, "
-        f"Shorts: {trading_metrics['shorts_percentage']:.1f}%"
-    )
-
-
-def _summarize_training_result(result: dict, iteration: int) -> dict:
-    """Extract key metrics from training result for readable summary"""
-    # reward/return
-    ret_mean = _get_any(result, ['episode_reward_mean', 'episode_return_mean', 'env_runners/episode_return_mean'])
-    if ret_mean is None:
-        ret_mean = _get_nested(result, 'sampler_results', 'episode_reward_mean') or \
-                   _get_nested(result, 'sampler_results', 'episode_return_mean') or \
-                   _get_nested(result, 'env_runners', 'episode_return_mean')
-    ret_min = _get_any(result, ['episode_reward_min', 'episode_return_min']) or \
-              _get_nested(result, 'env_runners', 'episode_return_min')
-    ret_max = _get_any(result, ['episode_reward_max', 'episode_return_max']) or \
-              _get_nested(result, 'env_runners', 'episode_return_max')
-
-    # episode length
-    len_mean = _get_any(result, ['episode_len_mean']) or \
-               _get_nested(result, 'env_runners', 'episode_len_mean')
-    len_min = _get_any(result, ['episode_len_min']) or \
-              _get_nested(result, 'env_runners', 'episode_len_min')
-    len_max = _get_any(result, ['episode_len_max']) or \
-              _get_nested(result, 'env_runners', 'episode_len_max')
-
-    # learner stats (DQN)
-    learners = result.get('learners') or {}
-    dp = learners.get('default_policy') or {}
-    qf_loss = dp.get('qf_loss') or dp.get('total_loss')
-    td_err = dp.get('td_error_mean')
-
-    # throughput/steps/time
-    steps_sampled = result.get('num_env_steps_sampled') or \
-                    _get_nested(result, 'env_runners', 'num_env_steps_sampled') or \
-                    _get_any(result, ['num_env_steps_sampled_lifetime'])
-    time_this = result.get('time_this_iter_s')
-    time_total = result.get('time_total_s')
-
-    return {
-        'iteration': iteration,
-        'episode_return_mean': ret_mean,
-        'episode_return_min': ret_min,
-        'episode_return_max': ret_max,
-        'episode_len_mean': len_mean,
-        'episode_len_min': len_min,
-        'episode_len_max': len_max,
-        'qf_loss': qf_loss,
-        'td_error_mean': td_err,
-        'num_env_steps_sampled': steps_sampled,
-        'time_this_iter_s': time_this,
-        'time_total_s': time_total,
-    }
-
-
 class JesseRLEnvironment(gym.Env):
     """
     Jesse Reinforcement Learning Environment - Optimized for multi-core performance
@@ -250,11 +110,22 @@ class JesseRLEnvironment(gym.Env):
         self.data_routes = config.get('data_routes')
         self.candles = config.get('candles')
         self.warmup_candles = config.get('warmup_candles')
+        # Episode length in DECISION bars (trading-timeframe bars). The episode's
+        # 1-minute window spans max_steps * trading_tf_minutes candles.
         self.max_steps = config.get('max_steps', 1000)
-        # When True, each episode starts at a random offset into the candle array
-        # (window length = max_steps). Across many episodes this samples the entire
-        # (multi-year) history instead of replaying only the first max_steps candles.
+        # When True, each episode starts at a random offset into the candle array.
+        # Across many episodes this samples the entire history rather than always
+        # replaying the beginning.
         self.random_episode_start = config.get('random_episode_start', False)
+        # warmup_bars > 0 makes random starts SAFE for indicator-based strategies:
+        #   1. the random start is snapped to a day boundary (assumes 1-minute input
+        #      candles, 1440 per day) so higher-timeframe aggregation isn't cut
+        #      mid-candle, and
+        #   2. the `warmup_bars` candles immediately BEFORE the start are injected as
+        #      warmup, so indicators (EMA/RSI/ATR, anchor timeframes) are warm at the
+        #      first traded bar instead of starting cold.
+        # 0 -> legacy behaviour (raw random offset, no carved warmup).
+        self.warmup_bars = int(config.get('warmup_bars', 0) or 0)
 
         # Multi-asset training: if a candle pool is provided ({symbol: candle_array}
         # for a single exchange), each episode trades a randomly-chosen symbol from the
@@ -263,7 +134,6 @@ class JesseRLEnvironment(gym.Env):
         # RL training does not need trades persisted to the database (they live in
         # memory via report.trades()). Writing every trade — across many parallel
         # env-runner processes — is a per-step cost and a DB-contention hazard.
-        from jesse.repositories import closed_trade_repository
         closed_trade_repository.set_persistence(False)
 
         self.candles_pool = config.get('candles_pool')
@@ -294,7 +164,7 @@ class JesseRLEnvironment(gym.Env):
         self._action_space = strategy.get_action_space()
         self._observation_space = strategy.get_observation_space()
         
-        # Don't call reset() here - let Ray/RLlib call it when ready
+        # Don't call reset() here - the trainer calls it when ready
     
     @property
     def action_space(self):
@@ -413,18 +283,37 @@ class JesseRLEnvironment(gym.Env):
         # NOW reset store (after routes are initialized)
         store.reset()
 
-        # Decide this episode's candle window. window = max_steps (episode length);
-        # with random_episode_start the window begins at a random offset so training
-        # samples the whole history across episodes rather than only candles[0:max_steps].
+        # Decide this episode's candle window. `max_steps` is the episode length in
+        # DECISION bars (trading-timeframe bars). Input candles are 1-minute, so the
+        # window spans `max_steps * trading_tf_minutes` one-minute candles. With
+        # random_episode_start the window begins at a random offset so training
+        # samples the whole history across episodes rather than only its beginning.
         _primary = next(iter(self.candles.values()))['candles']
         _total_len = len(_primary)
-        _window = self.max_steps if (self.max_steps and self.max_steps > 0) else _total_len
+        _tf_1m = jh.timeframe_to_one_minutes(self.routes[0]['timeframe']) if self.routes else 1
+        _window = (self.max_steps * _tf_1m) if (self.max_steps and self.max_steps > 0) else _total_len
         _window = min(_window, _total_len)
         if self.random_episode_start and _total_len > _window:
-            self._episode_start = int(np.random.randint(0, _total_len - _window + 1))
+            # Always begin a random episode at a fresh UTC-day boundary so every
+            # timeframe (4h, 1d, ...) aggregates from a correct, aligned start —
+            # this holds even when warmup_bars == 0. warmup_bars only reserves room
+            # before the start to carve warmup from.
+            _lo = self.warmup_bars
+            _hi = _total_len - _window                       # inclusive max start
+            _ts = _primary[:, 0].astype(np.int64)
+            _midnights = np.flatnonzero(_ts % 86_400_000 == 0)
+            _midnights = _midnights[(_midnights >= _lo) & (_midnights <= _hi)]
+            if _midnights.size > 0:
+                self._episode_start = int(np.random.choice(_midnights))
+            else:
+                # No day-aligned start fits (e.g. synthetic candles not on a
+                # calendar grid, or a short series) -> fall back to any valid offset.
+                self._episode_start = int(np.random.randint(_lo, _hi + 1)) if _hi > _lo else _lo
         else:
             self._episode_start = 0
         self._episode_window = _window
+        # candles carved from just before the start, used as this episode's warmup
+        self._episode_warmup_start = max(0, self._episode_start - self.warmup_bars)
 
         # Initialize candle storage (must hold the whole episode window)
         store.candles.init_storage(max(5000, _window + 10))
@@ -458,11 +347,21 @@ class JesseRLEnvironment(gym.Env):
         
         # Same optimization for warmup candles
         self.warmup_candles_dict = {}
-        if self.warmup_candles:
+        if self.warmup_bars > 0 and self._episode_start > self._episode_warmup_start:
+            # Carve warmup from the candles immediately before this episode's window,
+            # so indicators are warm at the first traded bar (handles random starts).
+            _ws, _we = self._episode_warmup_start, self._episode_start
+            for key, value in self.candles.items():
+                self.warmup_candles_dict[key] = {
+                    'exchange': value['exchange'],
+                    'symbol': value['symbol'],
+                    'candles': value['candles'][_ws:_we],
+                }
+        elif self.warmup_candles:
             for key, value in self.warmup_candles.items():
                 self.warmup_candles_dict[key] = {
                     'exchange': value['exchange'],
-                    'symbol': value['symbol'], 
+                    'symbol': value['symbol'],
                     'candles': value['candles']  # Reference same array instead of copying
                 }
         
@@ -539,7 +438,6 @@ class JesseRLEnvironment(gym.Env):
             info = {}
             return obs, reward, terminated, truncated, info
         except Exception as e:
-            import traceback
             traceback.print_exc()
             # A failure on the very first step of an episode is a structural/setup bug (e.g.
             # uninitialised state, a broken strategy hook) that would otherwise be silently
@@ -552,511 +450,13 @@ class JesseRLEnvironment(gym.Env):
             return np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype), 0.0, True, False, {}
 
 
-def _greedy_action(trainer, obs, action_space):
-    """Greedy action from a restored RLlib module on the new API stack (Discrete actions),
-    with graceful fallbacks. forward_inference returns action-distribution logits, so we
-    argmax them; if anything about the module API differs, fall back to the older
-    compute_single_action, then finally to a random action so evaluation never crashes."""
-    try:
-        import torch
-        module = trainer.get_module()
-        batch = {"obs": torch.as_tensor(np.asarray(obs)[None], dtype=torch.float32)}
-        out = module.forward_inference(batch)
-        if "actions" in out:
-            act = out["actions"]
-        else:
-            act = torch.argmax(out["action_dist_inputs"], dim=-1)
-        act = act.detach().cpu().numpy() if hasattr(act, "detach") else np.asarray(act)
-        return int(np.asarray(act).reshape(-1)[0])
-    except Exception:
-        try:
-            return trainer.compute_single_action(obs, explore=False)
-        except Exception:
-            return action_space.sample()
-
-
-def _run_quick_evaluation_episode(trainer, config, routes, data_routes, candles, warmup_candles):
-    """Run a single evaluation episode to extract current trading performance"""
-    try:
-        env = JesseRLEnvironment({
-            'backtest_config': config,
-            'routes': routes, 
-            'data_routes': data_routes,
-            'candles': candles,
-            'warmup_candles': warmup_candles,
-            'max_steps': 1000,
-        })
-        
-        obs, info = env.reset()
-        done = False
-        truncated = False
-        
-        while not (done or truncated):
-            action = _greedy_action(trainer, obs, env.action_space)
-            obs, reward, done, truncated, info = env.step(action)
-        
-        # Extract trading metrics from completed episode
-        trading_metrics = _extract_trading_metrics_from_episode()
-        return trading_metrics
-        
-    except Exception as e:
-        # Return safe defaults on any error, but don't spam debug output
-        return {
-            'total_trades': 0,
-            'win_rate': 0.0,
-            'net_profit_percentage': 0.0,
-            'profit_loss': 0.0,
-            'sharpe_ratio': 0.0,
-            'max_drawdown': 0.0,
-            'largest_win': 0.0,
-            'largest_loss': 0.0,
-            'calmar_ratio': 0.0,
-            'avg_win': 0.0,
-            'avg_loss': 0.0,
-            'starting_balance': 10000.0,
-            'finishing_balance': 10000.0,
-            'total_winning_trades': 0,
-            'total_losing_trades': 0,
-            'longs_percentage': 0.0,
-            'shorts_percentage': 0.0,
-        }
-
-
-def _summarize_training_with_trading_metrics(result: dict, iteration: int, 
-                                           episode_trading_metrics: list) -> dict:
-    """Enhanced training summary that includes both RL and trading metrics"""
-    
-    # Get existing RL metrics
-    rl_summary = _summarize_training_result(result, iteration)
-    
-    # Calculate trading metrics aggregation across recent episodes
-    recent_episodes = episode_trading_metrics[-5:]  # Last 5 episodes
-    if recent_episodes:
-        avg_profit_pct = np.mean([ep['net_profit_percentage'] for ep in recent_episodes])
-        avg_win_rate = np.mean([ep['win_rate'] for ep in recent_episodes])
-        avg_trades = np.mean([ep['total_trades'] for ep in recent_episodes])
-        avg_sharpe = np.mean([ep['sharpe_ratio'] for ep in recent_episodes if ep['sharpe_ratio'] != 0])
-        avg_max_dd = np.mean([ep['max_drawdown'] for ep in recent_episodes])
-        
-        best_episode = max(recent_episodes, key=lambda x: x['net_profit_percentage'])
-    else:
-        avg_profit_pct = avg_win_rate = avg_trades = avg_sharpe = avg_max_dd = 0
-        best_episode = {}
-    
-    # Combine RL and trading metrics
-    enhanced_summary = rl_summary.copy()
-    enhanced_summary.update({
-        'trading_avg_profit_pct': avg_profit_pct,
-        'trading_avg_win_rate': avg_win_rate,
-        'trading_avg_trades': avg_trades,
-        'trading_avg_sharpe': avg_sharpe,
-        'trading_avg_max_drawdown': avg_max_dd,
-        'best_recent_profit_pct': best_episode.get('net_profit_percentage', 0),
-        'best_recent_win_rate': best_episode.get('win_rate', 0),
-    })
-    
-    return enhanced_summary
-
-
-
-
-SUPPORTED_ALGORITHMS = ('DQN', 'PPO')
-
-
-def _build_algo_config(
-    algorithm: str,
-    env_config: dict,
-    num_workers: int,
-    rollout_fragment_length: int,
-    train_batch_size: int,
-    num_steps_sampled_before_learning_starts: int,
-):
-    """Build the RLlib AlgorithmConfig for the requested algorithm.
-
-    All algorithms share the single-machine resource model: the learner runs *in the
-    driver process* (num_learners=0) and each env-runner gets its own core, so there is
-    no CPU over-subscription. rollout_fragment_length is kept constant (per worker) so
-    that adding workers adds parallel sampling throughput instead of splitting a fixed
-    amount of work.
-
-    - DQN  : off-policy, single serial learner. Good sample efficiency, but end-to-end
-             throughput is ultimately capped by the learner, so it scales sub-linearly.
-    - PPO  : on-policy. Rollout collection is embarrassingly parallel across env-runners
-             and there is no replay buffer / single-learner bottleneck, so throughput
-             scales much better with num_workers -- the right choice on many-core boxes.
-    """
-    from ray.rllib.algorithms.dqn import DQNConfig
-    from ray.rllib.algorithms.ppo import PPOConfig
-
-    shared_env_runners = dict(num_env_runners=num_workers, num_envs_per_env_runner=1)
-    shared_learners = dict(num_learners=0, num_gpus_per_learner=0)
-
-    if algorithm == 'DQN':
-        return (
-            DQNConfig()
-            .environment(env="jesse_env", env_config=env_config)
-            .framework("torch")
-            .env_runners(rollout_fragment_length=rollout_fragment_length, **shared_env_runners)
-            .training(
-                lr=0.0001,
-                train_batch_size=train_batch_size,
-                target_network_update_freq=500,
-                num_steps_sampled_before_learning_starts=num_steps_sampled_before_learning_starts,
-            )
-            .learners(**shared_learners)
-            .resources(num_cpus_for_main_process=1)
-        )
-
-    # PPO: scale the per-iteration batch with the worker count so every runner collects a
-    # meaningful chunk in parallel (rollout_fragment_length='auto' divides the batch evenly).
-    per_worker_steps = max(rollout_fragment_length * 4, 256)
-    ppo_train_batch = max(train_batch_size, max(num_workers, 1) * per_worker_steps)
-    minibatch = min(128, ppo_train_batch)
-    return (
-        PPOConfig()
-        .environment(env="jesse_env", env_config=env_config)
-        .framework("torch")
-        .env_runners(rollout_fragment_length='auto', **shared_env_runners)
-        .training(
-            lr=0.0003,
-            train_batch_size=ppo_train_batch,
-            minibatch_size=minibatch,
-            num_epochs=10,
-        )
-        .learners(**shared_learners)
-        .resources(num_cpus_for_main_process=1)
-    )
-
-
-def train_rl_agent(
-    config: dict,
-    routes: List[Dict[str, str]],
-    data_routes: List[Dict[str, str]],
-    candles: dict,
-    warmup_candles: dict = None,
-    algorithm: str = 'DQN',
-    num_iterations: int = 100,
-    num_workers: int = 2,
-    checkpoint_freq: int = 10,
-    rollout_fragment_length: int = 64,
-    train_batch_size: int = 64,
-    num_steps_sampled_before_learning_starts: int = 256,
-    max_steps: int = 1000,
-    random_episode_start: bool = False,
-) -> dict:
-    """
-    Train reinforcement learning agent with enhanced trading metrics output
-    
-    Args:
-        config: Backtest configuration
-        routes: Trading routes
-        data_routes: Data routes
-        candles: Candle data
-        warmup_candles: Warmup candle data
-        algorithm: RL algorithm to use (currently only 'DQN')
-        num_iterations: Number of training iterations
-        num_workers: Number of worker processes
-        checkpoint_freq: Checkpoint frequency
-    
-    Returns:
-        Training results with summaries, trading metrics, and checkpoints
-    """
-    
-    import ray
-    from ray import tune
-
-    algorithm = (algorithm or 'DQN').upper()
-    if algorithm not in SUPPORTED_ALGORITHMS:
-        raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
-
-    # ----- Resource allocation tuned for a single multi-core machine -----
-    # The original configuration over-subscribed the CPUs: it reserved 2 cores for the
-    # driver (num_cpus_for_main_process=2) PLUS a separate learner actor (num_learners=1)
-    # on top of N env-runner actors -> N+3 cores of demand against only N+2 cores from
-    # ray.init(num_cpus=num_workers+2). With one core permanently short, the env-runners
-    # and the learner time-sliced the same cores and never truly ran in parallel, which is
-    # why training pinned ~1 core regardless of num_workers. On a single machine we instead
-    # keep the learner *in the driver process* (num_learners=0, see .learners() below) and
-    # give every env-runner its own dedicated core: N runners + 1 driver/learner == N+1
-    # cores, which fits a 4-core box exactly at N=3 with zero over-subscription.
-    total_cpus = psutil.cpu_count() or (num_workers + 1)
-    ray_cpus = min(total_cpus, num_workers + 1)
-    if not ray.is_initialized():
-        try:
-            ray.init(
-                num_cpus=ray_cpus,
-                object_store_memory=1000000000,  # 1GB object store
-                ignore_reinit_error=True,
-                log_to_driver=False,  # Reduce logging overhead
-                include_dashboard=False,
-            )
-            jh.debug(f"Ray initialized with {ray_cpus} CPUs ({num_workers} env-runners + 1 driver/learner) for RL training")
-        except Exception as e:
-            jh.debug(f"Ray initialization failed: {e}, falling back to minimal config")
-            ray.init(num_cpus=ray_cpus, ignore_reinit_error=True)
-    
-    # Register environment
-    tune.register_env("jesse_env", lambda config: JesseRLEnvironment(config))
-    
-    # Build the algorithm config (DQN or PPO). Sampling/learning sizes come from the
-    # keyword args. rollout_fragment_length is kept CONSTANT per worker so that adding
-    # workers adds parallel sampling throughput instead of splitting a fixed amount of work
-    # (the original `200 // num_workers` shrank each worker's share and silently cancelled
-    # the benefit of multiprocessing). See _build_algo_config for the per-algorithm details.
-    # NOTE: candles are passed by value in env_config. We deliberately do NOT ray.put() them
-    # and pass an ObjectRef instead: RLlib stores env_config as the EnvRunner actor's
-    # constructor arguments, and if an actor restarts (which RLlib does on transient errors),
-    # a constructor ObjectRef that has gone out of scope makes the restart fail and the whole
-    # run hangs (ray-project/ray#53727). RLlib already broadcasts env_config efficiently.
-    env_config = {
-        'backtest_config': config,
-        'routes': routes,
-        'data_routes': data_routes,
-        'candles': candles,
-        'warmup_candles': warmup_candles,
-        'max_steps': max_steps,
-        'random_episode_start': random_episode_start,
-    }
-    algo_config = _build_algo_config(
-        algorithm,
-        env_config,
-        num_workers,
-        rollout_fragment_length,
-        train_batch_size,
-        num_steps_sampled_before_learning_starts,
-    )
-
-    # Create trainer
-    trainer = algo_config.build_algo()
-    
-    # Initialize performance monitoring
-    perf_monitor = PerformanceMonitor(num_workers)
-    perf_monitor.start_monitoring()
-    
-    # Enhanced Training loop with trading metrics
-    results = []
-    summaries = []
-    checkpoints = []
-    episode_trading_metrics = []  # Track trading performance per episode
-    
-    print(f"Starting RL Training with {num_workers} workers on {perf_monitor.cpu_count} CPU system...")
-    training_start_time = time.time()
-    
-    for i in range(num_iterations):
-        result = trainer.train()
-        results.append(result)
-        
-        # Extract trading metrics from completed episodes (skip first few iterations)
-        if i >= 2 and (i + 1) % 10 == 0:  # Start evaluation after a few iterations, then every 10 iterations
-            try:
-                eval_metrics = _run_quick_evaluation_episode(trainer, config, routes, data_routes, candles, warmup_candles)
-                episode_trading_metrics.append(eval_metrics)
-            except Exception as e:
-                pass  # Continue silently without trading metrics for this iteration
-        
-        # Create enhanced summary
-        s = _summarize_training_with_trading_metrics(result, i + 1, episode_trading_metrics)
-        summaries.append(s)
-        
-        # Clean, concise logging that shows both RL and trading performance when available
-        if episode_trading_metrics and len(episode_trading_metrics) > 0:
-            recent_trading = episode_trading_metrics[-1]
-            profit = recent_trading['net_profit_percentage']
-            trades = recent_trading['total_trades']
-            win_rate = recent_trading['win_rate']
-            
-            print(f"Iter {i+1:2d}/{num_iterations} | "
-                  f"Profit: {profit:+.1f}% | "
-                  f"Trades: {trades:2d} | "
-                  f"Win Rate: {win_rate:.0f}% | "
-                  f"RL Return: {_fmt(s['episode_return_mean'])} | "
-                  f"Time: {_fmt(s['time_this_iter_s'])}s")
-        else:
-            # Simple output for initial iterations
-            print(f"Iter {i+1:2d}/{num_iterations} | "
-                  f"RL Return: {_fmt(s['episode_return_mean'])} | "
-                  f"Q-Loss: {_fmt(s['qf_loss'], sci=True)} | "
-                  f"Time: {_fmt(s['time_this_iter_s'])}s")
-        
-        # Save checkpoint quietly
-        if (i + 1) % checkpoint_freq == 0:
-            ckpt = trainer.save()
-            # Extract actual path from checkpoint object
-            if hasattr(ckpt, 'checkpoint') and hasattr(ckpt.checkpoint, 'path'):
-                ckpt_path = ckpt.checkpoint.path
-            elif hasattr(ckpt, 'path'):
-                ckpt_path = ckpt.path
-            else:
-                ckpt_path = "Unknown path"
-            checkpoints.append(ckpt_path)
-    
-    # Stop performance monitoring and get summary
-    perf_stats = perf_monitor.stop_monitoring()
-    training_duration = time.time() - training_start_time
-    
-    # Enhanced final summary with trading metrics and performance stats
-    print(f"\nTraining Complete! Duration: {training_duration:.1f}s")
-    
-    # Performance analysis
-    if perf_stats:
-        print(f"\n==> PERFORMANCE ANALYSIS:")
-        print(f"    CPU Usage:     {perf_stats['avg_cpu_percent']:.1f}% avg, {perf_stats['max_cpu_percent']:.1f}% peak")
-        print(f"    Expected CPU:  {perf_stats['expected_cpu_percent']:.1f}% ({perf_stats['workers_used']} workers / {perf_stats['total_cpus']} CPUs)")
-        print(f"    CPU Efficiency: {perf_stats['cpu_efficiency']:.1%} (should be close to 100%)")
-        print(f"    Memory Usage:  {perf_stats['avg_memory_percent']:.1f}%")
-        
-        if perf_stats['cpu_efficiency'] < 0.7:
-            print(f"    ⚠️  Low CPU efficiency detected! Potential bottlenecks:")
-            print(f"       - Jesse store operations might not parallelize well")
-            print(f"       - Consider reducing batch complexity or optimizing environment")
-        elif perf_stats['cpu_efficiency'] > 0.9:
-            print(f"    ✅ Excellent CPU utilization!")
-    
-    if episode_trading_metrics:
-        best_episode = max(episode_trading_metrics, key=lambda x: x['net_profit_percentage'])
-        final_episode = episode_trading_metrics[-1]
-        
-        print(f"\n==> TRADING PERFORMANCE:")
-        print(f"    Best Episode:   {best_episode['net_profit_percentage']:+.1f}% profit")
-        print(f"    Final Episode:  {final_episode['net_profit_percentage']:+.1f}% profit")
-        print(f"    Final Win Rate: {final_episode['win_rate']:.0f}%")
-        
-    if summaries:
-        best_summary = max(summaries, key=lambda x: (float(x['episode_return_mean']) if x['episode_return_mean'] is not None else -1e18))
-        final_summary = summaries[-1]
-        
-        print(f"\n==> RL LEARNING:")
-        print(f"    Best RL Return:  {_fmt(best_summary['episode_return_mean'])}")
-        print(f"    Final RL Return: {_fmt(final_summary['episode_return_mean'])}")
-        print(f"    Final Q-Loss:    {_fmt(final_summary['qf_loss'], sci=True)}")
-    
-    # Clean up
-    trainer.stop()
-    ray.shutdown()
-    
-    return {
-        'results': results,
-        'summaries': summaries,
-        'checkpoints': checkpoints,
-        'episode_trading_metrics': episode_trading_metrics,
-        'performance_stats': perf_stats,
-        'training_duration': training_duration,
-        'final_result': results[-1] if results else None
-    }
-
-
-def evaluate_rl_agent(
-    config: dict,
-    routes: List[Dict[str, str]],
-    data_routes: List[Dict[str, str]],
-    candles: dict,
-    checkpoint_path: str,
-    warmup_candles: dict = None,
-    algorithm: str = 'DQN',
-    num_episodes: int = 10,
-) -> dict:
-    """
-    Evaluate trained RL agent
-    
-    Args:
-        config: Backtest configuration
-        routes: Trading routes
-        data_routes: Data routes
-        candles: Candle data
-        checkpoint_path: Path to model checkpoint
-        warmup_candles: Warmup candle data
-        algorithm: RL algorithm used
-        num_episodes: Number of evaluation episodes
-    
-    Returns:
-        Evaluation results
-    """
-    
-    import ray
-    from ray import tune
-    from ray.rllib.algorithms.dqn import DQNConfig
-    from ray.rllib.algorithms.ppo import PPOConfig
-
-    algorithm = (algorithm or 'DQN').upper()
-    if algorithm not in SUPPORTED_ALGORITHMS:
-        raise ValueError(f"Unsupported algorithm '{algorithm}'. Supported: {SUPPORTED_ALGORITHMS}.")
-
-    # Initialize Ray
-    if not ray.is_initialized():
-        ray.init()
-
-    # Register environment
-    tune.register_env("jesse_env", lambda config: JesseRLEnvironment(config))
-
-    # Build a matching (inference-only) config and restore the checkpoint into it.
-    env_config = {
-        'backtest_config': config,
-        'routes': routes,
-        'data_routes': data_routes,
-        'candles': candles,
-        'warmup_candles': warmup_candles,
-        'max_steps': 1000,
-    }
-    ConfigClass = DQNConfig if algorithm == 'DQN' else PPOConfig
-    eval_config = (
-        ConfigClass()
-        .environment(env="jesse_env", env_config=env_config)
-        .framework("torch")
-        .env_runners(num_env_runners=0)
-    )
-
-    # Create trainer and restore checkpoint
-    trainer = eval_config.build_algo()
-    trainer.restore(checkpoint_path)
-    
-    # Evaluation
-    episode_rewards = []
-    
-    for episode in range(num_episodes):
-        env = JesseRLEnvironment({
-            'backtest_config': config,
-            'routes': routes,
-            'data_routes': data_routes,
-            'candles': candles,
-            'warmup_candles': warmup_candles,
-            'max_steps': 1000,
-        })
-        
-        obs, info = env.reset()
-        done = False
-        truncated = False
-        episode_reward = 0
-        
-        while not (done or truncated):
-            action = _greedy_action(trainer, obs, env.action_space)
-            obs, reward, done, truncated, info = env.step(action)
-            episode_reward += reward
-        
-        episode_rewards.append(episode_reward)
-        jh.debug(f"Episode {episode+1} reward: {episode_reward:.2f}")
-    
-    # Clean up
-    trainer.stop()
-    ray.shutdown()
-    
-    return {
-        'episode_rewards': episode_rewards,
-        'mean_reward': np.mean(episode_rewards),
-        'std_reward': np.std(episode_rewards),
-        'min_reward': np.min(episode_rewards),
-        'max_reward': np.max(episode_rewards),
-    }
-
-
 # ============================================================================
-# Stable-Baselines3 trainer (stablebaseline3-perf branch)
+# Stable-Baselines3-backed trainer
 # ----------------------------------------------------------------------------
-# The original `stablebaseline3` branch trained SB3 on a SINGLE JesseRLEnvironment
-# (no multiprocessing), which pinned sampling to one core. This trains SB3 with
-# `SubprocVecEnv` so each env-runner gets its own process/core — the actual lever
-# for throughput — on the perf-merged env. Benchmarks: 1 env ~2.7k steps/s,
-# 7 envs ~8k steps/s (~3x). (perf-backtests itself does not speed RL stepping;
-# RL advances one candle at a time through a generator.)
+# Trains across `n_envs` parallel JesseRLEnvironment processes so each env gets
+# its own core. That is the actual lever for throughput because RL advances one
+# candle at a time through a generator and a single environment pins sampling to
+# one core. Benchmarks: 1 env ~2.7k steps/s, 7 envs ~8k steps/s (~3x).
 # ============================================================================
 def _make_sb3_env(env_config):
     def _f():
@@ -1064,72 +464,552 @@ def _make_sb3_env(env_config):
     return _f
 
 
-def train_rl_agent_sb3(config, routes, data_routes, candles, warmup_candles=None,
-                       algorithm: str = 'DQN', total_timesteps: int = 300_000,
-                       n_envs: int = None, max_steps: int = 1000,
-                       random_episode_start: bool = True, train_freq: int = 8,
-                       net_arch=(64, 64)):
-    """Train an SB3 agent across `n_envs` parallel JesseRLEnvironment processes.
+# ============================================================================
+# Result types & persistence
+# ============================================================================
+# The SB3 model file (model.zip) is opaque: on its own it cannot tell you what
+# market, strategy, or library versions produced it. So a saved agent is a
+# self-describing *bundle* — the weights plus a manifest plus a snapshot of the
+# strategy source — never the .zip alone.
+#
+# Supported algorithms. DQN is value-based/off-policy (sample-efficient, great
+# default for discrete actions); PPO is policy-gradient/on-policy (more stable on
+# larger discrete action spaces and the path to continuous actions later). Both
+# train through the same JesseRLEnvironment and strategy hooks.
+ALGORITHMS = {'DQN': DQN, 'PPO': PPO}
 
-    train_freq: DQN gradient step every N env-steps. 8 (default) is ~19% faster than
-    4 with the same sample-efficiency in our benchmarks (the learner is the dominant
-    cost once the env is optimized); lower it toward 4 if a task needs more updates.
 
-    PORTABILITY: when n_envs > 1 this uses SB3's SubprocVecEnv. On Windows and macOS
-    (which use the 'spawn' start method) the calling script MUST be guarded by
-    `if __name__ == '__main__':`, otherwise each spawned worker re-imports and re-runs
-    the script (recursive process creation). On Linux ('fork') the guard is not required
-    but is still good practice. Set n_envs=1 to run single-process anywhere.
+class ObsNormalizer:
+    """Standardizes observations with fixed mean/variance (z-score + clip).
+
+    When training normalizes observations, the running statistics it learned must
+    be applied identically at evaluation/inference time — otherwise the model sees
+    differently-scaled inputs and silently misbehaves. This captures those stats so
+    they travel with the model (in the TrainResult and the saved bundle)."""
+
+    def __init__(self, mean, var, clip: float = 10.0, epsilon: float = 1e-8):
+        self.mean = np.asarray(mean, dtype=np.float64)
+        self.var = np.asarray(var, dtype=np.float64)
+        self.clip = float(clip)
+        self.epsilon = float(epsilon)
+
+    def normalize(self, obs):
+        out = (np.asarray(obs, dtype=np.float64) - self.mean) / np.sqrt(self.var + self.epsilon)
+        return np.clip(out, -self.clip, self.clip).astype(np.float32)
+
+    def to_dict(self) -> dict:
+        return {'mean': self.mean.tolist(), 'var': self.var.tolist(),
+                'clip': self.clip, 'epsilon': self.epsilon}
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        return cls(d['mean'], d['var'], d.get('clip', 10.0), d.get('epsilon', 1e-8))
+
+
+@dataclass
+class TrainResult:
+    """Outcome of `train_rl_agent`. Carries the trained model plus everything
+    needed to save a reproducible bundle (config, routes, network arch).
+
+    `normalizer` is the observation normalizer (or None) — it must be passed to
+    `evaluate_rl_agent` so inference scales observations the same way training did.
+    `best_checkpoint_step` is set when validation checkpoint selection picked an
+    earlier checkpoint over the final model."""
+    model: object
+    algorithm: str
+    n_envs: int
+    total_timesteps: int
+    training_duration: float
+    throughput_steps_per_s: float
+    network_arch: tuple
+    config: dict
+    routes: list
+    data_routes: list
+    normalizer: object = None
+    best_checkpoint_step: int = None
+
+    def save(self, name: str = None, *, directory: str = None,
+             overwrite: bool = False) -> str:
+        """Save this agent as a self-describing bundle and return its path.
+
+        The bundle is a directory containing:
+            model.zip      the SB3 weights
+            manifest.json  algorithm, config, routes, library versions, and the
+                           hash of the strategy source (used to detect drift on load)
+            strategy.py    a snapshot of the strategy source, for diffing later
+
+        Args:
+            name: bundle name. When omitted, an auto-generated unique name
+                (e.g. ``dqn_300000_20260620_141530``) is used, so unnamed saves
+                never clobber each other. Pass a name to label an experiment.
+            directory: parent folder for the bundle. Defaults to an ``rl_models/``
+                folder next to the strategy.
+            overwrite: when the target bundle already exists this raises unless
+                ``overwrite=True``, in which case the previous model and its
+                metrics at that name are replaced (lost).
+
+        Raises on any failure — losing an expensive training run silently is
+        worse than a loud error.
+        """
+        if name is None:
+            ts = time.strftime('%Y%m%d_%H%M%S')
+            name = f"{self.algorithm.lower()}_{self.total_timesteps}_{ts}"
+        parent = directory or _default_models_dir(self.routes)
+        path = os.path.join(parent, name)
+
+        if os.path.exists(path):
+            if not overwrite:
+                raise FileExistsError(
+                    f"An RL agent named '{name}' already exists at {path}. "
+                    f"Pass overwrite=True to replace it (the previous model and "
+                    f"metrics will be lost), or choose a different name.")
+            import shutil
+            shutil.rmtree(path)
+        os.makedirs(path, exist_ok=True)
+
+        self.model.save(os.path.join(path, 'model.zip'))
+
+        source, identity, kind = _capture_strategy_source(self.routes[0]['strategy'])
+        if source is not None:
+            with open(os.path.join(path, 'strategy.py'), 'w') as f:
+                f.write(source)
+
+        manifest = {
+            'algorithm': self.algorithm,
+            'n_envs': self.n_envs,
+            'total_timesteps': self.total_timesteps,
+            'training_duration': self.training_duration,
+            'throughput_steps_per_s': self.throughput_steps_per_s,
+            'network_arch': list(self.network_arch),
+            'config': self.config,
+            'routes': _serialize_routes(self.routes),
+            'data_routes': self.data_routes,
+            'strategy': {
+                'identity': identity,
+                'kind': kind,
+                'source_file': 'strategy.py' if source is not None else None,
+                'sha256': _sha256(source),
+            },
+            'versions': _current_versions(),
+            'saved_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            # observation normalizer stats (None if training didn't normalize) —
+            # required to reproduce the model's inputs at evaluation time.
+            'normalizer': self.normalizer.to_dict() if self.normalizer is not None else None,
+            'best_checkpoint_step': self.best_checkpoint_step,
+        }
+        with open(os.path.join(path, 'manifest.json'), 'w') as f:
+            json.dump(manifest, f, indent=2, default=str)
+        return path
+
+
+@dataclass
+class EvalResult:
+    """Outcome of `evaluate_rl_agent`: per-episode rewards plus Jesse's trading
+    metrics for the final episode. This is the single source of metrics — read
+    `result.metrics` rather than reaching into the global `report` state."""
+    episode_rewards: list
+    mean_reward: float
+    metrics: dict
+
+
+def _sha256(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest() if text is not None else None
+
+
+def _current_versions() -> dict:
+    import stable_baselines3
+    try:
+        from jesse.version import __version__ as jesse_version
+    except Exception:
+        jesse_version = None
+    return {
+        'jesse': jesse_version,
+        'stable_baselines3': stable_baselines3.__version__,
+        'python': platform.python_version(),
+    }
+
+
+def _capture_strategy_source(strategy):
+    """Return (source_text, identity, kind) for a route's strategy.
+
+    `strategy` is either a strategy name (str) resolved from
+    strategies/<name>/__init__.py, or a strategy class object. Grabs the whole
+    module file when one exists (captures imports and module-level helpers), and
+    falls back to the class source for inline classes that have no file path.
     """
-    import time
-    import psutil
-    from stable_baselines3 import DQN, PPO, A2C
-    from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+    if isinstance(strategy, str):
+        path = f"strategies/{strategy}/__init__.py"
+        if os.path.exists(path):
+            with open(path) as f:
+                return f.read(), strategy, 'name'
+        return None, strategy, 'name'
 
+    cls = strategy
+    identity = f"{cls.__module__}.{cls.__qualname__}"
+    module = sys.modules.get(cls.__module__)
+    file_path = getattr(module, '__file__', None)
+    if file_path and os.path.exists(file_path):
+        with open(file_path) as f:
+            return f.read(), identity, 'class_path'
+    try:
+        return inspect.getsource(cls), identity, 'class_path'
+    except (OSError, TypeError):
+        return None, identity, 'class_path'
+
+
+def _serialize_routes(routes: list) -> list:
+    """Routes as JSON-safe dicts: a strategy class becomes its import path so the
+    manifest stays serializable; a strategy name is kept verbatim."""
+    out = []
+    for r in routes:
+        r = dict(r)
+        strat = r['strategy']
+        if isinstance(strat, str):
+            r['strategy'], r['strategy_kind'] = strat, 'name'
+        else:
+            r['strategy'] = f"{strat.__module__}.{strat.__qualname__}"
+            r['strategy_kind'] = 'class_path'
+        out.append(r)
+    return out
+
+
+def _reconstruct_routes(serialized: list) -> list:
+    """Inverse of `_serialize_routes`: re-import class-path strategies so the
+    returned routes can be passed straight back into `evaluate_rl_agent`. Raises
+    a clear error if a class can no longer be imported."""
+    out = []
+    for r in serialized:
+        r = dict(r)
+        kind = r.pop('strategy_kind', 'name')
+        if kind == 'class_path':
+            module_path, _, cls_name = r['strategy'].rpartition('.')
+            try:
+                r['strategy'] = getattr(importlib.import_module(module_path), cls_name)
+            except (ImportError, AttributeError) as e:
+                raise ImportError(
+                    f"Could not re-import the strategy '{r['strategy']}' recorded in "
+                    f"this bundle ({e}). Its file may have moved or been renamed. "
+                    f"Re-create the routes manually and pass them to evaluate_rl_agent.")
+        out.append(r)
+    return out
+
+
+def _default_models_dir(routes: list) -> str:
+    """An `rl_models/` folder next to the (first route's) strategy, falling back
+    to the current working directory when the location can't be determined."""
+    strat = routes[0]['strategy']
+    if isinstance(strat, str):
+        base = f"strategies/{strat}"
+        if os.path.isdir(base):
+            return os.path.join(base, 'rl_models')
+    else:
+        module = sys.modules.get(strat.__module__)
+        file_path = getattr(module, '__file__', None)
+        if file_path:
+            return os.path.join(os.path.dirname(os.path.abspath(file_path)), 'rl_models')
+    return os.path.join(os.getcwd(), 'rl_models')
+
+
+class _ProgressBarCallback(BaseCallback):
+    """Lightweight, dependency-free training progress bar printed to stdout."""
+
+    def __init__(self, total_timesteps: int, width: int = 30):
+        super().__init__()
+        self._total = max(1, int(total_timesteps))
+        self._width = width
+        self._t0 = time.time()
+        self._last_pct = -1
+
+    def _on_step(self) -> bool:
+        pct = min(100, int(self.num_timesteps * 100 / self._total))
+        if pct != self._last_pct:
+            self._last_pct = pct
+            filled = int(self._width * pct / 100)
+            bar = '#' * filled + '-' * (self._width - filled)
+            elapsed = time.time() - self._t0
+            eta = (elapsed / max(pct, 1)) * (100 - pct)
+            print(f"\r  [{bar}] {pct:3d}%  {self.num_timesteps:,}/{self._total:,}  "
+                  f"elapsed {elapsed:5.0f}s  eta {eta:5.0f}s", end='', flush=True)
+            if pct >= 100:
+                print()
+        return True
+
+
+class _CheckpointCollector(BaseCallback):
+    """Snapshots the policy (and normalization stats) periodically during training
+    so the best one can be selected on a validation set afterwards. Keeping copies
+    in memory — rather than running the validation backtest mid-training — avoids
+    disturbing the live training environments' state."""
+
+    def __init__(self, eval_freq: int):
+        super().__init__()
+        self.eval_freq = max(1, int(eval_freq))
+        self.snapshots = []   # list of (step, policy_state_dict, obs_rms_or_None)
+        self._last = 0
+
+    def _grab(self):
+        import copy
+        state = copy.deepcopy(self.model.policy.state_dict())
+        rms = None
+        env = self.model.get_env()
+        if isinstance(env, VecNormalize) and env.obs_rms is not None:
+            rms = (env.obs_rms.mean.copy(), env.obs_rms.var.copy())
+        self.snapshots.append((int(self.num_timesteps), state, rms))
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps - self._last >= self.eval_freq:
+            self._last = self.num_timesteps
+            self._grab()
+        return True
+
+    def _on_training_end(self) -> None:
+        self._grab()   # always include the final model as a candidate
+
+
+def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
+                   algorithm: str = 'DQN', total_timesteps: int = 300_000,
+                   n_envs: int = None, max_steps: int = 1000,
+                   random_episode_start: bool = True, warmup_bars: int = 0,
+                   network_arch=(64, 64), progress: bool = False,
+                   normalize: bool = False, eval_candles=None,
+                   eval_warmup_candles=None, eval_freq: int = 50_000,
+                   eval_metric: str = 'net_profit_percentage',
+                   seed: int = None) -> TrainResult:
+    """Train an RL agent across `n_envs` parallel JesseRLEnvironment processes.
+
+    Returns a `TrainResult` (call `.save()` on it to persist a reusable bundle).
+
+    `algorithm` selects the Stable-Baselines3 algorithm — 'DQN' or 'PPO':
+      * DQN  — value-based, off-policy, with a replay buffer that makes it
+               sample-efficient; a strong default for discrete actions.
+      * PPO  — policy-gradient, on-policy; more stable on larger discrete action
+               spaces and the route to continuous actions. Benefits from n_envs>1.
+
+    Episode starts: with random_episode_start, every episode begins at a fresh
+    UTC-day boundary so all timeframes (4h, 1d, ...) aggregate from an aligned
+    start (always on, even when warmup_bars == 0). `warmup_bars` additionally
+    reserves that many 1m candles BEFORE the start and injects them as warmup, so
+    indicators and anchor timeframes are warm at the first traded bar instead of
+    cold. Assumes 1-minute input candles.
+
+    `normalize`: standardize observations and rewards with running statistics
+    during training (often improves stability). The observation stats are returned
+    on the TrainResult as `.normalizer` and must be passed to `evaluate_rl_agent`.
+
+    Validation checkpoint selection: pass `eval_candles` (a held-out candle dict)
+    to snapshot the model every `eval_freq` steps, score each snapshot on those
+    candles by `eval_metric`, and return the BEST one instead of the final model —
+    which guards against keeping a model that has started to overfit. Provide
+    `eval_warmup_candles` so the validation rollout's indicators are warm.
+
+    `seed`: when set, makes a run reproducible — seeds the main process and the SB3
+    algorithm, which propagates per-worker seeds (seed, seed+1, ...) to the env
+    processes so each worker's random_episode_start window stream is deterministic.
+    Leave as None for nondeterministic training. NOTE: bit-exact reproducibility
+    also requires single-threaded math; results are stable run-to-run on the same
+    machine/library versions but may differ across machines.
+
+    PORTABILITY: when n_envs > 1 this uses spawned worker processes. On Windows
+    and macOS (which use the 'spawn' start method) the calling script MUST be
+    guarded by `if __name__ == '__main__':`, otherwise each spawned worker
+    re-imports and re-runs the script (recursive process creation). On Linux
+    ('fork') the guard is not required but is still good practice. Set n_envs=1
+    to run single-process anywhere.
+    """
+    algorithm = (algorithm or 'DQN').upper()
+    if algorithm not in ALGORITHMS:
+        raise ValueError(
+            f"Unsupported algorithm '{algorithm}'. Choose one of {sorted(ALGORITHMS)}.")
     if n_envs is None:
         n_envs = max(1, (psutil.cpu_count() or 8) - 1)
     env_config = {'backtest_config': config, 'routes': routes, 'data_routes': data_routes,
                   'candles': candles, 'warmup_candles': warmup_candles,
-                  'max_steps': max_steps, 'random_episode_start': random_episode_start}
+                  'max_steps': max_steps, 'random_episode_start': random_episode_start,
+                  'warmup_bars': warmup_bars}
+    # Reproducibility: seed the main process here, and pass `seed` to the SB3
+    # algorithm below. SB3 propagates it to the (sub)process envs via env.seed(),
+    # which lands in JesseRLEnvironment.reset(seed=...) -> np.random.seed, so each
+    # worker's random_episode_start window stream is deterministic. Without this,
+    # SubprocVecEnv workers self-seed and runs are NOT reproducible across runs.
+    if seed is not None:
+        set_random_seed(seed)
     VecCls = SubprocVecEnv if n_envs > 1 else DummyVecEnv
     venv = VecCls([_make_sb3_env(env_config) for _ in range(n_envs)])
-    algorithm = (algorithm or 'DQN').upper()
-    common = dict(policy='MlpPolicy', env=venv, verbose=0, device='cpu',
-                  policy_kwargs={'net_arch': list(net_arch)})
+    _CLIP_OBS = 10.0
+    if normalize:
+        venv = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=_CLIP_OBS)
+    common = dict(policy='MlpPolicy', env=venv, verbose=0, device='cpu', seed=seed,
+                  policy_kwargs={'net_arch': list(network_arch)})
     if algorithm == 'DQN':
         model = DQN(learning_rate=1e-4, buffer_size=100_000, learning_starts=2000,
-                    batch_size=128, target_update_interval=1000, train_freq=train_freq, **common)
-    elif algorithm == 'PPO':
+                    batch_size=128, target_update_interval=1000, train_freq=8, **common)
+    else:  # PPO
         model = PPO(n_steps=256, batch_size=256, n_epochs=5, **common)
-    else:
-        model = A2C(n_steps=32, **common)
-    print(f"SB3 {algorithm}: training {total_timesteps} steps across {n_envs} env processes...")
+    print(f"RL {algorithm}: training {total_timesteps} steps across {n_envs} env processes...")
+
+    callbacks = []
+    if progress:
+        callbacks.append(_ProgressBarCallback(total_timesteps))
+    collector = _CheckpointCollector(eval_freq) if eval_candles is not None else None
+    if collector is not None:
+        callbacks.append(collector)
+
     t0 = time.time()
-    model.learn(total_timesteps=total_timesteps, progress_bar=False)
+    model.learn(total_timesteps=total_timesteps, progress_bar=False,
+                callback=(callbacks or None))
     dur = time.time() - t0
+
+    def _norm_from_rms(rms):
+        return ObsNormalizer(rms[0], rms[1], _CLIP_OBS) if rms is not None else None
+
+    # observation stats from the final training env (the default if no selection)
+    final_rms = None
+    if normalize and isinstance(venv, VecNormalize) and venv.obs_rms is not None:
+        final_rms = (venv.obs_rms.mean.copy(), venv.obs_rms.var.copy())
+
+    best_step = None
+    if collector is not None and collector.snapshots:
+        # Pick the snapshot that scores best on the held-out validation candles.
+        n_eval = next(iter(eval_candles.values()))['candles'].shape[0]
+        best = None   # (score, step, state_dict, rms)
+        for step, state, rms in collector.snapshots:
+            model.policy.load_state_dict(state)
+            nrm = _norm_from_rms(rms) if normalize else None
+            ev = evaluate_rl_agent(model, config, routes, data_routes, eval_candles,
+                                   warmup_candles=eval_warmup_candles,
+                                   max_steps=n_eval + 2, normalizer=nrm)
+            score = (ev.metrics or {}).get(eval_metric, float('nan'))
+            if score != score:   # NaN -> treat as worst
+                score = float('-inf')
+            if best is None or score > best[0]:
+                best = (score, step, state, rms)
+        model.policy.load_state_dict(best[2])   # restore the winning checkpoint
+        best_step, final_rms = best[1], (best[3] if normalize else None)
+        print(f"RL {algorithm}: selected checkpoint at {best_step:,} steps "
+              f"(validation {eval_metric}={best[0]:.2f})")
+
     venv.close()
-    return {'model': model, 'n_envs': n_envs, 'algorithm': algorithm,
-            'total_timesteps': total_timesteps, 'training_duration': dur,
-            'throughput_steps_per_s': (total_timesteps / dur) if dur else 0.0}
+    return TrainResult(
+        model=model, algorithm=algorithm, n_envs=n_envs,
+        total_timesteps=total_timesteps, training_duration=dur,
+        throughput_steps_per_s=(total_timesteps / dur) if dur else 0.0,
+        network_arch=tuple(network_arch), config=config,
+        routes=routes, data_routes=data_routes,
+        normalizer=_norm_from_rms(final_rms), best_checkpoint_step=best_step,
+    )
 
 
-def evaluate_rl_agent_sb3(model, config, routes, data_routes, candles,
-                          warmup_candles=None, max_steps: int = None, num_episodes: int = 1):
-    """Greedy backtest of a trained SB3 model over the given candles."""
+def evaluate_rl_agent(model, config, routes, data_routes, candles,
+                      warmup_candles=None, max_steps: int = None,
+                      num_episodes: int = 1, normalizer=None) -> EvalResult:
+    """Greedy backtest of a trained RL model over the given candles.
+
+    Returns an `EvalResult` whose `.metrics` is the single source of trading
+    metrics for this rollout — no need to read the global `report` afterwards.
+
+    `normalizer`: if the model was trained with observation normalization, pass the
+    matching ObsNormalizer (from the TrainResult or a loaded bundle) so inputs are
+    scaled exactly as during training.
+    """
     env = JesseRLEnvironment({'backtest_config': config, 'routes': routes,
                               'data_routes': data_routes, 'candles': candles,
                               'warmup_candles': warmup_candles,
                               'max_steps': max_steps or 10_000_000,
                               'random_episode_start': False})
+    # Discrete actions go to the env as a plain int; continuous (Box) actions must
+    # be passed through as the prediction array — casting them to int would truncate
+    # the value (e.g. array([0.37]) -> 0) and destroy the policy's output.
+    discrete = isinstance(env.action_space, gym.spaces.Discrete)
     rewards = []
     for _ in range(num_episodes):
         obs, _ = env.reset()
         done = trunc = False
         ep = 0.0
         while not (done or trunc):
-            a, _ = model.predict(obs, deterministic=True)
-            obs, r, done, trunc, _ = env.step(int(a))
+            pred_obs = normalizer.normalize(obs) if normalizer is not None else obs
+            a, _ = model.predict(pred_obs, deterministic=True)
+            obs, r, done, trunc, _ = env.step(int(a) if discrete else a)
             ep += r
         rewards.append(ep)
-    return {'episode_rewards': rewards, 'mean_reward': float(np.mean(rewards)),
-            'metrics': _extract_trading_metrics_from_episode()}
+    return EvalResult(
+        episode_rewards=rewards,
+        mean_reward=float(np.mean(rewards)),
+        metrics=_extract_trading_metrics_from_episode(),
+    )
+
+
+def load_rl_agent(path: str, *, ignore_drift: bool = False):
+    """Load a saved agent bundle. Returns (model, manifest).
+
+    The manifest's `config` and `routes` are reconstructed (strategy classes
+    re-imported) so they can be passed straight back into `evaluate_rl_agent`.
+
+    Safety checks performed on load:
+      * strategy source drift — if the current strategy source no longer matches
+        the snapshot taken at save time, this WARNS and stops, because the model
+        may now be fed observations it was never trained on. Pass
+        ``ignore_drift=True`` to proceed anyway (this only suppresses the stop;
+        it changes nothing on disk).
+      * library versions — a heads-up WARNING if the current jesse / SB3 / Python
+        versions differ from those recorded at save time (the .zip format is
+        version-sensitive).
+      * algorithm — an ERROR if the recorded algorithm is unsupported or the
+        weights fail to load into it.
+    """
+    with open(os.path.join(path, 'manifest.json')) as f:
+        manifest = json.load(f)
+
+    # Library-version drift — warn only.
+    saved_versions = manifest.get('versions', {})
+    for lib, current in _current_versions().items():
+        was = saved_versions.get(lib)
+        if was is not None and was != current:
+            print(f"WARNING: this agent was saved with {lib} {was}, but the current "
+                  f"environment has {lib} {current}. Loading may misbehave.")
+
+    # Strategy-source drift — warn, and stop unless ignore_drift.
+    strat_meta = manifest.get('strategy', {})
+    saved_hash = strat_meta.get('sha256')
+    current_source, _, _ = _capture_strategy_source(
+        _reconstruct_strategy_identity(strat_meta))
+    current_hash = _sha256(current_source)
+    if saved_hash is not None and current_hash is not None and saved_hash != current_hash:
+        msg = (f"WARNING: the strategy '{strat_meta.get('identity')}' has changed since "
+               f"this agent was saved ({manifest.get('saved_at')}). The model may now "
+               f"receive observations it was not trained on. Compare against the saved "
+               f"snapshot at {os.path.join(path, 'strategy.py')}.")
+        if not ignore_drift:
+            raise RuntimeError(msg + " Pass ignore_drift=True to load anyway.")
+        print(msg + " (ignore_drift=True — loading anyway)")
+
+    algorithm = manifest.get('algorithm')
+    if algorithm not in ALGORITHMS:
+        raise ValueError(
+            f"The bundle manifest records an unsupported algorithm '{algorithm}'. "
+            f"Supported algorithms are {sorted(ALGORITHMS)}.")
+    try:
+        model = ALGORITHMS[algorithm].load(os.path.join(path, 'model.zip'))
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load the {algorithm} weights from {path} ({e}). The bundle may "
+            f"be corrupt or was saved with an incompatible stable-baselines3 version.")
+
+    manifest['routes'] = _reconstruct_routes(manifest['routes'])
+    # rebuild the observation normalizer (if any) so callers can pass it to
+    # evaluate_rl_agent and reproduce the model's inputs.
+    norm = manifest.get('normalizer')
+    manifest['normalizer'] = ObsNormalizer.from_dict(norm) if norm else None
+    return model, manifest
+
+
+def _reconstruct_strategy_identity(strat_meta: dict):
+    """Turn a manifest strategy record back into the value `_capture_strategy_source`
+    expects: a class object for class-path strategies, or the name string."""
+    identity, kind = strat_meta.get('identity'), strat_meta.get('kind')
+    if kind == 'class_path' and identity:
+        module_path, _, cls_name = identity.rpartition('.')
+        try:
+            return getattr(importlib.import_module(module_path), cls_name)
+        except (ImportError, AttributeError):
+            return identity
+    return identity

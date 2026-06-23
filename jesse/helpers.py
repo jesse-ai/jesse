@@ -1253,6 +1253,16 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
         return timeframe_to_one_minutes(timeframe)
 
 
+def warmup_num_to_one_minutes(num: int, timeframe: str) -> int:
+    """How many 1-minute candles are needed to provide `num` warmup candles of
+    `timeframe`. This is the single source of truth for the warmup conversion used
+    by both `research.get_candles` and the RL environment, so they always agree.
+
+    e.g. 60 warmup candles of '4h' -> 60 * 240 = 14_400 one-minute candles.
+    """
+    return num * timeframe_to_one_minutes(timeframe)
+
+
 def compressed_response(content: str) -> dict:
     """
     Helper function to handle compression for HTTP responses.

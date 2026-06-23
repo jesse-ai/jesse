@@ -893,5 +893,9 @@ def test_on_close_position():
     single_route_backtest('TestOnClosePosition')
 
 
+def test_holding_period_of_open_trade():
+    single_route_backtest('TestHoldingPeriodOfOpenTrade')
+
+
 def test_base_and_quote_asset_properties():
     single_route_backtest('TestBaseAndQuoteAssetProperties')

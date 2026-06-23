@@ -142,10 +142,20 @@ class ClosedTrade(peewee.Model):
 
     @property
     def holding_period(self) -> int:
-        """How many SECONDS has it taken for the trade to be done."""
-        if self.closed_at is None:
+        """How many SECONDS the trade has lasted.
+
+        If the trade is already closed, this is closed_at - opened_at. If it is
+        still open, it is measured up to the CURRENT simulation time, so callers
+        (e.g. an RL reward function) can read the live position's holding period.
+        Returns None only when the trade hasn't opened yet.
+        """
+        if self.opened_at is None:
             return None
-        return (self.closed_at - self.opened_at) / 1000
+        if self.closed_at is not None:
+            return (self.closed_at - self.opened_at) / 1000
+        # still open -> measure up to the current (simulation) time
+        from jesse.store import store
+        return (store.app.time - self.opened_at) / 1000
 
     @property
     def is_long(self) -> bool:

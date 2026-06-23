@@ -1,12 +1,12 @@
 """
 RL learning test: the agent must NAIL a trivially-learnable synthetic market.
 
-Trains SB3 on an alternating up/down-trend market where the recent return sign almost
+Trains on an alternating up/down-trend market where the recent return sign almost
 perfectly predicts the next move. Buy-and-hold there is ~0, so any large profit can only
 come from the agent learning to ride the regimes. End-to-end proof that the RL machinery
 (env -> action -> trade -> reward -> learning) works — it should pass every time, on every
-OS/Python the RL extras install on. The install step in CI doubles as the "does SB3
-install here?" check.
+OS/Python the RL extras install on. The install step in CI doubles as the "does the
+RL training stack install here?" check.
 
 Skips unless the RL extras (gymnasium + stable-baselines3 + torch) are installed. The
 actual train/eval runs in a fresh SUBPROCESS so it is immune to global-state pollution
@@ -16,13 +16,16 @@ import os
 import subprocess
 import sys
 
+import pytest
 
-def test_rl_agent_learns_easy_market():
+
+@pytest.mark.parametrize('algorithm', ['DQN', 'PPO'])
+def test_rl_agent_learns_easy_market(algorithm):
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    proc = subprocess.run([sys.executable, os.path.abspath(__file__), '--run'],
+    proc = subprocess.run([sys.executable, os.path.abspath(__file__), '--run', algorithm],
                           cwd=repo_root, capture_output=True, text=True)
     assert 'RL_LEARNED' in proc.stdout, (
-        "RL agent failed to learn the easy market.\n"
+        f"{algorithm} agent failed to learn the easy market.\n"
         f"--- stdout ---\n{proc.stdout[-3000:]}\n--- stderr ---\n{proc.stderr[-3000:]}"
     )
 
@@ -30,13 +33,12 @@ def test_rl_agent_learns_easy_market():
 # --------------------------------------------------------------------------- #
 # Runs in the subprocess (fresh interpreter).
 # --------------------------------------------------------------------------- #
-def _run():
+def _run(algorithm):
     import importlib
     import numpy as np
     import torch
 
-    from jesse.research.reinforcement_learning import train_rl_agent_sb3, evaluate_rl_agent_sb3
-    from jesse.services import report
+    from jesse.research.reinforcement_learning import train_rl_agent, evaluate_rl_agent
 
     torch.manual_seed(0)
     np.random.seed(0)
@@ -77,15 +79,15 @@ def _run():
     routes = [{'exchange': EXCH, 'strategy': cls, 'symbol': SYM, 'timeframe': '1m'}]
     candles = easy_candles()
 
-    res = train_rl_agent_sb3(config, routes, [], candles, algorithm='DQN',
-                             total_timesteps=60_000, n_envs=1, max_steps=1000,
-                             random_episode_start=True, train_freq=4)
+    res = train_rl_agent(config, routes, [], candles, algorithm=algorithm,
+                         total_timesteps=60_000, n_envs=1, max_steps=1000,
+                         random_episode_start=True)
     n = candles[f'{EXCH}-{SYM}']['candles'].shape[0]
-    evaluate_rl_agent_sb3(res['model'], config, routes, [], candles, max_steps=n + 1)
-    m = report.portfolio_metrics()
+    ev = evaluate_rl_agent(res.model, config, routes, [], candles, max_steps=n + 1)
+    m = ev.metrics
     net = m['net_profit_percentage'] if m else 0.0
-    trades = m['total'] if m else 0
-    print(f"net={net:.1f}% trades={trades} win={(m['win_rate']*100 if m else 0):.0f}%")
+    trades = m['total_trades'] if m else 0
+    print(f"net={net:.1f}% trades={trades} win={(m['win_rate'] if m else 0):.0f}%")
     # buy & hold here is ~0; the threshold is lenient (optimal is +100s of %) so it never
     # flakes, yet a non-learning/random policy (~0 or negative) cannot pass.
     if trades > 0 and net > 50.0:
@@ -94,4 +96,4 @@ def _run():
 
 if __name__ == '__main__':
     if '--run' in sys.argv:
-        _run()
+        _run(sys.argv[-1])

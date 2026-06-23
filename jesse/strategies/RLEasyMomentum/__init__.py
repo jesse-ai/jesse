@@ -92,7 +92,7 @@ class RLEasyMomentum(Strategy):
             pos,                         # [3] current position
         ], dtype=np.float32)
 
-    def calculate_reward(self) -> float:
+    def get_reward(self) -> float:
         # Step reward: % change in portfolio value since last bar
         pv = float(self.portfolio_value)
         prev = getattr(self, '_prev_pv', pv)

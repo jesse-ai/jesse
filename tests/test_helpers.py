@@ -801,3 +801,11 @@ def test_normalize_bool():
     assert jh.normalize_bool(' FALSE ') is False
     assert jh.normalize_bool(2) is False  # v == 1 is False for 2
     assert jh.normalize_bool(None) is False  # fallback to bool(None)
+
+
+def test_warmup_num_to_one_minutes():
+    # number of 1m candles to provide `num` warmup candles of a given timeframe
+    assert jh.warmup_num_to_one_minutes(60, '4h') == 60 * 240
+    assert jh.warmup_num_to_one_minutes(50, '15m') == 50 * 15
+    assert jh.warmup_num_to_one_minutes(100, '1m') == 100
+    assert jh.warmup_num_to_one_minutes(0, '1h') == 0

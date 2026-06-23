@@ -1758,6 +1758,17 @@ class Strategy(ABC):
         return store.closed_trades.trades
 
     @property
+    def current_trade(self) -> ClosedTrade | None:
+        """
+        The currently OPEN trade (a ClosedTrade still being built), or None when
+        the position is flat. Useful for reading the live trade's `holding_period`,
+        entry, accumulated orders, etc. from inside a strategy (e.g. an RL reward).
+        """
+        if self.position.is_open:
+            return store.closed_trades._get_current_trade(self.exchange, self.symbol)
+        return None
+
+    @property
     def orders(self) -> List[Order]:
         """
         Returns all the orders submitted by for this strategy.
@@ -1854,7 +1865,7 @@ class Strategy(ABC):
         """Get the current observation for the RL agent. Override in your strategy."""
         return np.zeros(10, dtype=np.float32)
 
-    def calculate_reward(self) -> float:
+    def get_reward(self) -> float:
         """Calculate the reward for the RL agent. Override in your strategy."""
         return 0.0
 
@@ -1868,7 +1879,7 @@ class Strategy(ABC):
 
         # Update observation and reward
         observation = self.get_observation()
-        reward = self.calculate_reward()
+        reward = self.get_reward()
 
         # Check if episode should end based on strategy logic
         episode_done = self.is_rl_episode_done()

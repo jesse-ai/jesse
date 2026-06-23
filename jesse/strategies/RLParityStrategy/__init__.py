@@ -23,7 +23,7 @@ class RLParityStrategy(Strategy):
     def get_observation(self):
         return np.zeros(1, dtype=np.float32)
 
-    def calculate_reward(self):
+    def get_reward(self):
         return 0.0
 
     def _signal(self):
