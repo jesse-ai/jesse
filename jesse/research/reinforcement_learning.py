@@ -527,6 +527,12 @@ class TrainResult:
     data_routes: list
     normalizer: object = None
     best_checkpoint_step: int = None
+    # Per-checkpoint evaluation curve captured during validation selection (or None
+    # when no eval_candles were given). A list of dicts: {'step': int, 'val': {...},
+    # <extra_label>: {...}} where each metrics sub-dict is slimmed to the headline
+    # trading metrics. Lets callers plot train-vs-val by step and judge whether more
+    # training keeps helping, overfits, or the selection is just chasing noise.
+    eval_history: list = None
 
     def save(self, name: str = None, *, directory: str = None,
              overwrite: bool = False) -> str:
@@ -774,6 +780,8 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
                    normalize: bool = False, eval_candles=None,
                    eval_warmup_candles=None, eval_freq: int = 50_000,
                    eval_metric: str = 'net_profit_percentage',
+                   eval_smoothing: int = 3,
+                   checkpoint_eval_extra: dict = None,
                    seed: int = None) -> TrainResult:
     """Train an RL agent across `n_envs` parallel JesseRLEnvironment processes.
 
@@ -801,6 +809,15 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
     candles by `eval_metric`, and return the BEST one instead of the final model —
     which guards against keeping a model that has started to overfit. Provide
     `eval_warmup_candles` so the validation rollout's indicators are warm.
+
+    A single validation window scores one noisy realization, so the raw argmax can
+    crown a lone lucky spike over genuinely better, more-trained checkpoints (and
+    pick a nonsensically early step). `eval_smoothing` (>1) averages each
+    checkpoint's score with its neighbours before choosing — neighbouring training
+    steps are similar policies, so this rejects spikes and prefers a stable, high
+    region of the curve. Set it to 1 for the plain single-point argmax. A snapshot
+    that took zero trades is degenerate and is never selected. The full per-checkpoint
+    curve is returned on `TrainResult.eval_history` for inspection.
 
     `seed`: when set, makes a run reproducible — seeds the main process and the SB3
     algorithm, which propagates per-worker seeds (seed, seed+1, ...) to the env
@@ -868,25 +885,65 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
         final_rms = (venv.obs_rms.mean.copy(), venv.obs_rms.var.copy())
 
     best_step = None
+    eval_history = None
     if collector is not None and collector.snapshots:
         # Pick the snapshot that scores best on the held-out validation candles.
+        # We evaluate every snapshot anyway, so also record the full per-checkpoint
+        # metrics — validation always, plus any `checkpoint_eval_extra` sets (e.g. an
+        # in-sample probe) — into eval_history. That curve is what lets a caller see
+        # whether more training keeps helping, has begun to overfit, or the single
+        # selection scalar is just chasing noise.
+        def _slim(m):
+            m = m or {}
+            return {k: m.get(k) for k in ('net_profit_percentage', 'total_trades',
+                                          'win_rate', 'sharpe_ratio', 'max_drawdown')}
         n_eval = next(iter(eval_candles.values()))['candles'].shape[0]
-        best = None   # (score, step, state_dict, rms)
+        extra = checkpoint_eval_extra or {}
+        eval_history = []
+        snaps = []   # aligned (step, state_dict, rms, selection_score)
         for step, state, rms in collector.snapshots:
             model.policy.load_state_dict(state)
             nrm = _norm_from_rms(rms) if normalize else None
             ev = evaluate_rl_agent(model, config, routes, data_routes, eval_candles,
                                    warmup_candles=eval_warmup_candles,
                                    max_steps=n_eval + 2, normalizer=nrm)
-            score = (ev.metrics or {}).get(eval_metric, float('nan'))
-            if score != score:   # NaN -> treat as worst
+            metrics = ev.metrics or {}
+            entry = {'step': int(step), 'val': _slim(metrics)}
+            for label, spec in extra.items():
+                c = spec['candles']
+                n_c = next(iter(c.values()))['candles'].shape[0]
+                ev_x = evaluate_rl_agent(model, config, routes, data_routes, c,
+                                         warmup_candles=spec.get('warmup'),
+                                         max_steps=n_c + 2, normalizer=nrm)
+                entry[label] = _slim(ev_x.metrics)
+            eval_history.append(entry)
+            score = metrics.get(eval_metric, float('nan'))
+            # NaN, or a snapshot that took zero trades (degenerate "do nothing"),
+            # must never win selection -> treat as worst.
+            if score != score or not metrics.get('total_trades', 0):
                 score = float('-inf')
-            if best is None or score > best[0]:
-                best = (score, step, state, rms)
-        model.policy.load_state_dict(best[2])   # restore the winning checkpoint
-        best_step, final_rms = best[1], (best[3] if normalize else None)
+            snaps.append((int(step), state, rms, float(score)))
+
+        # Selection score, optionally smoothed over neighbouring checkpoints so a
+        # single lucky validation window can't crown an early spike (see docstring).
+        raw = [s[3] for s in snaps]
+        w = max(1, int(eval_smoothing))
+        if w > 1 and len(raw) > 1:
+            half = w // 2
+            sel = []
+            for i in range(len(raw)):
+                window = [raw[j] for j in range(max(0, i - half), min(len(raw), i + half + 1))
+                          if raw[j] != float('-inf')]
+                sel.append(sum(window) / len(window) if window else float('-inf'))
+        else:
+            sel = raw
+        best_i = max(range(len(snaps)), key=lambda i: sel[i])
+        best_step, best_state, best_rms, _ = snaps[best_i]
+        model.policy.load_state_dict(best_state)   # restore the winning checkpoint
+        final_rms = best_rms if normalize else None
+        _sm = f", smoothed({w})={sel[best_i]:.2f}" if w > 1 else ""
         print(f"RL {algorithm}: selected checkpoint at {best_step:,} steps "
-              f"(validation {eval_metric}={best[0]:.2f})")
+              f"(validation {eval_metric}={raw[best_i]:.2f}{_sm})")
 
     venv.close()
     return TrainResult(
@@ -896,6 +953,7 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
         network_arch=tuple(network_arch), config=config,
         routes=routes, data_routes=data_routes,
         normalizer=_norm_from_rms(final_rms), best_checkpoint_step=best_step,
+        eval_history=eval_history,
     )
 
 
