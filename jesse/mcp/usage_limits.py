@@ -85,14 +85,14 @@ CREDIT_WEIGHTS = {
     "run_optimization": _env_int("MCP_CREDIT_WEIGHT_OPTIMIZATION", 1),
 }
 
-# Which meter backend to use:
-#   "local"  — Redis daily counter on this machine + plan read from api1 (the default for now;
-#              soft, trivially bypassable since the user controls their own Redis).
+# Which meter backend to use (default "remote"):
 #   "remote" — the licensing backend owns the daily limit: it resolves the plan from the license
 #              token, holds the counter, and returns the remaining allowance. Authoritative (so the
 #              limit can't be bypassed by editing the local counter). Fails open if the backend is
-#              unreachable. Activate in production with MCP_USAGE_METER=remote.
-USAGE_METER_BACKEND = os.environ.get("MCP_USAGE_METER", "local").strip().lower()
+#              unreachable, so it never disrupts usage. This is the default; no env var needed.
+#   "local"  — opt-out fallback: a Redis daily counter on this machine + plan read from api1
+#              (soft, trivially bypassable since the user controls their own Redis).
+USAGE_METER_BACKEND = os.environ.get("MCP_USAGE_METER", "remote").strip().lower()
 
 # Redis key prefix for the local meter's daily counters.
 _REDIS_KEY_PREFIX = "jesse:mcp:usage"
