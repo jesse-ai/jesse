@@ -15,7 +15,16 @@ or license backend is needed, and they're deterministic + isolated.
 
 import importlib
 
+import pytest
+
 import jesse.mcp.usage_limits as ul
+
+
+@pytest.fixture(autouse=True)
+def _force_local_backend(monkeypatch):
+    """The module default is now "remote"; most tests below exercise the LOCAL flow, so force it.
+    The remote-path tests opt back in by setting ul.USAGE_METER_BACKEND = "remote" themselves."""
+    monkeypatch.setattr(ul, "USAGE_METER_BACKEND", "local")
 
 
 # ---------------------------------------------------------------------------
@@ -321,8 +330,11 @@ def test_fail_open_when_meter_raises():
     assert calls["n"] == 1
 
 
-def test_meter_selection_default_is_local():
-    assert isinstance(ul.get_usage_meter(), ul.LocalUsageMeter)
+def test_meter_default_is_remote(monkeypatch):
+    # With no env override, the module defaults to the remote (server-authoritative) backend.
+    monkeypatch.delenv("MCP_USAGE_METER", raising=False)
+    importlib.reload(ul)
+    assert ul.USAGE_METER_BACKEND == "remote"
 
 
 # ---------------------------------------------------------------------------
