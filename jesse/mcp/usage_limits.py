@@ -85,8 +85,13 @@ CREDIT_WEIGHTS = {
     "run_optimization": _env_int("MCP_CREDIT_WEIGHT_OPTIMIZATION", 1),
 }
 
-# Which meter backend to use: "local" (Redis on this machine) or "remote"
-# (license backend). Default is local for now. Override with MCP_USAGE_METER.
+# Which meter backend to use:
+#   "local"  — Redis daily counter on this machine + plan read from api1 (the default for now;
+#              soft, trivially bypassable since the user controls their own Redis).
+#   "remote" — the licensing backend owns the daily limit: it resolves the plan from the license
+#              token, holds the counter, and returns the remaining allowance. Authoritative (so the
+#              limit can't be bypassed by editing the local counter). Fails open if the backend is
+#              unreachable. Activate in production with MCP_USAGE_METER=remote.
 USAGE_METER_BACKEND = os.environ.get("MCP_USAGE_METER", "local").strip().lower()
 
 # Redis key prefix for the local meter's daily counters.
@@ -137,11 +142,12 @@ class ConsumeResult:
         reset_at: ISO8601 timestamp of the next reset (next 00:00 UTC).
     """
 
-    def __init__(self, allowed: bool, used=None, limit=None, reset_at=None):
+    def __init__(self, allowed: bool, used=None, limit=None, reset_at=None, is_guest=False):
         self.allowed = allowed
         self.used = used
         self.limit = limit
         self.reset_at = reset_at
+        self.is_guest = is_guest
 
 
 def get_user_plan() -> str:
@@ -190,6 +196,58 @@ def get_user_plan() -> str:
     except Exception as e:
         logger.warning("Failed to fetch plan from license backend (%s); failing open.", e)
         return None
+
+
+def _remote_usage_decision(feature: str):
+    """
+    Ask the licensing backend how much of <feature> the current user has left today. The backend
+    is authoritative — it resolves the plan from the license token, holds the daily counter, and
+    enforces the limit — so the on-device counter and the separate plan lookup are not needed.
+
+    Returns a ``ConsumeResult`` (with ``is_guest`` set) on a clear answer, or ``None`` on ANY
+    error / non-200 / bad response, so the caller FAILS OPEN (never blocks a legit user because
+    the limit check is down). The license token is sent in the body; a missing token => guest.
+
+    Endpoint: ``POST {JESSE_API2_URL}/usage`` with ``{license_api_token, feature}`` ->
+    ``{allowed, remaining, limit, tier}``.
+    """
+    import requests
+    from jesse.services.auth import get_access_token
+    from jesse.info import JESSE_API2_URL
+
+    token = get_access_token()  # None for a guest
+    try:
+        response = requests.post(
+            JESSE_API2_URL.rstrip('/') + '/usage',
+            json={'license_api_token': token or '', 'feature': feature},
+            timeout=10,
+        )
+        if response.status_code != 200:
+            logger.warning("usage meter returned HTTP %s; failing open.", response.status_code)
+            return None
+        if 'application/json' not in response.headers.get('Content-Type', ''):
+            logger.warning("usage meter returned non-JSON; failing open.")
+            return None
+        data = response.json()
+    except Exception as e:
+        logger.warning("Failed to reach usage meter (%s); failing open.", e)
+        return None
+
+    limit = data.get('limit')
+    remaining = data.get('remaining')
+    tier = str(data.get('tier') or '').strip().lower()
+    # -1 from the server means "unlimited"; normalize to None for display.
+    has_limit = isinstance(limit, int) and limit >= 0
+    used = None
+    if has_limit and isinstance(remaining, int):
+        used = max(limit - remaining, 0)
+    return ConsumeResult(
+        allowed=bool(data.get('allowed', True)),
+        used=used,
+        limit=limit if has_limit else None,
+        reset_at=_reset_at_iso(),
+        is_guest=(tier == 'guest'),
+    )
 
 
 def _plan_is_premium(plan: str) -> bool:
@@ -424,6 +482,17 @@ def gated(weight: int, meter_factory=get_usage_meter, plan_getter=get_user_plan)
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            # Server-authoritative path: one call resolves the plan, the remaining daily
+            # allowance, and the decision for this run. FAIL OPEN if it can't be reached, so the
+            # limit check never disrupts the feature.
+            if USAGE_METER_BACKEND == "remote":
+                decision = _remote_usage_decision("mcp")
+                if decision is None:
+                    return func(*args, **kwargs)  # backend down -> fail open
+                if not decision.allowed:
+                    return _limit_reached_response(decision, is_guest=getattr(decision, "is_guest", False))
+                return func(*args, **kwargs)
+
             # 1) Plan
             try:
                 plan = plan_getter()
