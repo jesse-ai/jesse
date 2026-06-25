@@ -323,3 +323,97 @@ def test_fail_open_when_meter_raises():
 
 def test_meter_selection_default_is_local():
     assert isinstance(ul.get_usage_meter(), ul.LocalUsageMeter)
+
+
+# ---------------------------------------------------------------------------
+# Remote (api2-authoritative) meter path
+# ---------------------------------------------------------------------------
+
+def _gated_remote(monkeypatch, decision):
+    """A gated tool running through the REMOTE backend, with _remote_usage_decision stubbed."""
+    import jesse.mcp.usage_limits as ul
+    monkeypatch.setattr(ul, "USAGE_METER_BACKEND", "remote")
+    monkeypatch.setattr(ul, "_remote_usage_decision", lambda feature: decision)
+    calls = []
+
+    @ul.gated(1)
+    def tool():
+        calls.append(1)
+        return "ran"
+
+    return tool, calls
+
+
+def test_remote_allowed_runs_the_tool(monkeypatch):
+    import jesse.mcp.usage_limits as ul
+    tool, calls = _gated_remote(monkeypatch, ul.ConsumeResult(allowed=True, used=1, limit=100))
+    assert tool() == "ran"
+    assert len(calls) == 1
+
+
+def test_remote_blocked_free_returns_limit_reached(monkeypatch):
+    import jesse.mcp.usage_limits as ul
+    tool, calls = _gated_remote(monkeypatch, ul.ConsumeResult(allowed=False, used=100, limit=100, is_guest=False))
+    out = tool()
+    assert isinstance(out, dict) and out["status"] == "limit_reached"
+    assert out["is_guest"] is False
+    assert len(calls) == 0  # tool NOT run
+
+
+def test_remote_blocked_guest_gets_account_message(monkeypatch):
+    import jesse.mcp.usage_limits as ul
+    tool, calls = _gated_remote(monkeypatch, ul.ConsumeResult(allowed=False, used=0, limit=0, is_guest=True))
+    out = tool()
+    assert out["status"] == "limit_reached" and out["is_guest"] is True
+    assert "account" in out["message"].lower()
+    assert len(calls) == 0
+
+
+def test_remote_fails_open_when_backend_unreachable(monkeypatch):
+    # _remote_usage_decision returns None on any error -> the tool must still run.
+    tool, calls = _gated_remote(monkeypatch, None)
+    assert tool() == "ran"
+    assert len(calls) == 1
+
+
+def test_remote_usage_decision_parses_response_and_sends_feature(monkeypatch):
+    import jesse.mcp.usage_limits as ul
+
+    class FakeResp:
+        status_code = 200
+        headers = {"Content-Type": "application/json"}
+
+        def json(self):
+            return {"allowed": True, "remaining": 87, "limit": 100, "tier": "free"}
+
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["url"] = url
+        captured["json"] = json
+        return FakeResp()
+
+    monkeypatch.setattr("jesse.services.auth.get_access_token", lambda: "tok-123")
+    monkeypatch.setattr("requests.post", fake_post)
+    res = ul._remote_usage_decision("mcp")
+    assert res.allowed is True
+    assert res.limit == 100
+    assert res.used == 13  # 100 - 87
+    assert res.is_guest is False
+    assert captured["url"].endswith("/usage")
+    assert captured["json"] == {"license_api_token": "tok-123", "feature": "mcp"}
+
+
+def test_remote_usage_decision_fails_open_on_non_200(monkeypatch):
+    import jesse.mcp.usage_limits as ul
+
+    class FakeResp:
+        status_code = 503
+        headers = {"Content-Type": "application/json"}
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr("jesse.services.auth.get_access_token", lambda: "tok")
+    monkeypatch.setattr("requests.post", lambda *a, **k: FakeResp())
+    assert ul._remote_usage_decision("mcp") is None
