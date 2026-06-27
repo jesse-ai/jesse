@@ -14,14 +14,12 @@ from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
 from jesse.services import charts
 from jesse.services import report
-from jesse.services import candle_service
 from jesse.services.file import store_logs
 from jesse.services.validators import validate_routes
 from jesse.store import store
 from jesse.services import logger
 from jesse.services.failure import register_custom_exception_handler
 from jesse.services.redis import sync_publish, is_process_active
-from jesse.services import order_service
 from timeloop import Timeloop
 from datetime import timedelta
 from jesse.services.progressbar import Progressbar
