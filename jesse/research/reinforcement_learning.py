@@ -734,8 +734,9 @@ class _ProgressBarCallback(BaseCallback):
             bar = '#' * filled + '-' * (self._width - filled)
             elapsed = time.time() - self._t0
             eta = (elapsed / max(pct, 1)) * (100 - pct)
+            rate = self.num_timesteps / elapsed if elapsed > 0 else 0
             print(f"\r  [{bar}] {pct:3d}%  {self.num_timesteps:,}/{self._total:,}  "
-                  f"elapsed {elapsed:5.0f}s  eta {eta:5.0f}s", end='', flush=True)
+                  f"{rate:,.0f} steps/s  elapsed {elapsed:5.0f}s  eta {eta:5.0f}s", end='', flush=True)
             if pct >= 100:
                 print()
         return True
@@ -901,7 +902,14 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
         extra = checkpoint_eval_extra or {}
         eval_history = []
         snaps = []   # aligned (step, state_dict, rms, selection_score)
-        for step, state, rms in collector.snapshots:
+        n_snaps = len(collector.snapshots)
+        # This selection pass runs a full validation backtest per snapshot, so for many
+        # checkpoints (eval_freq small / training long) it can take a while AFTER the
+        # training bar has finished. Show a progress bar so it doesn't look hung.
+        if progress:
+            print(f"  selecting best checkpoint on validation ({n_snaps} snapshots)...")
+        _sel_t0 = time.time()
+        for k, (step, state, rms) in enumerate(collector.snapshots, start=1):
             model.policy.load_state_dict(state)
             nrm = _norm_from_rms(rms) if normalize else None
             ev = evaluate_rl_agent(model, config, routes, data_routes, eval_candles,
@@ -917,12 +925,23 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
                                          max_steps=n_c + 2, normalizer=nrm)
                 entry[label] = _slim(ev_x.metrics)
             eval_history.append(entry)
+            if progress:
+                _pct = int(k * 100 / n_snaps)
+                _el = time.time() - _sel_t0
+                _eta = (_el / k) * (n_snaps - k)
+                _fill = int(30 * _pct / 100)
+                print(f"\r  [{'#' * _fill}{'-' * (30 - _fill)}] {_pct:3d}%  "
+                      f"{k}/{n_snaps} checkpoints  {k / _el if _el > 0 else 0:.2f} ckpt/s  "
+                      f"elapsed {_el:4.0f}s  eta {_eta:4.0f}s", end='', flush=True)
             score = metrics.get(eval_metric, float('nan'))
             # NaN, or a snapshot that took zero trades (degenerate "do nothing"),
             # must never win selection -> treat as worst.
             if score != score or not metrics.get('total_trades', 0):
                 score = float('-inf')
             snaps.append((int(step), state, rms, float(score)))
+
+        if progress:
+            print()
 
         # Selection score, optionally smoothed over neighbouring checkpoints so a
         # single lucky validation window can't crown an early spike (see docstring).
@@ -957,9 +976,23 @@ def train_rl_agent(config, routes, data_routes, candles, warmup_candles=None,
     )
 
 
+def _estimate_eval_steps(routes, data_routes, candles, max_steps) -> int:
+    """Estimate how many decision steps a full (non-random-start) rollout will take:
+    one step per `candles_step` 1m candles, where candles_step is the gcd of all
+    route + data-route timeframes (the same quantity the simulator steps by). Used
+    only to drive the optional progress bar, so an estimate is fine."""
+    tf_mins = [jh.timeframe_to_one_minutes(r['timeframe']) for r in routes]
+    tf_mins += [jh.timeframe_to_one_minutes(r['timeframe']) for r in (data_routes or [])]
+    step = int(np.gcd.reduce(tf_mins)) if tf_mins else 1
+    n_1m = next(iter(candles.values()))['candles'].shape[0]
+    total = max(1, n_1m // max(1, step))
+    return min(total, max_steps) if max_steps else total
+
+
 def evaluate_rl_agent(model, config, routes, data_routes, candles,
                       warmup_candles=None, max_steps: int = None,
-                      num_episodes: int = 1, normalizer=None) -> EvalResult:
+                      num_episodes: int = 1, normalizer=None,
+                      progress: bool = False) -> EvalResult:
     """Greedy backtest of a trained RL model over the given candles.
 
     Returns an `EvalResult` whose `.metrics` is the single source of trading
@@ -968,6 +1001,9 @@ def evaluate_rl_agent(model, config, routes, data_routes, candles,
     `normalizer`: if the model was trained with observation normalization, pass the
     matching ObsNormalizer (from the TrainResult or a loaded bundle) so inputs are
     scaled exactly as during training.
+
+    `progress`: when True, print a stdout progress bar over the rollout (handy for
+    long full-window evaluations, which otherwise run silently).
     """
     env = JesseRLEnvironment({'backtest_config': config, 'routes': routes,
                               'data_routes': data_routes, 'candles': candles,
@@ -978,16 +1014,35 @@ def evaluate_rl_agent(model, config, routes, data_routes, candles,
     # be passed through as the prediction array — casting them to int would truncate
     # the value (e.g. array([0.37]) -> 0) and destroy the policy's output.
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
+    total_steps = _estimate_eval_steps(routes, data_routes, candles, max_steps) if progress else 0
     rewards = []
     for _ in range(num_episodes):
         obs, _ = env.reset()
         done = trunc = False
         ep = 0.0
+        step = 0
+        t0 = time.time()
+        last_pct = -1
         while not (done or trunc):
             pred_obs = normalizer.normalize(obs) if normalizer is not None else obs
             a, _ = model.predict(pred_obs, deterministic=True)
             obs, r, done, trunc, _ = env.step(int(a) if discrete else a)
             ep += r
+            if progress:
+                step += 1
+                pct = min(100, int(step * 100 / total_steps))
+                if pct != last_pct:
+                    last_pct = pct
+                    filled = int(30 * pct / 100)
+                    elapsed = time.time() - t0
+                    eta = (elapsed / max(pct, 1)) * (100 - pct)
+                    rate = step / elapsed if elapsed > 0 else 0
+                    print(f"\r  [{'#' * filled}{'-' * (30 - filled)}] {pct:3d}%  "
+                          f"{step:,}/{total_steps:,} bars  {rate:,.0f} bars/s  "
+                          f"elapsed {elapsed:5.0f}s  eta {eta:5.0f}s",
+                          end='', flush=True)
+        if progress:
+            print()
         rewards.append(ep)
     return EvalResult(
         episode_rewards=rewards,
