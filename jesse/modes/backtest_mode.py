@@ -529,14 +529,7 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
         raise e
 
 
-def simulator(*args, fast_mode: bool = False, **kwargs) -> dict:
-    if fast_mode:
-        return _skip_simulator(*args, **kwargs)
-
-    return _step_simulator(*args, **kwargs)
-
-
-def _step_simulator(
+def simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
@@ -550,13 +543,64 @@ def _step_simulator(
         with_candles_pipeline: bool = True,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
+        fast_mode: bool = False,
 ) -> dict:
+    """Run a full backtest by draining the canonical simulation loop, then build outputs.
+
+    The loop itself (run_simulation_iter -> _step_loop / _skip_loop) is the exact same
+    code the RL environment steps; this wrapper only adds the things a one-shot backtest
+    needs around it: enabling debug logs, timing, and result/metric generation.
+    """
     # In case generating logs is specifically demanded, the debug mode must be enabled.
     if generate_logs:
         config['app']['debug_mode'] = True
 
     begin_time_track = time.time()
 
+    # Drive the canonical generator to completion (it calls finalize_simulation() at the end).
+    for _ in run_simulation_iter(
+        candles,
+        hyperparameters=hyperparameters,
+        with_candles_pipeline=with_candles_pipeline,
+        candles_pipeline_class=candles_pipeline_class,
+        candles_pipeline_kwargs=candles_pipeline_kwargs,
+        fast_mode=fast_mode,
+        run_silently=run_silently,
+    ):
+        pass
+
+    execution_duration = 0
+    if not run_silently:
+        # print executed time for the backtest session
+        execution_duration = round(time.time() - begin_time_track, 2)
+
+    result = _generate_outputs(
+        candles,
+        generate_tradingview=generate_tradingview,
+        generate_csv=generate_csv,
+        generate_json=generate_json,
+        generate_equity_curve=generate_equity_curve,
+        benchmark=benchmark,
+        generate_hyperparameters=generate_hyperparameters,
+        generate_logs=generate_logs,
+    )
+    result['execution_duration'] = execution_duration
+    return result
+
+
+def _step_loop(
+        candles: dict,
+        run_silently: bool,
+        hyperparameters: dict = None,
+        with_candles_pipeline: bool = True,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
+):
+    """Step-mode simulation loop, as a generator that yields the 1m candle index after
+    each processed step. Drained by simulator() for a normal backtest, and reached via
+    run_simulation_iter for the RL env — so there is one loop body, not two kept in sync.
+    Output generation and finalization live in the callers (run_simulation_iter calls
+    finalize_simulation; simulator builds outputs)."""
     key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
     first_candles_set = candles[key]['candles']
 
@@ -668,7 +712,7 @@ def _step_simulator(
                     short_candle = _get_fixed_jumped_candle(candles_arr[i - 1], short_candle)
                 # Persist the synthetic candle back into the array so the higher-timeframe
                 # generation below (and the next iteration's gap-fix reference) are built from the
-                # SYNTHETIC series — exactly as _skip_simulator does. Without this, larger-timeframe
+                # SYNTHETIC series — exactly as _skip_loop does. Without this, larger-timeframe
                 # candles (and therefore the strategy's indicators) were generated from the ORIGINAL
                 # real candles while fills ran on the synthetic prices, so the full (step) simulator
                 # diverged from the fast (skip) simulator on bootstrapped candles — and could blow up.
@@ -726,36 +770,9 @@ def _step_simulator(
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
 
+        yield i
+
     _finish_progress_bar(progressbar, run_silently)
-
-    execution_duration = 0
-    if not run_silently:
-        # print executed time for the backtest session
-        finish_time_track = time.time()
-        execution_duration = round(finish_time_track - begin_time_track, 2)
-
-    for r in router.routes:
-        r.strategy._terminate()
-        order_service.execute_simulated_market_orders()
-
-    # now that backtest simulation is finished, add finishing balance
-    save_daily_portfolio_balance()
-
-    # set the ending time for the backtest session
-    store.app.ending_time = store.app.time + 60_000
-
-    result = _generate_outputs(
-        candles,
-        generate_tradingview=generate_tradingview,
-        generate_csv=generate_csv,
-        generate_json=generate_json,
-        generate_equity_curve=generate_equity_curve,
-        benchmark=benchmark,
-        generate_hyperparameters=generate_hyperparameters,
-        generate_logs=generate_logs,
-    )
-    result['execution_duration'] = execution_duration
-    return result
 
 
 def _simulation_minutes_length(candles: dict) -> int:
@@ -973,7 +990,7 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
     if any_order_executed:
         # partial candles were stored during order execution; restore the
         # real_candle in the store so we can move on. When nothing executed,
-        # the caller (_step_simulator) already added this exact candle right
+        # the caller (_step_loop) already added this exact candle right
         # before calling us, so there is nothing to restore.
         candle_service.add_candle(
             real_candle, exchange, symbol, '1m',
@@ -1053,27 +1070,16 @@ def _generate_outputs(
     return result
 
 
-def _skip_simulator(
+def _skip_loop(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_tradingview: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_equity_curve: bool = False,
-        benchmark: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_logs: bool = False,
         with_candles_pipeline: bool = True,
         candles_pipeline_class = None,
         candles_pipeline_kwargs: dict = None,
-) -> dict:
-    # In case generating logs is specifically demanded, the debug mode must be enabled.
-    if generate_logs:
-        config["app"]["debug_mode"] = True
-
-    begin_time_track = time.time()
-
+):
+    """Fast (skip) simulation loop, as a generator yielding the 1m candle index after each
+    step. See _step_loop — output/finalize are handled by the callers."""
     length = _simulation_minutes_length(candles)
     _prepare_times_before_simulation(candles)
     candles_pipelines = _prepare_routes(hyperparameters, with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs)
@@ -1084,7 +1090,7 @@ def _skip_simulator(
     candles_step = _calculate_minimum_candle_step()
 
     # Skip-mode analogue of the step simulator's 1m-storage prefill (see
-    # _step_simulator). For pipeline-less pairs, the only mutations the
+    # _step_loop). For pipeline-less pairs, the only mutations the
     # per-step loop ever applies to the input series are the step-boundary
     # jumped-candle fixes (the fix reads only the previous candle's close,
     # which no fix ever writes, so applying them upfront in ascending order is
@@ -1097,7 +1103,7 @@ def _skip_simulator(
     # rows and the trailing add_multiple_1m_candles restores them, exactly as
     # before). Guards fall back to the original path: if any of them fails,
     # the pair is simply absent from `prefilled` and is handled exactly as it
-    # used to be (see _step_simulator's prefill for the per-guard rationale).
+    # used to be (see _step_loop's prefill for the per-guard rationale).
     prefilled = {}
     for j in candles:
         candles_arr = candles[j]['candles']
@@ -1164,36 +1170,9 @@ def _skip_simulator(
         if i != 0 and i % 1440 == 0:
             save_daily_portfolio_balance()
 
+        yield i
+
     _finish_progress_bar(progressbar, run_silently)
-
-    execution_duration = 0
-    if not run_silently:
-        # print executed time for the backtest session
-        finish_time_track = time.time()
-        execution_duration = round(finish_time_track - begin_time_track, 2)
-
-    for r in router.routes:
-        r.strategy._terminate()
-        order_service.execute_simulated_market_orders()
-
-    # now that backtest simulation is finished, add finishing balance
-    save_daily_portfolio_balance()
-
-    # set the ending time for the backtest session
-    store.app.ending_time = store.app.time + 60_000
-
-    result = _generate_outputs(
-        candles,
-        generate_tradingview=generate_tradingview,
-        generate_csv=generate_csv,
-        generate_json=generate_json,
-        generate_equity_curve=generate_equity_curve,
-        benchmark=benchmark,
-        generate_hyperparameters=generate_hyperparameters,
-        generate_logs=generate_logs,
-    )
-    result['execution_duration'] = execution_duration
-    return result
 
 
 def _calculate_minimum_candle_step():
@@ -1231,125 +1210,31 @@ def run_simulation_iter(
     candles_pipeline_class = None,
     candles_pipeline_kwargs: dict = None,
     fast_mode: bool = False,
+    run_silently: bool = True,
 ):
     """
-    Generator that yields simulation steps one at a time.
-    This allows both traditional backtesting and RL environments to use the same simulation logic.
+    The single canonical backtest simulation loop, exposed as a generator that yields
+    once per simulation step (the 1m candle index just processed).
+
+    Both the normal backtest drivers (simulator(), which drains this to completion and
+    then builds outputs) AND the reinforcement-learning environment (which steps it one
+    yield at a time to exchange observation<->action with the policy) run through this
+    exact code — so there is ONE loop body per mode, not several kept in sync by tests.
+
+    `run_silently` controls only the progress bar; the RL env leaves it True.
     """
-    # Prepare simulation
-    _prepare_times_before_simulation(candles)
-    pipelines = _prepare_routes(
-        hyperparameters,
-        with_candles_pipeline,
-        candles_pipeline_class,
-        candles_pipeline_kwargs,
-    )
-    save_daily_portfolio_balance(is_initial=True)
-
-    length = _simulation_minutes_length(candles)
-
-    # Local aliases to the modern service functions: this generator predates the move of
-    # these helpers from store/global scope into candle_service / order_service.
-    add_candle = candle_service.add_candle
-    generate_candle_from_one_minutes = candle_service.generate_candle_from_one_minutes
-    print_candle = candle_service.print_candle
-    update_active_orders = order_service.update_active_orders
-
     if fast_mode:
-        # Use fast mode (skip simulator approach). Hoist the per-step loop invariants
-        # out of the hot loop exactly as _skip_simulator does — previously
-        # _simulate_new_candles was called WITHOUT pairs_info/htf_info, so it rebuilt
-        # both lists on every single candle (a measurable per-step cost for RL).
-        candles_step = _calculate_minimum_candle_step()
-        pairs_info = [
-            (candles[j]['candles'], pipelines[j], candles[j]['exchange'], candles[j]['symbol'], None)
-            for j in candles
-        ]
-        htf_info = [
-            (timeframe, TIMEFRAME_TO_ONE_MINUTES[timeframe])
-            for timeframe in config['app']['considering_timeframes']
-            if timeframe != '1m'
-        ]
-        idx = 0
-
-        while idx < length:
-            _simulate_new_candles(candles, pipelines, idx, candles_step, pairs_info, htf_info)
-            _execute_routes(idx, candles_step)  # calls r.strategy._execute() -> _check_agent_action()
-            order_service.execute_simulated_market_orders()
-
-            if idx != 0 and idx % 1440 == 0:
-                save_daily_portfolio_balance()
-            yield idx
-            idx += candles_step
+        yield from _skip_loop(
+            candles, run_silently, hyperparameters,
+            with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs,
+        )
     else:
-        # Use step mode (original step simulator approach)
-        key = f"{config['app']['considering_candles'][0][0]}-{config['app']['considering_candles'][0][1]}"
-        first_candles_set = candles[key]['candles']
-        
-        for i in range(length):
-            # update time
-            store.app.time = first_candles_set[i][0] + 60_000
+        yield from _step_loop(
+            candles, run_silently, hyperparameters,
+            with_candles_pipeline, candles_pipeline_class, candles_pipeline_kwargs,
+        )
 
-            # add candles
-            for j in candles:
-                candles_pipeline = pipelines[j]
-                short_candle = get_candles_from_pipeline(candles_pipeline, candles[j]['candles'], i)
-                if i != 0:
-                    previous_short_candle = candles[j]['candles'][i - 1]
-                    short_candle = _get_fixed_jumped_candle(previous_short_candle, short_candle)
-                exchange = candles[j]['exchange']
-                symbol = candles[j]['symbol']
-
-                add_candle(short_candle, exchange, symbol, '1m', with_execution=False,
-                                         with_generation=False)
-
-                # print short candle
-                if jh.is_debuggable('shorter_period_candles'):
-                    print_candle(short_candle, True, symbol)
-
-                _simulate_price_change_effect(short_candle, exchange, symbol)
-
-                # generate and add candles for bigger timeframes
-                for timeframe in config['app']['considering_timeframes']:
-                    # for 1m, no work is needed
-                    if timeframe == '1m':
-                        continue
-
-                    count = TIMEFRAME_TO_ONE_MINUTES[timeframe]
-
-                    if (i + 1) % count == 0:
-                        generated_candle = generate_candle_from_one_minutes(
-                            timeframe,
-                            candles[j]['candles'][(i - (count - 1)):(i + 1)]
-                        )
-
-                        add_candle(generated_candle, exchange, symbol, timeframe, with_execution=False,
-                                                 with_generation=False)
-
-            # now that all new generated candles are ready, execute
-            for r in router.routes:
-                count = TIMEFRAME_TO_ONE_MINUTES[r.timeframe]
-                # 1m timeframe
-                if r.timeframe == timeframes.MINUTE_1:
-                    r.strategy._execute()
-                elif (i + 1) % count == 0:
-                    # print candle
-                    if jh.is_debuggable('trading_candles'):
-                        print_candle(store.candles.get_current_candle(r.exchange, r.symbol, r.timeframe), False,
-                                     r.symbol)
-                    r.strategy._execute()
-
-                update_active_orders(r.exchange, r.symbol)
-
-            # now check to see if there's any MARKET orders waiting to be executed
-            order_service.execute_simulated_market_orders()
-
-            if i != 0 and i % 1440 == 0:
-                save_daily_portfolio_balance()
-            
-            yield i
-
-    # Finalize when generator is exhausted
+    # Finalize when the generator is exhausted (terminate strategies, final orders/balance).
     finalize_simulation()
 
 timeframe_to_one_minutes = {
@@ -1380,7 +1265,7 @@ def _simulate_new_candles(
         htf_info: list = None,
 ) -> None:
     i = candle_index
-    # loop invariants (precomputed once by _skip_simulator; rebuilt here only
+    # loop invariants (precomputed once by _skip_loop; rebuilt here only
     # if this function is called standalone)
     if pairs_info is None:
         pairs_info = [

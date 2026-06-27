@@ -1,7 +1,7 @@
 """
 Signal-only backtest simulator.
 
-Mirrors jesse/modes/backtest_mode._step_simulator() but skips all order
+Mirrors jesse/modes/backtest_mode._step_loop() but skips all order
 submission and execution.  At each bar the strategy's _execute_for_signal_test()
 is called, which runs before() / should_long() / should_short() / after() without
 opening or closing any positions.
