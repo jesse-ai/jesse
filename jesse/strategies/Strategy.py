@@ -112,6 +112,9 @@ class Strategy(ABC):
 
         # Reinforcement Learning
         self.current_action = None
+        self._rl_model = None
+        self._rl_normalizer = None
+        self._rl_artifacts_checked = False
 
     def candles_pipeline(self) -> Optional[BaseCandlesPipeline]:
         return None
@@ -1869,28 +1872,109 @@ class Strategy(ABC):
         """Calculate the reward for the RL agent. Override in your strategy."""
         return 0.0
 
-    def _check_agent_action(self) -> None:
-        """Check and execute the RL agent action if available (called during strategy execution)."""
-        if not jh.is_backtesting() or not store.rl.has_action():
+    def _load_rl_artifacts(self) -> None:
+        """
+        Lazily load a deployed RL agent from a ``rl_model/`` bundle next to the
+        strategy and cache it on the instance. Mirrors ``_load_ml_artifacts``.
+
+        After this call (when a bundle exists):
+            ``self._rl_model``      – the loaded SB3 model
+            ``self._rl_normalizer`` – the observation normalizer (or None)
+
+        Idempotent and cheap on repeat: the lookup runs once, and the result
+        (found or not) is cached, so a non-RL strategy — or an RL strategy with
+        no deployed bundle — pays a single check, not a per-bar filesystem probe.
+        The heavy RL deps (stable-baselines3 / torch) are imported only when a
+        bundle is actually present, so non-RL users never need them installed.
+        """
+        if self._rl_artifacts_checked:
+            return
+        self._rl_artifacts_checked = True
+
+        try:
+            module = sys.modules[self.__class__.__module__]
+            strategy_dir = os.path.dirname(os.path.abspath(module.__file__))
+        except Exception:
             return
 
-        # Get action from RL agent
-        self.current_action = store.rl.get_action()
+        bundle = os.path.join(strategy_dir, 'rl_model')
+        if not os.path.isdir(bundle):
+            return  # no deployed agent — normal for non-RL (or not-yet-deployed) strategies
 
-        # Update observation and reward
-        observation = self.get_observation()
-        reward = self.get_reward()
+        # load_rl_agent enforces strategy-source-drift and library-version checks; a
+        # drift mismatch raises here on purpose (don't trade an agent fed observations
+        # it was never trained on).
+        from jesse.research.reinforcement_learning import load_rl_agent
+        model, manifest = load_rl_agent(bundle)
+        self._rl_model = model
+        self._rl_normalizer = manifest.get('normalizer')
 
-        # Check if episode should end based on strategy logic
-        episode_done = self.is_rl_episode_done()
+    def rl_predict(self):
+        """
+        Run the deployed RL agent for the current bar and return its action.
 
-        store.rl.set_observation(observation)
-        store.rl.set_reward(reward)
-        store.rl.set_done(episode_done)
-        store.rl.increment_step()
+        Loads the agent lazily (idempotent), builds the observation by calling
+        ``self.get_observation()`` — the single source of truth shared with
+        training — scales it with the saved normalizer, and returns the greedy
+        (deterministic) action. Mirrors ``ml_predict``: you never load the model
+        or touch the normalizer yourself.
 
-        # Clear action after processing
-        store.rl.clear_action()
+        Returns:
+            int for a Discrete action space (the usual 0/1/2 = flat/long/short),
+            otherwise the raw action array for a continuous (Box) space.
+
+        Raises:
+            FileNotFoundError: if no ``rl_model/`` bundle is deployed next to the strategy.
+        """
+        self._load_rl_artifacts()
+        if self._rl_model is None:
+            raise FileNotFoundError(
+                "No deployed RL agent found. Expected a bundle at "
+                "<strategy_dir>/rl_model/ (model.zip + manifest.json). Save one with "
+                "TrainResult.save('rl_model', directory=<strategy_dir>, overwrite=True)."
+            )
+        import gymnasium as gym
+        obs = self.get_observation()
+        if self._rl_normalizer is not None:
+            obs = self._rl_normalizer.normalize(obs)
+        action, _ = self._rl_model.predict(obs, deterministic=True)
+        discrete = isinstance(self.get_action_space(), gym.spaces.Discrete)
+        return int(action) if discrete else action
+
+    def _check_agent_action(self) -> None:
+        """Populate ``self.current_action`` for this bar.
+
+        Two distinct sources, never both:
+
+          1. A research RL environment is driving the strategy (training / eval).
+             It installs an observation space on ``store.rl`` in its reset(), so
+             that is the reliable signal. Here we keep the original bridge: read
+             the action the gym side pushed, and hand back this bar's
+             observation / reward / done.
+
+          2. Otherwise this is an ordinary run — dashboard backtest, CLI, or live.
+             If a trained agent has been deployed next to the strategy, load it
+             lazily and let the strategy choose its own action (same logic the gym
+             loop applies externally during training, now applied internally from
+             saved weights). No deployed agent — the case for every non-RL
+             strategy — makes this a no-op, so behaviour is unchanged for them.
+        """
+        # Path 1 — a research RL rollout is in control.
+        if store.rl.get_observation_space() is not None:
+            if not jh.is_backtesting() or not store.rl.has_action():
+                return
+            self.current_action = store.rl.get_action()
+            store.rl.set_observation(self.get_observation())
+            store.rl.set_reward(self.get_reward())
+            store.rl.set_done(self.is_rl_episode_done())
+            store.rl.increment_step()
+            store.rl.clear_action()
+            return
+
+        # Path 2 — deployed-agent inference (dashboard backtest / live).
+        self._load_rl_artifacts()
+        if self._rl_model is not None:
+            self.current_action = self.rl_predict()
 
     def is_rl_episode_done(self) -> bool:
         """Check if the RL episode should end. Override in your strategy."""
