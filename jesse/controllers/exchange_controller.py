@@ -1,4 +1,7 @@
-from typing import Optional
+import ast
+import json
+from typing import Optional, Any, List
+
 from fastapi import APIRouter, Header
 from starlette.responses import JSONResponse
 
@@ -60,14 +63,33 @@ def delete_exchange_api_keys_endpoint(json_request: DeleteExchangeApiKeyRequestJ
     return delete_exchange_api_keys(json_request.id)
 
 
+def _decode_cached_symbol_list(cached_result: Any) -> List[str]:
+    """
+    Deserialize cached symbol list from Redis. Uses JSON for normal operation;
+    falls back to ast.literal_eval for legacy entries written with str(list).
+    Never use eval(): cache contents must not be executed as code.
+    """
+    raw = cached_result.decode('utf-8') if isinstance(cached_result, bytes) else cached_result
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = ast.literal_eval(raw)
+    if not isinstance(data, list):
+        raise TypeError('cached exchange symbols must be a list')
+    return data
+
+
 def get_exchange_supported_symbols(exchange: str) -> JSONResponse:
     # first try to get from cache
     cache_key = f'exchange-symbols:{exchange}'
     cached_result = sync_redis.get(cache_key)
     if cached_result is not None:
-        return JSONResponse({
-            'data': eval(cached_result)
-        }, status_code=200)
+        try:
+            return JSONResponse({
+                'data': _decode_cached_symbol_list(cached_result)
+            }, status_code=200)
+        except (TypeError, ValueError, SyntaxError, UnicodeDecodeError):
+            sync_redis.delete(cache_key)
 
     arr = []
 
@@ -79,7 +101,7 @@ def get_exchange_supported_symbols(exchange: str) -> JSONResponse:
     try:
         arr = driver.get_available_symbols()
         # cache successful result for 5 minutes
-        sync_redis.setex(cache_key, 300, str(arr))
+        sync_redis.setex(cache_key, 300, json.dumps(arr))
     except Exception as e:
         return JSONResponse({
             'error': str(e)
