@@ -102,7 +102,10 @@ class OrdersState:
         if use_exchange_id:
             return fnc.find(lambda o: o.exchange_id == id, self.storage[key])
 
-        # make sure id (client_id) is not and empty string
+        # a client_id may arrive as an int (e.g. Binance algo ids); coerce before matching
+        id = str(id) if id is not None else ''
+
+        # make sure id (client_id) is not an empty string
         if id == '':
             return None
 
