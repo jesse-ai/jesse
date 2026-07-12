@@ -461,7 +461,7 @@ exchange_info = {
             # Kraken's public OHLC REST endpoint only serves the most recent 720 candles
             # (a rolling window), so it cannot be used for historical backtesting.
             "backtesting": False,
-            "live_trading": False,
+            "live_trading": True,
         },
         "required_live_plan": "premium",
     },
