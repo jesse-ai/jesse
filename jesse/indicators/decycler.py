@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
@@ -6,6 +6,13 @@ from jesse.helpers import get_candle_source, slice_candles
 
 from .high_pass_2_pole import high_pass_2_pole_fast
 
+
+@overload
+def decycler(candles: np.ndarray, hp_period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def decycler(candles: np.ndarray, hp_period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def decycler(candles: np.ndarray, hp_period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def decycler(candles: np.ndarray, hp_period: int = 125, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:

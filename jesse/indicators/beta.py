@@ -1,10 +1,17 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
 from jesse.helpers import slice_candles
 
+
+@overload
+def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """

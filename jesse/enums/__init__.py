@@ -93,6 +93,9 @@ class exchanges:
     HYPERLIQUID_PERPETUAL_TESTNET = 'Hyperliquid Perpetual Testnet'
     LIGHTER_PERPETUAL = 'Lighter Perpetual'
     LIGHTER_PERPETUAL_TESTNET = 'Lighter Perpetual Testnet'
+    KRAKEN_SPOT = 'Kraken Pro Spot'
+    KRAKEN_PERPETUAL = 'Kraken Pro Futures'
+    KRAKEN_PERPETUAL_TESTNET = 'Kraken Pro Futures Testnet'
 
 
 @dataclass

@@ -453,6 +453,15 @@ def register_backtest_tools(mcp):
             {
                 "status": "started",
                 "backtest_id": "uuid-string",
+                "routes": [
+                    {
+                        "exchange": "Binance Perpetual Futures",
+                        "strategy": "MyStrategy",
+                        "symbol": "BTC-USDT",
+                        "timeframe": "4h"
+                    }
+                ],
+                "dashboard_url": "http://127.0.0.1:9000/#/backtest/uuid-string",
                 "message": "Backtest started. Poll get_backtest_session(session_id) to check progress."
             }
 
@@ -462,7 +471,7 @@ def register_backtest_tools(mcp):
                 "message": "error description"
             }
 
-            Shape: {"status": "started|error", "backtest_id": string, "message": string}
+            Shape: {"status": "started|error", "backtest_id": string, "routes": array, "dashboard_url": string, "message": string}
 
         Raises:
             NotFoundError: If session_id does not exist

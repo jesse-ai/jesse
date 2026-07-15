@@ -1,10 +1,17 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import slice_candles
 from jesse_rust import chop as chop_rust
 
+
+@overload
+def chop(candles: np.ndarray, period: int = ..., scalar: float = ..., drift: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def chop(candles: np.ndarray, period: int = ..., scalar: float = ..., drift: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def chop(candles: np.ndarray, period: int = ..., scalar: float = ..., drift: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int = 1, sequential: bool = False) -> Union[float, np.ndarray]:
     """

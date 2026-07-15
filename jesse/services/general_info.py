@@ -1,7 +1,7 @@
 import os
 import requests
 import jesse.helpers as jh
-from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL
+from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL, JESSE_API2_URL
 from jesse.services.env import is_dev_env
 
 
@@ -94,7 +94,7 @@ def get_general_info(has_live=False) -> dict:
             raise ValueError("Invalid response from PyPI")
             
         response = requests.get(
-            JESSE_API_URL + '/plugins/live/releases/info',
+            JESSE_API2_URL + '/plugins/live/releases/info',
             timeout=10
         )
         if response.status_code == 200 and 'application/json' in response.headers.get('Content-Type', ''):

@@ -455,7 +455,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
 
 
 def hyperparameters(routes_arr: list) -> list:
-    if routes_arr[0].strategy.hp is None:
+    # hp is an empty dict for strategies that define no hyperparameters
+    if not routes_arr[0].strategy.hp:
         return []
     # only for the first route
     hp = []

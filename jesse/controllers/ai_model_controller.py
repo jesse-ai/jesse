@@ -1,20 +1,17 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 import jesse.helpers as jh
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services import transformers
 from jesse.services.web import StoreAiModelRequestJson, DeleteAiModelRequestJson
 
 
-router = APIRouter(prefix="/ai-models", tags=["AI Models"])
+router = APIRouter(prefix="/ai-models", tags=["AI Models"], dependencies=[Depends(require_auth)])
 
 
 @router.get('')
-def get_ai_models_endpoint(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_ai_models_endpoint() -> JSONResponse:
 
     from jesse.services.db import database
     database.open_connection()
@@ -40,10 +37,7 @@ def get_ai_models_endpoint(authorization: Optional[str] = Header(None)) -> JSONR
 
 
 @router.post('/store')
-def store_ai_model_endpoint(json_request: StoreAiModelRequestJson,
-                            authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def store_ai_model_endpoint(json_request: StoreAiModelRequestJson) -> JSONResponse:
 
     from jesse.services.db import database
     database.open_connection()
@@ -77,10 +71,7 @@ def store_ai_model_endpoint(json_request: StoreAiModelRequestJson,
 
 
 @router.post('/delete')
-def delete_ai_model_endpoint(json_request: DeleteAiModelRequestJson,
-                             authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def delete_ai_model_endpoint(json_request: DeleteAiModelRequestJson) -> JSONResponse:
 
     from jesse.services.db import database
     database.open_connection()

@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from jesse_rust import chande as rust_chande
 from jesse.helpers import slice_candles
 
+
+@overload
+def chande(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def chande(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def chande(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",
            sequential: bool = False) -> Union[float, np.ndarray]:

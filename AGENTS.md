@@ -3,6 +3,14 @@
 ## Overview
 The jesse repository is the **core open-source framework** of the Jesse trading system. It contains the main Python codebase for backtesting trading strategies, importing historical data from crypto exchanges, running optimizations, and providing the API backend for the dashboard. It glues together the other repositories and makes them work together.
 
+## Skills
+
+This repo stores shared **Agent Skills** in `.claude/skills/` — focused, task-specific playbooks used by Claude Code and Codex. Codex also discovers them through the repository-relative `.agents/skills` symlink.
+
+Before starting a task, scan the YAML frontmatter of every `.claude/skills/*/SKILL.md`. When a skill's `description` matches the task, read that `SKILL.md` completely before acting. A matching skill is the authoritative reference for what it covers, and its details are deliberately kept out of this file. This scan is the cross-platform fallback if native skill discovery or symlink support is unavailable.
+
+- **`jesse-strategy-tests`** — conventions for writing Jesse strategy and engine tests.
+
 ## Key Characteristics
 
 ### Central Framework
@@ -135,6 +143,28 @@ Notes:
 - Never try to install new packages - assume they're already installed. if need to install new packages, ask me first.
 - Follow existing patterns and conventions
 - Maintain consistency with the current codebase
+
+### Type Annotations (strategy-facing typing)
+User strategies are type-checked in editors (Zed runs Pyrefly), so annotations on anything strategies touch — indicators, `Strategy` properties/attributes, models like `Route` and `Position` — must be precise. Loose framework types surface as false-positive errors in every user's strategy file.
+
+- **Indicators**: any indicator with a `sequential` param that returns `Union[<scalar>, np.ndarray]` must ship this `@overload` trio directly above the implementation (all existing ones already do — keep new ones consistent):
+  ```python
+  @overload
+  def sma(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+  @overload
+  def sma(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+  @overload
+  def sma(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
+  ```
+  When changing an indicator's parameters, update all three overloads too — callers only see the overloads, not the implementation signature.
+- **Namedtuple-returning indicators** (macd, supertrend, bollinger_bands, …) intentionally keep untyped (Any) fields — don't type their fields piecemeal; it would need a proper generic design to distinguish sequential from non-sequential fields.
+- **Late-initialized attributes** that the router/engine sets right after instantiation (`Strategy.name/symbol/exchange/timeframe/position/broker`, `Route.strategy`): declare the real post-initiation type with the `None` default silenced — e.g. `self.position: Position = None  # type: ignore` — instead of `Optional[...]`, so user strategies don't need `is not None` narrowing. `Strategy.hp` is always a `dict` (empty when the strategy has no hyperparameters); check it with falsiness (`if not self.hp`), never `is None`.
+- Verify strategy-facing typing changes with Pyrefly:
+  ```bash
+  cd /Users/salehmir/Codes/jesse/dev-jesse
+  uvx pyrefly check 'jesse/jesse/indicators/*.py' jesse/jesse/strategies/Strategy.py --search-path jesse --conda-environment jesse3.12
+  ```
+  For a broader regression check, run it over `'jesse/jesse/strategies/*/__init__.py'` (the test strategies must report 0 errors).
 - Try to import only at the top of the file.
 
 ### Jesse-Rust Integration
@@ -174,4 +204,3 @@ This repository is the foundation of the Jesse ecosystem:
 - **go-jesse-trade/backend** - Go project that contains the api2 backend of the jesse-trade website.
 - **go-jesse-trade/frontend** - NuxtJS project that contains the frontend of the jesse-trade website.
 - **strategy-executor** - Go project that contains the strategy executor microservice used to execute strategies submitted by the users of the website.
-

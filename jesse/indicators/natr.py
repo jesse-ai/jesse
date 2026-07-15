@@ -1,8 +1,15 @@
 import numpy as np
-from typing import Union
+from typing import Literal, Union, overload
 
 from jesse.helpers import slice_candles
 
+
+@overload
+def natr(candles: np.ndarray, period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def natr(candles: np.ndarray, period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def natr(candles: np.ndarray, period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """

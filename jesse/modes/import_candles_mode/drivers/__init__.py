@@ -19,6 +19,9 @@ from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual im
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetual import LighterPerpetual
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetualTestnet import LighterPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenSpot import KrakenSpot
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetual import KrakenPerpetual
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetualTestnet import KrakenPerpetualTestnet
 
 
 drivers = {
@@ -39,11 +42,14 @@ drivers = {
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
     exchanges.LIGHTER_PERPETUAL: LighterPerpetual,
     exchanges.LIGHTER_PERPETUAL_TESTNET: LighterPerpetualTestnet,
+    exchanges.KRAKEN_PERPETUAL: KrakenPerpetual,
+    exchanges.KRAKEN_PERPETUAL_TESTNET: KrakenPerpetualTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+    exchanges.KRAKEN_SPOT: KrakenSpot,
 }
 
 

@@ -52,11 +52,13 @@ class Strategy(ABC):
 
     def __init__(self) -> None:
         self.id = jh.generate_unique_id()
-        self.name = None
-        self.symbol = None
-        self.exchange = None
-        self.timeframe = None
-        self.hp = None
+        # these are set by the router/engine right after instantiation, hence
+        # they are declared with their post-initiation types for type checkers
+        self.name: str = None  # type: ignore
+        self.symbol: str = None  # type: ignore
+        self.exchange: str = None  # type: ignore
+        self.timeframe: str = None  # type: ignore
+        self.hp: dict = {}
 
         self.index = 0
         self.last_trade_index = 0
@@ -100,8 +102,9 @@ class Strategy(ABC):
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position | None = None
-        self.broker = None
+        # both are set in _init_objects() right after instantiation
+        self.position: Position = None  # type: ignore
+        self.broker: Broker = None  # type: ignore
 
         self._cached_methods = {}
         self._cached_metrics = {}
@@ -442,7 +445,7 @@ class Strategy(ABC):
         self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if self.hp is None and len(self.hyperparameters()) > 0:
+        if not self.hp and len(self.hyperparameters()) > 0:
             self.hp = {}
             for dna in self.hyperparameters():
                 self.hp[dna['name']] = dna['default']
@@ -1707,7 +1710,7 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: str = None) -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: Optional[str] = None) -> None:
         msg = str(msg)
 
         if log_type == 'info':
@@ -1765,28 +1768,28 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
-    def entry_orders(self):
+    def entry_orders(self) -> List[Order]:
         """
         Returns all the entry orders for this position.
         """
         return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
-    def exit_orders(self):
+    def exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
-    def active_exit_orders(self):
+    def active_exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
-    def exchange_type(self):
+    def exchange_type(self) -> str:
         return store.exchanges.get_exchange(self.exchange).type
 
     @property
@@ -1798,7 +1801,7 @@ class Strategy(ABC):
         return self.exchange_type == 'futures'
 
     @property
-    def daily_balances(self):
+    def daily_balances(self) -> list:
         return store.app.daily_balance
 
     @property

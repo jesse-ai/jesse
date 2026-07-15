@@ -1,9 +1,17 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 from jesse_rust import ema as ema_rust, ema_last as ema_last_rust
+
+
+@overload
+def ema(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def ema(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def ema(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 
 def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[

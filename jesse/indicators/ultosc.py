@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import slice_candles
 
+
+@overload
+def ultosc(candles: np.ndarray, timeperiod1: int = ..., timeperiod2: int = ..., timeperiod3: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def ultosc(candles: np.ndarray, timeperiod1: int = ..., timeperiod2: int = ..., timeperiod3: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def ultosc(candles: np.ndarray, timeperiod1: int = ..., timeperiod2: int = ..., timeperiod3: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def ultosc(candles: np.ndarray, timeperiod1: int = 7, timeperiod2: int = 14, timeperiod3: int = 28,
            sequential: bool = False) -> Union[float, np.ndarray]:

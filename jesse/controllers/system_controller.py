@@ -1,43 +1,36 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 import psutil
 import os
 import requests
 
-from jesse.services import auth as authenticator
 from jesse.services.web import FeedbackRequestJson, ReportExceptionRequestJson, HelpSearchRequestJson
 from jesse.services.multiprocessing import process_manager
 from jesse.services import jesse_trade
 from jesse.services.general_info import get_general_info
-from jesse.services.auth import get_access_token
+from jesse.services.auth import get_access_token, require_auth
 from jesse.info import JESSE_API_URL
 from jesse.version import __version__ as jesse_version
 from jesse.models import BacktestSession, OptimizationSession, LiveSession, MonteCarloSession, SignificanceTestSession
 import jesse.helpers as jh
 
-router = APIRouter(prefix="/system", tags=["System"])
+router = APIRouter(prefix="/system", tags=["System"], dependencies=[Depends(require_auth)])
 
 
 @router.post("/feedback")
-def feedback(json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def feedback(json_request: FeedbackRequestJson) -> JSONResponse:
     """
     Send feedback to the Jesse team
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     return jesse_trade.feedback(json_request.description, json_request.email)
 
 
 @router.post("/report-exception")
-def report_exception(json_request: ReportExceptionRequestJson,
-                     authorization: Optional[str] = Header(None)) -> JSONResponse:
+def report_exception(json_request: ReportExceptionRequestJson) -> JSONResponse:
     """
     Report an exception to the Jesse team
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     return jesse_trade.report_exception(
         json_request.description,
@@ -51,12 +44,10 @@ def report_exception(json_request: ReportExceptionRequestJson,
 
 
 @router.post("/general-info")
-def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def general_info() -> JSONResponse:
     """
     Get general information about the system
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         data = get_general_info(has_live=jh.has_live_trade_plugin())
@@ -73,12 +64,10 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
 
 @router.post("/active-workers")
-def active_workers(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def active_workers() -> JSONResponse:
     """
     Get a list of active workers
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     return JSONResponse({
         'data': list(process_manager.active_workers)
@@ -86,12 +75,10 @@ def active_workers(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
 
 @router.post("/help-search")
-def help_search(json_request: HelpSearchRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def help_search(json_request: HelpSearchRequestJson) -> JSONResponse:
     """
     Proxy endpoint for help center search to avoid CORS issues
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
     try:
         url = f'{JESSE_API_URL}/help/search?item={json_request.query}'
@@ -120,12 +107,10 @@ def help_search(json_request: HelpSearchRequestJson, authorization: Optional[str
 
 
 @router.get("/system-info")
-def system_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def system_info() -> JSONResponse:
     """
     Get system info (CPU, RAM, version, etc)
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     strategies_path = os.getcwd() + "/strategies/"
     try:
@@ -148,12 +133,10 @@ def system_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
 
 
 @router.get("/user-activity")
-def user_activity(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def user_activity() -> JSONResponse:
     """
     Get user activity stats (backtests, optimizations, etc)
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     current_timestamp = jh.now_to_timestamp(True)
     day_ago = current_timestamp - (24 * 60 * 60 * 1000)

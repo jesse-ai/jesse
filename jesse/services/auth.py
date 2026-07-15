@@ -1,6 +1,32 @@
 from hashlib import sha256
+from typing import Optional
+
+from fastapi import Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from jesse.services.env import ENV_VALUES
+
+
+class InvalidAuthError(HTTPException):
+    def __init__(self):
+        super().__init__(status_code=401, detail="Invalid password")
+
+
+def require_auth(authorization: Optional[str] = Header(None)) -> None:
+    if not is_valid_token(authorization):
+        raise InvalidAuthError
+
+
+def require_auth_token(token: str = Query(...)) -> None:
+    if not is_valid_token(token):
+        raise InvalidAuthError
+
+
+def require_auth_any(
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+) -> None:
+    if not is_valid_token(token or authorization):
+        raise InvalidAuthError
 
 
 def password_to_token(password: str) -> JSONResponse:
@@ -14,7 +40,7 @@ def password_to_token(password: str) -> JSONResponse:
     }, status_code=200)
 
 
-def is_valid_token(auth_token: str) -> bool:
+def is_valid_token(auth_token: Optional[str]) -> bool:
     hashed_local_pass = sha256(ENV_VALUES['PASSWORD'].encode('utf-8')).hexdigest()
     return auth_token == hashed_local_pass
 

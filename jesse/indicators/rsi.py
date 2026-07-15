@@ -1,8 +1,16 @@
 import numpy as np
-from typing import Union
+from typing import Literal, Union, overload
 
 from jesse.helpers import get_candle_source, slice_candles
 from jesse_rust import rsi as rsi_rust, rsi_last as rsi_last_rust
+
+
+@overload
+def rsi(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def rsi(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def rsi(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 
 def rsi(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:

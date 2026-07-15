@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 from jesse.indicators.sma import sma
 import numpy as np
 
+
+@overload
+def vosc(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def vosc(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def vosc(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def vosc(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
     """

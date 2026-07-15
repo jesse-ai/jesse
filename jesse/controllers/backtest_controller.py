@@ -1,8 +1,7 @@
-from typing import Optional
-from fastapi import APIRouter, Header, Query, Body
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse, FileResponse
 import json
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson
 import jesse.helpers as jh
@@ -25,13 +24,11 @@ import os
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 
-@router.post("")
-def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("", dependencies=[Depends(require_auth)])
+def backtest(request_json: BacktestRequestJson):
     """
     Start a backtest process
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -61,20 +58,15 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
 BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
 
 
-@router.get("/sessions/{session_id}/charts-image")
+@router.get("/sessions/{session_id}/charts-image", dependencies=[Depends(require_auth_any)])
 def get_charts_image(
     session_id: str,
     chart: str,
-    token: Optional[str] = None,
-    authorization: Optional[str] = Header(None)
 ):
     """
     Serve a chart PNG image for a specific backtest session.
     chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl
     """
-    effective_auth = token or authorization
-    if not authenticator.is_valid_token(effective_auth):
-        return authenticator.unauthorized_response()
 
     if chart not in BACKTEST_CHART_NAMES:
         return JSONResponse({'error': f'Unknown chart name: {chart}'}, status_code=400)
@@ -88,13 +80,11 @@ def get_charts_image(
     return FileResponse(path, media_type='image/png')
 
 
-@router.post("/cancel")
-def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("/cancel", dependencies=[Depends(require_auth)])
+def cancel_backtest(request_json: CancelRequestJson):
     """
     Cancel a backtest process
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
     
@@ -104,13 +94,11 @@ def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str
                         status_code=202)
 
 
-@router.get("/logs/{session_id}")
-def get_logs(session_id: str, token: str = Query(...)):
+@router.get("/logs/{session_id}", dependencies=[Depends(require_auth_token)])
+def get_logs(session_id: str):
     """
     Get logs as text for a specific session. Similar to download but returns text content instead of file.
     """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
 
     try:
         content = get_backtest_logs(session_id)
@@ -123,13 +111,11 @@ def get_logs(session_id: str, token: str = Query(...)):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@router.get("/download-log/{session_id}")
-def download_backtest_log_handler(session_id: str, token: str = Query(...)):
+@router.get("/download-log/{session_id}", dependencies=[Depends(require_auth_token)])
+def download_backtest_log_handler(session_id: str):
     """
     Download log file for a specific backtest session
     """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
 
     try:
         return download_backtest_log(session_id)
@@ -137,13 +123,11 @@ def download_backtest_log_handler(session_id: str, token: str = Query(...)):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@router.post("/sessions")
-def get_backtest_sessions(request_json: GetBacktestSessionsRequestJson = Body(default=GetBacktestSessionsRequestJson()), authorization: Optional[str] = Header(None)):
+@router.post("/sessions", dependencies=[Depends(require_auth)])
+def get_backtest_sessions(request_json: GetBacktestSessionsRequestJson = Body(default=GetBacktestSessionsRequestJson())):
     """
     Get a list of backtest sessions sorted by most recently updated with pagination
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get sessions from the database with pagination and filters
     sessions = get_sessions(
@@ -163,13 +147,11 @@ def get_backtest_sessions(request_json: GetBacktestSessionsRequestJson = Body(de
     })
 
 
-@router.post("/sessions/{session_id}")
-def get_backtest_session_by_id(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
+def get_backtest_session_by_id(session_id: str):
     """
     Get a single backtest session by ID
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get the session from the database
     session = get_backtest_session_by_id_from_db(session_id)
@@ -188,13 +170,11 @@ def get_backtest_session_by_id(session_id: str, authorization: Optional[str] = H
     })
 
 
-@router.post("/update-state")
-def update_session_state(request_json: UpdateBacktestSessionStateRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("/update-state", dependencies=[Depends(require_auth)])
+def update_session_state(request_json: UpdateBacktestSessionStateRequestJson):
     """
     Update the state of a backtest session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_backtest_session_state(request_json.id, request_json.state)
 
@@ -203,13 +183,11 @@ def update_session_state(request_json: UpdateBacktestSessionStateRequestJson, au
     })
 
 
-@router.post("/sessions/{session_id}/remove")
-def remove_backtest_session(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
+def remove_backtest_session(session_id: str):
     """
     Remove a backtest session from the database
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = get_backtest_session_by_id_from_db(session_id)
 
@@ -231,13 +209,11 @@ def remove_backtest_session(session_id: str, authorization: Optional[str] = Head
     })
 
 
-@router.post("/sessions/{session_id}/notes")
-def update_session_notes(session_id: str, request_json: UpdateBacktestSessionNotesRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
+def update_session_notes(session_id: str, request_json: UpdateBacktestSessionNotesRequestJson):
     """
     Update the notes (title, description, strategy_codes) of a backtest session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = get_backtest_session_by_id_from_db(session_id)
 
@@ -253,13 +229,11 @@ def update_session_notes(session_id: str, request_json: UpdateBacktestSessionNot
     })
 
 
-@router.post("/purge-sessions")
-def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
+@router.post("/purge-sessions", dependencies=[Depends(require_auth)])
+def purge_sessions(request_json: dict = Body(...)):
     """
     Purge backtest sessions older than specified days
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
     days_old = request_json.get('days_old', None)
     
@@ -271,13 +245,11 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
     }, status_code=200)
 
 
-@router.post("/sessions/{session_id}/chart-data")
-def get_backtest_session_chart_data(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}/chart-data", dependencies=[Depends(require_auth)])
+def get_backtest_session_chart_data(session_id: str):
     """
     Get chart data for a specific backtest session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = get_backtest_session_by_id_from_db(session_id)
 
@@ -293,13 +265,11 @@ def get_backtest_session_chart_data(session_id: str, authorization: Optional[str
     })
 
 
-@router.post("/sessions/{session_id}/strategy-code")
-def get_backtest_session_strategy_codes(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}/strategy-code", dependencies=[Depends(require_auth)])
+def get_backtest_session_strategy_codes(session_id: str):
     """
     Get strategy codes for a specific backtest session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = get_backtest_session_by_id_from_db(session_id)
 

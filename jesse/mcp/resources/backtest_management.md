@@ -159,7 +159,8 @@ Process:
 4. Starts backtest execution
 5. Monitors progress via WebSocket events
 
-Returns: Success message with metrics or error details
+Returns: Immediate acknowledgement containing the session ID, the executed trading routes,
+dashboard URL, and polling instructions; or error details.
 
 ### cancel_backtest()
 

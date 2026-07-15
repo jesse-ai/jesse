@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import get_candle_source, slice_candles
+
+@overload
+def cfo(candles: np.ndarray, period: int = ..., scalar: float = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def cfo(candles: np.ndarray, period: int = ..., scalar: float = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def cfo(candles: np.ndarray, period: int = ..., scalar: float = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """CFO - Chande Forecast Oscillator"""
