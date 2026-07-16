@@ -32,7 +32,7 @@ eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0
 jesse-rust==1.2.0
-mcp==1.26.0
+mcp==1.28.1
 joblib~=1.5.3
 scikit-learn~=1.7.2; python_version < "3.11"
 scikit-learn~=1.8.0; python_version >= "3.11"
