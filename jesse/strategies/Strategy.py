@@ -21,6 +21,9 @@ from jesse.services import notifier
 from jesse.services.color import generate_unique_hex_color
 from jesse.research.ml import load_ml_model as _load_ml_model
 
+# rolling cap for chart-line arrays during live sessions (see _trim_chart_line_data)
+LIVE_CHART_MAX_POINTS_PER_LINE = 1_000
+
 
 def _np_array_equal(a1, a2) -> bool:
     # semantically identical to np.array_equal, minus its dispatch overhead for
@@ -359,6 +362,15 @@ class Strategy(ABC):
             'value': value,
             'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
         })
+        self._trim_chart_line_data(self._add_line_to_candle_chart_values[title]['data'])
+
+    def _trim_chart_line_data(self, data: list) -> None:
+        """
+        Live sessions never end, so chart-line arrays must not grow unbounded.
+        Backtests are finite and keep their full history.
+        """
+        if self.is_live and len(data) > LIVE_CHART_MAX_POINTS_PER_LINE:
+            del data[:len(data) - LIVE_CHART_MAX_POINTS_PER_LINE]
 
     def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
         # validate value's type
@@ -430,6 +442,7 @@ class Strategy(ABC):
             'value': value,
             'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
         })
+        self._trim_chart_line_data(self._add_extra_line_chart_values[chart_name][title]['data'])
 
     def _init_objects(self) -> None:
         """

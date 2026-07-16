@@ -99,6 +99,10 @@ class GetLogsRequestJson(BaseModel):
     start_time: int
 
 
+class GetStrategyChartsRequestJson(BaseModel):
+    id: str
+
+
 class GetOrdersRequestJson(BaseModel):
     id: str
     session_id: str

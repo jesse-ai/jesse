@@ -5,9 +5,10 @@ from fastapi.responses import JSONResponse
 from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
-    LiveRequestJson, 
-    LiveCancelRequestJson, 
-    GetLogsRequestJson, 
+    LiveRequestJson,
+    LiveCancelRequestJson,
+    GetLogsRequestJson,
+    GetStrategyChartsRequestJson,
     GetOrdersRequestJson,
     GetLiveSessionsRequestJson,
     UpdateLiveSessionNotesRequestJson,
@@ -92,6 +93,23 @@ def get_logs(json_request: GetLogsRequestJson) -> JSONResponse:
     return JSONResponse({
         'id': json_request.id,
         'data': arr
+    }, status_code=200)
+
+
+@router.post('/strategy-charts', dependencies=[Depends(require_auth)])
+def get_strategy_charts(json_request: GetStrategyChartsRequestJson) -> JSONResponse:
+    """
+    Get the strategy-drawn chart data (indicator lines, extra charts,
+    horizontal lines) of a running live session, keyed by route key.
+    The live process keeps a snapshot in redis; this hydrates the dashboard
+    chart after a page (re)load.
+    """
+
+    from jesse.services.redis import get_live_charts_snapshot
+
+    return JSONResponse({
+        'id': json_request.id,
+        'data': get_live_charts_snapshot(json_request.id)
     }, status_code=200)
 
 
