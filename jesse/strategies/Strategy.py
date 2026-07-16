@@ -100,6 +100,7 @@ class Strategy(ABC):
         self._ml_feature_importance = None
 
         self._is_executing = False
+        self._is_updating_chart = False
         self._is_initiated = False
         self._is_handling_updated_order = False
 
@@ -357,12 +358,19 @@ class Strategy(ABC):
                 'data': [],
                 'color': color if color is not None else generate_unique_hex_color(),
             }
-        self._add_line_to_candle_chart_values[title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
-        })
-        self._trim_chart_line_data(self._add_line_to_candle_chart_values[title]['data'])
+        }
+        self._store_chart_line_point(self._add_line_to_candle_chart_values[title]['data'], point)
+
+    def _store_chart_line_point(self, data: list, point: dict) -> None:
+        if self.is_live and data and data[-1]['time'] == point['time']:
+            data[-1] = point
+        else:
+            data.append(point)
+        self._trim_chart_line_data(data)
 
     def _trim_chart_line_data(self, data: list) -> None:
         """
@@ -437,12 +445,12 @@ class Strategy(ABC):
                 'color': color if color is not None else generate_unique_hex_color(),
             }
 
-        self._add_extra_line_chart_values[chart_name][title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
-        })
-        self._trim_chart_line_data(self._add_extra_line_chart_values[chart_name][title]['data'])
+        }
+        self._store_chart_line_point(self._add_extra_line_chart_values[chart_name][title]['data'], point)
 
     def _init_objects(self) -> None:
         """
@@ -863,6 +871,20 @@ class Strategy(ABC):
         Get's executed AFTER executing the strategy's logic
         """
         pass
+
+    def update_chart(self) -> None:
+        pass
+
+    def _update_chart(self) -> None:
+        if self._is_executing or self._is_updating_chart:
+            return
+
+        self._is_updating_chart = True
+        try:
+            self.update_chart()
+        finally:
+            self._clear_cached_methods()
+            self._is_updating_chart = False
 
     def _update_position(self) -> None:
         self._wait_until_executing_orders_are_fully_handled()
@@ -1287,6 +1309,8 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        if not self.is_live:
+            self.update_chart()
         self._clear_cached_methods()
 
         # Clear the cached price
@@ -1322,6 +1346,7 @@ class Strategy(ABC):
             should_long = self.should_long()
             should_short = self.should_short()
             self.after()
+            self.update_chart()
         finally:
             self._clear_cached_methods()
             self._cached_price = None

@@ -19,8 +19,8 @@ class TestStrategyChartsReport(Strategy):
     def should_cancel_entry(self):
         return False
 
-    def after(self):
-        self.add_line_to_candle_chart('ema', float(self.index), 'blue')
+    def update_chart(self):
+        self.add_line_to_candle_chart('ema', float(self.close), 'blue')
         self.add_horizontal_line_to_candle_chart('level', 10.0, 'red')
         self.add_extra_line_chart('RSI', 'rsi', 50.0, 'green')
         self.add_horizontal_line_to_extra_chart('RSI', 'oversold', 30.0, 'gray')

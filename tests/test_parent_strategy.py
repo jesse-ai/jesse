@@ -945,6 +945,11 @@ def test_live_chart_add_methods_keep_the_latest_points(monkeypatch):
     assert candle_data[0]['time'] == 1
     assert candle_data[-1]['value'] == 123.0
 
+    strategy.add_line_to_candle_chart('capped', 456.0, 'purple')
+    assert len(candle_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert candle_data[-1]['value'] == 456.0
+    assert candle_data[-1]['color'] == 'purple'
+
     extra_data = [
         {'time': i, 'value': float(i), 'color': 'orange'}
         for i in range(LIVE_CHART_MAX_POINTS_PER_LINE)
@@ -957,6 +962,70 @@ def test_live_chart_add_methods_keep_the_latest_points(monkeypatch):
     assert len(extra_data) == LIVE_CHART_MAX_POINTS_PER_LINE
     assert extra_data[0]['time'] == 1
     assert extra_data[-1]['value'] == 45.0
+
+    strategy.add_extra_line_chart('ADX', 'capped', 50.0, 'blue')
+    assert len(extra_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert extra_data[-1]['value'] == 50.0
+    assert extra_data[-1]['color'] == 'blue'
+
+
+def test_intrabar_chart_update_is_guarded_and_recovers_after_errors(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    calls = []
+
+    def update_chart():
+        calls.append('updated')
+        strategy._update_chart()
+
+    monkeypatch.setattr(strategy, 'update_chart', update_chart)
+    strategy._update_chart()
+
+    assert calls == ['updated']
+    assert strategy._is_updating_chart is False
+
+    def fail():
+        raise ValueError('invalid chart value')
+
+    monkeypatch.setattr(strategy, 'update_chart', fail)
+    with pytest.raises(ValueError, match='invalid chart value'):
+        strategy._update_chart()
+
+    assert strategy._is_updating_chart is False
+
+
+def test_intrabar_chart_update_replaces_the_forming_candle_value(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+
+    strategy._update_chart()
+    line_data = strategy._add_line_to_candle_chart_values['ema']['data']
+    original_length = len(line_data)
+    original_time = line_data[-1]['time']
+    original_value = line_data[-1]['value']
+
+    candles = store.candles.get_storage(strategy.exchange, strategy.symbol, strategy.timeframe)
+    candles.array[candles.index, 2] = original_value + 10
+    strategy._update_chart()
+
+    assert len(line_data) == original_length
+    assert line_data[-1]['time'] == original_time
+    assert line_data[-1]['value'] == original_value + 10
+
+
+def test_live_execution_leaves_chart_updates_to_the_intrabar_scheduler(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    calls = []
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+    monkeypatch.setattr(strategy, 'update_chart', lambda: calls.append('updated'))
+
+    strategy._execute()
+    assert calls == []
+
+    strategy._update_chart()
+    assert calls == ['updated']
 
 
 def test_without_cancel_method():
