@@ -90,6 +90,7 @@ class Strategy(ABC):
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
+        self._invalid_chart_values_logged: set[str] = set()
 
         # Variables used for ML calculations
         self.ml_mode = getattr(type(self), 'ml_mode', 'gather')
@@ -348,10 +349,27 @@ class Strategy(ABC):
         probs = self._ml_model.predict_proba(self._ml_scaler.transform(X))[0]
         return {int(cls): float(p) for cls, p in zip(self._ml_model.classes_, probs)}
 
-    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
-        # validate value's type
+    def _validate_chart_value(self, label: str, value: float) -> None:
         if not isinstance(value, (int, float)):
             raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if np.isfinite(value):
+            self._invalid_chart_values_logged.discard(label)
+            return
+
+        if label in self._invalid_chart_values_logged:
+            return
+
+        strategy_name = self.name or type(self).__name__
+        logger.error(
+            f'Invalid chart value in strategy "{strategy_name}" for {label}: {value}. '
+            'Chart values must be finite numbers. The dashboard will skip this value.',
+            send_notification=False,
+        )
+        self._invalid_chart_values_logged.add(label)
+
+    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
+        self._validate_chart_value(f'candle chart line "{title}"', value)
 
         if title not in self._add_line_to_candle_chart_values:
             self._add_line_to_candle_chart_values[title] = {
@@ -381,9 +399,7 @@ class Strategy(ABC):
             del data[:len(data) - LIVE_CHART_MAX_POINTS_PER_LINE]
 
     def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'candle chart horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -409,9 +425,7 @@ class Strategy(ABC):
             }
 
     def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -432,9 +446,7 @@ class Strategy(ABC):
         }
 
     def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" line "{title}"', value)
 
         if chart_name not in self._add_extra_line_chart_values:
             self._add_extra_line_chart_values[chart_name] = {}

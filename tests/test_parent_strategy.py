@@ -873,6 +873,61 @@ def test_chart_values():
         single_route_backtest('TestAddLineToExtraChart')
 
 
+def test_invalid_chart_values_are_logged_once_until_recovery(monkeypatch):
+    import jesse.services.logger as logger
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    errors = []
+
+    def capture_error(message, send_notification=True):
+        errors.append((message, send_notification))
+
+    monkeypatch.setattr(logger, 'error', capture_error)
+
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+
+    assert len(errors) == 1
+    assert errors[0] == (
+        'Invalid chart value in strategy "TestStrategyChartsReport" for candle chart line "warming-up": nan. '
+        'Chart values must be finite numbers. The dashboard will skip this value.',
+        False,
+    )
+    assert math.isnan(strategy._add_line_to_candle_chart_values['warming-up']['data'][-1]['value'])
+
+    strategy.add_line_to_candle_chart('warming-up', 1.0, 'yellow')
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+
+    assert len(errors) == 2
+
+
+def test_every_chart_method_logs_non_finite_values(monkeypatch):
+    import jesse.services.logger as logger
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    errors = []
+    monkeypatch.setattr(
+        logger,
+        'error',
+        lambda message, send_notification=True: errors.append((message, send_notification)),
+    )
+
+    strategy.add_line_to_candle_chart('ema', math.nan)
+    strategy.add_horizontal_line_to_candle_chart('support', math.inf)
+    strategy.add_extra_line_chart('ADX', 'adx14', -math.inf)
+    strategy.add_horizontal_line_to_extra_chart('ADX', 'threshold', math.nan)
+
+    assert len(errors) == 4
+    assert all(send_notification is False for _, send_notification in errors)
+    messages = [message for message, _ in errors]
+    assert any('candle chart line "ema": nan' in message for message in messages)
+    assert any('candle chart horizontal line "support": inf' in message for message in messages)
+    assert any('extra chart "ADX" line "adx14": -inf' in message for message in messages)
+    assert any('extra chart "ADX" horizontal line "threshold": nan' in message for message in messages)
+
+
 def test_strategy_charts_report():
     # the live dashboard serves the strategy-drawn chart data through
     # report.strategy_charts() (full snapshot) and strategy_charts_updates()
