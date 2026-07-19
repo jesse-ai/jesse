@@ -158,13 +158,13 @@ def get_live_sessions(
 
 
 @router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-def get_live_session_by_id(session_id: str):
+def get_live_session_by_id(session_id: UUID):
     """
     Get a single live session by ID
     """
 
     # Get the session from the database
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -209,12 +209,12 @@ def get_live_session_chart_data(
 
 
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
-def remove_live_session(session_id: str):
+def remove_live_session(session_id: UUID):
     """
     Remove a live session from the database
     """
 
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -222,7 +222,7 @@ def remove_live_session(session_id: str):
         }, status_code=404)
 
     # Delete the session from the database
-    result = live_session_repository.delete_live_session(session_id)
+    result = live_session_repository.delete_live_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -236,14 +236,14 @@ def remove_live_session(session_id: str):
 
 @router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
 def update_session_notes(
-    session_id: str,
+    session_id: UUID,
     request_json: UpdateLiveSessionNotesRequestJson,
 ):
     """
     Update the notes (title, description, strategy_codes) of a live session
     """
 
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -251,7 +251,7 @@ def update_session_notes(
         }, status_code=404)
 
     live_session_repository.update_live_session_notes(
-        session_id,
+        str(session_id),
         request_json.title,
         request_json.description,
         request_json.strategy_codes
@@ -292,13 +292,13 @@ def purge_sessions(request_json: dict = Body(...)):
 
 
 @router.get("/download-log/{session_id}", dependencies=[Depends(require_auth_token)])
-def download_live_log_handler(session_id: str):
+def download_live_log_handler(session_id: UUID):
     """
     Download log file for a specific live session
     """
 
     try:
-        return download_live_log(session_id)
+        return download_live_log(str(session_id))
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 

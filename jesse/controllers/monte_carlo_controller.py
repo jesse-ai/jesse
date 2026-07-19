@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 import json
@@ -196,13 +198,13 @@ def get_monte_carlo_sessions_endpoint(request_json: GetMonteCarloSessionsRequest
 
 
 @router.post("/sessions/{session_id}")
-def get_monte_carlo_session_by_id_endpoint(session_id: str):
+def get_monte_carlo_session_by_id_endpoint(session_id: UUID):
     """
     Get a single Monte Carlo session by ID
     """
 
     # Get the session from the database
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -220,12 +222,12 @@ def get_monte_carlo_session_by_id_endpoint(session_id: str):
 
 
 @router.post("/sessions/{session_id}/equity-curves")
-def get_monte_carlo_equity_curves(session_id: str):
+def get_monte_carlo_equity_curves(session_id: UUID):
     """
     Get equity curve data for a Monte Carlo session
     """
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
     
     if not session:
         return JSONResponse({
@@ -311,12 +313,12 @@ def update_session_state(
 
 
 @router.post("/sessions/{session_id}/remove")
-def remove_monte_carlo_session(session_id: str):
+def remove_monte_carlo_session(session_id: UUID):
     """
     Remove a Monte Carlo session from the database
     """
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -324,7 +326,7 @@ def remove_monte_carlo_session(session_id: str):
         }, status_code=404)
 
     # Delete the session from the database
-    result = delete_monte_carlo_session(session_id)
+    result = delete_monte_carlo_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -337,19 +339,19 @@ def remove_monte_carlo_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/notes")
-def update_session_notes(session_id: str, request_json: UpdateMonteCarloSessionNotesRequestJson):
+def update_session_notes(session_id: UUID, request_json: UpdateMonteCarloSessionNotesRequestJson):
     """
     Update the notes (title, description, strategy_codes) of a Monte Carlo session
     """
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    update_monte_carlo_session_notes(session_id, request_json.title, request_json.description, request_json.strategy_codes)
+    update_monte_carlo_session_notes(str(session_id), request_json.title, request_json.description, request_json.strategy_codes)
 
     return JSONResponse({
         'message': 'Monte Carlo session notes updated successfully'
@@ -357,12 +359,12 @@ def update_session_notes(session_id: str, request_json: UpdateMonteCarloSessionN
 
 
 @router.post("/sessions/{session_id}/strategy-code")
-def get_session_strategy_code(session_id: str):
+def get_session_strategy_code(session_id: UUID):
     """
     Get the strategy code for a Monte Carlo session
     """
     
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
@@ -374,14 +376,14 @@ def get_session_strategy_code(session_id: str):
 
 
 @router.post("/sessions/{session_id}/logs")
-def get_session_logs(session_id: str):
+def get_session_logs(session_id: UUID):
     """
     Get the logs for a Monte Carlo session
     """
         
     from jesse.modes import data_provider
 
-    content = data_provider.get_monte_carlo_logs(session_id)
+    content = data_provider.get_monte_carlo_logs(str(session_id))
     
     if content is None:
         return JSONResponse({
