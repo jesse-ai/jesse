@@ -1,9 +1,9 @@
-from typing import Optional
-from fastapi import APIRouter, Header, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 import requests
 from jesse.services.env import ENV_VALUES
 from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import LoginRequestJson
 import jesse.helpers as jh
@@ -36,25 +36,21 @@ def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
 
 
-@router.post("/shutdown")
-async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+@router.post("/shutdown", dependencies=[Depends(require_auth)])
+async def shutdown(background_tasks: BackgroundTasks):
     """
     Shutdown the application
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     background_tasks.add_task(jh.terminate_app)
     return JSONResponse({'message': 'Shutting down...'})
 
 
-@router.post("/jesse-trade-token")
-async def jesse_trade_token(authorization: Optional[str] = Header(None)):
+@router.post("/jesse-trade-token", dependencies=[Depends(require_auth)])
+async def jesse_trade_token():
     """
     Exchange LICENSE_API_TOKEN for jesse.trade bearer token
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     if 'LICENSE_API_TOKEN' not in ENV_VALUES or not ENV_VALUES['LICENSE_API_TOKEN']:
         return JSONResponse({

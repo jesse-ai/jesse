@@ -1,8 +1,8 @@
 from typing import Optional
-from fastapi import APIRouter, Header, Body, Query
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
     LiveRequestJson, 
@@ -24,13 +24,11 @@ from jesse.enums import live_session_statuses, live_session_modes
 router = APIRouter(prefix="/live", tags=["Live Trading"])
 
 
-@router.post("")
-def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+@router.post("", dependencies=[Depends(require_auth)])
+def live(request_json: LiveRequestJson) -> JSONResponse:
     """
     Start live trading
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -72,26 +70,22 @@ def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(No
     return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
 
 
-@router.post("/cancel")
-def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("/cancel", dependencies=[Depends(require_auth)])
+def cancel_live(request_json: LiveCancelRequestJson):
     """
     Cancel live trading
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
     return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
 
 
-@router.post('/logs')
-def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+@router.post('/logs', dependencies=[Depends(require_auth)])
+def get_logs(json_request: GetLogsRequestJson) -> JSONResponse:
     """
     Get logs for a live trading session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     arr = gl(json_request.id, json_request.type, json_request.start_time)
 
@@ -101,13 +95,11 @@ def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = He
     }, status_code=200)
 
 
-@router.post('/orders')
-def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+@router.post('/orders', dependencies=[Depends(require_auth)])
+def get_orders(json_request: GetOrdersRequestJson) -> JSONResponse:
     """
     Get orders for a live trading session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     arr = go(json_request.session_id)
 
@@ -117,16 +109,13 @@ def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] 
     }, status_code=200)
 
 
-@router.post("/sessions")
+@router.post("/sessions", dependencies=[Depends(require_auth)])
 def get_live_sessions(
     request_json: GetLiveSessionsRequestJson = Body(default=GetLiveSessionsRequestJson()),
-    authorization: Optional[str] = Header(None)
 ):
     """
     Get a list of live sessions sorted by most recently updated with pagination
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get sessions from the database with pagination and filters
     sessions = live_session_repository.get_live_sessions(
@@ -147,13 +136,11 @@ def get_live_sessions(
     })
 
 
-@router.post("/sessions/{session_id}")
-def get_live_session_by_id(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
+def get_live_session_by_id(session_id: str):
     """
     Get a single live session by ID
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get the session from the database
     session = live_session_repository.get_live_session_by_id(session_id)
@@ -171,13 +158,11 @@ def get_live_session_by_id(session_id: str, authorization: Optional[str] = Heade
     })
 
 
-@router.post("/sessions/{session_id}/remove")
-def remove_live_session(session_id: str, authorization: Optional[str] = Header(None)):
+@router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
+def remove_live_session(session_id: str):
     """
     Remove a live session from the database
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = live_session_repository.get_live_session_by_id(session_id)
 
@@ -199,17 +184,14 @@ def remove_live_session(session_id: str, authorization: Optional[str] = Header(N
     })
 
 
-@router.post("/sessions/{session_id}/notes")
+@router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
 def update_session_notes(
     session_id: str,
     request_json: UpdateLiveSessionNotesRequestJson,
-    authorization: Optional[str] = Header(None)
 ):
     """
     Update the notes (title, description, strategy_codes) of a live session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     session = live_session_repository.get_live_session_by_id(session_id)
 
@@ -230,13 +212,11 @@ def update_session_notes(
     })
 
 
-@router.post("/update-state")
-def update_state(request_json: UpdateLiveSessionStateRequestJson, authorization: Optional[str] = Header(None)):
+@router.post("/update-state", dependencies=[Depends(require_auth)])
+def update_state(request_json: UpdateLiveSessionStateRequestJson):
     """
     Upsert live session state (creates draft if doesn't exist, updates if exists)
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     live_session_repository.upsert_live_session_state(request_json.id, request_json.state)
 
@@ -245,13 +225,11 @@ def update_state(request_json: UpdateLiveSessionStateRequestJson, authorization:
     }, status_code=200)
 
 
-@router.post("/purge-sessions")
-def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] = Header(None)):
+@router.post("/purge-sessions", dependencies=[Depends(require_auth)])
+def purge_sessions(request_json: dict = Body(...)):
     """
     Purge live sessions older than specified days
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     days_old = request_json.get('days_old', None)
 
@@ -263,13 +241,11 @@ def purge_sessions(request_json: dict = Body(...), authorization: Optional[str] 
     }, status_code=200)
 
 
-@router.get("/download-log/{session_id}")
-def download_live_log_handler(session_id: str, token: str = Query(...)):
+@router.get("/download-log/{session_id}", dependencies=[Depends(require_auth_token)])
+def download_live_log_handler(session_id: str):
     """
     Download log file for a specific live session
     """
-    if not authenticator.is_valid_token(token):
-        return authenticator.unauthorized_response()
 
     try:
         return download_live_log(session_id)
@@ -277,20 +253,17 @@ def download_live_log_handler(session_id: str, token: str = Query(...)):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@router.get("/equity-curve")
+@router.get("/equity-curve", dependencies=[Depends(require_auth)])
 def get_equity_curve(
     session_id: str,
     from_ms: Optional[int] = None,
     to_ms: Optional[int] = None,
     timeframe: str = 'auto',
     max_points: int = 1000,
-    authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     """
     Get equity curve for a live session with downsampling
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.repositories import live_equity_repository
 

@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
+
+@overload
+def vwap(candles: np.ndarray, source_type: str = ..., anchor: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def vwap(candles: np.ndarray, source_type: str = ..., anchor: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def vwap(candles: np.ndarray, source_type: str = ..., anchor: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def vwap(
         candles: np.ndarray, source_type: str = "hlc3", anchor: str = "D", sequential: bool = False

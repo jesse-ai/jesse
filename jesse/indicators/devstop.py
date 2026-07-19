@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -7,6 +7,13 @@ from jesse.helpers import slice_candles
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
+
+@overload
+def devstop(candles: np.ndarray, period: int = ..., mult: float = ..., devtype: int = ..., direction: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def devstop(candles: np.ndarray, period: int = ..., mult: float = ..., devtype: int = ..., direction: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def devstop(candles: np.ndarray, period: int = ..., mult: float = ..., devtype: int = ..., direction: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, devtype: int = 0, direction: str = "long",
             sequential: bool = False) -> Union[

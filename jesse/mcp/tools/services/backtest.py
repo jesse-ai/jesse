@@ -41,6 +41,18 @@ def _build_default_backtest_title(routes_list: list) -> str:
     return "MCP Backtest"
 
 
+def _build_backtest_routes_info(routes_list: list) -> list:
+    return [
+        [
+            {'value': route.get('symbol', ''), 'style': ''},
+            {'value': route.get('timeframe', ''), 'style': ''},
+            {'value': route.get('strategy', ''), 'style': ''}
+        ]
+        for route in routes_list
+        if isinstance(route, dict)
+    ]
+
+
 def _normalize_backtest_title(title: str) -> str:
     title = title.strip() if title else "MCP Backtest"
 
@@ -294,7 +306,7 @@ def create_backtest_draft_service(
                 'executing': False,
                 'logsModal': False,
                 'progressbar': {'current': 0, 'estimated_remaining_seconds': 0},
-                'routes_info': [],
+                'routes_info': _build_backtest_routes_info(routes_list),
                 'metrics': {},
                 'hyperparameters': [],
                 'generalInfo': {'title': None, 'description': None},
@@ -788,6 +800,40 @@ def run_backtest_service(session_id: str) -> dict:
         except ValidationError as e:
             return {'status': 'error', 'message': 'Invalid backtest configuration in session state', 'validation_errors': str(e)}
 
+        payload['routes'] = [
+            {**route, 'exchange': payload['exchange']}
+            for route in payload['routes']
+        ]
+        form_data['routes'] = payload['routes']
+        state['form'] = form_data
+
+        results = state.get('results')
+        if not isinstance(results, dict):
+            results = {}
+            state['results'] = results
+        results['routes_info'] = _build_backtest_routes_info(payload['routes'])
+        if payload['routes']:
+            first_route = payload['routes'][0]
+            results['selectedRoute'] = {
+                'symbol': first_route.get('symbol', ''),
+                'timeframe': first_route.get('timeframe', ''),
+                'strategy': first_route.get('strategy', '')
+            }
+        state_response = requests.post(
+            f'{api_url}/backtest/update-state',
+            json={
+                'id': session_id,
+                'state': state
+            },
+            headers={'Authorization': auth_token_hashed},
+            timeout=10
+        )
+
+        if state_response.status_code == 401:
+            return {'status': 'error', 'message': 'Authentication failed'}
+        if state_response.status_code != 200:
+            return {'status': 'error', 'message': f'Failed to save executed routes: {state_response.text}'}
+
         # Fire the backtest and return immediately
         response = requests.post(
             f'{api_url}/backtest',
@@ -800,6 +846,7 @@ def run_backtest_service(session_id: str) -> dict:
             return {
                 'status': 'started',
                 'backtest_id': session_id,
+                'routes': payload['routes'],
                 'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
             }

@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import get_candle_source, slice_candles
 
+
+@overload
+def alma(candles: np.ndarray, period: int = ..., sigma: float = ..., distribution_offset: float = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def alma(candles: np.ndarray, period: int = ..., sigma: float = ..., distribution_offset: float = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def alma(candles: np.ndarray, period: int = ..., sigma: float = ..., distribution_offset: float = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def alma(candles: np.ndarray, period: int = 9, sigma: float = 6.0, distribution_offset: float = 0.85,
          source_type: str = "close", sequential: bool = False) -> Union[

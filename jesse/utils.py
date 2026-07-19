@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 import jesse.helpers as jh
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.enums import timeframes
 import statsmodels.api as sm
 
@@ -335,32 +336,11 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
 
     :raises InvalidTimeframe: If the provided timeframe is not supported.
     """
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
-
-    dic = {
-        timeframes.MINUTE_1: 1,
-        timeframes.MINUTE_3: 3,
-        timeframes.MINUTE_5: 5,
-        timeframes.MINUTE_15: 15,
-        timeframes.MINUTE_30: 30,
-        timeframes.MINUTE_45: 45,
-        timeframes.HOUR_1: 60,
-        timeframes.HOUR_2: 60 * 2,
-        timeframes.HOUR_3: 60 * 3,
-        timeframes.HOUR_4: 60 * 4,
-        timeframes.HOUR_6: 60 * 6,
-        timeframes.HOUR_8: 60 * 8,
-        timeframes.HOUR_12: 60 * 12,
-        timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
-        timeframes.MONTH_1: 60 * 24 * 30,
-    }
-
     try:
-        return dic[timeframe]
+        return TIMEFRAME_TO_ONE_MINUTES[timeframe]
     except KeyError:
+        from jesse.exceptions import InvalidTimeframe
+
         all_timeframes = [timeframe for timeframe in jh.class_iter(timeframes)]
         raise InvalidTimeframe(
             f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.'

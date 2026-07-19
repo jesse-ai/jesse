@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from jesse.strategies import Strategy
+
+
 class Route:
     def __init__(
             self,
@@ -11,5 +17,7 @@ class Route:
         self.symbol = symbol
         self.timeframe = timeframe
         self.strategy_name = strategy_name
-        self.strategy = None
+        # set by the router when strategies are initiated, hence declared with
+        # its post-initiation type for type checkers
+        self.strategy: 'Strategy' = None  # type: ignore
         self.dna = dna

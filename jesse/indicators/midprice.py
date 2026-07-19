@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from jesse.helpers import slice_candles
 from numpy.lib.stride_tricks import sliding_window_view
 
+
+@overload
+def midprice(candles: np.ndarray, period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def midprice(candles: np.ndarray, period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def midprice(candles: np.ndarray, period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def midprice(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
     """

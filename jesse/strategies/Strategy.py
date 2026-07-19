@@ -22,6 +22,27 @@ from jesse.services.color import generate_unique_hex_color
 from jesse.research.ml import load_ml_model as _load_ml_model
 
 
+def _np_array_equal(a1, a2) -> bool:
+    # semantically identical to np.array_equal, minus its dispatch overhead for
+    # the small ndarray pairs compared on every candle in
+    # _detect_and_handle_entry_and_exit_modifications
+    if type(a1) is np.ndarray and type(a2) is np.ndarray:
+        if a1.shape != a2.shape:
+            return False
+        n = a1.size
+        if n <= 8:
+            # scalar compares for tiny arrays — same float (and NaN) semantics
+            # as (a1 == a2).all(), without the ufunc dispatch cost
+            f1 = a1.flat
+            f2 = a2.flat
+            for i in range(n):
+                if f1[i] != f2[i]:
+                    return False
+            return True
+        return bool((a1 == a2).all())
+    return np.array_equal(a1, a2)
+
+
 class Strategy(ABC):
     """
     The parent strategy class which every strategy must extend. It is the heart of the framework!
@@ -29,11 +50,13 @@ class Strategy(ABC):
 
     def __init__(self) -> None:
         self.id = jh.generate_unique_id()
-        self.name = None
-        self.symbol = None
-        self.exchange = None
-        self.timeframe = None
-        self.hp = None
+        # these are set by the router/engine right after instantiation, hence
+        # they are declared with their post-initiation types for type checkers
+        self.name: str = None  # type: ignore
+        self.symbol: str = None  # type: ignore
+        self.exchange: str = None  # type: ignore
+        self.timeframe: str = None  # type: ignore
+        self.hp: dict = {}
 
         self.index = 0
         self.last_trade_index = 0
@@ -77,8 +100,9 @@ class Strategy(ABC):
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position | None = None
-        self.broker = None
+        # both are set in _init_objects() right after instantiation
+        self.position: Position = None  # type: ignore
+        self.broker: Broker = None  # type: ignore
 
         self._cached_methods = {}
         self._cached_metrics = {}
@@ -416,7 +440,7 @@ class Strategy(ABC):
         self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if self.hp is None and len(self.hyperparameters()) > 0:
+        if not self.hp and len(self.hyperparameters()) > 0:
             self.hp = {}
             for dna in self.hyperparameters():
                 self.hp[dna['name']] = dna['default']
@@ -849,7 +873,7 @@ class Strategy(ABC):
                 self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.buy, self._buy):
+                if not _np_array_equal(self.buy, self._buy):
                     self._buy = self.buy.copy()
 
                     # cancel orders
@@ -865,7 +889,7 @@ class Strategy(ABC):
                 self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.sell, self._sell):
+                if not _np_array_equal(self.sell, self._sell):
                     self._sell = self.sell.copy()
 
                     # cancel orders
@@ -881,7 +905,7 @@ class Strategy(ABC):
                 self._prepare_stop_loss(False)
 
                 # if stop_loss has been modified
-                if not np.array_equal(self.stop_loss, self._stop_loss):
+                if not _np_array_equal(self.stop_loss, self._stop_loss):
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -924,7 +948,7 @@ class Strategy(ABC):
                 self._prepare_take_profit(False)
 
                 # if _take_profit has been modified
-                if not np.array_equal(self.take_profit, self._take_profit):
+                if not _np_array_equal(self.take_profit, self._take_profit):
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -970,7 +994,7 @@ class Strategy(ABC):
         if (
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
-                and np.array_equal(self.stop_loss, self.take_profit)
+                and _np_array_equal(self.stop_loss, self.take_profit)
                 and len(self.stop_loss) > 0
         ):
             raise exceptions.InvalidStrategy(
@@ -1671,7 +1695,7 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: str = None) -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: Optional[str] = None) -> None:
         msg = str(msg)
 
         if log_type == 'info':
@@ -1729,28 +1753,28 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
-    def entry_orders(self):
+    def entry_orders(self) -> List[Order]:
         """
         Returns all the entry orders for this position.
         """
         return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
-    def exit_orders(self):
+    def exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
-    def active_exit_orders(self):
+    def active_exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
-    def exchange_type(self):
+    def exchange_type(self) -> str:
         return store.exchanges.get_exchange(self.exchange).type
 
     @property
@@ -1762,7 +1786,7 @@ class Strategy(ABC):
         return self.exchange_type == 'futures'
 
     @property
-    def daily_balances(self):
+    def daily_balances(self) -> list:
         return store.app.daily_balance
 
     @property

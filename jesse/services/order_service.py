@@ -259,9 +259,15 @@ def get_active_exit_orders(exchange: str, symbol: str) -> List[Order]:
 
 def update_active_orders(exchange: str, symbol: str):
     key = f'{exchange}-{symbol}'
-    active_orders = [
+    active_storage = store.orders.active_storage
+    current_orders = active_storage.get(key)
+    if not current_orders:
+        # nothing to filter; just make sure the key exists like it did before
+        if current_orders is None:
+            active_storage[key] = []
+        return
+    active_storage[key] = [
         order
-        for order in store.orders.get_active_orders(exchange, symbol)
+        for order in current_orders
         if not order.is_canceled and not order.is_executed
     ]
-    store.orders.active_storage[key] = active_orders

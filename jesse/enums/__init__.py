@@ -95,6 +95,9 @@ class exchanges:
     LIGHTER_PERPETUAL_TESTNET = 'Lighter Perpetual Testnet'
     KUCOIN_SPOT = 'KuCoin Spot'
     KUCOIN_USDT_PERPETUAL = 'KuCoin USDT Perpetual'
+    KRAKEN_SPOT = 'Kraken Pro Spot'
+    KRAKEN_PERPETUAL = 'Kraken Pro Futures'
+    KRAKEN_PERPETUAL_TESTNET = 'Kraken Pro Futures Testnet'
 
 
 @dataclass

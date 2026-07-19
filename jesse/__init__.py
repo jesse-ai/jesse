@@ -5,9 +5,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jesse.services.web import fastapi_app
 import jesse.helpers as jh
+from jesse.services.auth import InvalidAuthError, unauthorized_response
 
 # import cli to register the routes. Do NOT remove this import.
 from jesse.cli import cli
+
+
+@fastapi_app.exception_handler(InvalidAuthError)
+async def invalid_auth_exception_handler(_request, _exc):
+    return unauthorized_response()
 
 
 # to silent stupid pandas warnings

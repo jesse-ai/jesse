@@ -185,6 +185,13 @@ def close_trade(trade: ClosedTrade, opened_at: int = None) -> None:
 
     _ensure_db_open()
 
+    # When there is no database available (e.g. research/backtest sessions running
+    # outside a Jesse project), open_connection() is a no-op and the query below
+    # would always raise ("Query must be bound to a database") and noisily dump the
+    # error for every single closed trade. Skip the write in exactly those cases.
+    if not database.is_open():
+        return
+
     d = {
         "closed_at": trade.closed_at if trade.closed_at else jh.now_to_timestamp(),
         "updated_at": jh.now_to_timestamp(),

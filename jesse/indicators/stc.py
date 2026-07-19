@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
@@ -31,6 +31,13 @@ def stoch(series: np.ndarray, period: int) -> np.ndarray:
                 result[i] = 100 * ((series[i] - low) / (high - low))
     return result
 
+
+@overload
+def stc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., k_period: int = ..., d1_period: int = ..., d2_period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def stc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., k_period: int = ..., d1_period: int = ..., d2_period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def stc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., k_period: int = ..., d1_period: int = ..., d2_period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def stc(candles: np.ndarray, fast_period: int = 23, slow_period: int = 50, k_period: int = 10, d1_period: int = 3, d2_period: int = 3,
         source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:

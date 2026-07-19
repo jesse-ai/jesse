@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
@@ -7,6 +7,13 @@ from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
+
+@overload
+def zscore(candles: np.ndarray, period: int = ..., matype: int = ..., nbdev: float = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def zscore(candles: np.ndarray, period: int = ..., matype: int = ..., nbdev: float = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def zscore(candles: np.ndarray, period: int = ..., matype: int = ..., nbdev: float = ..., devtype: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float = 1, devtype: int = 0, source_type: str = "close",
            sequential: bool = False) -> Union[float, np.ndarray]:

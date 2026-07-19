@@ -62,6 +62,24 @@ def test_state_order_get_order_by_id():
     assert store.orders.get_order_by_id(exchanges.SANDBOX, 'BTC-USD', o2.id) == o2
 
 
+def test_state_order_get_order_by_id_with_int_id():
+    # regression #820: get_order_by_id must not crash when the client_id is an int
+    set_up()
+
+    o1 = fake_order({'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USD'})
+    o1.id = 'algo-987654-xyz'  # controlled id with a numeric run to match against
+    store.orders.add_order(o1)
+
+    # an int id that isn't present must return None (not raise)
+    assert store.orders.get_order_by_id(exchanges.SANDBOX, 'BTC-USD', 123456789) is None
+
+    # an int id whose string form is a substring of an existing order's id still matches
+    assert store.orders.get_order_by_id(exchanges.SANDBOX, 'BTC-USD', 987654) == o1
+
+    # None is treated like an empty id -> None, not a crash
+    assert store.orders.get_order_by_id(exchanges.SANDBOX, 'BTC-USD', None) is None
+
+
 def test_state_order_get_orders():
     set_up()
 

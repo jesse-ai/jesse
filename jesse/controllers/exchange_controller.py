@@ -1,22 +1,19 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 from jesse.modes.import_candles_mode import CandleExchange
 from jesse.modes.import_candles_mode.drivers import drivers, driver_names
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.redis import sync_redis
 from jesse.services.web import ExchangeSupportedSymbolsRequestJson, StoreExchangeApiKeyRequestJson, DeleteExchangeApiKeyRequestJson
 from jesse.services.env import is_dev_env
 
 
-router = APIRouter(prefix="/exchange", tags=["Exchange"])
+router = APIRouter(prefix="/exchange", tags=["Exchange"], dependencies=[Depends(require_auth)])
 
 
 @router.post('/supported-symbols')
-def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson) -> JSONResponse:
     
     # if is_dev_env():
     #     return JSONResponse({
@@ -29,19 +26,14 @@ def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson
 
 
 @router.get('/api-keys')
-def get_exchange_api_keys_endpoint(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_exchange_api_keys_endpoint() -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import get_exchange_api_keys
     return get_exchange_api_keys()
 
 
 @router.post('/api-keys/store')
-def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJson,
-                        authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJson) -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import store_exchange_api_keys
     return store_exchange_api_keys(
@@ -51,10 +43,7 @@ def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJso
 
 
 @router.post('/api-keys/delete')
-def delete_exchange_api_keys_endpoint(json_request: DeleteExchangeApiKeyRequestJson,
-                         authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def delete_exchange_api_keys_endpoint(json_request: DeleteExchangeApiKeyRequestJson) -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import delete_exchange_api_keys
     return delete_exchange_api_keys(json_request.id)

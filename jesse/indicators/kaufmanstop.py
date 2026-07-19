@@ -1,10 +1,17 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import slice_candles
 from jesse.indicators.ma import ma
 
+
+@overload
+def kaufmanstop(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., matype: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def kaufmanstop(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., matype: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def kaufmanstop(candles: np.ndarray, period: int = ..., mult: float = ..., direction: str = ..., matype: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def kaufmanstop(candles: np.ndarray, period: int = 22, mult: float = 2, direction: str = "long", matype: int = 0,
                 sequential: bool = False) -> Union[
