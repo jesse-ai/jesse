@@ -1,4 +1,6 @@
 from typing import Optional
+from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
@@ -9,6 +11,7 @@ from jesse.services.web import (
     LiveCancelRequestJson,
     GetLogsRequestJson,
     GetStrategyChartsRequestJson,
+    GetLiveSessionChartDataRequestJson,
     GetOrdersRequestJson,
     GetLiveSessionsRequestJson,
     UpdateLiveSessionNotesRequestJson,
@@ -174,6 +177,35 @@ def get_live_session_by_id(session_id: str):
     return JSONResponse({
         'session': transformed_session
     })
+
+
+@router.post("/sessions/{session_id}/chart-data", dependencies=[Depends(require_auth)])
+def get_live_session_chart_data(
+    session_id: UUID,
+    request_json: GetLiveSessionChartDataRequestJson,
+):
+    session = live_session_repository.get_live_session_by_id(str(session_id))
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    try:
+        from jesse.services.live_chart_service import get_live_session_chart_data as build_chart_data
+
+        return JSONResponse({
+            'chart_data': build_chart_data(
+                session,
+                request_json.exchange,
+                request_json.symbol,
+                request_json.timeframe,
+                request_json.anchor_time,
+                request_json.candle_count,
+            )
+        })
+    except ValueError as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
 
 
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])

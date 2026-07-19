@@ -145,6 +145,7 @@ def register_strategy_tools(mcp):
 
         Strategy Execution Model:
             - Runs once per candle in the sequence: before() → entry logic → after()
+            - update_chart() runs after strategy logic in backtests and separately on the forming candle in live/paper sessions
             - Entry signals in should_long/should_short methods
             - Order placement in go_long/go_short methods
             - Position management in update_position method
@@ -334,6 +335,7 @@ def register_strategy_tools(mcp):
                 * should_cancel_entry() - entry cancellation logic
                 * update_position() - position management
                 * before() / after() - candle processing hooks
+                * update_chart() - visualization-only chart calculations
             - Indicator usage and calculations
             - Position sizing logic
             - Risk management rules
@@ -476,6 +478,7 @@ def register_strategy_tools(mcp):
         Optional Methods:
             - `before()` - Pre-candle processing
             - `after()` - Post-candle processing
+            - `update_chart()` - Visualization-only chart calculations; supports intrabar live/paper updates
             - Custom helper methods
 
         Development Workflow:

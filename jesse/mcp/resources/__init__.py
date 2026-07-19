@@ -14,6 +14,7 @@ Available Resources:
 - backtest_management: Complete backtesting workflow and candle import guidance
 - candle_management: Data import procedures and warmup requirements
 - strategy: Strategy development guides and templates
+- charts: Strategy chart APIs and live intrabar update guidance
 - indicator_cheatsheet: Technical indicators reference and usage examples
 - position_risk: Position sizing and risk management references
 - utilities: Helper functions and calculation utilities

@@ -103,6 +103,14 @@ class GetStrategyChartsRequestJson(BaseModel):
     id: str
 
 
+class GetLiveSessionChartDataRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    timeframe: str
+    anchor_time: Optional[int] = None
+    candle_count: int = 1000
+
+
 class GetOrdersRequestJson(BaseModel):
     id: str
     session_id: str

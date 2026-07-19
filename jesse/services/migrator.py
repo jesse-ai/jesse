@@ -32,8 +32,28 @@ def run():
     _significance_test_session(migrator)
 
     # create initial tables
-    from jesse.models import Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot, SignificanceTestSession
-    database.db.create_tables([Candle, ClosedTrade, Log, Order, OpenTab, LiveEquitySnapshot, SignificanceTestSession], safe=True)
+    from jesse.models import (
+        Candle,
+        ClosedTrade,
+        LiveChartPoint,
+        LiveChartSeries,
+        LiveEquitySnapshot,
+        Log,
+        OpenTab,
+        Order,
+        SignificanceTestSession,
+    )
+    database.db.create_tables([
+        Candle,
+        ClosedTrade,
+        Log,
+        Order,
+        OpenTab,
+        LiveEquitySnapshot,
+        SignificanceTestSession,
+        LiveChartSeries,
+        LiveChartPoint,
+    ], safe=True)
 
     database.close_connection()
 

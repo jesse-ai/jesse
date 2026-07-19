@@ -16,4 +16,5 @@ from .LiveEquitySnapshot import LiveEquitySnapshot
 from .SignificanceTestSession import SignificanceTestSession
 from .OptimizationSession import OptimizationSession
 from .LiveSession import LiveSession
+from .LiveChart import LiveChartPoint, LiveChartSeries
 from .MonteCarloSession import MonteCarloSession

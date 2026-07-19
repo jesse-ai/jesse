@@ -11,10 +11,11 @@ Treat parameter values (periods, multipliers, leverage factors) as placeholders
 to tune, validate, and risk-check yourself.
 
 For the strategy structure, the required/optional methods, smart-order routing,
-spot-vs-futures exit rules, and the interactive-chart helpers, see
-`jesse://strategy`. For sizing/exit reference and helper signatures, see
-`jesse://position_risk` and `jesse://utilities`. This file intentionally does
-not restate that material; it only collects worked classes.
+spot-vs-futures exit rules, see `jesse://strategy`. For interactive-chart
+helpers and live intrabar behavior, see `jesse://charts`. For sizing/exit
+reference and helper signatures, see `jesse://position_risk` and
+`jesse://utilities`. This file intentionally does not restate that material; it
+only collects worked classes.
 
 Every class below is complete and starts with the canonical imports:
 
@@ -702,12 +703,12 @@ class IchimokuCloud(Strategy):
 A Turtle-style Donchian breakout (futures, long + short) over a 4h trend filter,
 with a cooldown gate and an ATR trailing stop. It demonstrates a class-level
 attribute (`last_closed_index`) updated from `on_close_position()` to enforce a
-"wait one bar after a close" rule, draws the channel on the chart in `after()`,
+"wait one bar after a close" rule, draws the channel in `update_chart()`,
 and ratchets the stop using `self.average_stop_loss`.
 
 Features shown: class-level state, `passed_time` cooldown via `self.index`,
 `donchian` breakout, ATR trailing with `self.average_stop_loss` (read the
-current stop — never index `self.stop_loss[1]`), `after()` +
+current stop — never index `self.stop_loss[1]`), `update_chart()` +
 `add_line_to_candle_chart`, and the **two-argument** `on_close_position(order,
 closed_trade)` hook.
 
@@ -778,7 +779,7 @@ class TurtleAI(Strategy):
         elif self.is_short:
             self.stop_loss = self.position.qty, min(self.average_stop_loss, self.price + ta.atr(self.candles) * 2.5)
 
-    def after(self) -> None:
+    def update_chart(self) -> None:
         self.add_line_to_candle_chart('upperband', self.donchian.upperband)
         self.add_line_to_candle_chart('lowerband', self.donchian.lowerband)
 
