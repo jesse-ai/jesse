@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 import json
 from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson
+from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
 import jesse.helpers as jh
 from jesse.models.BacktestSession import (
     get_backtest_sessions as get_sessions,
@@ -248,7 +248,7 @@ def purge_sessions(request_json: dict = Body(...)):
 
 
 @router.post("/sessions/{session_id}/chart-data", dependencies=[Depends(require_auth)])
-def get_backtest_session_chart_data(session_id: UUID):
+def get_backtest_session_chart_data(session_id: UUID, request_json: GetBacktestSessionChartDataRequestJson):
     """
     Get chart data for a specific backtest session
     """
@@ -260,7 +260,51 @@ def get_backtest_session_chart_data(session_id: UUID):
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    chart_data = jh.clean_nan_values(jh.clean_infinite_values(json.loads(session.chart_data))) if session.chart_data else None
+    stored_chart_data = (
+        jh.clean_nan_values(jh.clean_infinite_values(json.loads(session.chart_data)))
+        if session.chart_data else None
+    )
+    chart_data = None
+
+    if stored_chart_data:
+        def route_item(items: list) -> dict:
+            return next((
+                item for item in items
+                if item.get('exchange') == request_json.exchange
+                and item.get('symbol') == request_json.symbol
+                and item.get('timeframe') == request_json.timeframe
+            ), {})
+
+        candles = route_item(stored_chart_data.get('candles_chart', [])).get('candles', [])
+        if candles:
+            orders = route_item(stored_chart_data.get('orders_chart', [])).get('orders', [])
+            lines = route_item(stored_chart_data.get('add_line_to_candle_chart', [])).get('lines', {})
+            extra_charts = route_item(stored_chart_data.get('add_extra_line_chart', [])).get('charts', {})
+            horizontal_lines = route_item(
+                stored_chart_data.get('add_horizontal_line_to_candle_chart', [])
+            ).get('lines', {})
+            horizontal_extra_lines = route_item(
+                stored_chart_data.get('add_horizontal_line_to_extra_chart', [])
+            ).get('lines', {})
+
+            chart_data = {
+                'route': {
+                    'exchange': request_json.exchange,
+                    'symbol': request_json.symbol,
+                    'timeframe': request_json.timeframe,
+                },
+                'candles': sorted(candles, key=lambda candle: int(candle['time'])),
+                'orders': sorted(
+                    orders,
+                    key=lambda order: (int(order['time']), order.get('order_id', '')),
+                ),
+                'strategy_charts': {
+                    'lines': lines,
+                    'horizontal_lines': horizontal_lines,
+                    'extra_charts': extra_charts,
+                    'horizontal_extra_lines': horizontal_extra_lines,
+                },
+            }
 
     return JSONResponse({
         'chart_data': chart_data

@@ -449,4 +449,3 @@ def update_backtest_session_notes(id: str, title: str = None, description: str =
     
     BacktestSession.update(**d).where(BacktestSession.id == id).execute()
 
-

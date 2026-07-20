@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 
 
@@ -18,6 +19,7 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+fastapi_app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
 class BacktestRequestJson(BaseModel):
@@ -109,6 +111,12 @@ class GetLiveSessionChartDataRequestJson(BaseModel):
     timeframe: str
     anchor_time: Optional[int] = None
     candle_count: int = 1000
+
+
+class GetBacktestSessionChartDataRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    timeframe: str
 
 
 class GetOrdersRequestJson(BaseModel):
