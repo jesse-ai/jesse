@@ -61,12 +61,11 @@ def test_strategy_resource_points_chart_requests_to_dedicated_resource():
     assert 'Keep `update_chart()` visualization-only' in strategy
 
 
-def test_packaged_agent_rules_require_chart_resource_and_safe_hook():
+def test_packaged_agent_rules_point_chart_requests_to_resource():
     rules = _load_packaged_rules()
 
     assert 'jesse://charts - Strategy chart APIs' in rules
     assert 'Consult `jesse://charts` before adding or changing strategy charts.' in rules
-    assert 'never submit/cancel orders' in rules
 
 
 def test_strategy_tool_descriptions_expose_update_chart_lifecycle():

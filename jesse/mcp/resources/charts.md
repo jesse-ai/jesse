@@ -3,6 +3,24 @@
 Use Jesse's strategy chart API to visualize indicators and reference levels on
 interactive backtest, paper-trading, and live-trading charts.
 
+## Workflow for Adding Charts to a Strategy
+
+1. Read the existing strategy with `read_strategy()`.
+2. Add chart code to its existing `update_chart()` method, or create that method
+   if it does not exist. Never define `update_chart()` twice.
+3. Preserve all trading logic. Chart requests should only change visualization
+   code unless the user explicitly asks for strategy changes too.
+4. Save the complete updated strategy with `write_strategy()`.
+
+Choose the method from the value being displayed:
+
+| What to display | Method |
+| --- | --- |
+| EMA, Supertrend, or another price-scale indicator | `add_line_to_candle_chart(...)` |
+| Support, resistance, or another fixed price | `add_horizontal_line_to_candle_chart(...)` |
+| RSI, ADX, MACD, or another separate-scale indicator | `add_extra_line_chart(...)` |
+| A fixed threshold inside an indicator pane | `add_horizontal_line_to_extra_chart(...)` |
+
 ## Where Chart Code Belongs
 
 Put chart-only calculations in `update_chart()`:
@@ -131,8 +149,10 @@ For both horizontal-line methods, `line_style` must be either `'solid'` or
 - Keep `title` stable across calls. The title identifies one series or one
   horizontal level; changing it creates another item.
 - Keep `chart_name` stable to group extra lines in the same pane.
-- Pass a numeric current value, not a sequential indicator array.
+- Pass the current finite numeric value, not a sequential indicator array.
 - A horizontal line with an existing title is updated rather than duplicated.
+- When an indicator returns a structured result, pass its current numeric field,
+  such as `macd.macd`, rather than the complete result object.
 
 ## Live History Behavior
 

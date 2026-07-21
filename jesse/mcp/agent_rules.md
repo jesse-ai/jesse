@@ -71,7 +71,6 @@ Key resources include:
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
 
-
 === CODE STANDARDS ===
 
 Strategy Code Requirements:
@@ -101,7 +100,7 @@ Indicators & Utilities:
 
 High-signal Jesse strategy-authoring gotchas (full detail in jesse://strategy):
 
-- Put indicator visualization in `update_chart()`, not `before()` or `after()`, when live/paper charts must update on the forming candle. Keep this hook visualization-only: never submit/cancel orders, liquidate positions, send notifications, or mutate strategy state from it. Consult `jesse://charts` before adding or changing strategy charts.
+- Consult `jesse://charts` before adding or changing strategy charts.
 - Smart orders auto-select type: set `self.buy`/`self.sell = qty, price` and Jesse picks the order type from price vs current price — equal/near current = MARKET; for a BUY, price below current = LIMIT, price above = STOP (mirror for SELL: above = LIMIT, below = STOP). Never hand-pick market/limit/stop.
 - Read the current stop with `self.average_stop_loss`, never `self.stop_loss[1]`. After formatting, `self.stop_loss` is a 2D array `[[qty, price], ...]`, so `[1]` is the second order row (often IndexError), not a price.
 - There is NO `self.trailing_stop` attribute. Implement trailing stops by reassigning `self.stop_loss = self.position.qty, <new_price>` inside `update_position()` (e.g. `min(self.average_stop_loss, self.ema)` for longs).

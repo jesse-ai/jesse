@@ -157,6 +157,9 @@ def register_strategy_tools(mcp):
             3. Use in backtesting with routes configuration
             4. Iterate: read_strategy() → modify → write_strategy() for updates
 
+        Chart Requests:
+            Read and follow `jesse://charts` before adding chart code.
+
         Example:
             >>> # Create a complete RSI strategy in one step
             >>> strategy_code = '''
@@ -487,6 +490,9 @@ def register_strategy_tools(mcp):
             3. write_strategy() → save changes
             4. run_backtest() → test the strategy
             5. Iterate: read → modify → write → test
+
+        Chart Requests:
+            Read and follow `jesse://charts` before changing chart code.
 
         Example:
             >>> # Basic strategy implementation
