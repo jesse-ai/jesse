@@ -46,7 +46,6 @@ def backtest(request_json: BacktestRequestJson):
         request_json.finish_date,
         None,
         request_json.export_chart,
-        request_json.export_tradingview,
         request_json.export_csv,
         request_json.export_json,
         request_json.fast_mode,

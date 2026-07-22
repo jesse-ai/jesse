@@ -5,16 +5,14 @@ import os
 import arrow
 
 from jesse.config import config
-from jesse.services.tradingview import tradingview_logs
 from jesse.store import store
 import jesse.helpers as jh
 
 
-def store_logs(export_json: bool = False, export_tradingview: bool = False, export_csv: bool = False) -> dict:
+def store_logs(export_json: bool = False, export_csv: bool = False) -> dict:
     if store.closed_trades.count == 0:
         return {
             'json': None,
-            'tradingview': None,
             'csv': None
         }
 
@@ -36,10 +34,6 @@ def store_logs(export_json: bool = False, export_tradingview: bool = False, expo
 
             json.dump(trades_json, outfile, default=set_default)
             result['json'] = path
-
-    # store output for TradingView.com's pine-editor
-    if export_tradingview:
-        result['tradingview'] = tradingview_logs(file_name)
 
     # also write a CSV file
     if export_csv:

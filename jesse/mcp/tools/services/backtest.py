@@ -86,7 +86,6 @@ def _build_default_backtest_description(
     export_csv: bool,
     export_json: bool,
     export_chart: bool,
-    export_tradingview: bool,
     fast_mode: bool,
     benchmark: bool,
     strategy_summary: Optional[str] = None,
@@ -103,8 +102,6 @@ def _build_default_backtest_description(
         options.append("JSON export")
     if export_chart:
         options.append("chart export")
-    if export_tradingview:
-        options.append("TradingView export")
     if fast_mode:
         options.append("fast mode")
     if benchmark:
@@ -208,7 +205,6 @@ def create_backtest_draft_service(
     export_csv: bool = False,
     export_json: bool = False,
     export_chart: bool = True,
-    export_tradingview: bool = False,
     fast_mode: bool = True,
     benchmark: bool = True,
     title: Optional[str] = None,
@@ -233,7 +229,6 @@ def create_backtest_draft_service(
         export_csv: Export results as CSV
         export_json: Export results as JSON
         export_chart: Export chart data
-        export_tradingview: Export TradingView pine script
         fast_mode: Enable fast mode (default True)
         benchmark: Run benchmark comparison
         title: Optional note title. Defaults to an MCP-generated title.
@@ -297,7 +292,6 @@ def create_backtest_draft_service(
                 'export_csv': export_csv,
                 'export_json': export_json,
                 'export_chart': export_chart,
-                'export_tradingview': export_tradingview,
                 'fast_mode': fast_mode,
                 'benchmark': benchmark
             },
@@ -330,7 +324,6 @@ def create_backtest_draft_service(
             export_csv=export_csv,
             export_json=export_json,
             export_chart=export_chart,
-            export_tradingview=export_tradingview,
             fast_mode=fast_mode,
             benchmark=benchmark,
             strategy_summary=strategy_summary,

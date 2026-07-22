@@ -42,7 +42,6 @@ def run(
         finish_date: str,
         candles: dict = None,
         chart: bool = False,
-        tradingview: bool = False,
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
@@ -70,7 +69,7 @@ def run(
 
     _execute_backtest(
         client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles, chart,
-        tradingview, csv, json, fast_mode, benchmark, theme
+        csv, json, fast_mode, benchmark, theme
     )
 
 
@@ -85,7 +84,6 @@ def _execute_backtest(
         finish_date: str,
         candles: dict = None,
         chart: bool = False,
-        tradingview: bool = False,
         csv: bool = False,
         json: bool = False,
         fast_mode: bool = False,
@@ -163,7 +161,6 @@ def _execute_backtest(
         result = simulator(
             candles,
             run_silently=jh.should_execute_silently(),
-            generate_tradingview=tradingview,
             generate_csv=csv,
             generate_json=json,
             benchmark=benchmark,
@@ -192,7 +189,7 @@ def _execute_backtest(
             # retry the backtest simulation
             _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
-                chart, tradingview, csv, json, fast_mode, benchmark, theme
+                chart, csv, json, fast_mode, benchmark, theme
             )
             return
         else:
@@ -540,7 +537,6 @@ def _step_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_tradingview: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -746,7 +742,6 @@ def _step_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_tradingview=generate_tradingview,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -1025,7 +1020,6 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str, posi
 
 def _generate_outputs(
         candles: dict,
-        generate_tradingview: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -1038,12 +1032,10 @@ def _generate_outputs(
         result["hyperparameters"] = stats.hyperparameters(router.routes)
     result["metrics"] = report.portfolio_metrics()
     result["trades"] = report.trades()
-    # generate logs in json, csv and tradingview's pine-editor format
-    logs_path = store_logs(generate_json, generate_tradingview, generate_csv)
+    # generate logs in json and csv format
+    logs_path = store_logs(generate_json, generate_csv)
     if generate_json:
         result["json"] = logs_path["json"]
-    if generate_tradingview:
-        result["tradingview"] = logs_path["tradingview"]
     if generate_csv:
         result["csv"] = logs_path["csv"]
     if generate_equity_curve:
@@ -1057,7 +1049,6 @@ def _skip_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_tradingview: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -1184,7 +1175,6 @@ def _skip_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_tradingview=generate_tradingview,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,

@@ -44,7 +44,7 @@ class SignificanceTestSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s

@@ -34,7 +34,6 @@ class BacktestRequestJson(BaseModel):
     export_csv: bool
     export_json: bool
     export_chart: bool
-    export_tradingview: bool
     fast_mode: bool
     benchmark: bool
     theme: str = 'light'

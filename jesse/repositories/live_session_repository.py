@@ -111,7 +111,7 @@ def store_live_session(
         }
         if state:
             if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-                for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                     if key in state['form']:
                         state['form'][key] = jh.normalize_bool(state['form'].get(key))
             d['state'] = json.dumps(state)
@@ -130,7 +130,7 @@ def store_live_session(
         }
         if state:
             if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-                for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+                for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                     if key in state['form']:
                         state['form'][key] = jh.normalize_bool(state['form'].get(key))
             d['state'] = json.dumps(state)
@@ -165,7 +165,7 @@ def update_live_session_state(id: str, state: dict) -> None:
     _ensure_db_open()
     
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     
@@ -187,7 +187,7 @@ def upsert_live_session_state(id: str, state: dict) -> None:
     _ensure_db_open()
 
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     
