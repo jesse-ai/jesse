@@ -3,10 +3,10 @@ import jesse.helpers as jh
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from typing import Union
 from jesse import exceptions
-from .apex_pro_utils import timeframe_to_interval
+from .apex_omni_utils import timeframe_to_interval
 
 
-class ApexProMain(CandleExchange):
+class ApexOmniPerpetualMain(CandleExchange):
     def __init__(self, name: str, rest_endpoint: str) -> None:
         from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 
@@ -78,36 +78,25 @@ class ApexProMain(CandleExchange):
         self.validate_response(response)
         data = response.json()['data']
 
-        # Determine which suffix to filter based on exchange name
-        target_suffix = '-USDT' if self.name.startswith('Apex Omni') else '-USDC'
-
-        # For legacy API response format
+        # Omni markets settle in USDT. The older response shape stores all
+        # perpetual contracts together, so filter that list by settlement asset.
         if 'usdtConfig' not in data:
             symbols = []
             contracts = data['contractConfig']['perpetualContract']
             for p in contracts:
                 symbol = p['symbol']
-                if symbol.endswith(target_suffix):
+                if symbol.endswith('-USDT'):
                     symbols.append(symbol)
             return list(sorted(symbols))
 
-        # For new API response format
+        # The current response shape separates USDT and USDC contracts. Only
+        # usdtConfig belongs to Apex Omni; usdcConfig was used by Apex Pro.
         pairs = []
-        # For Omni (USDT pairs)
-        if target_suffix == '-USDT':
-            if 'usdtConfig' in data and 'perpetualContract' in data['usdtConfig']:
-                contracts = data['usdtConfig']['perpetualContract']
-                for p in contracts:
-                    symbol = p['symbol']
-                    if symbol.endswith(target_suffix):
-                        pairs.append(symbol)
-        # For Pro (USDC pairs)
-        else:
-            if 'usdcConfig' in data and 'perpetualContract' in data['usdcConfig']:
-                contracts = data['usdcConfig']['perpetualContract']
-                for p in contracts:
-                    symbol = p['symbol']
-                    if symbol.endswith(target_suffix):
-                        pairs.append(symbol)
+        if 'perpetualContract' in data['usdtConfig']:
+            contracts = data['usdtConfig']['perpetualContract']
+            for p in contracts:
+                symbol = p['symbol']
+                if symbol.endswith('-USDT'):
+                    pairs.append(symbol)
 
         return list(sorted(pairs))

@@ -1,3 +1,5 @@
+"""Timeframe conversion helpers shared by Apex Omni candle and live drivers."""
+
 from jesse.enums import timeframes
 
 
