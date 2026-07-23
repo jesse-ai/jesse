@@ -41,6 +41,7 @@ def run():
         Log,
         OpenTab,
         Order,
+        PeriodTemplate,
         SignificanceTestSession,
     )
     database.db.create_tables([
@@ -49,6 +50,7 @@ def run():
         Log,
         Order,
         OpenTab,
+        PeriodTemplate,
         LiveEquitySnapshot,
         SignificanceTestSession,
         LiveChartSeries,
