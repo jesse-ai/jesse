@@ -7,7 +7,7 @@ import requests
 from jesse.services.web import FeedbackRequestJson, ReportExceptionRequestJson, HelpSearchRequestJson
 from jesse.services.multiprocessing import process_manager
 from jesse.services import jesse_trade
-from jesse.services.general_info import get_general_info
+from jesse.services.general_info import get_external_general_info, get_general_info, get_local_general_info
 from jesse.services.auth import get_access_token, require_auth
 from jesse.info import JESSE_API_URL
 from jesse.version import __version__ as jesse_version
@@ -61,6 +61,32 @@ def general_info() -> JSONResponse:
         data,
         status_code=200
     )
+
+
+@router.post("/general-info/local")
+def local_general_info() -> JSONResponse:
+    try:
+        data = get_local_general_info(has_live=jh.has_live_trade_plugin())
+    except Exception as e:
+        jh.error(str(e))
+        return JSONResponse({
+            'error': str(e)
+        }, status_code=500)
+
+    return JSONResponse(data, status_code=200)
+
+
+@router.post("/general-info/external")
+def external_general_info() -> JSONResponse:
+    try:
+        data = get_external_general_info(has_live=jh.has_live_trade_plugin())
+    except Exception as e:
+        jh.error(str(e))
+        return JSONResponse({
+            'error': str(e)
+        }, status_code=500)
+
+    return JSONResponse(data, status_code=200)
 
 
 @router.post("/active-workers")
