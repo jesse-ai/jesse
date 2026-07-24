@@ -24,13 +24,13 @@ if jh.is_unit_testing():
     ENV_VALUES['MCP_PORT'] = 9002
 
 if jh.is_jesse_project():
-    # load env
-    load_dotenv()
+    env_path = os.environ.get('JESSE_ENV_FILE', '.env')
+    load_dotenv(dotenv_path=env_path)
 
     # create and expose ENV_VALUES
-    ENV_VALUES = dotenv_values('.env')
+    ENV_VALUES = dotenv_values(env_path)
 
-    # validation for existence of .env file
+    # validation for existence of the selected env file
     if len(list(ENV_VALUES.keys())) == 0:
         # NOTE: print directly here instead of jh.error(). This code runs at import time,
         # before the rest of Jesse is initialized, and env.py is imported by
@@ -39,7 +39,7 @@ if jh.is_jesse_project():
         # still mid-import — so jh.error() here triggers a circular ImportError that hides
         # this very message. A plain stderr print + os._exit keeps the message visible.
         print(
-            '.env file is missing from within your local project. '
+            f'{env_path} is missing or empty. '
             'This usually happens when you\'re in the wrong directory. '
             '\n\nIf you haven\'t created a Jesse project yet, do that by running: \n'
             'jesse make-project {name}\n'
@@ -54,3 +54,7 @@ if jh.is_jesse_project():
 
 def is_dev_env() -> bool:
     return ENV_VALUES.get('IS_DEV_ENV', '').upper() == 'TRUE'
+
+
+def is_test_env() -> bool:
+    return ENV_VALUES.get('IS_TEST_ENV', '').upper() == 'TRUE'

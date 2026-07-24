@@ -118,6 +118,12 @@ def test_dump_exception():
     pass
 
 
+def test_live_plugin_can_be_disabled_for_isolated_application_tests(monkeypatch):
+    monkeypatch.setenv('JESSE_DISABLE_LIVE_PLUGIN', 'TRUE')
+
+    assert jh.has_live_trade_plugin() is False
+
+
 def test_estimate_average_price():
     assert jh.estimate_average_price(100, 7200, 0, 0) == 7200
 

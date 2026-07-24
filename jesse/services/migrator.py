@@ -33,28 +33,56 @@ def run():
 
     # create initial tables
     from jesse.models import (
+        BacktestSession,
         Candle,
         ClosedTrade,
+        ExchangeApiKeys,
         LiveChartPoint,
         LiveChartSeries,
         LiveEquitySnapshot,
+        LiveSession,
         Log,
+        MonteCarloSession,
         OpenTab,
+        OptimizationSession,
         Order,
         PeriodTemplate,
         SignificanceTestSession,
     )
+    from jesse.models.AiModel import AiModel
+    from jesse.models.MonteCarloSession import (
+        MonteCarloCandlesSession,
+        MonteCarloTradesSession,
+    )
+    from jesse.models.NotificationApiKeys import NotificationApiKeys
+    from jesse.models.Option import Option
+    from jesse.models.Orderbook import Orderbook
+    from jesse.models.Ticker import Ticker
+    from jesse.models.Trade import Trade
     database.db.create_tables([
+        AiModel,
+        BacktestSession,
         Candle,
         ClosedTrade,
+        ExchangeApiKeys,
         Log,
+        LiveSession,
+        MonteCarloSession,
+        MonteCarloTradesSession,
+        MonteCarloCandlesSession,
+        NotificationApiKeys,
+        OptimizationSession,
+        Option,
         Order,
+        Orderbook,
         OpenTab,
         PeriodTemplate,
         LiveEquitySnapshot,
         SignificanceTestSession,
         LiveChartSeries,
         LiveChartPoint,
+        Ticker,
+        Trade,
     ], safe=True)
 
     database.close_connection()
