@@ -23,7 +23,8 @@ from jesse.models.MonteCarloSession import (
     get_monte_carlo_session_by_id,
     update_monte_carlo_session_notes,
     purge_monte_carlo_sessions,
-    get_running_monte_carlo_session_id
+    get_running_monte_carlo_session_id,
+    store_monte_carlo_session,
 )
 from jesse.services.transformers import get_monte_carlo_session, get_monte_carlo_session_for_load_more
 from jesse.modes.monte_carlo_mode import run as run_monte_carlo
@@ -65,13 +66,11 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson):
             'message': 'A session with this ID is already running or completed.'
         }, status_code=409)
 
-    # Check session existence in monte carlo models
-    from jesse.models.MonteCarloSession import get_monte_carlo_session_by_id as db_get_mc_session_by_id
-    if db_get_mc_session_by_id(session_id):
-        return JSONResponse({
-            'error': f'Monte Carlo session with ID {session_id} already exists (in DB)',
-            'message': 'A session with this ID already exists in the database.'
-        }, status_code=409)
+    store_monte_carlo_session(
+        id=session_id,
+        status='running',
+        state=request_json.state,
+    )
 
     process_manager.add_task(
         run_monte_carlo,

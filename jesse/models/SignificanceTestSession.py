@@ -76,7 +76,8 @@ class SignificanceTestSession(peewee.Model):
 
 def get_significance_test_session_by_id(session_id: str):
     try:
-        return SignificanceTestSession.get(SignificanceTestSession.id == session_id)
+        session = SignificanceTestSession.get(SignificanceTestSession.id == session_id)
+        return _reconcile_significance_test_session_status(session)
     except SignificanceTestSession.DoesNotExist:
         return None
 
@@ -104,7 +105,10 @@ def get_significance_test_sessions(
             cutoff = now.shift(days=-days_map[date_filter]).int_timestamp * 1000
             query = query.where(SignificanceTestSession.created_at >= cutoff)
 
-    return list(query.offset(offset).limit(limit))
+    return [
+        _reconcile_significance_test_session_status(session)
+        for session in query.offset(offset).limit(limit)
+    ]
 
 
 def store_significance_test_session(id: str, status: str, state: dict, strategy_codes: dict = None, theme: str = 'light'):
@@ -223,6 +227,20 @@ def purge_significance_test_sessions(days_old: int = None):
 def get_running_significance_test_session_id():
     try:
         session = SignificanceTestSession.get(SignificanceTestSession.status == 'running')
-        return str(session.id)
+        session = _reconcile_significance_test_session_status(session)
+        return str(session.id) if session.status == 'running' else None
     except SignificanceTestSession.DoesNotExist:
         return None
+
+
+def _reconcile_significance_test_session_status(session: SignificanceTestSession):
+    if session.status != 'running' or jh.is_unit_testing():
+        return session
+
+    from jesse.services.redis import is_process_active
+
+    if not is_process_active(str(session.id)):
+        update_significance_test_session_status(str(session.id), 'stopped')
+        session.status = 'stopped'
+
+    return session

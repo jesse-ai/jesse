@@ -9,10 +9,15 @@ from .MonteCarloRunner import MonteCarloRunner
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
 from jesse.models.MonteCarloSession import (
-    store_monte_carlo_session, 
-    get_monte_carlo_session_by_id, 
+    store_monte_carlo_session,
+    get_monte_carlo_session_by_id,
     update_monte_carlo_session_status,
-    update_monte_carlo_session_state
+    update_monte_carlo_session_state,
+    get_trades_session_by_parent_id,
+    store_trades_session,
+    get_candles_session_by_parent_id,
+    store_candles_session,
+    store_session_exception,
 )
 
 
@@ -36,87 +41,105 @@ def run(
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'monte-carlo'
 
-    # Validate at least one type is selected
-    if not run_trades and not run_candles:
-        raise ValueError('At least one Monte Carlo type (trades or candles) must be selected.')
+    try:
+        if not run_trades and not run_candles:
+            raise ValueError('At least one Monte Carlo type (trades or candles) must be selected.')
 
-    # Validate cpu_cores
-    if cpu_cores < 1:
-        raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page.')
-    
-    max_cpu_cores = cpu_count()
-    if cpu_cores > max_cpu_cores:
-        raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
+        if cpu_cores < 1:
+            raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page.')
 
-    # Inject config
-    set_config(user_config)
-    
-    # Add exchange to routes
-    for r in routes:
-        r['exchange'] = exchange
-    for r in data_routes:
-        r['exchange'] = exchange
-    
-    # Set routes
-    router.initiate(routes, data_routes)
-    store.app.set_session_id(session_id)
-    register_custom_exception_handler()
-    
-    # Validate routes
-    validate_routes(router)
+        max_cpu_cores = cpu_count()
+        if cpu_cores > max_cpu_cores:
+            raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
 
-    # Capture strategy codes for each route (fast operation) BEFORE expensive work
-    import os
-    strategy_codes = {}
-    for r in router.routes:
-        key = f"{r.exchange}-{r.symbol}"
-        if key not in strategy_codes:
-            try:
-                strategy_path = f'strategies/{r.strategy_name}/__init__.py'
-                if os.path.exists(strategy_path):
-                    with open(strategy_path, 'r') as f:
-                        content = f.read()
-                    strategy_codes[key] = content
-            except Exception:
-                pass
+        set_config(user_config)
 
-    # Ensure the parent session exists in DB BEFORE loading candles so the UI can query it
-    existing_session = get_monte_carlo_session_by_id(session_id)
-    if existing_session:
-        update_monte_carlo_session_status(session_id, 'running')
-        update_monte_carlo_session_state(session_id, state, strategy_codes)
-        if jh.is_debugging():
-            jh.debug(f"Resuming existing Monte Carlo session with ID: {session_id}")
-    else:
-        store_monte_carlo_session(
-            id=session_id,
-            status='running',
-            state=state,
-            strategy_codes=strategy_codes if strategy_codes else None
+        for r in routes:
+            r['exchange'] = exchange
+        for r in data_routes:
+            r['exchange'] = exchange
+
+        router.initiate(routes, data_routes)
+        store.app.set_session_id(session_id)
+        register_custom_exception_handler()
+        validate_routes(router)
+
+        import os
+        strategy_codes = {}
+        for r in router.routes:
+            key = f"{r.exchange}-{r.symbol}"
+            if key not in strategy_codes:
+                try:
+                    strategy_path = f'strategies/{r.strategy_name}/__init__.py'
+                    if os.path.exists(strategy_path):
+                        with open(strategy_path, 'r') as f:
+                            content = f.read()
+                        strategy_codes[key] = content
+                except Exception:
+                    pass
+
+        existing_session = get_monte_carlo_session_by_id(session_id)
+        if existing_session:
+            update_monte_carlo_session_status(session_id, 'running')
+            update_monte_carlo_session_state(session_id, state, strategy_codes)
+            if jh.is_debugging():
+                jh.debug(f"Resuming existing Monte Carlo session with ID: {session_id}")
+        else:
+            store_monte_carlo_session(
+                id=session_id,
+                status='running',
+                state=state,
+                strategy_codes=strategy_codes if strategy_codes else None
+            )
+            if jh.is_debugging():
+                jh.debug(f"Created new Monte Carlo session with ID: {session_id}")
+
+        start_date_timestamp = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
+        finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(finish_date, 'YYYY-MM-DD'))
+        warmup_candles, candles = load_candles(start_date_timestamp, finish_date_timestamp)
+
+        runner = MonteCarloRunner(
+            session_id=session_id,
+            user_config=user_config,
+            routes=routes,
+            data_routes=data_routes,
+            candles=candles,
+            warmup_candles=warmup_candles,
+            run_trades=run_trades,
+            run_candles=run_candles,
+            num_scenarios=num_scenarios,
+            fast_mode=fast_mode,
+            cpu_cores=cpu_cores,
+            pipeline_type=pipeline_type,
+            pipeline_params=pipeline_params
         )
-        if jh.is_debugging():
-            jh.debug(f"Created new Monte Carlo session with ID: {session_id}")
 
-    # Load historical candles AFTER session is persisted
-    start_date_timestamp = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
-    finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(finish_date, 'YYYY-MM-DD'))
-    warmup_candles, candles = load_candles(start_date_timestamp, finish_date_timestamp)
+        runner.run()
+    except Exception as e:
+        import traceback as _tb
+        message = f'{type(e).__name__}: {e}'
+        traceback_str = _tb.format_exc()
 
-    # Create and run Monte Carlo runner
-    runner = MonteCarloRunner(
-        session_id=session_id,
-        user_config=user_config,
-        routes=routes,
-        data_routes=data_routes,
-        candles=candles,
-        warmup_candles=warmup_candles,
-        run_trades=run_trades,
-        run_candles=run_candles,
-        num_scenarios=num_scenarios,
-        fast_mode=fast_mode,
-        cpu_cores=cpu_cores,
-        pipeline_type=pipeline_type,
-        pipeline_params=pipeline_params
-    )
+        try:
+            if get_monte_carlo_session_by_id(session_id) is None:
+                store_monte_carlo_session(id=session_id, status='stopped', state=state)
+            else:
+                update_monte_carlo_session_status(session_id, 'stopped')
 
-    runner.run()
+            if run_trades:
+                trades_session = get_trades_session_by_parent_id(session_id)
+                trades_session_id = str(trades_session.id) if trades_session else store_trades_session(session_id, num_scenarios)
+                store_session_exception(trades_session_id, 'trades', message, traceback_str)
+
+            if run_candles:
+                candles_session = get_candles_session_by_parent_id(session_id)
+                candles_session_id = str(candles_session.id) if candles_session else store_candles_session(
+                    session_id,
+                    num_scenarios,
+                    pipeline_type or 'moving_block_bootstrap',
+                    pipeline_params or {},
+                )
+                store_session_exception(candles_session_id, 'candles', message, traceback_str)
+        except Exception:
+            pass
+        raise

@@ -10,7 +10,7 @@ from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, store_optimization_session, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
@@ -44,6 +44,9 @@ async def optimization(request_json: OptimizationRequestJson):
             'error': f'Optimization session with ID {session_id} already exists',
             'message': 'A session with this ID is already running or completed.'
         }, status_code=409)
+
+    store_optimization_session(id=session_id, status='running')
+    update_optimization_session_state(session_id, request_json.state)
 
     process_manager.add_task(
         run_optimization,

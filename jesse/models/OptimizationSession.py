@@ -158,7 +158,8 @@ if database.is_open():
 
 def get_optimization_session_by_id(id: str):
     try:
-        return OptimizationSession.get(OptimizationSession.id == id)
+        session = OptimizationSession.get(OptimizationSession.id == id)
+        return _reconcile_optimization_session_status(session)
     except OptimizationSession.DoesNotExist:
         return None
 
@@ -277,7 +278,10 @@ def get_optimization_sessions(limit: int = 50, offset: int = 0, title_search: st
         if threshold > 0:
             query = query.where(OptimizationSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [
+        _reconcile_optimization_session_status(session)
+        for session in query.limit(limit).offset(offset)
+    ]
 
 
 def delete_optimization_session(id: str) -> bool:
@@ -394,7 +398,21 @@ def get_running_optimization_session_id():
     try:
         session = OptimizationSession.select().where(OptimizationSession.status == 'running').order_by(OptimizationSession.updated_at.desc()).first()
         if session:
-            return str(session.id)
+            session = _reconcile_optimization_session_status(session)
+            return str(session.id) if session.status == 'running' else None
         return None
     except Exception as e:
         raise e
+
+
+def _reconcile_optimization_session_status(session: OptimizationSession):
+    if session.status != 'running' or jh.is_unit_testing():
+        return session
+
+    from jesse.services.redis import is_process_active
+
+    if not is_process_active(str(session.id)):
+        update_optimization_session_status(str(session.id), 'stopped')
+        session.status = 'stopped'
+
+    return session
