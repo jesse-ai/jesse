@@ -68,6 +68,7 @@ from jesse.controllers.closed_trade_controller import router as closed_trade_rou
 from jesse.controllers.order_controller import router as order_router
 from jesse.controllers.tabs_controller import router as tabs_router
 from jesse.controllers.period_templates_controller import router as period_templates_router
+from jesse.controllers.route_templates_controller import router as route_templates_router
 from jesse.controllers.ai_model_controller import router as ai_model_router
 from jesse.services.env import is_test_env
 
@@ -90,6 +91,7 @@ fastapi_app.include_router(closed_trade_router)
 fastapi_app.include_router(order_router)
 fastapi_app.include_router(tabs_router)
 fastapi_app.include_router(period_templates_router)
+fastapi_app.include_router(route_templates_router)
 fastapi_app.include_router(ai_model_router)
 
 if is_test_env():

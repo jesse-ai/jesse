@@ -47,6 +47,7 @@ def run():
         OptimizationSession,
         Order,
         PeriodTemplate,
+        RouteTemplate,
         SignificanceTestSession,
     )
     from jesse.models.AiModel import AiModel
@@ -77,6 +78,7 @@ def run():
         Orderbook,
         OpenTab,
         PeriodTemplate,
+        RouteTemplate,
         LiveEquitySnapshot,
         SignificanceTestSession,
         LiveChartSeries,
