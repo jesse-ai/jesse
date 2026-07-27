@@ -21,8 +21,6 @@ import jesse.helpers as jh
 from jesse.repositories import live_session_repository
 from jesse.services import transformers
 from jesse.modes.data_provider import download_live_log
-from jesse_live import live_mode
-from jesse_live.services.data_provider import get_logs as gl, get_orders as go
 from jesse.enums import live_session_statuses, live_session_modes
 
 router = APIRouter(prefix="/live", tags=["Live Trading"])
@@ -33,6 +31,7 @@ def live(request_json: LiveRequestJson) -> JSONResponse:
     """
     Start live trading
     """
+    from jesse_live import live_mode
 
     jh.validate_cwd()
 
@@ -90,8 +89,9 @@ def get_logs(json_request: GetLogsRequestJson) -> JSONResponse:
     """
     Get logs for a live trading session
     """
+    from jesse_live.services.data_provider import get_logs
 
-    arr = gl(json_request.id, json_request.type, json_request.start_time)
+    arr = get_logs(json_request.id, json_request.type, json_request.start_time)
 
     return JSONResponse({
         'id': json_request.id,
@@ -121,8 +121,9 @@ def get_orders(json_request: GetOrdersRequestJson) -> JSONResponse:
     """
     Get orders for a live trading session
     """
+    from jesse_live.services.data_provider import get_orders
 
-    arr = go(json_request.session_id)
+    arr = get_orders(json_request.session_id)
 
     return JSONResponse({
         'id': json_request.id,
