@@ -52,7 +52,7 @@ def register_resources(mcp) -> None:
 
     for file in os.listdir(os.path.dirname(__file__)):
         if file.endswith('.md'):
-            with open(os.path.join(os.path.dirname(__file__), file), 'r') as f:
+            with open(os.path.join(os.path.dirname(__file__), file), 'r', encoding='utf-8') as f:
                 content = f.read()
             resource_name = file.replace('.md', '')
             uri = f"jesse://{resource_name}"
