@@ -148,7 +148,7 @@ def run(
         count = Candle.select().where(
             Candle.exchange == exchange,
             Candle.symbol == symbol,
-            Candle.timeframe == '1m' or Candle.timeframe.is_null(),
+            (Candle.timeframe == '1m') | (Candle.timeframe.is_null()),
             Candle.timestamp.between(temp_start_timestamp, temp_end_timestamp)
         ).count()
         already_exists = count == driver.count
