@@ -68,6 +68,36 @@ def _candle_window(
     return start, finish, count, lower_bound, session_end
 
 
+def _full_candle_window(
+    session,
+    timeframe: str,
+    orders: list,
+    trades: list,
+    chart_bounds: Optional[tuple[int, int]],
+) -> tuple[int, int, int, int, int]:
+    timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
+    lower_bound = int(session.created_at) - (CONTEXT_CANDLES * timeframe_ms)
+    activity_times = [
+        int(session.finished_at or jh.now(force_fresh=True)),
+        *[
+            int(order.executed_at)
+            for order in orders
+            if order.executed_at is not None
+        ],
+        *[
+            int(trade.closed_at)
+            for trade in trades
+            if trade.closed_at is not None
+        ],
+    ]
+    if chart_bounds is not None:
+        activity_times.append(chart_bounds[1])
+
+    session_end = max(activity_times)
+    count = max(0, ((session_end - lower_bound) // timeframe_ms) + 1)
+    return lower_bound, session_end, count, lower_bound, session_end
+
+
 def _strategy_charts_for_window(
     session_id: str,
     exchange: str,
@@ -157,11 +187,39 @@ def get_live_session_chart_data(
     timeframe: str,
     anchor_time: Optional[int] = None,
     candle_count: int = 1000,
+    full_history: bool = False,
 ) -> dict:
     _validate_route(session, exchange, symbol, timeframe)
-    start, finish, count, lower_bound, session_end = _candle_window(
-        session, timeframe, anchor_time, candle_count
-    )
+
+    session_orders = [
+        order
+        for order in order_repository.get_session_orders(str(session.id), exchange, symbol)
+        if order.status == order_statuses.EXECUTED and order.executed_at is not None
+    ]
+    session_trades = [
+        trade
+        for trade in closed_trade_repository.find_by_session_id(str(session.id))
+        if trade.exchange == exchange and trade.symbol == symbol and trade.closed_at is not None
+    ]
+
+    if full_history:
+        chart_bounds = live_chart_repository.get_chart_time_bounds(
+            str(session.id),
+            exchange,
+            symbol,
+            timeframe,
+        )
+        start, finish, count, lower_bound, session_end = _full_candle_window(
+            session,
+            timeframe,
+            session_orders,
+            session_trades,
+            chart_bounds,
+        )
+    else:
+        start, finish, count, lower_bound, session_end = _candle_window(
+            session, timeframe, anchor_time, candle_count
+        )
 
     raw_candles = candle_repository.fetch_candles_from_db(
         exchange,
@@ -184,14 +242,12 @@ def get_live_session_chart_data(
 
     orders = [
         transformers.get_order_details(order)
-        for order in order_repository.get_session_orders(str(session.id), exchange, symbol)
-        if order.status == order_statuses.EXECUTED and order.executed_at is not None
+        for order in session_orders
     ]
 
     trades = [
         transformers.get_closed_trade_details(trade)
-        for trade in closed_trade_repository.find_by_session_id(str(session.id))
-        if trade.exchange == exchange and trade.symbol == symbol and trade.closed_at is not None
+        for trade in session_trades
     ]
 
     route_key = jh.key(exchange, symbol, timeframe)

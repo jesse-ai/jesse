@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Optional
 
 import jesse.helpers as jh
-from peewee import EXCLUDED
+from peewee import EXCLUDED, fn
 
 from jesse.models.LiveChart import LiveChartPoint, LiveChartSeries
 from jesse.services.db import database
@@ -161,3 +161,33 @@ def get_chart_data(
     if not any(charts.values()):
         return None
     return charts
+
+
+def get_chart_time_bounds(
+    session_id: str,
+    exchange: str,
+    symbol: str,
+    timeframe: str,
+) -> Optional[tuple[int, int]]:
+    if jh.is_unit_testing():
+        return None
+
+    _ensure_db_open()
+    bounds = (
+        LiveChartPoint.select(
+            fn.MIN(LiveChartPoint.timestamp).alias('start_time'),
+            fn.MAX(LiveChartPoint.timestamp).alias('finish_time'),
+        )
+        .join(LiveChartSeries)
+        .where(
+            (LiveChartSeries.session == session_id)
+            & (LiveChartSeries.exchange == exchange)
+            & (LiveChartSeries.symbol == symbol)
+            & (LiveChartSeries.timeframe == timeframe)
+        )
+        .dicts()
+        .first()
+    )
+    if not bounds or bounds['start_time'] is None or bounds['finish_time'] is None:
+        return None
+    return int(bounds['start_time']), int(bounds['finish_time'])

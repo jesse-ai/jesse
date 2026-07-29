@@ -203,6 +203,7 @@ def get_live_session_chart_data(
                 request_json.timeframe,
                 request_json.anchor_time,
                 request_json.candle_count,
+                request_json.full_history,
             )
         })
     except ValueError as e:

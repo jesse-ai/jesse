@@ -110,6 +110,7 @@ class GetLiveSessionChartDataRequestJson(BaseModel):
     timeframe: str
     anchor_time: Optional[int] = None
     candle_count: int = 1000
+    full_history: bool = False
 
 
 class GetBacktestSessionChartDataRequestJson(BaseModel):
