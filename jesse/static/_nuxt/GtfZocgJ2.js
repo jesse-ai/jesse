@@ -1,1 +1,0 @@
-import{it as e,nt as t}from"./Cd-sGgPF.js";import{t as n}from"./DZa88_9W.js";var r=t((t,r)=>{if(n().plan===`free`||n().plan===`guest`)return e(`/`)});export{r as default};
