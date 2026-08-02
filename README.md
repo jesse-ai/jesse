@@ -146,14 +146,10 @@ def should_long(self):
 ### Research API and Jupyter Notebooks
 Everything does not have to happen through the dashboard. Jesse's Research API exposes candle management, backtesting, optimization, Rule Significance Testing, Monte Carlo analysis, indicators, and machine learning to ordinary Python scripts and Jupyter notebooks. Use it for reproducible experiments, custom reports, batch research, or integration with your existing data-science workflow.
 
-```python
-from jesse import research
-```
-
 [Explore the Research API →](https://docs.jesse.trade/docs/research/)
 
 ### Rust-Powered Performance
-Jesse's indicator engine is powered by native Rust implementations. In Jesse's benchmark suite, porting the remaining accelerated indicators to Rust reduced their combined runtime from 423.5 µs to 124.4 µs — a 3.4× speedup. Together with major backtesting improvements, this makes repeated strategy iteration, optimization, and Monte Carlo analysis dramatically faster.
+Jesse's indicators are powered by native Rust, making them significantly faster than common alternatives such as TA-Lib.
 
 ### Reinforcement Learning — Coming Soon
 We are working on first-class reinforcement-learning support built on Jesse's simulation and research stack. The goal is to make training, evaluating, and deploying reinforcement-learning agents feel as integrated as Jesse's existing backtesting, optimization, Monte Carlo, and machine-learning workflows.
