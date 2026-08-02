@@ -39,14 +39,19 @@ In fact, it is so simple that in case you already know Python, you can get start
 - 🛡️ **Risk Management**: Built-in helper functions for robust risk management.
 - 📋 **Metrics System**: A comprehensive metrics system to evaluate your trading strategy's performance.
 - 🔍 **Debug Mode**: Observe your strategy in action with a detailed debug mode.
-- 🔧 **Optimize Mode**: Fine-tune your strategies using AI, without needing a technical background.
+- 🔧 **Optimize Mode**: Search strategy parameters efficiently with Optuna and parallel processing powered by Ray.
 - 📈 **Leveraged and Short-Selling**: First-class support for leveraged trading and short-selling.
 - 🔀 **Partial Fills**: Supports entering and exiting positions in multiple orders, allowing for greater flexibility.
 - 🔔 **Advanced Alerts**: Create real-time alerts within your strategies for effective monitoring.
-- 🤖 **JesseGPT**: Jesse has its own GPT, JesseGPT, that can help you write strategies, optimize them, debug them, and much more.
+- 🔌 **Jesse MCP**: Connect Claude, Codex, Cursor, VS Code, Zed, and other MCP-compatible AI assistants directly to your local Jesse project.
 - 🔧 **Built-in Code Editor**: Write, edit, and debug your strategies with a built-in code editor.
+- 📊 **Interactive Trading Charts**: Inspect candles, strategy indicators, horizontal levels, orders, and completed trades across backtest, paper, and live sessions.
+- 🔬 **Rule Significance Testing**: Test whether an entry rule shows genuine historical edge or could have appeared by chance.
 - 🎲 **Monte Carlo Analysis**: Stress-test your strategies with trade-order shuffling and candles-based simulations to distinguish skill from luck and guard against overfitting.
 - 🧠 **Machine Learning**: A built-in ML pipeline — gather labelled training data from backtests, train scikit-learn models (binary, multiclass, or regression), and deploy predictions directly inside your strategies.
+- 🧪 **Research API and Jupyter**: Run backtests, optimization, significance tests, Monte Carlo analysis, candle workflows, and machine learning from Python scripts or notebooks.
+- 🦀 **Rust-Powered Indicators**: Native Rust implementations make indicator-heavy strategies and large research runs substantially faster.
+- 🤖 **Reinforcement Learning — Coming Soon**: First-class reinforcement-learning workflows built on Jesse's simulation and research stack are on the way.
 - 📺 **Youtube Channel**: Jesse has a Youtube channel with screencast tutorials that go through example strategies step by step.
 
 ## Dive Deeper into Jesse's Capabilities
@@ -75,6 +80,17 @@ Execute highly accurate and fast backtests without look-ahead bias. Utilize debu
 
 ![Backtest](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/backtest.gif)
 
+### Interactive Trading Charts
+Inspect your strategy where its decisions happened. Jesse combines candlesticks, strategy-added indicators and levels, executed orders, and completed trades in synchronized interactive charts. The same charting workflow is available for backtests and for running or completed paper/live sessions.
+
+![Jesse Trade Chart with completed trades and indicator panes](https://cdn.jesse.trade/images/148b8772-9356-45f6-941e-bdda119c8e7b.png)
+
+Expand a trade to inspect every execution, collapse or isolate indicator panes, follow OHLC and indicator values under the cursor, reset the view, use fullscreen mode, or export the chart as an image.
+
+![Jesse Trade Chart showing individual executions](https://cdn.jesse.trade/images/43a766d9-a9e7-47cb-b8ed-7112bdda3a13.png)
+
+[Explore Jesse's interactive charts →](https://docs.jesse.trade/docs/charts/interactive-charts)
+
 ### Live/Paper Trading
 Deploy strategies live with robust monitoring tools. Supports paper trading, multiple accounts, real-time logs & notifications (Telegram, Slack, Discord), interactive charts, spot/futures, DEX, and a built-in code editor.
 
@@ -85,10 +101,21 @@ Accelerate research using the benchmark feature. Run batch backtests, compare ac
 
 ![Benchmark](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/benchmark.gif)
 
-### AI
-Leverage our AI assistant even with limited Python knowledge. Get help writing and improving strategies, implementing ideas, debugging, optimizing, and understanding code. Your personal AI quant.
+### Jesse MCP: Your AI Assistant, Connected to Jesse
+Jesse includes a local [Model Context Protocol (MCP)](https://docs.jesse.trade/docs/mcp/) server. Connect your preferred AI assistant and let it work with Jesse's real tools and project context instead of merely guessing how your trading framework behaves.
 
-![AI](https://raw.githubusercontent.com/jesse-ai/storage/refs/heads/master/gpt.gif)
+Through Jesse MCP, an assistant can help you write and improve strategies, manage candle data, run and inspect backtests, perform rule significance tests, optimize parameters, run Monte Carlo simulations, and link you directly to the saved results in the Jesse dashboard. Your strategies and data remain under your control in your self-hosted Jesse setup.
+
+For example, you can ask:
+
+> Check whether my new entry rule is statistically significant, backtest it, optimize the promising parameters, and run a candles-based Monte Carlo analysis before we consider paper trading.
+
+[Connect Claude, Codex, Cursor, VS Code, or Zed to Jesse →](https://docs.jesse.trade/docs/mcp/setup)
+
+### Rule Significance Testing
+Before spending hours building and tuning a complete strategy, test whether its entry rule has a measurable historical edge. Jesse compares the rule against a bootstrap distribution of random entries on the same market history, helping you reject noisy ideas early and focus your research on signals worth developing.
+
+[Learn about Rule Significance Testing →](https://docs.jesse.trade/docs/rule-significance-testing/)
 
 ### Monte Carlo Analysis
 Stress-test your strategies beyond a single historical path. Jesse's Monte Carlo mode runs hundreds of simulations using **trade-order shuffling** (tests whether trade timing drove your results) and **candles-based** (tests robustness under slightly different market conditions) methods. Use it to distinguish skill from luck, understand the range of outcomes you can realistically expect, and catch overfitting early.
@@ -113,6 +140,23 @@ def should_long(self):
     proba = self.ml_predict_proba()
     return proba['long'] > 0.65
 ```
+
+[Explore Jesse's machine-learning pipeline →](https://docs.jesse.trade/docs/research/ml/)
+
+### Research API and Jupyter Notebooks
+Everything does not have to happen through the dashboard. Jesse's Research API exposes candle management, backtesting, optimization, Rule Significance Testing, Monte Carlo analysis, indicators, and machine learning to ordinary Python scripts and Jupyter notebooks. Use it for reproducible experiments, custom reports, batch research, or integration with your existing data-science workflow.
+
+```python
+from jesse import research
+```
+
+[Explore the Research API →](https://docs.jesse.trade/docs/research/)
+
+### Rust-Powered Performance
+Jesse's indicator engine is powered by native Rust implementations. In Jesse's benchmark suite, porting the remaining accelerated indicators to Rust reduced their combined runtime from 423.5 µs to 124.4 µs — a 3.4× speedup. Together with major backtesting improvements, this makes repeated strategy iteration, optimization, and Monte Carlo analysis dramatically faster.
+
+### Reinforcement Learning — Coming Soon
+We are working on first-class reinforcement-learning support built on Jesse's simulation and research stack. The goal is to make training, evaluating, and deploying reinforcement-learning agents feel as integrated as Jesse's existing backtesting, optimization, Monte Carlo, and machine-learning workflows.
 
 ### Optimize Your Strategies
 Unsure about optimal parameters? Let the optimization mode decide using simple syntax. Fine-tune any strategy parameter with the Optuna library and easy cross-validation.
@@ -144,7 +188,7 @@ documentation is **short yet very informative**.
 - [🎥 Youtube channel (screencast tutorials)](https://jesse.trade/youtube)
 - [🛟 Help center](https://jesse.trade/help)
 - [💬 Discord community](https://jesse.trade/discord)
-- [🤖 JesseGPT](https://jesse.trade/gpt) (Requires a free account)
+- [🔌 Jesse MCP](https://docs.jesse.trade/docs/mcp/)
 
 ## What's next?
 
