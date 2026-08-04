@@ -28,8 +28,8 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from .common import (
-    TRADING_DAYS_PER_YEAR,
     MIN_OBSERVATIONS,
+    _annualization_factor,
     _setup_progress_bar,
     _resolve_cpu_cores,
 )
@@ -93,8 +93,8 @@ def rule_significance_test(
     Returns
     -------
     dict with keys:
-        observed_mean     float       mean bar-level log return of the rule
-        annualized_return float       observed_mean × 252
+        observed_mean     float       mean next-bar log return of the rule
+        annualized_return float       observed_mean × bars per 365-day year
         simulated_means   np.ndarray  shape (n_simulations,)
         p_value           float       fraction of sims ≥ observed_mean
         n_simulations     int         simulations actually completed
@@ -147,10 +147,10 @@ def rule_significance_test(
     # ------------------------------------------------------------------
     # Log returns & detrending
     # ------------------------------------------------------------------
-    # Log return at bar t: ln(price_t / price_{t-1})
-    # We drop the first bar because it has no prior price to diff against.
+    # The signal emitted at bar t is evaluated against the following bar's
+    # return, which is the first return that was not already known at signal time.
     log_returns = np.log(close_prices[1:] / close_prices[:-1])
-    signals = signals[1:]   # align with log_returns
+    signals = signals[:-1]
 
     # Remove any NaN introduced by the log computation (e.g. price = 0)
     valid = np.isfinite(log_returns)
@@ -175,8 +175,8 @@ def rule_significance_test(
     mean_log_return = log_returns.mean()
     detrended = log_returns - mean_log_return
 
-    # Rule returns: each bar contributes (signal × detrended_return).
-    # Neutral bars (signal = 0) contribute 0, so they are excluded naturally.
+    # Rule returns: each signal contributes (signal × next detrended return).
+    # Neutral bars (signal = 0) contribute 0 and remain in the observation count.
     rule_returns = signals * detrended
     observed_mean = float(rule_returns.mean())
 
@@ -213,10 +213,11 @@ def rule_significance_test(
     # p-value: fraction of simulated means that equalled or exceeded the
     # observed mean under the null hypothesis.
     p_value = float(np.mean(sim_means >= observed_mean))
+    annualization_factor = _annualization_factor(routes[0]['timeframe'])
 
     return {
         'observed_mean': observed_mean,
-        'annualized_return': observed_mean * TRADING_DAYS_PER_YEAR,
+        'annualized_return': observed_mean * annualization_factor,
         'simulated_means': sim_means,
         'p_value': p_value,
         'n_simulations': len(sim_means),
