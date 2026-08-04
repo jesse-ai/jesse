@@ -42,6 +42,8 @@ def install_live(strict: bool) -> None:
 )
 def run(skip_agent_rules: bool) -> None:
     """Start the Jesse application server."""
+    from jesse.services.env import is_test_env
+
     # Display welcome message
     welcome_message = """
      ██╗███████╗███████╗███████╗███████╗
@@ -78,7 +80,7 @@ def run(skip_agent_rules: bool) -> None:
     print("")
 
     # sync the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) with the bundled rules
-    if not skip_agent_rules:
+    if not skip_agent_rules and not is_test_env():
         try:
             from jesse.mcp.agent_rules import sync_agent_rules
 
@@ -100,14 +102,14 @@ def run(skip_agent_rules: bool) -> None:
         time.sleep(sleep_seconds)
         run_migrations()
 
-    # Install Python Language Server if needed
-    try:
-        from jesse.services.lsp import install_lsp_server
+    if not is_test_env():
+        try:
+            from jesse.services.lsp import install_lsp_server
 
-        install_lsp_server()
-    except Exception as e:
-        print(jh.color(f"Error installing Python Language Server: {str(e)}", "red"))
-        pass
+            install_lsp_server()
+        except Exception as e:
+            print(jh.color(f"Error installing Python Language Server: {str(e)}", "red"))
+            pass
 
     # read port from .env file and update the global variables port and host, if not found, use default
     global HOST, PORT
@@ -122,14 +124,14 @@ def run(skip_agent_rules: bool) -> None:
 
     # Set global Jesse API configuration for MCP and other services
 
-    # run the lsp server
-    try:
-        from jesse.services.lsp import run_lsp_server
+    if not is_test_env():
+        try:
+            from jesse.services.lsp import run_lsp_server
 
-        run_lsp_server()
-    except Exception as e:
-        print(jh.color(f"Error running Python Language Server: {str(e)}", "red"))
-        pass
+            run_lsp_server()
+        except Exception as e:
+            print(jh.color(f"Error running Python Language Server: {str(e)}", "red"))
+            pass
     
     # print dashboard box and suppress uvicorn's own "running on" line
     dashboard_url = f"http://localhost:{PORT}"
@@ -144,14 +146,14 @@ def run(skip_agent_rules: bool) -> None:
     print(click.style("└" + _border + "┘", fg="magenta", bold=True))
     print()
 
-    # run the mcp server
-    try:
-        from jesse.mcp import run_mcp_server
+    if not is_test_env():
+        try:
+            from jesse.mcp import run_mcp_server
 
-        run_mcp_server(jesse_host=HOST, jesse_port=PORT)
-    except Exception as e:
-        print(jh.color(f"Error running MCP Server: {str(e)}", "red"))
-        pass
+            run_mcp_server(jesse_host=HOST, jesse_port=PORT)
+        except Exception as e:
+            print(jh.color(f"Error running MCP Server: {str(e)}", "red"))
+            pass
 
     # run the main application
     process_manager.flush()
@@ -163,4 +165,3 @@ def run(skip_agent_rules: bool) -> None:
     logging.getLogger("uvicorn.error").addFilter(_SuppressUvicornStartup())
 
     uvicorn.run(fastapi_app, host=HOST, port=PORT, log_level="info")
-

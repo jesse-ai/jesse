@@ -29,19 +29,17 @@ def run(
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
 
-    # validate cpu_cores
-    if cpu_cores < 1:
-        raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
-    # get the max number of cores
-    max_cpu_cores = cpu_count()
-    if cpu_cores > max_cpu_cores:
-        raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
-
     # Persist a terminal error on any setup/run failure (most commonly insufficient
     # candles for the training/testing windows, or a malformed config) so MCP/dashboard
     # callers stop polling a session that would otherwise stay stuck. Without this, a
     # candle shortage raised here surfaced to API clients as a silent hang.
     try:
+        if cpu_cores < 1:
+            raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
+        max_cpu_cores = cpu_count()
+        if cpu_cores > max_cpu_cores:
+            raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
+
         # inject config
         set_config(user_config)
         # add exchange to routes
@@ -135,7 +133,7 @@ def run(
                 f"each start. Import enough candles for {symbol} on {exchange} and re-run."
             )
         else:
-            message = str(e)
+            message = f'{type(e).__name__}: {e}'
         try:
             if _get_session(session_id) is None:
                 _store_session(id=session_id, status='stopped')

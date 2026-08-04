@@ -29,7 +29,6 @@ Default Configuration:
     "export_csv": false,
     "export_json": false,
     "export_chart": true,
-    "export_tradingview": false,
     "fast_mode": true,
     "benchmark": true
 }

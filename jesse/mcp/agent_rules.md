@@ -57,6 +57,7 @@ Key resources include:
 
 - jesse://strategy - Strategy structure and required methods and How strategies execute candle-by-candle
 - jesse://strategy_examples - Library of complete, worked example strategies (full, runnable references)
+- jesse://charts - Strategy chart APIs, update_chart lifecycle, and live intrabar behavior
 - jesse://indicator - Step-by-step guide for discovering and using indicators and Essential indicators and candle data access
 - jesse://position_risk - Position sizing utilities and formulas and Risk management patterns and exit strategies
 - jesse://utilities - Helper functions for calculations and analysis
@@ -68,7 +69,6 @@ Key resources include:
 - jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
 
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
-
 
 
 === CODE STANDARDS ===
@@ -100,6 +100,7 @@ Indicators & Utilities:
 
 High-signal Jesse strategy-authoring gotchas (full detail in jesse://strategy):
 
+- Consult `jesse://charts` before adding or changing strategy charts.
 - Smart orders auto-select type: set `self.buy`/`self.sell = qty, price` and Jesse picks the order type from price vs current price — equal/near current = MARKET; for a BUY, price below current = LIMIT, price above = STOP (mirror for SELL: above = LIMIT, below = STOP). Never hand-pick market/limit/stop.
 - Read the current stop with `self.average_stop_loss`, never `self.stop_loss[1]`. After formatting, `self.stop_loss` is a 2D array `[[qty, price], ...]`, so `[1]` is the second order row (often IndexError), not a price.
 - There is NO `self.trailing_stop` attribute. Implement trailing stops by reassigning `self.stop_loss = self.position.qty, <new_price>` inside `update_position()` (e.g. `min(self.average_stop_loss, self.ema)` for longs).

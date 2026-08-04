@@ -1,13 +1,17 @@
 from typing import Optional
+from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
 from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
-    LiveRequestJson, 
-    LiveCancelRequestJson, 
-    GetLogsRequestJson, 
+    LiveRequestJson,
+    LiveCancelRequestJson,
+    GetLogsRequestJson,
+    GetStrategyChartsRequestJson,
+    GetLiveSessionChartDataRequestJson,
     GetOrdersRequestJson,
     GetLiveSessionsRequestJson,
     UpdateLiveSessionNotesRequestJson,
@@ -17,8 +21,6 @@ import jesse.helpers as jh
 from jesse.repositories import live_session_repository
 from jesse.services import transformers
 from jesse.modes.data_provider import download_live_log
-from jesse_live import live_mode
-from jesse_live.services.data_provider import get_logs as gl, get_orders as go
 from jesse.enums import live_session_statuses, live_session_modes
 
 router = APIRouter(prefix="/live", tags=["Live Trading"])
@@ -29,6 +31,7 @@ def live(request_json: LiveRequestJson) -> JSONResponse:
     """
     Start live trading
     """
+    from jesse_live import live_mode
 
     jh.validate_cwd()
 
@@ -86,12 +89,30 @@ def get_logs(json_request: GetLogsRequestJson) -> JSONResponse:
     """
     Get logs for a live trading session
     """
+    from jesse_live.services.data_provider import get_logs
 
-    arr = gl(json_request.id, json_request.type, json_request.start_time)
+    arr = get_logs(json_request.id, json_request.type, json_request.start_time)
 
     return JSONResponse({
         'id': json_request.id,
         'data': arr
+    }, status_code=200)
+
+
+@router.post('/strategy-charts', dependencies=[Depends(require_auth)])
+def get_strategy_charts(json_request: GetStrategyChartsRequestJson) -> JSONResponse:
+    """
+    Get the strategy-drawn chart data (indicator lines, extra charts,
+    horizontal lines) of a running live session, keyed by route key.
+    The live process keeps a snapshot in redis; this hydrates the dashboard
+    chart after a page (re)load.
+    """
+
+    from jesse.services.redis import get_live_charts_snapshot
+
+    return JSONResponse({
+        'id': json_request.id,
+        'data': get_live_charts_snapshot(json_request.id)
     }, status_code=200)
 
 
@@ -100,8 +121,9 @@ def get_orders(json_request: GetOrdersRequestJson) -> JSONResponse:
     """
     Get orders for a live trading session
     """
+    from jesse_live.services.data_provider import get_orders
 
-    arr = go(json_request.session_id)
+    arr = get_orders(json_request.session_id)
 
     return JSONResponse({
         'id': json_request.id,
@@ -137,13 +159,13 @@ def get_live_sessions(
 
 
 @router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-def get_live_session_by_id(session_id: str):
+def get_live_session_by_id(session_id: UUID):
     """
     Get a single live session by ID
     """
 
     # Get the session from the database
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -158,13 +180,43 @@ def get_live_session_by_id(session_id: str):
     })
 
 
+@router.post("/sessions/{session_id}/chart-data", dependencies=[Depends(require_auth)])
+def get_live_session_chart_data(
+    session_id: UUID,
+    request_json: GetLiveSessionChartDataRequestJson,
+):
+    session = live_session_repository.get_live_session_by_id(str(session_id))
+
+    if not session:
+        return JSONResponse({
+            'error': f'Session with ID {session_id} not found'
+        }, status_code=404)
+
+    try:
+        from jesse.services.live_chart_service import get_live_session_chart_data as build_chart_data
+
+        return JSONResponse({
+            'chart_data': build_chart_data(
+                session,
+                request_json.exchange,
+                request_json.symbol,
+                request_json.timeframe,
+                request_json.anchor_time,
+                request_json.candle_count,
+                request_json.full_history,
+            )
+        })
+    except ValueError as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
-def remove_live_session(session_id: str):
+def remove_live_session(session_id: UUID):
     """
     Remove a live session from the database
     """
 
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -172,7 +224,7 @@ def remove_live_session(session_id: str):
         }, status_code=404)
 
     # Delete the session from the database
-    result = live_session_repository.delete_live_session(session_id)
+    result = live_session_repository.delete_live_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -186,14 +238,14 @@ def remove_live_session(session_id: str):
 
 @router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
 def update_session_notes(
-    session_id: str,
+    session_id: UUID,
     request_json: UpdateLiveSessionNotesRequestJson,
 ):
     """
     Update the notes (title, description, strategy_codes) of a live session
     """
 
-    session = live_session_repository.get_live_session_by_id(session_id)
+    session = live_session_repository.get_live_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -201,7 +253,7 @@ def update_session_notes(
         }, status_code=404)
 
     live_session_repository.update_live_session_notes(
-        session_id,
+        str(session_id),
         request_json.title,
         request_json.description,
         request_json.strategy_codes
@@ -242,13 +294,13 @@ def purge_sessions(request_json: dict = Body(...)):
 
 
 @router.get("/download-log/{session_id}", dependencies=[Depends(require_auth_token)])
-def download_live_log_handler(session_id: str):
+def download_live_log_handler(session_id: UUID):
     """
     Download log file for a specific live session
     """
 
     try:
-        return download_live_log(session_id)
+        return download_live_log(str(session_id))
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 

@@ -1,0 +1,1 @@
+import{En as e,g as t,vn as n}from"./CoKk4mC0.js";import{c as r}from"./D2O-r9Lc.js";function i(n){return t(()=>!e(n)||!!r(n)?.closest(`form`))}function a(){let e=n();return{primitiveElement:e,currentElement:t(()=>[`#text`,`#comment`].includes(e.value?.$el.nodeName)?e.value?.$el.nextElementSibling:r(e))}}export{i as n,a as t};

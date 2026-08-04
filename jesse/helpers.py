@@ -1285,6 +1285,8 @@ def validate_cwd() -> None:
 
 
 def has_live_trade_plugin() -> bool:
+    if os.environ.get('JESSE_DISABLE_LIVE_PLUGIN', '').upper() == 'TRUE':
+        return False
     try:
         import jesse_live
     except ModuleNotFoundError:

@@ -93,7 +93,7 @@ class OptimizationSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s
@@ -158,7 +158,8 @@ if database.is_open():
 
 def get_optimization_session_by_id(id: str):
     try:
-        return OptimizationSession.get(OptimizationSession.id == id)
+        session = OptimizationSession.get(OptimizationSession.id == id)
+        return _reconcile_optimization_session_status(session)
     except OptimizationSession.DoesNotExist:
         return None
 
@@ -277,7 +278,10 @@ def get_optimization_sessions(limit: int = 50, offset: int = 0, title_search: st
         if threshold > 0:
             query = query.where(OptimizationSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [
+        _reconcile_optimization_session_status(session)
+        for session in query.limit(limit).offset(offset)
+    ]
 
 
 def delete_optimization_session(id: str) -> bool:
@@ -295,7 +299,7 @@ def update_optimization_session_state(id: str, state: dict, strategy_codes: dict
     Update or create (upsert) optimization session state. If session doesn't exist, creates as draft.
     """
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = OptimizationSession.select().where(OptimizationSession.id == id).first()
@@ -394,7 +398,21 @@ def get_running_optimization_session_id():
     try:
         session = OptimizationSession.select().where(OptimizationSession.status == 'running').order_by(OptimizationSession.updated_at.desc()).first()
         if session:
-            return str(session.id)
+            session = _reconcile_optimization_session_status(session)
+            return str(session.id) if session.status == 'running' else None
         return None
     except Exception as e:
         raise e
+
+
+def _reconcile_optimization_session_status(session: OptimizationSession):
+    if session.status != 'running' or jh.is_unit_testing():
+        return session
+
+    from jesse.services.redis import is_process_active
+
+    if not is_process_active(str(session.id)):
+        update_optimization_session_status(str(session.id), 'stopped')
+        session.status = 'stopped'
+
+    return session

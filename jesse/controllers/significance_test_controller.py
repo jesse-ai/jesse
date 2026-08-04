@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, FileResponse
 
@@ -147,9 +149,9 @@ def list_sessions(
 
 
 @router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-def get_session(session_id: str):
+def get_session(session_id: UUID):
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
@@ -159,8 +161,8 @@ def get_session(session_id: str):
 
 
 @router.get("/sessions/{session_id}/chart", dependencies=[Depends(require_auth_any)])
-def get_chart(session_id: str):
-    session = get_significance_test_session_by_id(session_id)
+def get_chart(session_id: UUID):
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
     if not session.chart_path:
@@ -174,13 +176,13 @@ def get_chart(session_id: str):
 
 
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
-def remove_session(session_id: str):
+def remove_session(session_id: UUID):
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
-    result = delete_significance_test_session(session_id)
+    result = delete_significance_test_session(str(session_id))
     if not result:
         return JSONResponse({'error': 'Failed to delete session'}, status_code=500)
 
@@ -189,16 +191,16 @@ def remove_session(session_id: str):
 
 @router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
 def update_notes(
-    session_id: str,
+    session_id: UUID,
     request_json: UpdateSignificanceTestSessionNotesRequestJson,
 ):
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
     update_significance_test_session_notes(
-        session_id,
+        str(session_id),
         title=request_json.title,
         description=request_json.description,
         strategy_codes=request_json.strategy_codes,
@@ -207,10 +209,10 @@ def update_notes(
 
 
 @router.post("/sessions/{session_id}/strategy-code", dependencies=[Depends(require_auth)])
-def get_strategy_code(session_id: str):
+def get_strategy_code(session_id: UUID):
 
     import json
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 

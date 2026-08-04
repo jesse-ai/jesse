@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends
 from typing import List
 from fastapi.responses import JSONResponse, FileResponse
@@ -8,7 +10,7 @@ from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
-from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
+from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, store_optimization_session, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
@@ -42,6 +44,9 @@ async def optimization(request_json: OptimizationRequestJson):
             'error': f'Optimization session with ID {session_id} already exists',
             'message': 'A session with this ID is already running or completed.'
         }, status_code=409)
+
+    store_optimization_session(id=session_id, status='running')
+    update_optimization_session_state(session_id, request_json.state)
 
     process_manager.add_task(
         run_optimization,
@@ -154,13 +159,13 @@ def get_optimization_sessions(request_json: GetOptimizationSessionsRequestJson =
 
 
 @router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-def get_optimization_session_by_id(session_id: str):
+def get_optimization_session_by_id(session_id: UUID):
     """
     Get a single optimization session by ID
     """
 
     # Get the session from the database
-    session = get_optimization_session_by_id_from_db(session_id)
+    session = get_optimization_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -245,12 +250,12 @@ async def resume_optimization(request_json: OptimizationRequestJson):
 
 
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
-def remove_optimization_session(session_id: str):
+def remove_optimization_session(session_id: UUID):
     """
     Remove an optimization session from the database
     """
 
-    session = get_optimization_session_by_id_from_db(session_id)
+    session = get_optimization_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -258,7 +263,7 @@ def remove_optimization_session(session_id: str):
         }, status_code=404)
 
     # Delete the session from the database
-    result = delete_optimization_session(session_id)
+    result = delete_optimization_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -271,19 +276,19 @@ def remove_optimization_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
-def update_session_notes(session_id: str, request_json: UpdateOptimizationSessionNotesRequestJson):
+def update_session_notes(session_id: UUID, request_json: UpdateOptimizationSessionNotesRequestJson):
     """
     Update the notes (title, description, strategy_codes) of an optimization session
     """
 
-    session = get_optimization_session_by_id_from_db(session_id)
+    session = get_optimization_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    update_optimization_session_notes(session_id, request_json.title, request_json.description, request_json.strategy_codes)
+    update_optimization_session_notes(str(session_id), request_json.title, request_json.description, request_json.strategy_codes)
 
     return JSONResponse({
         'message': 'Optimization session notes updated successfully'
@@ -291,12 +296,12 @@ def update_session_notes(session_id: str, request_json: UpdateOptimizationSessio
 
 
 @router.post("/sessions/{session_id}/get-notes", dependencies=[Depends(require_auth)])
-def get_session_notes(session_id: str):
+def get_session_notes(session_id: UUID):
     """
     Get the notes of an optimization session
     """
     
-    session = get_optimization_session_by_id_from_db(session_id)
+    session = get_optimization_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -310,12 +315,12 @@ def get_session_notes(session_id: str):
     
 
 @router.post("/sessions/{session_id}/strategy-codes", dependencies=[Depends(require_auth)])
-def get_session_strategy_codes(session_id: str):
+def get_session_strategy_codes(session_id: UUID):
     """
     Get the strategy codes of an optimization session
     """
     
-    session = get_optimization_session_by_id_from_db(session_id)
+    session = get_optimization_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -327,14 +332,14 @@ def get_session_strategy_codes(session_id: str):
     })
 
 @router.post("/sessions/{session_id}/logs", dependencies=[Depends(require_auth)])
-def get_session_logs(session_id: str):
+def get_session_logs(session_id: UUID):
     """
     Get the logs for an optimization session
     """
 
     from jesse.modes import data_provider
 
-    content = data_provider.get_optimization_logs(session_id)
+    content = data_provider.get_optimization_logs(str(session_id))
 
     if content is None:
         return JSONResponse({

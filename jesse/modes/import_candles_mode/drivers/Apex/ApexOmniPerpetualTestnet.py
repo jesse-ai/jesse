@@ -1,8 +1,8 @@
-from .ApexProMain import ApexProMain
+from .ApexOmniPerpetualMain import ApexOmniPerpetualMain
 from jesse.enums import exchanges
 
 
-class ApexOmniPerpetualTestnet(ApexProMain):
+class ApexOmniPerpetualTestnet(ApexOmniPerpetualMain):
     def __init__(self) -> None:
         super().__init__(
             name=exchanges.APEX_OMNI_PERPETUAL_TESTNET,

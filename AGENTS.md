@@ -70,6 +70,14 @@ Run the test suite after changes if asked.
 cd-jesse && pytest
 ```
 
+Dashboard Playwright tests start Jesse from a disposable project through
+`dashboard-v1/tests/e2e/backend.mjs`. That process selects a dedicated env file
+with `JESSE_ENV_FILE`, enables `IS_TEST_ENV=TRUE`, and uses a non-public
+`POSTGRES_SCHEMA` containing `e2e`, `test`, or `testing`. Test-only reset/seed
+routes are registered only in that mode and still require normal dashboard
+authentication. Never enable `RESET_TEST_DATABASE` against `public` or a normal
+development schema; the runtime guard intentionally rejects it.
+
 If you've updated jesse-rust, run tests after building:
 ```bash
 cd /Users/salehmir/Codes/jesse/dev-jesse/jesse-rust

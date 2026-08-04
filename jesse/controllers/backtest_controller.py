@@ -1,9 +1,11 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse, FileResponse
 import json
 from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson
+from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
 import jesse.helpers as jh
 from jesse.models.BacktestSession import (
     get_backtest_sessions as get_sessions,
@@ -44,7 +46,6 @@ def backtest(request_json: BacktestRequestJson):
         request_json.finish_date,
         None,
         request_json.export_chart,
-        request_json.export_tradingview,
         request_json.export_csv,
         request_json.export_json,
         request_json.fast_mode,
@@ -60,7 +61,7 @@ BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'under
 
 @router.get("/sessions/{session_id}/charts-image", dependencies=[Depends(require_auth_any)])
 def get_charts_image(
-    session_id: str,
+    session_id: UUID,
     chart: str,
 ):
     """
@@ -95,13 +96,13 @@ def cancel_backtest(request_json: CancelRequestJson):
 
 
 @router.get("/logs/{session_id}", dependencies=[Depends(require_auth_token)])
-def get_logs(session_id: str):
+def get_logs(session_id: UUID):
     """
     Get logs as text for a specific session. Similar to download but returns text content instead of file.
     """
 
     try:
-        content = get_backtest_logs(session_id)
+        content = get_backtest_logs(str(session_id))
 
         if content is None:
             return JSONResponse({'error': 'Log file not found'}, status_code=404)
@@ -112,13 +113,13 @@ def get_logs(session_id: str):
 
 
 @router.get("/download-log/{session_id}", dependencies=[Depends(require_auth_token)])
-def download_backtest_log_handler(session_id: str):
+def download_backtest_log_handler(session_id: UUID):
     """
     Download log file for a specific backtest session
     """
 
     try:
-        return download_backtest_log(session_id)
+        return download_backtest_log(str(session_id))
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 
@@ -148,13 +149,13 @@ def get_backtest_sessions(request_json: GetBacktestSessionsRequestJson = Body(de
 
 
 @router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-def get_backtest_session_by_id(session_id: str):
+def get_backtest_session_by_id(session_id: UUID):
     """
     Get a single backtest session by ID
     """
 
     # Get the session from the database
-    session = get_backtest_session_by_id_from_db(session_id)
+    session = get_backtest_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -184,12 +185,12 @@ def update_session_state(request_json: UpdateBacktestSessionStateRequestJson):
 
 
 @router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
-def remove_backtest_session(session_id: str):
+def remove_backtest_session(session_id: UUID):
     """
     Remove a backtest session from the database
     """
 
-    session = get_backtest_session_by_id_from_db(session_id)
+    session = get_backtest_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -197,7 +198,7 @@ def remove_backtest_session(session_id: str):
         }, status_code=404)
 
     # Delete the session from the database
-    result = delete_backtest_session(session_id)
+    result = delete_backtest_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -210,19 +211,19 @@ def remove_backtest_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
-def update_session_notes(session_id: str, request_json: UpdateBacktestSessionNotesRequestJson):
+def update_session_notes(session_id: UUID, request_json: UpdateBacktestSessionNotesRequestJson):
     """
     Update the notes (title, description, strategy_codes) of a backtest session
     """
 
-    session = get_backtest_session_by_id_from_db(session_id)
+    session = get_backtest_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    update_backtest_session_notes(session_id, request_json.title, request_json.description, request_json.strategy_codes)
+    update_backtest_session_notes(str(session_id), request_json.title, request_json.description, request_json.strategy_codes)
 
     return JSONResponse({
         'message': 'Backtest session notes updated successfully'
@@ -246,19 +247,63 @@ def purge_sessions(request_json: dict = Body(...)):
 
 
 @router.post("/sessions/{session_id}/chart-data", dependencies=[Depends(require_auth)])
-def get_backtest_session_chart_data(session_id: str):
+def get_backtest_session_chart_data(session_id: UUID, request_json: GetBacktestSessionChartDataRequestJson):
     """
     Get chart data for a specific backtest session
     """
 
-    session = get_backtest_session_by_id_from_db(session_id)
+    session = get_backtest_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    chart_data = jh.clean_nan_values(jh.clean_infinite_values(json.loads(session.chart_data))) if session.chart_data else None
+    stored_chart_data = (
+        jh.clean_nan_values(jh.clean_infinite_values(json.loads(session.chart_data)))
+        if session.chart_data else None
+    )
+    chart_data = None
+
+    if stored_chart_data:
+        def route_item(items: list) -> dict:
+            return next((
+                item for item in items
+                if item.get('exchange') == request_json.exchange
+                and item.get('symbol') == request_json.symbol
+                and item.get('timeframe') == request_json.timeframe
+            ), {})
+
+        candles = route_item(stored_chart_data.get('candles_chart', [])).get('candles', [])
+        if candles:
+            orders = route_item(stored_chart_data.get('orders_chart', [])).get('orders', [])
+            lines = route_item(stored_chart_data.get('add_line_to_candle_chart', [])).get('lines', {})
+            extra_charts = route_item(stored_chart_data.get('add_extra_line_chart', [])).get('charts', {})
+            horizontal_lines = route_item(
+                stored_chart_data.get('add_horizontal_line_to_candle_chart', [])
+            ).get('lines', {})
+            horizontal_extra_lines = route_item(
+                stored_chart_data.get('add_horizontal_line_to_extra_chart', [])
+            ).get('lines', {})
+
+            chart_data = {
+                'route': {
+                    'exchange': request_json.exchange,
+                    'symbol': request_json.symbol,
+                    'timeframe': request_json.timeframe,
+                },
+                'candles': sorted(candles, key=lambda candle: int(candle['time'])),
+                'orders': sorted(
+                    orders,
+                    key=lambda order: (int(order['time']), order.get('order_id', '')),
+                ),
+                'strategy_charts': {
+                    'lines': lines,
+                    'horizontal_lines': horizontal_lines,
+                    'extra_charts': extra_charts,
+                    'horizontal_extra_lines': horizontal_extra_lines,
+                },
+            }
 
     return JSONResponse({
         'chart_data': chart_data
@@ -266,12 +311,12 @@ def get_backtest_session_chart_data(session_id: str):
 
 
 @router.post("/sessions/{session_id}/strategy-code", dependencies=[Depends(require_auth)])
-def get_backtest_session_strategy_codes(session_id: str):
+def get_backtest_session_strategy_codes(session_id: UUID):
     """
     Get strategy codes for a specific backtest session
     """
 
-    session = get_backtest_session_by_id_from_db(session_id)
+    session = get_backtest_session_by_id_from_db(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -281,4 +326,3 @@ def get_backtest_session_strategy_codes(session_id: str):
     return JSONResponse({
         'strategy_code': json.loads(session.strategy_codes) if session.strategy_codes else {}
     })
-

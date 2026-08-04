@@ -49,7 +49,6 @@ def register_backtest_tools(mcp):
         export_csv: bool = False,
         export_json: bool = False,
         export_chart: bool = True,
-        export_tradingview: bool = False,
         fast_mode: bool = True,
         benchmark: bool = True,
         title: str = None,
@@ -90,7 +89,6 @@ def register_backtest_tools(mcp):
             export_csv (bool): Export backtest results as CSV file
             export_json (bool): Export backtest results as JSON file
             export_chart (bool): Export chart data for visualization
-            export_tradingview (bool): Export TradingView Pine Script for chart analysis
             fast_mode (bool): Enable fast mode for quicker execution (reduced precision).
                 Defaults to True. The agent may set it False for a full-precision run.
             benchmark (bool): Run benchmark comparison against buy-and-hold strategy
@@ -132,7 +130,6 @@ def register_backtest_tools(mcp):
             export_csv=export_csv,
             export_json=export_json,
             export_chart=export_chart,
-            export_tradingview=export_tradingview,
             fast_mode=fast_mode,
             benchmark=benchmark,
             title=title,

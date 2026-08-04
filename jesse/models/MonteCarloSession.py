@@ -60,7 +60,7 @@ class MonteCarloSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s
@@ -208,7 +208,8 @@ if database.is_open():
 # Parent Session Functions
 def get_monte_carlo_session_by_id(id: str):
     try:
-        return MonteCarloSession.get(MonteCarloSession.id == id)
+        session = MonteCarloSession.get(MonteCarloSession.id == id)
+        return _reconcile_monte_carlo_session_status(session)
     except MonteCarloSession.DoesNotExist:
         return None
 
@@ -244,12 +245,15 @@ def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str
         if threshold > 0:
             query = query.where(MonteCarloSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [
+        _reconcile_monte_carlo_session_status(session)
+        for session in query.limit(limit).offset(offset)
+    ]
 
 
 def store_monte_carlo_session(id: str, status: str, state: dict = None, strategy_codes: dict = None) -> None:
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     d = {
@@ -279,7 +283,7 @@ def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict 
     Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
     """
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = MonteCarloSession.select().where(MonteCarloSession.id == id).first()
@@ -388,10 +392,24 @@ def get_running_monte_carlo_session_id():
     try:
         session = MonteCarloSession.select().where(MonteCarloSession.status == 'running').order_by(MonteCarloSession.updated_at.desc()).first()
         if session:
-            return str(session.id)
+            session = _reconcile_monte_carlo_session_status(session)
+            return str(session.id) if session.status == 'running' else None
         return None
     except Exception as e:
         raise e
+
+
+def _reconcile_monte_carlo_session_status(session: MonteCarloSession):
+    if session.status != 'running' or jh.is_unit_testing():
+        return session
+
+    from jesse.services.redis import is_process_active
+
+    if not is_process_active(str(session.id)):
+        update_monte_carlo_session_status(str(session.id), 'stopped')
+        session.status = 'stopped'
+
+    return session
 
 # Trades Session Functions
 def get_trades_session_by_parent_id(parent_id: str):
@@ -536,5 +554,4 @@ def append_monte_carlo_session_logs(session_id: str, log_message: str) -> None:
         jh.dump(f'exception: {e}')
         raise
         pass
-
 

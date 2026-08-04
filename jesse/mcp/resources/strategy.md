@@ -3,7 +3,7 @@
 Strategies inherit from `Strategy` and define entry and exit logic. This is the central reference for the strategy class: lifecycle, order placement, the `self.*` API, position sizing, exits, multi-timeframe, futures-vs-spot, and optimization prep.
 
 > Complete, runnable example strategies (trend-following, mean-reversion, pairs-trading, etc.) live in **jesse://strategy_examples**. Keep snippets here short; consult that resource for full classes.
-> Indicator discovery and per-indicator signatures: **jesse://indicator**. Utility-function signatures: **jesse://utilities**. Sizing/risk reference: **jesse://position_risk**.
+> Indicator discovery and per-indicator signatures: **jesse://indicator**. Utility-function signatures: **jesse://utilities**. Sizing/risk reference: **jesse://position_risk**. Interactive strategy charts: **jesse://charts**.
 
 ## Creating Strategies
 
@@ -58,7 +58,8 @@ result = create_strategy("MyStrategy", strategy_code)
 ## Optional Methods
 
 - **before()**: Runs before the strategy logic each candle.
-- **after()**: Runs after the strategy logic each candle (typical place for chart annotations — see below).
+- **after()**: Runs after the strategy logic each candle.
+- **update_chart()**: Calculates chart-only values. Runs once per completed candle in backtests and approximately once per second on the forming candle in live/paper sessions. See **jesse://charts**.
 
 ## Strategy Execution Model (every candle)
 
@@ -82,6 +83,9 @@ else:
         # the framework then submits the entry orders you defined
 
 after()
+
+# backtests call update_chart() here; live/paper sessions call it separately
+# approximately once per second using the forming candle
 ```
 
 Important notes about the flow:
@@ -98,6 +102,7 @@ Override any of these to run custom logic at specific points. They all default t
 |---|---|
 | `before()` | Start of every candle, before entry/exit logic. |
 | `after()` | End of every candle, after entry/exit logic. |
+| `update_chart()` | After each completed candle in backtests; approximately once per second on the forming candle in live/paper. Visualization only. |
 | `update_position()` | Every candle **while a position is open**. Reassign `self.stop_loss` / `self.take_profit` or call `self.liquidate()` here. |
 | `should_cancel_entry() -> bool` | Each candle while entry orders are pending and no position is open. Return `True` (default) to cancel unfilled entries. |
 | `on_open_position(order)` | After a position is opened. |
@@ -283,7 +288,7 @@ The `Position` object exposes: `entry_price`, `qty`, `opened_at`, `value`, `type
 | `hyperparameters()` | Return the list of optimizable parameters (see Optimization). |
 | `dna()` | Return a DNA string to apply optimized hyperparameters. |
 | `filters()` | Return a list of filter **methods** (not called) that must all pass before entry. *Optional — prefer plain `if` conditions in `should_long`/`should_short`; only define when asked.* |
-| `add_line_to_candle_chart(...)` etc. | Chart annotations (see below). |
+| `add_line_to_candle_chart(...)` etc. | Interactive chart series and levels. Use them from `update_chart()`; see `jesse://charts`. |
 
 ### Debug logging with `self.log()`
 
@@ -360,10 +365,12 @@ Lookahead bias is handled internally even across timeframes: the closing price o
 
 ## Charting Helpers
 
-These are real `Strategy` methods for annotating the interactive backtest charts. Call them in `before()` or (typically) `after()` so they update each candle:
+These `Strategy` methods add lines and levels to interactive backtest, paper,
+and live charts. Put them in `update_chart()` so live/paper values update on the
+forming candle:
 
 ```python
-def after(self) -> None:
+def update_chart(self) -> None:
     # line on the main candlestick chart (price scale)
     self.add_line_to_candle_chart('EMA20', ta.ema(self.candles, 20))
     # horizontal lines on the main chart (support/resistance)
@@ -378,6 +385,10 @@ Signatures:
 - `add_horizontal_line_to_candle_chart(title, value, color=None, line_width=1.5, line_style='solid')`
 - `add_extra_line_chart(chart_name, title, value, color=None)`
 - `add_horizontal_line_to_extra_chart(chart_name, title, value, color=None, line_width=1.5, line_style='solid')`
+
+Keep `update_chart()` visualization-only: do not place orders or mutate strategy
+state there. For live retention, intrabar replacement, warm-up behavior, line
+styles, grouping, and dashboard controls, read **jesse://charts**.
 
 ## Futures vs Spot
 

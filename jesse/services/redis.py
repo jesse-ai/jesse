@@ -70,6 +70,40 @@ async def async_publish(event: str, msg, compression: bool = False):
     )
 
 
+def live_charts_key(session_id: str) -> str:
+    """
+    Redis key under which a live-trading process stores the full snapshot of
+    its strategy-drawn chart data (lines, extra charts, horizontal lines).
+    Written by jesse-live's dashboard service; read by the API process to
+    hydrate the dashboard chart after a page (re)load.
+    """
+    return f"{ENV_VALUES['APP_PORT']}|live-charts:{session_id}"
+
+
+def store_live_charts_snapshot(session_id: str, charts: dict) -> bool:
+    try:
+        sync_redis.set(
+            live_charts_key(session_id),
+            json.dumps(charts, ignore_nan=True, cls=NpEncoder),
+            ex=60 * 60 * 24 * 7
+        )
+        return True
+    except Exception as e:
+        jh.terminal_debug(f'Error storing live charts snapshot in Redis: {e}')
+        return False
+
+
+def get_live_charts_snapshot(session_id: str) -> dict:
+    try:
+        raw = sync_redis.get(live_charts_key(session_id))
+        if raw is None:
+            return {}
+        return json.loads(raw)
+    except Exception as e:
+        jh.terminal_debug(f'Error loading live charts snapshot from Redis: {e}')
+        return {}
+
+
 def is_process_active(client_id: str) -> bool:
     if jh.is_unit_testing():
         return False

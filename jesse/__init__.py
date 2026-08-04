@@ -7,6 +7,10 @@ from jesse.services.web import fastapi_app
 import jesse.helpers as jh
 from jesse.services.auth import InvalidAuthError, unauthorized_response
 
+from jesse.services.test_database import reset_test_database_if_requested
+
+reset_test_database_if_requested()
+
 # import cli to register the routes. Do NOT remove this import.
 from jesse.cli import cli
 
@@ -63,7 +67,10 @@ from jesse.controllers.lsp_controller import router as lsp_router
 from jesse.controllers.closed_trade_controller import router as closed_trade_router
 from jesse.controllers.order_controller import router as order_router
 from jesse.controllers.tabs_controller import router as tabs_router
+from jesse.controllers.period_templates_controller import router as period_templates_router
+from jesse.controllers.route_templates_controller import router as route_templates_router
 from jesse.controllers.ai_model_controller import router as ai_model_router
+from jesse.services.env import is_test_env
 
 # register routers
 fastapi_app.include_router(websocket_router)
@@ -83,7 +90,13 @@ fastapi_app.include_router(lsp_router)
 fastapi_app.include_router(closed_trade_router)
 fastapi_app.include_router(order_router)
 fastapi_app.include_router(tabs_router)
+fastapi_app.include_router(period_templates_router)
+fastapi_app.include_router(route_templates_router)
 fastapi_app.include_router(ai_model_router)
+
+if is_test_env():
+    from jesse.controllers.testing_controller import router as testing_router
+    fastapi_app.include_router(testing_router)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Trade Plugin

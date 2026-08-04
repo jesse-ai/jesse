@@ -23,6 +23,9 @@ from jesse.services import notifier
 from jesse.services.color import generate_unique_hex_color
 from jesse.research.ml import load_ml_model as _load_ml_model
 
+# rolling cap for chart-line arrays during live sessions (see _trim_chart_line_data)
+LIVE_CHART_MAX_POINTS_PER_LINE = 1_000
+
 
 def _np_array_equal(a1, a2) -> bool:
     # semantically identical to np.array_equal, minus its dispatch overhead for
@@ -89,6 +92,7 @@ class Strategy(ABC):
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
+        self._invalid_chart_values_logged: set[str] = set()
 
         # Variables used for ML calculations
         self.ml_mode = getattr(type(self), 'ml_mode', 'gather')
@@ -99,6 +103,7 @@ class Strategy(ABC):
         self._ml_feature_importance = None
 
         self._is_executing = False
+        self._is_updating_chart = False
         self._is_initiated = False
         self._is_handling_updated_order = False
 
@@ -349,26 +354,57 @@ class Strategy(ABC):
         probs = self._ml_model.predict_proba(self._ml_scaler.transform(X))[0]
         return {int(cls): float(p) for cls, p in zip(self._ml_model.classes_, probs)}
 
-    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
-        # validate value's type
+    def _validate_chart_value(self, label: str, value: float) -> None:
         if not isinstance(value, (int, float)):
             raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if np.isfinite(value):
+            self._invalid_chart_values_logged.discard(label)
+            return
+
+        if label in self._invalid_chart_values_logged:
+            return
+
+        strategy_name = self.name or type(self).__name__
+        logger.error(
+            f'Invalid chart value in strategy "{strategy_name}" for {label}: {value}. '
+            'Chart values must be finite numbers. The dashboard will skip this value.',
+            send_notification=False,
+        )
+        self._invalid_chart_values_logged.add(label)
+
+    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
+        self._validate_chart_value(f'candle chart line "{title}"', value)
 
         if title not in self._add_line_to_candle_chart_values:
             self._add_line_to_candle_chart_values[title] = {
                 'data': [],
                 'color': color if color is not None else generate_unique_hex_color(),
             }
-        self._add_line_to_candle_chart_values[title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
-        })
+        }
+        self._store_chart_line_point(self._add_line_to_candle_chart_values[title]['data'], point)
+
+    def _store_chart_line_point(self, data: list, point: dict) -> None:
+        if self.is_live and data and data[-1]['time'] == point['time']:
+            data[-1] = point
+        else:
+            data.append(point)
+        self._trim_chart_line_data(data)
+
+    def _trim_chart_line_data(self, data: list) -> None:
+        """
+        Live sessions never end, so chart-line arrays must not grow unbounded.
+        Backtests are finite and keep their full history.
+        """
+        if self.is_live and len(data) > LIVE_CHART_MAX_POINTS_PER_LINE:
+            del data[:len(data) - LIVE_CHART_MAX_POINTS_PER_LINE]
 
     def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'candle chart horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -394,9 +430,7 @@ class Strategy(ABC):
             }
 
     def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -417,9 +451,7 @@ class Strategy(ABC):
         }
 
     def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" line "{title}"', value)
 
         if chart_name not in self._add_extra_line_chart_values:
             self._add_extra_line_chart_values[chart_name] = {}
@@ -430,11 +462,12 @@ class Strategy(ABC):
                 'color': color if color is not None else generate_unique_hex_color(),
             }
 
-        self._add_extra_line_chart_values[chart_name][title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
-        })
+        }
+        self._store_chart_line_point(self._add_extra_line_chart_values[chart_name][title]['data'], point)
 
     def _init_objects(self) -> None:
         """
@@ -858,6 +891,20 @@ class Strategy(ABC):
         Get's executed AFTER executing the strategy's logic
         """
         pass
+
+    def update_chart(self) -> None:
+        pass
+
+    def _update_chart(self) -> None:
+        if self._is_executing or self._is_updating_chart:
+            return
+
+        self._is_updating_chart = True
+        try:
+            self.update_chart()
+        finally:
+            self._clear_cached_methods()
+            self._is_updating_chart = False
 
     def _update_position(self) -> None:
         self._wait_until_executing_orders_are_fully_handled()
@@ -1285,6 +1332,8 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        if not self.is_live:
+            self.update_chart()
         self._clear_cached_methods()
 
         # Clear the cached price
@@ -1320,6 +1369,7 @@ class Strategy(ABC):
             should_long = self.should_long()
             should_short = self.should_short()
             self.after()
+            self.update_chart()
         finally:
             self._clear_cached_methods()
             self._cached_price = None

@@ -12,8 +12,11 @@ from .NotificationApiKeys import NotificationApiKeys
 from .ExchangeApiKeys import ExchangeApiKeys
 from .BacktestSession import BacktestSession
 from .OpenTab import OpenTab
+from .PeriodTemplate import PeriodTemplate
+from .RouteTemplate import RouteTemplate
 from .LiveEquitySnapshot import LiveEquitySnapshot
 from .SignificanceTestSession import SignificanceTestSession
 from .OptimizationSession import OptimizationSession
 from .LiveSession import LiveSession
+from .LiveChart import LiveChartPoint, LiveChartSeries
 from .MonteCarloSession import MonteCarloSession

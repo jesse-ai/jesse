@@ -873,6 +873,216 @@ def test_chart_values():
         single_route_backtest('TestAddLineToExtraChart')
 
 
+def test_invalid_chart_values_are_logged_once_until_recovery(monkeypatch):
+    import jesse.services.logger as logger
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    errors = []
+
+    def capture_error(message, send_notification=True):
+        errors.append((message, send_notification))
+
+    monkeypatch.setattr(logger, 'error', capture_error)
+
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+
+    assert len(errors) == 1
+    assert errors[0] == (
+        'Invalid chart value in strategy "TestStrategyChartsReport" for candle chart line "warming-up": nan. '
+        'Chart values must be finite numbers. The dashboard will skip this value.',
+        False,
+    )
+    assert math.isnan(strategy._add_line_to_candle_chart_values['warming-up']['data'][-1]['value'])
+
+    strategy.add_line_to_candle_chart('warming-up', 1.0, 'yellow')
+    strategy.add_line_to_candle_chart('warming-up', math.nan, 'yellow')
+
+    assert len(errors) == 2
+
+
+def test_every_chart_method_logs_non_finite_values(monkeypatch):
+    import jesse.services.logger as logger
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    errors = []
+    monkeypatch.setattr(
+        logger,
+        'error',
+        lambda message, send_notification=True: errors.append((message, send_notification)),
+    )
+
+    strategy.add_line_to_candle_chart('ema', math.nan)
+    strategy.add_horizontal_line_to_candle_chart('support', math.inf)
+    strategy.add_extra_line_chart('ADX', 'adx14', -math.inf)
+    strategy.add_horizontal_line_to_extra_chart('ADX', 'threshold', math.nan)
+
+    assert len(errors) == 4
+    assert all(send_notification is False for _, send_notification in errors)
+    messages = [message for message, _ in errors]
+    assert any('candle chart line "ema": nan' in message for message in messages)
+    assert any('candle chart horizontal line "support": inf' in message for message in messages)
+    assert any('extra chart "ADX" line "adx14": -inf' in message for message in messages)
+    assert any('extra chart "ADX" horizontal line "threshold": nan' in message for message in messages)
+
+
+def test_strategy_charts_report():
+    # the live dashboard serves the strategy-drawn chart data through
+    # report.strategy_charts() (full snapshot) and strategy_charts_updates()
+    # (last point per line, published on every dashboard tick)
+    single_route_backtest('TestStrategyChartsReport')
+
+    from jesse.services import report
+
+    key = jh.key(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_1)
+
+    snapshot = report.strategy_charts()
+    assert set(snapshot.keys()) == {key}
+    charts = snapshot[key]
+    assert charts['lines']['ema']['color'] == 'blue'
+    assert len(charts['lines']['ema']['data']) > 1
+    assert charts['horizontal_lines']['level']['price'] == 10.0
+    assert charts['extra_charts']['RSI']['rsi']['data'][-1]['value'] == 50.0
+    assert charts['horizontal_extra_lines']['RSI']['oversold']['price'] == 30.0
+
+    updates = report.strategy_charts_updates()
+    last_point = charts['lines']['ema']['data'][-1]
+    assert updates[key]['lines']['ema'] == last_point
+    assert updates[key]['extra_charts']['RSI']['rsi'] == charts['extra_charts']['RSI']['rsi']['data'][-1]
+    assert updates[key]['horizontal_lines'] == charts['horizontal_lines']
+    assert updates[key]['horizontal_extra_lines'] == charts['horizontal_extra_lines']
+
+
+def test_live_chart_line_data_is_capped(monkeypatch):
+    # live sessions never end, so chart-line arrays must not grow unbounded;
+    # backtests keep their full history
+    from jesse.strategies.Strategy import LIVE_CHART_MAX_POINTS_PER_LINE
+
+    assert LIVE_CHART_MAX_POINTS_PER_LINE == 1_000
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+
+    data = [{'time': i, 'value': i} for i in range(LIVE_CHART_MAX_POINTS_PER_LINE + 5)]
+
+    # backtesting: untouched
+    strategy._trim_chart_line_data(data)
+    assert len(data) == LIVE_CHART_MAX_POINTS_PER_LINE + 5
+
+    # live: capped, dropping the oldest points
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+    strategy._trim_chart_line_data(data)
+    assert len(data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert data[0]['time'] == 5
+    assert data[-1]['time'] == LIVE_CHART_MAX_POINTS_PER_LINE + 4
+
+
+def test_live_chart_add_methods_keep_the_latest_points(monkeypatch):
+    from jesse.strategies.Strategy import LIVE_CHART_MAX_POINTS_PER_LINE
+
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+
+    candle_data = [
+        {'time': i, 'value': float(i), 'color': 'blue'}
+        for i in range(LIVE_CHART_MAX_POINTS_PER_LINE)
+    ]
+    strategy._add_line_to_candle_chart_values['capped'] = {
+        'data': candle_data,
+        'color': 'blue',
+    }
+    strategy.add_line_to_candle_chart('capped', 123.0, 'blue')
+
+    assert len(candle_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert candle_data[0]['time'] == 1
+    assert candle_data[-1]['value'] == 123.0
+
+    strategy.add_line_to_candle_chart('capped', 456.0, 'purple')
+    assert len(candle_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert candle_data[-1]['value'] == 456.0
+    assert candle_data[-1]['color'] == 'purple'
+
+    extra_data = [
+        {'time': i, 'value': float(i), 'color': 'orange'}
+        for i in range(LIVE_CHART_MAX_POINTS_PER_LINE)
+    ]
+    strategy._add_extra_line_chart_values['ADX'] = {
+        'capped': {'data': extra_data, 'color': 'orange'}
+    }
+    strategy.add_extra_line_chart('ADX', 'capped', 45.0, 'orange')
+
+    assert len(extra_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert extra_data[0]['time'] == 1
+    assert extra_data[-1]['value'] == 45.0
+
+    strategy.add_extra_line_chart('ADX', 'capped', 50.0, 'blue')
+    assert len(extra_data) == LIVE_CHART_MAX_POINTS_PER_LINE
+    assert extra_data[-1]['value'] == 50.0
+    assert extra_data[-1]['color'] == 'blue'
+
+
+def test_intrabar_chart_update_is_guarded_and_recovers_after_errors(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    calls = []
+
+    def update_chart():
+        calls.append('updated')
+        strategy._update_chart()
+
+    monkeypatch.setattr(strategy, 'update_chart', update_chart)
+    strategy._update_chart()
+
+    assert calls == ['updated']
+    assert strategy._is_updating_chart is False
+
+    def fail():
+        raise ValueError('invalid chart value')
+
+    monkeypatch.setattr(strategy, 'update_chart', fail)
+    with pytest.raises(ValueError, match='invalid chart value'):
+        strategy._update_chart()
+
+    assert strategy._is_updating_chart is False
+
+
+def test_intrabar_chart_update_replaces_the_forming_candle_value(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+
+    strategy._update_chart()
+    line_data = strategy._add_line_to_candle_chart_values['ema']['data']
+    original_length = len(line_data)
+    original_time = line_data[-1]['time']
+    original_value = line_data[-1]['value']
+
+    candles = store.candles.get_storage(strategy.exchange, strategy.symbol, strategy.timeframe)
+    candles.array[candles.index, 2] = original_value + 10
+    strategy._update_chart()
+
+    assert len(line_data) == original_length
+    assert line_data[-1]['time'] == original_time
+    assert line_data[-1]['value'] == original_value + 10
+
+
+def test_live_execution_leaves_chart_updates_to_the_intrabar_scheduler(monkeypatch):
+    single_route_backtest('TestStrategyChartsReport')
+    strategy = router.routes[0].strategy
+    calls = []
+    monkeypatch.setattr(jh, 'is_live', lambda: True)
+    monkeypatch.setattr(strategy, 'update_chart', lambda: calls.append('updated'))
+
+    strategy._execute()
+    assert calls == []
+
+    strategy._update_chart()
+    assert calls == ['updated']
+
+
 def test_without_cancel_method():
     single_route_backtest('TestWithoutCancelMethod')
 
