@@ -146,10 +146,9 @@ def register_config_tools(mcp):
         """
         Update the Jesse configuration in the database with new settings.
 
-        Saves a complete configuration object to the Jesse database, replacing
-        existing configuration. This controls how backtests, live trading,
-        and optimization behave. Changes are applied immediately and persist
-        until explicitly modified.
+        Recursively merges configuration changes into the Jesse database. This
+        controls how backtests, live trading, and optimization behave. Changes
+        are applied immediately and persist until explicitly modified.
 
         Use get_config() first to retrieve current configuration, modify it,
         then save with this function. Only modified sections need to be included.
@@ -203,7 +202,7 @@ def register_config_tools(mcp):
             AuthenticationError: If Jesse password is incorrect
 
         Behavior:
-            - Completely replaces existing configuration in database
+            - Recursively merges provided keys into the existing configuration
             - Changes are applied immediately to all Jesse operations
             - Configuration persists across application restarts
             - Invalid configurations may cause runtime errors in backtests/live trading

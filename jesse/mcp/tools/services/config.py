@@ -12,6 +12,24 @@ code organization and reusability.
 from .auth import hash_password
 import jesse.mcp.mcp_config as mcp_config
 
+
+def _config_update_payload(config: object) -> dict:
+    """Return the settings object expected by the dashboard update endpoint."""
+    if not isinstance(config, dict):
+        raise ValueError('Configuration must be a JSON object')
+
+    # get_config() intentionally exposes the API response envelope as
+    # {"data": settings}. /config/update expects only the inner settings object.
+    # Accepting both shapes keeps partial updates convenient and makes a documented
+    # get -> modify -> update round trip persist the intended keys.
+    if set(config) == {'data'}:
+        if not isinstance(config['data'], dict):
+            raise ValueError('Configuration data must be a JSON object')
+        return config['data']
+
+    return config
+
+
 def get_config_service() -> dict:
     """
     Get the current Jesse configuration from the database.
@@ -97,7 +115,7 @@ def update_config_service(config: str) -> dict:
 
     try:
         # Parse the config JSON
-        new_config = json.loads(config)
+        new_config = _config_update_payload(json.loads(config))
 
         # Call the config update endpoint (same as dashboard)
         response = requests.post(
@@ -129,6 +147,13 @@ def update_config_service(config: str) -> dict:
             'error': 'Invalid JSON format',
             'details': str(e),
             'message': 'Failed to parse configuration JSON'
+        }
+    except ValueError as e:
+        return {
+            'status': 'error',
+            'error': 'Invalid configuration format',
+            'details': str(e),
+            'message': 'Configuration must be a JSON object'
         }
     except requests.exceptions.RequestException as e:
         return {
