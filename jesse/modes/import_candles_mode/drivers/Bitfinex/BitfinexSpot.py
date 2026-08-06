@@ -26,7 +26,7 @@ class BitfinexSpot(CandleExchange):
     def _make_request(self, url: str, params: dict = None) -> requests.Response:
         for attempt in range(self.max_retries):
             try:
-                response = requests.get(url, params=params)
+                response = requests.get(url, params=params, timeout=30)
                 return response
             except (ConnectionError, RequestException) as e:
                 if attempt == self.max_retries - 1:  # Last attempt
