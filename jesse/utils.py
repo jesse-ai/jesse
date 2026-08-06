@@ -331,7 +331,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
 
     :param timeframe: str - The timeframe to convert. Supported timeframes include:
         - '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '3h', '4h', '6h', '8h', '12h', 
-          '1d', '3d', '1w', '1M'.
+          '1D', '3D', '1W', '1M'.
     :return: int - The equivalent number of minutes for the given timeframe.
 
     :raises InvalidTimeframe: If the provided timeframe is not supported.
