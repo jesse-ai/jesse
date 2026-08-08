@@ -11,6 +11,7 @@ import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish
 from jesse.modes.optimize_mode.fitness import get_fitness
+from jesse.services.metrics import deflated_sharpe_ratio
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
@@ -317,6 +318,26 @@ class Optimizer:
             logger.log_optimize_mode(f"Error creating Optuna trial: {e}", self.session_id )
             return False
 
+    def _attach_deflated_sharpe(self, metrics_dict) -> None:
+        """Adds 'deflated_sharpe_ratio' to a metrics dict, keyed to this
+        study's total trial count. No-op when the inputs are missing (e.g.
+        trials with too few trades)."""
+        if not metrics_dict:
+            return
+        sharpe = metrics_dict.get('sharpe_ratio')
+        observations = metrics_dict.get('sharpe_observations')
+        if sharpe is None or not observations:
+            return
+        skew = metrics_dict.get('returns_skewness')
+        kurt = metrics_dict.get('returns_kurtosis')
+        metrics_dict['deflated_sharpe_ratio'] = deflated_sharpe_ratio(
+            sharpe,
+            observations,
+            self.n_trials,
+            skew=skew if skew is not None and np.isfinite(skew) else 0.0,
+            kurt=kurt if kurt is not None and np.isfinite(kurt) else 3.0,
+        )
+
     def _process_trial_result(self, result):
         """Process the result of a completed trial"""
         trial_number = result['trial_number']
@@ -328,6 +349,13 @@ class Optimizer:
         # Update progress
         self.completed_trials += 1
         self.progressbar.update()
+
+        # A study of n_trials attempts selects its best trial, so each trial's
+        # Sharpe is restated as P(true SR > expected max of n_trials zero-skill
+        # trials) — without this, a large enough study promotes the luckiest
+        # trial rather than the best strategy.
+        self._attach_deflated_sharpe(training_metrics)
+        self._attach_deflated_sharpe(testing_metrics)
 
         # Store trial in Optuna for persistence
         self._create_optuna_trial(trial_number, params, score, training_metrics, testing_metrics)

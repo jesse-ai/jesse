@@ -83,6 +83,52 @@ def sharpe_ratio(returns, rf=0.0, periods=365, annualize=True, smart=False):
     return pd.Series([res])
 
 
+def expected_max_sharpe(n_trials: int, sr_std: float) -> float:
+    """
+    Expected per-period Sharpe of the best of `n_trials` zero-skill strategies
+    whose Sharpe estimates have standard deviation `sr_std`
+    (Bailey & Lopez de Prado, 2014).
+    """
+    from scipy import stats as scipy_stats
+
+    if n_trials < 1:
+        raise ValueError('n_trials must be >= 1')
+    if n_trials == 1:
+        return 0.0
+    euler = 0.5772156649015329
+    z1 = scipy_stats.norm.ppf(1 - 1 / n_trials)
+    z2 = scipy_stats.norm.ppf(1 - 1 / (n_trials * np.e))
+    return float(sr_std * ((1 - euler) * z1 + euler * z2))
+
+
+def deflated_sharpe_ratio(
+        sharpe: float, n_observations: int, n_trials: int,
+        skew: float = 0.0, kurt: float = 3.0, periods=365
+) -> float:
+    """
+    P(true Sharpe > expected max Sharpe of `n_trials` zero-skill trials):
+    the probability that a result selected as the best of `n_trials` attempts
+    reflects skill rather than selection (Bailey & Lopez de Prado, 2014).
+
+    `sharpe` is the ANNUALIZED value as reported by sharpe_ratio() and is
+    de-annualized internally: the formula operates on per-period Sharpe, and
+    feeding it an annualized value inflates the statistic by ~sqrt(periods).
+    `kurt` is non-excess kurtosis (normal = 3).
+    """
+    from scipy import stats as scipy_stats
+
+    if n_observations < 3 or not np.isfinite(sharpe):
+        return np.nan
+    sr = sharpe / np.sqrt(1 if periods is None else periods)
+    sr_std = 1 / np.sqrt(n_observations - 1)
+    bar = expected_max_sharpe(n_trials, sr_std)
+    denom = 1 - skew * sr + (kurt - 1) / 4 * sr ** 2
+    if not np.isfinite(denom) or denom <= 0:
+        return np.nan
+    z = (sr - bar) * np.sqrt(n_observations - 1) / np.sqrt(denom)
+    return float(scipy_stats.norm.cdf(z))
+
+
 def sortino_ratio(returns, rf=0, periods=365, annualize=True, smart=False):
     """
     Calculates the sortino ratio of access returns
@@ -401,6 +447,17 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     max_underwater_period = np.nan if len(daily_balance) < 2 else calculate_max_underwater_period(daily_balance)
     annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
     sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
+    # Return-distribution moments for deflated-Sharpe computation downstream
+    # (population moments; kurtosis is non-excess, normal = 3)
+    if len(daily_return) < 3 or float(np.std(daily_return)) == 0:
+        returns_skewness = np.nan
+        returns_kurtosis = np.nan
+    else:
+        _r = np.asarray(daily_return, dtype=float)
+        _mu = _r.mean()
+        _sd = _r.std()
+        returns_skewness = float(((_r - _mu) ** 3).mean() / _sd ** 3)
+        returns_kurtosis = float(((_r - _mu) ** 4).mean() / _sd ** 4)
     calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
     sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
@@ -437,6 +494,9 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'max_underwater_period': safe_convert(max_underwater_period),
         'annual_return': safe_convert(annual_return),
         'sharpe_ratio': safe_convert(sharpe),
+        'sharpe_observations': safe_convert(len(daily_return), int),
+        'returns_skewness': safe_convert(returns_skewness),
+        'returns_kurtosis': safe_convert(returns_kurtosis),
         'calmar_ratio': safe_convert(calmar),
         'sortino_ratio': safe_convert(sortino),
         'omega_ratio': safe_convert(omega),
