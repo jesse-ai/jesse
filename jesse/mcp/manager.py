@@ -61,8 +61,10 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
     # Update the MCP config
     import jesse.mcp.mcp_config as mcp_config
     
-    # define the jesse api url
-    mcp_config.JESSE_API_URL = f"http://{jesse_host}:{jesse_port}"
+    # A wildcard address is valid for binding the API server, but MCP needs a
+    # concrete destination address for its requests—especially on Windows.
+    api_host = "127.0.0.1" if jesse_host == "0.0.0.0" else jesse_host
+    mcp_config.JESSE_API_URL = f"http://{api_host}:{jesse_port}"
     
     from jesse.services.env import ENV_VALUES
 
