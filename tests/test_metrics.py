@@ -2,6 +2,7 @@ from jesse.store import store
 from jesse.testing_utils import single_route_backtest
 from jesse.services import metrics
 import numpy as np
+import pandas as pd
 
 
 def test_open_pl_and_total_open_trades():
@@ -105,3 +106,23 @@ def test_daily_balance_stores_portfolio_value():
         is_futures_trading=False,
         candles_count=10 * 1024
     )
+
+
+def test_probabilistic_sharpe_ratio():
+    # Undefined for fewer than two observations, or a constant (zero-variance) series
+    assert np.isnan(metrics.probabilistic_sharpe_ratio(pd.Series([0.01])).iloc[0])
+    assert np.isnan(metrics.probabilistic_sharpe_ratio(pd.Series([0.01, 0.01, 0.01])).iloc[0])
+
+    # A deterministic, mostly-positive daily return series -> a high but sub-1 probability
+    returns = pd.Series([0.01, -0.005, 0.02, 0.0, 0.015, -0.01, 0.008,
+                         0.012, 0.004, -0.002, 0.011, 0.006])
+    psr = metrics.probabilistic_sharpe_ratio(returns).iloc[0]
+    assert 0.0 < psr < 1.0
+    assert round(psr, 6) == 0.970319
+
+    # A symmetric zero-mean series -> probability the true Sharpe is positive is exactly 0.5
+    symmetric = pd.Series([0.01, -0.01] * 20)
+    assert abs(metrics.probabilistic_sharpe_ratio(symmetric).iloc[0] - 0.5) < 1e-9
+
+    # Raising the benchmark Sharpe can only lower the probability of exceeding it
+    assert metrics.probabilistic_sharpe_ratio(returns, benchmark_sr=0.5).iloc[0] < psr

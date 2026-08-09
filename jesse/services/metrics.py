@@ -83,6 +83,40 @@ def sharpe_ratio(returns, rf=0.0, periods=365, annualize=True, smart=False):
     return pd.Series([res])
 
 
+def probabilistic_sharpe_ratio(returns, benchmark_sr=0.0):
+    """
+    Calculates the Probabilistic Sharpe Ratio (Bailey & Lopez de Prado, 2012):
+    the probability that the true Sharpe ratio exceeds a benchmark, given the
+    observed Sharpe, the sample length, and the skew and kurtosis of the returns.
+
+    A high (annualized) Sharpe from few observations, or from returns with heavy
+    left tails, carries more uncertainty than the headline number suggests; the
+    PSR turns that into a single probability in [0, 1]. It operates on the same
+    (daily) return series as sharpe_ratio(). The Sharpe is used in its raw,
+    non-annualized per-period form here, so the benchmark is in the same units
+    (default 0, i.e. the probability that the true Sharpe is positive).
+    """
+    returns = _prepare_returns(returns).dropna()
+    n = len(returns)
+    if n < 2:
+        return pd.Series([np.nan])
+
+    std = returns.std(ddof=1)
+    if std == 0:
+        return pd.Series([np.nan])
+    sr = returns.mean() / std
+    skew = returns.skew()
+    # pandas kurtosis() returns EXCESS kurtosis; the closed form needs the raw value
+    kurtosis = returns.kurtosis() + 3
+    denominator = np.sqrt(1 - skew * sr + ((kurtosis - 1) / 4) * sr ** 2)
+    if denominator == 0 or np.isnan(denominator):
+        return pd.Series([np.nan])
+
+    from scipy.stats import norm
+    z = (sr - benchmark_sr) * np.sqrt(n - 1) / denominator
+    return pd.Series([norm.cdf(z)])
+
+
 def sortino_ratio(returns, rf=0, periods=365, annualize=True, smart=False):
     """
     Calculates the sortino ratio of access returns
@@ -401,6 +435,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     max_underwater_period = np.nan if len(daily_balance) < 2 else calculate_max_underwater_period(daily_balance)
     annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
     sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
+    probabilistic_sharpe = np.nan if len(daily_return) < 2 else probabilistic_sharpe_ratio(daily_return).iloc[0]
     calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
     sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
@@ -437,6 +472,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'max_underwater_period': safe_convert(max_underwater_period),
         'annual_return': safe_convert(annual_return),
         'sharpe_ratio': safe_convert(sharpe),
+        'probabilistic_sharpe_ratio': safe_convert(probabilistic_sharpe),
         'calmar_ratio': safe_convert(calmar),
         'sortino_ratio': safe_convert(sortino),
         'omega_ratio': safe_convert(omega),
