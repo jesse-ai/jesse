@@ -22,6 +22,11 @@ from jesse import exceptions
 from jesse.services.progressbar import Progressbar
 
 
+# Small gaps at the beginning or end of a requested range can be filled with
+# synthetic candles. Larger gaps usually mean the provider returned the wrong range.
+MAX_MISSING_EDGE_MINUTES = 50
+
+
 def candle_import_progress_key(client_id: str) -> str:
     return f"{ENV_VALUES.get('APP_PORT', '9000')}|candle-import-progress|{client_id}"
 
@@ -167,7 +172,7 @@ def run(
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
             time_diff = int((candles[0]['timestamp'] - temp_start_timestamp) / 1000) if len(candles) else 0
-            if not len(candles) or time_diff < 0 or time_diff > 60*100:
+            if not len(candles) or time_diff < 0 or time_diff > 60 * MAX_MISSING_EDGE_MINUTES:
                 first_existing_timestamp = driver.get_starting_time(symbol)
 
                 # if driver can't provide accurate get_starting_time()
@@ -406,6 +411,15 @@ def _fill_absent_candles(temp_candles: List[Dict[str, Union[str, Any]]], start_t
         raise CandleNotFoundInExchange(
             f'No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n'
             'Try another start_date'
+        )
+
+    latest_timestamp = max(int(c['timestamp']) for c in temp_candles)
+    trailing_gap_minutes = max(0, int((end_timestamp - latest_timestamp) / 60_000))
+    if trailing_gap_minutes > MAX_MISSING_EDGE_MINUTES:
+        raise CandleNotFoundInExchange(
+            f'Provider returned an incomplete trailing range for {temp_candles[0]["symbol"]} on '
+            f'{temp_candles[0]["exchange"]}: {trailing_gap_minutes} minutes are missing after the '
+            'last real candle. Refusing to generate a large synthetic candle tail.'
         )
 
     symbol = temp_candles[0]['symbol']

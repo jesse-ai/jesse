@@ -18,7 +18,7 @@ class KuCoinFuturesMain(CandleExchange):
       params: symbol=XBTUSDTM, granularity=1, from=<ms>, to=<ms>
       - granularity is INTEGER MINUTES (1, 5, 60, 1440, ...).
       - from/to are in MILLISECONDS (unlike spot which is seconds).
-      - max 500 candles per request.
+      - current API responses are capped at 200 futures candles per request.
       - returned OLDEST-FIRST (ascending) -> do NOT reverse.
       - each candle is 6 NUMBERS: [time(ms), open, HIGH, LOW, CLOSE, volume]
         NOTE: true OHLC order here (high/low before close) -- the OPPOSITE of spot.
@@ -29,8 +29,8 @@ class KuCoinFuturesMain(CandleExchange):
     """
 
     def __init__(self, name: str, rest_endpoint: str) -> None:
-        # KuCoin futures caps klines at 500/req.
-        super().__init__(name=name, count=500, rate_limit_per_second=5, backup_exchange_class=None)
+        # Keep the importer page aligned with the provider's live response cap.
+        super().__init__(name=name, count=200, rate_limit_per_second=5, backup_exchange_class=None)
         self.name = name
         self.endpoint = rest_endpoint
 

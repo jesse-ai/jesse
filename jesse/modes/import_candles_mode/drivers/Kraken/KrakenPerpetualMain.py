@@ -24,7 +24,9 @@ class KrakenPerpetualMain(CandleExchange):
     def __init__(self, name: str, rest_endpoint: str) -> None:
         from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import BinancePerpetualFutures
 
-        super().__init__(name=name, count=5000, rate_limit_per_second=2,
+        # The charts endpoint currently caps a response at 2,000 candles. Matching
+        # the provider page size prevents the importer from flat-filling the rest.
+        super().__init__(name=name, count=2000, rate_limit_per_second=2,
                          backup_exchange_class=BinancePerpetualFutures)
         self.name = name
         self.endpoint = rest_endpoint

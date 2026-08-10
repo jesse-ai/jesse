@@ -147,7 +147,11 @@ Notes:
 - Handle errors gracefully
 
 ### Code Style
-- Don't write comments for functions unless asked
+- Add concise comments and docstrings for non-obvious intent, provider quirks, safety boundaries,
+  invariants, and tradeoffs. Before handoff, audit every changed file for unexplained thresholds,
+  constants, fallback or retry behavior, and test fakes that encode external responses. Keep the
+  rationale in the code rather than only in the conversation; do not add comments that merely
+  narrate what the code already says.
 - Never try to install new packages - assume they're already installed. if need to install new packages, ask me first.
 - Follow existing patterns and conventions
 - Maintain consistency with the current codebase
