@@ -330,12 +330,15 @@ class Optimizer:
             return
         skew = metrics_dict.get('returns_skewness')
         kurt = metrics_dict.get('returns_kurtosis')
+        # The moments are missing exactly when the return series had no dispersion, and
+        # deflated_sharpe_ratio returns nan for that. Substituting normal moments here
+        # would instead hand it a Sharpe of ~1e16 to deflate, which answers 1.0.
         metrics_dict['deflated_sharpe_ratio'] = deflated_sharpe_ratio(
             sharpe,
             observations,
             self.n_trials,
-            skew=skew if skew is not None and np.isfinite(skew) else 0.0,
-            kurt=kurt if kurt is not None and np.isfinite(kurt) else 3.0,
+            skew=skew if skew is not None else np.nan,
+            kurt=kurt if kurt is not None else np.nan,
         )
 
     def _process_trial_result(self, result):

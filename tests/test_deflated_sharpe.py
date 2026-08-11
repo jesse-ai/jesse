@@ -1,6 +1,10 @@
 import numpy as np
 
-from jesse.services.metrics import deflated_sharpe_ratio, expected_max_sharpe
+from jesse.services.metrics import (
+    deflated_sharpe_ratio,
+    expected_max_sharpe,
+    return_moments,
+)
 
 # Reference values computed with the numguard reference implementation of
 # Bailey & Lopez de Prado (2014): per-period Sharpe = annualized / sqrt(365),
@@ -34,3 +38,35 @@ def test_deflation_is_monotonic_in_trial_count():
 def test_insufficient_observations_returns_nan():
     assert np.isnan(deflated_sharpe_ratio(2.0, 2, 10))
     assert np.isnan(deflated_sharpe_ratio(np.nan, 365, 10))
+
+
+def test_missing_moments_return_nan():
+    # The moments are unavailable exactly when the return series had no dispersion.
+    # Its standard deviation is floating-point residue rather than a true zero, so the
+    # Sharpe divides out to ~1e16 -- finite, and past the isfinite guard. Deflating
+    # that answered 1.0: certainty of an edge, from the one input that cannot show one.
+    assert np.isnan(deflated_sharpe_ratio(8.8e16, 250, 4, skew=np.nan, kurt=np.nan))
+    assert np.isnan(deflated_sharpe_ratio(2.0, 250, 4, skew=np.nan, kurt=3.0))
+    assert np.isnan(deflated_sharpe_ratio(2.0, 250, 4, skew=0.0, kurt=np.nan))
+
+    # Real moments are unaffected.
+    assert 0 <= deflated_sharpe_ratio(2.0, 250, 4, skew=-0.5, kurt=5.0) <= 1
+
+
+def test_return_moments_reject_a_series_with_no_dispersion():
+    # A constant series does not reach an exact `std == 0`: its standard deviation is
+    # floating-point residue rather than a true zero, so the moments came out as huge
+    # finite numbers and the Sharpe divided out to ~1e16 -- which deflated to 1.0,
+    # certainty of an edge from the one input that cannot show one. Checked across
+    # values and lengths, since the residue depends on both.
+    for value in (1e-7, 1e-4, 0.001, 0.01, 1.0, 100.0):
+        for n in (3, 10, 250, 5000):
+            skew, kurt = return_moments(np.full(n, value))
+            assert np.isnan(skew) and np.isnan(kurt), f"leaked at value={value}, n={n}"
+
+    assert all(np.isnan(x) for x in return_moments(np.zeros(250)))
+    assert all(np.isnan(x) for x in return_moments(np.array([0.01, 0.02])))
+
+    # A real but very quiet series still has moments.
+    skew, kurt = return_moments(np.random.default_rng(1).normal(0, 1e-8, 250))
+    assert np.isfinite(skew) and np.isfinite(kurt)

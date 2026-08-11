@@ -101,6 +101,33 @@ def expected_max_sharpe(n_trials: int, sr_std: float) -> float:
     return float(sr_std * ((1 - euler) * z1 + euler * z2))
 
 
+def return_moments(returns) -> tuple:
+    """
+    Population skewness and non-excess kurtosis of a return series, or (nan, nan)
+    when the series carries no dispersion to take moments of.
+
+    A constant series does not reach an exact `std == 0`: its standard deviation is
+    floating-point residue rather than a true zero, so the moments come out as huge
+    finite numbers and the Sharpe divides out to ~1e16. The floor therefore scales
+    with the number of terms summed -- the residue was measured at most 1.96 eps x
+    scale over constant series spanning values 1e-7..1e3 and lengths 3..10000, while
+    a real series with sigma=1e-12 sits more than ten orders of magnitude above
+    n eps x scale.
+    """
+    r = np.asarray(returns, dtype=float)
+    n = len(r)
+    if n < 3:
+        return np.nan, np.nan
+    sd = float(np.std(r))
+    if not sd > n * np.finfo(float).eps * float(np.abs(r).max()):
+        return np.nan, np.nan
+    mu = r.mean()
+    return (
+        float(((r - mu) ** 3).mean() / sd ** 3),
+        float(((r - mu) ** 4).mean() / sd ** 4),
+    )
+
+
 def deflated_sharpe_ratio(
         sharpe: float, n_observations: int, n_trials: int,
         skew: float = 0.0, kurt: float = 3.0, periods=365
@@ -118,6 +145,13 @@ def deflated_sharpe_ratio(
     from scipy import stats as scipy_stats
 
     if n_observations < 3 or not np.isfinite(sharpe):
+        return np.nan
+    # Missing moments mean the return series had no dispersion: its standard deviation
+    # is floating-point residue rather than a true zero, so the Sharpe divides out to
+    # ~1e16 -- finite, and past the check above. Deflating that returned 1.0, i.e.
+    # certainty of a real edge, for the one input that carries no information about
+    # one. Substituting normal moments here would hide exactly that case.
+    if not np.isfinite(skew) or not np.isfinite(kurt):
         return np.nan
     sr = sharpe / np.sqrt(1 if periods is None else periods)
     sr_std = 1 / np.sqrt(n_observations - 1)
@@ -449,15 +483,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
     # Return-distribution moments for deflated-Sharpe computation downstream
     # (population moments; kurtosis is non-excess, normal = 3)
-    if len(daily_return) < 3 or float(np.std(daily_return)) == 0:
-        returns_skewness = np.nan
-        returns_kurtosis = np.nan
-    else:
-        _r = np.asarray(daily_return, dtype=float)
-        _mu = _r.mean()
-        _sd = _r.std()
-        returns_skewness = float(((_r - _mu) ** 3).mean() / _sd ** 3)
-        returns_kurtosis = float(((_r - _mu) ** 4).mean() / _sd ** 4)
+    returns_skewness, returns_kurtosis = return_moments(daily_return)
     calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
     sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
