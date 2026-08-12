@@ -7,7 +7,7 @@ from jesse.services.web import fastapi_app
 import jesse.helpers as jh
 from jesse.services.auth import InvalidAuthError, unauthorized_response
 
-from jesse.services.test_database import reset_test_database_if_requested
+from jesse.services.e2e_database import reset_test_database_if_requested
 
 reset_test_database_if_requested()
 
@@ -95,8 +95,8 @@ fastapi_app.include_router(route_templates_router)
 fastapi_app.include_router(ai_model_router)
 
 if is_test_env():
-    from jesse.controllers.testing_controller import router as testing_router
-    fastapi_app.include_router(testing_router)
+    from jesse.controllers.e2e_controller import router as e2e_router
+    fastapi_app.include_router(e2e_router)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Live Trade Plugin

@@ -2,7 +2,7 @@ import pytest
 
 from jesse.models.BacktestSession import BacktestSession
 from jesse.models.Candle import Candle
-from jesse.services import test_database
+from jesse.services import e2e_database
 from jesse.services.db import postgres_schema
 
 
@@ -17,9 +17,9 @@ def configure_test_environment(monkeypatch, schema: str = 'e2e_dashboard') -> No
         'POSTGRES_HOST': '127.0.0.1',
         'POSTGRES_PORT': '5432',
     }
-    monkeypatch.setattr(test_database, 'ENV_VALUES', values)
+    monkeypatch.setattr(e2e_database, 'ENV_VALUES', values)
     monkeypatch.setattr('jesse.services.db.ENV_VALUES', values)
-    monkeypatch.setattr(test_database, 'is_test_env', lambda: True)
+    monkeypatch.setattr(e2e_database, 'is_test_env', lambda: True)
 
 
 @pytest.mark.parametrize('schema', [
@@ -30,7 +30,7 @@ def configure_test_environment(monkeypatch, schema: str = 'e2e_dashboard') -> No
 def test_accepts_explicit_test_schema_names(monkeypatch, schema):
     configure_test_environment(monkeypatch, schema)
 
-    assert test_database.assert_safe_test_database() == schema
+    assert e2e_database.assert_safe_test_database() == schema
 
 
 @pytest.mark.parametrize('schema', [
@@ -43,15 +43,15 @@ def test_rejects_unsafe_test_schema_names(monkeypatch, schema):
     configure_test_environment(monkeypatch, schema)
 
     with pytest.raises((RuntimeError, ValueError)):
-        test_database.assert_safe_test_database()
+        e2e_database.assert_safe_test_database()
 
 
 def test_rejects_test_database_operations_outside_test_environment(monkeypatch):
     configure_test_environment(monkeypatch)
-    monkeypatch.setattr(test_database, 'is_test_env', lambda: False)
+    monkeypatch.setattr(e2e_database, 'is_test_env', lambda: False)
 
     with pytest.raises(RuntimeError, match='IS_TEST_ENV=TRUE'):
-        test_database.assert_safe_test_database()
+        e2e_database.assert_safe_test_database()
 
 
 def test_postgres_schema_defaults_to_public(monkeypatch):
@@ -62,13 +62,31 @@ def test_postgres_schema_defaults_to_public(monkeypatch):
 
 def test_database_reset_is_opt_in(monkeypatch):
     configure_test_environment(monkeypatch)
-    test_database.ENV_VALUES['RESET_TEST_DATABASE'] = 'FALSE'
+    e2e_database.ENV_VALUES['RESET_TEST_DATABASE'] = 'FALSE'
 
-    assert test_database.reset_test_database_if_requested() is False
+    assert e2e_database.reset_test_database_if_requested() is False
+
+
+def test_database_reset_is_skipped_in_spawned_workers(monkeypatch):
+    configure_test_environment(monkeypatch)
+    monkeypatch.setattr(e2e_database.multiprocessing, 'parent_process', lambda: object())
+
+    # Importing jesse in a task worker must not erase data owned by the E2E server.
+    assert e2e_database.reset_test_database_if_requested() is False
+
+
+def test_database_reset_is_skipped_after_server_marks_schema_ready(monkeypatch):
+    configure_test_environment(monkeypatch)
+    monkeypatch.setenv(e2e_database.TEST_SCHEMA_READY_ENV, 'e2e_dashboard')
+
+    # Spawned workers inherit this marker before importing the jesse package.
+    assert e2e_database.reset_test_database_if_requested() is False
 
 
 def test_database_reset_drops_and_recreates_only_the_validated_schema(monkeypatch):
     configure_test_environment(monkeypatch)
+    monkeypatch.setattr(e2e_database.multiprocessing, 'parent_process', lambda: None)
+    monkeypatch.setenv(e2e_database.TEST_SCHEMA_READY_ENV, '')
     statements = []
 
     class FakeConnection:
@@ -85,14 +103,15 @@ def test_database_reset_drops_and_recreates_only_the_validated_schema(monkeypatc
         def close(self):
             pass
 
-    monkeypatch.setattr(test_database, 'PostgresqlExtDatabase', FakeConnection)
-    monkeypatch.setattr(test_database.database, 'close_connection', lambda: None)
+    monkeypatch.setattr(e2e_database, 'PostgresqlExtDatabase', FakeConnection)
+    monkeypatch.setattr(e2e_database.database, 'close_connection', lambda: None)
 
-    assert test_database.reset_test_database_if_requested() is True
+    assert e2e_database.reset_test_database_if_requested() is True
     assert statements == [
         'DROP SCHEMA IF EXISTS "e2e_dashboard" CASCADE',
         'CREATE SCHEMA "e2e_dashboard"',
     ]
+    assert e2e_database.os.environ[e2e_database.TEST_SCHEMA_READY_ENV] == 'e2e_dashboard'
 
 
 def test_data_reset_truncates_every_table_in_the_test_schema(monkeypatch):
@@ -107,10 +126,10 @@ def test_data_reset_truncates_every_table_in_the_test_schema(monkeypatch):
         def execute_sql(self, statement):
             statements.append(statement)
 
-    monkeypatch.setattr(test_database.database, 'db', FakeDatabase())
-    monkeypatch.setattr(test_database.database, 'open_connection', lambda: None)
+    monkeypatch.setattr(e2e_database.database, 'db', FakeDatabase())
+    monkeypatch.setattr(e2e_database.database, 'open_connection', lambda: None)
 
-    assert test_database.reset_test_data() == 2
+    assert e2e_database.reset_test_data() == 2
     assert statements == [
         'TRUNCATE TABLE "e2e_dashboard"."backtestsession", '
         '"e2e_dashboard"."candle" RESTART IDENTITY CASCADE'
@@ -129,10 +148,10 @@ def test_data_reset_ignores_table_names_that_cannot_be_quoted_safely(monkeypatch
         def execute_sql(self, statement):
             statements.append(statement)
 
-    monkeypatch.setattr(test_database.database, 'db', FakeDatabase())
-    monkeypatch.setattr(test_database.database, 'open_connection', lambda: None)
+    monkeypatch.setattr(e2e_database.database, 'db', FakeDatabase())
+    monkeypatch.setattr(e2e_database.database, 'open_connection', lambda: None)
 
-    assert test_database.reset_test_data() == 1
+    assert e2e_database.reset_test_data() == 1
     assert statements == [
         'TRUNCATE TABLE "e2e_dashboard"."candle" RESTART IDENTITY CASCADE'
     ]
@@ -153,7 +172,7 @@ def test_seed_test_data_serializes_sessions_and_creates_candles(monkeypatch):
         lambda **values: created_candles.append(values),
     )
 
-    counts = test_database.seed_test_data({
+    counts = e2e_database.seed_test_data({
         'backtest_sessions': [{
             'id': '00000000-0000-4000-8000-000000000001',
             'status': 'finished',
@@ -188,7 +207,7 @@ def test_seed_test_data_supports_empty_payload(monkeypatch):
     monkeypatch.setattr(BacktestSession, 'create', lambda **values: pytest.fail(str(values)))
     monkeypatch.setattr(Candle, 'create', lambda **values: pytest.fail(str(values)))
 
-    assert test_database.seed_test_data({}) == {
+    assert e2e_database.seed_test_data({}) == {
         'backtest_sessions': 0,
         'candles': 0,
     }

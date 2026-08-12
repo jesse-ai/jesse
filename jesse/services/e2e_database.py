@@ -1,4 +1,9 @@
+"""Guarded database reset, seeding, and inspection helpers for Dashboard E2E tests."""
+
 import json
+import math
+import multiprocessing
+import os
 import re
 from uuid import uuid4
 
@@ -6,6 +11,11 @@ from playhouse.postgres_ext import PostgresqlExtDatabase
 
 from jesse.services.db import database, postgres_schema
 from jesse.services.env import ENV_VALUES, is_test_env
+
+
+# The API process sets this after its one permitted schema reset. Spawned task
+# workers inherit it before they re-import the jesse package.
+TEST_SCHEMA_READY_ENV = 'JESSE_TEST_SCHEMA_READY'
 
 
 def assert_safe_test_database() -> str:
@@ -40,6 +50,14 @@ def reset_test_database_if_requested() -> bool:
         return False
 
     schema = assert_safe_test_database()
+    if os.environ.get(TEST_SCHEMA_READY_ENV) == schema:
+        return False
+
+    # Spawned task workers import the jesse package again. Only the API server
+    # may perform the one-time schema reset, otherwise every task erases E2E data.
+    if multiprocessing.parent_process() is not None:
+        return False
+
     database.close_connection()
     # Use a short-lived connection because this operation replaces the whole schema.
     connection = PostgresqlExtDatabase(
@@ -52,6 +70,7 @@ def reset_test_database_if_requested() -> bool:
         connection.execute_sql(f'CREATE SCHEMA "{schema}"')
     finally:
         connection.close()
+    os.environ[TEST_SCHEMA_READY_ENV] = schema
     return True
 
 
@@ -118,4 +137,74 @@ def seed_test_data(payload: dict) -> dict:
     return {
         'backtest_sessions': len(sessions),
         'candles': len(candles),
+    }
+
+
+def inspect_test_candles(exchange: str, symbol: str) -> dict:
+    """Summarize persisted candles for E2E integrity assertions."""
+    assert_safe_test_database()
+    from jesse.models.Candle import Candle
+
+    rows = list(
+        Candle.select(
+            Candle.timestamp,
+            Candle.open,
+            Candle.close,
+            Candle.high,
+            Candle.low,
+            Candle.volume,
+            Candle.timeframe,
+        )
+        .where(Candle.exchange == exchange, Candle.symbol == symbol)
+        .order_by(Candle.timestamp.asc())
+        .tuples()
+    )
+
+    timestamps = [int(row[0]) for row in rows]
+    unique_timestamps = sorted(set(timestamps))
+    timestamp_deltas = [
+        current - previous
+        for previous, current in zip(unique_timestamps, unique_timestamps[1:])
+    ]
+
+    timeframe_counts: dict[str, int] = {}
+    invalid_ohlcv_rows = 0
+    for _, open_price, close_price, high_price, low_price, volume, timeframe in rows:
+        timeframe = str(timeframe)
+        timeframe_counts[timeframe] = timeframe_counts.get(timeframe, 0) + 1
+
+        open_price = float(open_price)
+        close_price = float(close_price)
+        high_price = float(high_price)
+        low_price = float(low_price)
+        volume = float(volume)
+        values = (open_price, close_price, high_price, low_price, volume)
+        if (
+            not all(math.isfinite(value) for value in values)
+            or min(open_price, close_price, high_price, low_price) <= 0
+            or volume < 0
+            or high_price < max(open_price, close_price)
+            or low_price > min(open_price, close_price)
+            or high_price < low_price
+        ):
+            invalid_ohlcv_rows += 1
+
+    # Report both missing whole minutes and off-grid intervals so continuity
+    # failures remain diagnosable instead of collapsing into one boolean.
+    missing_one_minute_candles = sum(
+        max(0, delta // 60_000 - 1)
+        for delta in timestamp_deltas
+        if delta % 60_000 == 0
+    )
+
+    return {
+        'row_count': len(rows),
+        'first_timestamp': unique_timestamps[0] if unique_timestamps else None,
+        'last_timestamp': unique_timestamps[-1] if unique_timestamps else None,
+        'timeframe_counts': timeframe_counts,
+        'duplicate_timestamp_count': len(timestamps) - len(unique_timestamps),
+        'missing_one_minute_candles': missing_one_minute_candles,
+        'non_one_minute_interval_count': sum(delta != 60_000 for delta in timestamp_deltas),
+        'off_minute_timestamp_count': sum(timestamp % 60_000 != 0 for timestamp in timestamps),
+        'invalid_ohlcv_row_count': invalid_ohlcv_rows,
     }

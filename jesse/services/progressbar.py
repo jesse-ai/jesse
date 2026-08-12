@@ -19,8 +19,10 @@ class Progressbar:
 
     def update(self):
         if not self.is_finished:
-            self.index += self.step
-            if self.index == self.length:
+            # The final batch may be smaller than step. Clamp it so progress and
+            # remaining work never escape their public 0-100 / non-negative bounds.
+            self.index = min(self.index + self.step, self.length)
+            if self.index >= self.length:
                 self.is_finished = True
         now = time()
         self._execution_times.append(np.array([now - self._time]))
@@ -50,4 +52,3 @@ class Progressbar:
 
     def finish(self):
         self.is_finished = True
-
