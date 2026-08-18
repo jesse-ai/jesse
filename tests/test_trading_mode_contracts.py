@@ -1,6 +1,6 @@
 import pytest
 
-from jesse.testing_utils import single_route_backtest
+from jesse.testing_utils import single_route_backtest, two_data_routes_backtest
 
 
 @pytest.mark.parametrize(
@@ -49,4 +49,12 @@ def test_protective_orders_across_trading_modes(
         leverage_mode=leverage_mode,
         trend='down',
         fee=0.001,
+    )
+
+
+def test_generated_data_routes_drive_multi_route_execution() -> None:
+    """Trade 1m and generated 5m routes while consuming 5m and 15m data routes."""
+    two_data_routes_backtest(
+        'TestGeneratedDataRouteExecutionBTC',
+        'TestGeneratedDataRouteExecutionETH',
     )
