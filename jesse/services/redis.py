@@ -1,7 +1,12 @@
 import aioredis
 import redis as sync_redis_lib
+from redis.exceptions import (
+    ConnectionError as RedisConnectionError,
+    TimeoutError as RedisTimeoutError,
+)
 import simplejson as json
 import asyncio
+import time
 import jesse.helpers as jh
 from jesse.libs.custom_json import NpEncoder
 import os
@@ -19,12 +24,16 @@ async def init_redis():
 
 async_redis = None
 sync_redis = None
+_last_active_check_error_at = 0
 if jh.is_jesse_project():
     if not jh.is_notebook():
         async_redis = asyncio.run(init_redis())
         sync_redis = sync_redis_lib.Redis(
             host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
-            password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None
+            password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            health_check_interval=30,
         )
 
 
@@ -105,7 +114,23 @@ def get_live_charts_snapshot(session_id: str) -> dict:
 
 
 def is_process_active(client_id: str) -> bool:
+    global _last_active_check_error_at
+
     if jh.is_unit_testing():
         return False
 
-    return sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)
+    try:
+        is_active = sync_redis.sismember(f"{ENV_VALUES['APP_PORT']}|active-processes", client_id)
+        _last_active_check_error_at = 0
+        return is_active
+    except (RedisConnectionError, RedisTimeoutError, OSError) as e:
+        now = time.monotonic()
+        if _last_active_check_error_at == 0 or now - _last_active_check_error_at >= 30:
+            try:
+                jh.terminal_debug(
+                    f'Redis active-process check failed for {client_id}; keeping the worker active: {type(e).__name__}: {e}'
+                )
+            except Exception:
+                pass
+            _last_active_check_error_at = now
+        return True

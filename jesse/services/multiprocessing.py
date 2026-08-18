@@ -14,6 +14,13 @@ import signal
 mp.set_start_method('spawn', force=True)
 
 
+def _terminal_debug(message: str) -> None:
+    try:
+        jh.terminal_debug(message)
+    except Exception:
+        pass
+
+
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
         mp.Process.__init__(self, *args, **kwargs)
@@ -130,6 +137,17 @@ class ProcessManager:
                                 prefixed_client_id = self._pid_to_client_id_map.get(prefixed_pid)
 
                                 w.join(timeout=1)
+                                exit_code = w.exitcode
+                                worker_pid = w.pid
+                                client_id = (
+                                    jh.string_after_character(prefixed_client_id, '|')
+                                    if prefixed_client_id
+                                    else 'unknown'
+                                )
+                                _terminal_debug(
+                                    f'Worker {client_id} (PID {worker_pid}) exited with code {exit_code}'
+                                )
+
                                 w.close()
                                 self._workers.remove(w)
                                 self._pid_to_client_id_map.pop(prefixed_pid, None)
@@ -139,13 +157,17 @@ class ProcessManager:
                                     and self.client_id_to_pid_to_map.get(prefixed_client_id) == prefixed_pid
                                 ):
                                     self.client_id_to_pid_to_map.pop(prefixed_client_id, None)
-                                    client_id = jh.string_after_character(prefixed_client_id, '|')
-                                    sync_redis.srem(self._active_workers_key, client_id)
-                                    jh.debug(f"Removed finished worker {client_id} from active workers")
+                                    try:
+                                        sync_redis.srem(self._active_workers_key, client_id)
+                                    except Exception as e:
+                                        _terminal_debug(
+                                            f'Error removing finished worker {client_id} from Redis: {type(e).__name__}: {e}'
+                                        )
+                                    _terminal_debug(f"Cleaned up finished worker {client_id}")
                             except Exception as e:
-                                jh.debug(f"Error during worker cleanup: {str(e)}")
+                                _terminal_debug(f"Error during worker cleanup: {type(e).__name__}: {e}")
             except Exception as e:
-                jh.debug(f"Error in cleanup thread: {str(e)}")
+                _terminal_debug(f"Error in cleanup thread: {type(e).__name__}: {e}")
             time.sleep(5)
 
     @property
