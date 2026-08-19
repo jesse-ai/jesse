@@ -453,7 +453,7 @@ def add_candle(
 
         _store_or_update_candle_into_db(exchange, symbol, timeframe, candle)
 
-    last_index = arr.index
+    array, last_index = arr.snapshot()
 
     # initial
     if last_index == -1:
@@ -463,7 +463,7 @@ def add_candle(
     # read the last candle's timestamp once as a plain scalar instead of
     # building an intermediate row view (arr[-1][0]) for every comparison —
     # this function runs twice per simulated minute.
-    last_candle_timestamp = arr.array[last_index, 0]
+    last_candle_timestamp = array[last_index, 0]
 
     # if it's new, add
     if candle_timestamp > last_candle_timestamp:
@@ -475,7 +475,7 @@ def add_candle(
 
     # if it's the last candle again, update
     elif candle_timestamp == last_candle_timestamp:
-        arr.array[last_index] = candle
+        arr[last_index] = candle
 
         # regenerate other timeframes
         if with_generation and timeframe == '1m':
@@ -639,41 +639,45 @@ def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
         if arr is None:
             raise RouteNotFound(symbol, '1m')
-        if arr.index == -1:
+        array, index = arr.snapshot()
+        if index == -1:
             return np.zeros((0, 6))
-        return arr.array[:arr.index + 1]
+        return array[:index + 1]
 
     # other timeframes
     required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
     short_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
     if short_arr is None:
         raise RouteNotFound(symbol, '1m')
-    short_count = short_arr.index + 1
+    short_array, short_index = short_arr.snapshot()
+    short_count = short_index + 1
     dif = short_count % required_1m_to_complete_count
 
     long_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-{timeframe}')
     if long_arr is None:
         raise RouteNotFound(symbol, timeframe)
-    long_count = long_arr.index + 1
+    long_array, long_index = long_arr.snapshot()
+    long_count = long_index + 1
 
     if dif == 0 and long_count == 0:
         return np.zeros((0, 6))
 
     # complete candle
     if dif == 0:
-        return long_arr.array[:long_count]
+        return long_array[:long_count]
     # generate forming candle only if NOT in live mode
     elif not jh.is_live():
         forming_candle = generate_candle_from_one_minutes(
             timeframe,
-            short_arr.array[short_count - dif:short_count],
+            short_array[short_count - dif:short_count],
             True
         )
         add_candle(forming_candle, exchange, symbol, timeframe, with_execution=False, with_generation=False, with_skip=False)
-        return long_arr.array[:long_arr.index + 1]
+        long_array, long_index = long_arr.snapshot()
+        return long_array[:long_index + 1]
     # in live mode, just return the complete candles
     else:
-        return long_arr.array[:long_count]
+        return long_array[:long_count]
 
 
 def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
