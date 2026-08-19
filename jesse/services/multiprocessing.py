@@ -14,6 +14,13 @@ import signal
 mp.set_start_method('spawn', force=True)
 
 
+def _terminal_debug(message: str) -> None:
+    try:
+        jh.terminal_debug(message)
+    except Exception:
+        pass
+
+
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
         mp.Process.__init__(self, *args, **kwargs)
@@ -45,6 +52,7 @@ class ProcessManager:
         self._workers: List[Process] = []
         self._pid_to_client_id_map = {}
         self.client_id_to_pid_to_map = {}
+        self._pending_worker_removals: set[str] = set()
         self._workers_lock = threading.Lock()
         try:
             port = ENV_VALUES.get('APP_PORT', '9000')
@@ -56,11 +64,23 @@ class ProcessManager:
         self._cleanup_thread.start()
 
     def _reset(self):
+        client_ids = {
+            jh.string_after_character(prefixed_client_id, '|')
+            for prefixed_client_id in self.client_id_to_pid_to_map
+        }
+        self._pending_worker_removals.update(client_ids)
         self._workers = []
         self._pid_to_client_id_map = {}
         self.client_id_to_pid_to_map = {}
         # clear all process status
-        sync_redis.delete(self._active_workers_key)
+        try:
+            sync_redis.delete(self._active_workers_key)
+        except Exception as e:
+            _terminal_debug(
+                f'Error clearing active workers from Redis; cleanup will retry: {type(e).__name__}: {e}'
+            )
+        else:
+            self._pending_worker_removals.clear()
 
     @staticmethod
     def _prefixed_pid(pid):
@@ -84,6 +104,9 @@ class ProcessManager:
             prefixed_client_id = self._prefixed_client_id(client_id)
             self._pid_to_client_id_map[prefixed_pid] = prefixed_client_id
             self.client_id_to_pid_to_map[prefixed_client_id] = prefixed_pid
+            # A new worker owns this Redis marker now, so an older deferred
+            # cleanup must never remove it after a reconnect.
+            self._pending_worker_removals.discard(client_id)
             self._add_process(client_id)
 
     def get_client_id(self, pid):
@@ -119,10 +142,41 @@ class ProcessManager:
 
             self._reset()
 
+    def _remove_active_worker(self, client_id: str) -> bool:
+        """Remove a finished worker's Redis marker, or retain it for retry."""
+        was_pending = client_id in self._pending_worker_removals
+        try:
+            sync_redis.srem(self._active_workers_key, client_id)
+        except Exception as e:
+            self._pending_worker_removals.add(client_id)
+            if not was_pending:
+                _terminal_debug(
+                    f'Error removing finished worker {client_id} from Redis; cleanup will retry: '
+                    f'{type(e).__name__}: {e}'
+                )
+            return False
+        else:
+            self._pending_worker_removals.discard(client_id)
+            return True
+
+    def _retry_pending_worker_removals(self) -> None:
+        """Retry Redis cleanup without removing markers owned by newer workers."""
+        for client_id in tuple(self._pending_worker_removals):
+            if self._prefixed_client_id(client_id) in self.client_id_to_pid_to_map:
+                self._pending_worker_removals.discard(client_id)
+                continue
+            if self._remove_active_worker(client_id):
+                _terminal_debug(f"Removed deferred worker {client_id} from active workers")
+            else:
+                # One timeout is enough to treat Redis as unavailable for this cycle. Stopping here
+                # bounds how long cleanup holds the worker lock while Redis remains unreachable.
+                break
+
     def _cleanup_finished_workers(self):
         while True:
             try:
                 with self._workers_lock:
+                    self._retry_pending_worker_removals()
                     for w in self._workers[:]:  # Create a copy of the list to avoid modification during iteration
                         if not w.is_alive():
                             try:
@@ -130,6 +184,17 @@ class ProcessManager:
                                 prefixed_client_id = self._pid_to_client_id_map.get(prefixed_pid)
 
                                 w.join(timeout=1)
+                                exit_code = w.exitcode
+                                worker_pid = w.pid
+                                client_id = (
+                                    jh.string_after_character(prefixed_client_id, '|')
+                                    if prefixed_client_id
+                                    else 'unknown'
+                                )
+                                _terminal_debug(
+                                    f'Worker {client_id} (PID {worker_pid}) exited with code {exit_code}'
+                                )
+
                                 w.close()
                                 self._workers.remove(w)
                                 self._pid_to_client_id_map.pop(prefixed_pid, None)
@@ -139,13 +204,12 @@ class ProcessManager:
                                     and self.client_id_to_pid_to_map.get(prefixed_client_id) == prefixed_pid
                                 ):
                                     self.client_id_to_pid_to_map.pop(prefixed_client_id, None)
-                                    client_id = jh.string_after_character(prefixed_client_id, '|')
-                                    sync_redis.srem(self._active_workers_key, client_id)
-                                    jh.debug(f"Removed finished worker {client_id} from active workers")
+                                    if self._remove_active_worker(client_id):
+                                        _terminal_debug(f"Cleaned up finished worker {client_id}")
                             except Exception as e:
-                                jh.debug(f"Error during worker cleanup: {str(e)}")
+                                _terminal_debug(f"Error during worker cleanup: {type(e).__name__}: {e}")
             except Exception as e:
-                jh.debug(f"Error in cleanup thread: {str(e)}")
+                _terminal_debug(f"Error in cleanup thread: {type(e).__name__}: {e}")
             time.sleep(5)
 
     @property
