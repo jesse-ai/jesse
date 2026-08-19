@@ -1,0 +1,1 @@
+import{it as e,nt as t}from"./Cd-sGgPF.js";import{t as n}from"./BOODfVKf.js";var r=t((t,r)=>{if(n().plan===`free`||n().plan===`guest`)return e(`/`)});export{r as default};

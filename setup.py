@@ -3,7 +3,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 # also change in version.py
-VERSION = "3.0.6"
+VERSION = "3.0.7"
 DESCRIPTION = "A trading framework for cryptocurrencies"
 BASE_DIR = Path(__file__).resolve().parent
 
