@@ -12,23 +12,41 @@ class DynamicNumpyArray:
     """
 
     def __init__(self, shape: tuple, drop_at: int = None):
-        self.index = -1
-        self.array = np.zeros(shape)
+        self._state = (np.zeros(shape), -1)
         self.bucket_size = shape[0]
         self.shape = shape
         self.drop_at = drop_at
 
+    @property
+    def array(self) -> np.ndarray:
+        return self._state[0]
+
+    @array.setter
+    def array(self, value: np.ndarray) -> None:
+        self._state = (value, self._state[1])
+
+    @property
+    def index(self) -> int:
+        return self._state[1]
+
+    @index.setter
+    def index(self, value: int) -> None:
+        self._state = (self._state[0], value)
+
+    def snapshot(self) -> tuple:
+        return self._state
+
     def __str__(self) -> str:
-        return str(self.array[:self.index + 1])
+        array, index = self._state
+        return str(array[:index + 1])
 
     def __len__(self) -> int:
-        return self.index + 1
+        return self._state[1] + 1
 
     def __getitem__(self, i):
-        # hot path (runs per simulated minute): hoist the attribute read and
-        # use `i += index + 1` instead of the old abs()-based negative-index
-        # math — identical arithmetic for the negative values it applies to
-        index = self.index
+        # hot path (runs per simulated minute): hoist the state read and use
+        # `i += index + 1` instead of the old abs()-based negative-index math.
+        array, index = self._state
         if isinstance(i, slice):
             start = 0 if i.start is None else i.start
             stop = index + 1 if i.stop is None else i.stop
@@ -37,7 +55,7 @@ class DynamicNumpyArray:
                 stop += index + 1
             if stop > index + 1:
                 stop = index + 1
-            return self.array[start:stop]
+            return array[start:stop]
         else:
             if i < 0:
                 i += index + 1
@@ -46,114 +64,118 @@ class DynamicNumpyArray:
             if index == -1 or i > index or i < 0:
                 raise IndexError(f'list assignment index out of range. self.index={index}, i={i}')
 
-            return self.array[i]
+            return array[i]
 
     def __setitem__(self, i, item) -> None:
+        array, index = self._state
         if isinstance(i, slice):
             start = i.start
             stop = i.stop
             step = i.step
             if start is not None and start < 0:
-                start = (self.index + 1) - abs(start)
+                start = (index + 1) - abs(start)
             if stop is None:
                 stop = start + len(item)
             if stop < 0:
-                stop = (self.index + 1) - abs(stop)
-            self.array[slice(start, stop, step)] = item
+                stop = (index + 1) - abs(stop)
+            array[slice(start, stop, step)] = item
             return
 
         if i < 0:
-            i += self.index + 1
+            i += index + 1
 
         # validation
-        if i > self.index or i < 0:
+        if i > index or i < 0:
             raise IndexError('list assignment index out of range')
 
-        self.array[i] = item
+        array[i] = item
 
     def append(self, item: np.ndarray) -> None:
-        self.index += 1
+        array, current_index = self._state
+        new_index = current_index + 1
 
-        # Grow the buffer when full, doubling capacity (geometric growth) so
-        # that total bytes copied across all appends is O(N) rather than the
-        # O(N^2 / bucket_size) of linear-bucket growth via np.concatenate.
-        if self.index >= len(self.array):
-            new_size = max(len(self.array) * 2, max(self.bucket_size, 1))
-            new_shape = (new_size,) + tuple(self.array.shape[1:])
-            new_array = np.zeros(new_shape, dtype=self.array.dtype)
-            if self.index > 0:
-                new_array[:self.index] = self.array[:self.index]
-            self.array = new_array
+        # Prepare capacity and the new row before atomically publishing the
+        # complete state used by live readers on another thread.
+        if new_index >= len(array):
+            new_size = max(len(array) * 2, max(self.bucket_size, 1))
+            new_shape = (new_size,) + tuple(array.shape[1:])
+            new_array = np.zeros(new_shape, dtype=array.dtype)
+            if current_index >= 0:
+                new_array[:current_index + 1] = array[:current_index + 1]
+            array = new_array
 
         # drop N% of the beginning values to free memory
         if (
             self.drop_at is not None
-            and self.index != 0
-            and (self.index + 1) % self.drop_at == 0
+            and new_index != 0
+            and (new_index + 1) % self.drop_at == 0
         ):
             shift_num = int(self.drop_at / 2)
-            self.index -= shift_num
-            self.array = np_shift(self.array, -shift_num)
+            new_index -= shift_num
+            array = np_shift(array, -shift_num)
 
-        self.array[self.index] = item
+        array[new_index] = item
+        self._state = (array, new_index)
 
     def get_last_item(self):
+        array, index = self._state
         # validation
-        if self.index == -1:
+        if index == -1:
             raise IndexError('list assignment index out of range. array is empty which means no past item exists')
 
-        return self.array[self.index]
+        return array[index]
 
     def get_past_item(self, past_index) -> np.ndarray:
+        array, index = self._state
         # validation
-        if self.index == -1:
+        if index == -1:
             raise IndexError('list assignment index out of range. array is empty which means no past item exists')
         # validation
-        if (self.index - past_index) < 0:
-            raise IndexError(f'list assignment index out of range. Max allowed is self.index={self.index}, past_index={past_index}')
+        if (index - past_index) < 0:
+            raise IndexError(f'list assignment index out of range. Max allowed is self.index={index}, past_index={past_index}')
 
-        return self.array[self.index - past_index]
+        return array[index - past_index]
 
     def flush(self) -> None:
-        self.index = -1
-        self.array = np.zeros(self.shape)
+        self._state = (np.zeros(self.shape), -1)
         self.bucket_size = self.shape[0]
 
     def append_multiple(self, items: np.ndarray) -> None:
         n_new = len(items)
-        old_index = self.index
-        self.index += n_new
+        array, current_index = self._state
+        new_index = current_index + n_new
 
-        # Grow the buffer geometrically (double) when needed. Must accommodate
-        # `self.index + 1` total elements; ensure we double-or-better to avoid
-        # degrading to linear growth when many small batches are appended.
-        if self.index + 1 > len(self.array):
-            min_required = self.index + 1
-            new_size = max(min_required, len(self.array) * 2, max(self.bucket_size, 1))
-            new_shape = (new_size,) + tuple(self.array.shape[1:])
-            new_array = np.zeros(new_shape, dtype=self.array.dtype)
-            if old_index >= 0:
-                new_array[:old_index + 1] = self.array[:old_index + 1]
-            self.array = new_array
+        # Prepare the complete batch before atomically publishing its state.
+        if new_index + 1 > len(array):
+            min_required = new_index + 1
+            new_size = max(min_required, len(array) * 2, max(self.bucket_size, 1))
+            new_shape = (new_size,) + tuple(array.shape[1:])
+            new_array = np.zeros(new_shape, dtype=array.dtype)
+            if current_index >= 0:
+                new_array[:current_index + 1] = array[:current_index + 1]
+            array = new_array
 
         # drop N% of the beginning values to free memory
         if (
             self.drop_at is not None
-            and self.index != 0
-            and (self.index + 1) % self.drop_at == 0
+            and new_index != 0
+            and (new_index + 1) % self.drop_at == 0
         ):
             shift_num = int(self.drop_at / 2)
-            self.index -= shift_num
-            self.array = np_shift(self.array, -shift_num)
+            new_index -= shift_num
+            array = np_shift(array, -shift_num)
 
-        self.array[self.index - n_new + 1 : self.index + 1] = items
+        array[new_index - n_new + 1:new_index + 1] = items
+        self._state = (array, new_index)
 
     def delete(self, index: int, axis=None) -> None:
-        self.array = np.delete(self.array, index, axis=axis)
-        self.index -= 1
-        if self.array.shape[0] <= self.shape[0]:
+        array, current_index = self._state
+        array = np.delete(array, index, axis=axis)
+        new_index = current_index - 1
+        if array.shape[0] <= self.shape[0]:
             new_bucket = np.zeros(self.shape)
-            self.array = np.concatenate((self.array, new_bucket), axis=0)
+            array = np.concatenate((array, new_bucket), axis=0)
+        self._state = (array, new_index)
 
 
 
