@@ -96,6 +96,7 @@ class MonteCarloTradesReturn(TypedDict):
 @ray.remote
 def _ray_run_scenario_monte_carlo(
     original_trades: list,
+    original_returns: List[float],
     original_equity_curve: list,
     starting_balance: float,
     scenario_index: int,
@@ -106,10 +107,11 @@ def _ray_run_scenario_monte_carlo(
             scenario_seed = seed + scenario_index
             random.seed(scenario_seed)
             np.random.seed(scenario_seed)
-        shuffled_trades = original_trades.copy()
-        random.shuffle(shuffled_trades)
-        equity_curve = _reconstruct_equity_curve_from_trades(
-            shuffled_trades, original_equity_curve, starting_balance
+        order = list(range(len(original_trades)))
+        random.shuffle(order)
+        shuffled_trades = [original_trades[i] for i in order]
+        equity_curve = _reconstruct_equity_curve_from_returns(
+            [original_returns[i] for i in order], original_equity_curve, starting_balance
         )
         result = _calculate_metrics_from_equity_curve(equity_curve, starting_balance)
         result['trades'] = shuffled_trades
@@ -186,10 +188,13 @@ def _run_monte_carlo_simulation(
             original_result, config
         )
         pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Scenarios")
+        # validate and convert once here: raised inside a Ray worker this would be swallowed by the
+        # per-scenario except clause and the session would finish green with no data
+        returns_ref = ray.put(_fractional_returns(original_trades, starting_balance))
         trades_ref = ray.put(original_trades)
         equity_curve_ref = ray.put(original_equity_curve)
         scenario_refs = _launch_monte_carlo_scenarios(
-            num_scenarios, trades_ref, equity_curve_ref, starting_balance
+            num_scenarios, trades_ref, returns_ref, equity_curve_ref, starting_balance
         )
         results = _process_scenario_results(scenario_refs, pbar, progress_callback, result_callback)
         if pbar:
@@ -258,6 +263,7 @@ def _diagnose_empty_trades(original_result: dict) -> None:
 def _launch_monte_carlo_scenarios(
     num_scenarios: int,
     trades_ref: Any,
+    returns_ref: Any,
     equity_curve_ref: Any,
     starting_balance: float
 ) -> List[Any]:
@@ -265,6 +271,7 @@ def _launch_monte_carlo_scenarios(
     for i in range(num_scenarios):
         ref = _ray_run_scenario_monte_carlo.remote(
             original_trades=trades_ref,
+            original_returns=returns_ref,
             original_equity_curve=equity_curve_ref,
             starting_balance=starting_balance,
             scenario_index=i,
@@ -274,7 +281,45 @@ def _launch_monte_carlo_scenarios(
     return scenario_refs
 
 
-def _reconstruct_equity_curve_from_trades(shuffled_trades: list, original_equity_curve: list, starting_balance: float) -> list:
+def _fractional_returns(trades: list, starting_balance: float) -> List[float]:
+    """
+    Express each trade's PnL as a fraction of the balance it was sized against.
+
+    Position size is normally derived from available capital, so a trade's absolute PnL only means
+    something next to the balance at the time the trade was taken. Reordering requires quantities
+    that are comparable across the equity curve, which the fractions are and the raw PnLs are not.
+
+    The balance is taken as `starting_balance + cumsum(PNL)`, which is exact for a single route
+    holding one position at a time. With several routes a trade is opened while other positions
+    still tie up capital, so the denominator is an approximation there.
+
+    Raises:
+        ValueError: if any trade lost at least the balance backing it. Its fraction is then <= -100%,
+            which no ordering can absorb, and every later fraction is measured against a balance that
+            no longer exists.
+    """
+    balance = starting_balance
+    returns: List[float] = []
+    for trade in trades:
+        if balance <= 0 or trade['PNL'] <= -balance:
+            raise ValueError(
+                'A trade lost at least the balance backing it, so trade-order Monte Carlo is undefined'
+            )
+        returns.append(trade['PNL'] / balance)
+        balance += trade['PNL']
+    return returns
+
+
+def _reconstruct_equity_curve_from_returns(shuffled_returns: List[float], original_equity_curve: list, starting_balance: float) -> list:
+    """
+    Rebuild an equity curve by applying the reordered trade returns to the starting balance.
+
+    Takes fractional returns rather than absolute PnLs so that a trade taken late in a grown
+    account is not replayed at its original dollar size against a much smaller early balance.
+
+    Every fraction is greater than -100% by construction, so the balance stays positive whatever the
+    ordering and the drawdown can no longer read as deeper than a total loss.
+    """
     if not original_equity_curve or not original_equity_curve[0].get('data'):
         raise ValueError("Invalid original equity curve format")
     original_data = original_equity_curve[0]['data']
@@ -285,15 +330,19 @@ def _reconstruct_equity_curve_from_trades(shuffled_trades: list, original_equity
     }]
     current_balance = starting_balance
     trade_index = 0
-    total_trades = len(shuffled_trades)
+    total_trades = len(shuffled_returns)
     total_time_points = len(time_points)
     trades_per_point = total_trades / total_time_points if total_time_points > 0 else 1
     for i, timestamp in enumerate(time_points):
-        target_trades_completed = int((i + 1) * trades_per_point)
+        # the last point takes whatever int() truncation left behind, so every trade is applied and
+        # the final value stays invariant to ordering
+        target_trades_completed = (
+            total_trades if i == total_time_points - 1 else int((i + 1) * trades_per_point)
+        )
         trades_to_add = target_trades_completed - trade_index
         for _ in range(trades_to_add):
             if trade_index < total_trades:
-                current_balance += shuffled_trades[trade_index]['PNL']
+                current_balance *= 1 + shuffled_returns[trade_index]
                 trade_index += 1
         new_equity_curve[0]['data'].append({
             'time': timestamp,
