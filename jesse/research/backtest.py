@@ -12,6 +12,60 @@ from jesse.store import store
 import jesse.helpers as jh 
 
 
+def _validate_contiguous_one_minute_candles(candles: dict) -> None:
+    """Validate the complete 1m source timeline required by research backtests.
+
+    Route timeframes may be higher than 1m, but Jesse generates those candles
+    from the supplied 1m data later in the simulation. Accepting an incomplete
+    source timeline would therefore make aggregation and execution mode-dependent.
+    """
+    # Jesse candle timestamps are milliseconds, so adjacent source candles must
+    # always be exactly 60 seconds apart regardless of the route timeframe.
+    one_minute_ms = 60_000
+
+    for candle_data in candles.values():
+        candle_set = candle_data['candles']
+        exchange = candle_data['exchange']
+        symbol = candle_data['symbol']
+
+        if len(candle_set) < 2:
+            raise ValueError(
+                f'At least two continuous 1m candles are required for {symbol} on {exchange}.'
+            )
+
+        # Inspect every adjacent pair so a gap anywhere in the source timeline
+        # is rejected before higher-timeframe candles are generated.
+        timestamp_differences = np.diff(candle_set[:, 0])
+        invalid_indices = np.flatnonzero(timestamp_differences != one_minute_ms)
+        if len(invalid_indices) == 0:
+            continue
+
+        # Report the first broken interval so the caller gets a deterministic,
+        # actionable location even when the provider response has multiple gaps.
+        previous_index = int(invalid_indices[0])
+        previous_timestamp = int(candle_set[previous_index][0])
+        actual_timestamp = int(candle_set[previous_index + 1][0])
+        expected_timestamp = previous_timestamp + one_minute_ms
+        difference = actual_timestamp - previous_timestamp
+
+        # A forward, minute-aligned jump represents absent 1m rows. Duplicates,
+        # reversed rows, and non-minute-aligned timestamps use the generic error.
+        if difference > one_minute_ms and difference % one_minute_ms == 0:
+            missing_count = difference // one_minute_ms - 1
+            candle_word = 'candle' if missing_count == 1 else 'candles'
+            raise ValueError(
+                f'Missing {missing_count} one-minute {candle_word} for {symbol} on {exchange}. '
+                f'Expected timestamp {expected_timestamp} after {previous_timestamp}, '
+                f'but got {actual_timestamp}.'
+            )
+
+        raise ValueError(
+            f'Candles for {symbol} on {exchange} must have strictly increasing '
+            f'1m timestamps. Expected {expected_timestamp} after {previous_timestamp}, '
+            f'but got {actual_timestamp}.'
+        )
+
+
 def backtest(
         config: dict,
         routes: List[Dict[str, str]],
@@ -101,6 +155,11 @@ def _isolated_backtest(
         candles_pipeline_kwargs: dict = None,
         generate_charts: bool = False,
 ) -> dict:
+    # Research backtests require complete 1m source data. Running validation
+    # before configuration, routes, or stores are mutated guarantees that fast
+    # and step simulation reject malformed input identically without leaked state.
+    _validate_contiguous_one_minute_candles(candles)
+
     jesse_config['app']['trading_mode'] = 'backtest'
 
     # inject (formatted) configuration values
@@ -120,18 +179,6 @@ def _isolated_backtest(
     order_service.initialize_orders_state()
     # initialize positions state
     position_service.initialize_positions_state()
-
-    # assert that the passed candles are 1m candles
-    for key, value in candles.items():
-        candle_set = value['candles']
-        if candle_set[1][0] - candle_set[0][0] != 60_000:
-            raise ValueError(
-                f'Candles passed to the research.backtest() must be 1m candles. '
-                f'\nIf you wish to trade other timeframes, notice that you need to pass it through '
-                f'the timeframe option in your routes. '
-                f'\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than '
-                f'the accepted 60000 milliseconds.'
-            )
 
     trading_candles_dict = {
         k: {**v, 'candles': np.copy(v['candles'])} for k, v in candles.items()

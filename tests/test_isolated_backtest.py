@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 import jesse.helpers as jh
 from jesse.factories import candles_from_close_prices
 from jesse.strategies import Strategy
@@ -257,8 +258,14 @@ def test_dna_method_works_in_isolated_backtest():
     research.backtest(config, routes, data_routes, candles)
 
 
-def test_backtest_function_only_accepts_candles_with_1m_time_difference():
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+def test_backtest_rejects_missing_internal_one_minute_candles(fast_mode: bool):
     class TestStrategy(Strategy):
+        def before(self):
+            # Reaching a lifecycle hook would mean validation happened too late,
+            # after the simulator had already started mutating shared state.
+            raise AssertionError('strategy must not execute with missing input candles')
+
         def should_long(self):
             return False
 
@@ -269,15 +276,16 @@ def test_backtest_function_only_accepts_candles_with_1m_time_difference():
             pass
 
     candles = candles_from_close_prices([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
-    timestamp = candles[0][0]
-    # update timestamps so the candles are 5m apart
-    for x in candles[1:]:
-        timestamp += 60_000*5
-        x[0] = timestamp
+    # Keep the first intervals valid and remove an internal row to prove that
+    # validation covers the complete source timeline rather than one boundary.
+    candles = np.delete(candles, 5, axis=0)
+    previous_timestamp = int(candles[4][0])
+    expected_timestamp = previous_timestamp + 60_000
+    actual_timestamp = int(candles[5][0])
 
     exchange_name = 'Fake Exchange'
     symbol = 'FAKE-USDT'
-    timeframe = '5m'
+    timeframe = '1m'
     config = {
         'starting_balance': 10_000,
         'fee': 0,
@@ -299,9 +307,15 @@ def test_backtest_function_only_accepts_candles_with_1m_time_difference():
         },
     }
 
-    # assert that it doesn't accept 1h candles
-    with pytest.raises(ValueError):
-        research.backtest(config, routes, data_routes, candles)
+    expected_message = (
+        f'Missing 1 one-minute candle for {symbol} on {exchange_name}. '
+        f'Expected timestamp {expected_timestamp} after {previous_timestamp}, '
+        f'but got {actual_timestamp}.'
+    )
+    with pytest.raises(ValueError) as exc_info:
+        research.backtest(config, routes, data_routes, candles, fast_mode=fast_mode)
+
+    assert str(exc_info.value) == expected_message
 
 
 def test_passed_candles_are_not_affected_by_running_isolated_backtests():

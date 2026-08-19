@@ -56,7 +56,11 @@ def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
         return None
 
 
-def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
+def find_by_session_id(
+    session_id: str,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> List[ClosedTrade]:
     if jh.is_unit_testing():
         return []
 
@@ -66,11 +70,18 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
         ClosedTrade.select()
         .where(ClosedTrade.session_id == session_id)
         # Sort by: open trades first (closed_at IS NULL), then by most recent opened_at
-        .order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc())
+        .order_by(
+            ClosedTrade.closed_at.is_null(False),
+            ClosedTrade.opened_at.desc(),
+            ClosedTrade.id.desc(),
+        )
     )
     
     if limit is not None:
         query = query.limit(limit)
+
+    if offset:
+        query = query.offset(offset)
     
     trades = list(query)
     for trade in trades:
@@ -351,4 +362,3 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
         return None
     else:
         return trade
-
