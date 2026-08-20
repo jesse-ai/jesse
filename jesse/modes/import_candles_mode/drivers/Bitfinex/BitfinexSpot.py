@@ -1,5 +1,6 @@
 import requests
 import time
+import random
 from requests.exceptions import ConnectionError, RequestException
 
 import jesse.helpers as jh
@@ -33,7 +34,7 @@ class BitfinexSpot(CandleExchange):
                     raise e
                 
                 # Exponential backoff with jitter
-                delay = (self.base_delay * 2 ** attempt) + (jh.random_uniform(0, 1))
+                delay = (self.base_delay * 2 ** attempt) + random.uniform(0, 1)
                 time.sleep(delay)
 
     def get_starting_time(self, symbol: str) -> int:
