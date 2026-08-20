@@ -314,7 +314,14 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
     total_return = ((final_value - starting_balance) / starting_balance) * 100
     max_drawdown = _calculate_max_drawdown(values)
     volatility, sharpe_ratio = _calculate_volatility_metrics(values)
-    calmar_ratio = total_return / abs(max_drawdown) if max_drawdown < 0 else 0
+    duration_seconds = data[-1]['time'] - data[0]['time']
+    years = duration_seconds / (ANNUALIZATION_FACTOR * 24 * 60 * 60)
+    annualized_return = 0.0
+    if years > 0:
+        growth_ratio = np.clip(final_value / starting_balance, 1e-10, 1e10)
+        with np.errstate(over='ignore', under='ignore'):
+            annualized_return = (growth_ratio ** (1 / years) - 1) * 100
+    calmar_ratio = annualized_return / abs(max_drawdown) if max_drawdown < 0 else 0
     return {
         'total_return': total_return,
         'final_value': final_value,
