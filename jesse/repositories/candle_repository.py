@@ -27,41 +27,64 @@ def get_existing_candles() -> List[dict]:
     """
     Returns a list of all existing candles grouped by exchange and symbol
     """
+    # Peewee can't express this, so we use raw SQL. A DISTINCT or GROUP BY over
+    # the candle table reads every row, which takes minutes on large databases.
+    # This recursive CTE emulates an index skip scan (PostgreSQL has no native
+    # one before v18): each step jumps straight to the next
+    # (exchange, symbol, timeframe) group with a single probe of the compound
+    # index, and the first/last timestamps are read with two more index probes
+    # per group. When no next group exists the probes return a NULL row, which
+    # stops the recursion and is filtered out below. The SQL is portable
+    # between PostgreSQL and SQLite (used by the unit tests).
+    query = """
+        WITH RECURSIVE timeframe_groups (exchange, symbol, timeframe) AS (
+            SELECT exchange, symbol, timeframe FROM (
+                SELECT exchange, symbol, timeframe
+                FROM candle
+                ORDER BY exchange, symbol, timeframe
+                LIMIT 1
+            ) AS first_group
+            UNION ALL
+            SELECT
+                (SELECT c.exchange FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe LIMIT 1),
+                (SELECT c.symbol FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe LIMIT 1),
+                (SELECT c.timeframe FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe LIMIT 1)
+            FROM timeframe_groups g
+            WHERE g.exchange IS NOT NULL
+        )
+        SELECT exchange, symbol, MIN(first_timestamp), MAX(last_timestamp)
+        FROM (
+            SELECT
+                g.exchange,
+                g.symbol,
+                (SELECT MIN(c."timestamp") FROM candle c
+                 WHERE c.exchange = g.exchange AND c.symbol = g.symbol AND c.timeframe = g.timeframe) AS first_timestamp,
+                (SELECT MAX(c."timestamp") FROM candle c
+                 WHERE c.exchange = g.exchange AND c.symbol = g.symbol AND c.timeframe = g.timeframe) AS last_timestamp
+            FROM timeframe_groups g
+            WHERE g.exchange IS NOT NULL
+        ) AS group_ranges
+        GROUP BY exchange, symbol
+        ORDER BY exchange, symbol
+    """
+
+    # go through the model's database handle so unit tests can rebind it
+    cursor = Candle._meta.database.execute_sql(query)
+
     results = []
-    
-    # Get unique exchange-symbol combinations
-    pairs = Candle.select(
-        Candle.exchange, 
-        Candle.symbol
-    ).distinct().tuples()
-
-    for exchange, symbol in pairs:
-        # Get first and last candle for this pair
-        first = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.asc()
-        ).first()
-
-        last = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.desc()
-        ).first()
-
-        if first and last:
-            results.append({
-                'exchange': exchange,
-                'symbol': symbol,
-                'start_date': arrow.get(first.timestamp / 1000).format('YYYY-MM-DD'),
-                'end_date': arrow.get(last.timestamp / 1000).format('YYYY-MM-DD')
-            })
+    for exchange, symbol, first_timestamp, last_timestamp in cursor.fetchall():
+        results.append({
+            'exchange': exchange,
+            'symbol': symbol,
+            'start_date': arrow.get(first_timestamp / 1000).format('YYYY-MM-DD'),
+            'end_date': arrow.get(last_timestamp / 1000).format('YYYY-MM-DD')
+        })
 
     return results
 
