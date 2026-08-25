@@ -97,7 +97,7 @@ Jesse Indicator Reference
     ```python
     ta.rsi(self.candles, period=14)      # Relative Strength Index (0-100)
     ta.macd(self.candles)                 # MACD (returns: macd, signal, histogram)
-    ta.stochastic(self.candles)           # Stochastic (%K, %D)
+    ta.stoch(self.candles)                # Stochastic (%K, %D)
     ta.cci(self.candles, period=20)       # Commodity Channel Index
     ta.mfi(self.candles, period=14)       # Money Flow Index
     ta.willr(self.candles, period=14)     # Williams %R
@@ -165,7 +165,7 @@ Jesse Indicator Reference
     For manual exploration, indicators are organized by category:
 
     - **Trend**: sma, ema, dema, tema, wma, hma, kama, alma, frama, vidya, mcginley_dynamic
-    - **Momentum**: rsi, macd, stochastic, cci, mfi, ao, willr, roc, mom, tsi, uo
+    - **Momentum**: rsi, macd, stoch, cci, mfi, ao, willr, roc, mom, tsi, uo
     - **Volatility**: atr, natr, bollinger_bands, keltner, donchian, chop, mass, vpci
     - **Volume**: vwap, vwma, obv, ad, adosc, cmf, kvo
     - **Statistical**: beta, correl, linearreg, zscore, stddev, var, skew, kurtosis
@@ -234,7 +234,7 @@ For each indicator, the tool provides:
 
     ## Common Indicators to Explore
 
-Popular indicators include: rsi, macd, sma, ema, bollinger_bands, stochastic, atr, cci, etc.
+Popular indicators include: rsi, macd, sma, ema, bollinger_bands, stoch, atr, cci, etc.
 """
 
 @mcp.resource("jesse://indicator-workflow")
@@ -267,7 +267,7 @@ result = list_indicators()
 Based on your trading strategy requirements, choose appropriate indicators from the list.
 Common categories include:
 - **Trend**: sma, ema, macd, adx
-- **Momentum**: rsi, stochastic, cci, mfi
+- **Momentum**: rsi, stoch, cci, mfi
 - **Volatility**: bollinger_bands, atr, keltner
 - **Volume**: obv, vwap, volume
 
@@ -369,7 +369,7 @@ rsi = ta.rsi(self.candles, period=14)
 ❌ **Wrong**: Misunderstanding return types
 ```python
 macd, signal, hist = ta.macd(self.candles)  # Wrong - returns namedtuple
-rsi, stoch = ta.rsi(self.candles), ta.stochastic(self.candles)  # Wrong types
+rsi, stoch = ta.rsi(self.candles), ta.stoch(self.candles)  # Wrong types
 ```
 
 ✅ **Correct**: Check return types first

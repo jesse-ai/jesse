@@ -48,7 +48,7 @@ def register_indicator_tools(mcp):
                 "count": 147,                    // Total number of available indicators
                 "indicators": [                  // Alphabetically sorted array of indicator names
                     "sma", "ema", "rsi", "macd", "bollinger_bands",
-                    "stochastic", "cci", "atr", "adx", "supertrend",
+                    "stoch", "cci", "atr", "adx", "supertrend",
                     // ... all 140+ indicator names
                 ],
                 "message": "Found 147 indicators available in Jesse"
@@ -124,7 +124,7 @@ def register_indicator_tools(mcp):
 
         Parameters:
             indicator_name (str): Exact name of the indicator as returned by list_indicators()
-                Examples: "rsi", "macd", "sma", "bollinger_bands", "stochastic", "atr"
+                Examples: "rsi", "macd", "sma", "bollinger_bands", "stoch", "atr"
                 Shape: String matching available indicator names exactly
 
         Returns:
