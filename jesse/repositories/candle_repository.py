@@ -3,6 +3,7 @@ import jesse.helpers as jh
 from typing import List
 import numpy as np
 import arrow
+from peewee import fn
 
 
 def delete_candles_from_db(exchange: str, symbol: str) -> None:
@@ -28,40 +29,30 @@ def get_existing_candles() -> List[dict]:
     Returns a list of all existing candles grouped by exchange and symbol
     """
     results = []
-    
-    # Get unique exchange-symbol combinations
+
+    # Aggregate all pairs in one query. The previous distinct-pairs plus
+    # first/last lookup loop issued two extra queries for every pair, which
+    # made this metadata endpoint time out on larger candle databases.
     pairs = Candle.select(
-        Candle.exchange, 
-        Candle.symbol
-    ).distinct().tuples()
+        Candle.exchange,
+        Candle.symbol,
+        fn.MIN(Candle.timestamp).alias('first_timestamp'),
+        fn.MAX(Candle.timestamp).alias('last_timestamp'),
+    ).group_by(
+        Candle.exchange,
+        Candle.symbol,
+    ).order_by(
+        Candle.exchange,
+        Candle.symbol,
+    ).tuples()
 
-    for exchange, symbol in pairs:
-        # Get first and last candle for this pair
-        first = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.asc()
-        ).first()
-
-        last = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.desc()
-        ).first()
-
-        if first and last:
-            results.append({
-                'exchange': exchange,
-                'symbol': symbol,
-                'start_date': arrow.get(first.timestamp / 1000).format('YYYY-MM-DD'),
-                'end_date': arrow.get(last.timestamp / 1000).format('YYYY-MM-DD')
-            })
+    for exchange, symbol, first_timestamp, last_timestamp in pairs:
+        results.append({
+            'exchange': exchange,
+            'symbol': symbol,
+            'start_date': arrow.get(first_timestamp / 1000).format('YYYY-MM-DD'),
+            'end_date': arrow.get(last_timestamp / 1000).format('YYYY-MM-DD')
+        })
 
     return results
 
