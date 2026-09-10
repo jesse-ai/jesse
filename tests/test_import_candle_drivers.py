@@ -8,6 +8,8 @@ from jesse.modes.import_candles_mode.drivers import drivers
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualMain import (
     ApexOmniPerpetualMain,
 )
+from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksMain import AlpacaStocksMain
+from jesse.modes.import_candles_mode.drivers.Alpaca.alpaca_utils import ms_to_rfc3339
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceMain import BinanceMain
 from jesse.modes.import_candles_mode.drivers.Bitfinex.BitfinexSpot import BitfinexSpot
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitMain import BybitMain
@@ -197,6 +199,21 @@ def _mock_fetch_response(monkeypatch, driver, captured):
 
         monkeypatch.setattr(requests, 'get', request)
         return 'BTC-USD', 'start', START_TIMESTAMP // 1000
+
+    if isinstance(driver, AlpacaStocksMain):
+        # bars are keyed by ticker; `t` is the RFC3339 bar start (UTC)
+        driver._feed = 'iex'
+        driver._headers = {}
+        payload = {'bars': {'BTC': [{
+            't': ms_to_rfc3339(START_TIMESTAMP), 'o': '1', 'h': '3', 'l': '0.5', 'c': '2', 'v': '4',
+        }]}}
+
+        def request(url, params):
+            captured.update(params or {})
+            return payload
+
+        monkeypatch.setattr(driver, '_get', request)
+        return 'BTC-USD', 'start', ms_to_rfc3339(START_TIMESTAMP)
 
     raise AssertionError(f'No mocked provider contract for {type(driver).__name__}')
 

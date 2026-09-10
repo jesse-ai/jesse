@@ -24,6 +24,10 @@ from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinUSDTPerpetual import K
 from jesse.modes.import_candles_mode.drivers.Kraken.KrakenSpot import KrakenSpot
 from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetual import KrakenPerpetual
 from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetualTestnet import KrakenPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksCash import AlpacaStocksCash
+from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksMargin import AlpacaStocksMargin
+from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksCashPaper import AlpacaStocksCashPaper
+from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksMarginPaper import AlpacaStocksMarginPaper
 from jesse.services.historical_data import (
     HistoricalCandleProviderRegistry,
     MassiveCurrenciesProvider,
@@ -61,6 +65,11 @@ drivers = {
     exchanges.BYBIT_SPOT: BybitSpot,
     exchanges.KUCOIN_SPOT: KuCoinSpot,
     exchanges.KRAKEN_SPOT: KrakenSpot,
+    # Alpaca US equities (warm-up candles for live sessions; not a backtest source)
+    exchanges.ALPACA_STOCKS_CASH: AlpacaStocksCash,
+    exchanges.ALPACA_STOCKS_MARGIN: AlpacaStocksMargin,
+    exchanges.ALPACA_STOCKS_CASH_PAPER: AlpacaStocksCashPaper,
+    exchanges.ALPACA_STOCKS_MARGIN_PAPER: AlpacaStocksMarginPaper,
 }
 
 

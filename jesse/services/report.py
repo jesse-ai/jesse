@@ -86,8 +86,9 @@ def livetrade():
         starting_balance = round(store.exchanges.storage[e].started_balance, 2)
         current_balance = round(store.exchanges.storage[e].wallet_balance, 2)
         exchange_name = e
-        if store.exchanges.storage[e].type == 'futures':
+        if store.exchanges.storage[e].uses_margin_accounting:
             leverage = store.exchanges.storage[e].futures_leverage
+            # margin accounts are always cross; FuturesExchange stores the user's choice
             leverage_type = store.exchanges.storage[e].futures_leverage_mode
             available_margin = round(store.exchanges.storage[e].available_margin, 2)
         # there's only one exchange, so we can break

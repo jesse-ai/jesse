@@ -489,6 +489,12 @@ def generate_new_candles_loop() -> None:
         if jh.now() % 60_000 != 1000:
             return
 
+        # Sparse venues (stock markets) have no candles while the market is closed. An absent
+        # minute is not an event there, so nothing is fabricated; such live sessions use the same
+        # clock-bucket model as observed-only backtests (see uses_timestamp_buckets).
+        if store.candles.uses_timestamp_buckets:
+            return
+
         for c in router.all_formatted_routes:
             exchange, symbol, timeframe = c['exchange'], c['symbol'], c['timeframe']
             current_candle = get_current_candle(exchange, symbol, timeframe)
@@ -559,7 +565,18 @@ def add_candle(
             return
 
         # if it's not an old candle, update the related position's current_price
-        if jh.next_candle_timestamp(candle, timeframe) > jh.now():
+        latest_array, latest_index = arr.snapshot()
+        # Stock streams deliver completed bars after their minute ends. Their newest observed
+        # close is still the current price; an older REST backfill must never move it backwards.
+        newest_sparse_minute = (
+            store.candles.uses_timestamp_buckets and timeframe == '1m'
+            and candle_timestamp < jh.now()
+            and (latest_index == -1 or candle_timestamp >= latest_array[latest_index, 0])
+        )
+        if newest_sparse_minute or (
+                not store.candles.uses_timestamp_buckets
+                and jh.next_candle_timestamp(candle, timeframe) > jh.now()
+        ):
             _update_position_current_price(exchange, symbol, candle[2])
 
         # ignore new candle at the time of execution because it messes
@@ -685,6 +702,10 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
     if not jh.is_live():
         return
 
+    if store.candles.uses_timestamp_buckets:
+        _generate_bigger_timeframes_from_buckets(candle, exchange, symbol, with_execution)
+        return
+
     for timeframe in config['app']['considering_timeframes']:
         # skip '1m'
         if timeframe == '1m':
@@ -731,6 +752,33 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
         add_candle(
             generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False
         )
+
+
+def _generate_bigger_timeframes_from_buckets(
+        candle: np.ndarray, exchange: str, symbol: str, with_execution: bool
+) -> None:
+    """
+    Sparse venues: rebuild the clock bucket the new 1m candle belongs to from the observed 1m rows
+    only. The dense path above counts minutes since the previous candle and slices that many rows,
+    which would pull the previous session into the first bucket after a closed market.
+    """
+    short_array, short_index = store.candles.get_storage(exchange, symbol, '1m').snapshot()
+    if short_index == -1:
+        return
+    visible = short_array[:short_index + 1]
+
+    for timeframe in config['app']['considering_timeframes']:
+        if timeframe == '1m':
+            continue
+        timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
+        bucket_start = int(candle[0]) - (int(candle[0]) % timeframe_ms)
+        start_index = int(np.searchsorted(visible[:, 0], bucket_start, side='left'))
+        end_index = int(np.searchsorted(visible[:, 0], bucket_start + timeframe_ms, side='left'))
+        rows = visible[start_index:end_index]
+        if len(rows) == 0:
+            continue
+        generated = generate_candle_from_observed_minutes(timeframe, rows)
+        add_candle(generated, exchange, symbol, timeframe, with_execution, with_generation=False)
 
 
 def batch_add_candle(

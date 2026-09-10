@@ -3,6 +3,7 @@ from .ClosedTrade import ClosedTrade
 from .DataProviderCredentials import DataProviderCredentials
 from .Exchange import Exchange
 from .FuturesExchange import FuturesExchange
+from .MarginExchange import MarginExchange
 from .Order import Order
 from .Position import Position
 from .Route import Route

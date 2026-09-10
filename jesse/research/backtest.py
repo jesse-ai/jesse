@@ -337,6 +337,10 @@ def _format_config(config):
     if exchange_config['type'] == 'futures':
         exchange_config['futures_leverage'] = config['futures_leverage']
         exchange_config['futures_leverage_mode'] = config['futures_leverage_mode']
+    elif exchange_config['type'] == 'margin':
+        # the leverage cap; a margin account has no selectable leverage mode
+        exchange_config['futures_leverage'] = config.get('futures_leverage', 1)
+        exchange_config['futures_leverage_mode'] = 'cross'
 
     return {
         'exchanges': {

@@ -74,6 +74,10 @@ def _exchange_config(exchange_name: str, value: object, default_leverage: int) -
             requested_mode if requested_mode in supported_modes else supported_modes[0]
         )
         config['futures_leverage'] = supplied.get('futures_leverage', default_leverage)
+    elif exchange_type == 'margin':
+        # broker margin account: the same key is the leverage cap; the mode is always cross
+        config['futures_leverage'] = supplied.get('futures_leverage', default_leverage)
+        config['futures_leverage_mode'] = 'cross'
 
     return config
 

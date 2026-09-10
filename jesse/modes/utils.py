@@ -34,6 +34,16 @@ def save_daily_portfolio_balance(is_initial=False) -> None:
         for key, pos in store.positions.storage.items():
             if pos.is_open:
                 total_balances += pos.pnl
+    elif e.type == 'margin':
+        # Backtests keep realized PnL in the settlement asset like futures. Live margin drivers
+        # report the broker's equity as the wallet balance, which already includes open PnL.
+        if jh.is_livetrading():
+            total_balances = e.wallet_balance
+        else:
+            total_balances = e.assets[jh.app_currency()]
+            for key, pos in store.positions.storage.items():
+                if pos.is_open:
+                    total_balances += pos.pnl
     else:
         # For spot, just get portfolio_value from any strategy (they all share the same wallet)
         # Get the first strategy we can find

@@ -103,6 +103,10 @@ class exchanges:
     KRAKEN_SPOT = 'Kraken Pro Spot'
     KRAKEN_PERPETUAL = 'Kraken Pro Futures'
     KRAKEN_PERPETUAL_TESTNET = 'Kraken Pro Futures Testnet'
+    ALPACA_STOCKS_CASH = 'Alpaca Stocks Cash'
+    ALPACA_STOCKS_MARGIN = 'Alpaca Stocks Margin'
+    ALPACA_STOCKS_CASH_PAPER = 'Alpaca Stocks Cash Paper'
+    ALPACA_STOCKS_MARGIN_PAPER = 'Alpaca Stocks Margin Paper'
 
 
 @dataclass

@@ -31,16 +31,18 @@ def candles_info(candles_array: np.ndarray) -> dict:
         'exchange_type': trading_exchange.type,
         'simulation_model': jh.get_config(
             f'env.exchanges.{trading_exchange.name}.simulation_model',
-            'perpetual_futures' if trading_exchange.type == 'futures' else 'spot',
+            {'futures': 'perpetual_futures', 'margin': 'margin'}.get(trading_exchange.type, 'spot'),
         ),
         'annualization': jh.get_config('env.metrics.annualization', 365),
         'exchange': trading_exchange.name,
     }
 
-    # if the exchange type is futures, also display leverage
+    # leverage applies to futures and to margin accounts (where it is the user's cap)
     if trading_exchange.type == 'futures':
         info['leverage'] = trading_exchange.futures_leverage
         info['leverage_mode'] = trading_exchange.futures_leverage_mode
+    elif trading_exchange.type == 'margin':
+        info['leverage'] = trading_exchange.futures_leverage
 
     return info
 

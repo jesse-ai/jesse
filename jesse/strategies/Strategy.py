@@ -1721,9 +1721,10 @@ class Strategy(ABC):
 
     @property
     def leverage(self) -> int:
-        if type(self.position.exchange) is SpotExchange:
+        if isinstance(self.position.exchange, SpotExchange):
             return 1
-        elif type(self.position.exchange) is FuturesExchange:
+        # covers MarginExchange too, where the value is the user's leverage cap
+        elif isinstance(self.position.exchange, FuturesExchange):
             return self.position.exchange.futures_leverage
         else:
             raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
@@ -1764,6 +1765,10 @@ class Strategy(ABC):
 
     @property
     def portfolio_value(self) -> float:
+        # Broker equity already includes unrealized PnL. Simulation still uses the inherited
+        # futures wallet bookkeeping, so this shortcut applies only to broker live sessions.
+        if jh.is_livetrading() and self.is_margin_trading:
+            return self.balance
         total_position_values = 0
 
         # in spot mode, self.balance does not include open order's value, so:
@@ -1781,8 +1786,8 @@ class Strategy(ABC):
 
             total_position_values = entry_orders_value + positions_value
 
-        # in futures mode, it's simpler:
-        elif self.is_futures_trading:
+        # in futures and margin mode, it's simpler:
+        elif self.position.exchange.uses_margin_accounting:
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
@@ -1834,6 +1839,14 @@ class Strategy(ABC):
     @property
     def is_futures_trading(self) -> bool:
         return self.exchange_type == 'futures'
+
+    @property
+    def is_margin_trading(self) -> bool:
+        """
+        True on broker margin accounts (e.g. Alpaca Stocks Margin): long and short with a leverage
+        cap, one shared cash account, no liquidation price and no funding.
+        """
+        return self.exchange_type == 'margin'
 
     @property
     def daily_balances(self) -> list:

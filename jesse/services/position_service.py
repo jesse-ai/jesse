@@ -35,7 +35,7 @@ def _mutating_close(position: Position, close_price: float) -> None:
     position.exit_price = close_price
     position.closed_at = jh.now_to_timestamp()
 
-    if position.exchange and position.exchange.type == 'futures':
+    if position.exchange and position.exchange.uses_margin_accounting:
         # just to prevent confusion
         close_qty = abs(position.qty)
         estimated_profit = jh.estimate_PNL(
@@ -70,7 +70,7 @@ def _mutating_reduce(position: Position, qty: float, price: float) -> None:
 
     estimated_profit = jh.estimate_PNL(qty, position.entry_price, price, position.type)
 
-    if position.exchange and position.exchange.type == 'futures':
+    if position.exchange and position.exchange.uses_margin_accounting:
         # position.exchange.increase_futures_balance(qty * position.entry_price + estimated_profit)
         position.exchange.add_realized_pnl(estimated_profit)
         position.exchange.temp_reduced_amount[jh.base_asset(position.symbol)] += abs(qty * price)
@@ -127,7 +127,7 @@ def _update_qty(position: Position, qty: float, operation='set'):
             # the qty to reduce but fees are handled on the exchange balance stuff
             position.qty = subtract_floats(position.qty, qty)
 
-    elif position.exchange_type == 'futures':
+    elif position.exchange.uses_margin_accounting:
         if operation == 'set':
             position.qty = qty
         elif operation == 'add':
@@ -143,8 +143,8 @@ def _open(position: Position, p_orders: list = None):
 
 
 def on_executed_order(position: Position, order: Order) -> None:
-    # futures (live)
-    if jh.is_livetrading() and position.exchange_type == 'futures':
+    # futures and margin (live)
+    if jh.is_livetrading() and position.exchange.uses_margin_accounting:
         # if position got closed because of this order
         if order.is_partially_filled:
             before_qty = position.qty - order.filled_qty
@@ -176,7 +176,7 @@ def on_executed_order(position: Position, order: Order) -> None:
         qty = order.qty
         price = order.price
 
-        if position.exchange and position.exchange.type == 'futures':
+        if position.exchange and position.exchange.uses_margin_accounting:
             # fee is charged on what actually filled, not the stated qty (a reduce_only
             # order may fill less than its stated qty when it exceeds the open position).
             position.exchange.charge_fee(order.filled_qty * price)
@@ -223,8 +223,9 @@ def update_from_stream(position: Position, data: dict, is_initial: bool, open_tr
     before_qty = abs(position.qty)
     after_qty = abs(data['qty'])
 
-    if position.exchange_type == 'futures':
+    if position.exchange.uses_margin_accounting:
         position.entry_price = data['entry_price']
+        # margin drivers report None here: a broker account has no per-position liquidation price
         position._liquidation_price = data['liquidation_price']
     else:  # spot
         if after_qty > position._min_qty and position.entry_price is None:

@@ -33,7 +33,8 @@ class Position:
         if not jh.is_live():
             return self.current_price
 
-        if self.exchange_type == 'spot':
+        # Only perpetual futures stream a mark price; spot and margin accounts mark at the last price.
+        if self.exchange_type != 'futures':
             return self.current_price
 
         return self._mark_price
@@ -43,8 +44,8 @@ class Position:
         if not jh.is_live():
             return 0
 
-        if self.exchange_type == 'spot':
-            raise ValueError('funding rate is not applicable to spot trading')
+        if self.exchange_type != 'futures':
+            raise ValueError(f'funding rate is not applicable to {self.exchange_type} trading')
 
         return self._funding_rate
 
@@ -53,8 +54,8 @@ class Position:
         if not jh.is_live():
             return None
 
-        if self.exchange_type == 'spot':
-            raise ValueError('funding rate is not applicable to spot trading')
+        if self.exchange_type != 'futures':
+            raise ValueError(f'funding rate is not applicable to {self.exchange_type} trading')
 
         return self._next_funding_timestamp
 
@@ -209,8 +210,11 @@ class Position:
     def mode(self) -> str:
         if self.exchange.type == 'spot':
             return 'spot'
-        else:
-            return self.exchange.futures_leverage_mode
+        # A broker margin account has one shared margin pool, so it is always cross and never
+        # gets a per-position liquidation price.
+        if self.exchange.type == 'margin':
+            return 'cross'
+        return self.exchange.futures_leverage_mode
 
     @property
     def liquidation_price(self) -> Union[float, np.float64]:

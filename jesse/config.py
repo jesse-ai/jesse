@@ -187,6 +187,11 @@ def set_config(conf: dict) -> None:
                 config['env']['exchanges'][name]['futures_leverage'] = int(e.get('futures_leverage', 1))
                 # accepted values are: 'cross' and 'isolated'
                 config['env']['exchanges'][name]['futures_leverage_mode'] = e.get('futures_leverage_mode', 'cross')
+            elif config['env']['exchanges'][name]['type'] == 'margin':
+                # A broker margin account: the same key holds the user's leverage cap (>= 1) and the
+                # mode is always cross, whatever the client sent.
+                config['env']['exchanges'][name]['futures_leverage'] = max(1, int(e.get('futures_leverage', 1)))
+                config['env']['exchanges'][name]['futures_leverage_mode'] = 'cross'
         if selected_annualization is not None:
             config['env']['metrics']['annualization'] = int(selected_annualization)
 
