@@ -161,9 +161,6 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     risk_per_qty = abs(entry_price - stop_loss_price)
     size = risk_to_size(capital, risk_per_capital, risk_per_qty, entry_price)
 
-    if fee_rate != 0:
-        size = size * (1 - fee_rate * 3)
-
     return size_to_qty(size, entry_price, precision=precision, fee_rate=fee_rate)
 
 
