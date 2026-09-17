@@ -14,6 +14,7 @@ from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.services import order_service, candle_service
+from jesse.services import trading_hours as trading_hours_service
 from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
@@ -604,6 +605,17 @@ class Strategy(ABC):
 
     def hyperparameters(self) -> list:
         return []
+
+    def trading_hours(self) -> Optional[dict]:
+        """
+        The market schedule this strategy respects, for instruments that follow a market
+        calendar but trade on a 24/7 exchange. Return a schedule dict
+        ({'timezone': ..., 'hours': {...}, 'closed': [...], 'overrides': {...}}) or None for
+        no schedule. It is a method so the answer can depend on self (mode, exchange, symbol,
+        hyperparameters). The engine never enforces it; it only feeds self.is_trading_hours
+        and is meant to be passed to utils.filter_candles_by_hours().
+        """
+        return None
 
     def dna(self) -> str:
         return ''
@@ -1854,6 +1866,15 @@ class Strategy(ABC):
     @property
     def is_live(self) -> bool:
         return jh.is_live()
+
+    @property
+    def is_trading_hours(self) -> bool:
+        """
+        Whether the current decision time (self.time) falls inside self.trading_hours().
+        Always True when trading_hours() returns None. Use it as the entry gate in
+        should_long()/should_short() and for the unfilled-entry policy in should_cancel_entry().
+        """
+        return trading_hours_service.is_in_trading_hours(int(self.time), self.trading_hours())
 
     @property
     def min_qty(self) -> float:
