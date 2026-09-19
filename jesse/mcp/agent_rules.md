@@ -113,6 +113,7 @@ High-signal Jesse strategy-authoring gotchas (full detail in jesse://strategy):
 - Inside `on_open_position`, check `self.is_long` / `self.is_short` before setting `self.stop_loss` / `self.take_profit`.
 - On **spot**, shorting is unsupported: `should_short()` must return `False`, leverage is always `1`, and `stop_loss`/`take_profit` must be set in `on_open_position()` (not `go_long()`).
 - Size from `self.available_margin` (or balance/capital), price, and `self.fee_rate` via sizing utilities (`size_to_qty`, `risk_to_qty`) — never hardcode a fixed quantity.
+- Market hours, sessions, "skip weekends", or a stock-linked instrument on a 24/7 exchange: define `trading_hours()` returning a dict with `timezone` and `hours` (days always explicit, no preset names), gate entries with `self.is_trading_hours`, and feed entry indicators `utils.filter_candles_by_hours(self.candles, self.trading_hours())`. Never hand-roll UTC-hour math or reassign `self.candles`, and never gate `update_position()`/exits by the schedule. See the Trading Hours section of jesse://strategy.
 
 For full structure, lifecycle, and complete runnable examples see jesse://strategy and jesse://strategy_examples.
 

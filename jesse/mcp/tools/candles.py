@@ -131,8 +131,13 @@ def register_candles_tools(mcp):
         "failed", or "cancelled". After "finished", optionally verify with
         get_existing_candles(). Use cancel_candle_import(import_id) to stop it.
 
-        All supported timeframes are imported automatically: 1m, 3m, 5m, 15m, 30m,
-        45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M.
+        Only one-minute candles are imported and stored, for every source. In backtests,
+        optimization, Monte Carlo, significance tests and research, all other timeframes
+        (3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M) are generated
+        from them at run time, so one import per exchange and symbol covers every
+        timeframe; there is no timeframe parameter. (Live sessions do not rely on imported
+        candles for this: they fetch each timeframe from the exchange unless the live
+        setting `generate_candles_from_1m` is enabled.)
 
         Parameters:
             exchange (str): Exchange name. Supported values:
@@ -706,7 +711,8 @@ def register_candles_tools(mcp):
         Use this when the user wants to backtest data they already imported as if it belonged
         to a different market, for example run Massive Stocks "SPY-USD" under
         "Binance Perpetual Futures" as "SPY-USDT" to use that exchange's futures simulation.
-        Every stored timeframe is copied. `target_exchange` must be a backtesting-capable
+        The whole stored one-minute series is copied (backtests generate every other timeframe
+        from it at run time, so they follow automatically). `target_exchange` must be a backtesting-capable
         exchange name exactly as Jesse lists it, and `target_symbol` defaults to `symbol`;
         set it when the target market quotes in another currency (USD vs USDT).
 

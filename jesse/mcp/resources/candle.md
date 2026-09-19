@@ -4,7 +4,9 @@ This reference covers candle import and management operations in Jesse.
 
 ## Data Requirements
 
-Historical candle data is required for backtesting strategies. Import data for all route exchanges, symbols, and timeframes before running backtests.
+Historical candle data is required for backtesting strategies. Import data for every route's exchange and symbol before running backtests.
+
+Jesse imports and stores **one-minute candles only**, for every source (crypto exchanges, Massive, Custom Data). In backtests, optimization, Monte Carlo, significance tests and research, every other timeframe is generated from those minutes at run time, so a single import per exchange and symbol covers every timeframe a route or `get_candles()` asks for. Live and paper sessions are different: by default each timeframe's candles come from the exchange, and only when the live setting `generate_candles_from_1m` is enabled are bigger timeframes generated locally from one-minute candles. Timeframes are never imported, so when checking coverage only confirm that the symbol's data spans the backtest dates plus warm-up.
 
 ## Import Process
 
@@ -82,7 +84,7 @@ simulation settings.
   currency (`USD` vs `USDT`)
 - `delete_source` (optional, default false): remove the original in the same transaction
 
-Rules: every stored timeframe is copied; the call is refused (HTTP 409) when the target already
+Rules: the whole stored one-minute series is copied, which is everything a backtest needs for any timeframe; the call is refused (HTTP 409) when the target already
 holds candles, so series are never merged; deleting the source turns the copy into a rename, but
 provider updates only work under the original exchange name, so confirm with the user first.
 
@@ -98,10 +100,27 @@ Imports historical candle data from exchanges.
 - `start_date`: Start date in YYYY-MM-DD format
 - `import_id` (optional): Import ID for retrying failed imports
 
-**Supported Timeframes:**
-1m, 3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M
+**Timeframes:** the import has no timeframe parameter. One-minute candles are stored, and in
+backtests and the other research modes the timeframes usable in routes and `get_candles()` (1m,
+3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M) are all built from them at run
+time. Live sessions fetch each timeframe from the exchange unless `generate_candles_from_1m` is on.
 
 **Returns:** Import result with status and import ID
+
+## Traditional Markets and Gapped Data
+
+Massive sources and Custom Data describe markets that close, so their one-minute series has real
+gaps (nights, weekends, holidays; pre-market and after-hours bars are kept where the provider has
+them). Jesse never fabricates candles for a closure:
+
+- Backtests detect gapped data automatically and replay only the candles that exist. Bigger
+  timeframes are built from the observed minutes in clock-aligned buckets.
+- Warm-up is counted in **completed observed candles** of the route's timeframe, not calendar
+  time, so import noticeably more history than a crypto backtest would need.
+- A resting order crossed by an opening gap fills at the **open price**, not at its own price.
+- Metrics for these sources annualize on 252 observations by default instead of 365.
+- To trade a stock-linked instrument on a 24/7 exchange with matching indicator history, use the
+  trading-hours helpers described in `jesse://strategy`.
 
 ## Usage Examples
 

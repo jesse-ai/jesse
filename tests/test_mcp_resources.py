@@ -79,3 +79,72 @@ def test_strategy_tool_descriptions_expose_update_chart_lifecycle():
     assert create_docs is not None and 'forming candle in live/paper sessions' in create_docs
     assert read_docs is not None and 'visualization-only chart calculations' in read_docs
     assert write_docs is not None and 'intrabar live/paper updates' in write_docs
+
+
+def test_strategy_resource_documents_the_trading_hours_api():
+    mcp = FakeMCP()
+
+    register_resources(mcp)
+
+    strategy = mcp.resources['jesse://strategy']()
+    assert '## Trading Hours' in strategy
+    assert 'def trading_hours(self):' in strategy
+    assert '`is_trading_hours`' in strategy
+    assert 'utils.filter_candles_by_hours(self.candles, self.trading_hours())' in strategy
+    # every key the schedule validator accepts must be documented
+    for key in ('`timezone`', '`hours`', '`closed`', '`overrides`'):
+        assert key in strategy
+    # the two rules an assistant most easily gets wrong
+    assert 'The engine enforces nothing' in strategy
+    assert 'Do **not** gate `update_position()` or exits' in strategy
+
+
+def test_documented_trading_hours_names_exist_in_the_real_api():
+    from jesse import utils
+    from jesse.services.trading_hours import _ALLOWED_KEYS
+    from jesse.strategies import Strategy
+
+    assert callable(utils.filter_candles_by_hours)
+    assert callable(utils.is_in_trading_hours)
+    assert callable(Strategy.trading_hours)
+    assert isinstance(Strategy.is_trading_hours, property)
+    assert _ALLOWED_KEYS == {'timezone', 'hours', 'closed', 'overrides'}
+
+
+def test_utilities_and_examples_resources_cover_trading_hours():
+    mcp = FakeMCP()
+
+    register_resources(mcp)
+
+    utilities = mcp.resources['jesse://utilities']()
+    assert '### filter_candles_by_hours(candles, hours)' in utilities
+    assert '### is_in_trading_hours(timestamp, hours)' in utilities
+
+    examples = mcp.resources['jesse://strategy_examples']()
+    assert 'class SessionBreakout(Strategy):' in examples
+    assert 'if not self.is_trading_hours:' in examples
+
+
+def test_candle_docs_state_that_only_one_minute_candles_are_imported():
+    mcp = FakeMCP()
+
+    register_resources(mcp)
+
+    candle = mcp.resources['jesse://candle']()
+    assert 'one-minute candles only' in candle
+    assert 'Timeframes are never imported' in candle
+    assert 'timeframes are imported automatically' not in candle.lower()
+
+    from jesse.mcp.tools import candles as candle_tools
+    import inspect
+
+    source = inspect.getsource(candle_tools)
+    assert 'Only one-minute candles are imported and stored' in source
+    assert 'timeframes are imported automatically' not in source.lower()
+
+
+def test_packaged_agent_rules_mention_trading_hours():
+    rules = _load_packaged_rules()
+
+    assert 'self.is_trading_hours' in rules
+    assert 'utils.filter_candles_by_hours(self.candles, self.trading_hours())' in rules

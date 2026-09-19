@@ -59,6 +59,7 @@ result = create_strategy("MyStrategy", strategy_code)
 
 - **before()**: Runs before the strategy logic each candle.
 - **after()**: Runs after the strategy logic each candle.
+- **trading_hours()**: Returns the market schedule dict (or `None`) for strategies that respect a market's hours; feeds `self.is_trading_hours`. See **Trading Hours** below.
 - **update_chart()**: Calculates chart-only values. Runs once per completed candle in backtests and approximately once per second on the forming candle in live/paper sessions. See **jesse://charts**.
 
 ## Strategy Execution Model (every candle)
@@ -273,6 +274,7 @@ The `Position` object exposes: `entry_price`, `qty`, `opened_at`, `value`, `type
 | `is_spot_trading` / `is_futures_trading` | bool | Market type checks. |
 | `is_backtesting` / `is_livetrading` / `is_papertrading` | bool | Run-mode checks. |
 | `is_live` | bool | True if live **or** paper trading. |
+| `is_trading_hours` | bool | True when `self.time` is inside the schedule returned by `trading_hours()`; always True when that returns `None`. |
 | `hp` | dict | Hyperparameter values keyed by name (see Optimization). |
 | `vars` | dict | Per-strategy scratch dict. |
 | `shared_vars` | dict | Dict shared across all routes (cross-route communication). |
@@ -287,6 +289,7 @@ The `Position` object exposes: `entry_price`, `qty`, `opened_at`, `value`, `type
 | `watch_list()` | Return a list of `(label, value)` tuples surfaced in live/paper monitoring. |
 | `hyperparameters()` | Return the list of optimizable parameters (see Optimization). |
 | `dna()` | Return a DNA string to apply optimized hyperparameters. |
+| `trading_hours()` | Return the market schedule dict, or `None` (default) for no schedule. See Trading Hours. |
 | `filters()` | Return a list of filter **methods** (not called) that must all pass before entry. *Optional — prefer plain `if` conditions in `should_long`/`should_short`; only define when asked.* |
 | `add_line_to_candle_chart(...)` etc. | Interactive chart series and levels. Use them from `update_chart()`; see `jesse://charts`. |
 
@@ -362,6 +365,72 @@ def big_trend(self):
 ```
 
 Lookahead bias is handled internally even across timeframes: the closing price of a higher-timeframe candle is never from the future, so you do not need to manually shift to a previous value.
+
+## Trading Hours (market sessions)
+
+Use this whenever the user wants entries limited to a market's hours, days or session, wants to
+skip weekends/holidays, or trades a **stock-linked instrument on a 24/7 crypto exchange**. The
+typical reason: stock history used for backtesting has gaps (nights, weekends, holidays), while
+the 24/7 exchange feed does not, so the same indicator would see two different histories.
+
+Three building blocks. **The engine enforces nothing**; you place them yourself:
+
+```python
+from jesse.strategies import Strategy, cached
+import jesse.indicators as ta
+from jesse import utils
+
+def trading_hours(self):
+    # dict, or None for "no schedule" (then is_trading_hours is always True and the
+    # filter returns its input unchanged)
+    return {'timezone': 'America/New_York', 'hours': {'Mon-Fri': '09:30-16:00'}}
+
+@property
+@cached
+def session_candles(self):
+    return utils.filter_candles_by_hours(self.candles, self.trading_hours())
+
+def should_long(self) -> bool:
+    if not self.is_trading_hours:
+        return False
+    return self.close > ta.donchian(self.session_candles[:-1]).upperband
+```
+
+Schedule dict keys:
+
+| Key | Required | Value |
+|---|---|---|
+| `timezone` | yes | IANA name (`'America/New_York'`, `'Asia/Tokyo'`, `'UTC'`). DST is handled. |
+| `hours` | yes | dict: day spec → `'HH:MM-HH:MM'` or a list of windows. Day specs: `'Mon-Fri'`, `'Sun-Thu'`, `'Mon,Wed,Fri'`, `'Sun'`. **Unlisted days are closed.** |
+| `closed` | no | list of ISO dates (`'2026-11-26'`) treated as closed (holidays). |
+| `overrides` | no | dict: ISO date → window(s) for that one day (early closes). |
+
+Windows are half-open (`open <= t < close`), an end earlier than the start wraps past midnight,
+and `'00:00-24:00'` is a whole day. More schedules:
+
+```python
+{'timezone': 'Asia/Riyadh', 'hours': {'Sun-Thu': '10:00-15:00'}}                    # Tadawul
+{'timezone': 'Asia/Tokyo', 'hours': {'Mon-Fri': ['09:00-11:30', '12:30-15:30']}}     # lunch break
+{'timezone': 'UTC', 'hours': {'Mon-Fri': '00:00-24:00'}}                            # crypto, skip weekends
+```
+
+Rules:
+
+- `self.is_trading_hours` is true when `self.time` is inside the schedule. Gate **entries** with it
+  (`should_long`/`should_short`). Do **not** gate `update_position()` or exits: stop-loss and
+  take-profit stay on the exchange and position management must keep running 24/7.
+- Feed entry indicators the **filtered** candles. Gating entries while still passing raw
+  `self.candles` to indicators leaves off-hours candles in the signal.
+- Never assign to `self.candles` and never hand-roll UTC-hour arithmetic (it breaks at DST
+  changes). `self.price`, `self.close` and `self.current_candle` always stay live.
+- There are no preset names such as `'NYSE'`; always return the dict. Holidays go in `closed`.
+- `trading_hours()` is a method so it may depend on `self`, e.g. `if self.is_backtesting: return None`
+  or a closing hour taken from `self.hp` for optimization. Using the same dict in backtest and
+  live makes the indicator history match in both.
+- Unfilled entry at the close is the user's policy: `def should_cancel_entry(self): return not self.is_trading_hours`
+  cancels it, returning `False` leaves it working overnight.
+
+A complete class is in `jesse://strategy_examples` (SessionBreakout).
 
 ## Charting Helpers
 
@@ -466,6 +535,7 @@ def dna(self):
 - **No dead variables** — don't compute a `stop_loss`/value you never use. If you only set the stop later in `on_open_position()` and don't use it for sizing, don't define it in `go_long()`.
 - **Check position type in `on_open_position()`** — branch on `self.is_long` / `self.is_short` before setting `stop_loss`/`take_profit`.
 - **`on_close_position` takes two args** — `def on_close_position(self, order, closed_trade) -> None`.
+- **Market hours: gate entries *and* filter candles** — for session-bound or stock-linked instruments use `trading_hours()` + `self.is_trading_hours` + `utils.filter_candles_by_hours(...)`. Don't write manual UTC-hour checks, don't reassign `self.candles`, and don't gate `update_position()`/exits by the schedule.
 
 ## Utility Functions (used in strategies)
 
