@@ -432,6 +432,66 @@ Rules:
 
 A complete class is in `jesse://strategy_examples` (SessionBreakout).
 
+### Adapting traditional-market research to 24/7 execution
+
+Use this workflow for requests to prepare, adapt, port or make a strategy live-ready when
+its research used traditional-market candles and its target is a continuously traded
+crypto-exchange instrument. Examples include stock, index, forex or commodity research
+moved to a corresponding tokenized instrument or perpetual. Recognize the intent even
+without the words "trading hours". Ordinary crypto strategies do not acquire a session
+restriction merely because their data came from a CSV.
+
+Treat the session adaptation as one coordinated change, even when it needs several edits;
+preserve the trading idea rather than performing unrelated strategy optimization.
+
+Reference: [Trading Hours](https://docs.jesse.trade/docs/strategies/trading-hours).
+
+1. **Read the strategy and identify the mismatch.** Use MCP to inspect the strategy,
+   research settings and available route/data context. Distinguish the historical source
+   (for example Massive or Custom Data) from the execution venue and verify the target
+   symbol and spot/futures type. Determine the underlying market, timezone and the session
+   actually used in research, including regular versus extended hours. Ask for missing
+   material details rather than guessing a calendar or silently imposing US equity hours.
+2. **Define the intended schedule.** Implement `trading_hours()` using the dict above and
+   an IANA timezone, not fixed UTC offsets. Account for market breaks and overnight windows
+   where applicable. `closed` and `overrides` are explicit, year-specific dates: neither
+   holidays nor early closes are populated automatically. Do not claim complete holiday
+   coverage from a weekday schedule or copy example dates into a different trading year.
+3. **Make the history choice deliberate.** For consistent session selection, use the same
+   schedule in backtests and live trading. Imported data can include extended-hours bars;
+   it is not automatically regular-session-only. Returning `None` in backtests is an
+   intentional alternative when retaining the provider's own session is desired, not a
+   default migration shortcut. Revalidate if session selection changes the original research.
+4. **Adapt both entry decisions and their inputs.** Gate each enabled entry direction in
+   `should_long()`/`should_short()` with `self.is_trading_hours`. Create a `@property` plus
+   `@cached` session-candle accessor using `utils.filter_candles_by_hours(...)`. Trace the
+   signal's indicators, direct candle indexing, features and auxiliary `get_candles()`
+   inputs; filter the relevant history using the appropriate underlying market's schedule.
+   Do not blindly apply a stock calendar to an unrelated crypto input. Preserve existing
+   indicator parameters, signal rules and risk sizing. Never overwrite `self.candles`,
+   fabricate closure candles, or substitute a historical session close for the live price.
+5. **Check timeframe alignment and warm-up.** Candle filtering uses candle **open times**,
+   while the entry gate uses the current **decision time**, `self.time`. A bar opening
+   before the session is excluded even if it partly overlaps it. Intraday windows can
+   discard every UTC-midnight `1D` bar; use an appropriate full-day calendar for daily
+   routes and verify the local date mapping. Filtering does not realign or rebuild bars.
+   `warm_up_candles` counts raw candles before filtering: size it for the longest required
+   lookback on each relevant input, including weekends/closures, and verify enough retained
+   candles remain. Do not assume one fixed multiplier works across timeframes and calendars.
+6. **Keep risk management active.** Do not gate `update_position()`, stop-loss, take-profit
+   or exits by market hours, and do not flatten at the close unless requested. Make the
+   unfilled-entry policy explicit: cancel at the first execution outside the session or
+   retain overnight orders as intended. Preserve other cancellation conditions when adding
+   the close condition. Cancellation is evaluated on execution ticks, not guaranteed at
+   the exact wall-clock close. Preserve the target venue's spot/futures order rules.
+7. **Verify and explain the adaptation.** Read back the saved code and use MCP backtests
+   with the selected session and adequate warm-up. Check session boundaries, weekend gaps
+   and relevant date exceptions in the available data. State when target-venue history or
+   another required check is unavailable. Matching session selection does not make prices,
+   bar alignment, liquidity, fees or fills identical between underlying and tokenized
+   instruments. Report the calendar, history choice, cancellation policy and actual
+   validation performed; preparing a strategy is not evidence of a running live session.
+
 ## Charting Helpers
 
 These `Strategy` methods add lines and levels to interactive backtest, paper,

@@ -50,6 +50,11 @@ def register_strategy_tools(mcp):
         The provided content must be valid Python code following Jesse's Strategy
         class structure with proper imports and method implementations.
 
+        Traditional-market adaptation:
+            When preparing traditional-market research for a 24/7 crypto exchange,
+            read the Trading Hours adaptation workflow in `jesse://strategy` first,
+            even if the user does not explicitly request session filtering.
+
         Parameters:
             name (str): Name for the new strategy class and file
                 Requirements: Valid Python identifier, no spaces, unique within Jesse
@@ -268,6 +273,11 @@ def register_strategy_tools(mcp):
         Use after create_strategy() to see the template, or to examine existing
         strategies before modification with write_strategy().
 
+        Traditional-market adaptation:
+            For requests to port research to tokenized instruments or a 24/7 crypto
+            exchange, also read the Trading Hours adaptation workflow in `jesse://strategy`.
+            Inspect every indicator's candle source and the existing entry/exit policies.
+
         Parameters:
             name (str): Exact name of the strategy to read (case-sensitive)
                 Must match the class name and filename exactly
@@ -398,6 +408,12 @@ def register_strategy_tools(mcp):
 
         Use read_strategy() first to get current content, modify it, then save
         with this function. Changes take effect immediately for new backtests.
+
+        Traditional-market adaptation:
+            Follow the Trading Hours adaptation workflow in `jesse://strategy` when
+            porting traditional-market research to a 24/7 crypto exchange. Entry gates
+            alone are insufficient: use session-filtered history for the relevant
+            indicators, verify warm-up, and preserve round-the-clock position management.
 
         Parameters:
             name (str): Exact name of the strategy to update (case-sensitive)

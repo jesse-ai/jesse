@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
+from jesse_rust import filter_candles_by_intervals, trading_hours_mask
 
 TradingHoursSpec = Optional[dict]
 
@@ -227,29 +228,30 @@ class TradingHours:
                     return True
         return False
 
+    def _intervals_for_timestamps(self, timestamps: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Compile the enclosing local dates, including yesterday's overnight windows."""
+        first_day = self._local_date(int(timestamps.min())) - _ONE_DAY
+        last_day = self._local_date(int(timestamps.max()))
+        return self._merged_intervals(first_day, last_day)
+
     def mask(self, timestamps: np.ndarray) -> np.ndarray:
         """Boolean mask marking which UTC-millisecond timestamps are inside the schedule."""
         timestamps = np.asarray(timestamps, dtype=np.int64)
-        result = np.zeros(len(timestamps), dtype=bool)
         if len(timestamps) == 0:
-            return result
-
-        first_day = self._local_date(int(timestamps.min())) - _ONE_DAY
-        last_day = self._local_date(int(timestamps.max()))
-        starts, ends = self._merged_intervals(first_day, last_day)
-        if len(starts) == 0:
-            return result
-
-        index = np.searchsorted(starts, timestamps, side='right') - 1
-        inside_some_start = index >= 0
-        result[inside_some_start] = timestamps[inside_some_start] < ends[index[inside_some_start]]
-        return result
+            return np.zeros(0, dtype=bool)
+        starts, ends = self._intervals_for_timestamps(timestamps)
+        return trading_hours_mask(timestamps, starts, ends)
 
     def filter_candles(self, candles: np.ndarray) -> np.ndarray:
         """Rows whose open timestamp (column 0) is inside the schedule, in original order."""
         if len(candles) == 0:
             return candles
-        return candles[self.mask(candles[:, 0])]
+        timestamps = np.asarray(candles[:, 0], dtype=np.int64)
+        starts, ends = self._intervals_for_timestamps(timestamps)
+        if candles.dtype == np.float64:
+            return filter_candles_by_intervals(candles, timestamps, starts, ends)
+        # Research arrays may have another dtype; retain it instead of coercing OHLCV.
+        return candles[trading_hours_mask(timestamps, starts, ends)]
 
 
 # ---- lookup -------------------------------------------------------------------

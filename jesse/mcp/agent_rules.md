@@ -56,7 +56,7 @@ Jesse provides comprehensive documentation through MCP resources.
 
 Key resources include:
 
-- jesse://strategy - Strategy structure and required methods and How strategies execute candle-by-candle
+- jesse://strategy - Strategy structure, candle-by-candle execution, and Trading Hours workflow for adapting traditional-market research to 24/7 exchanges
 - jesse://strategy_examples - Library of complete, worked example strategies (full, runnable references)
 - jesse://charts - Strategy chart APIs, update_chart lifecycle, and live intrabar behavior
 - jesse://indicator - Step-by-step guide for discovering and using indicators and Essential indicators and candle data access
@@ -114,9 +114,9 @@ High-signal Jesse strategy-authoring gotchas (full detail in jesse://strategy):
 - On **spot**, shorting is unsupported: `should_short()` must return `False`, leverage is always `1`, and `stop_loss`/`take_profit` must be set in `on_open_position()` (not `go_long()`).
 - Size from `self.available_margin` (or balance/capital), price, and `self.fee_rate` via sizing utilities (`size_to_qty`, `risk_to_qty`) — never hardcode a fixed quantity.
 - Market hours, sessions, "skip weekends", or a stock-linked instrument on a 24/7 exchange: define `trading_hours()` returning a dict with `timezone` and `hours` (days always explicit, no preset names), gate entries with `self.is_trading_hours`, and feed entry indicators `utils.filter_candles_by_hours(self.candles, self.trading_hours())`. Never hand-roll UTC-hour math or reassign `self.candles`, and never gate `update_position()`/exits by the schedule. See the Trading Hours section of jesse://strategy.
+- For requests to adapt traditional-market research to 24/7 crypto trading, follow the Trading Hours adaptation workflow in `jesse://strategy`, even when the user does not mention sessions.
 
 For full structure, lifecycle, and complete runnable examples see jesse://strategy and jesse://strategy_examples.
-
 
 === STRATEGY DEVELOPMENT ===
 
