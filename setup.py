@@ -1,11 +1,21 @@
+import re
 from pathlib import Path
 
 from setuptools import setup, find_packages
 
-# also change in version.py
-VERSION = "3.2.2"
 DESCRIPTION = "A trading framework for cryptocurrencies"
 BASE_DIR = Path(__file__).resolve().parent
+
+# The version lives only in jesse/version.py. It is read as text because importing the package
+# would import Jesse and its dependencies during the build.
+_version_match = re.search(
+    r"^__version__\s*=\s*['\"]([^'\"]+)['\"]",
+    (BASE_DIR / "jesse" / "version.py").read_text(encoding="utf-8"),
+    re.MULTILINE,
+)
+if not _version_match:
+    raise RuntimeError("Could not find __version__ in jesse/version.py")
+VERSION = _version_match.group(1)
 
 with open(BASE_DIR / "requirements.txt", "r", encoding="utf-8") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
