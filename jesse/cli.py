@@ -40,7 +40,13 @@ def install_live(strict: bool) -> None:
     default=False,
     help="Skip syncing the agent rules file (AGENTS.md / CLAUDE.md / mcp-rules.md) in the project directory.",
 )
-def run(skip_agent_rules: bool) -> None:
+@click.option(
+    "--skip-lsp",
+    is_flag=True,
+    default=False,
+    help="Skip the Python Language Server for this run (disables editor code intelligence).",
+)
+def run(skip_agent_rules: bool, skip_lsp: bool) -> None:
     """Start the Jesse application server."""
     from jesse.services.env import is_test_env
 
@@ -102,11 +108,14 @@ def run(skip_agent_rules: bool) -> None:
         time.sleep(sleep_seconds)
         run_migrations()
 
-    if not is_test_env():
+    if skip_lsp:
+        click.echo("Skipping Python Language Server for this run. Editor code intelligence will be unavailable.")
+
+    if not is_test_env() and not skip_lsp:
         try:
             from jesse.services.lsp import install_lsp_server
 
-            install_lsp_server()
+            skip_lsp = not install_lsp_server(allow_skip=True)
         except Exception as e:
             print(jh.color(f"Error installing Python Language Server: {str(e)}", "red"))
             pass
@@ -124,7 +133,7 @@ def run(skip_agent_rules: bool) -> None:
 
     # Set global Jesse API configuration for MCP and other services
 
-    if not is_test_env():
+    if not is_test_env() and not skip_lsp:
         try:
             from jesse.services.lsp import run_lsp_server
 

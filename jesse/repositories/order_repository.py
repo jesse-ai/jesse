@@ -78,6 +78,8 @@ def update(order: Order) -> None:
         try:
             db_order = Order.select().where(Order.id == order.id).first()
         except Exception:
+            if database.db.in_transaction():
+                raise
             try:
                 database.db.rollback()
             except Exception:
@@ -113,6 +115,8 @@ def update(order: Order) -> None:
         try:
             Order.update(**d).where(Order.id == db_order.id).execute()
         except Exception as e:
+            if database.db.in_transaction():
+                raise
             try:
                 database.db.rollback()
             except Exception:
@@ -142,6 +146,8 @@ def store_or_update(order: Order) -> None:
             if potential_matches and len(potential_matches) == 1:
                 order_exist = potential_matches[0]
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         order_exist = False
     
     if order_exist:
@@ -189,6 +195,8 @@ def store_or_update(order: Order) -> None:
     try:
         Order.insert(**d).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:

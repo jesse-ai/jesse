@@ -34,15 +34,14 @@ jobs:
           python-version: '3.11'
 
       - name: Verify tag matches package version
-        # Mirrors release.sh: the pushed tag, setup.py and jesse/version.py must all agree,
-        # so PyPI and the Docker tag can never disagree about the version.
+        # The pushed tag must equal the package version so PyPI and the Docker tag can never disagree.
+        # jesse/version.py is the only place the version is set; setup.py reads it from there.
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          setup_v="$(sed -nE 's/^VERSION = "([^"]+)"$/\1/p' setup.py)"
           pkg_v="$(sed -nE 's/^__version__ = "([^"]+)"$/\1/p' jesse/version.py)"
-          echo "tag=$tag  setup.py=$setup_v  jesse/version.py=$pkg_v"
-          if [ "$tag" != "$setup_v" ] || [ "$setup_v" != "$pkg_v" ]; then
-            echo "::error::Version mismatch — tag=$tag, setup.py=$setup_v, jesse/version.py=$pkg_v"
+          echo "tag=$tag  package=$pkg_v"
+          if [ "$tag" != "$pkg_v" ]; then
+            echo "::error::Version mismatch — tag=$tag, jesse/version.py=$pkg_v"
             exit 1
           fi
 

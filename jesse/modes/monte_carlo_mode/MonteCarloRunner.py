@@ -113,11 +113,25 @@ class MonteCarloRunner:
     def _store_unhandled_failure(self, error: str, error_traceback: str) -> None:
         """Persist failures that occur outside a child simulation's own boundary."""
         if self.candles_session_id:
-            store_session_exception(self.candles_session_id, 'candles', error, error_traceback)
-            update_candles_session_status(self.candles_session_id, 'stopped')
+            self._record_child_failure(self.candles_session_id, 'candles', error, error_traceback)
         elif self.trades_session_id:
-            store_session_exception(self.trades_session_id, 'trades', error, error_traceback)
-            update_trades_session_status(self.trades_session_id, 'stopped')
+            self._record_child_failure(self.trades_session_id, 'trades', error, error_traceback)
+        else:
+            sync_publish('exception', {'error': error, 'traceback': error_traceback})
+
+    def _record_child_failure(self, session_id: str, session_type: str, error: str, error_traceback: str) -> None:
+        """Keep a secondary persistence failure from replacing the original error."""
+        try:
+            store_session_exception(session_id, session_type, error, error_traceback)
+            update_status = update_candles_session_status if session_type == 'candles' else update_trades_session_status
+            update_status(session_id, 'stopped')
+            self.failure_persisted = True
+        except Exception as persistence_error:
+            logger.log_monte_carlo(
+                f'Could not save Monte Carlo failure: {persistence_error}. Original error: {error}',
+                session_id=self.session_id,
+            )
+        sync_publish('exception', {'error': error, 'traceback': error_traceback})
 
     def run(self) -> None:
         try:
@@ -161,14 +175,16 @@ class MonteCarloRunner:
             error = f'{error_type}: {e}'
             logger.log_monte_carlo(f"ERROR: Monte Carlo simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
-            update_monte_carlo_session_status(self.session_id, 'stopped')
+            try:
+                update_monte_carlo_session_status(self.session_id, 'stopped')
+            except Exception as persistence_error:
+                logger.log_monte_carlo(
+                    f'Could not mark Monte Carlo session stopped: {persistence_error}',
+                    session_id=self.session_id,
+                )
 
             if not self.failure_persisted:
                 self._store_unhandled_failure(error, error_traceback)
-                sync_publish('exception', {
-                    'error': error,
-                    'traceback': error_traceback
-                })
             
             raise
         finally:
@@ -192,6 +208,23 @@ class MonteCarloRunner:
         }
         sync_publish('general_info', general_info)
 
+    def _research_config(self) -> dict:
+        """Flatten the saved exchange assumptions for both research simulations."""
+        exchange = self.user_config['exchange']
+        return {
+            # Nested session settings are authoritative, including an explicit zero fee.
+            # Flat values support older API clients that supplied the research shape.
+            'starting_balance': exchange.get('balance', self.user_config.get('starting_balance', 10000)),
+            'fee': exchange.get('fee', self.user_config.get('fee', 0.0005)),
+            'type': exchange.get('type', 'futures'),
+            'simulation_model': exchange.get('simulation_model'),
+            'annualization': exchange.get('annualization', 365),
+            'futures_leverage': exchange.get('futures_leverage', 1),
+            'futures_leverage_mode': exchange.get('futures_leverage_mode', 'cross'),
+            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
+            'exchange': self.routes[0]['exchange'],
+        }
+
     def _run_trades_simulation(self):
         # Create trades child session in DB
         self.trades_session_id = store_trades_session(
@@ -206,18 +239,7 @@ class MonteCarloRunner:
             'estimated_remaining_seconds': 0
         })
 
-        # Prepare config - flatten the structure from settings
-        config = {
-            'starting_balance': self.user_config.get('starting_balance', 10000),
-            'fee': self.user_config.get('fee', 0.0005),
-            'type': self.user_config.get('exchange', {}).get('type', 'futures'),
-            'simulation_model': self.user_config.get('exchange', {}).get('simulation_model'),
-            'annualization': self.user_config.get('exchange', {}).get('annualization', 365),
-            'futures_leverage': self.user_config.get('exchange', {}).get('futures_leverage', 1),
-            'futures_leverage_mode': self.user_config.get('exchange', {}).get('futures_leverage_mode', 'cross'),
-            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
-            'exchange': self.routes[0]['exchange']
-        }
+        config = self._research_config()
 
         try:
             # Call monte_carlo_trades from research module with progress tracking
@@ -238,7 +260,12 @@ class MonteCarloRunner:
 
             # Publish results
             sync_publish('monte_carlo_trades_summary', summary_metrics)
-            sync_publish('monte_carlo_trades_results', results)
+            # Curves load through the HTTP endpoint; do not duplicate the full
+            # scenario payload in Redis/WebSocket messages.
+            sync_publish('monte_carlo_trades_results', {
+                'num_scenarios': results.get('num_scenarios', self.num_scenarios),
+                'confidence_analysis': results.get('confidence_analysis', {}),
+            })
 
             # Log completion
             log_msg = f"Trades simulation completed: {results.get('num_scenarios', 0)} scenarios"
@@ -253,17 +280,8 @@ class MonteCarloRunner:
             logger.log_monte_carlo(f"ERROR: Trades simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
-            # Store exception in database
-            store_session_exception(self.trades_session_id, 'trades', error, error_traceback)
-            update_trades_session_status(self.trades_session_id, 'stopped')
-            self.failure_persisted = True
-            
-            # Publish exception to frontend
-            sync_publish('exception', {
-                'error': error,
-                'traceback': error_traceback
-            })
-            
+            self._record_child_failure(self.trades_session_id, 'trades', error, error_traceback)
+
             raise
 
     def _run_candles_simulation(self):
@@ -282,18 +300,7 @@ class MonteCarloRunner:
             'estimated_remaining_seconds': 0
         })
 
-        # Prepare config - flatten the structure from settings
-        config = {
-            'starting_balance': self.user_config.get('starting_balance', 10000),
-            'fee': self.user_config.get('fee', 0.0005),
-            'type': self.user_config.get('exchange', {}).get('type', 'futures'),
-            'simulation_model': self.user_config.get('exchange', {}).get('simulation_model'),
-            'annualization': self.user_config.get('exchange', {}).get('annualization', 365),
-            'futures_leverage': self.user_config.get('exchange', {}).get('futures_leverage', 1),
-            'futures_leverage_mode': self.user_config.get('exchange', {}).get('futures_leverage_mode', 'cross'),
-            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
-            'exchange': self.routes[0]['exchange']
-        }
+        config = self._research_config()
 
         # Prepare pipeline
         pipeline_class = None
@@ -339,7 +346,12 @@ class MonteCarloRunner:
 
             # Publish results
             sync_publish('monte_carlo_candles_summary', summary_metrics)
-            sync_publish('monte_carlo_candles_results', results)
+            # Curves load through the HTTP endpoint; do not duplicate the full
+            # scenario payload in Redis/WebSocket messages.
+            sync_publish('monte_carlo_candles_results', {
+                'num_scenarios': results.get('num_scenarios', self.num_scenarios),
+                'confidence_analysis': results.get('confidence_analysis', {}),
+            })
 
             # Log completion
             log_msg = f"Candles simulation completed: {results.get('num_scenarios', 0)} scenarios"
@@ -354,17 +366,8 @@ class MonteCarloRunner:
             logger.log_monte_carlo(f"ERROR: Candles simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
-            # Store exception in database
-            store_session_exception(self.candles_session_id, 'candles', error, error_traceback)
-            update_candles_session_status(self.candles_session_id, 'stopped')
-            self.failure_persisted = True
-            
-            # Publish exception to frontend
-            sync_publish('exception', {
-                'error': error,
-                'traceback': error_traceback
-            })
-            
+            self._record_child_failure(self.candles_session_id, 'candles', error, error_traceback)
+
             raise
 
     def _run_trades_with_progress(self, config: dict) -> dict:

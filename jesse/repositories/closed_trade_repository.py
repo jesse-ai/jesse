@@ -16,6 +16,11 @@ def _ensure_db_open() -> None:
         database.open_connection()
 
 
+def history_transaction():
+    _ensure_db_open()
+    return database.db.atomic()
+
+
 def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
     """
     Populate buy_orders and sell_orders arrays from the Order table.
@@ -40,7 +45,7 @@ def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
     return trade
 
 
-def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
+def find_by_id(trade_id: str, strict: bool = False) -> Optional[ClosedTrade]:
     if jh.is_unit_testing():
         return None
 
@@ -53,6 +58,8 @@ def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
             populate_order_arrays(trade)
         return trade
     except Exception:
+        if strict or database.db.in_transaction():
+            raise
         return None
 
 
@@ -143,6 +150,8 @@ def update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:
@@ -183,6 +192,8 @@ def store_or_update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.insert(**d).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:

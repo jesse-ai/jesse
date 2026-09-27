@@ -250,7 +250,7 @@ def get_monte_carlo_equity_curves(session_id: UUID):
     
     # Extract trades equity curves
     if session.trades_session and session.trades_session.results:
-        results = jh.clean_infinite_values(json.loads(session.trades_session.results))
+        results = jh.clean_infinite_values(session.trades_session.results_json)
         
         # Extract original equity curve
         original_curve = None
@@ -277,7 +277,7 @@ def get_monte_carlo_equity_curves(session_id: UUID):
     
     # Extract candles equity curves
     if session.candles_session and session.candles_session.results:
-        results = jh.clean_infinite_values(json.loads(session.candles_session.results))
+        results = jh.clean_infinite_values(session.candles_session.results_json)
         
         # Extract original equity curve
         original_curve = None

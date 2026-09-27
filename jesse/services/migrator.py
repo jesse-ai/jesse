@@ -54,6 +54,7 @@ def run():
     from jesse.models.AiModel import AiModel
     from jesse.models.MonteCarloSession import (
         MonteCarloCandlesSession,
+        MonteCarloResultChunk,
         MonteCarloTradesSession,
     )
     from jesse.models.NotificationApiKeys import NotificationApiKeys
@@ -73,6 +74,7 @@ def run():
         MonteCarloSession,
         MonteCarloTradesSession,
         MonteCarloCandlesSession,
+        MonteCarloResultChunk,
         NotificationApiKeys,
         OptimizationSession,
         Option,

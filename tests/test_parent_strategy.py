@@ -1267,3 +1267,7 @@ def test_on_close_position():
 
 def test_base_and_quote_asset_properties():
     single_route_backtest('TestBaseAndQuoteAssetProperties')
+
+
+def test_trading_hours_gate_filter_and_cancel_policy():
+    single_route_backtest('TestTradingHours')

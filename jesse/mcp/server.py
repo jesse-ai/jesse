@@ -52,8 +52,16 @@ mcp_config.JESSE_PASSWORD = args.password
 mcp_config.MCP_PORT = args.port
 mcp_config.MCP_URL = f"http://localhost:{args.port}/mcp"
 
-# Create the MCP server instance
-mcp = FastMCP("Jesse MCP Server", host=MCP_HOST, port=args.port, json_response=True)
+# Advertise this workflow during initialization, including to clients without local agent rules.
+mcp = FastMCP(
+    "Jesse MCP Server", host=MCP_HOST, port=args.port, json_response=True,
+    instructions=(
+        "When asked to prepare, adapt, port, or deploy a strategy researched on traditional-market "
+        "data for a 24/7 crypto exchange (including tokenized or stock-linked instruments), read "
+        "jesse://strategy, especially Trading Hours and its adaptation workflow, before editing. "
+        "Recognize equivalent requests even when the user does not mention trading hours."
+    ),
+)
 
 # Register all available resources
 from jesse.mcp.resources import register_resources

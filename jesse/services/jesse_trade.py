@@ -37,9 +37,9 @@ def report_exception(
             path_log = f'storage/logs/backtest-mode/{session_id}.txt'
         elif mode == 'live':
             path_log = f'storage/logs/live-mode/{session_id}.txt'
+            path_exchange_log = f'storage/logs/live-mode/{session_id}-raw-exchange-logs.txt'
         elif mode == 'significance-test':
             path_log = f'storage/logs/significance-test-mode/{session_id}.txt'
-            path_exchange_log = f'storage/logs/live-mode/{session_id}-raw-exchange-logs.txt'
         else:
             raise ValueError('Invalid mode')
 
