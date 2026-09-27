@@ -71,6 +71,7 @@ from jesse.controllers.period_templates_controller import router as period_templ
 from jesse.controllers.route_templates_controller import router as route_templates_router
 from jesse.controllers.ai_model_controller import router as ai_model_router
 from jesse.controllers.data_provider_credentials_controller import router as data_provider_credentials_router
+from jesse.controllers.mcp_controller import router as mcp_router
 from jesse.services.env import is_test_env
 
 # register routers
@@ -96,6 +97,7 @@ fastapi_app.include_router(period_templates_router)
 fastapi_app.include_router(route_templates_router)
 fastapi_app.include_router(ai_model_router)
 fastapi_app.include_router(data_provider_credentials_router)
+fastapi_app.include_router(mcp_router)
 
 if is_test_env():
     from jesse.controllers.e2e_controller import router as e2e_router

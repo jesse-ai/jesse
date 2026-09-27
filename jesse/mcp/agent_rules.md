@@ -140,8 +140,8 @@ Code Generation:
 
 ### CRITICAL: Always surface the dashboard URL in every reply that reports a session
 
-Every backtest, Monte Carlo, and rule significance test response from
-the MCP carries a `dashboard_url` field. This is the single highest-
+Every backtest, optimization, Monte Carlo, and rule significance test
+response from the MCP carries a `dashboard_url` field. This is the single highest-
 leverage piece of information you give the user — one click and they
 see the equity curve, trades table, scenario charts, and everything
 else you can't fit in a chat reply.
@@ -155,8 +155,9 @@ a user-facing reply. This is not optional. It applies to:
 - The Markdown report file (see below)
 
 Format:
-- **Chat replies**: Markdown link, e.g.
-  `[View on dashboard](http://127.0.0.1:9000/#/backtest/<id>)`
+- **Chat replies**: Markdown link using the exact `dashboard_url` value, e.g.
+  `[View on dashboard](<dashboard_url>)`. Never rewrite its host or port;
+  it already points at the address the user opens the dashboard from.
 - **Report file**: a `Dashboard:` line with the plain URL
 - If `dashboard_url` is empty in the response, say "dashboard URL
   unavailable" — do NOT silently omit the line.

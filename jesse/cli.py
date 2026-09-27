@@ -131,6 +131,15 @@ def run(skip_agent_rules: bool, skip_lsp: bool) -> None:
     if "APP_HOST" in ENV_VALUES:
         HOST = ENV_VALUES["APP_HOST"]
 
+    # Resolve the public dashboard origin before starting any server, so an invalid
+    # DASHBOARD_URL stops startup instead of producing links that do not work.
+    from jesse.services.dashboard_url import InvalidDashboardUrlError, resolve_dashboard_url
+
+    try:
+        public_dashboard_url = resolve_dashboard_url(ENV_VALUES, HOST, PORT)
+    except InvalidDashboardUrlError as e:
+        raise click.ClickException(str(e))
+
     # Set global Jesse API configuration for MCP and other services
 
     if not is_test_env() and not skip_lsp:
@@ -143,7 +152,7 @@ def run(skip_agent_rules: bool, skip_lsp: bool) -> None:
             pass
     
     # print dashboard box and suppress uvicorn's own "running on" line
-    dashboard_url = f"http://localhost:{PORT}"
+    dashboard_url = public_dashboard_url
     _border = click.style("─" * (len(dashboard_url) + 34), fg="magenta", bold=True)
     print(click.style("┌" + _border + "┐", fg="magenta", bold=True))
     print(
@@ -159,7 +168,7 @@ def run(skip_agent_rules: bool, skip_lsp: bool) -> None:
         try:
             from jesse.mcp import run_mcp_server
 
-            run_mcp_server(jesse_host=HOST, jesse_port=PORT)
+            run_mcp_server(jesse_host=HOST, jesse_port=PORT, dashboard_url=public_dashboard_url)
         except Exception as e:
             print(jh.color(f"Error running MCP Server: {str(e)}", "red"))
             pass

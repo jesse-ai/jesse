@@ -458,7 +458,7 @@ def register_backtest_tools(mcp):
                         "timeframe": "4h"
                     }
                 ],
-                "dashboard_url": "http://127.0.0.1:9000/#/backtest/uuid-string",
+                "dashboard_url": "<dashboard origin>/#/backtest/uuid-string",
                 "message": "Backtest started. Poll get_backtest_session(session_id) to check progress."
             }
 

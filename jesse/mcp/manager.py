@@ -11,15 +11,18 @@ from the main Jesse application while sharing the same Python environment.
 
 USAGE:
 ------
-Called from CLI (cli.py) when Jesse starts: run_mcp_server(host, port)
+Called from CLI (cli.py) when Jesse starts: run_mcp_server(host, port, dashboard_url)
 Called on shutdown: terminate_mcp_server()
 """
 
 import sys
 import os
 import signal
+from typing import Dict, List, Mapping, Optional, Tuple
 import click
 import jesse.helpers as jh
+import jesse.mcp.mcp_config as mcp_config
+from jesse.services.dashboard_url import internal_api_url, mcp_endpoint_url
 
 
 # Global variable to store the MCP process handle
@@ -37,17 +40,44 @@ def _signal_handler(signum, frame):
     print("👋 MCP server shutdown complete")
     sys.exit(0)
 
-def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
+def build_worker_launch(
+    api_url: str,
+    dashboard_url: str,
+    port: int,
+    password: str,
+    base_env: Optional[Mapping[str, str]] = None,
+) -> Tuple[List[str], Dict[str, str]]:
+    """
+    Return the argv and environment used to start the MCP worker process.
+
+    The password travels in the child's environment rather than argv, because command
+    lines are readable by every user on the machine. The worker binds to loopback on
+    `port`; `api_url` is the internal API address and `dashboard_url` the public origin.
+    """
+    argv = [
+        sys.executable, "-m",
+        "jesse.mcp.server",
+        "--port", str(port),
+        "--api_url", api_url,
+        "--dashboard_url", dashboard_url,
+    ]
+    env = dict(os.environ if base_env is None else base_env)
+    env[mcp_config.WORKER_PASSWORD_ENV] = password
+    return argv, env
+
+
+def run_mcp_server(jesse_host: str, jesse_port: int, dashboard_url: str) -> None:
     """
     Start the Jesse MCP Server as a subprocess.
-    
-    Reads MCP_PORT from .env file or uses default (9002). Creates a subprocess
-    running jesse.mcp.server with the provided host/port and API URL.
-    
+
+    Reads MCP_PORT from .env file or uses default (9002) for the loopback-only worker.
+    Clients connect through the authenticated /mcp route on the dashboard origin.
+
     Args:
-        jesse_host: Host address for the Jesse API (e.g., "0.0.0.0")
+        jesse_host: Bind address of the Jesse API (e.g., "0.0.0.0")
         jesse_port: Port number for the Jesse API (e.g., 9000)
-        
+        dashboard_url: Validated public dashboard origin (DASHBOARD_URL or its default)
+
     Raises:
         Exception: If the server fails to start or exits immediately
     """
@@ -57,44 +87,34 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
     if MCP_PROCESS and MCP_PROCESS.poll() is None:
         print(jh.color("MCP Server is already running", "yellow"))
         return
-    
-    # Update the MCP config
-    import jesse.mcp.mcp_config as mcp_config
-    
-    # A wildcard address is valid for binding the API server, but MCP needs a
-    # concrete destination address for its requests—especially on Windows.
-    api_host = "127.0.0.1" if jesse_host == "0.0.0.0" else jesse_host
-    mcp_config.JESSE_API_URL = f"http://{api_host}:{jesse_port}"
-    
+
     from jesse.services.env import ENV_VALUES
 
-    # Read the MCP server port from the .env file, if not set, use the default port (9002)
-    if ENV_VALUES.get('MCP_PORT'):
-        mcp_config.MCP_PORT = int(ENV_VALUES['MCP_PORT'])
+    # Tools reach the API directly on this machine, never through the public URL.
+    mcp_config.JESSE_API_URL = internal_api_url(jesse_host, jesse_port)
+    mcp_config.MCP_PORT = mcp_config.configured_worker_port(ENV_VALUES)
+    mcp_config.DASHBOARD_URL = dashboard_url
+    mcp_config.MCP_URL = mcp_endpoint_url(dashboard_url)
 
-    # Update the MCP URL
-    mcp_config.MCP_URL = f"http://localhost:{mcp_config.MCP_PORT}/mcp"
-
-    # Update the Jesse password, it is required for WebSocket authentication
-    mcp_config.JESSE_PASSWORD = ENV_VALUES.get('PASSWORD', '')
-    if not mcp_config.JESSE_PASSWORD:
-        raise Exception("PASSWORD not found in .env file. Required for MCP WebSocket authentication.")
+    # The worker authenticates MCP clients and calls the API with the dashboard password.
+    password = ENV_VALUES.get('PASSWORD') or ''
+    if not password:
+        raise Exception("PASSWORD not found in .env file. Required for MCP authentication.")
 
     # Read the MCP_LOG_IN_TERMINAL from the .env file, if not set, use the default value (True)
-    show_logs_in_terminal = ENV_VALUES.get('MCP_LOG_IN_TERMINAL', 'true').strip().lower() != 'false'
+    show_logs_in_terminal = (ENV_VALUES.get('MCP_LOG_IN_TERMINAL') or 'true').strip().lower() != 'false'
+
+    argv, env = build_worker_launch(
+        mcp_config.JESSE_API_URL, dashboard_url, mcp_config.MCP_PORT, password,
+    )
 
     # Start the MCP server in a separate process and return the process handle
     try:
         import subprocess
         with open(os.devnull, 'w') as devnull:
             process = subprocess.Popen(
-                [
-                    sys.executable, "-m",
-                    "jesse.mcp.server",
-                    "--port", str(mcp_config.MCP_PORT),
-                    "--api_url", mcp_config.JESSE_API_URL,
-                    "--password", mcp_config.JESSE_PASSWORD
-                ],
+                argv,
+                env=env,
                 # Do not redirect stdout or stderr so MCP output/errors are visible in the terminal
                 stdout=devnull if not show_logs_in_terminal else None,
                 stderr=devnull if not show_logs_in_terminal else None,
@@ -124,6 +144,10 @@ def run_mcp_server(jesse_host:str, jesse_port:int) -> None:
             + click.style("  │", fg="cyan", bold=True)
         )
         print(click.style("└" + border + "┘", fg="cyan", bold=True))
+        print(
+            "  MCP clients must send your dashboard token as \"Authorization: Bearer <token>\"."
+            " Setup: https://docs.jesse.trade/docs/mcp/setup"
+        )
         print()
 
         # Set up signal handlers for graceful shutdown
