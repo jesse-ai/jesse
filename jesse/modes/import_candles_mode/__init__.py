@@ -8,6 +8,7 @@ import pydash
 
 import jesse.helpers as jh
 from jesse.exceptions import CandleNotFoundInExchange
+from jesse.enums import live_session_modes
 from jesse.models.Candle import Candle
 from jesse.modes.import_candles_mode.drivers import (
     build_historical_provider_registry,
@@ -204,6 +205,35 @@ def _report_import_progress(
         _print_import_progressbar(exchange, symbol, percent, remaining_seconds, reached_date)
 
 
+def _missing_live_candle_ranges(
+    exchange: str, symbol: str, start: int, end: int, max_candles: int,
+) -> list[tuple[int, int]]:
+    """Cover absent live minutes with provider-sized pages, preserving sparse observations."""
+    ranges = []
+    cursor = start
+    for candle in candle_repository.fetch_candles_from_db(exchange, symbol, '1m', start, end - 60_000):
+        timestamp = int(candle[0])
+        if timestamp > cursor:
+            ranges.append((cursor, timestamp))
+        cursor = timestamp + 60_000
+    if cursor < end:
+        ranges.append((cursor, end))
+
+    # Thousands of isolated no-trade minutes must not cause thousands of requests
+    # on every restart. Re-reading stored rows is safe because inserts retain them.
+    page_span = max_candles * 60_000
+    pages = []
+    for missing_start, missing_end in ranges:
+        if pages and missing_start <= pages[-1][1]:
+            page_start, page_end = pages.pop()
+            missing_end = max(missing_end, page_end)
+        else:
+            page_start = missing_start
+        page_count = (missing_end - page_start + page_span - 1) // page_span
+        pages.append((page_start, min(end, page_start + page_count * page_span)))
+    return pages
+
+
 def run(
         client_id: str,
         exchange: str,
@@ -270,8 +300,10 @@ def _run(
     from jesse.services.db import database
     database.open_connection()
 
-    end_timestamp = arrow.utcnow().floor('day').int_timestamp * 1000
     provider = build_historical_provider_registry((exchange,)).get(exchange)
+    # Crypto startup needs today's closed bars. Provider ranges are half-open, so the
+    # current minute is excluded; traditional historical providers retain their daily cutoff.
+    end_timestamp = arrow.utcnow().floor('minute' if isinstance(provider, CandleExchange) else 'day').int_timestamp * 1000
     max_candles = provider.capabilities.max_candles_per_request
     if max_candles is None:
         raise ValueError(f'Historical provider {exchange!r} does not declare a request range limit')
@@ -310,6 +342,14 @@ def _run(
         latest_timestamp,
         interval,
     )
+    if isinstance(provider, CandleExchange) and mode in (
+        live_session_modes.LIVETRADE, live_session_modes.PAPERTRADE,
+    ):
+        # Stored endpoints do not prove live warm-up coverage: WebSocket writes may
+        # bracket a downtime gap. Historical imports still preserve intentional sparse gaps.
+        import_ranges = _missing_live_candle_ranges(
+            exchange, symbol, effective_start_timestamp, end_timestamp, max_candles,
+        )
     total_span = end_timestamp - effective_start_timestamp
     work_span = sum(range_end - range_start for range_start, range_end in import_ranges)
     completed_span = total_span - work_span

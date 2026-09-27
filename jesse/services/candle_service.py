@@ -574,6 +574,9 @@ def add_candle(
     # initial
     if last_index == -1:
         arr.append(candle)
+        # A session with no warm-up still needs its first observed forming bucket.
+        if with_generation and timeframe == '1m':
+            _generate_bigger_timeframes(candle, exchange, symbol, with_execution)
         return
 
     # read the last candle's timestamp once as a plain scalar instead of
@@ -690,43 +693,17 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
         if timeframe == '1m':
             continue
 
-        last_candle = get_current_candle(exchange, symbol, timeframe)
-        generate_from_count = int((candle[0] - last_candle[0]) / 60_000)
-        number_of_candles = len(get_candles(exchange, symbol, '1m'))
-        short_candles = get_candles(exchange, symbol, '1m')[-1 - generate_from_count:]
-
-        if generate_from_count == -1:
-            # it's receiving an slightly older candle than the last one. Ignore it
-            return
-
-        if generate_from_count < 0:
-            current_1m = get_current_candle(exchange, symbol, '1m')
-            raise ValueError(
-                f'generate_from_count cannot be negative! '
-                f'generate_from_count:{generate_from_count}, candle[0]:{candle[0]}, '
-                f'last_candle[0]:{last_candle[0]}, current_1m:{current_1m[0]}, number_of_candles:{number_of_candles}')
-
-        if len(short_candles) == 0:
-            raise ValueError(
-                f'No candles were passed. More info:'
-                f'\nexchange:{exchange}, symbol:{symbol}, timeframe:{timeframe}, generate_from_count:{generate_from_count}'
-                f'\nlast_candle\'s timestamp: {last_candle[0]}'
-                f'\ncurrent timestamp: {jh.now()}'
-            )
-
-        # update latest candle
-        generated_candle = generate_candle_from_one_minutes(
-            timeframe,
-            short_candles,
-            accept_forming_candles=True
-        )
-
-        # Fix: force the generated candle's timestamp to the correct period-aligned boundary.
-        # Without this, when a live session starts mid-period (e.g. at 10:36 on an hourly
-        # timeframe), the 1m store only has that one candle, so generate_candle_from_one_minutes
-        # stamps the resulting 1h candle as 10:36 instead of the correct period start 10:00.
+        # Elapsed minutes are not row counts when an exchange omits no-trade bars.
+        # Select only observations in this candle's UTC bucket, including forming rows.
         timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
-        generated_candle[0] = candle[0] - (candle[0] % timeframe_ms)
+        bucket_start = int(candle[0]) - int(candle[0]) % timeframe_ms
+        short_candles = get_candles(exchange, symbol, '1m')
+        start_index = int(np.searchsorted(short_candles[:, 0], bucket_start, side='left'))
+        end_index = int(np.searchsorted(short_candles[:, 0], bucket_start + timeframe_ms, side='left'))
+        source_rows = short_candles[start_index:end_index]
+        if not len(source_rows):
+            continue
+        generated_candle = generate_candle_from_observed_minutes(timeframe, source_rows)
 
         add_candle(
             generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False
@@ -846,6 +823,13 @@ def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray
             return np.zeros((0, 6))
         else:
             return arr[-1]
+
+    if jh.is_live():
+        # Live stores already hold native exchange bars or clock-aligned locally
+        # generated bars. Reconstructing by 1m row count would corrupt sparse history
+        # and could override native bars when local generation is disabled.
+        arr = store.candles.get_storage(exchange, symbol, timeframe)
+        return arr[-1] if len(arr) else np.zeros((0, 6))
 
     if store.candles.uses_timestamp_buckets:
         candles = _get_timestamp_bucket_candles(exchange, symbol, timeframe)
