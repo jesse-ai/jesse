@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 from mcp.server.fastmcp import FastMCP
@@ -146,24 +148,42 @@ def test_middleware_passes_lifespan_through():
     assert events == ['lifespan.startup', 'lifespan.shutdown']
 
 
-def test_build_worker_launch_keeps_password_out_of_argv():
+@pytest.mark.parametrize(
+    ('listen_fd', 'handoff_args'),
+    [(7, ['--listen_fd', '7']), (None, ['--listen_share'])],
+)
+def test_build_worker_launch_keeps_password_out_of_argv(listen_fd, handoff_args):
     argv, env = manager.build_worker_launch(
-        'http://127.0.0.1:9000', 'https://jesse.example.com', 9555, PASSWORD, base_env={'PATH': '/bin'},
+        'http://127.0.0.1:9000', 'https://jesse.example.com', PASSWORD, listen_fd, base_env={'PATH': '/bin'},
     )
 
     assert argv == [
         sys.executable, '-m', 'jesse.mcp.server',
-        '--port', '9555',
         '--api_url', 'http://127.0.0.1:9000',
         '--dashboard_url', 'https://jesse.example.com',
+        *handoff_args,
     ]
     assert all(PASSWORD not in arg and TOKEN not in arg for arg in argv)
     assert env == {'PATH': '/bin', mcp_config.WORKER_PASSWORD_ENV: PASSWORD}
 
 
 class _FakeProcess:
+    """A worker that stays up: it never exits during the startup check."""
+
+    pid = 4242
+    returncode = None
+
     def poll(self):
         return None
+
+    def wait(self, timeout=None):
+        raise subprocess.TimeoutExpired('jesse.mcp.server', timeout)
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        pass
 
 
 @pytest.fixture
@@ -175,14 +195,13 @@ def isolated_manager(monkeypatch):
         launches.append((argv, kwargs))
         return _FakeProcess()
 
-    monkeypatch.setattr('subprocess.Popen', fake_popen)
+    monkeypatch.setattr(manager.subprocess, 'Popen', fake_popen)
     monkeypatch.setattr(manager.signal, 'signal', lambda *args: None)
-    monkeypatch.setattr('time.sleep', lambda _seconds: None)
-    monkeypatch.setattr(manager, 'MCP_PROCESS', None)
-    for name in ('JESSE_API_URL', 'JESSE_PASSWORD', 'DASHBOARD_URL', 'MCP_PORT', 'MCP_URL'):
+    monkeypatch.setattr(manager, 'MCP_WORKER', None)
+    for name in ('JESSE_API_URL', 'JESSE_PASSWORD', 'DASHBOARD_URL', 'MCP_WORKER_PORT', 'MCP_URL'):
         monkeypatch.setattr(mcp_config, name, getattr(mcp_config, name))
     monkeypatch.setitem(ENV_VALUES, 'PASSWORD', PASSWORD)
-    monkeypatch.setitem(ENV_VALUES, 'MCP_PORT', '9555')
+    monkeypatch.delitem(ENV_VALUES, 'MCP_PORT', raising=False)
     monkeypatch.setitem(ENV_VALUES, 'MCP_LOG_IN_TERMINAL', 'true')
     return launches
 
@@ -195,7 +214,11 @@ def test_run_mcp_server_launches_loopback_worker_with_public_url(isolated_manage
     manager.run_mcp_server(bind_host, 9000, 'https://jesse.example.com')
 
     [(argv, kwargs)] = isolated_manager
-    assert argv[argv.index('--port') + 1] == '9555'
+    listen_fd = int(argv[argv.index('--listen_fd') + 1])
+    # Exactly the reserved listening socket is handed over; every other descriptor is closed.
+    assert kwargs['pass_fds'] == (listen_fd,)
+    assert kwargs.get('close_fds', True) is True
+    assert '--port' not in argv
     assert argv[argv.index('--api_url') + 1] == api_url
     assert argv[argv.index('--dashboard_url') + 1] == 'https://jesse.example.com'
     assert '--password' not in argv
@@ -203,14 +226,61 @@ def test_run_mcp_server_launches_loopback_worker_with_public_url(isolated_manage
     assert kwargs['shell'] is False
     assert kwargs['env'][mcp_config.WORKER_PASSWORD_ENV] == PASSWORD
 
+    worker = manager.MCP_WORKER
+    assert worker is not None and worker.held_socket is None
+    assert mcp_config.MCP_WORKER_PORT == worker.port
+    assert manager.running_worker_port() == worker.port
+    # This process's copy of the listening socket was closed right after the handoff.
+    with pytest.raises(OSError):
+        os.fstat(listen_fd)
+
     assert mcp_config.JESSE_API_URL == api_url
     assert mcp_config.MCP_URL == 'https://jesse.example.com/mcp'
     assert mcp_config.DASHBOARD_URL == 'https://jesse.example.com'
 
     output = capsys.readouterr().out
     assert 'https://jesse.example.com/mcp' in output
+    # The internal port is never presented as an endpoint.
+    assert str(worker.port) not in output
+    assert 'MCP_PORT' not in output
     assert PASSWORD not in output
     assert TOKEN not in output
+
+
+@pytest.mark.parametrize('legacy_value', ['9002', '9555', 'not-a-port', '0'])
+def test_run_mcp_server_ignores_legacy_mcp_port(isolated_manager, capsys, monkeypatch, legacy_value):
+    monkeypatch.setitem(ENV_VALUES, 'MCP_PORT', legacy_value)
+
+    manager.run_mcp_server('0.0.0.0', 9000, 'http://localhost:9000')
+
+    [(argv, _kwargs)] = isolated_manager
+    assert legacy_value not in argv
+    assert manager.MCP_WORKER is not None
+    assert str(manager.MCP_WORKER.port) != legacy_value
+    output = capsys.readouterr().out
+    assert 'MCP_PORT in your .env file is no longer used and can be removed' in output
+    assert 'http://localhost:9000/mcp' in output
+
+
+@pytest.mark.parametrize('value', [None, '', '  '])
+def test_run_mcp_server_does_not_mention_an_unset_legacy_port(isolated_manager, capsys, monkeypatch, value):
+    if value is not None:
+        monkeypatch.setitem(ENV_VALUES, 'MCP_PORT', value)
+
+    manager.run_mcp_server('0.0.0.0', 9000, 'http://localhost:9000')
+
+    assert 'MCP_PORT' not in capsys.readouterr().out
+
+
+def test_run_mcp_server_does_not_start_a_second_worker(isolated_manager, capsys):
+    manager.run_mcp_server('0.0.0.0', 9000, 'http://localhost:9000')
+    first = manager.MCP_WORKER
+
+    manager.run_mcp_server('0.0.0.0', 9000, 'http://localhost:9000')
+
+    assert len(isolated_manager) == 1
+    assert manager.MCP_WORKER is first
+    assert 'already running' in capsys.readouterr().out
 
 
 def test_run_mcp_server_requires_password(monkeypatch, isolated_manager):
@@ -222,46 +292,82 @@ def test_run_mcp_server_requires_password(monkeypatch, isolated_manager):
     assert isolated_manager == []
 
 
-def test_worker_rejects_password_argument():
+@pytest.mark.parametrize(
+    'args',
+    [
+        # A password is never accepted on the command line.
+        ['--listen_fd', '3', '--api_url', 'http://127.0.0.1:9000', '--dashboard_url', 'http://localhost:9000',
+         '--password', PASSWORD],
+        # The worker cannot choose a port of its own; it only serves the socket it is given.
+        ['--port', '9555', '--api_url', 'http://127.0.0.1:9000', '--dashboard_url', 'http://localhost:9000'],
+        ['--api_url', 'http://127.0.0.1:9000', '--dashboard_url', 'http://localhost:9000'],
+        ['--listen_fd', '3', '--listen_share', '--api_url', 'http://127.0.0.1:9000',
+         '--dashboard_url', 'http://localhost:9000'],
+    ],
+)
+def test_worker_rejects_invalid_launch_arguments(args):
     with pytest.raises(SystemExit):
-        mcp_server.parse_args([
-            '--port', '9555', '--api_url', 'http://127.0.0.1:9000',
-            '--dashboard_url', 'http://localhost:9000', '--password', PASSWORD,
-        ])
+        mcp_server.parse_args(args)
+
+
+class _HandedOverSocket:
+    """A reserved loopback socket whose descriptor is handed to main() as the worker gets it."""
+
+    def __init__(self) -> None:
+        sock = manager.reserve_worker_socket()
+        self.port = sock.getsockname()[1]
+        # Ownership of the descriptor moves to main(), exactly as in the worker process.
+        self.fd = sock.detach()
+        self.adopted = None
+
+    def close(self) -> None:
+        # Close through whichever owner holds the descriptor, never twice: a second close
+        # could hit an unrelated descriptor that reused the number.
+        if self.adopted is not None:
+            self.adopted.close()
+        else:
+            os.close(self.fd)
 
 
 @pytest.fixture
 def isolated_worker_main(monkeypatch):
-    """Run the worker's main() without binding a port or leaking global state."""
+    """Run the worker's main() on a real handed-over socket without serving or leaking state."""
     served = []
+    handed_over = _HandedOverSocket()
 
-    def fake_run(app, **kwargs):
-        served.append((app, kwargs))
+    def fake_serve(app, sock):
+        handed_over.adopted = sock
+        served.append((app, sock))
 
-    monkeypatch.setattr(mcp_server.uvicorn, 'run', fake_run)
+    monkeypatch.setattr(mcp_server, 'serve', fake_serve)
     monkeypatch.setattr(sys, 'excepthook', sys.excepthook)
-    for name in ('JESSE_API_URL', 'JESSE_PASSWORD', 'DASHBOARD_URL', 'MCP_PORT', 'MCP_URL'):
+    for name in ('JESSE_API_URL', 'JESSE_PASSWORD', 'DASHBOARD_URL', 'MCP_WORKER_PORT', 'MCP_URL'):
         monkeypatch.setattr(mcp_config, name, getattr(mcp_config, name))
-    return served
+    yield SimpleNamespace(
+        served=served,
+        port=handed_over.port,
+        args=['--listen_fd', str(handed_over.fd), '--api_url', 'http://127.0.0.1:9000',
+              '--dashboard_url', 'https://Jesse.Example.com/'],
+    )
+    handed_over.close()
 
 
-WORKER_ARGS = ['--port', '9555', '--api_url', 'http://127.0.0.1:9000', '--dashboard_url', 'https://Jesse.Example.com/']
-
-
-def test_worker_main_serves_authenticated_app_on_loopback(monkeypatch, isolated_worker_main):
+def test_worker_main_serves_authenticated_app_on_handed_over_socket(monkeypatch, isolated_worker_main):
     monkeypatch.setenv(mcp_config.WORKER_PASSWORD_ENV, PASSWORD)
 
-    mcp_server.main(WORKER_ARGS)
+    mcp_server.main(isolated_worker_main.args)
 
-    [(app, kwargs)] = isolated_worker_main
+    [(app, sock)] = isolated_worker_main.served
     assert isinstance(app, McpTokenAuthMiddleware)
     assert app.expected_token == TOKEN
-    assert kwargs['host'] == '127.0.0.1'
-    assert kwargs['port'] == 9555
+    assert sock.getsockname() == ('127.0.0.1', isolated_worker_main.port)
+    # Processes the tools spawn must not inherit the listener.
+    assert sock.get_inheritable() is False
     # The password is removed from the environment so spawned processes do not inherit it.
     assert mcp_config.WORKER_PASSWORD_ENV not in os.environ
     assert mcp_config.JESSE_API_URL == 'http://127.0.0.1:9000'
     assert mcp_config.JESSE_PASSWORD == PASSWORD
+    assert mcp_config.MCP_WORKER_PORT == isolated_worker_main.port
     assert mcp_config.DASHBOARD_URL == 'https://jesse.example.com'
     assert mcp_config.MCP_URL == 'https://jesse.example.com/mcp'
 
@@ -270,17 +376,36 @@ def test_worker_main_exits_without_password(monkeypatch, isolated_worker_main):
     monkeypatch.delenv(mcp_config.WORKER_PASSWORD_ENV, raising=False)
 
     with pytest.raises(SystemExit) as exc_info:
-        mcp_server.main(WORKER_ARGS)
+        mcp_server.main(isolated_worker_main.args)
 
     assert exc_info.value.code == 2
-    assert isolated_worker_main == []
+    assert isolated_worker_main.served == []
 
 
 def test_worker_main_rejects_invalid_dashboard_url(monkeypatch, isolated_worker_main):
     monkeypatch.setenv(mcp_config.WORKER_PASSWORD_ENV, PASSWORD)
+    args = isolated_worker_main.args
+    args[args.index('--dashboard_url') + 1] = 'http://x/prefix'
 
     with pytest.raises(SystemExit) as exc_info:
-        mcp_server.main(['--port', '9555', '--api_url', 'http://127.0.0.1:9000', '--dashboard_url', 'http://x/prefix'])
+        mcp_server.main(args)
 
     assert exc_info.value.code == 2
-    assert isolated_worker_main == []
+    assert isolated_worker_main.served == []
+
+
+def test_worker_main_exits_when_the_descriptor_is_not_a_socket(monkeypatch, isolated_worker_main):
+    monkeypatch.setenv(mcp_config.WORKER_PASSWORD_ENV, PASSWORD)
+    read_end, write_end = os.pipe()
+    try:
+        args = isolated_worker_main.args
+        args[args.index('--listen_fd') + 1] = str(read_end)
+
+        with pytest.raises(SystemExit) as exc_info:
+            mcp_server.main(args)
+    finally:
+        os.close(read_end)
+        os.close(write_end)
+
+    assert exc_info.value.code == 2
+    assert isolated_worker_main.served == []

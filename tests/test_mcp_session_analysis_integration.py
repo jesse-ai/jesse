@@ -8,6 +8,9 @@ Jesse's own model functions, then an MCP SDK client connects through the dashboa
 authenticated /mcp route and exercises the tools: results of every session type, a real
 matplotlib analysis over snapshots, the chart as MCP image content, and earlier tools,
 including a metered run whose usage check waits on a local stand-in for the licensing backend.
+`jesse run` skips MCP in test mode, so each instance is started through a small entry point
+that calls the real run_mcp_server inside the server process, just before the dashboard is
+served, as a normal `jesse run` does; the worker gets its OS-assigned port the real way.
 
 Nothing here reads a real .env, key, or wallet file, starts a backtest or live session, or
 contacts an exchange; the live session is seeded rows only, with fake key values.
@@ -22,6 +25,7 @@ import base64
 import io
 import json
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -47,6 +51,26 @@ STARTUP_SECONDS = 90
 FAKE_API_KEY = 'E2E-FAKE-API-KEY-0123456789'
 FAKE_API_SECRET = 'E2E-FAKE-API-SECRET-9876543210'
 FAKE_PASSPHRASE = 'E2E-FAKE-PASSPHRASE-555'
+
+# `jesse run` with the MCP worker started by the real manager (see the module docstring).
+RUN_WITH_MCP = r'''
+import uvicorn
+from jesse import cli
+from jesse.mcp.manager import run_mcp_server
+
+serve_dashboard = uvicorn.run
+
+
+def serve_with_mcp(app, **kwargs):
+    host, port = kwargs['host'], kwargs['port']
+    run_mcp_server(host, port, f'http://{host}:{port}')
+    serve_dashboard(app, **kwargs)
+
+
+uvicorn.run = serve_with_mcp
+cli()
+'''
+WORKER_PORT_LOG = re.compile(r'MCP worker listening on internal loopback port (\d+)')
 
 # Runs inside the disposable project with its env file; writes real rows through Jesse's
 # model and repository functions and prints the created IDs.
@@ -185,7 +209,6 @@ def _env_file(project: Path, password: str, ports: dict, extra: dict) -> Path:
         # A closed port: no license, catalog, or telemetry request can leave the machine.
         'JESSE_API2_URL': f'http://127.0.0.1:{ports["api2"]}',
         'LSP_PORT': ports['lsp'],
-        'MCP_PORT': ports['mcp'],
         **extra,
     }
     path = project / 'e2e.env'
@@ -201,10 +224,12 @@ def _child_env(env_file: Path, **extra) -> dict:
     return env
 
 
-def _start(project: Path, env: dict):
+def _start(project: Path, env: dict, with_mcp: bool = False):
+    """Start `jesse run` in its own process group; the MCP worker, if any, joins that group."""
     log = open(project / 'server.log', 'wb')
+    entry = RUN_WITH_MCP if with_mcp else 'from jesse import cli; cli()'
     process = subprocess.Popen(
-        [sys.executable, '-c', 'from jesse import cli; cli()', 'run', '--skip-agent-rules'],
+        [sys.executable, '-c', entry, 'run', '--skip-agent-rules'],
         cwd=project, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
     )
     return process, log
@@ -240,39 +265,49 @@ def _stop(process, log) -> None:
     log.close()
 
 
-def _start_mcp_worker(project: Path, url: str, port: int, password: str, env_file: Path):
+def _wait_for_mcp(url: str, token: str, process, project: Path) -> int:
     """
-    Start the MCP worker exactly as `jesse run` does outside test mode (which skips it), on the
-    MCP_PORT the dashboard's /mcp proxy forwards to, and wait until the proxy reaches it.
+    Wait until the dashboard's /mcp route reaches the instance's worker; return the worker's
+    internal port as the worker logged it.
     """
     import requests
-    from jesse.mcp.auth import dashboard_token
-    from jesse.mcp.manager import build_worker_launch
-
-    # The worker imports the jesse package too; the marker stops it from repeating the
-    # one-time test-schema reset, which would erase the seeded records.
-    argv, env = build_worker_launch(url, url, port, password, base_env=_child_env(env_file, JESSE_TEST_SCHEMA_READY=SCHEMA))
-    log = open(project / 'mcp-worker.log', 'wb')
-    process = subprocess.Popen(argv, cwd=project, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     deadline = time.monotonic() + STARTUP_SECONDS
     while time.monotonic() < deadline and process.poll() is None:
-        probe = requests.post(f'{url}/mcp', headers={'Authorization': f'Bearer {dashboard_token(password)}'}, json={}, timeout=5)
-        if probe.status_code != 502:
-            return process, log
+        # Requests sent while the worker is still loading wait in its socket's backlog, so
+        # the read timeout, not a retry, covers most of the startup.
+        probe = requests.post(f'{url}/mcp', headers={'Authorization': f'Bearer {token}'}, json={}, timeout=STARTUP_SECONDS)
+        match = WORKER_PORT_LOG.search((project / 'server.log').read_text(errors='replace'))
+        if probe.status_code != 502 and match:
+            return int(match.group(1))
         time.sleep(0.3)
-    raise AssertionError('The MCP worker did not start:\n' + (project / 'mcp-worker.log').read_text()[-4000:])
+    raise AssertionError('The MCP worker did not start:\n' + (project / 'server.log').read_text()[-4000:])
+
+
+def _listening(port: int) -> bool:
+    with socket.socket() as probe:
+        return probe.connect_ex(('127.0.0.1', port)) == 0
+
+
+def _occupied_port() -> socket.socket:
+    """A listener on a free port, standing in for whatever holds an old MCP_PORT today."""
+    sock = socket.socket()
+    sock.bind(('127.0.0.1', 0))
+    sock.listen()
+    return sock
 
 
 @pytest.fixture(scope='module')
 def instance():
+    from jesse.mcp.auth import dashboard_token
     project = Path(tempfile.mkdtemp(prefix='jesse-mcp-analysis-e2e-'))
     (project / 'strategies').mkdir()
     (project / 'storage').mkdir()
     password = secrets.token_hex(16)
-    ports = {name: _free_port() for name in ('app', 'lsp', 'mcp', 'api2')}
-    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'TRUE'})
-    process, log = _start(project, _child_env(env_file))
-    worker = None
+    ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
+    # An existing project's MCP_PORT, set to a port that is already taken, must not matter.
+    legacy = _occupied_port()
+    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'TRUE', 'MCP_PORT': legacy.getsockname()[1]})
+    process, log = _start(project, _child_env(env_file), with_mcp=True)
     try:
         url = f'http://127.0.0.1:{ports["app"]}'
         _wait_ready(url, password, process, project)
@@ -283,18 +318,17 @@ def instance():
         )
         assert seed.returncode == 0, seed.stdout[-3000:] + seed.stderr[-3000:]
         ids = json.loads(seed.stdout.strip().splitlines()[-1])
-        worker = _start_mcp_worker(project, url, ports['mcp'], password, env_file)
-        from jesse.mcp.auth import dashboard_token
-        yield SimpleNamespace(url=url, password=password, token=dashboard_token(password), ids=ids, project=project,
-                              ports=ports, env_file=env_file)
+        token = dashboard_token(password)
+        worker_port = _wait_for_mcp(url, token, process, project)
+        yield SimpleNamespace(url=url, password=password, token=token, ids=ids, project=project,
+                              ports=ports, env_file=env_file, worker_port=worker_port,
+                              legacy_port=legacy.getsockname()[1])
     finally:
-        if worker is not None:
-            _stop(*worker)
         _stop(process, log)
+        legacy.close()
         # Shown by pytest only when a test in this module fails.
-        for name in ('server.log', 'mcp-worker.log'):
-            if (project / name).exists():
-                print(f'--- {name} ---\n' + (project / name).read_text(errors='replace')[-6000:])
+        if (project / 'server.log').exists():
+            print('--- server.log ---\n' + (project / 'server.log').read_text(errors='replace')[-6000:])
         shutil.rmtree(project, ignore_errors=True)
 
 
@@ -732,7 +766,7 @@ def test_older_tools_answer_while_a_metered_run_waits_for_its_usage_check(instan
                     await asyncio.sleep(0.05)
                 out['reply_seconds'] = time.monotonic() - cancel_sent
                 usage.release.set()
-            log = instance.project / 'mcp-worker.log'
+            log = instance.project / 'server.log'
             deadline = time.monotonic() + 15
             while 'finished after its MCP request was cancelled' not in log.read_text(errors='replace') and time.monotonic() < deadline:
                 await asyncio.sleep(0.1)
@@ -758,7 +792,7 @@ def test_older_tools_answer_while_a_metered_run_waits_for_its_usage_check(instan
     # One usage check per call: nothing was retried after the cancellation.
     assert checks == 2
     assert ('run_significance_test_service finished after its MCP request was cancelled or its session closed '
-            '(status: error).') in (instance.project / 'mcp-worker.log').read_text(errors='replace')
+            '(status: error).') in (instance.project / 'server.log').read_text(errors='replace')
 
 
 def test_live_results_are_refused_without_the_live_plugin(instance):
@@ -767,7 +801,7 @@ def test_live_results_are_refused_without_the_live_plugin(instance):
     project = Path(tempfile.mkdtemp(prefix='jesse-mcp-analysis-e2e-noplugin-'))
     (project / 'strategies').mkdir()
     (project / 'storage').mkdir()
-    ports = {name: _free_port() for name in ('app', 'lsp', 'mcp', 'api2')}
+    ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
     env_file = _env_file(project, instance.password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'JESSE_DISABLE_LIVE_PLUGIN': 'TRUE'})
     process, log = _start(project, _child_env(env_file, JESSE_DISABLE_LIVE_PLUGIN='TRUE'))
     try:
@@ -788,3 +822,78 @@ def test_live_results_are_refused_without_the_live_plugin(instance):
     finally:
         _stop(process, log)
         shutil.rmtree(project, ignore_errors=True)
+
+
+def test_the_worker_port_is_internal_and_the_legacy_setting_is_ignored(instance):
+    import requests
+    log = (instance.project / 'server.log').read_text(errors='replace')
+
+    assert 'MCP_PORT in your .env file is no longer used and can be removed' in log
+    assert instance.worker_port != instance.legacy_port
+    assert 'MCP Server is running at' in log and f'{instance.url}/mcp' in log
+    # The worker's address is never printed as an endpoint; only its own log line names the port.
+    assert f'127.0.0.1:{instance.worker_port}' not in log
+    assert f'internal loopback port {instance.worker_port}; clients connect to {instance.url}/mcp' in log
+    # The worker enforces the token on its own port too.
+    assert requests.post(f'http://127.0.0.1:{instance.worker_port}/mcp', json={}, timeout=30).status_code == 401
+
+
+async def _tools_and_indicators(url: str, token: str):
+    """Initialize an SDK session through `url`/mcp; return its tool count and indicator count."""
+    import httpx
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamable_http_client
+
+    async with httpx.AsyncClient(headers={'Authorization': f'Bearer {token}'}, trust_env=False, timeout=120) as http_client:
+        async with streamable_http_client(f'{url}/mcp', http_client=http_client) as (read, write, _):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                tools = await session.list_tools()
+                indicators = await _call(session, 'list_indicators', {})
+                return len(tools.tools), indicators['count']
+
+
+def test_two_instances_run_their_own_workers_side_by_side(instance):
+    """A second instance on the same machine and schema, with its own password and worker."""
+    import requests
+    from jesse.mcp.auth import dashboard_token
+    project = Path(tempfile.mkdtemp(prefix='jesse-mcp-analysis-e2e-second-'))
+    (project / 'strategies').mkdir()
+    (project / 'storage').mkdir()
+    password = secrets.token_hex(16)
+    token = dashboard_token(password)
+    ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
+    # Both instances carry the same stale MCP_PORT, which used to make the second one fail.
+    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'MCP_PORT': instance.legacy_port})
+    process, log = _start(project, _child_env(env_file), with_mcp=True)
+    try:
+        url = f'http://127.0.0.1:{ports["app"]}'
+        _wait_ready(url, password, process, project)
+        worker_port = _wait_for_mcp(url, token, process, project)
+        assert worker_port not in (instance.worker_port, instance.legacy_port)
+
+        async def both():
+            return await asyncio.gather(
+                _tools_and_indicators(instance.url, instance.token), _tools_and_indicators(url, token),
+            )
+
+        first, second = asyncio.run(both())
+        assert first == second and first[0] == 90 and first[1] > 100
+
+        # Neither instance's route nor its worker accepts the other instance's token.
+        for route, foreign_token in ((instance.url, token), (url, instance.token)):
+            assert requests.post(f'{route}/mcp', headers={'Authorization': f'Bearer {foreign_token}'},
+                                 json={}, timeout=30).status_code == 401
+        for port, foreign_token in ((instance.worker_port, token), (worker_port, instance.token)):
+            assert requests.post(f'http://127.0.0.1:{port}/mcp', headers={'Authorization': f'Bearer {foreign_token}'},
+                                 json={}, timeout=30).status_code == 401
+    finally:
+        _stop(process, log)
+        shutil.rmtree(project, ignore_errors=True)
+
+    # Stopping the second instance released its worker's port and left the first one serving.
+    deadline = time.monotonic() + 15
+    while _listening(worker_port) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert not _listening(worker_port)
+    assert asyncio.run(_tools_and_indicators(instance.url, instance.token)) == first

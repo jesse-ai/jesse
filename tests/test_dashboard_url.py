@@ -186,20 +186,6 @@ def test_dashboard_link_escapes_session_id(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ('env_values', 'expected'),
-    [({}, 9002), ({'MCP_PORT': None}, 9002), ({'MCP_PORT': ' '}, 9002), ({'MCP_PORT': '9555'}, 9555)],
-)
-def test_configured_worker_port(env_values, expected):
-    assert mcp_config.configured_worker_port(env_values) == expected
-
-
-@pytest.mark.parametrize('value', ['0', '65536', 'abc'])
-def test_configured_worker_port_rejects_invalid_values(value):
-    with pytest.raises(ValueError):
-        mcp_config.configured_worker_port({'MCP_PORT': value})
-
-
-@pytest.mark.parametrize(
     ('service', 'function_name', 'api_path', 'route'),
     [
         (backtest_service, 'get_backtest_session_service', 'backtest', 'backtest'),

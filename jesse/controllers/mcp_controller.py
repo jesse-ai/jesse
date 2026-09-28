@@ -20,6 +20,7 @@ from fastapi import APIRouter, Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
 
+import jesse.mcp.manager as mcp_manager
 import jesse.mcp.mcp_config as mcp_config
 from jesse.mcp.auth import dashboard_token, is_authorized, unauthorized_response
 from jesse.services.dashboard_url import MCP_ENDPOINT_PATH
@@ -72,6 +73,14 @@ def _expected_token() -> str:
     """Derive the token from the current PASSWORD for each request (empty when unset)."""
     password = ENV_VALUES.get('PASSWORD') or ''
     return dashboard_token(password) if password else ''
+
+
+def _worker_unreachable_response() -> JSONResponse:
+    """Return the 502 used when no MCP worker is running or it cannot be reached."""
+    return JSONResponse(
+        {'message': 'The Jesse MCP server is not reachable. Check the Jesse terminal for MCP startup errors.'},
+        status_code=502,
+    )
 
 
 def _connection_nominated(connection_values: List[str]) -> Set[str]:
@@ -217,10 +226,11 @@ async def _relay_to_worker(request: Request) -> Response:
     if not is_authorized(request.headers.getlist('authorization'), _expected_token()):
         return unauthorized_response()
 
-    try:
-        port = mcp_config.configured_worker_port(ENV_VALUES)
-    except ValueError:
-        return JSONResponse({'message': 'MCP_PORT in .env is not a valid port.'}, status_code=500)
+    # Only a live worker's port is returned, so a port the OS may have handed to another
+    # process after the worker exited never receives the client's token.
+    port = mcp_manager.running_worker_port()
+    if port is None:
+        return _worker_unreachable_response()
 
     # MCP client messages are single JSON-RPC payloads, so the body is read up front; this
     # also leaves `receive` free to report the client's disconnect while waiting for and
@@ -242,10 +252,7 @@ async def _relay_to_worker(request: Request) -> Response:
         upstream = await _send_unless_client_disconnects(request, client, upstream_request)
     except httpx.TransportError:
         await client.aclose()
-        return JSONResponse(
-            {'message': 'The Jesse MCP server is not reachable. Check the Jesse terminal for MCP startup errors.'},
-            status_code=502,
-        )
+        return _worker_unreachable_response()
     except BaseException:
         with anyio.CancelScope(shield=True):
             await client.aclose()

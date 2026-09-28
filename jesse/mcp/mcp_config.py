@@ -8,7 +8,7 @@ are stored here to avoid circular imports.
 The worker entry point (jesse.mcp.server) sets these values before registering tools.
 """
 
-from typing import Mapping, Optional
+from typing import Optional
 from urllib.parse import quote
 
 # Internal Jesse API URL. Tools call the API on this machine through it (loopback or the
@@ -21,10 +21,15 @@ JESSE_PASSWORD = None
 DASHBOARD_URL = None
 
 # The MCP worker listens on loopback only. Clients reach it through the authenticated
-# /mcp route on the dashboard origin; MCP_PORT is the worker's internal port.
+# /mcp route on the dashboard origin. The OS assigns the worker's port when Jesse starts
+# it (see jesse.mcp.manager); MCP_WORKER_PORT holds that port once known, in both the
+# Jesse process and the worker. It is an internal detail and never advertised to clients.
 MCP_WORKER_HOST = '127.0.0.1'
-MCP_DEFAULT_PORT = 9002
-MCP_PORT = MCP_DEFAULT_PORT
+MCP_WORKER_PORT: Optional[int] = None
+
+# The .env key that used to fix the worker port. It is now ignored; Jesse only mentions
+# it at startup so users know they can remove it.
+LEGACY_PORT_ENV_KEY = 'MCP_PORT'
 
 # Public MCP endpoint advertised to clients: DASHBOARD_URL + '/mcp'.
 MCP_URL = None
@@ -44,17 +49,6 @@ _DASHBOARD_PATHS = {
     'significance_test': 'significance-test',
     'strategy': 'strategies',
 }
-
-
-def configured_worker_port(env_values: Mapping[str, Optional[str]]) -> int:
-    """Return the MCP worker port from MCP_PORT, or the default when it is unset or blank."""
-    raw = env_values.get('MCP_PORT')
-    if raw is None or not str(raw).strip():
-        return MCP_DEFAULT_PORT
-    port = int(str(raw).strip())
-    if not 1 <= port <= 65535:
-        raise ValueError(f'MCP_PORT must be between 1 and 65535, got {port}')
-    return port
 
 
 def dashboard_url(category: str, session_id: str) -> str:

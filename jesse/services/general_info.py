@@ -147,10 +147,9 @@ def _get_mcp_info() -> dict:
             # `jesse run` rejects invalid values at startup; fall back to the browser origin.
             configured_url = None
 
-    process = mcp_manager.MCP_PROCESS
     return {
         'configured_url': configured_url,
-        'is_running': process is not None and process.poll() is None,
+        'is_running': mcp_manager.is_worker_running(),
     }
 
 

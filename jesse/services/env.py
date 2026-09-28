@@ -21,7 +21,6 @@ if jh.is_unit_testing():
     ENV_VALUES['APP_PORT'] = 3000
     ENV_VALUES['IS_DEV_ENV'] = 'TRUE'
     ENV_VALUES['LSP_PORT'] = 9001
-    ENV_VALUES['MCP_PORT'] = 9002
 
 if jh.is_jesse_project():
     env_path = os.environ.get('JESSE_ENV_FILE', '.env')

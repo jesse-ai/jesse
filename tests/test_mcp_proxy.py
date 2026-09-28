@@ -27,6 +27,8 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.types import LATEST_PROTOCOL_VERSION
 
+import jesse.mcp.manager as mcp_manager
+import jesse.mcp.mcp_config as mcp_config
 import jesse.mcp.server as mcp_server
 from jesse.mcp.auth import dashboard_token
 from jesse.services.env import ENV_VALUES
@@ -173,13 +175,28 @@ def fake_upstream():
         yield server
 
 
+class _LiveProcess:
+    """Stands in for a running worker process; the servers here run in threads instead."""
+
+    def __init__(self) -> None:
+        self.returncode: Optional[int] = None
+
+    def poll(self) -> Optional[int]:
+        return self.returncode
+
+
 @pytest.fixture
 def route_to(monkeypatch):
-    """Point the /mcp route at a given worker port with the test password."""
+    """Publish a running worker on a given port, as run_mcp_server does, with the test password."""
     monkeypatch.setitem(ENV_VALUES, 'PASSWORD', PASSWORD)
+    monkeypatch.setattr(mcp_manager, 'MCP_WORKER', None)
+    monkeypatch.setattr(mcp_config, 'MCP_WORKER_PORT', None)
 
-    def _route(port: int) -> None:
-        monkeypatch.setitem(ENV_VALUES, 'MCP_PORT', str(port))
+    def _route(port: int) -> mcp_manager.McpWorker:
+        worker = mcp_manager.McpWorker(_LiveProcess(), port)  # type: ignore[arg-type]
+        monkeypatch.setattr(mcp_manager, 'MCP_WORKER', worker)
+        monkeypatch.setattr(mcp_config, 'MCP_WORKER_PORT', port)
+        return worker
 
     return _route
 
@@ -409,6 +426,43 @@ def test_proxy_returns_502_when_worker_is_unreachable(proxy, route_to, http):
 
     assert response.status_code == 502
     assert 'not reachable' in response.json()['message']
+
+
+def test_proxy_returns_502_when_no_worker_was_started(proxy, recorder, route_to, monkeypatch, http):
+    monkeypatch.setattr(mcp_manager, 'MCP_WORKER', None)
+
+    response = http.post(f'{proxy.url}/mcp', headers={**AUTH, 'Accept': MCP_ACCEPT}, json=_initialize_payload())
+
+    assert response.status_code == 502
+    assert 'not reachable' in response.json()['message']
+    assert recorder.requests == []
+
+
+def test_proxy_never_forwards_to_the_port_of_an_exited_worker(proxy, fake_upstream, recorder, route_to, http):
+    # Something else listens on the port the exited worker had (here the recorder): the
+    # client's token must not be sent there.
+    worker = route_to(fake_upstream.port)
+    worker.process.returncode = 1
+
+    response = http.post(f'{proxy.url}/mcp', headers={**AUTH, 'Accept': MCP_ACCEPT}, json=_initialize_payload())
+
+    assert response.status_code == 502
+    assert recorder.requests == []
+    # The stale address is forgotten, not retried.
+    assert mcp_manager.MCP_WORKER is None
+    assert mcp_config.MCP_WORKER_PORT is None
+
+
+def test_proxy_ignores_legacy_mcp_port_setting(proxy, worker, fake_upstream, recorder, route_to, monkeypatch, http):
+    route_to(worker.port)
+    monkeypatch.setitem(ENV_VALUES, 'MCP_PORT', str(fake_upstream.port))
+
+    response = http.post(f'{proxy.url}/mcp', headers={**AUTH, 'Accept': MCP_ACCEPT}, json=_initialize_payload())
+
+    assert response.status_code == 200
+    assert response.json()['result']['serverInfo']['name'] == 'Jesse MCP Server'
+    assert recorder.requests == []
+    http.delete(f'{proxy.url}/mcp', headers=_session_headers(response.headers['mcp-session-id']))
 
 
 def test_proxy_forwards_only_protocol_headers_to_the_worker(proxy, fake_upstream, recorder, http):
