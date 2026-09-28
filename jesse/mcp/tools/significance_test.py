@@ -13,8 +13,11 @@ Tools exposed:
     run_significance_test
     cancel_significance_test
     purge_significance_test_sessions
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
+from .offload import run_blocking
 from .services import (
     create_significance_test_draft_service,
     update_significance_test_draft_service,
@@ -30,9 +33,12 @@ from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 def register_significance_test_tools(mcp):
     """Register all rule-significance-test tools on the MCP server."""
+    # The usage check and the run request happen in one worker-thread call, so a cancellation
+    # never falls between them (a credit used without the run being attempted).
+    gated_run_significance_test = gated(weight=CREDIT_WEIGHTS["run_significance_test"])(run_significance_test_service)
 
     @mcp.tool()
-    def create_significance_test_draft(
+    async def create_significance_test_draft(
         exchange: str = "Binance Perpetual Futures",
         routes: str = '[{"exchange": "Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
         data_routes: str = '[]',
@@ -86,7 +92,8 @@ def register_significance_test_tools(mcp):
               "message": "..."
             }
         """
-        return create_significance_test_draft_service(
+        return await run_blocking(
+            create_significance_test_draft_service,
             exchange=exchange,
             routes=routes,
             data_routes=data_routes,
@@ -102,7 +109,7 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
-    def update_significance_test_draft(session_id: str, state: str) -> dict:
+    async def update_significance_test_draft(session_id: str, state: str) -> dict:
         """
         Replace the full state of a Rule Significance Test draft.
 
@@ -119,10 +126,10 @@ def register_significance_test_tools(mcp):
         Returns:
             { "status": "success", "session_id": ..., "draft_state": ..., "message": ... }
         """
-        return update_significance_test_draft_service(session_id, state)
+        return await run_blocking(update_significance_test_draft_service, session_id, state)
 
     @mcp.tool()
-    def update_significance_test_notes(
+    async def update_significance_test_notes(
         session_id: str,
         title: str = None,
         description: str = None,
@@ -144,7 +151,8 @@ def register_significance_test_tools(mcp):
         Returns:
             { "status": "success"|"error", "session_id": ..., ... }
         """
-        return update_significance_test_notes_service(
+        return await run_blocking(
+            update_significance_test_notes_service,
             session_id=session_id,
             title=title,
             description=description,
@@ -152,7 +160,7 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
-    def get_significance_test_session(session_id: str) -> dict:
+    async def get_significance_test_session(session_id: str) -> dict:
         """
         Fetch full details of a significance test session.
 
@@ -178,7 +186,7 @@ def register_significance_test_tools(mcp):
               "message": str
             }
         """
-        result = get_significance_test_session_service(session_id)
+        result = await run_blocking(get_significance_test_session_service, session_id)
         if result.get('error') is None:
             return {
                 'data': result.get('data', {}),
@@ -194,7 +202,7 @@ def register_significance_test_tools(mcp):
         }
 
     @mcp.tool()
-    def get_significance_test_sessions(
+    async def get_significance_test_sessions(
         limit: int = 50,
         offset: int = 0,
         title_search: str = None,
@@ -214,7 +222,8 @@ def register_significance_test_tools(mcp):
         Returns:
             { "status": "success", "sessions": [...], "count": int, "message": ... }
         """
-        return get_significance_test_sessions_service(
+        return await run_blocking(
+            get_significance_test_sessions_service,
             limit=limit,
             offset=offset,
             title_search=title_search,
@@ -223,8 +232,7 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
-    @gated(weight=CREDIT_WEIGHTS["run_significance_test"])
-    def run_significance_test(session_id: str) -> dict:
+    async def run_significance_test(session_id: str) -> dict:
         """
         Fire a Rule Significance Test for a previously created draft and return immediately.
 
@@ -243,15 +251,15 @@ def register_significance_test_tools(mcp):
             - p_value > 0.10         → HARD STOP. Indistinguishable from random;
               do not silently proceed to a full backtest
         """
-        return run_significance_test_service(session_id)
+        return await run_blocking(gated_run_significance_test, session_id)
 
     @mcp.tool()
-    def cancel_significance_test(session_id: str) -> dict:
+    async def cancel_significance_test(session_id: str) -> dict:
         """Cancel a running significance test."""
-        return cancel_significance_test_service(session_id)
+        return await run_blocking(cancel_significance_test_service, session_id)
 
     @mcp.tool()
-    def purge_significance_test_sessions(days_old: int = None) -> dict:
+    async def purge_significance_test_sessions(days_old: int = None) -> dict:
         """
         Permanently delete significance test sessions.
 
@@ -259,4 +267,4 @@ def register_significance_test_tools(mcp):
             days_old: If set, only sessions older than this many days are deleted.
                 If None, ALL sessions are deleted (irreversible).
         """
-        return purge_significance_test_sessions_service(days_old)
+        return await run_blocking(purge_significance_test_sessions_service, days_old)

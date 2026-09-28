@@ -31,6 +31,10 @@ Use MCP Tools For:
 - Importing and monitoring candle data
 - Managing configuration settings
 - Saving the mandatory Markdown reports (`save_strategy_report`)
+- Files inside the project's `strategies/` and `research_scripts/` folders (project file tools)
+- Running research scripts, only under the opt-in rule below
+- Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`)
+- Temporary analyses and charts of stored results (`run_analysis`), under the rules below
 
 Prohibited Actions:
 - File modifications outside MCP tools, including reports
@@ -44,8 +48,28 @@ Reports:
 - Never create, edit, or verify reports with your own file-editing or filesystem tools, and never tell the user a report is in your local workspace. The report is where the tool's returned `path` says, inside the Jesse project.
 - The tool refuses to replace an existing report unless `overwrite=True`. Pass `overwrite=True` only to update a report you saved earlier in the same task; otherwise choose a new file name.
 
+Research Scripts (opt-in):
+- Create, edit, or run files in `research_scripts/` ONLY when the user specifically asks for a script, asks for machine-learning research that needs a script or Jesse's research module, or explicitly asks to use Jesse's research module.
+- A generic request to research, find, test, compare, or improve strategies is NOT such a request and is never consent to write or run scripts. Use the strategy catalog, backtest, optimization, Monte Carlo, and significance-test tools instead, and ask the user before switching to a script.
+- Scripts run with Jesse's full privileges (not sandboxed). Read a script before running it; never write scripts that read `.env` or credentials, place orders, or reach live exchange accounts. Details and the model-promotion workflow: `jesse://research_scripts`.
+- A request to analyze, compare, or chart session results is handled with `run_analysis` (below), never with a research script.
+
+Project Files:
+- The project file tools can create, copy, rename/move, and delete whole strategy folders (`strategies/<Name>`) as well as files inside them; only the `strategies/` and `research_scripts/` roots are protected. A non-empty folder needs `recursive=True` to delete, and deletion is permanent: only delete what the user asked for or what you created in this task.
+- Moving or copying never edits code. After renaming or copying a strategy folder, rename its Strategy class to the new folder name and update imports of the old name with `read_strategy` / `write_strategy`. Prefer `create_strategy` for new strategies.
+
+Session Results and Temporary Analysis:
+- Read results with `get_session_results(session_type, session_id)`: the summary first, then only the section pages you need. Report unfinished or failed runs as such (`status_note`, `error`); never estimate missing values.
+- Live/paper sessions are read-only through MCP: never start, stop, or change live trading. If the tools report `live_plugin_unavailable`, tell the user live results need the live trading plugin.
+- When the user asks to analyze, compare, or chart session results, run `run_analysis(code, inputs)` with the sessions as inputs instead of pasting result arrays into code or paging through everything. This authorizes a temporary analysis workspace only, not files in `research_scripts/`.
+- Analysis code reads only `inputs/` and writes charts/tables to `output/`; it must not read `.env` or credentials, place orders, contact exchanges, install packages, or start backtests/optimizations (use the run tools for new results). It is not sandboxed.
+- Poll `get_analysis_job(job_id)` until it finishes, show charts with `get_analysis_artifact(job_id, path)`, and explain findings yourself. Fetch artifacts soon: once 24 hours have passed since a job finished, the next `run_analysis` deletes its workspace. Details and snapshot layouts: `jesse://session_analysis`.
+
+Cancelled or Timed-Out Calls:
+- Any tool call that was cancelled or timed out may still have finished on the Jesse host: a run, import, research script, or analysis may have started (a run may have used a daily research credit), and a draft, strategy, file, report, setting, or key may have been saved or deleted. Once the MCP responds again, check the current state before retrying (for example the matching `get_*_sessions()`, `get_candle_import_status(import_id)`, `read_strategy()`, `get_config()`, `get_exchange_api_keys()`, listing or reading the project path, `get_research_job_status()`, or `get_analysis_job()`); never assume it did nothing. A blind retry of a run is metered again and may start the run twice.
+
 Environment Constraints:
-- No direct file system access
+- No direct file system access: the project file tools reach only `strategies/` and `research_scripts/` in the Jesse project, and the analysis tools only their temporary workspaces, on the machine running Jesse
 - No system environment access
 - All operations through MCP tools only
 - If an MCP tool doesn't exist for an action, inform the user it's unavailable
@@ -71,6 +95,8 @@ Key resources include:
 - jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
 - jesse://credentials - Storing, listing, and deleting exchange API keys and data provider (Massive) credentials; write-only, results are metadata
 - jesse://strategy_catalog - Browsing, comparing, and importing jesse.trade community strategies
+- jesse://research_scripts - When research scripts are allowed, project file tools, running scripts, and promoting trained models into a strategy
+- jesse://session_analysis - Reading stored session results (including live/paper), temporary analyses, charts, and snapshot layouts
 
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
@@ -540,8 +566,9 @@ trades happen, their P&Ls, win rate, total return, or sharpe. So:
 Diagnostics:
 - If a session ends in `stopped`/`terminated`, call `get_monte_carlo_logs(...)`
   to find the underlying error before reporting back.
-- For visual / custom-stat work, `get_monte_carlo_equity_curves(...)` returns
-  the per-scenario Portfolio equity series.
+- For charts or custom statistics, pass the session to `run_analysis` (its
+  snapshot holds every scenario); `get_session_results(session_type="monte_carlo",
+  section="equity_curves")` pages the per-scenario Portfolio curves.
 
 Resume rule:
 - Most of the time the agent creates its own MC sessions. Use

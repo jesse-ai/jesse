@@ -8,8 +8,12 @@ The configuration includes:
 - Backtest settings (logging, warmup candles, exchanges)
 - Live trading settings
 - General Jesse settings
+
+The tools are async and run their API calls in a worker thread (see offload.py). Reads and
+updates of this worker never overlap (see services/locks.py).
 """
 
+from .offload import run_blocking
 from .services import (
     get_config_service,
     update_config_service,
@@ -31,7 +35,7 @@ def register_config_tools(mcp):
     """
 
     @mcp.tool()
-    def get_config() -> dict:
+    async def get_config() -> dict:
         """
         Retrieve the complete Jesse configuration from the database.
 
@@ -139,10 +143,10 @@ def register_config_tools(mcp):
             >>> warm_up = config["config"]["data"]["backtest"]["warm_up_candles"]
             >>> logging_enabled = config["config"]["data"]["backtest"]["logging"]["trading_candles"]
         """
-        return get_config_service()
+        return await run_blocking(get_config_service)
 
     @mcp.tool()
-    def update_config(config: str) -> dict:
+    async def update_config(config: str) -> dict:
         """
         Update the Jesse configuration in the database with new settings.
 
@@ -238,10 +242,10 @@ def register_config_tools(mcp):
             ...     print(f"Update failed: {result['message']}")
             
         """
-        return update_config_service(config)
+        return await run_blocking(update_config_service, config)
 
     @mcp.tool()
-    def get_backtest_config() -> dict:
+    async def get_backtest_config() -> dict:
         """
         Retrieve backtest-specific configuration settings.
 
@@ -334,10 +338,10 @@ def register_config_tools(mcp):
             >>> if logging["trading_candles"]:
             ...     print("Detailed candle logging enabled")
         """
-        return get_backtest_config_service()
+        return await run_blocking(get_backtest_config_service)
 
     @mcp.tool()
-    def get_live_config() -> dict:
+    async def get_live_config() -> dict:
         """
         Retrieve live trading configuration settings.
 
@@ -424,10 +428,10 @@ def register_config_tools(mcp):
             ...     print("Live configuration not set up yet")
             ...     print(f"Available sections: {live_config['available_sections']}")
         """
-        return get_live_config_service()
+        return await run_blocking(get_live_config_service)
 
     @mcp.tool()
-    def get_optimization_config() -> dict:
+    async def get_optimization_config() -> dict:
         """
         Retrieve hyperparameter optimization configuration settings.
 
@@ -524,4 +528,4 @@ def register_config_tools(mcp):
             - More trials provides better optimization but takes longer
             - Objective function choice depends on risk tolerance and strategy goals
         """
-        return get_optimization_config_service()
+        return await run_blocking(get_optimization_config_service)

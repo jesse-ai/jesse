@@ -16,12 +16,18 @@ MCP tools for the credentials the Dashboard manages under "Exchange API Keys" an
 Secrets are write-only: results carry ids, names, exchange or provider, timestamps, and field
 requirements, never a stored or submitted secret or a masked fragment of one.
 All tools require authentication via Jesse admin password.
+
+The tools are async and run their API calls in a worker thread (see offload.py), except
+get_exchange_api_key_requirements, which only reads Jesse's exchange list and stays
+synchronous. Stores and deletes of this worker never overlap (see services/locks.py).
 """
 
 from typing import Annotated, Any
 
 from pydantic import WithJsonSchema
 
+from jesse.mcp.tools.offload import run_blocking
+from jesse.mcp.tools.services.locks import CREDENTIALS_LOCK, serialized
 from jesse.mcp.tools.services.credentials import (
     DEFAULT_DATA_PROVIDER,
     delete_data_provider_credentials_service,
@@ -46,6 +52,12 @@ _AdditionalFields = Annotated[Any, WithJsonSchema({
     'additionalProperties': {'anyOf': [{'type': 'string'}, {'type': 'integer'}]},
 })]
 
+# Credential changes check and then write, so they run one at a time (see services/locks.py).
+_store_exchange_api_key = serialized(CREDENTIALS_LOCK, store_exchange_api_key_service)
+_delete_exchange_api_key = serialized(CREDENTIALS_LOCK, delete_exchange_api_key_service)
+_store_data_provider_credentials = serialized(CREDENTIALS_LOCK, store_data_provider_credentials_service)
+_delete_data_provider_credentials = serialized(CREDENTIALS_LOCK, delete_data_provider_credentials_service)
+
 
 def register_credentials_tools(mcp):
     """Register the credential management tools with the MCP server."""
@@ -62,17 +74,17 @@ def register_credentials_tools(mcp):
         return get_exchange_api_key_requirements_service(exchange)
 
     @mcp.tool()
-    def get_exchange_api_keys() -> dict:
+    async def get_exchange_api_keys() -> dict:
         """List the exchange API keys stored for Jesse Live as metadata only.
 
         Returns `exchange_api_keys`: [{id, name, exchange, created_at}]. The `id` is what
         delete_exchange_api_key() takes and what a live session stores as its
         exchange_api_key_id. Stored secrets cannot be retrieved by any tool.
         """
-        return get_exchange_api_keys_service()
+        return await run_blocking(get_exchange_api_keys_service)
 
     @mcp.tool()
-    def store_exchange_api_key(
+    async def store_exchange_api_key(
         exchange: _Text = None,
         name: _Text = None,
         api_key: _Text = None,
@@ -97,7 +109,8 @@ def register_credentials_tools(mcp):
         Returns `exchange_api_key`: {id, name, exchange, created_at}. Stored keys cannot be edited;
         to change one, delete it and store a new one.
         """
-        return store_exchange_api_key_service(
+        return await run_blocking(
+            _store_exchange_api_key,
             exchange=exchange,
             name=name,
             api_key=api_key,
@@ -106,17 +119,17 @@ def register_credentials_tools(mcp):
         )
 
     @mcp.tool()
-    def delete_exchange_api_key(id: _Text = None) -> dict:
+    async def delete_exchange_api_key(id: _Text = None) -> dict:
         """Delete one stored exchange API key by the `id` (required) from get_exchange_api_keys().
 
         Deletion is immediate and permanent. Jesse does not check which live sessions use the
         key: a running session keeps the key it loaded, but no session using this id can start
         again until it is given a newly stored key. Returns the deleted key's metadata.
         """
-        return delete_exchange_api_key_service(id)
+        return await run_blocking(_delete_exchange_api_key, id)
 
     @mcp.tool()
-    def get_data_provider_credentials() -> dict:
+    async def get_data_provider_credentials() -> dict:
         """List the supported historical data providers and which have an API key stored.
 
         Returns `data_providers`: [{provider_id, name, configured, created_at, updated_at,
@@ -124,10 +137,10 @@ def register_credentials_tools(mcp):
         provider is "Massive", whose single key unlocks Massive Stocks, Currencies, Indices,
         and Futures imports. The key itself is never returned.
         """
-        return get_data_provider_credentials_service()
+        return await run_blocking(get_data_provider_credentials_service)
 
     @mcp.tool()
-    def store_data_provider_credentials(api_key: _Text = None, provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
+    async def store_data_provider_credentials(api_key: _Text = None, provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
         """Save a data provider API key (`api_key`, required; default provider: "Massive") for historical imports.
 
         Jesse keeps one key per provider and refuses to overwrite it (error_type
@@ -135,19 +148,19 @@ def register_credentials_tools(mcp):
         Only pass a key the user provided in this conversation, and never repeat it back. Then
         call validate_data_provider_credentials() to confirm the provider accepts it.
         """
-        return store_data_provider_credentials_service(api_key=api_key, provider_id=provider_id)
+        return await run_blocking(_store_data_provider_credentials, api_key=api_key, provider_id=provider_id)
 
     @mcp.tool()
-    def delete_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
+    async def delete_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
         """Remove a data provider's stored API key (default provider: "Massive").
 
         Candles already imported from that provider stay in the database; new imports and
         symbol searches for its sources fail until a key is stored again.
         """
-        return delete_data_provider_credentials_service(provider_id=provider_id)
+        return await run_blocking(_delete_data_provider_credentials, provider_id=provider_id)
 
     @mcp.tool()
-    def validate_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
+    async def validate_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
         """Test the stored data provider key against the provider (default provider: "Massive").
 
         Use this after store_data_provider_credentials() or when Massive imports fail with an
@@ -155,4 +168,4 @@ def register_credentials_tools(mcp):
         (credentials_rejected, missing_entitlement, not_configured, rate_limited,
         provider_unavailable, validation_failed) without returning the key.
         """
-        return validate_data_provider_credentials_service(provider_id=provider_id)
+        return await run_blocking(validate_data_provider_credentials_service, provider_id=provider_id)

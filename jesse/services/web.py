@@ -218,6 +218,92 @@ class DeleteStrategyRequestJson(BaseModel):
     name: str
 
 
+class ListProjectFilesRequestJson(BaseModel):
+    path: str = ''
+    recursive: bool = False
+    max_entries: int = 200
+
+
+class ReadProjectFileRequestJson(BaseModel):
+    path: str
+    start_line: int = 1
+    max_lines: int = 400
+
+
+class WriteProjectFileRequestJson(BaseModel):
+    path: str
+    content: str
+    overwrite: bool = False
+
+
+class ProjectPathRequestJson(BaseModel):
+    path: str
+
+
+class DeleteProjectPathRequestJson(BaseModel):
+    path: str
+    recursive: bool = False
+
+
+class TransferProjectPathRequestJson(BaseModel):
+    source: str
+    destination: str
+    overwrite: bool = False
+
+
+class RunResearchScriptRequestJson(BaseModel):
+    path: str
+    args: List[str] = Field(default_factory=list)
+    timeout_minutes: int = 60
+
+
+class ResearchJobRequestJson(BaseModel):
+    job_id: str = ''
+
+
+class ResearchJobOutputRequestJson(BaseModel):
+    job_id: str
+    tail_lines: int = 200
+
+
+class SessionResultsRequestJson(BaseModel):
+    session_type: str
+    session_id: str
+    section: str = 'summary'
+    offset: int = 0
+    limit: int = 50
+
+
+class LiveSessionsListRequestJson(BaseModel):
+    limit: int = 20
+    offset: int = 0
+    status_filter: Optional[str] = None
+    mode_filter: Optional[str] = None
+    title_search: Optional[str] = None
+
+
+class AnalysisInputJson(BaseModel):
+    session_type: str
+    session_id: str
+    name: Optional[str] = None
+
+
+class RunAnalysisRequestJson(BaseModel):
+    code: str
+    inputs: List[AnalysisInputJson] = Field(default_factory=list)
+    timeout_minutes: int = 5
+
+
+class AnalysisJobRequestJson(BaseModel):
+    job_id: str = ''
+    tail_lines: int = 50
+
+
+class AnalysisArtifactRequestJson(BaseModel):
+    job_id: str
+    path: str
+
+
 class ForkStrategyRequestJson(BaseModel):
     new_name: str
     content: str

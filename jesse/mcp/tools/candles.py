@@ -19,10 +19,14 @@ The tools include:
 
 For real-time import progress monitoring, use get_candle_import_progress from events.py
 All tools require authentication via Jesse admin password.
+
+The tools are async and run their work in a worker thread (see offload.py): the API calls,
+and for the custom CSV tools also reading and cleaning the local file.
 """
 
 from typing import Literal, Optional
 
+from jesse.mcp.tools.offload import run_blocking
 from jesse.mcp.tools.services.candles import (
     import_candles_service,
     cancel_candle_import_service,
@@ -50,7 +54,7 @@ def register_candles_tools(mcp):
     """
 
     @mcp.tool()
-    def preview_custom_candle_csv(
+    async def preview_custom_candle_csv(
         file_path: str,
         symbol: str,
         timestamp_format: str = 'auto',
@@ -70,7 +74,8 @@ def register_candles_tools(mcp):
         After reviewing `cleaning_report`, call clean_and_import_custom_candle_csv and explicitly
         choose `invalid_row_policy="reject"` or `"drop"`.
         """
-        return preview_custom_candle_csv_service(
+        return await run_blocking(
+            preview_custom_candle_csv_service,
             file_path=file_path,
             symbol=symbol,
             timestamp_format=timestamp_format,
@@ -83,7 +88,7 @@ def register_candles_tools(mcp):
         )
 
     @mcp.tool()
-    def clean_and_import_custom_candle_csv(
+    async def clean_and_import_custom_candle_csv(
         file_path: str,
         symbol: str,
         invalid_row_policy: Literal['reject', 'drop'],
@@ -102,7 +107,8 @@ def register_candles_tools(mcp):
         duplicates. Conflicting candles at one timestamp always fail, and gaps are never filled.
         The source file is never modified.
         """
-        return clean_and_import_custom_candle_csv_service(
+        return await run_blocking(
+            clean_and_import_custom_candle_csv_service,
             file_path=file_path,
             symbol=symbol,
             invalid_row_policy=invalid_row_policy,
@@ -116,7 +122,7 @@ def register_candles_tools(mcp):
         )
 
     @mcp.tool()
-    def import_candles(
+    async def import_candles(
         exchange: str,
         symbol: str,
         start_date: str,
@@ -199,7 +205,8 @@ def register_candles_tools(mcp):
             >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01",
             ...                         import_id=import_id)
         """
-        return import_candles_service(
+        return await run_blocking(
+            import_candles_service,
             exchange=exchange,
             symbol=symbol,
             start_date=start_date,
@@ -207,7 +214,7 @@ def register_candles_tools(mcp):
         )
 
     @mcp.tool()
-    def cancel_candle_import(import_id: str) -> dict:
+    async def cancel_candle_import(import_id: str) -> dict:
         """
         Cancel an ongoing candle import process.
 
@@ -267,10 +274,10 @@ def register_candles_tools(mcp):
             ... else:
             ...     print(f"Failed to cancel: {result['message']}")
         """
-        return cancel_candle_import_service(import_id)
+        return await run_blocking(cancel_candle_import_service, import_id)
 
     @mcp.tool()
-    def get_candle_import_status(import_id: str) -> dict:
+    async def get_candle_import_status(import_id: str) -> dict:
         """
         Check whether a candle import is still running or has finished.
 
@@ -308,10 +315,10 @@ def register_candles_tools(mcp):
             ...         break
             ...     time.sleep(5)
         """
-        return get_candle_import_status_service(import_id)
+        return await run_blocking(get_candle_import_status_service, import_id)
 
     @mcp.tool()
-    def clear_candle_cache() -> dict:
+    async def clear_candle_cache() -> dict:
         """
         Clear the candles database cache to ensure fresh data loading.
 
@@ -371,10 +378,10 @@ def register_candles_tools(mcp):
             >>> if cache_result["status"] == "success":
             ...     print("Cache cleared - new data will be visible")
         """
-        return clear_candle_cache_service()
+        return await run_blocking(clear_candle_cache_service)
 
     @mcp.tool()
-    def get_candles(exchange: str, symbol: str, timeframe: str) -> dict:
+    async def get_candles(exchange: str, symbol: str, timeframe: str) -> dict:
         """
         Retrieve historical candle (OHLCV) data for technical analysis.
 
@@ -486,10 +493,10 @@ def register_candles_tools(mcp):
             >>> if daily_data["status"] == "success":
             ...     print(f"Latest close: ${daily_data['candles'][-1]['close']}")
         """
-        return get_candles_service(exchange=exchange, symbol=symbol, timeframe=timeframe)
+        return await run_blocking(get_candles_service, exchange=exchange, symbol=symbol, timeframe=timeframe)
 
     @mcp.tool()
-    def get_existing_candles() -> dict:
+    async def get_existing_candles() -> dict:
         """
         List all candle datasets available in the database.
 
@@ -585,10 +592,10 @@ def register_candles_tools(mcp):
             ...     for dataset in btc_datasets:
             ...         print(f"BTC-{dataset['timeframe']}: {dataset['count']} candles")
         """
-        return get_existing_candles_service()
+        return await run_blocking(get_existing_candles_service)
 
     @mcp.tool()
-    def delete_candles(exchange: str, symbol: str) -> dict:
+    async def delete_candles(exchange: str, symbol: str) -> dict:
         """
         Permanently delete candle data from the database.
 
@@ -676,10 +683,10 @@ def register_candles_tools(mcp):
             ...             if d["exchange"] == "Binance Spot" and d["symbol"] == "BTC-USDT"]
             >>> print(f"BTC datasets remaining: {len(btc_data)}")  # Should be 0
         """
-        return delete_candles_service(exchange=exchange, symbol=symbol)
+        return await run_blocking(delete_candles_service, exchange=exchange, symbol=symbol)
 
     @mcp.tool()
-    def search_symbols(exchange: str, query: str, limit: int = 20) -> dict:
+    async def search_symbols(exchange: str, query: str, limit: int = 20) -> dict:
         """Find importable symbols on one candle source by ticker prefix or instrument name.
 
         Use this before import_candles() when the user names an instrument rather than an
@@ -696,10 +703,10 @@ def register_candles_tools(mcp):
 
         Pass the returned `symbol` value verbatim to import_candles().
         """
-        return search_symbols_service(exchange=exchange, query=query, limit=limit)
+        return await run_blocking(search_symbols_service, exchange=exchange, query=query, limit=limit)
 
     @mcp.tool()
-    def copy_candles(
+    async def copy_candles(
         exchange: str,
         symbol: str,
         target_exchange: str,
@@ -721,7 +728,8 @@ def register_candles_tools(mcp):
         confirm with the user before doing that, and never do it for data that is still being
         updated from its provider, because updates only work under the original exchange name.
         """
-        return copy_candles_service(
+        return await run_blocking(
+            copy_candles_service,
             exchange=exchange,
             symbol=symbol,
             target_exchange=target_exchange,

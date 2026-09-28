@@ -15,6 +15,7 @@ from jesse.mcp.agent_rules import _load_packaged_rules
 from jesse.mcp.resources import register_resources
 from jesse.mcp.tools import register_tools
 from jesse.services import auth
+from tests.mcp_tool_adapters import callable_tool
 
 
 PASSWORD = 'strategy-catalog-password'
@@ -173,7 +174,7 @@ class FakeMCP:
 
     def tool(self):
         def decorator(func):
-            self.tools[func.__name__] = func
+            self.tools[func.__name__] = callable_tool(func)
             return func
 
         return decorator

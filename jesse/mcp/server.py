@@ -44,7 +44,15 @@ INSTRUCTIONS = (
     "When asked to prepare, adapt, port, or deploy a strategy researched on traditional-market "
     "data for a 24/7 crypto exchange (including tokenized or stock-linked instruments), read "
     "jesse://strategy, especially Trading Hours and its adaptation workflow, before editing. "
-    "Recognize equivalent requests even when the user does not mention trading hours."
+    "Recognize equivalent requests even when the user does not mention trading hours. "
+    "Research scripts are opt-in: only write or run files in research_scripts/ when the user "
+    "specifically asks for a script, asks for machine-learning research that needs a script or "
+    "Jesse's research module, or explicitly asks to use the research module. Generic requests to "
+    "research, find, or improve strategies use the catalog, backtest, optimization, Monte Carlo, "
+    "and significance-test tools instead; see jesse://research_scripts. "
+    "Read stored session results, including live/paper sessions, with get_session_results "
+    "(summary first). To analyze, compare, or chart results, use run_analysis, which runs in a "
+    "temporary workspace and never needs research_scripts/; see jesse://session_analysis."
 )
 
 

@@ -6,6 +6,10 @@ This module provides MCP tools for working with Jesse's technical indicators.
 The tools include:
 - list_indicators: List all available technical indicators in Jesse
 - get_indicator_details: Get detailed information about a specific indicator
+
+Unlike the other tools, these stay synchronous: they only inspect the jesse.indicators module
+(no API, database, or network call; the first call imports it, about 10 ms) and then return
+in well under a millisecond, so they do not hold up the worker's event loop (see offload.py).
 """
 
 from .services import (

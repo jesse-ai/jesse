@@ -32,6 +32,7 @@ from jesse.services.historical_data.errors import (
     ProviderUnavailableError,
 )
 from jesse.store.state_app import AppState
+from tests.mcp_tool_adapters import callable_tool
 
 
 PASSWORD = 'credential-tools-password'
@@ -71,7 +72,7 @@ class FakeMCP:
 
     def tool(self):
         def decorator(func):
-            self.tools[func.__name__] = func
+            self.tools[func.__name__] = callable_tool(func)
             return func
 
         return decorator

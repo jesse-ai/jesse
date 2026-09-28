@@ -12,10 +12,14 @@ the Jesse project (those use create_strategy / read_strategy / write_strategy):
 
 All tools require authentication via Jesse admin password. Signing in to jesse.trade uses the
 project's LICENSE_API_TOKEN inside Jesse; no token is ever returned by these tools.
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from typing import Optional
 
+from jesse.mcp.tools.offload import run_blocking
+from jesse.mcp.tools.services.locks import STRATEGY_FILES_LOCK, serialized
 from jesse.mcp.tools.services.strategy_catalog import (
     DEFAULT_PAGE_SIZE,
     DEFAULT_SORT,
@@ -24,12 +28,16 @@ from jesse.mcp.tools.services.strategy_catalog import (
     import_catalog_strategy_service,
 )
 
+# Imports create strategies/<local_name>, so they never overlap this worker's other
+# strategy creation (see services/locks.py).
+_import_catalog_strategy = serialized(STRATEGY_FILES_LOCK, import_catalog_strategy_service)
+
 
 def register_strategy_catalog_tools(mcp):
     """Register the jesse.trade strategy catalog tools with the MCP server."""
 
     @mcp.tool()
-    def browse_strategy_catalog(
+    async def browse_strategy_catalog(
             period: Optional[str] = None,
             sort_by: str = DEFAULT_SORT,
             submitted_after: Optional[str] = None,
@@ -114,12 +122,13 @@ def register_strategy_catalog_tools(mcp):
             "jesse_trade_error", or "unexpected_response". Never present an error as an
             empty catalog.
         """
-        return browse_strategy_catalog_service(
-            period, sort_by, submitted_after, submitted_before, query, strategy_type, offset, limit
+        return await run_blocking(
+            browse_strategy_catalog_service,
+            period, sort_by, submitted_after, submitted_before, query, strategy_type, offset, limit,
         )
 
     @mcp.tool()
-    def get_catalog_strategy_metrics(slug: str, period: str, symbol: str, timeframe: str) -> dict:
+    async def get_catalog_strategy_metrics(slug: str, period: str, symbol: str, timeframe: str) -> dict:
         """
         Get jesse.trade's backtest metrics for one catalog strategy on a specific symbol,
         timeframe, and period, to check how a candidate holds up beyond the default combination
@@ -142,10 +151,10 @@ def register_strategy_catalog_tools(mcp):
             must look like "BTC-USDT"), or "authentication_failed", "connection_error",
             "jesse_trade_unavailable", "jesse_trade_error".
         """
-        return get_catalog_strategy_metrics_service(slug, period, symbol, timeframe)
+        return await run_blocking(get_catalog_strategy_metrics_service, slug, period, symbol, timeframe)
 
     @mcp.tool()
-    def import_catalog_strategy(slug: str) -> dict:
+    async def import_catalog_strategy(slug: str) -> dict:
         """
         Import one jesse.trade catalog strategy into this Jesse project as a local strategy,
         exactly like the dashboard's "Import Strategy" button. Only import a strategy the user
@@ -185,4 +194,4 @@ def register_strategy_catalog_tools(mcp):
               "jesse_trade_unavailable", "jesse_trade_error".
             Do not retry auth, access, or exists errors unchanged; they need the user.
         """
-        return import_catalog_strategy_service(slug)
+        return await run_blocking(_import_catalog_strategy, slug)

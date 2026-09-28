@@ -6,14 +6,18 @@ HOW TO CREATE A NEW TOOL FILE:
 1. Create a file in jesse/mcp/tools/ (e.g., my_tools.py)
 
 2. Define a registration function:
-   
+
    def register_my_tools(mcp):
        @mcp.tool()
-       def my_tool(param: str) -> str:
+       async def my_tool(param: str) -> dict:
            \"\"\"Tool description with Args and Returns.\"\"\"
-           return "result"
-   
+           return await run_blocking(my_tool_service, param)
+
    Function name pattern: register_<category>_tools
+
+   Tools that call the Jesse API or do other blocking work are async and run that work
+   with offload.run_blocking, so they never stall the worker's event loop (see offload.py
+   and services/locks.py).
 
 3. Import and register in this file:
    from jesse.mcp.tools.my_tools import register_my_tools
@@ -21,10 +25,8 @@ HOW TO CREATE A NEW TOOL FILE:
 
 ACCESSING JESSE API URL:
 ------------------------
-import jesse.mcp.tools as tools_module
-api_url = tools_module.JESSE_API_URL  # Access at runtime, not import time
-if api_url is None:
-    return "❌ Error: API URL not configured"
+import jesse.mcp.mcp_config as mcp_config
+api_url = mcp_config.JESSE_API_URL  # Read at call time; the worker sets it at startup
 
 EXAMPLES:
 ---------
@@ -42,6 +44,10 @@ from jesse.mcp.tools.significance_test import register_significance_test_tools
 from jesse.mcp.tools.monte_carlo import register_monte_carlo_tools
 from jesse.mcp.tools.optimization import register_optimization_tools
 from jesse.mcp.tools.credentials import register_credentials_tools
+from jesse.mcp.tools.project_files import register_project_files_tools
+from jesse.mcp.tools.research_scripts import register_research_scripts_tools
+from jesse.mcp.tools.session_results import register_session_results_tools
+from jesse.mcp.tools.analysis import register_analysis_tools
 
 def register_tools(mcp):
     """
@@ -85,3 +91,15 @@ def register_tools(mcp):
 
     # Credential tools (exchange API keys for Jesse Live, data provider keys for imports)
     register_credentials_tools(mcp)
+
+    # Project file tools (files inside strategies/ and research_scripts/ only)
+    register_project_files_tools(mcp)
+
+    # Research script tools (opt-in background runs of research_scripts/*.py)
+    register_research_scripts_tools(mcp)
+
+    # Bounded read access to stored session results (including live/paper with the plugin)
+    register_session_results_tools(mcp)
+
+    # Temporary analysis jobs over session snapshots, with chart retrieval as image content
+    register_analysis_tools(mcp)

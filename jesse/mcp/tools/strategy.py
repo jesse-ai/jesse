@@ -11,14 +11,60 @@ The tools include:
 - save_strategy_report: Saves a Markdown report into the strategy's reports folder on the Jesse host
 
 All tools require authentication via Jesse admin password.
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
+from .offload import run_blocking
 from .services import (
     create_strategy_service,
     read_strategy_service,
     write_strategy_service,
     save_strategy_report_service
 )
+from .services.locks import STRATEGY_FILES_LOCK
+
+
+def create_strategy_and_populate(name: str, content: str) -> dict:
+    """
+    Create a strategy from Jesse's template, then replace its code with `content`.
+
+    Both requests run in one worker-thread call holding STRATEGY_FILES_LOCK, so a cancelled
+    MCP request never stops between them and no other create or import of this worker
+    overlaps (see services/locks.py). A failed second request still leaves the template
+    strategy in place, which the error result reports as creation_success.
+    """
+    with STRATEGY_FILES_LOCK:
+        # First create the strategy file
+        create_result = create_strategy_service(name)
+
+        if create_result["status"] != "success":
+            return create_result
+
+        # Then populate it with content
+        write_result = write_strategy_service(name, content)
+
+    if write_result["status"] == "success":
+        # Both operations succeeded
+        return {
+            "status": "success",
+            "action": "strategy_created_and_populated",
+            "strategy_name": name,
+            "message": f"Strategy '{name}' created and populated successfully",
+            "path": create_result.get("path")
+        }
+    else:
+        # Creation succeeded but write failed
+        return {
+            "status": "error",
+            "action": "strategy_population_failed",
+            "strategy_name": name,
+            "error_type": "write_failed",
+            "message": "Strategy created but content write failed",
+            "creation_success": True,
+            "write_error": write_result.get("message", "Unknown write error"),
+            "path": create_result.get("path")
+        }
 
 
 def register_strategy_tools(mcp):
@@ -41,7 +87,7 @@ def register_strategy_tools(mcp):
     """
 
     @mcp.tool()
-    def create_strategy(name: str, content: str) -> dict:
+    async def create_strategy(name: str, content: str) -> dict:
         """
         Create a new trading strategy with custom content in Jesse.
 
@@ -231,40 +277,11 @@ def register_strategy_tools(mcp):
             - Configuration in backtest drafts
             - Further modification with write_strategy()
         """
-        # First create the strategy file
-        create_result = create_strategy_service(name)
+        return await run_blocking(create_strategy_and_populate, name, content)
 
-        if create_result["status"] != "success":
-            return create_result
 
-        # Then populate it with content
-        write_result = write_strategy_service(name, content)
-
-        if write_result["status"] == "success":
-            # Both operations succeeded
-            return {
-                "status": "success",
-                "action": "strategy_created_and_populated",
-                "strategy_name": name,
-                "message": f"Strategy '{name}' created and populated successfully",
-                "path": create_result.get("path")
-            }
-        else:
-            # Creation succeeded but write failed
-            return {
-                "status": "error",
-                "action": "strategy_population_failed",
-                "strategy_name": name,
-                "error_type": "write_failed",
-                "message": "Strategy created but content write failed",
-                "creation_success": True,
-                "write_error": write_result.get("message", "Unknown write error"),
-                "path": create_result.get("path")
-            }
-
-    
     @mcp.tool()
-    def read_strategy(name: str) -> dict:
+    async def read_strategy(name: str) -> dict:
         """
         Retrieve the complete source code of a Jesse trading strategy.
 
@@ -397,10 +414,10 @@ def register_strategy_tools(mcp):
             - Review before deployment to live trading
             - Archive important versions by reading and saving externally
         """
-        return read_strategy_service(name)
-    
+        return await run_blocking(read_strategy_service, name)
+
     @mcp.tool()
-    def write_strategy(name: str, content: str) -> dict:
+    async def write_strategy(name: str, content: str) -> dict:
         """
         Update the source code of a Jesse trading strategy.
 
@@ -577,10 +594,10 @@ def register_strategy_tools(mcp):
             Invalid code will be rejected with specific error messages
             Use indicator tools to ensure correct indicator usage
         """
-        return write_strategy_service(name, content)
+        return await run_blocking(write_strategy_service, name, content)
 
     @mcp.tool()
-    def save_strategy_report(strategy_name: str, filename: str, content: str, overwrite: bool = False) -> dict:
+    async def save_strategy_report(strategy_name: str, filename: str, content: str, overwrite: bool = False) -> dict:
         """
         Save a Markdown research report for a strategy in the Jesse project.
 
@@ -643,4 +660,4 @@ def register_strategy_tools(mcp):
             Report the returned `path` verbatim to the user and say it is inside the Jesse
             project on the machine running Jesse.
         """
-        return save_strategy_report_service(strategy_name, filename, content, overwrite)
+        return await run_blocking(save_strategy_report_service, strategy_name, filename, content, overwrite)

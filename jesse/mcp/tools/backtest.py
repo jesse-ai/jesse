@@ -12,8 +12,11 @@ The tools include:
 - run_backtest: Execute a backtest using BacktestRequestJson configuration
 - cancel_backtest: Cancel a running backtest
 - purge_backtest_sessions: Purge old backtest sessions from the database
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
+from .offload import run_blocking
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
@@ -36,10 +39,12 @@ def register_backtest_tools(mcp):
     Returns:
         None
     """
-
+    # The usage check and the run request happen in one worker-thread call, so a cancellation
+    # never falls between them (a credit used without the run being attempted).
+    gated_run_backtest = gated(weight=CREDIT_WEIGHTS["run_backtest"])(run_backtest_service)
 
     @mcp.tool()
-    def create_backtest_draft(
+    async def create_backtest_draft(
         exchange: str = "Binance Perpetual Futures",
         routes: str = '[{"exchange": "Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
         data_routes: str = '[]',
@@ -120,7 +125,8 @@ def register_backtest_tools(mcp):
             ... )
             >>> print(draft["backtest_id"])  # UUID of new session
         """
-        return create_backtest_draft_service(
+        return await run_blocking(
+            create_backtest_draft_service,
             exchange=exchange,
             routes=routes,
             data_routes=data_routes,
@@ -140,7 +146,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    def update_backtest_draft(backtest_id: str, state: str) -> dict:
+    async def update_backtest_draft(backtest_id: str, state: str) -> dict:
         """
         Update an existing backtest draft configuration with complete state object.
 
@@ -188,10 +194,10 @@ def register_backtest_tools(mcp):
             >>> updated_state = json.dumps(current_state)
             >>> result = update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", updated_state)
         """
-        return update_backtest_draft_service(backtest_id, state)
+        return await run_blocking(update_backtest_draft_service, backtest_id, state)
 
     @mcp.tool()
-    def update_backtest_notes(
+    async def update_backtest_notes(
         session_id: str,
         title: str = None,
         description: str = None,
@@ -222,7 +228,8 @@ def register_backtest_tools(mcp):
             ...     description="Tests a stricter trend filter on BTC-USDT 4h."
             ... )
         """
-        return update_backtest_notes_service(
+        return await run_blocking(
+            update_backtest_notes_service,
             session_id=session_id,
             title=title,
             description=description,
@@ -230,7 +237,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    def get_backtest_session(session_id: str) -> dict:
+    async def get_backtest_session(session_id: str) -> dict:
         """
         Retrieve detailed information about a specific backtest session by ID.
 
@@ -318,7 +325,7 @@ def register_backtest_tools(mcp):
             ... else:
             ...     print(f"Error: {session['error']}")
         """
-        result = get_backtest_session_service(session_id)
+        result = await run_blocking(get_backtest_session_service, session_id)
 
         # Ensure consistent return structure
         if result.get('error') is None:
@@ -339,7 +346,7 @@ def register_backtest_tools(mcp):
             }
 
     @mcp.tool()
-    def get_backtest_sessions(
+    async def get_backtest_sessions(
         limit: int = 50,
         offset: int = 0,
         title_search: str = None,
@@ -421,7 +428,8 @@ def register_backtest_tools(mcp):
             >>> btc_sessions = get_backtest_sessions(title_search="BTC", limit=10)
             >>> print(f"BTC sessions: {len(btc_sessions['sessions'])}")
         """
-        return get_backtest_sessions_service(
+        return await run_blocking(
+            get_backtest_sessions_service,
             limit=limit,
             offset=offset,
             title_search=title_search,
@@ -430,8 +438,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    @gated(weight=CREDIT_WEIGHTS["run_backtest"])
-    def run_backtest(session_id: str) -> dict:
+    async def run_backtest(session_id: str) -> dict:
         """
         Trigger a backtest and return immediately (fire-and-poll pattern).
 
@@ -505,10 +512,10 @@ def register_backtest_tools(mcp):
             ...         break
             ...     time.sleep(5)
         """
-        return run_backtest_service(session_id)
+        return await run_blocking(gated_run_backtest, session_id)
 
     @mcp.tool()
-    def cancel_backtest(session_id: str) -> dict:
+    async def cancel_backtest(session_id: str) -> dict:
         """
         Cancel a currently running backtest process.
 
@@ -572,10 +579,10 @@ def register_backtest_tools(mcp):
         Note:
             Cancellation is irreversible. Cancelled sessions cannot be resumed.
         """
-        return cancel_backtest_service(session_id)
+        return await run_blocking(cancel_backtest_service, session_id)
 
     @mcp.tool()
-    def purge_backtest_sessions(days_old: int = None) -> dict:
+    async def purge_backtest_sessions(days_old: int = None) -> dict:
         """
         Permanently delete old backtest sessions from the database.
 
@@ -653,4 +660,4 @@ def register_backtest_tools(mcp):
             Schedule regular purging (e.g., monthly) to maintain database performance
             while preserving recent results for analysis and comparison.
         """
-        return purge_backtest_sessions_service(days_old)
+        return await run_blocking(purge_backtest_sessions_service, days_old)

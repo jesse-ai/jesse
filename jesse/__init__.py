@@ -34,6 +34,10 @@ async def lifespan(app):
     database.close_connection()
     from jesse.services.lsp import terminate_lsp_server
     terminate_lsp_server()
+    # Research scripts and analysis jobs run in their own process groups, so they do not
+    # receive the terminal's Ctrl+C; stop them explicitly.
+    from jesse.services.research_jobs import terminate_all_jobs
+    terminate_all_jobs()
 
 fastapi_app.router.lifespan_context = lifespan
 
@@ -72,6 +76,10 @@ from jesse.controllers.route_templates_controller import router as route_templat
 from jesse.controllers.ai_model_controller import router as ai_model_router
 from jesse.controllers.data_provider_credentials_controller import router as data_provider_credentials_router
 from jesse.controllers.mcp_controller import router as mcp_router
+from jesse.controllers.project_files_controller import router as project_files_router
+from jesse.controllers.research_scripts_controller import router as research_scripts_router
+from jesse.controllers.session_results_controller import router as session_results_router
+from jesse.controllers.analysis_controller import router as analysis_router
 from jesse.services.env import is_test_env
 
 # register routers
@@ -98,6 +106,10 @@ fastapi_app.include_router(route_templates_router)
 fastapi_app.include_router(ai_model_router)
 fastapi_app.include_router(data_provider_credentials_router)
 fastapi_app.include_router(mcp_router)
+fastapi_app.include_router(project_files_router)
+fastapi_app.include_router(research_scripts_router)
+fastapi_app.include_router(session_results_router)
+fastapi_app.include_router(analysis_router)
 
 if is_test_env():
     from jesse.controllers.e2e_controller import router as e2e_router
