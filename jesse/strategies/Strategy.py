@@ -1150,7 +1150,13 @@ class Strategy(ABC):
                 self._execute_short()
 
     def _have_any_pending_market_exit_orders(self) -> bool:
-        return any(o.is_active and o.type == order_types.MARKET for o in self.exit_orders)
+        # A venue with trading hours (e.g. a stock broker) accepts a market order while it is
+        # closed and fills it at the next open; its driver marks such orders so execution does
+        # not wait for a fill that cannot happen yet.
+        return any(
+            o.is_active and o.type == order_types.MARKET and not (o.vars or {}).get('queued_until_market_open')
+            for o in self.exit_orders
+        )
 
     @staticmethod
     def _simulate_market_order_execution() -> None:
