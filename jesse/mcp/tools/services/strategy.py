@@ -9,8 +9,16 @@ The functions are separated from the MCP tool wrappers to allow for better
 code organization and reusability.
 """
 
+import requests
+
 from .auth import hash_password
 import jesse.mcp.mcp_config as mcp_config
+
+# Where a saved report lives, spelled out because the assistant may run on another machine.
+REPORT_LOCATION = (
+    'Saved on the machine running Jesse, inside the Jesse project folder. '
+    "It is not in the assistant's local workspace."
+)
 
 
 def create_strategy_service(name: str) -> dict:
@@ -272,3 +280,79 @@ def write_strategy_service(name: str, content: str) -> dict:
             "message": f"Could not connect to Jesse API",
             "details": str(e)
         }
+
+
+def save_strategy_report_service(strategy_name: str, filename: str, content: str, overwrite: bool = False) -> dict:
+    """
+    Save a Markdown report into a strategy's reports folder using Jesse's API.
+
+    The API writes it on the Jesse host, so the returned `path` is relative to the Jesse
+    project there, whichever machine the assistant runs on.
+
+    Args:
+        strategy_name: Name of the existing strategy the report belongs to
+        filename: Bare Markdown file name, e.g. "BTCUSDT_sharpe_optimization_report.md"
+        content: Full Markdown text of the report
+        overwrite: Replace an existing report with the same name instead of failing
+
+    Returns:
+        Dictionary containing the saved path or an error message
+    """
+    failed = {
+        "status": "error",
+        "action": "strategy_report_save_failed",
+        "strategy_name": strategy_name,
+        "filename": filename,
+    }
+    # Status codes set by strategy_handler.save_report(), mapped to stable error types.
+    error_types = {
+        400: "invalid_request",
+        403: "unsafe_report_path",
+        404: "strategy_not_found",
+        409: "report_exists",
+    }
+    try:
+        response = requests.post(
+            f'{mcp_config.JESSE_API_URL}/strategy/save-report',
+            json={'name': strategy_name, 'filename': filename, 'content': content, 'overwrite': overwrite},
+            headers={'Authorization': hash_password(mcp_config.JESSE_PASSWORD)},  # Jesse uses token directly, not Bearer format
+            timeout=10
+        )
+    except requests.exceptions.RequestException as e:
+        return {
+            **failed,
+            "error_type": "connection_error",
+            "message": "Could not connect to Jesse API",
+            "details": str(e)
+        }
+
+    if response.status_code == 401:
+        return {**failed, "error_type": "authentication_failed", "message": "Invalid password provided"}
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = {}
+
+    if response.status_code == 200 and data.get('status') == 'success':
+        return {
+            "status": "success",
+            "action": "strategy_report_saved",
+            "strategy_name": strategy_name,
+            "filename": filename,
+            "path": data.get('path'),
+            "overwritten": data.get('overwritten', False),
+            "size_bytes": data.get('size_bytes'),
+            "location": REPORT_LOCATION,
+            "message": data.get('message', 'Report saved')
+        }
+
+    if response.status_code in error_types:
+        return {**failed, "error_type": error_types[response.status_code], "message": data.get('message', response.text)}
+
+    return {
+        **failed,
+        "error_type": "http_error",
+        "http_status": response.status_code,
+        "message": data.get('message', response.text)
+    }

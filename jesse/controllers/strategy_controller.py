@@ -9,6 +9,7 @@ from jesse.services.web import (
     NewStrategyRequestJson,
     GetStrategyRequestJson,
     SaveStrategyRequestJson,
+    SaveStrategyReportRequestJson,
     DeleteStrategyRequestJson,
     ForkStrategyRequestJson,
     ImportStrategyRequestJson
@@ -61,6 +62,20 @@ def save_strategy(
 
     from jesse.services import strategy_handler
     return strategy_handler.save_strategy(json_request.name, json_request.content)
+
+
+@router.post("/save-report")
+def save_strategy_report(
+        json_request: SaveStrategyReportRequestJson,
+) -> JSONResponse:
+    """
+    Save a Markdown report into a strategy's reports folder on the Jesse host
+    """
+
+    from jesse.services import strategy_handler
+    return strategy_handler.save_report(
+        json_request.name, json_request.filename, json_request.content, json_request.overwrite
+    )
 
 
 @router.post("/fork")

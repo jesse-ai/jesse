@@ -157,6 +157,7 @@ def test_mcp_endpoint_is_derived_from_the_dashboard_origin():
         ('optimization', 'optimization'),
         ('monte_carlo', 'monte-carlo'),
         ('significance_test', 'significance-test'),
+        ('strategy', 'strategies'),
     ],
 )
 @pytest.mark.parametrize(

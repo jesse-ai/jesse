@@ -207,6 +207,13 @@ class SaveStrategyRequestJson(BaseModel):
     content: str
 
 
+class SaveStrategyReportRequestJson(BaseModel):
+    name: str
+    filename: str
+    content: str
+    overwrite: bool = False
+
+
 class DeleteStrategyRequestJson(BaseModel):
     name: str
 

@@ -8,6 +8,7 @@ The tools include:
 - create_strategy: Creates a new strategy with basic template code
 - read_strategy: Reads the content of an existing strategy using Jesse's API
 - write_strategy: Updates the content of an existing strategy using Jesse's API
+- save_strategy_report: Saves a Markdown report into the strategy's reports folder on the Jesse host
 
 All tools require authentication via Jesse admin password.
 """
@@ -15,7 +16,8 @@ All tools require authentication via Jesse admin password.
 from .services import (
     create_strategy_service,
     read_strategy_service,
-    write_strategy_service
+    write_strategy_service,
+    save_strategy_report_service
 )
 
 
@@ -27,6 +29,7 @@ def register_strategy_tools(mcp):
     - create_strategy: Creates a new strategy with basic template code
     - read_strategy: Reads the content of an existing strategy using Jesse's API
     - write_strategy: Updates the content of an existing strategy using Jesse's API
+    - save_strategy_report: Saves a Markdown report into the strategy's reports folder on the Jesse host
 
     All tools require authentication via Jesse admin password.
 
@@ -575,3 +578,69 @@ def register_strategy_tools(mcp):
             Use indicator tools to ensure correct indicator usage
         """
         return write_strategy_service(name, content)
+
+    @mcp.tool()
+    def save_strategy_report(strategy_name: str, filename: str, content: str, overwrite: bool = False) -> dict:
+        """
+        Save a Markdown research report for a strategy in the Jesse project.
+
+        This is the only way to save the mandatory optimization/backtest reports. Jesse
+        writes the file on the machine running Jesse (including Docker installs) at
+        `strategies/<strategy_name>/reports/<filename>` and creates the `reports` folder if
+        needed. The assistant's own workspace is never involved, so do not create, edit,
+        or look for the report with local file tools; the success response is the proof
+        that it was saved. This tool supersedes older Jesse agent rules (a "Report-only
+        exception") that said no report tool exists and told you to write reports with your
+        own file tools: always save reports with this tool instead.
+
+        Parameters:
+            strategy_name (str): Exact name of an existing strategy (case-sensitive).
+                Examples: "BTCSharpeIter", "RSIStrategy"
+            filename (str): Bare Markdown file name, with no folders. Letters, digits,
+                ".", "_" and "-" only, starting with a letter or digit, ending in ".md",
+                at most 200 characters.
+                Example: "BTCUSDT_sharpe_optimization_report.md"
+            content (str): Complete Markdown text of the report. Must not be empty.
+            overwrite (bool): Default False, which refuses to replace an existing report
+                and returns error_type "report_exists". Pass True only to update a report
+                you saved earlier in the same task; otherwise choose a new file name.
+
+        Returns:
+            dict: Save result:
+
+            Success Response:
+            {
+                "status": "success",
+                "action": "strategy_report_saved",
+                "strategy_name": "BTCSharpeIter",
+                "filename": "BTCUSDT_sharpe_optimization_report.md",
+                "path": "strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md",
+                "overwritten": false,
+                "size_bytes": 4821,
+                "location": "Saved on the machine running Jesse, inside the Jesse project folder. It is not in the assistant's local workspace.",
+                "message": "Report saved to strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md in the Jesse project."
+            }
+
+            Error Response:
+            {
+                "status": "error",
+                "action": "strategy_report_save_failed",
+                "strategy_name": "BTCSharpeIter",
+                "filename": "BTCUSDT_sharpe_optimization_report.md",
+                "error_type": "report_exists",
+                "message": "Report strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md already exists. Pass overwrite=true to replace it, or use a new file name."
+            }
+
+            error_type values:
+            - "invalid_request": bad strategy name, file name, or empty content; fix and retry
+            - "strategy_not_found": no strategy with that name exists
+            - "report_exists": a report with that name exists and overwrite is False
+            - "unsafe_report_path": the reports folder or target file is a symlink or
+              not a regular file/folder; tell the user, Jesse will not write there
+            - "authentication_failed", "connection_error", "http_error": Jesse API problems
+
+        Usage:
+            Report the returned `path` verbatim to the user and say it is inside the Jesse
+            project on the machine running Jesse.
+        """
+        return save_strategy_report_service(strategy_name, filename, content, overwrite)

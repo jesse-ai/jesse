@@ -33,6 +33,7 @@ See strategy.py for API-using tools
 """
 
 from jesse.mcp.tools.strategy import register_strategy_tools
+from jesse.mcp.tools.strategy_catalog import register_strategy_catalog_tools
 from jesse.mcp.tools.backtest import register_backtest_tools
 from jesse.mcp.tools.config import register_config_tools
 from jesse.mcp.tools.candles import register_candles_tools
@@ -57,6 +58,9 @@ def register_tools(mcp):
 
     # Strategy-related tools (creating/managing trading strategies)
     register_strategy_tools(mcp)
+
+    # jesse.trade strategy catalog tools (browsing and importing community strategies)
+    register_strategy_catalog_tools(mcp)
 
     # Backtest-related tools (running and managing backtests)
     register_backtest_tools(mcp)

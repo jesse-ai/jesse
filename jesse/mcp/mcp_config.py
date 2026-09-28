@@ -35,13 +35,14 @@ MCP_URL = None
 WORKER_PASSWORD_ENV = 'JESSE_MCP_WORKER_PASSWORD'
 
 
-# Dashboard routes per session category. The Nuxt SPA is built into jesse/static/ and
-# served from the root of the dashboard origin.
+# Dashboard routes per session category, plus the strategy editor keyed by strategy name.
+# The Nuxt SPA is built into jesse/static/ and served from the root of the dashboard origin.
 _DASHBOARD_PATHS = {
     'backtest': 'backtest',
     'optimization': 'optimization',
     'monte_carlo': 'monte-carlo',
     'significance_test': 'significance-test',
+    'strategy': 'strategies',
 }
 
 
@@ -58,7 +59,7 @@ def configured_worker_port(env_values: Mapping[str, Optional[str]]) -> int:
 
 def dashboard_url(category: str, session_id: str) -> str:
     """
-    Build the dashboard URL for a given session.
+    Build the dashboard URL for a given session or local strategy.
 
     Used by MCP tool responses so the agent can surface a clickable link
     to the user — they open the dashboard at the exact session page to
@@ -66,7 +67,7 @@ def dashboard_url(category: str, session_id: str) -> str:
     over the wire.
 
     `category` is one of: 'backtest', 'optimization', 'monte_carlo',
-    'significance_test'.
+    'significance_test', or 'strategy' (whose id is the local strategy name).
 
     The Nuxt SPA uses hash routing (nuxt.config.ts: `hashMode: true`), so
     session pages live at `/#/<path>/<id>`, not `/<path>/<id>`. The base is
