@@ -7,7 +7,8 @@ stack), its own ports, and its own Redis DB. Real records are written into that 
 Jesse's own model functions, then an MCP SDK client connects through the dashboard's
 authenticated /mcp route and exercises the tools: results of every session type, a real
 matplotlib analysis over snapshots, the chart as MCP image content, and earlier tools,
-including a metered run whose usage check waits on a local stand-in for the licensing backend.
+including a metered run whose usage check waits on a local stand-in for the licensing backend,
+and the strategy catalog and license routes against a local stand-in for jesse.trade.
 `jesse run` skips MCP in test mode, so each instance is started through a small entry point
 that calls the real run_mcp_server inside the server process, just before the dashboard is
 served, as a normal `jesse run` does; the worker gets its OS-assigned port the real way.
@@ -897,3 +898,222 @@ def test_two_instances_run_their_own_workers_side_by_side(instance):
         time.sleep(0.1)
     assert not _listening(worker_port)
     assert asyncio.run(_tools_and_indicators(instance.url, instance.token)) == first
+
+
+FAKE_LICENSE = 'E2E-FAKE-LICENSE-TOKEN-4242'
+CATALOG_SESSION_TOKEN = 'e2e-fake-jesse-trade-session'
+CATALOG_CODE = STRATEGY_SOURCE.replace('E2EStrategy', 'E2ECatalogImport')
+
+
+class _CatalogBackend:
+    """
+    Stands in for jesse.trade's catalog and licensing API on an instance's api2 port. Like the
+    real service, it exchanges only FAKE_LICENSE (while `accept_license` is set) for a session
+    token and includes a strategy's code only for that token. Requests to a path in `hold`
+    wait for `release` (at most 8 s, under Jesse's 10-second timeout for these requests).
+    Every request is recorded as (method, path, Authorization header, JSON body).
+    """
+
+    def __init__(self, port: int) -> None:
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from urllib.parse import urlsplit
+
+        self.accept_license = True
+        self.hold: set = set()
+        self.release = threading.Event()
+        self.lock = threading.Lock()
+        self.requests: list = []
+        backend = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def _handle(self, method: str) -> None:
+                path = urlsplit(self.path).path
+                length = int(self.headers.get('Content-Length') or 0)
+                body = json.loads(self.rfile.read(length)) if length else None
+                authorization = self.headers.get('Authorization')
+                with backend.lock:
+                    backend.requests.append((method, path, authorization, body))
+                if path in backend.hold:
+                    backend.release.wait(8)
+                status, payload = backend.reply(method, path, authorization, body)
+                data = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                self._handle('GET')
+
+            def do_POST(self):
+                self._handle('POST')
+
+            def log_message(self, *_args):
+                pass
+
+        ThreadingHTTPServer.allow_reuse_address = True
+        self.server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    def reply(self, method: str, path: str, authorization, body) -> tuple:
+        unlocked = authorization == f'Bearer {CATALOG_SESSION_TOKEN}'
+        entry = {'slug': 'e2e-catalog', 'name': 'E2E Catalog', 'type': 'free', 'user': {'username': 'e2e'},
+                 'description': 'seeded catalog entry', 'code': CATALOG_CODE if unlocked else None,
+                 'strategy_metrics': {'sharpe_ratio': 1.4, 'net_profit_percentage': 22.0}}
+        if (method, path) == ('POST', '/auth/exchange-token'):
+            if self.accept_license and (body or {}).get('license_api_token') == FAKE_LICENSE:
+                return 200, {'access_token': CATALOG_SESSION_TOKEN, 'user': {'username': 'e2e'}}
+            return 401, {'message': 'Invalid license API token'}
+        if (method, path) == ('GET', '/strategies/periods'):
+            return 200, {'periods': ['Q4 of 2025', 'Q1 of 2026']}
+        if (method, path) == ('GET', '/strategies'):
+            return 200, {'strategies': [entry]}
+        if (method, path) == ('GET', '/strategies/e2e-catalog'):
+            return 200, entry
+        return 404, {'message': 'Not found'}
+
+    def paths(self) -> list:
+        with self.lock:
+            return [(method, path) for method, path, _, _ in self.requests]
+
+    def __enter__(self) -> '_CatalogBackend':
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.release.set()
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def test_catalog_and_license_routes_keep_their_checks_and_do_not_stall_the_api_or_mcp(instance):
+    """
+    A third instance with a fake LICENSE_API_TOKEN, whose api2 port is served by a local
+    stand-in for jesse.trade (JESSE_API_URL points at a closed port, so nothing leaves the
+    machine). Dashboard authentication and the license checks answer as before, and while
+    jesse.trade is slow to answer, the dashboard API and the MCP tools, including results of
+    the seeded sessions, still answer at once.
+    """
+    import anyio
+    import requests
+    import threading
+    from jesse.mcp.auth import dashboard_token
+
+    project = Path(tempfile.mkdtemp(prefix='jesse-mcp-analysis-e2e-catalog-'))
+    (project / 'strategies').mkdir()
+    (project / 'storage').mkdir()
+    password = secrets.token_hex(16)
+    token = dashboard_token(password)
+    ports = {name: _free_port() for name in ('app', 'lsp', 'api2', 'api1')}
+    env_file = _env_file(project, password, ports, {
+        'RESET_TEST_DATABASE': 'FALSE', 'LICENSE_API_TOKEN': FAKE_LICENSE,
+        'JESSE_API_URL': f'http://127.0.0.1:{ports["api1"]}/api',
+    })
+    dashboard = {'Authorization': _hash(password)}
+    routes = [('GET', '/strategy/index', {'params': {'period': 'Q1 of 2026'}}), ('GET', '/strategy/periods', {}),
+              ('GET', '/strategy/jesse-trade/e2e-catalog', {}),
+              ('GET', '/strategy/jesse-trade/e2e-catalog/metrics', {'params': {'period': 'Q1 of 2026', 'symbol': 'BTC-USDT', 'timeframe': '4h'}}),
+              ('POST', '/strategy/import', {'json': {'slug': 'e2e-catalog'}}), ('POST', '/auth/jesse-trade-token', {})]
+
+    with _CatalogBackend(ports['api2']) as backend:
+        process, log = _start(project, _child_env(env_file), with_mcp=True)
+        try:
+            url = f'http://127.0.0.1:{ports["app"]}'
+            _wait_ready(url, password, process, project)
+            _wait_for_mcp(url, token, process, project)
+
+            # Dashboard authentication comes first: nothing reaches jesse.trade without it.
+            for method, path, kwargs in routes:
+                for headers in ({}, {'Authorization': 'wrong'}, {'Authorization': password}):
+                    denied = requests.request(method, url + path, headers=headers, timeout=30, **kwargs)
+                    assert (denied.status_code, denied.json()) == (401, {'message': 'Invalid password'}), path
+            assert backend.paths() == []
+
+            exchanged = requests.post(f'{url}/auth/jesse-trade-token', headers=dashboard, timeout=30)
+            assert exchanged.status_code == 200 and exchanged.json() == {
+                'status': 'success', 'access_token': CATALOG_SESSION_TOKEN, 'user': {'username': 'e2e'}}
+            assert backend.requests[-1] == ('POST', '/auth/exchange-token', None, {'license_api_token': FAKE_LICENSE})
+
+            # Without a session token the import is refused and nothing is written.
+            refused = requests.post(f'{url}/strategy/import', headers=dashboard, json={'slug': 'e2e-catalog'}, timeout=30)
+            assert refused.status_code == 403 and 'Strategy code not available' in refused.json()['message']
+            assert os.listdir(project / 'strategies') == []
+
+            # A rejected license: the exchange fails, and the MCP import stops before downloading.
+            backend.accept_license = False
+            rejected = requests.post(f'{url}/auth/jesse-trade-token', headers=dashboard, timeout=30)
+            assert rejected.status_code == 401
+            assert rejected.json() == {'status': 'error', 'message': 'Failed to exchange token: {"message": "Invalid license API token"}'}
+
+            ids = instance.ids
+
+            async def unlicensed(session):
+                return await _call(session, 'import_catalog_strategy', {'slug': 'e2e-catalog'})
+
+            catalog_instance = SimpleNamespace(url=url, token=token)
+            before = len(backend.requests)
+            denied_import = _mcp(catalog_instance, unlicensed)
+            assert denied_import['error_type'] == 'license_token_rejected'
+            assert backend.paths()[before:] == [('POST', '/auth/exchange-token')]
+            assert os.listdir(project / 'strategies') == []
+            backend.accept_license = True
+
+            # jesse.trade now holds its answers: the dashboard's periods request and the MCP
+            # browse (whose first request is the same route) both wait on it.
+            backend.hold.add('/strategies/periods')
+            held = {}
+            direct = threading.Thread(target=lambda: held.setdefault(
+                'periods', requests.get(f'{url}/strategy/periods', headers=dashboard, timeout=30)))
+
+            async def concurrent(session):
+                out = {}
+
+                async def browse():
+                    out['browse'] = await _call(session, 'browse_strategy_catalog', {})
+
+                async with anyio.create_task_group() as tg:
+                    direct.start()
+                    tg.start_soon(browse)
+                    while backend.paths().count(('GET', '/strategies/periods')) < 2:
+                        await asyncio.sleep(0.05)
+                    started = time.monotonic()
+                    status = await anyio.to_thread.run_sync(
+                        lambda: requests.get(f'{url}/testing/status', headers=dashboard, timeout=30))
+                    out['api_seconds'] = time.monotonic() - started
+                    out['api_status'] = status.json()
+                    await session.send_ping()
+                    out['indicators'] = await _call(session, 'list_indicators', {})
+                    out['backtest'] = await _call(session, 'get_session_results',
+                                                  {'session_type': 'backtest', 'session_id': ids['backtest_a']})
+                    out['mcp_seconds'] = time.monotonic() - started
+                    out['still_held'] = 'browse' not in out and direct.is_alive()
+                    backend.release.set()
+                out['imported'] = await _call(session, 'import_catalog_strategy', {'slug': 'e2e-catalog'})
+                out['again'] = await _call(session, 'import_catalog_strategy', {'slug': 'e2e-catalog'})
+                return out
+
+            out = _mcp(catalog_instance, concurrent)
+            direct.join(30)
+            imported_code = (project / 'strategies' / 'E2ECatalogImport' / '__init__.py').read_text()
+            downloads = [request for request in backend.requests if request[1] == '/strategies/e2e-catalog']
+        finally:
+            _stop(process, log)
+            shutil.rmtree(project, ignore_errors=True)
+
+    # Both probes run while jesse.trade holds its answers for up to 8 s; the bounds leave room
+    # for a loaded machine, and a blocked event loop would push them to the full hold.
+    assert out['still_held'] is True
+    assert out['api_status'] == {'is_test_env': True, 'postgres_schema': SCHEMA} and out['api_seconds'] < 1.5
+    assert out['indicators']['count'] > 100 and out['mcp_seconds'] < 3
+    assert out['backtest']['session_status'] == 'finished' and out['backtest']['metrics']['sharpe_ratio'] == 0.8
+    assert held['periods'].status_code == 200 and held['periods'].json() == {'periods': ['Q4 of 2025', 'Q1 of 2026']}
+    browse = out['browse']
+    assert browse['status'] == 'success' and browse['jesse_trade_signed_in'] is True
+    assert [(s['slug'], s['code_available']) for s in browse['strategies']] == [('e2e-catalog', True)]
+    assert out['imported']['status'] == 'success' and out['imported']['local_name'] == 'E2ECatalogImport'
+    assert out['again']['error_type'] == 'strategy_exists'
+    assert imported_code == CATALOG_CODE
+    # The dashboard's refused import sent no token; both MCP imports sent the exchanged session token.
+    assert [request[2] for request in downloads] == [None, f'Bearer {CATALOG_SESSION_TOKEN}', f'Bearer {CATALOG_SESSION_TOKEN}']

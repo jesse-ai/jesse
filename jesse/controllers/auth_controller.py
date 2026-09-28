@@ -47,9 +47,12 @@ async def shutdown(background_tasks: BackgroundTasks):
 
 
 @router.post("/jesse-trade-token", dependencies=[Depends(require_auth)])
-async def jesse_trade_token():
+def jesse_trade_token():
     """
     Exchange LICENSE_API_TOKEN for jesse.trade bearer token
+
+    A plain `def` so FastAPI runs the blocking licensing request in its threadpool, keeping
+    the event loop free for other routes while jesse.trade answers.
     """
 
     if 'LICENSE_API_TOKEN' not in ENV_VALUES or not ENV_VALUES['LICENSE_API_TOKEN']:
