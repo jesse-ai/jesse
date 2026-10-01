@@ -164,6 +164,21 @@ class CandleExchange(HistoricalCandleProvider, ABC):
         if response.status_code == 404:
             raise ValueError(f'ERROR {response.status_code} {response.reason}. Check the symbol')
 
+        # 429: request-weight limit hit; 418: the IP kept sending after 429s and is temporarily banned
+        # (Binance and Binance-style APIs). Every process on the same IP counts toward the limit.
+        if response.status_code in (418, 429):
+            retry_after = (getattr(response, 'headers', None) or {}).get('Retry-After')
+            wait = f' The exchange asks to wait {retry_after} seconds.' if retry_after else ''
+            if response.status_code == 418:
+                explanation = ('the exchange has temporarily banned this IP address for sending too many requests '
+                               'after rate-limit warnings. The ban lifts on its own.')
+            else:
+                explanation = 'the request rate limit for this IP address was reached.'
+            raise ConnectionError(
+                f'ERROR {response.status_code} {response.reason}: {explanation}{wait} Reduce how often this IP '
+                f'calls the exchange - other bots or scripts on the same IP count too.'
+            )
+
         # if the response code is not in the 200-299, raise an exception
         if response.status_code // 100 != 2:
             raise ConnectionError(f'ERROR {response.status_code} {response.reason}')
