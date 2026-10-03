@@ -94,11 +94,15 @@ PROJECT_AND_JOB_TOOLS = {
     'list_project_files', 'read_project_file', 'write_project_file', 'create_project_directory',
     'move_project_path', 'copy_project_path', 'delete_project_path',
     'run_research_script', 'get_research_job_status', 'get_research_job_output', 'cancel_research_job',
-    'get_session_results', 'get_live_sessions',
+    'get_session_results', 'get_live_sessions', 'get_live_trades', 'get_live_orders',
     'run_analysis', 'get_analysis_job', 'get_analysis_artifact', 'cancel_analysis_job', 'delete_analysis_job',
 }
 # The only synchronous tools: they inspect loaded code and in-memory tables, nothing else.
 SYNC_TOOLS = {'list_indicators', 'get_indicator_details', 'get_exchange_api_key_requirements'}
+# Every tool the worker registers, including the 7 live/paper session tools, the 2 live/paper
+# trade and order history tools, and the candle export and purge tools; the live tools are
+# registered even without the plugin and answer live_plugin_unavailable then.
+REGISTERED_TOOL_COUNT = 101
 # Tools metered by usage_limits.gated, with the route prefix whose /sessions/{id} they read first.
 GATED_RUN_TOOLS = {
     'run_backtest': 'backtest',
@@ -443,7 +447,7 @@ def test_every_tool_is_async_except_the_three_pure_in_memory_ones():
     sync_tools = {tool.name for tool in tools if not tool.is_async}
 
     assert sync_tools == SYNC_TOOLS
-    assert len(tools) == 90
+    assert len(tools) == REGISTERED_TOOL_COUNT
     assert PROJECT_AND_JOB_TOOLS | set(GATED_RUN_TOOLS) <= {tool.name for tool in tools}
 
 
@@ -476,7 +480,7 @@ def test_async_tools_advertise_the_same_schemas_as_synchronous_functions():
         assert tool.annotations == twin.annotations and advertised[tool.name].annotations is None, tool.name
         assert tool.context_kwarg is None, tool.name
         checked += 1
-    assert checked == 87
+    assert checked == REGISTERED_TOOL_COUNT - len(SYNC_TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -1087,7 +1091,7 @@ def test_slow_older_tool_calls_run_concurrently_while_other_requests_are_answere
     assert _payload(others['keys'])['exchange_api_keys'] == []
     assert _payload(others['indicators'])['count'] > 100
     assert _payload(others['files'])['status'] == 'success'
-    assert len(others['tools'].tools) == 90
+    assert len(others['tools'].tools) == REGISTERED_TOOL_COUNT
     assert _payload(results['write'])['status'] == 'success'
     assert (project / 'strategies' / 'MyStrategy' / '__init__.py').read_text() == NEW_STRATEGY_CODE
     assert _payload(results['report'])['path'] == 'strategies/MyStrategy/reports/summary.md'
@@ -1390,7 +1394,7 @@ def test_a_cancelled_metered_run_is_metered_and_started_once_and_the_session_sur
     assert _log_messages(caplog) == [
         'run_significance_test_service finished after its MCP request was cancelled or its session closed (status: started).'
     ]
-    assert len(listed['result']['tools']) == 90
+    assert len(listed['result']['tools']) == REGISTERED_TOOL_COUNT
     assert _session_crashes(caplog) == []
 
 

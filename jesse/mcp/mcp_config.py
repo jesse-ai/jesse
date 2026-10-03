@@ -47,8 +47,17 @@ _DASHBOARD_PATHS = {
     'optimization': 'optimization',
     'monte_carlo': 'monte-carlo',
     'significance_test': 'significance-test',
+    # Opening a live/paper session link makes the dashboard load it into a Live tab.
+    'live': 'live',
     'strategy': 'strategies',
 }
+
+
+def dashboard_page_url(path: str) -> str:
+    """Build a dashboard link to a fixed page such as 'candles/manage'; '' without DASHBOARD_URL."""
+    if not DASHBOARD_URL:
+        return ''
+    return f"{DASHBOARD_URL}/#/{path}"
 
 
 def dashboard_url(category: str, session_id: str) -> str:
@@ -61,7 +70,7 @@ def dashboard_url(category: str, session_id: str) -> str:
     over the wire.
 
     `category` is one of: 'backtest', 'optimization', 'monte_carlo',
-    'significance_test', or 'strategy' (whose id is the local strategy name).
+    'significance_test', 'live', or 'strategy' (whose id is the local strategy name).
 
     The Nuxt SPA uses hash routing (nuxt.config.ts: `hashMode: true`), so
     session pages live at `/#/<path>/<id>`, not `/<path>/<id>`. The base is

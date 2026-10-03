@@ -101,10 +101,12 @@ class ProcessManager:
 
             # The worker may check its active marker immediately, so publish it
             # before the child can begin executing. This also makes cancellation
-            # a reliable cooperative signal instead of a startup race.
+            # a reliable cooperative signal instead of a startup race. Publishing
+            # can fail too (Redis unreachable); then the never-started worker must
+            # not stay in _workers, where cleanup could never join or remove it.
             self._pending_worker_removals.discard(client_id)
-            self._add_process(client_id)
             try:
+                self._add_process(client_id)
                 w.start()
             except Exception:
                 self._workers.remove(w)

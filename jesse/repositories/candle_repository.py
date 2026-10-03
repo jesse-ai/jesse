@@ -18,11 +18,12 @@ OBSERVED_CANDLE_INSERT_BATCH_SIZE = 5_000
 CANDLE_EXPORT_BATCH_SIZE = 5_000
 
 
-def delete_candles_from_db(exchange: str, symbol: str) -> None:
+def delete_candles_from_db(exchange: str, symbol: str) -> int:
     """
-    Deletes all candles for the given exchange and symbol
+    Deletes all candles (every stored timeframe) for the given exchange and symbol and
+    returns the number of deleted rows.
     """
-    Candle.delete().where(
+    return Candle.delete().where(
         Candle.exchange == exchange,
         Candle.symbol == symbol
     ).execute()

@@ -48,6 +48,7 @@ from jesse.mcp.tools.project_files import register_project_files_tools
 from jesse.mcp.tools.research_scripts import register_research_scripts_tools
 from jesse.mcp.tools.session_results import register_session_results_tools
 from jesse.mcp.tools.analysis import register_analysis_tools
+from jesse.mcp.tools.live import register_live_tools
 
 def register_tools(mcp):
     """
@@ -103,3 +104,6 @@ def register_tools(mcp):
 
     # Temporary analysis jobs over session snapshots, with chart retrieval as image content
     register_analysis_tools(mcp)
+
+    # Live/paper session lifecycle (drafts, start, stop, notes, delete) with the live plugin
+    register_live_tools(mcp)

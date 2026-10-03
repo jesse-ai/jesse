@@ -15,6 +15,10 @@ user:
    example gathering ML features/labels from a strategy and training a model), or
 3. explicitly asks to use Jesse's research module (`from jesse import research`).
 
+Candle CSV files are data, not scripts: `export_candles` writes its files into
+`research_scripts/candle_exports/`, and a CSV the user asked you to import can be written there,
+without this opt-in.
+
 A generic request to research, find, test, compare, or improve strategies is NOT such a
 request and is never consent to write or run scripts. For those, use the existing tools:
 `browse_strategy_catalog`, backtests, optimization, Monte Carlo, and rule significance tests.

@@ -15,7 +15,7 @@ The tools are async and run their API call in a worker thread (see offload.py), 
 snapshot or cleanup taking minutes does not stall other MCP requests on this worker.
 """
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from mcp.types import CallToolResult, ImageContent, TextContent
 
@@ -59,25 +59,26 @@ def register_analysis_tools(mcp):
     """
 
     @mcp.tool()
-    async def run_analysis(code: str, inputs: Optional[List[Dict[str, str]]] = None, timeout_minutes: int = 5) -> dict:
+    async def run_analysis(code: str, inputs: Optional[List[Dict[str, Any]]] = None, timeout_minutes: int = 5) -> dict:
         """
         Run Python that analyzes stored session results, in a temporary workspace on the
         machine running Jesse, and return a job ID immediately.
 
         Use it when the user asks to analyze, compare, or chart session results (backtests,
-        optimizations, Monte Carlo, significance tests, live/paper sessions). That request
+        optimizations, Monte Carlo, significance tests, live/paper sessions) or their live/paper
+        trades or orders over a period (e.g. "analyze my trades of the last 7 days"). That request
         authorizes this temporary analysis only: it is NOT a request for a research script,
         so never create or edit files in research_scripts/ for it. Do not start backtests or
         other runs from analysis code; use the run tools for new results.
 
-        Jesse first writes each requested session's complete stored results to
-        inputs/<name>.json (plus inputs/manifest.json), then runs your code as analysis.py
+        Jesse first writes each requested input's complete data to inputs/<name>.json (plus
+        inputs/manifest.json), then runs your code as analysis.py
         with the workspace as the working directory, using Jesse's Python and packages
         (numpy, pandas, matplotlib with the Agg backend). Read inputs with
         json.load(open("inputs/<name>.json")); save charts and tables under output/, e.g.
         plt.savefig("output/equity.png", dpi=110). Print short results; they appear in the
         job output. Keep images under 3 MiB and 8000 px per side. Snapshot layouts per
-        session type are in jesse://session_analysis.
+        session type and dataset are in jesse://session_analysis.
 
         The code is NOT sandboxed: it runs as the Jesse user with Jesse's files, database,
         credentials, and network. Only read the input snapshots and write to output/; never
@@ -85,19 +86,36 @@ def register_analysis_tools(mcp):
 
         Parameters:
             code (str): Complete Python source, at most 256 KiB.
-            inputs (list[dict], optional): Up to 10 of {"session_type", "session_id",
-                "name"}. session_type is "backtest", "optimization", "monte_carlo",
-                "significance_test", or "live"; name (letters, digits, "_", "-") defaults
-                to "<session_type>_<first 8 id characters>". Snapshots are capped at 64 MiB
-                each and 256 MiB together.
+            inputs (list[dict], optional): Up to 10, each either
+                - a session: {"session_type", "session_id", "name"}, session_type
+                  "backtest", "optimization", "monte_carlo", "significance_test", or "live";
+                  name defaults to "<session_type>_<first 8 id characters>"; or
+                - live/paper history across sessions: {"dataset": "live_trades" or
+                  "live_orders", "name", plus the window and filters of get_live_trades /
+                  get_live_orders: "recent_days" or "start"/"end", "mode" (default "live"),
+                  "exchange", "symbol", "session_id", and for orders "time_field",
+                  "status"}; name defaults to the dataset. The snapshot holds EVERY matching
+                  record (oldest first), read from one consistent database view per input,
+                  or the run is refused ("too_many_records": over 100,000 records;
+                  "too_many_orders": a trade with over 10,000 executed orders; narrow the
+                  window); it is never cut.
+                  Unknown fields are refused. The window is resolved once and the
+                  manifest records its exact range, filters, and count.
+                Names use letters, digits, "_", "-". Snapshots are capped at 64 MiB each and
+                256 MiB together. Every snapshot is complete or the run is refused: a live
+                session with more than 100,000 trades, 200,000 orders, or 600,000 equity
+                points is refused with "too_many_records" (use dataset inputs by date).
             timeout_minutes (int): 1-30, default 5.
 
         Returns:
             dict: {"status": "success", "job": {"id", "status": "running", "inputs":
             [{"name", "file", "session_type", "session_id", "session_status", "title",
+            "size_bytes"} or {"name", "file", "dataset", "range", "filters", "count",
             "size_bytes"}], "workspace", "lifetime", ...}} or an error with error_type
             "not_found" (a session), "too_many_jobs" (2 at once), "too_large",
-            "live_plugin_unavailable", or "invalid_request".
+            "too_many_records", "too_many_orders", "mode_mismatch", "read_failed",
+            "live_plugin_unavailable", or
+            "invalid_request".
 
         Next: poll get_analysis_job(job_id) until the status is not "running", then fetch
         charts with get_analysis_artifact. Fetch what you need soon: once 24 hours have

@@ -30,9 +30,63 @@ Correct flow:
 
 ### get_existing_candles()
 
-Checks what candle data is currently available in the database.
+Lists stored candles like the dashboard's Manage Candles table: one entry per exchange and
+symbol with `start_date` and `end_date` (first and last stored UTC day), `backtesting_supported`,
+and `updatable` (the exchange is an import source, so `import_candles` can extend it). The dates
+are bounds, not a promise of gap-free coverage.
 
-**Returns:** List of available candle datasets with exchange, symbol, timeframe, and date ranges.
+**Parameters (all optional):**
+- `exchange`, `symbol`: case-insensitive substrings, like the dashboard's search boxes
+- `availability`: `all` (default), `backtesting`, or `live` (live-only exchanges)
+- `offset`, `limit` (1-1000, default 200): page with `next_offset`; `total_count` is the number of
+  matches
+
+### delete_candles() and purge_candles()
+
+- `delete_candles(exchange, symbol)` permanently removes every stored row of that pair, all
+  timeframes and dates, like the dashboard's Delete. `deleted_count` 0 means nothing was stored
+  under that exact name.
+- `purge_candles(exchanges)` permanently removes every symbol of the listed exchanges, like the
+  dashboard's "Purge Candles by Exchange".
+
+Neither can be undone. Only delete what the user asked to remove, using the names exactly as
+`get_existing_candles()` shows them.
+
+### export_candles()
+
+Writes one stored series into the project as CSV, the same file the dashboard's Export button
+downloads: the whole one-minute series of the pair, oldest first, columns
+`timestamp,open,close,high,low,volume` (timestamp in Unix milliseconds). The file stays on the
+Jesse host in `research_scripts/` (default
+`research_scripts/candle_exports/<exchange>_<symbol>_1m.csv`); the tool returns only a summary
+(`path`, `row_count`, `size_bytes`, first and last candle). An existing file is replaced only with
+`overwrite=True`.
+
+Use the file with the project file tools (`read_project_file(path, start_line, max_lines)` reads
+it in pages), from a research script the user asked for, or re-import it as Custom Data. It is
+not sent to the assistant's or user's computer; for a download, point the user to Export on the
+dashboard's Manage Candles page (`dashboard_download_page`).
+
+### get_candles()
+
+Returns the candles the dashboard's live chart starts from: the live `warm_up_candles` setting's
+number of candles of one timeframe ending now, at most `limit` (default 300, maximum 1000),
+with `time` in Unix seconds. It is not a historical reader and is empty for data that ends in
+the past; use `get_existing_candles()` for coverage and `export_candles()` for stored values.
+
+### Custom CSV import (`preview_custom_candle_csv`, `clean_and_import_custom_candle_csv`)
+
+Imports a one-minute CSV as `Custom Data / SYMBOL`. Pass exactly one source:
+- `project_path`: a `.csv` inside the Jesse project (`research_scripts/` or `strategies/`). This is
+  the way to import when you are not running on the Jesse host: write the CSV there with
+  `write_project_file` (up to 2 MiB per file) or use one `export_candles` produced.
+- `file_path`: an absolute path on the Jesse host. It only works when you run on that machine;
+  a path on the user's computer does not exist there.
+
+Preview first, then import with `invalid_row_policy="reject"` or `"drop"`. Identical duplicate
+rows are dropped, conflicting rows for one timestamp fail the import, and gaps stay gaps. If the
+symbol already has Custom Data, new timestamps are added and stored ones keep their values.
+Larger files can be uploaded by the user through the dashboard's Custom Data importer.
 
 ### search_symbols()
 
@@ -82,23 +136,36 @@ simulation settings.
 - `target_exchange`: a backtesting-capable exchange name exactly as Jesse lists it
 - `target_symbol` (optional): defaults to `symbol`; change it when the target quotes in another
   currency (`USD` vs `USDT`)
-- `delete_source` (optional, default false): remove the original in the same transaction
+- `delete_source` (optional, default false): remove the original once every chunk is copied
+  (a separate statement: the copy and the deletion are not one transaction)
 
-Rules: the whole stored one-minute series is copied, which is everything a backtest needs for any timeframe; the call is refused (HTTP 409) when the target already
+Rules: every stored row of the pair is copied, which is everything a backtest needs for any timeframe; the call is refused (HTTP 409) when the target already
 holds candles, so series are never merged; deleting the source turns the copy into a rename, but
-provider updates only work under the original exchange name, so confirm with the user first.
+provider updates only work under the original exchange name, so confirm with the user first. A
+large copy commits in chunks; if it is interrupted, delete the partial target before retrying.
 
 **Returns:** `copied_count`, `deleted_count`, and the resolved target.
 
 ### import_candles()
 
-Imports historical candle data from exchanges.
+Starts a background import from a historical source and returns once Jesse accepts it.
 
 **Parameters:**
-- `exchange`: Exchange name (e.g., "Binance Perpetual Futures")
+- `exchange`: a historical source exactly as Jesse lists it: crypto exchanges (e.g., "Binance
+  Perpetual Futures", "Bybit USDT Perpetual") or the Massive sources (need a saved Massive key)
 - `symbol`: Trading pair (e.g., "BTC-USDT")
-- `start_date`: Start date in YYYY-MM-DD format
-- `import_id` (optional): Import ID for retrying failed imports
+- `start_date`: YYYY-MM-DD, before today (UTC)
+- `import_id` (optional): defaults to a new UUID
+
+An unsupported source, date, or symbol is refused at once with Jesse's message. Follow a started
+import with `get_candle_import_status(import_id)` until `finished`, `failed`, or `cancelled`; an
+ID Jesse has no record of also reports `finished`. The dashboard runs one import per exchange at a
+time, so wait for one to finish before starting another on the same exchange.
+`cancel_candle_import(import_id)` stops a running import; candles stored so far remain.
+
+**Updating stored data:** call `import_candles` again with the pair's `start_date` from
+`get_existing_candles()` (the dashboard's Update button). It downloads only what lies before the
+first and after the last stored candle; Custom Data cannot be updated this way.
 
 **Timeframes:** the import has no timeframe parameter. One-minute candles are stored, and in
 backtests and the other research modes the timeframes usable in routes and `get_candles()` (1m,
@@ -131,37 +198,23 @@ result = import_candles(
     symbol="BTC-USDT",
     start_date="2024-01-01"
 )
+# then: get_candle_import_status(result["import_id"]) until it is finished
 ```
 
-### Retry Failed Import
+### Export and re-import as Custom Data
 ```python
-# First attempt
-result = import_candles(
-    exchange="Binance Spot",
-    symbol="ETH-USDT",
-    start_date="2024-01-01"
-)
-
-# If failed, retry with same import_id
-if result.get("status") != "success":
-    import_id = result.get("import_id")
-    retry_result = import_candles(
-        exchange="Binance Spot",
-        symbol="ETH-USDT",
-        start_date="2024-01-01",
-        import_id=import_id
-    )
+exported = export_candles(exchange="Massive Stocks", symbol="SPY-USD")
+preview_custom_candle_csv(symbol="SPY-USD", project_path=exported["path"])
+clean_and_import_custom_candle_csv(symbol="SPY-USD", project_path=exported["path"],
+                                   invalid_row_policy="reject")
 ```
 
 ## Retry Behavior
 
-When retrying imports with the same `import_id`:
-
-- Previous events are automatically cleared
-- Import resumes from the failure point
-- Already-imported candles are skipped
-- Progress monitoring starts fresh but continues efficiently
-- WebSocket events are isolated per retry
+Re-running `import_candles` for a pair, with the same or a new `import_id`, never downloads what is
+already stored: Jesse fetches only the range before the first stored candle and after the last
+one, so retrying a failed or cancelled import continues from the stored data. Nothing resumes an
+old import process, and gaps inside the stored range are kept as they are.
 
 ## Success Response Format
 

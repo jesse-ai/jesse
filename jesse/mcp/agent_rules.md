@@ -28,12 +28,13 @@ Use MCP Tools For:
 - Creating, editing, reading strategy files
 - Browsing the jesse.trade strategy catalog and importing catalog strategies
 - Running backtests and reading metrics
-- Importing and monitoring candle data
+- Importing, inspecting, copying, exporting, and deleting candle data (the dashboard's candle pages)
 - Managing configuration settings
 - Saving the mandatory Markdown reports (`save_strategy_report`)
 - Files inside the project's `strategies/` and `research_scripts/` folders (project file tools)
 - Running research scripts, only under the opt-in rule below
-- Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`)
+- Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`), and Jesse's recorded live/paper trades and orders by date window across sessions (`get_live_trades`, `get_live_orders`)
+- Managing live/paper sessions (drafts, start, stop, notes, delete), only under the rules below
 - Temporary analyses and charts of stored results (`run_analysis`), under the rules below
 
 Prohibited Actions:
@@ -53,6 +54,7 @@ Research Scripts (opt-in):
 - A generic request to research, find, test, compare, or improve strategies is NOT such a request and is never consent to write or run scripts. Use the strategy catalog, backtest, optimization, Monte Carlo, and significance-test tools instead, and ask the user before switching to a script.
 - Scripts run with Jesse's full privileges (not sandboxed). Read a script before running it; never write scripts that read `.env` or credentials, place orders, or reach live exchange accounts. Details and the model-promotion workflow: `jesse://research_scripts`.
 - A request to analyze, compare, or chart session results is handled with `run_analysis` (below), never with a research script.
+- Candle CSV files are data, not scripts: `export_candles` writing into `research_scripts/` and a CSV the user asked you to import are fine without this opt-in.
 
 Project Files:
 - The project file tools can create, copy, rename/move, and delete whole strategy folders (`strategies/<Name>`) as well as files inside them; only the `strategies/` and `research_scripts/` roots are protected. A non-empty folder needs `recursive=True` to delete, and deletion is permanent: only delete what the user asked for or what you created in this task.
@@ -60,13 +62,20 @@ Project Files:
 
 Session Results and Temporary Analysis:
 - Read results with `get_session_results(session_type, session_id)`: the summary first, then only the section pages you need. Report unfinished or failed runs as such (`status_note`, `error`); never estimate missing values.
-- Live/paper sessions are read-only through MCP: never start, stop, or change live trading. If the tools report `live_plugin_unavailable`, tell the user live results need the live trading plugin.
+- If the tools report `live_plugin_unavailable`, tell the user live and paper sessions need the live trading plugin.
+- For questions about a period ("my trades of the last 3 days"), use `get_live_trades` / `get_live_orders` with `recent_days` or `start`/`end` (RFC 3339 with an offset; UTC, end exclusive). They return Jesse's own records of its sessions, not the exchange account's history; closed trades only (open positions are counted in `open_trades_not_included`, never included). `mode` defaults to live: include paper results only when the user asks, and never mix them into real performance. Report the returned `range`. For a later page, call again with exactly the arguments in `next_page` (it carries a cursor bound to the selection).
+- Never compute totals, win rates, or other statistics from a partial page (`all_records_returned` false): analyze the full selection with `run_analysis` and a `{"dataset": "live_trades" | "live_orders", ...}` input with the returned `range` and every non-null returned filter except `session_modes` (a new database view: the same selection, not necessarily the same rows; report the job's input manifest count, range, and filters). If `total` is 0, say no closed trades were recorded in that range instead of running an analysis. Report pnl per quote currency and separately for live and paper; never add or convert across currencies. Report trades with `pnl: null` and compute no total or win rate for a group that has any. Trade pnl sums are not account balance or performance; mention trades whose fees are missing (`orders_without_fee`).
 - When the user asks to analyze, compare, or chart session results, run `run_analysis(code, inputs)` with the sessions as inputs instead of pasting result arrays into code or paging through everything. This authorizes a temporary analysis workspace only, not files in `research_scripts/`.
 - Analysis code reads only `inputs/` and writes charts/tables to `output/`; it must not read `.env` or credentials, place orders, contact exchanges, install packages, or start backtests/optimizations (use the run tools for new results). It is not sandboxed.
 - Poll `get_analysis_job(job_id)` until it finishes, show charts with `get_analysis_artifact(job_id, path)`, and explain findings yourself. Fetch artifacts soon: once 24 hours have passed since a job finished, the next `run_analysis` deletes its workspace. Details and snapshot layouts: `jesse://session_analysis`.
 
+Live and Paper Sessions:
+- Create, start, stop, or delete a live/paper session only when the user asks for that action. Every session is either PAPER (simulated, no funds) or LIVE (real orders with real funds through a saved exchange key); before starting one, tell the user which it is and on which exchange and key.
+- Start and stop exactly like the dashboard: `start_live_session` only starts drafts (copy a finished session with `copy_live_session` to run it again), and the session itself checks the license and plan. Never say a stop closed positions: a paper session, or a live session with persistency off, closes its positions and cancels its orders while ending; a live session with persistency on leaves them on the exchange. Confirm the outcome with `get_session_results("live", session_id)`.
+- There is no order placement tool. Details: `jesse://live_trading`.
+
 Cancelled or Timed-Out Calls:
-- Any tool call that was cancelled or timed out may still have finished on the Jesse host: a run, import, research script, or analysis may have started (a run may have used a daily research credit), and a draft, strategy, file, report, setting, or key may have been saved or deleted. Once the MCP responds again, check the current state before retrying (for example the matching `get_*_sessions()`, `get_candle_import_status(import_id)`, `read_strategy()`, `get_config()`, `get_exchange_api_keys()`, listing or reading the project path, `get_research_job_status()`, or `get_analysis_job()`); never assume it did nothing. A blind retry of a run is metered again and may start the run twice.
+- Any tool call that was cancelled or timed out may still have finished on the Jesse host: a run, import, research script, analysis, or live/paper session may have started or stopped (a research run may have used a daily research credit), and a draft, strategy, file, report, setting, key, or stored candles may have been saved, copied, or deleted. Once the MCP responds again, check the current state before retrying (for example the matching `get_*_sessions()`, `get_live_sessions()`, `get_candle_import_status(import_id)`, `get_existing_candles()`, `read_strategy()`, `get_config()`, `get_exchange_api_keys()`, listing or reading the project path, `get_research_job_status()`, or `get_analysis_job()`); never assume it did nothing. A blind retry of a run is metered again and may start the run twice.
 
 Environment Constraints:
 - No direct file system access: the project file tools reach only `strategies/` and `research_scripts/` in the Jesse project, and the analysis tools only their temporary workspaces, on the machine running Jesse
@@ -89,14 +98,15 @@ Key resources include:
 - jesse://utilities - Helper functions for calculations and analysis
 - jesse://backtest_management - Backtest creation, configuration, workflow and common strategy development pitfalls and solutions
 - jesse://backtest_metrics - Backtest result metrics reference and interpretation
-- jesse://candle - Data import and candle data management
+- jesse://candle - Data import and candle data management (inventory, delete, copy, export, Custom Data CSV)
 - jesse://configuration - System configuration and exchange settings
 - jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
 - jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
 - jesse://credentials - Storing, listing, and deleting exchange API keys and data provider (Massive) credentials; write-only, results are metadata
 - jesse://strategy_catalog - Browsing, comparing, and importing jesse.trade community strategies
 - jesse://research_scripts - When research scripts are allowed, project file tools, running scripts, and promoting trained models into a strategy
-- jesse://session_analysis - Reading stored session results (including live/paper), temporary analyses, charts, and snapshot layouts
+- jesse://session_analysis - Reading stored session results (including live/paper), live/paper trades and orders by date window, temporary analyses, charts, and snapshot layouts
+- jesse://live_trading - Live vs paper sessions, their lifecycle (draft, start, stop, copy, delete), and what stopping does
 
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
@@ -258,9 +268,15 @@ Note: Use `get_candle_import_status(import_id)` for checking during an active im
 
 Import Resume Rule (MCP reconnect-safe):
 - Always store the import_id returned. If the conversation is interrupted, resume by checking coverage first.
-- After reconnect, first verify coverage with `get_existing_candles()` (or `get_candles()` for the exact route timeframe).
-- If data is still incomplete, call `import_candles(exchange, symbol, start_date)` again — the server automatically skips candles that are already stored, so re-running from the same `start_datea` is safe and efficient.
-- Note: passing the same `import_id` does NOT resume from a checkpoint; it simply starts a new process. The deduplication is handled by the storage layer regardless of import_id.
+- After reconnect, first verify coverage with `get_existing_candles(exchange=..., symbol=...)` (its `start_date`/`end_date`).
+- If data is still incomplete, call `import_candles(exchange, symbol, start_date)` again — Jesse downloads only what lies before the first and after the last stored candle, so re-running from the same `start_date` is safe and efficient.
+- Note: passing the same `import_id` does NOT resume from a checkpoint; it simply starts a new process.
+- The dashboard runs one import per exchange at a time; do the same.
+
+Stored Candles:
+- Delete (`delete_candles` for one pair, `purge_candles` for whole exchanges), move (`copy_candles` with `delete_source=True`), or overwrite files only when the user asked; deletions cannot be undone.
+- `get_candles()` is the live chart's recent window, not a historical reader. To read stored values, write them into the project with `export_candles()` and page through the file with `read_project_file()`.
+- Files live on the Jesse host: `export_candles()` writes into `research_scripts/` and does not send the file to anyone; to import a CSV from elsewhere, write it into the project (`write_project_file`) and use `project_path`. A `file_path` only works when you run on the Jesse host. Candle files are data, not scripts: writing them does not fall under the research-script opt-in, but never run anything to produce them unless the user asked for a script.
 
 Symbol Discovery: when the user names an instrument instead of an exact Jesse symbol, or an
 import fails with a symbol-not-found error, use `search_symbols(exchange, query)` and import the

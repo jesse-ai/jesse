@@ -12,6 +12,7 @@ import io
 import json
 import os
 import sys
+import threading
 import time
 from hashlib import sha256
 from pathlib import Path
@@ -267,6 +268,232 @@ def test_concurrency_limit_is_per_scope(project, api):
     assert research.status_code == 200, research.text  # research jobs are not blocked by analyses
     for job in jobs:
         assert _post(api, 'cancel', {'job_id': job['id']})['job']['status'] == 'cancelled'
+
+
+class _HeldExports:
+    """The stand-in export, held until released, counting the snapshots actually started."""
+
+    def __init__(self):
+        self.started = []
+        self.in_flight = 0
+        self.release = threading.Event()
+        self.lock = threading.Lock()
+
+    def __call__(self, session_type, session_id):
+        with self.lock:
+            self.started.append(session_id)
+            self.in_flight += 1
+            # More snapshots at once than jobs allowed means a slot was not reserved: fail at once.
+            assert self.in_flight <= analysis_jobs.MAX_CONCURRENT_ANALYSIS_JOBS, 'snapshot started beyond the limit'
+        try:
+            assert self.release.wait(WAIT_SECONDS), 'held export was never released'
+            return _export(session_type, session_id)
+        finally:
+            with self.lock:
+                self.in_flight -= 1
+
+    def wait_for(self, count: int) -> None:
+        deadline = time.monotonic() + WAIT_SECONDS
+        while len(self.started) < count:
+            assert time.monotonic() < deadline, 'exports did not start'
+            time.sleep(0.01)
+
+
+def _start_in_thread(results: list, code: str = 'print("ok")\n', inputs=None) -> threading.Thread:
+    def run():
+        try:
+            results.append(analysis_jobs.start_analysis(code, inputs if inputs is not None else INPUTS[:1]))
+        except Exception as exc:  # collected and checked by the test
+            results.append(exc)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    return thread
+
+
+def _workspaces(project: Path) -> list:
+    root = project / 'storage' / 'mcp' / 'analysis'
+    return [p.name for p in root.iterdir() if not p.name.startswith('.trash-')] if root.exists() else []
+
+
+def test_jobs_being_prepared_hold_their_slots(project, monkeypatch):
+    """Jobs being prepared count toward the limit, so at most two calls write snapshots at once."""
+    held = _HeldExports()
+    monkeypatch.setattr(session_results, 'export_session', held)
+    results: list = []
+    threads = [_start_in_thread(results) for _ in range(analysis_jobs.MAX_CONCURRENT_ANALYSIS_JOBS)]
+    held.wait_for(analysis_jobs.MAX_CONCURRENT_ANALYSIS_JOBS)
+
+    # A third call is refused at once: no snapshot started, no workspace created.
+    with pytest.raises(session_results.ProjectFileError) as refused:
+        analysis_jobs.start_analysis('print(1)', INPUTS[:1])
+    assert refused.value.error_type == 'too_many_jobs' and 'being prepared' in refused.value.message
+    assert len(held.started) == 2 and len(_workspaces(project)) == 2
+
+    held.release.set()
+    for thread in threads:
+        thread.join(WAIT_SECONDS)
+    assert all(isinstance(result, dict) for result in results), results
+    for result in results:
+        _wait_job(result['id'])
+    assert analysis_jobs._preparing == set()
+    # Both slots are free again.
+    for _ in range(analysis_jobs.MAX_CONCURRENT_ANALYSIS_JOBS):
+        _wait_job(analysis_jobs.start_analysis('print(1)', INPUTS[:1])['id'])
+
+
+def test_a_running_and_a_preparing_job_fill_both_slots(project, monkeypatch):
+    running = analysis_jobs.start_analysis('import time\ntime.sleep(120)\n')
+    held = _HeldExports()
+    monkeypatch.setattr(session_results, 'export_session', held)
+    results: list = []
+    thread = _start_in_thread(results)
+    held.wait_for(1)
+    with pytest.raises(session_results.ProjectFileError) as refused:
+        analysis_jobs.start_analysis('print(1)')
+    assert refused.value.error_type == 'too_many_jobs' and len(held.started) == 1
+    held.release.set()
+    thread.join(WAIT_SECONDS)
+    # Moving from preparing to running is counted once: the launched job and the sleeper are the two.
+    assert isinstance(results[0], dict) and analysis_jobs._preparing == set()
+    assert research_jobs.running_job_ids(analysis_jobs.ANALYSIS) <= {running['id'], results[0]['id']}
+    analysis_jobs.cancel_job(running['id'])
+    _wait_job(results[0]['id'])
+
+
+def _wait_job(job_id: str) -> dict:
+    deadline = time.monotonic() + WAIT_SECONDS
+    while True:
+        record = analysis_jobs.get_job(job_id)['job']
+        if record['status'] != 'running':
+            return record
+        assert time.monotonic() < deadline, f'analysis job {job_id} did not finish'
+        time.sleep(0.05)
+
+
+def test_every_failure_after_the_reservation_releases_it(project, monkeypatch):
+    real_open_root, real_mkdir, real_launch = analysis_jobs._open_root, os.mkdir, research_jobs.launch
+
+    def failing_root(create=False):
+        if create:
+            raise PermissionError(13, 'Permission denied')
+        return real_open_root(create)
+
+    def failing_job_dir(path, mode=0o777, *, dir_fd=None):
+        if dir_fd is not None and isinstance(path, str) and research_jobs.JOB_ID_PATTERN.fullmatch(path):
+            raise OSError(28, 'No space left on device')
+        return real_mkdir(path, mode, dir_fd=dir_fd)
+
+    def failing_launch(*_args, **_kwargs):
+        raise session_results.ProjectFileError('start_failed', 'Could not start the analysis job.', 500)
+
+    def failing_export(_type, _id):
+        raise RuntimeError('database went away')
+
+    for target, name, replacement, expected in (
+        (analysis_jobs, '_open_root', failing_root, 'io_error'),
+        (os, 'mkdir', failing_job_dir, 'io_error'),
+        (research_jobs, 'launch', failing_launch, 'start_failed'),
+        (session_results, 'export_session', failing_export, RuntimeError),
+    ):
+        original = getattr(target, name)
+        monkeypatch.setattr(target, name, replacement)
+        try:
+            with pytest.raises(Exception) as failed:
+                analysis_jobs.start_analysis('print(1)', INPUTS[:1])
+        finally:
+            monkeypatch.setattr(target, name, original)
+        if isinstance(expected, str):
+            assert getattr(failed.value, 'error_type', None) == expected, name
+        else:
+            assert isinstance(failed.value, expected), name
+        assert analysis_jobs._preparing == set() and _workspaces(project) == [], name
+    # Validation failures never reserve anything.
+    with pytest.raises(session_results.ProjectFileError):
+        analysis_jobs.start_analysis('print(1)', [{'session_type': 'nope', 'session_id': BACKTEST_A}])
+    assert analysis_jobs._preparing == set()
+    # After every failure, both slots are still available.
+    jobs = [analysis_jobs.start_analysis('print(1)', INPUTS[:1]) for _ in range(analysis_jobs.MAX_CONCURRENT_ANALYSIS_JOBS)]
+    assert real_launch is research_jobs.launch and len(jobs) == 2
+    for job in jobs:
+        _wait_job(job['id'])
+
+
+def test_a_job_still_prepared_at_shutdown_is_refused_and_cleaned_up(project, monkeypatch):
+    """A preparation that finishes after shutdown is refused, so no job runs that nothing would stop."""
+    monkeypatch.setattr(research_jobs, '_shutting_down', False)  # restored after the test
+    sleeper = analysis_jobs.start_analysis('import time\ntime.sleep(120)\n')
+    held = _HeldExports()
+    monkeypatch.setattr(session_results, 'export_session', held)
+    results: list = []
+    thread = _start_in_thread(results)
+    held.wait_for(1)
+
+    research_jobs.shutdown()  # the API's lifespan shutdown
+    held.release.set()
+    thread.join(WAIT_SECONDS)
+
+    refused = results[0]
+    assert isinstance(refused, session_results.ProjectFileError) and refused.error_type == 'shutting_down'
+    assert refused.status_code == 503
+    assert analysis_jobs._preparing == set() and _workspaces(project) == [sleeper['id']]
+    assert _wait_job(sleeper['id'])['status'] == 'interrupted' and _pid_gone(sleeper['pid'])
+    # Research scripts are refused too; nothing is left running.
+    (project / 'research_scripts' / 'ok.py').write_text('print(1)\n')
+    with pytest.raises(session_results.ProjectFileError) as research_refused:
+        research_jobs.start_job('research_scripts/ok.py')
+    assert research_refused.value.error_type == 'shutting_down'
+    assert research_jobs.running_job_ids(analysis_jobs.ANALYSIS) == set()
+    assert research_jobs.running_job_ids(research_jobs.RESEARCH) == set()
+
+    # A new lifespan startup accepts jobs again.
+    research_jobs.accept_jobs()
+    monkeypatch.setattr(session_results, 'export_session', _export)
+    assert _wait_job(analysis_jobs.start_analysis('print(1)', INPUTS[:1])['id'])['status'] == 'succeeded'
+
+
+def test_a_launch_racing_shutdown_is_either_stopped_or_refused(project, monkeypatch):
+    monkeypatch.setattr(research_jobs, '_shutting_down', False)
+    entered, release = threading.Event(), threading.Event()
+    real_popen = research_jobs.subprocess.Popen
+
+    def slow_popen(*args, **kwargs):
+        # Holds the launch inside research_jobs' job lock, where it registers the job.
+        entered.set()
+        assert release.wait(WAIT_SECONDS)
+        return real_popen(*args, **kwargs)
+
+    monkeypatch.setattr(research_jobs.subprocess, 'Popen', slow_popen)
+    results: list = []
+    thread = _start_in_thread(results, code='import time\ntime.sleep(120)\n', inputs=[])
+    assert entered.wait(WAIT_SECONDS)
+    stopper = threading.Thread(target=research_jobs.shutdown)
+    stopper.start()
+    time.sleep(0.3)
+    assert stopper.is_alive()  # shutdown waits for the launch that holds the job lock
+    release.set()
+    thread.join(WAIT_SECONDS)
+    stopper.join(WAIT_SECONDS)
+    assert not stopper.is_alive()
+
+    # Registered before shutdown took its list of jobs, so shutdown stopped it.
+    launched = results[0]
+    assert isinstance(launched, dict)
+    assert _wait_job(launched['id'])['status'] == 'interrupted' and _pid_gone(launched['pid'])
+    # Launches after shutdown are refused, leaving no reservation or workspace behind.
+    monkeypatch.setattr(research_jobs.subprocess, 'Popen', real_popen)
+    with pytest.raises(session_results.ProjectFileError) as refused:
+        analysis_jobs.start_analysis('print(1)')
+    assert refused.value.error_type == 'shutting_down'
+    assert analysis_jobs._preparing == set() and _workspaces(project) == [launched['id']]
+
+
+def test_cleanup_stops_running_jobs_without_refusing_later_ones(project):
+    """terminate_all_jobs (test cleanup, and shutdown's second step) does not close the job engine."""
+    job = analysis_jobs.start_analysis('import time\ntime.sleep(120)\n')
+    research_jobs.terminate_all_jobs()
+    assert _wait_job(job['id'])['status'] == 'interrupted'
+    assert _wait_job(analysis_jobs.start_analysis('print(1)')['id'])['status'] == 'succeeded'
 
 
 # ---------------------------------------------------------------------------
@@ -678,7 +905,8 @@ def test_policy_is_stated_for_agents_and_docs_do_not_need_it():
     rules = _load_packaged_rules()
     assert 'This authorizes a temporary analysis workspace only, not files in `research_scripts/`.' in rules
     assert 'never with a research script' in rules
-    assert 'never start, stop, or change live trading' in rules
+    # Live/paper sessions are managed with their own tools, only on the user's request.
+    assert 'Create, start, stop, or delete a live/paper session only when the user asks for that action.' in rules
     mcp = FakeMCP()
     register_resources(mcp)
     guide = mcp.resources['jesse://session_analysis']()

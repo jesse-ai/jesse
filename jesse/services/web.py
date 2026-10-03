@@ -1,10 +1,10 @@
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 fastapi_app = FastAPI()
@@ -282,10 +282,39 @@ class LiveSessionsListRequestJson(BaseModel):
     title_search: Optional[str] = None
 
 
+class LiveHistoryRequestJson(BaseModel):
+    # Loosely typed on purpose: jesse.services.live_history validates every field strictly (no
+    # coercion of booleans or text to numbers) with messages that never repeat the value. Extra
+    # fields are kept so a misspelled filter is refused instead of silently widening the selection.
+    model_config = ConfigDict(extra='allow')
+
+    start: Any = None
+    end: Any = None
+    recent_days: Any = None
+    mode: Any = 'live'
+    exchange: Any = None
+    symbol: Any = None
+    session_id: Any = None
+    order: Any = 'newest_first'
+    cursor: Any = None
+    limit: Any = 100
+
+
+class LiveOrdersHistoryRequestJson(LiveHistoryRequestJson):
+    time_field: Any = 'created_at'
+    status: Any = None
+
+
 class AnalysisInputJson(BaseModel):
-    session_type: str
-    session_id: str
+    # An input is a stored session (session_type + session_id) or a live history dataset
+    # ({"dataset": "live_trades" | "live_orders", window and filters}); extra fields are kept so
+    # jesse.services.analysis_jobs can refuse unknown dataset filters instead of dropping them.
+    model_config = ConfigDict(extra='allow')
+
+    session_type: Optional[str] = None
+    session_id: Optional[str] = None
     name: Optional[str] = None
+    dataset: Optional[str] = None
 
 
 class RunAnalysisRequestJson(BaseModel):
@@ -338,6 +367,14 @@ class DeleteCandlesRequestJson(BaseModel):
 
 class PurgeCandlesRequestJson(BaseModel):
     exchanges: List[str]
+
+
+class ExportCandlesToProjectRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    # Project-relative CSV path under research_scripts/; defaults to research_scripts/candle_exports/<name>.csv.
+    path: Optional[str] = None
+    overwrite: bool = False
 
 
 class CopyCandlesRequestJson(BaseModel):
@@ -416,6 +453,9 @@ class UpdateLiveSessionNotesRequestJson(BaseModel):
 class UpdateLiveSessionStateRequestJson(BaseModel):
     id: str
     state: dict
+    # Refuse unless the session is still a draft (or new). The dashboard leaves it off so it can
+    # keep saving the form of an ended tab; MCP draft edits set it.
+    require_draft: bool = False
 
 
 class GetEquityCurveRequestJson(BaseModel):

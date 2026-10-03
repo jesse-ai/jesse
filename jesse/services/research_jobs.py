@@ -242,6 +242,12 @@ class _Job:
 
 _jobs: Dict[str, _Job] = {}
 _jobs_lock = threading.Lock()
+# Set by shutdown() under _jobs_lock, which launch() also holds while checking it and registering
+# a job: a job is either registered before shutdown takes its list of jobs to stop, or refused.
+# Without it, a request still preparing a job (an analysis writing snapshots) when the API shuts
+# down would launch after the jobs were stopped and keep running untracked. `jesse run` waits for
+# every request before its lifespan shutdown, but hosts that bound or cancel that wait do not.
+_shutting_down = False
 
 
 def _pump_output(job: _Job, log_file, max_bytes: int) -> None:
@@ -395,6 +401,8 @@ def launch(
     written to the scope's record path now and again when the job finishes.
     """
     with _jobs_lock:
+        if _shutting_down:
+            raise _error('shutting_down', f'Jesse is shutting down; no new {scope.label} is started.', 503)
         running = _running_jobs(scope)
         limit = scope.max_concurrent()
         if len(running) >= limit:
@@ -540,8 +548,26 @@ def cancel_scoped_job(job_id: str, scope: JobScope) -> dict:
     return {'job': record, 'cancel_requested': requested, 'message': message}
 
 
+def accept_jobs() -> None:
+    """Allow launches (the API's lifespan startup; a process starts accepting)."""
+    global _shutting_down
+    with _jobs_lock:
+        _shutting_down = False
+
+
+def shutdown() -> None:
+    """Refuse every later launch, then stop every running job (the API's lifespan shutdown)."""
+    global _shutting_down
+    with _jobs_lock:
+        _shutting_down = True
+    terminate_all_jobs()
+
+
 def terminate_all_jobs() -> None:
-    """Stop every running job of every scope; called when the Jesse API shuts down."""
+    """
+    Stop every running job of every scope and wait for their final records. Later launches are
+    still accepted; the API's shutdown uses shutdown(), which refuses them first.
+    """
     with _jobs_lock:
         jobs = _running_jobs()
     for job in jobs:

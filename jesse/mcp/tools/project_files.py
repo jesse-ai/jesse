@@ -94,7 +94,8 @@ def register_project_files_tools(mcp):
         script or Jesse's research module, or explicitly asks to use the research module.
         A generic request to research, find, test, or improve strategies is NOT such a
         request; use the catalog, backtest, optimization, Monte Carlo, and significance-test
-        tools instead, and ask the user before switching to a script.
+        tools instead, and ask the user before switching to a script. A candle CSV the user
+        asked you to import (see clean_and_import_custom_candle_csv) is data, not a script.
 
         Parameters:
             path (str): e.g. "research_scripts/ml/gather_data.py" or

@@ -40,6 +40,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import requests
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('JESSE_MCP_INTEGRATION') != '1',
@@ -52,6 +53,8 @@ STARTUP_SECONDS = 90
 FAKE_API_KEY = 'E2E-FAKE-API-KEY-0123456789'
 FAKE_API_SECRET = 'E2E-FAKE-API-SECRET-9876543210'
 FAKE_PASSPHRASE = 'E2E-FAKE-PASSPHRASE-555'
+# Every registered MCP tool, including the live/paper session and history tools and candle export/purge.
+REGISTERED_TOOL_COUNT = 101
 
 # `jesse run` with the MCP worker started by the real manager (see the module docstring).
 RUN_WITH_MCP = r'''
@@ -353,12 +356,14 @@ def _mcp(instance, scenario):
 async def _call(session, name: str, arguments: dict) -> dict:
     result = await session.call_tool(name, arguments)
     assert result.content, name
+    assert not result.isError, f'{name}: {result.content[0].text}'
     return json.loads(result.content[0].text)
 
 
 def test_authentication_is_required_everywhere(instance):
     import requests
-    for route in ('/session-results/get', '/session-results/live-sessions', '/analysis/run', '/analysis/artifact'):
+    for route in ('/session-results/get', '/session-results/live-sessions', '/session-results/live-trades',
+                  '/session-results/live-orders', '/analysis/run', '/analysis/artifact'):
         assert requests.post(f'{instance.url}{route}', json={}, timeout=10).status_code == 401
         assert requests.post(f'{instance.url}{route}', json={}, headers={'Authorization': 'wrong'}, timeout=10).status_code == 401
     assert requests.post(f'{instance.url}/mcp', json={}, timeout=10).status_code == 401
@@ -785,11 +790,11 @@ def test_older_tools_answer_while_a_metered_run_waits_for_its_usage_check(instan
     assert first['run_pending'] is True and first['others_seconds'] < 3
     assert first['backtest']['data']['session']['metrics']['total'] == 40
     assert first['candles']['status'] == 'success' and first['indicators']['count'] > 100
-    assert len(first['tools'].tools) == 90
+    assert len(first['tools'].tools) == REGISTERED_TOOL_COUNT
     assert first['run'] == {'status': 'error', 'message': f'Session {missing} not found'}
 
     assert second['reply']['error']['message'] == 'Request cancelled' and second['reply_seconds'] < 3
-    assert len(second['listed']['result']['tools']) == 90
+    assert len(second['listed']['result']['tools']) == REGISTERED_TOOL_COUNT
     # One usage check per call: nothing was retried after the cancellation.
     assert checks == 2
     assert ('run_significance_test_service finished after its MCP request was cancelled or its session closed '
@@ -820,6 +825,15 @@ def test_live_results_are_refused_without_the_live_plugin(instance):
         refused = requests.post(f'{url}/analysis/run', headers=headers, timeout=30, json={
             'code': 'print(1)', 'inputs': [{'session_type': 'live', 'session_id': instance.ids['live']}]})
         assert refused.status_code == 403
+        for route in ('live-trades', 'live-orders'):
+            history = requests.post(f'{url}/session-results/{route}', headers=headers, json={'recent_days': 3}, timeout=30)
+            assert history.status_code == 403 and history.json()['error_type'] == 'live_plugin_unavailable'
+        refused = requests.post(f'{url}/analysis/run', headers=headers, timeout=30, json={
+            'code': 'print(1)', 'inputs': [{'dataset': 'live_trades', 'recent_days': 3}]})
+        assert refused.status_code == 403
+        root = project / 'storage' / 'mcp' / 'analysis'
+        # No workspace is created for a refused dataset input (the folder itself may exist).
+        assert not root.exists() or not [p for p in root.iterdir() if not p.name.startswith('.trash-')]
     finally:
         _stop(process, log)
         shutil.rmtree(project, ignore_errors=True)
@@ -879,7 +893,7 @@ def test_two_instances_run_their_own_workers_side_by_side(instance):
             )
 
         first, second = asyncio.run(both())
-        assert first == second and first[0] == 90 and first[1] > 100
+        assert first == second and first[0] == REGISTERED_TOOL_COUNT and first[1] > 100
 
         # Neither instance's route nor its worker accepts the other instance's token.
         for route, foreign_token in ((instance.url, token), (url, instance.token)):
@@ -1117,3 +1131,852 @@ def test_catalog_and_license_routes_keep_their_checks_and_do_not_stall_the_api_o
     assert imported_code == CATALOG_CODE
     # The dashboard's refused import sent no token; both MCP imports sent the exchanged session token.
     assert [request[2] for request in downloads] == [None, f'Bearer {CATALOG_SESSION_TOKEN}', f'Bearer {CATALOG_SESSION_TOKEN}']
+
+
+# ---------------------------------------------------------------------------
+# Candle management and live/paper session management
+# ---------------------------------------------------------------------------
+
+# Seeds candle rows through Jesse's Candle model in the instance's guarded schema. Every symbol
+# carries an E2E prefix; the 1m series spans three of the export's 5,000-row cursor batches.
+CANDLE_SEED_SCRIPT = r'''
+import jesse.helpers as jh
+from jesse.models.Candle import Candle
+from jesse.services.db import database
+database.open_connection()
+T0 = 1704067200000
+
+def rows(exchange, symbol, count, timeframe='1m', step=60000, price=100.0):
+    return [{'id': jh.generate_unique_id(), 'exchange': exchange, 'symbol': symbol, 'timeframe': timeframe,
+             'timestamp': T0 + i * step, 'open': price + i / 8, 'close': price + i / 8 + 0.125,
+             'high': price + i / 8 + 0.5, 'low': price + i / 8 - 0.25, 'volume': 1.5 + i % 11} for i in range(count)]
+
+for batch in (rows('Binance Perpetual Futures', 'E2EBTC-USDT', 12345),
+              rows('Binance Perpetual Futures', 'E2EBTC-USDT', 100, '5m', 300000),
+              rows('Binance Perpetual Futures', 'E2EETH-USDT', 50),
+              rows('Bybit Spot', 'E2EBTC-USDT', 30),
+              rows('Hyperliquid Perpetual', 'E2EX-USDC', 10)):
+    for start in range(0, len(batch), 5000):
+        Candle.insert_many(batch[start:start + 5000]).execute()
+
+# /candles/get reads the live settings the dashboard saves on first load; store them the same way.
+import json
+from jesse.models.Option import Option
+option = Option.get_or_none(Option.type == 'config')
+settings = json.loads(option.json) if option else {}
+settings['live'] = {**settings.get('live', {}), 'warm_up_candles': 20, 'generate_candles_from_1m': True}
+if option:
+    Option.update(json=json.dumps(settings)).where(Option.id == option.id).execute()
+else:
+    Option.create(id=jh.generate_unique_id(), updated_at=jh.now(True), type='config', json=json.dumps(settings))
+print('seeded')
+'''
+
+# A live session record in status "running", as the live plugin leaves it; the test marks it
+# active in the instance's Redis worker set instead of starting any process.
+RUNNING_SESSION_SCRIPT = r'''
+import json, sys
+from jesse.repositories import live_session_repository
+from jesse.services.db import database
+database.open_connection()
+live_session_repository.store_live_session(sys.argv[1], 'running', 'papertrade', 'Bybit USDT Perpetual', {'form': {
+    'debug_mode': True, 'paper_mode': True, 'exchange': 'Bybit USDT Perpetual', 'exchange_api_key_id': '',
+    'notification_api_key_id': '', 'routes': [{'strategy': 'E2ELive', 'symbol': 'BTC-USDT', 'timeframe': '1h'}],
+    'data_routes': []}})
+print('stored')
+'''
+
+E2E_LIVE_STRATEGY = 'from jesse.strategies import Strategy\n\n\nclass E2ELive(Strategy):\n    def should_long(self):\n        return False\n\n    def go_long(self):\n        pass\n'
+LIVE_ROUTES = json.dumps([{'strategy': 'E2ELive', 'symbol': 'BTC-USDT', 'timeframe': '1h'}])
+
+
+def _run_in_instance(instance, script: str, *args: str) -> str:
+    result = subprocess.run([sys.executable, '-c', script, *args], cwd=instance.project,
+                            env=_child_env(instance.env_file, JESSE_TEST_SCHEMA_READY=SCHEMA),
+                            capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-3000:]
+    return result.stdout
+
+
+def _redis():
+    import redis
+    return redis.Redis(host='127.0.0.1', port=6379, db=7)
+
+
+def _dashboard_export(instance, exchange: str, symbol: str) -> bytes:
+    """The dashboard's Export download: a native form POST carrying the auth token."""
+    import requests
+    response = requests.post(f'{instance.url}/candles/export', data={
+        'exchange': exchange, 'symbol': symbol, 'token': _hash(instance.password)}, timeout=120)
+    assert response.status_code == 200
+    return response.content
+
+
+def test_candle_management_round_trip_through_the_mcp_client(instance):
+    """
+    Inventory, PostgreSQL-streamed export, project-path Custom Data import, duplicate
+    handling, copy, delete, and purge through the SDK client and the /mcp proxy. Only invalid
+    imports are requested, so no exchange or provider is contacted.
+    """
+    import anyio
+
+    _run_in_instance(instance, CANDLE_SEED_SCRIPT)
+
+    async def scenario(session):
+        out = {'tools': {tool.name for tool in (await session.list_tools()).tools}}
+        out['inventory'] = await _call(session, 'get_existing_candles', {'symbol': 'e2e'})
+        out['live_only'] = await _call(session, 'get_existing_candles', {'symbol': 'e2e', 'availability': 'live'})
+        out['page'] = await _call(session, 'get_existing_candles', {'symbol': 'e2e', 'limit': 2, 'offset': 2})
+        out['export'] = await _call(session, 'export_candles', {'exchange': 'Binance Perpetual Futures', 'symbol': 'E2EBTC-USDT'})
+        # The dashboard's own download of the same pair, fetched before the series is deleted below.
+        out['dashboard_download'] = await anyio.to_thread.run_sync(
+            lambda: _dashboard_export(instance, 'Binance Perpetual Futures', 'E2EBTC-USDT'))
+        out['export_again'] = await _call(session, 'export_candles', {'exchange': 'Binance Perpetual Futures', 'symbol': 'E2EBTC-USDT'})
+        out['outside'] = await _call(session, 'export_candles', {'exchange': 'Binance Perpetual Futures',
+                                                                 'symbol': 'E2EBTC-USDT', 'path': '/tmp/e2e.csv'})
+        out['page_1'] = await _call(session, 'read_project_file', {'path': out['export']['path'], 'max_lines': 3})
+        out['preview'] = await _call(session, 'preview_custom_candle_csv', {'symbol': 'E2EBTC-USDT', 'project_path': out['export']['path']})
+        out['import'] = await _call(session, 'clean_and_import_custom_candle_csv', {
+            'symbol': 'E2EBTC-USDT', 'project_path': out['export']['path'], 'invalid_row_policy': 'reject'})
+        out['reimport'] = await _call(session, 'clean_and_import_custom_candle_csv', {
+            'symbol': 'E2EBTC-USDT', 'project_path': out['export']['path'], 'invalid_row_policy': 'reject'})
+        out['custom_export'] = await _call(session, 'export_candles', {'exchange': 'Custom Data', 'symbol': 'E2EBTC-USDT'})
+        out['copy_occupied'] = await _call(session, 'copy_candles', {'exchange': 'Custom Data', 'symbol': 'E2EBTC-USDT',
+                                                                     'target_exchange': 'Binance Perpetual Futures'})
+        out['copy'] = await _call(session, 'copy_candles', {'exchange': 'Custom Data', 'symbol': 'E2EBTC-USDT',
+                                                            'target_exchange': 'Bybit USDT Perpetual'})
+        out['delete'] = await _call(session, 'delete_candles', {'exchange': 'Binance Perpetual Futures', 'symbol': 'E2EBTC-USDT'})
+        out['purge'] = await _call(session, 'purge_candles', {'exchanges': ['Bybit Spot', 'Hyperliquid Perpetual']})
+        out['after'] = await _call(session, 'get_existing_candles', {'symbol': 'e2e'})
+        out['window'] = await _call(session, 'get_candles', {'exchange': 'Custom Data', 'symbol': 'E2EBTC-USDT', 'timeframe': '1h'})
+        out['bad_import'] = await _call(session, 'import_candles', {'exchange': 'Custom Data', 'symbol': 'E2EBTC-USDT',
+                                                                    'start_date': '2024-01-01'})
+        out['bad_status'] = await _call(session, 'get_candle_import_status', {'import_id': out['bad_import']['import_id']})
+        return out
+
+    out = _mcp(instance, scenario)
+
+    assert {'export_candles', 'purge_candles', 'get_existing_candles', 'copy_candles'} <= out['tools']
+    assert [(row['exchange'], row['symbol']) for row in out['inventory']['candle_sets']] == [
+        ('Binance Perpetual Futures', 'E2EBTC-USDT'), ('Binance Perpetual Futures', 'E2EETH-USDT'),
+        ('Bybit Spot', 'E2EBTC-USDT'), ('Hyperliquid Perpetual', 'E2EX-USDC')]
+    assert out['inventory']['candle_sets'][0]['start_date'] == '2024-01-01'
+    assert out['inventory']['candle_sets'][0]['end_date'] == '2024-01-09'
+    assert [row['symbol'] for row in out['live_only']['candle_sets']] == ['E2EX-USDC']
+    assert (out['page']['candle_sets_count'], out['page']['next_offset']) == (2, None)
+
+    export = out['export']
+    assert export['status'] == 'success' and export['row_count'] == 12345
+    assert export['path'] == 'research_scripts/candle_exports/binance-perpetual-futures_e2ebtc-usdt_1m.csv'
+    written = (instance.project / export['path']).read_bytes()
+    # The PostgreSQL server-side cursor export equals the dashboard's download, byte for byte.
+    assert written == out['dashboard_download']
+    assert export['size_bytes'] == len(written)
+    assert out['export_again']['error_type'] == 'already_exists'
+    assert out['outside']['error_type'] == 'invalid_path' and not Path('/tmp/e2e.csv').exists()
+    assert out['page_1']['content'].splitlines()[0] == 'timestamp,open,close,high,low,volume'
+    assert out['page_1']['has_more'] is True
+
+    assert out['preview']['cleaning_report']['cleaned_row_count'] == 12345
+    assert out['import']['status'] == 'success' and out['import']['symbol'] == 'E2EBTC-USDT'
+    assert out['reimport']['status'] == 'success'
+    custom = (instance.project / out['custom_export']['path']).read_text().splitlines()
+    assert out['custom_export']['row_count'] == 12345 and custom == written.decode().splitlines()
+
+    assert out['copy_occupied']['http_status'] == 409
+    assert out['copy']['status'] == 'success' and out['copy']['copied_count'] == 12345
+    assert out['delete']['deleted_count'] == 12345 + 100
+    assert out['purge']['deleted_count'] == 30 + 10
+    assert [(row['exchange'], row['symbol']) for row in out['after']['candle_sets']] == [
+        ('Binance Perpetual Futures', 'E2EETH-USDT'), ('Bybit USDT Perpetual', 'E2EBTC-USDT'), ('Custom Data', 'E2EBTC-USDT')]
+    assert out['window']['status'] == 'success' and out['window']['candle_count'] == 0, out['window']
+    assert out['bad_import']['http_status'] == 422 and 'not a supported historical provider' in out['bad_import']['message']
+    assert out['bad_status']['status'] == 'failed'
+
+
+def test_live_session_management_through_the_mcp_client(instance):
+    """
+    Drafts, copy, notes, stop, and delete against the real live routes, repository, and Redis
+    worker set of a disposable instance. The "running" session is a stored record marked
+    active in the instance's own Redis set; nothing starts a session process here.
+    """
+    strategy = instance.project / 'strategies' / 'E2ELive'
+    strategy.mkdir(exist_ok=True)
+    (strategy / '__init__.py').write_text(E2E_LIVE_STRATEGY)
+    running_id = str(__import__('uuid').uuid4())
+    _run_in_instance(instance, RUNNING_SESSION_SCRIPT, running_id)
+    active_key = f'{instance.ports["app"]}|active-processes'
+    _redis().sadd(active_key, running_id)
+    key_id = instance.ids['key']
+
+    async def scenario(session):
+        out = {}
+        out['paper'] = await _call(session, 'create_live_draft', {
+            'paper_mode': True, 'exchange': 'Bybit USDT Perpetual', 'routes': LIVE_ROUTES, 'title': 'E2E paper',
+            'config': json.dumps({'exchange': {'balance': 2500}})})
+        out['live'] = await _call(session, 'create_live_draft', {
+            'paper_mode': False, 'exchange_api_key_id': key_id, 'routes': LIVE_ROUTES})
+        out['mismatch'] = await _call(session, 'create_live_draft', {
+            'paper_mode': False, 'exchange_api_key_id': key_id, 'exchange': 'Binance Spot', 'routes': LIVE_ROUTES})
+        out['bad_routes'] = await _call(session, 'create_live_draft', {
+            'paper_mode': True, 'exchange': 'Bybit USDT Perpetual',
+            'routes': json.dumps([{'strategy': 'Missing', 'symbol': 'BTC-USDT', 'timeframe': '1h'}])})
+        # A secret pasted into a key ID field, with the mode missing or as an object: answered as a
+        # normal error result that never quotes it (FastMCP's own errors would).
+        out['missing_mode'] = await _call(session, 'create_live_draft', {
+            'routes': LIVE_ROUTES, 'exchange_api_key_id': FAKE_API_SECRET})
+        out['pasted_key'] = await _call(session, 'create_live_draft', {
+            'paper_mode': False, 'routes': LIVE_ROUTES,
+            'exchange_api_key_id': {'api_key': FAKE_API_KEY, 'api_secret': FAKE_API_SECRET}})
+        paper_id = out['paper']['session_id']
+        out['update'] = await _call(session, 'update_live_draft', {'session_id': paper_id, 'debug_mode': False})
+        out['summary'] = await _call(session, 'get_session_results', {'session_type': 'live', 'session_id': out['live']['session_id']})
+        out['copy'] = await _call(session, 'copy_live_session', {'session_id': running_id, 'title': 'E2E copy'})
+        out['notes'] = await _call(session, 'update_live_session_notes', {'session_id': paper_id, 'title': 'E2E renamed'})
+        out['stop_draft'] = await _call(session, 'stop_live_session', {'session_id': paper_id})
+        out['delete_running'] = await _call(session, 'delete_live_session', {'session_id': running_id})
+        out['update_running'] = await _call(session, 'update_live_draft', {'session_id': running_id, 'debug_mode': False})
+        out['stop'] = await _call(session, 'stop_live_session', {'session_id': running_id})
+        out['after_stop'] = await _call(session, 'get_session_results', {'session_type': 'live', 'session_id': running_id})
+        out['delete'] = await _call(session, 'delete_live_session', {'session_id': running_id})
+        out['delete_draft'] = await _call(session, 'delete_live_session', {'session_id': out['copy']['session_id']})
+        out['listed'] = await _call(session, 'get_live_sessions', {})
+        return out
+
+    try:
+        out = _mcp(instance, scenario)
+        still_active = _redis().sismember(active_key, running_id)
+    finally:
+        _redis().srem(active_key, running_id)
+
+    paper, live = out['paper'], out['live']
+    assert paper['status'] == 'success' and paper['mode'] == 'paper' and paper['config']['exchange']['balance'] == 2500
+    assert live['mode'] == 'live' and live['exchange'] == 'Bybit USDT Perpetual'
+    assert live['exchange_api_key'] == {'id': key_id, 'name': 'e2e fake key'}
+    assert out['mismatch']['error_type'] == 'exchange_mismatch'
+    assert out['bad_routes']['error_type'] == 'invalid_routes'
+    assert out['missing_mode']['error_type'] == 'invalid_request' and out['pasted_key']['error_type'] == 'invalid_request'
+    assert out['update']['debug_mode'] is False
+    summary = out['summary']
+    assert summary['session_status'] == 'draft' and summary['session_mode'] == 'livetrade'
+    assert summary['form']['exchange_api_key_id'] == key_id and summary['form']['paper_mode'] is False
+    assert out['copy']['status'] == 'success' and out['copy']['routes'] == json.loads(LIVE_ROUTES)
+    assert out['notes']['status'] == 'success'
+    assert out['stop_draft']['error_type'] == 'not_running'
+    assert out['delete_running']['error_type'] == 'session_active'
+    assert out['update_running']['error_type'] == 'not_draft'
+    assert out['stop']['status'] == 'success' and out['stop']['mode'] == 'paper'
+    assert 'persistency' in out['stop']['on_stop'] and not still_active
+    assert out['after_stop']['session_status'] == 'stopped'
+    assert out['delete']['status'] == 'success' and out['delete_draft']['status'] == 'success'
+    listed_ids = {row['id'] for row in out['listed']['sessions']}
+    assert running_id not in listed_ids and out['paper']['session_id'] not in listed_ids  # deleted; drafts are not listed
+    text = json.dumps(out)
+    worker_log = (instance.project / 'server.log').read_text(errors='replace')
+    for secret in (FAKE_API_KEY, FAKE_API_SECRET, FAKE_PASSPHRASE):
+        assert secret not in text and secret[-4:] not in text
+        assert secret not in worker_log
+
+
+class _PlanBackend:
+    """
+    Local stand-in for jesse.trade's /api/v2/user-info (plan and limits) on an instance's
+    JESSE_API_URL, recording any unexpected plan preflight requests.
+    """
+
+    def __init__(self, port: int) -> None:
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        self.status = 200
+        self.limits = {'live_trading_tabs': 1}
+        self.requests: list = []
+        backend = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                backend.requests.append((self.path, self.headers.get('Authorization')))
+                ok = backend.status == 200 and self.headers.get('Authorization') == f'Bearer {FAKE_LICENSE}'
+                status = 200 if ok else (backend.status if backend.status != 200 else 401)
+                body = {'plan': 'basic', 'limits': backend.limits} if ok else {'message': 'unavailable'}
+                data = json.dumps(body).encode()
+                self.send_response(status)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *_args):
+                pass
+
+        ThreadingHTTPServer.allow_reuse_address = True
+        self.server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    def __enter__(self) -> '_PlanBackend':
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def test_invalid_live_starts_are_refused_without_a_plan_preflight(instance):
+    """
+    A separate instance whose JESSE_API_URL is a local plan stand-in and whose license token is
+    fake. Missing-session and dashboard-auth failures never launch a worker or ask for a plan.
+    Successful handoff is tested with the recording process manager in test_mcp_live_sessions;
+    this real-process integration never starts a trading engine.
+    """
+    import uuid as uuid_module
+    from jesse.mcp.auth import dashboard_token
+
+    project = Path(tempfile.mkdtemp(prefix='jesse-mcp-live-plan-e2e-'))
+    (project / 'strategies' / 'E2ELive').mkdir(parents=True)
+    (project / 'strategies' / 'E2ELive' / '__init__.py').write_text(E2E_LIVE_STRATEGY)
+    (project / 'storage').mkdir()
+    password = secrets.token_hex(16)
+    token = dashboard_token(password)
+    ports = {name: _free_port() for name in ('app', 'lsp', 'api2', 'api1')}
+    env_file = _env_file(project, password, ports, {
+        'RESET_TEST_DATABASE': 'FALSE', 'LICENSE_API_TOKEN': FAKE_LICENSE,
+        'JESSE_API_URL': f'http://127.0.0.1:{ports["api1"]}/api',
+    })
+    active_key = f'{ports["app"]}|active-processes'
+
+    with _PlanBackend(ports['api1']) as backend:
+        process, log = _start(project, _child_env(env_file), with_mcp=True)
+        try:
+            url = f'http://127.0.0.1:{ports["app"]}'
+            _wait_ready(url, password, process, project)
+            _wait_for_mcp(url, token, process, project)
+            plan_instance = SimpleNamespace(url=url, token=token, project=project, env_file=env_file)
+
+            async def create(session):
+                return await _call(session, 'create_live_draft', {
+                    'paper_mode': True, 'exchange': 'Bybit USDT Perpetual', 'routes': LIVE_ROUTES})
+
+            draft = _mcp(plan_instance, create)
+            assert draft['status'] == 'success'
+
+            async def start(session):
+                return await _call(session, 'start_live_session', {'session_id': str(uuid_module.uuid4())})
+
+            backend.status = 503
+            unavailable = _mcp(plan_instance, start)
+
+            # Auth runs before body validation, so no valid trading payload is needed here.
+            denied = requests.post(f'{url}/live', json={}, timeout=10)
+
+            async def status(session):
+                return await _call(session, 'get_session_results', {'session_type': 'live', 'session_id': draft['session_id']})
+
+            after = _mcp(plan_instance, status)
+            workers = {member.decode() for member in _redis().smembers(active_key)}
+        finally:
+            _stop(process, log)
+            shutil.rmtree(project, ignore_errors=True)
+
+    assert unavailable['error_type'] == 'not_found'
+    assert denied.status_code == 401
+    assert after['session_status'] == 'draft' and workers == set()
+    assert backend.requests == []
+    assert FAKE_LICENSE not in json.dumps([unavailable, after])
+
+
+# ---------------------------------------------------------------------------
+# Live/paper trade and order history by date window
+# ---------------------------------------------------------------------------
+
+# Seeds, through the real models, a week of history in a fixed past window that no other test
+# writes to: two live sessions (one references the seeded fake key), trades of a deleted
+# session, paper, open, discarded, and boundary trades, and groups of three trades closing at
+# the same millisecond (one group straddles the snapshot's 1,000-row batch boundary).
+HISTORY_SEED = r"""
+import json, sys, uuid
+from jesse.models.ClosedTrade import ClosedTrade
+from jesse.models.Order import Order
+from jesse.repositories import live_session_repository
+
+key_id, start, end, fake_key, fake_secret = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5]
+ids = {name: str(uuid.uuid4()) for name in ('a', 'b', 'deleted', 'paper')}
+routes = [{'strategy': 'Demo', 'symbol': 'BTC-USDT', 'timeframe': '1h'}]
+live_session_repository.store_live_session(ids['a'], 'stopped', 'livetrade', 'Bybit USDT Perpetual',
+    {'form': {'exchange': 'Bybit USDT Perpetual', 'exchange_api_key_id': key_id, 'routes': routes}})
+# Recorded as running without a worker: read as stopped, never rewritten by these reads.
+live_session_repository.store_live_session(ids['b'], 'running', 'livetrade', 'Bybit USDT Perpetual',
+    {'form': {'exchange': 'Bybit USDT Perpetual', 'exchange_api_key_id': '', 'routes': routes}})
+live_session_repository.store_live_session(ids['paper'], 'stopped', 'papertrade', 'Bybit USDT Perpetual',
+    {'form': {'exchange': 'Bybit USDT Perpetual', 'routes': routes}})
+trades, orders = [], []
+
+def trade(session, closed_at, mode='livetrade', symbol='BTC-USDT', soft=None, opened_at=None, exchange_id=None):
+    trade_id = str(uuid.uuid4())
+    opened = opened_at if opened_at is not None else closed_at - 600000
+    trades.append(dict(id=trade_id, session_id=session, strategy_name='Demo', symbol=symbol, exchange='Bybit USDT Perpetual',
+                       type='long', timeframe='1h', opened_at=opened, closed_at=closed_at, leverage=1, created_at=opened,
+                       updated_at=opened, session_mode=mode, soft_deleted_at=soft))
+    legs = [('buy', 100.0, opened, 0.5, None)] + ([('sell', 101.0, closed_at, -0.5, exchange_id)] if closed_at else [])
+    for side, price, at, qty, ex in legs:
+        orders.append(dict(id=str(uuid.uuid4()), trade_id=trade_id, session_id=session, exchange_id=ex, symbol=symbol,
+                           exchange='Bybit USDT Perpetual', side=side, type='MARKET', reduce_only=side == 'sell', qty=qty,
+                           filled_qty=qty, price=price, status='EXECUTED', created_at=at, updated_at=at, executed_at=at,
+                           session_mode=mode, fee=0.01, vars={}))
+    return trade_id
+
+# Closing from 10 minutes after the start, so every entry (10 minutes before its exit) is inside
+# the window too: 2,400 orders. Trade 6 belongs to session a (which uses the key), trade 8 to the
+# deleted session.
+owners = [ids['a'], ids['b'], ids['deleted']]
+expected = [trade(owners[i % 3], start + 600000 + (i // 3) * 60000, symbol='ETH-USDT' if i % 5 == 0 else 'BTC-USDT',
+                  exchange_id=(f'sig-{fake_secret}' if i == 6 else f'k-{fake_key}' if i == 8 else None)) for i in range(1200)]
+trade(ids['paper'], start + 1000, mode='papertrade')
+trade(ids['a'], start + 2000, soft=start + 3000)
+trade(ids['a'], None, opened_at=start + 4000)
+trade(ids['a'], end)
+trade(ids['a'], start - 1)
+ClosedTrade.insert_many(trades).execute()
+for i in range(0, len(orders), 500):
+    Order.insert_many(orders[i:i + 500]).execute()
+print(json.dumps({**ids, 'expected': expected}))
+"""
+
+HISTORY_CODE = """
+import json
+import matplotlib.pyplot as plt
+
+data = json.load(open("inputs/week.json"))
+orders = json.load(open("inputs/orders.json"))
+trades = data["trades"]
+keys = [(t["closed_at"], t["id"]) for t in trades]
+assert keys == sorted(keys) and data["complete"] and data["count"] == len(trades)
+print("trades", len(trades), "orders", orders["count"], "open", data["open_trades_not_included"])
+print("sessions", sorted((sid, info.get("exists")) for sid, info in data["sessions"].items()))
+cumulative, points = 0.0, []
+for t in trades:
+    cumulative += t["pnl"]
+    points.append(cumulative)
+print("net", round(cumulative, 6))
+stale = json.load(open("inputs/stale.json"))
+print("stale session", stale["summary"]["session_status"], stale["complete"], len(stale["closed_trades"]))
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(points)
+ax.set_title("Cumulative pnl of closed live trades (Jesse records)")
+fig.savefig("output/week.png", dpi=90)
+plt.close(fig)
+"""
+
+
+def test_live_history_by_date_window_through_the_mcp_client(instance):
+    from datetime import datetime, timezone
+    from PIL import Image
+    start_ms = int(datetime(2025, 3, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    end_ms = int(datetime(2025, 3, 8, tzinfo=timezone.utc).timestamp() * 1000)
+    seeded = json.loads(_run_in_instance(instance, HISTORY_SEED, instance.ids['key'], str(start_ms), str(end_ms),
+                                         FAKE_API_KEY, FAKE_API_SECRET).strip().splitlines()[-1])
+    window = {'start': '2025-03-01T02:00:00+02:00', 'end': '2025-03-08T00:00:00Z'}  # the same instant as start_ms
+
+    async def scenario(session):
+        pages, bounds = [], dict(window)
+        while bounds is not None:
+            page = await _call(session, 'get_live_trades', {**bounds, 'limit': 500})
+            pages.append(page)
+            bounds = page['next_page']
+        orders_a = await _call(session, 'get_live_orders', {**window, 'session_id': seeded['a'], 'limit': 500,
+                                                             'order': 'oldest_first'})
+        deleted_orders = await _call(session, 'get_live_orders', {**window, 'session_id': seeded['deleted'],
+                                                                   'time_field': 'executed_at', 'limit': 500,
+                                                                   'order': 'oldest_first'})
+        executed = await _call(session, 'get_live_orders', {**window, 'time_field': 'executed_at', 'status': 'executed',
+                                                             'limit': 1})
+        paper_recent = await _call(session, 'get_live_trades', {'recent_days': 3, 'mode': 'paper',
+                                                                'session_id': instance.ids['live']})
+        mismatch = await _call(session, 'get_live_trades', {'recent_days': 3, 'session_id': instance.ids['live']})
+        ambiguous = await _call(session, 'get_live_trades', {'start': '2025-03-01'})
+        relative_page = await _call(session, 'get_live_trades', {'recent_days': 3, 'cursor': 'eyJ2IjoxfQ'})
+        empty = await _call(session, 'get_live_trades', {'start': '2024-01-01T00:00:00Z', 'end': '2024-01-02T00:00:00Z'})
+        eth = await _call(session, 'get_live_trades', {**window, 'symbol': 'ETH-USDT', 'limit': 1})
+        # A misspelled argument is refused by the worker instead of widening the selection.
+        misspelled = await _call(session, 'get_live_trades', {**window, 'symbl': 'ETH-USDT'})
+
+        started = await _call(session, 'run_analysis', {'code': HISTORY_CODE, 'inputs': [
+            {'dataset': 'live_trades', 'name': 'week', **window},
+            {'dataset': 'live_orders', 'name': 'orders', **window, 'time_field': 'executed_at'},
+            # A session recorded as running with no worker: its snapshot runs in a READ ONLY
+            # PostgreSQL transaction, so the stale status must be reported without being written.
+            {'session_type': 'live', 'session_id': seeded['b'], 'name': 'stale'},
+        ]})
+        job_id = started['job']['id']
+        deadline = time.monotonic() + 120
+        while True:
+            status = await _call(session, 'get_analysis_job', {'job_id': job_id, 'tail_lines': 50})
+            if status['job']['status'] != 'running' or time.monotonic() > deadline:
+                break
+            await asyncio.sleep(0.5)
+        image = await session.call_tool('get_analysis_artifact', {'job_id': job_id, 'path': 'week.png'})
+        refused = await _call(session, 'run_analysis', {'code': 'print(1)', 'inputs': [
+            {'dataset': 'live_trades', 'name': 'x', **window, 'symbl': 'BTC-USDT'}]})
+        return (pages, orders_a, deleted_orders, executed, paper_recent, mismatch, ambiguous, relative_page, empty, eth,
+                started, status, image, refused, misspelled)
+
+    (pages, orders_a, deleted_orders, executed, paper_recent, mismatch, ambiguous, relative_page, empty, eth,
+     started, status, image, refused, misspelled) = _mcp(instance, scenario)
+    assert misspelled['error_type'] == 'invalid_request' and 'accepts only' in misspelled['message']
+    headers = {'Authorization': _hash(instance.password)}
+    route_extra = requests.post(f'{instance.url}/session-results/live-trades', headers=headers, timeout=30,
+                                json={**window, 'symbl': 'ETH-USDT'})
+    assert route_extra.status_code == 400 and route_extra.json()['error_type'] == 'invalid_request'
+    # An offset that moves a value past the calendar's end is refused, not a server error.
+    edge = requests.post(f'{instance.url}/session-results/live-trades', headers=headers, timeout=30,
+                         json={'start': '9999-12-31T23:59:59-00:01'})
+    assert edge.status_code == 400 and edge.json()['error_type'] == 'invalid_request'
+
+    # Every live trade closed in [start, end) exactly once, newest first, ties ordered by id; the
+    # paper, discarded, open, and out-of-window trades are not among them.
+    first = pages[0]
+    assert (first['range']['start_ms'], first['range']['end_ms']) == (start_ms, end_ms)
+    assert first['total'] == 1200 and first['all_records_returned'] is False and len(pages) > 2
+    assert all(page['truncated_by_size'] for page in pages[:-1])  # 128 KiB per page, fewer than 500 trades
+    items = [item for page in pages for item in page['items']]
+    assert len(items) == 1200 and {item['id'] for item in items} == set(seeded['expected'])
+    assert [(item['closed_at'], item['id']) for item in items] == sorted(
+        ((item['closed_at'], item['id']) for item in items), reverse=True)
+    assert first['open_trades_not_included'] == 1
+    sessions = {sid: info for page in pages for sid, info in page['sessions'].items()}
+    assert sessions[seeded['a']]['status'] == 'stopped' and sessions[seeded['b']]['status'] == 'stopped'
+    assert sessions[seeded['deleted']] == {'exists': False} and seeded['paper'] not in sessions
+
+    # Redaction per record: the fake key's values in an order of the session using it and in an
+    # order of a deleted session; nothing unredacted anywhere.
+    assert any(order['exchange_id'] == 'sig-[redacted]' for order in orders_a['items'])
+    assert any(order['exchange_id'] == 'k-[redacted]' for order in deleted_orders['items'])
+    # 2,400 orders of the expected trades, plus three executed inside the window: the discarded
+    # trade's exit, the open trade's entry, and the entry of the trade closing at the end.
+    assert executed['total'] == 2403 and executed['counts_by_status'] == {'EXECUTED': 2403}
+    assert paper_recent['total'] == 25 and {item['session_mode'] for item in paper_recent['items']} == {'papertrade'}
+    assert mismatch['error_type'] == 'mode_mismatch'
+    assert ambiguous['error_type'] == 'invalid_request' and relative_page['error_type'] == 'invalid_request'
+    assert (empty['total'], empty['items'], empty['all_records_returned']) == (0, [], True)
+    assert eth['total'] == 240
+    # Reading never rewrote the stale "running" record.
+    assert 'running' in _run_in_instance(instance, 'import sys\nfrom jesse.models.LiveSession import LiveSession\n'
+                                         'print(LiveSession.get(LiveSession.id == sys.argv[1]).status)', seeded['b'])
+
+    # The analysis snapshot is the complete selection (two 1,000-row batches), charted and returned as an image.
+    entries = {entry['name']: entry for entry in started['job']['inputs']}
+    assert (entries['week']['count'], entries['orders']['count']) == (1200, 2403)
+    assert entries['week']['range']['start_ms'] == start_ms and entries['orders']['filters']['time_field'] == 'executed_at'
+    assert status['job']['status'] == 'succeeded', status['output']
+    assert 'trades 1200 orders 2403 open 1' in status['output']
+    assert 'stale session stopped True 400' in status['output'], status['output']
+    assert f"('{seeded['deleted']}', False)" in status['output']
+    assert not image.isError and [c.type for c in image.content] == ['text', 'image']
+    with Image.open(io.BytesIO(base64.b64decode(image.content[1].data))) as decoded:
+        assert decoded.format == 'PNG'
+    workspace = instance.project / 'storage' / 'mcp' / 'analysis' / started['job']['id'] / 'inputs'
+    for name in ('week.json', 'orders.json', 'manifest.json'):
+        text = (workspace / name).read_text()
+        assert FAKE_API_KEY not in text and FAKE_API_SECRET not in text and FAKE_PASSPHRASE not in text
+    assert refused['error_type'] == 'invalid_request'  # the misspelled filter is refused, not ignored
+    everything = json.dumps([pages, orders_a, deleted_orders, executed, started, status])
+    assert FAKE_API_KEY not in everything and FAKE_API_SECRET not in everything
+
+
+# Seeds, in a past window no other test uses, 20,000 ACTIVE orders on one exchange, and on a
+# second exchange one closed trade with 10,001 executed orders (over the per-trade limit).
+CONSISTENCY_SEED = r"""
+import json, sys, uuid
+from jesse.models.ClosedTrade import ClosedTrade
+from jesse.models.Order import Order
+from jesse.repositories import live_session_repository
+
+start, flip_exchange, heavy_exchange = int(sys.argv[1]), sys.argv[2], sys.argv[3]
+session = str(uuid.uuid4())
+live_session_repository.store_live_session(session, 'stopped', 'livetrade', flip_exchange,
+    {'form': {'exchange': flip_exchange, 'exchange_api_key_id': '', 'routes': []}})
+
+def order(at, trade_id=None, exchange=flip_exchange, status='ACTIVE', side='buy', qty=1.0):
+    return dict(id=str(uuid.uuid4()), trade_id=trade_id, session_id=session, symbol='BTC-USDT', exchange=exchange,
+                side=side, type='LIMIT', reduce_only=False, qty=qty, filled_qty=qty if status == 'EXECUTED' else 0,
+                price=100.0, status=status, created_at=at, updated_at=at, executed_at=at if status == 'EXECUTED' else None,
+                session_mode='livetrade', vars={})
+
+rows = [order(start + i) for i in range(20000)]
+heavy = str(uuid.uuid4())
+ClosedTrade.insert(id=heavy, session_id=session, strategy_name='Demo', symbol='BTC-USDT', exchange=heavy_exchange,
+                   type='long', timeframe='1m', opened_at=start, closed_at=start + 3600000, leverage=1, created_at=start,
+                   updated_at=start, session_mode='livetrade').execute()
+rows += [order(start + i, heavy, heavy_exchange, 'EXECUTED') for i in range(10000)]
+rows.append(order(start + 3600000, heavy, heavy_exchange, 'EXECUTED', 'sell', -10000.0))
+for i in range(0, len(rows), 1000):
+    Order.insert_many(rows[i:i + 1000]).execute()
+print(json.dumps({'session': session, 'heavy': heavy}))
+"""
+
+CONSISTENCY_CODE = """
+import json
+data = json.load(open("inputs/orders.json"))
+statuses = sorted({row["status"] for row in data["orders"]})
+print("statuses", statuses, "counts", data["counts_by_status"], "count", data["count"])
+"""
+
+
+def _postgres_connection():
+    """An independent PostgreSQL connection to the instance's disposable schema, like a session process."""
+    import psycopg2
+    return psycopg2.connect(
+        host=os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_HOST', '127.0.0.1'),
+        port=int(os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_PORT', '5432')),
+        dbname=os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_NAME', 'jesse_db'),
+        user=os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_USERNAME', 'jesse_user'),
+        password=os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_PASSWORD', 'password'),
+        options=f'-c search_path={SCHEMA}',
+    )
+
+
+def test_history_reads_one_postgres_snapshot_while_an_independent_writer_commits(instance):
+    import threading
+    from datetime import datetime, timezone
+    start_ms = int(datetime(2025, 5, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    flip_exchange, heavy_exchange = 'E2E Consistency Exchange', 'E2E Heavy Exchange'
+    seeded = json.loads(_run_in_instance(instance, CONSISTENCY_SEED, str(start_ms), flip_exchange,
+                                         heavy_exchange).strip().splitlines()[-1])
+    window = {'start': '2025-05-01T00:00:00Z', 'end': '2025-05-02T00:00:00Z'}
+
+    # The writer flips all 20,000 orders between ACTIVE and CANCELED in one transaction at a time,
+    # so every committed state has a single status; a reader mixing views would see both.
+    stop, flips, failures = threading.Event(), [], []
+
+    def writer():
+        connection = _postgres_connection()
+        try:
+            with connection.cursor() as cursor:
+                while not stop.is_set():
+                    cursor.execute('UPDATE "order" SET status = CASE WHEN status = %s THEN %s ELSE %s END '
+                                   'WHERE exchange = %s', ('ACTIVE', 'CANCELED', 'ACTIVE', flip_exchange))
+                    connection.commit()
+                    flips.append(time.monotonic())
+        except Exception as exc:  # reported below
+            failures.append(exc)
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=writer)
+    thread.start()
+
+    async def scenario(session):
+        pages = [await _call(session, 'get_live_orders', {**window, 'exchange': flip_exchange, 'limit': 500})]
+        for _ in range(3):
+            pages.append(await _call(session, 'get_live_orders', pages[-1]['next_page']))
+        began = len(flips)
+        started = await _call(session, 'run_analysis', {'code': CONSISTENCY_CODE, 'inputs': [
+            {'dataset': 'live_orders', 'name': 'orders', **window, 'exchange': flip_exchange}]})
+        during = len(flips) - began
+        deadline = time.monotonic() + 120
+        while True:
+            status = await _call(session, 'get_analysis_job', {'job_id': started['job']['id']})
+            if status['job']['status'] != 'running' or time.monotonic() > deadline:
+                break
+            await asyncio.sleep(0.3)
+        heavy_page = await _call(session, 'get_live_trades', {**window, 'exchange': heavy_exchange})
+        heavy_snapshot = await _call(session, 'run_analysis', {'code': 'print(1)', 'inputs': [
+            {'dataset': 'live_trades', **window, 'exchange': heavy_exchange}]})
+        return pages, started, during, status, heavy_page, heavy_snapshot
+
+    try:
+        pages, started, during, status, heavy_page, heavy_snapshot = _mcp(instance, scenario)
+    finally:
+        stop.set()
+        thread.join(30)
+    assert not failures and len(flips) >= 2
+
+    # Every page, and the whole snapshot, is one committed state: one status, counted consistently.
+    for page in pages:
+        [page_status] = {item['status'] for item in page['items']}
+        assert page['counts_by_status'] == {page_status: 20000} and page['total'] == 20000
+    assert status['job']['status'] == 'succeeded', status['output']
+    assert re.search(r"statuses \['(ACTIVE|CANCELED)'\] counts \{'\1': 20000\} count 20000", status['output']), status['output']
+    assert started['job']['inputs'][0]['count'] == 20000
+    # The writer kept committing while the snapshot was read: the read transaction blocks nobody.
+    assert during >= 1
+
+    # A trade over the per-trade order limit is refused, never computed from part of its orders.
+    assert heavy_page['error_type'] == 'too_many_orders' and seeded['heavy'] in heavy_page['message']
+    assert heavy_snapshot['error_type'] == 'too_many_orders'
+    # No history read left a transaction open on the instance's connections (refusals included).
+    connection = _postgres_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM pg_stat_activity WHERE state LIKE 'idle in transaction%%' "
+                           "AND (query LIKE %s OR query LIKE %s)", (f'%{flip_exchange}%', f'%{heavy_exchange}%'))
+            assert cursor.fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+# ---------------------------------------------------------------------------
+# The documented "analyze my trades" workflow through the SDK client
+# ---------------------------------------------------------------------------
+
+# Recent closed trades (relative to now) on one exchange no other test uses: live trades in three
+# quote currencies across two sessions, one without an exit leg (no pnl), one without a recorded
+# fee, and paper trades.
+WORKFLOW_SEED = r"""
+import json, sys, uuid
+import jesse.helpers as jh
+from jesse.models.ClosedTrade import ClosedTrade
+from jesse.models.Order import Order
+from jesse.repositories import live_session_repository
+
+exchange = sys.argv[1]
+now = jh.now_to_timestamp(True)
+day = 86400000
+ids = {name: str(uuid.uuid4()) for name in ('live', 'live2', 'paper')}
+for name, mode in (('live', 'livetrade'), ('live2', 'livetrade'), ('paper', 'papertrade')):
+    live_session_repository.store_live_session(ids[name], 'stopped', mode, exchange,
+        {'form': {'exchange': exchange, 'exchange_api_key_id': '', 'routes': []}})
+trades, orders, made = [], [], {}
+
+def trade(label, session, symbol, days_ago, entry, exit, qty, mode='livetrade', exit_leg=True, fees=(0.01, 0.01)):
+    trade_id = str(uuid.uuid4())
+    closed = now - int(days_ago * day)
+    opened = closed - 600000
+    trades.append(dict(id=trade_id, session_id=ids[session], strategy_name='Demo', symbol=symbol, exchange=exchange,
+                       type='long', timeframe='1h', opened_at=opened, closed_at=closed, leverage=1, created_at=opened,
+                       updated_at=closed, session_mode=mode))
+    legs = [('buy', entry, opened, qty, fees[0])] + ([('sell', exit, closed, -qty, fees[1])] if exit_leg else [])
+    for side, price, at, amount, fee in legs:
+        orders.append(dict(id=str(uuid.uuid4()), trade_id=trade_id, session_id=ids[session], symbol=symbol, exchange=exchange,
+                           side=side, type='MARKET', reduce_only=side == 'sell', qty=amount, filled_qty=amount, price=price,
+                           status='EXECUTED', created_at=at, updated_at=at, executed_at=at, session_mode=mode, fee=fee, vars={}))
+    made[label] = trade_id
+
+trade('btc_win', 'live', 'BTC-USDT', 1, 100.0, 112.5, 2.0)
+trade('btc_loss', 'live', 'BTC-USDT', 2, 110.0, 104.0, 1.0)
+trade('eth_btc', 'live', 'ETH-BTC', 2.5, 0.05, 0.0512345, 0.3, fees=(0.000001, 0.000002))
+trade('aapl_no_exit', 'live', 'AAPL-USD', 5, 200.0, 0.0, 1.0, exit_leg=False)
+trade('sol_no_fee', 'live2', 'SOL-USDT', 6, 20.0, 21.5, 4.0, fees=(0.1, None))
+trade('paper_1', 'paper', 'BTC-USDT', 1, 100.0, 90.0, 1.0, mode='papertrade')
+trade('paper_4', 'paper', 'BTC-USDT', 4, 90.0, 99.0, 1.0, mode='papertrade')
+ClosedTrade.insert_many(trades).execute()
+Order.insert_many(orders).execute()
+print(json.dumps({**ids, 'trades': made}))
+"""
+
+
+def _workflow_groups(output: str) -> dict:
+    groups: dict = {}
+    current = None
+    for line in output.splitlines():
+        if line.startswith('group '):
+            current = line
+            groups[current] = []
+        elif line.startswith('  ') and current:
+            groups[current].append(line.strip())
+    return groups
+
+
+def _expected_workflow_groups(items: list) -> dict:
+    """What the documented code must print for these discovery items, derived independently."""
+    import math
+    grouped: dict = {}
+    for item in sorted(items, key=lambda i: (i['closed_at'], i['id'])):
+        parts = item['symbol'].split('-')
+        quote = parts[1] if len(parts) == 2 and all(parts) else None
+        grouped.setdefault((item['session_mode'], quote), []).append(item)
+    expected = {}
+    for (mode, quote), trades in grouped.items():
+        unknown = sum(1 for t in trades if t['pnl'] is None)
+        missing = sum(1 for t in trades if t['orders_without_fee'] > 0)
+        header = (f'group mode={mode} quote={quote or "unknown"} trades={len(trades)} unknown_pnl={unknown} '
+                  f'missing_fee_trades={missing}')
+        if quote is None:
+            expected[header] = ['not computed: the symbol is not BASE-QUOTE, so the pnl currency is unknown']
+        elif unknown:
+            expected[header] = [f'not computed: {unknown} of {len(trades)} trades have no pnl']
+        else:
+            pnls = [t['pnl'] for t in trades]
+            expected[header] = [f'net_closed_trade_pnl={math.fsum(pnls)!r} {quote} wins={sum(1 for p in pnls if p > 0)}/{len(pnls)}',
+                                f'chart output/cumulative_pnl_{mode}_{quote}.png']
+    return expected
+
+
+def test_the_documented_trade_analysis_workflow_through_the_mcp_client(instance):
+    exchange = 'E2E Workflow Exchange'
+    seeded = json.loads(_run_in_instance(instance, WORKFLOW_SEED, exchange).strip().splitlines()[-1])
+    made = seeded['trades']
+
+    async def scenario(session):
+        guide = (await session.read_resource('jesse://session_analysis')).contents[0].text
+        workflow = guide[guide.index('### Workflow: "analyze my trades of the last 7 days"'):]
+        code = workflow.split('```python\n', 1)[1].split('\n```', 1)[0] + '\n'
+        jobs_before = await _call(session, 'get_analysis_job', {})
+        runs = {}
+        for label, arguments in (
+            ('last_3_days', {'recent_days': 3, 'exchange': exchange}),
+            ('last_7_days', {'recent_days': 7, 'exchange': exchange}),
+            ('default', {}),
+            ('exact', {'exchange': exchange, 'symbol': 'BTC-USDT', 'session_id': seeded['live']}),
+            ('paper', {'mode': 'paper', 'exchange': exchange}),
+            ('empty', {'exchange': exchange, 'start': '2024-01-01T00:00:00Z', 'end': '2024-01-08T00:00:00Z'}),
+        ):
+            discovery = await _call(session, 'get_live_trades', {**arguments, 'limit': 500})
+            run = {'discovery': discovery}
+            if discovery['total']:
+                # Step 2 as documented: the returned range and every non-null filter except session_modes.
+                request = {'dataset': 'live_trades', 'name': 'trades', 'start': discovery['range']['start'],
+                           'end': discovery['range']['end'],
+                           **{k: v for k, v in discovery['filters'].items() if k != 'session_modes' and v is not None}}
+                started = await _call(session, 'run_analysis', {'code': code, 'inputs': [request]})
+                deadline = time.monotonic() + 120
+                while True:
+                    status = await _call(session, 'get_analysis_job', {'job_id': started['job']['id'], 'tail_lines': 200})
+                    if status['job']['status'] != 'running' or time.monotonic() > deadline:
+                        break
+                    await asyncio.sleep(0.3)
+                images = {}
+                for artifact in status['artifacts']:
+                    images[artifact['path']] = await session.call_tool(
+                        'get_analysis_artifact', {'job_id': started['job']['id'], 'path': artifact['path']})
+                run.update(request=request, started=started, status=status, images=images)
+            runs[label] = run
+        jobs_after = await _call(session, 'get_analysis_job', {})
+        return runs, jobs_before, jobs_after
+
+    runs, jobs_before, jobs_after = _mcp(instance, scenario)
+
+    expected_ids = {
+        'last_3_days': {made['btc_win'], made['btc_loss'], made['eth_btc']},
+        'last_7_days': {made['btc_win'], made['btc_loss'], made['eth_btc'], made['aapl_no_exit'], made['sol_no_fee']},
+        'default': {made['btc_win'], made['btc_loss'], made['eth_btc'], made['aapl_no_exit'], made['sol_no_fee']},
+        'exact': {made['btc_win'], made['btc_loss']},
+        'paper': {made['paper_1'], made['paper_4']},
+    }
+    for label, ids in expected_ids.items():
+        run = runs[label]
+        discovery, status, manifest = run['discovery'], run['status'], run['started']['job']['inputs'][0]
+        assert {item['id'] for item in discovery['items']} == ids and discovery['all_records_returned'], label
+        assert 'session_modes' not in run['request'] and run['request']['mode'] == discovery['filters']['mode']
+        # The snapshot is the same selection: the manifest repeats the bounds and filters (its range
+        # "source" is start_end, as it was given the discovery's explicit bounds), and its count.
+        bounds = ('start', 'end', 'start_ms', 'end_ms')
+        assert [manifest['range'][key] for key in bounds] == [discovery['range'][key] for key in bounds], label
+        assert (manifest['filters'], manifest['count']) == (discovery['filters'], discovery['total']), label
+        assert status['job']['status'] == 'succeeded', status['output']
+        assert _workflow_groups(status['output']) == _expected_workflow_groups(discovery['items']), (label, status['output'])
+        charts = {line.split('output/', 1)[1] for lines in _workflow_groups(status['output']).values()
+                  for line in lines if line.startswith('chart ')}
+        assert set(run['images']) == charts, label
+        for image in run['images'].values():
+            assert not image.isError and [c.type for c in image.content] == ['text', 'image']
+            assert base64.b64decode(image.content[1].data).startswith(b'\x89PNG')
+    # The unknown pnl and missing fee are disclosed, and the null-pnl USD group has no total or chart.
+    last_week = _workflow_groups(runs['last_7_days']['status']['output'])
+    assert last_week['group mode=livetrade quote=USD trades=1 unknown_pnl=1 missing_fee_trades=0'] == [
+        'not computed: 1 of 1 trades have no pnl']
+    assert any('missing_fee_trades=1' in header for header in last_week)
+    assert runs['default']['discovery']['filters']['exchange'] is None  # nothing added to the default selection
+    # Empty discovery: the workflow stops, so no analysis job was created for it.
+    assert runs['empty']['discovery']['total'] == 0 and 'started' not in runs['empty']
+    assert len(jobs_after['jobs']) == len(jobs_before['jobs']) + 5

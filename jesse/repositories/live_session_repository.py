@@ -138,6 +138,33 @@ def store_live_session(
         LiveSession.insert(**d).execute()
 
 
+def restore_live_session(id: str, previous: Optional[LiveSession]) -> None:
+    """
+    Undo store_live_session after a start whose process could not be launched: put back every
+    column it replaced from `previous` (the row read before the start), or remove the row when
+    the session did not exist before. Only for a start that spawned no process.
+    """
+    if jh.is_unit_testing():
+        return
+
+    _ensure_db_open()
+
+    if previous is None:
+        LiveSession.delete().where(LiveSession.id == id).execute()
+        return
+
+    LiveSession.update(
+        status=previous.status,
+        session_mode=previous.session_mode,
+        exchange=previous.exchange,
+        state=previous.state,
+        finished_at=previous.finished_at,
+        exception=previous.exception,
+        traceback=previous.traceback,
+        updated_at=previous.updated_at,
+    ).where(LiveSession.id == id).execute()
+
+
 def update_live_session_status(id: str, status: str) -> None:
     """
     Update the status of a live session

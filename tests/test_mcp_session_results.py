@@ -6,6 +6,7 @@ The database is replaced by stored-record stand-ins that have the same columns (
 where Jesse stores JSON text), so these tests run without PostgreSQL. The disposable-instance
 integration test (test_mcp_session_analysis_integration.py) covers the real database.
 """
+import contextlib
 import json
 import math
 from hashlib import sha256
@@ -155,7 +156,6 @@ class FakeLive:
     """A live session's rows as the live plugin stores them (trades, orders, equity, logs)."""
 
     def __init__(self):
-        self.row = SimpleNamespace(id=LIVE_ID)
         self.view = {
             'id': LIVE_ID, 'status': 'stopped', 'is_active': False, 'session_mode': 'papertrade',
             'exchange': 'Bybit USDT Perpetual', 'created_at': 1, 'updated_at': 2, 'finished_at': 3,
@@ -171,11 +171,15 @@ class FakeLive:
         self.logs = {1: [{'timestamp': 100 - i, 'message': f'info {99 - i}'} for i in range(100)],
                      2: [{'timestamp': 5, 'message': f'order failed: passphrase {PASSPHRASE} invalid'}]}
         self.secrets_requested_with = None
+        # The stored row: redaction reads its raw state column, like the real LiveSession.
+        self.row = SimpleNamespace(id=LIVE_ID, state=json.dumps(self.view['state']))
 
     def install(self, monkeypatch):
         monkeypatch.setattr(session_results, '_live_plugin_available', lambda: True)
         monkeypatch.setattr(session_results, '_load_live', lambda i: self.row if i == LIVE_ID else None)
-        monkeypatch.setattr(session_results, '_live_session_view', lambda row: json.loads(json.dumps(self.view)))
+        monkeypatch.setattr(session_results, '_live_session_view', lambda row, *_: json.loads(json.dumps(self.view)))
+        # Stored-record stand-ins have no database whose transaction could hold a snapshot.
+        monkeypatch.setattr(session_results, '_read_snapshot', contextlib.nullcontext)
         monkeypatch.setattr(session_results, '_live_trades', self._page(self.trades))
         monkeypatch.setattr(session_results, '_live_orders', self._page(self.orders))
         monkeypatch.setattr(session_results, '_live_equity', self._page(self.equity))
@@ -501,7 +505,7 @@ def test_exports_hold_complete_arrays_and_live_exports_are_redacted(stored, live
 
     exported = session_results.export_session('live', LIVE_ID)
     assert len(exported['closed_trades']) == 12 and len(exported['equity_curve']) == 9
-    assert exported['truncated'] == {'closed_trades': False, 'orders': False, 'equity_curve': False}
+    assert exported['complete'] is True and 'truncated' not in exported
     assert API_KEY not in json.dumps(exported) and API_SECRET not in json.dumps(exported)
 
 

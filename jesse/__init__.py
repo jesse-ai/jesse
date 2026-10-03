@@ -29,15 +29,17 @@ JESSE_DIR = os.path.dirname(os.path.abspath(__file__))
 # define lifespan (replaces deprecated @on_event("shutdown"))
 @asynccontextmanager
 async def lifespan(app):
+    from jesse.services import research_jobs
+    research_jobs.accept_jobs()
     yield
     from jesse.services.db import database
     database.close_connection()
     from jesse.services.lsp import terminate_lsp_server
     terminate_lsp_server()
     # Research scripts and analysis jobs run in their own process groups, so they do not
-    # receive the terminal's Ctrl+C; stop them explicitly.
-    from jesse.services.research_jobs import terminate_all_jobs
-    terminate_all_jobs()
+    # receive the terminal's Ctrl+C; stop them explicitly, refusing any job a request was still
+    # preparing (research_jobs.shutdown).
+    research_jobs.shutdown()
 
 fastapi_app.router.lifespan_context = lifespan
 

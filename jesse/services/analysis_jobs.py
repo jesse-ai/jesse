@@ -17,8 +17,10 @@ starts. Jobs this Jesse process is running or still preparing are never deleted.
 Process management, limits on output, cancel, timeouts, and shutdown behavior are shared
 with research jobs (jesse.services.research_jobs) under a separate concurrency limit.
 
-Snapshots are written by Jesse from the database (jesse.services.session_results), so
-large result arrays never pass through the assistant.
+Snapshots are written by Jesse from the database, so large result arrays never pass through
+the assistant: one stored session each (jesse.services.session_results), or the live/paper
+trades or orders of a date window across sessions (jesse.services.live_history), streamed to
+disk one batch at a time.
 
 The code is NOT sandboxed: it runs as the Jesse user with Jesse's environment, filesystem,
 database, and network access. The workspace layout and the artifact path checks below only
@@ -39,7 +41,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 from uuid import uuid4
 
-from jesse.services import research_jobs, session_results
+from jesse.services import live_history, research_jobs, session_results
 from jesse.services.project_files import ProjectFileError
 
 ANALYSIS_ROOT = os.path.join('storage', 'mcp', 'analysis')
@@ -369,57 +371,85 @@ def cleanup_workspaces(now: Optional[float] = None) -> List[str]:
 # ---------------------------------------------------------------------------
 
 def _validate_inputs(inputs: object) -> List[dict]:
+    """
+    Validate the inputs. Each is a stored session ({"session_type", "session_id", "name"}) or a
+    live history dataset ({"dataset": "live_trades" | "live_orders", "name", window and
+    filters}); a dataset's window is resolved here, once, and recorded in the manifest.
+    """
     if inputs is None:
         return []
     if not isinstance(inputs, list):
-        raise _error('invalid_request', 'inputs must be a list of {"session_type", "session_id", "name"} objects.', 400)
+        raise _error('invalid_request', 'inputs must be a list of {"session_type", "session_id", "name"} or '
+                     '{"dataset", "name", ...} objects.', 400)
     if len(inputs) > MAX_INPUTS:
         raise _error('invalid_request', f'At most {MAX_INPUTS} inputs are allowed.', 400)
     validated = []
     names = set()
     for item in inputs:
         if not isinstance(item, dict):
-            raise _error('invalid_request', 'Each input must be an object with session_type and session_id.', 400)
-        session_type, session_id = item.get('session_type'), item.get('session_id')
-        if session_type not in session_results.SESSION_TYPES:
-            raise _error('invalid_request', f'session_type must be one of: {", ".join(session_results.SESSION_TYPES)}.', 400)
-        if not isinstance(session_id, str):
-            raise _error('invalid_request', 'session_id must be a session UUID.', 400)
-        name = item.get('name') or f'{session_type}_{session_id.replace("-", "")[:8]}'
+            raise _error('invalid_request', 'Each input must be an object with session_type and session_id, or with dataset.', 400)
+        if item.get('dataset') is not None:
+            query = live_history.validate_dataset_input(item)
+            entry = {'dataset': query['dataset'], 'query': query}
+            default_name = query['dataset']
+        else:
+            session_type, session_id = item.get('session_type'), item.get('session_id')
+            if session_type not in session_results.SESSION_TYPES:
+                raise _error('invalid_request', f'session_type must be one of: {", ".join(session_results.SESSION_TYPES)} '
+                             f'(or use "dataset": {" or ".join(live_history.DATASETS)}).', 400)
+            if not isinstance(session_id, str):
+                raise _error('invalid_request', 'session_id must be a session UUID.', 400)
+            entry = {'session_type': session_type, 'session_id': session_id}
+            default_name = f'{session_type}_{session_id.replace("-", "")[:8]}'
+        name = item.get('name') or default_name
         if not isinstance(name, str) or not _NAME.fullmatch(name) or name == 'manifest':
             raise _error('invalid_request', 'Input names use 1-64 letters, digits, "_" or "-" (and cannot be "manifest").', 400)
         if name in names:
             raise _error('invalid_request', f'Input name "{name}" is used twice.', 400)
         names.add(name)
-        validated.append({'session_type': session_type, 'session_id': session_id, 'name': name})
+        validated.append({**entry, 'name': name})
     return validated
 
 
 def _write_inputs(workspace_fd: int, inputs: List[dict]) -> List[dict]:
-    """Export each session and write its snapshot; returns the manifest entries."""
+    """Export each session or dataset and write its snapshot; returns the manifest entries."""
     inputs_fd = _open_dir(workspace_fd, INPUTS_DIR, 'The inputs folder is missing.')
     manifest = []
     total = 0
     try:
         for item in inputs:
-            data = session_results.export_session(item['session_type'], item['session_id'])
             file_name = f'{item["name"]}.json'
-            encoder = json.JSONEncoder(default=str, separators=(',', ':'))
-            size = _write_new_file(inputs_fd, file_name, encoder.iterencode(data), MAX_INPUT_BYTES,
-                                   f'The snapshot of {item["session_type"]} session {item["session_id"]}')
+            if 'dataset' in item:
+                # Streamed batch by batch, so a large window never sits in memory as one object.
+                stats: Dict[str, int] = {}
+                chunks = live_history.iter_dataset_json(item['query'], stats)
+                try:
+                    size = _write_new_file(inputs_fd, file_name, chunks, MAX_INPUT_BYTES, f'The {item["dataset"]} snapshot')
+                finally:
+                    # Ends the snapshot's read transaction at once when writing stopped early
+                    # (byte cap, disk error), instead of whenever the generator is collected.
+                    chunks.close()
+                entry = {'name': item['name'], 'file': f'{INPUTS_DIR}/{file_name}', 'dataset': item['dataset'],
+                         **live_history.public_query(item['query']), 'count': stats.get('count'), 'size_bytes': size}
+            else:
+                data = session_results.export_session(item['session_type'], item['session_id'])
+                encoder = json.JSONEncoder(default=str, separators=(',', ':'))
+                size = _write_new_file(inputs_fd, file_name, encoder.iterencode(data), MAX_INPUT_BYTES,
+                                       f'The snapshot of {item["session_type"]} session {item["session_id"]}')
+                summary = data.get('summary') or {}
+                entry = {
+                    'name': item['name'],
+                    'file': f'{INPUTS_DIR}/{file_name}',
+                    'session_type': item['session_type'],
+                    'session_id': summary.get('session_id', item['session_id']),
+                    'session_status': summary.get('session_status'),
+                    'title': summary.get('title'),
+                    'size_bytes': size,
+                }
             total += size
             if total > MAX_TOTAL_INPUT_BYTES:
                 raise _error('too_large', f'All inputs together are larger than {MAX_TOTAL_INPUT_BYTES // (1024 * 1024)} MiB.', 413)
-            summary = data.get('summary') or {}
-            manifest.append({
-                'name': item['name'],
-                'file': f'{INPUTS_DIR}/{file_name}',
-                'session_type': item['session_type'],
-                'session_id': summary.get('session_id', item['session_id']),
-                'session_status': summary.get('session_status'),
-                'title': summary.get('title'),
-                'size_bytes': size,
-            })
+            manifest.append(entry)
         _write_new_file(inputs_fd, MANIFEST_FILE, [json.dumps(manifest, indent=2)], MAX_INPUT_BYTES, 'The manifest')
     finally:
         os.close(inputs_fd)
@@ -439,23 +469,54 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
         raise _error('too_large', f'code is limited to {MAX_CODE_BYTES // 1024} KiB.', 413)
     research_jobs.validate_timeout(timeout_minutes, MAX_TIMEOUT_MINUTES)
     validated = _validate_inputs(inputs)
-    running = research_jobs.running_job_ids(ANALYSIS)
-    if len(running) >= MAX_CONCURRENT_ANALYSIS_JOBS:
-        raise _error('too_many_jobs', f'{len(running)} analysis jobs are already running (limit '
-                     f'{MAX_CONCURRENT_ANALYSIS_JOBS}). Wait for one to finish or cancel it first.', 429)
-
+    job_id = _reserve_slot()
+    # From here on the reservation is released in `finally`, whatever fails.
     try:
-        cleanup_workspaces()
-    except (OSError, RecursionError):
-        pass  # Cleanup is best-effort and retried by the next run; it must not block this one.
-    job_id = uuid4().hex
-    with _workspace_lock:
-        _preparing.add(job_id)
-        root = _open_root(create=True)
         try:
-            os.mkdir(job_id, 0o700, dir_fd=root)
-        finally:
-            os.close(root)
+            cleanup_workspaces()
+        except (OSError, RecursionError):
+            pass  # Cleanup is best-effort and retried by the next run; it must not block this one.
+        with _workspace_lock:
+            try:
+                root = _open_root(create=True)
+                try:
+                    os.mkdir(job_id, 0o700, dir_fd=root)
+                finally:
+                    os.close(root)
+            except OSError as exc:
+                raise _error('io_error', f'Could not create the analysis workspace: {exc.strerror or exc}.', 500)
+        record = _prepare_and_launch(job_id, validated, code_bytes, timeout_minutes)
+    finally:
+        with _workspace_lock:
+            _preparing.discard(job_id)
+    return _public(record)
+
+
+def _reserve_slot() -> str:
+    """
+    Reserve one of the MAX_CONCURRENT_ANALYSIS_JOBS slots for a new job and return its ID.
+
+    Jobs being prepared count as well as running ones, so concurrent calls cannot each write up
+    to MAX_TOTAL_INPUT_BYTES of snapshots only for all but two to be refused at launch. The
+    union of both sets counts a job once while it moves from preparing to running (launch
+    registers it as running before start_analysis releases the reservation). Lock order is
+    _workspace_lock, then research_jobs' job lock, as everywhere in this module.
+    """
+    with _workspace_lock:
+        busy = research_jobs.running_job_ids(ANALYSIS) | _preparing
+        if len(busy) >= MAX_CONCURRENT_ANALYSIS_JOBS:
+            raise _error('too_many_jobs', f'{len(busy)} analysis jobs are already running or being prepared (limit '
+                         f'{MAX_CONCURRENT_ANALYSIS_JOBS}). Wait for one to finish or cancel it first.', 429)
+        job_id = uuid4().hex
+        _preparing.add(job_id)
+    return job_id
+
+
+def _prepare_and_launch(job_id: str, validated: List[dict], code_bytes: bytes, timeout_minutes: int) -> dict:
+    """
+    Write the snapshots and code into the created workspace and start the job, returning its
+    launch record; a failure removes the workspace.
+    """
     try:
         workspace = _open_workspace(job_id)
         try:
@@ -468,7 +529,7 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
             raise _error('io_error', f'Could not prepare the analysis workspace: {exc.strerror or exc}.', 500)
         finally:
             os.close(workspace)
-        record = research_jobs.launch(
+        return research_jobs.launch(
             ANALYSIS,
             job_id,
             [sys.executable, CODE_FILE],
@@ -491,10 +552,6 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
             finally:
                 os.close(root)
         raise
-    finally:
-        with _workspace_lock:
-            _preparing.discard(job_id)
-    return _public(record)
 
 
 def _public(record: dict) -> dict:

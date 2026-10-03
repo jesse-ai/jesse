@@ -37,7 +37,9 @@ from .session_analysis import (
     delete_analysis_job_service,
     get_analysis_artifact_service,
     get_analysis_job_service,
+    get_live_orders_service,
     get_live_sessions_service,
+    get_live_trades_service,
     get_session_results_service,
     run_analysis_service,
 )

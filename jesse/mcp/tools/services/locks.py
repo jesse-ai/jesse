@@ -23,9 +23,21 @@ can still reach the same routes concurrently.
   reporting success with one's code replacing the other's, and two overlapping creates could
   answer a generic 500 instead of "strategy_exists". Held by create_strategy for both
   requests and by import_catalog_strategy.
+- LIVE_SESSIONS_LOCK: updating, starting, and deleting a live/paper session read its stored
+  form, check it (a draft, running or not, open in a dashboard tab), and then write through
+  /live/update-state, /live, or /live/sessions/{id}/remove. /live/update-state replaces the
+  whole stored form, so two overlapping updates of one draft would lose one's changes, and a
+  start overlapping an update would start (and store) the form it read before the update.
+  Held for each of those whole read-check-write sequences. Creating and copying a draft write a
+  new ID only, so they do not take it. Stopping does not take it either, so a stop never queues
+  behind another call (/live/cancel is harmless to repeat or overlap). Against every API
+  caller, including the dashboard, the /live routes protect themselves: starting, stopping,
+  deleting, and saving a form are ordered by live_controller._LIFECYCLE_LOCK, and the routes
+  refuse to delete or rewrite a session that is starting or running.
 
-The locks are threading locks taken inside worker threads, never on the event loop, and no
-code holds one while taking another.
+The locks are threading locks taken inside worker threads, never on the event loop. Only the
+live tools take a second lock while holding one: they read settings under CONFIG_LOCK while
+holding LIVE_SESSIONS_LOCK, and nothing takes them in the opposite order.
 """
 import functools
 import threading
@@ -36,6 +48,7 @@ T = TypeVar('T')
 CONFIG_LOCK = threading.Lock()
 CREDENTIALS_LOCK = threading.Lock()
 STRATEGY_FILES_LOCK = threading.Lock()
+LIVE_SESSIONS_LOCK = threading.Lock()
 
 
 def serialized(lock: threading.Lock, func: Callable[..., T]) -> Callable[..., T]:

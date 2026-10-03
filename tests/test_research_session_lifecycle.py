@@ -81,6 +81,41 @@ def test_process_start_failure_removes_active_marker(monkeypatch):
     assert removals == ['session-id']
 
 
+def test_marker_publish_failure_leaves_no_unstarted_worker(monkeypatch):
+    """A Redis failure publishing the marker leaves no never-started Process in _workers."""
+    removals = []
+    started = []
+
+    class RecordingProcess:
+        def __init__(self, target, args):
+            self.pid = None
+
+        def start(self):
+            started.append(True)
+
+    def unreachable(client_id):
+        raise ConnectionError('Redis unreachable')
+
+    manager = multiprocessing_service.ProcessManager.__new__(
+        multiprocessing_service.ProcessManager
+    )
+    manager._workers = []
+    manager._pid_to_client_id_map = {}
+    manager.client_id_to_pid_to_map = {}
+    manager._pending_worker_removals = set()
+    manager._workers_lock = threading.Lock()
+    manager._add_process = unreachable
+    manager._remove_active_worker = lambda client_id: removals.append(client_id)
+
+    monkeypatch.setattr(multiprocessing_service, 'Process', RecordingProcess)
+
+    with pytest.raises(ConnectionError, match='Redis unreachable'):
+        manager.add_task(lambda: None, 'session-id')
+
+    assert manager._workers == [] and started == []
+    assert removals == ['session-id']
+
+
 def _significance_runner(monkeypatch, active=True):
     monkeypatch.setattr(significance_runner_module.jh, 'get_session_id', lambda: 'session-id')
     monkeypatch.setattr(significance_runner_module, 'is_process_active', lambda value: active)

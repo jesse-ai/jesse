@@ -2,32 +2,33 @@
 """
 Jesse Candles Management Tools
 
-This module provides MCP tools for managing Jesse candle data,
-using the candle controller endpoints like the dashboard does.
+MCP counterparts of the dashboard's candle pages (Import Candles, Manage Candles, and the
+Custom Data importer), calling the same authenticated candle routes:
 
-The tools include:
-- preview_custom_candle_csv: Preview deterministic cleanup of a local CSV
-- clean_and_import_custom_candle_csv: Clean and import a local CSV as Custom Data
-- import_candles: Import historical candle data for a symbol
-- cancel_candle_import: Cancel an ongoing candle import process
-- clear_candle_cache: Clear the candles database cache
-- get_candles: Retrieve candle data for analysis
-- get_existing_candles: List all imported candle data
-- delete_candles: Remove candle data from database
 - search_symbols: Find importable symbols on a candle source by ticker or instrument name
-- copy_candles: Duplicate stored candles under another exchange or symbol name
+- import_candles / get_candle_import_status / cancel_candle_import: background imports
+- get_existing_candles: List stored exchange/symbol pairs and their date coverage
+- delete_candles / purge_candles: Delete one stored pair, or every pair of whole exchanges
+- copy_candles: Duplicate (or move) a stored series under another exchange or symbol name
+- export_candles: Write a stored series as CSV into the project's research_scripts/ folder
+- preview_custom_candle_csv / clean_and_import_custom_candle_csv: Import a CSV as Custom Data
+- get_candles: The small candle window the dashboard's live chart starts from
+- clear_candle_cache: Clear the on-disk cache of candles loaded for backtests
 
-For real-time import progress monitoring, use get_candle_import_progress from events.py
-All tools require authentication via Jesse admin password.
+Files: remote assistants exchange CSV files with Jesse through the project folders
+(`project_path` under research_scripts/ or strategies/, see the project file tools); a
+`file_path` is an absolute path on the Jesse host itself.
 
 The tools are async and run their work in a worker thread (see offload.py): the API calls,
-and for the custom CSV tools also reading and cleaning the local file.
+and for the custom CSV tools also reading and cleaning the file.
 """
 
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from jesse.mcp.tools.offload import run_blocking
 from jesse.mcp.tools.services.candles import (
+    DEFAULT_CANDLE_SETS_LIMIT,
+    DEFAULT_CHART_CANDLES_LIMIT,
     import_candles_service,
     cancel_candle_import_service,
     clear_candle_cache_service,
@@ -35,6 +36,8 @@ from jesse.mcp.tools.services.candles import (
     get_candle_import_status_service,
     get_existing_candles_service,
     delete_candles_service,
+    purge_candles_service,
+    export_candles_service,
     preview_custom_candle_csv_service,
     clean_and_import_custom_candle_csv_service,
     search_symbols_service,
@@ -55,8 +58,9 @@ def register_candles_tools(mcp):
 
     @mcp.tool()
     async def preview_custom_candle_csv(
-        file_path: str,
         symbol: str,
+        project_path: Optional[str] = None,
+        file_path: Optional[str] = None,
         timestamp_format: str = 'auto',
         timestamp_column: str = 'timestamp',
         open_column: str = 'open',
@@ -65,14 +69,22 @@ def register_candles_tools(mcp):
         low_column: str = 'low',
         volume_column: str = 'volume',
     ) -> dict:
-        """Preview how Jesse MCP would clean a local one-minute candle CSV.
+        """Preview how a one-minute candle CSV would be cleaned and imported as Custom Data.
 
-        The path must be absolute. The preview canonicalizes mapped headers, converts timestamps
-        to Unix milliseconds, sorts rows, removes identical duplicate timestamps, and reports
-        invalid or conflicting rows without importing anything. Missing minutes remain gaps.
+        Pass exactly one source:
+        - `project_path`: a .csv inside the Jesse project, under research_scripts/ or strategies/
+          (for example one you wrote with write_project_file or one export_candles produced).
+          Use this when you are not running on the Jesse host.
+        - `file_path`: an absolute path on the Jesse host. Only works when you run on that same
+          machine; a path on your own computer does not exist there.
 
-        After reviewing `cleaning_report`, call clean_and_import_custom_candle_csv and explicitly
-        choose `invalid_row_policy="reject"` or `"drop"`.
+        The preview maps the named columns, converts timestamps (`auto`, `unix_ms`, `unix_s`,
+        `iso8601` with an offset or Z) to Unix milliseconds, sorts rows, removes identical
+        duplicate timestamps, and reports invalid or conflicting rows without importing anything.
+        Missing minutes remain gaps. `symbol` must be BASE-QUOTE (e.g. SPY-USD).
+
+        After reviewing `cleaning_report`, call clean_and_import_custom_candle_csv with the same
+        source and explicitly choose `invalid_row_policy="reject"` or `"drop"`.
         """
         return await run_blocking(
             preview_custom_candle_csv_service,
@@ -85,13 +97,15 @@ def register_candles_tools(mcp):
             high_column=high_column,
             low_column=low_column,
             volume_column=volume_column,
+            project_path=project_path,
         )
 
     @mcp.tool()
     async def clean_and_import_custom_candle_csv(
-        file_path: str,
         symbol: str,
         invalid_row_policy: Literal['reject', 'drop'],
+        project_path: Optional[str] = None,
+        file_path: Optional[str] = None,
         timestamp_format: str = 'auto',
         timestamp_column: str = 'timestamp',
         open_column: str = 'open',
@@ -100,12 +114,16 @@ def register_candles_tools(mcp):
         low_column: str = 'low',
         volume_column: str = 'volume',
     ) -> dict:
-        """Clean and atomically import a local CSV as `Custom Data / SYMBOL / 1m`.
+        """Clean a CSV and import it atomically as `Custom Data / SYMBOL / 1m`.
+
+        The source is `project_path` (a .csv in the Jesse project) or `file_path` (an absolute
+        path on the Jesse host), exactly as in preview_custom_candle_csv.
 
         Use `reject` to fail when any row is invalid. Use `drop` only after reviewing the preview;
         malformed rows are omitted and reported. Both policies sort timestamps and remove identical
         duplicates. Conflicting candles at one timestamp always fail, and gaps are never filled.
-        The source file is never modified.
+        If the symbol already has Custom Data candles, new timestamps are added and timestamps
+        already stored keep their existing values. The source file is never modified.
         """
         return await run_blocking(
             clean_and_import_custom_candle_csv_service,
@@ -119,6 +137,7 @@ def register_candles_tools(mcp):
             high_column=high_column,
             low_column=low_column,
             volume_column=volume_column,
+            project_path=project_path,
         )
 
     @mcp.tool()
@@ -128,82 +147,26 @@ def register_candles_tools(mcp):
         start_date: str,
         import_id: Optional[str] = None,
     ) -> dict:
-        """
-        Trigger a candle import and return immediately (fire-and-poll pattern).
+        """Start a background candle import and return as soon as Jesse accepts it.
 
-        Starts the import for the given exchange/symbol and returns as soon as Jesse
-        acknowledges the request. Does NOT wait for the import to finish.
-        Poll get_candle_import_status(import_id) every few seconds until "finished",
-        "failed", or "cancelled". After "finished", optionally verify with
-        get_existing_candles(). Use cancel_candle_import(import_id) to stop it.
+        `exchange` is a historical candle source exactly as Jesse lists it: the crypto
+        exchanges (e.g. "Binance Perpetual Futures", "Binance Spot", "Bybit USDT Perpetual",
+        "Coinbase Spot", "Kraken Pro Futures") and the Massive sources ("Massive Stocks",
+        "Massive Currencies", "Massive Indices", "Massive Futures"; these need a saved Massive key,
+        see jesse://credentials). `symbol` is BASE-QUOTE; when the user names an instrument, find
+        the exact symbol with search_symbols first. `start_date` is YYYY-MM-DD and must be before
+        today (UTC). An unsupported source, date, or symbol is rejected at once with Jesse's error.
 
-        Only one-minute candles are imported and stored, for every source. In backtests,
-        optimization, Monte Carlo, significance tests and research, all other timeframes
-        (3m, 5m, 15m, 30m, 45m, 1h, 2h, 3h, 4h, 6h, 8h, 12h, 1D, 3D, 1W, 1M) are generated
-        from them at run time, so one import per exchange and symbol covers every
-        timeframe; there is no timeframe parameter. (Live sessions do not rely on imported
-        candles for this: they fetch each timeframe from the exchange unless the live
-        setting `generate_candles_from_1m` is enabled.)
+        Only one-minute candles are imported and stored; every other timeframe is generated from them in
+        backtests and the research modes, so there is no timeframe parameter. Candles already
+        stored are kept and skipped. To update a stored series to today (the dashboard's Update
+        button), import it again from its `start_date` as get_existing_candles shows it; Custom
+        Data cannot be updated this way.
 
-        Parameters:
-            exchange (str): Exchange name. Supported values:
-                - "Binance Spot", "Binance Perpetual Futures"
-                - "Bybit Spot", "Bybit USDT Perpetual", "Bybit USDC Perpetual"
-                - "Coinbase Spot", "Bitfinex Spot", "Gate USDT Perpetual"
-            symbol (str): Trading pair in "BASE-QUOTE" format (e.g., "BTC-USDT")
-            start_date (str): Import start date in YYYY-MM-DD format
-            import_id (str, optional): Reuse a previous import ID to retry a failed import.
-                If None, a new unique ID is generated.
-
-        Returns:
-            dict: Immediate acknowledgement:
-
-            Started Response:
-            {
-                "status": "started",
-                "action": "candle_import_started",
-                "import_id": "uuid-string",
-                "exchange": "string",
-                "symbol": "string",
-                "start_date": "YYYY-MM-DD",
-                "message": "..."
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "candle_import_failed",
-                "exchange": "string",
-                "symbol": "string",
-                "error_type": "api_error|network_error",
-                "message": "..."
-            }
-
-        Workflow:
-            1. Call import_candles() → returns immediately with import_id
-            2. Poll get_existing_candles() periodically until the symbol appears
-            3. Use cancel_candle_import(import_id) to abort if needed
-            4. To retry a failed import, pass the same import_id back
-
-        Example:
-            >>> # Step 1: fire the import
-            >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01")
-            >>> assert result["status"] == "started"
-            >>> import_id = result["import_id"]
-
-            >>> # Step 2: poll until data appears
-            >>> import time
-            >>> while True:
-            ...     existing = get_existing_candles()
-            ...     symbols = [c["symbol"] for c in existing.get("candle_sets", [])]
-            ...     if "BTC-USDT" in symbols:
-            ...         print("Import complete!")
-            ...         break
-            ...     time.sleep(15)
-
-            >>> # Retry a failed import with the same ID
-            >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01",
-            ...                         import_id=import_id)
+        After `status: "started"`, check get_candle_import_status(import_id) every few seconds
+        until it is `finished`, `failed`, or `cancelled`. The dashboard runs one import per
+        exchange at a time; wait for one to finish before starting another on the same exchange.
+        `import_id` defaults to a new UUID; passing an earlier one reuses that ID for a new run.
         """
         return await run_blocking(
             import_candles_service,
@@ -215,475 +178,136 @@ def register_candles_tools(mcp):
 
     @mcp.tool()
     async def cancel_candle_import(import_id: str) -> dict:
-        """
-        Cancel an ongoing candle import process.
+        """Cancel a running candle import (the dashboard's Cancel button).
 
-        Terminates a running candle import operation using its import ID.
-        The import process will be stopped immediately. Any partially imported
-        data will remain in the database, but the import operation itself ends.
-
-        Parameters:
-            import_id (str): UUID string of the import process to cancel
-                This should be the import_id returned from import_candles()
-                Shape: UUID format string (e.g., "550e8400-e29b-41d4-a716-446655440000")
-
-        Returns:
-            dict: Cancellation result with status:
-
-            Success Response:
-            {
-                "status": "success",
-                "action": "candle_import_cancelled",
-                "import_id": "uuid-string",
-                "message": "Candle import process 550e8400-e29b-41d4-a716-446655440000 has been requested for termination"
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "cancel_failed",
-                "import_id": "uuid-string",
-                "error_type": "api_error|network_error",
-                "message": "Failed to cancel import: [error details]"
-            }
-
-            Shape: {
-                "status": "success|error",
-                "action": "candle_import_cancelled|cancel_failed",
-                "import_id": string,
-                "error_type": string|undefined,
-                "message": string
-            }
-
-        Raises:
-            ValidationError: If import_id format is invalid
-            NetworkError: If Jesse API is unreachable
-            NotFoundError: If import_id does not exist or is not running
-
-        Behavior:
-            - Immediately requests termination of the import process
-            - Partially imported data remains in database
-            - Cannot cancel already completed or failed imports
-            - Operation is asynchronous - cancellation request is sent but may take time to process
-
-        Example:
-            >>> # Cancel a running import
-            >>> result = cancel_candle_import("550e8400-e29b-41d4-a716-446655440000")
-            >>> if result["status"] == "success":
-            ...     print("Import cancellation requested")
-            ... else:
-            ...     print(f"Failed to cancel: {result['message']}")
+        Jesse marks the import as `cancelled` right away and the import process stops at its
+        next check. Candles stored before that remain in the database. The status is set to
+        `cancelled` even if the import had already ended, so only cancel imports you started and
+        that get_candle_import_status still reports as `running`.
         """
         return await run_blocking(cancel_candle_import_service, import_id)
 
     @mcp.tool()
     async def get_candle_import_status(import_id: str) -> dict:
-        """
-        Check whether a candle import is still running or has finished.
+        """Check a candle import started with import_candles.
 
-        Uses a single Redis lookup on the server — no database queries, no timeout risk.
-        This is the preferred polling tool during an active import. Call it every few
-        seconds after import_candles() until status is "finished", then optionally
-        verify coverage with get_existing_candles().
-
-        Parameters:
-            import_id (str): The import process UUID returned by import_candles()
-
-        Returns:
-            dict:
-            {
-                "status": "running" | "finished",
-                "import_id": "uuid-string",
-                "message": "Import <id> is running|finished."
-            }
-
-            On error:
-            {
-                "status": "error",
-                "import_id": "uuid-string",
-                "error_type": "api_error|network_error",
-                "message": "..."
-            }
-
-        Example:
-            >>> result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01")
-            >>> import_id = result["import_id"]
-            >>> import time
-            >>> while True:
-            ...     status = get_candle_import_status(import_id)
-            ...     if status["status"] in {"finished", "failed", "cancelled"}:
-            ...         break
-            ...     time.sleep(5)
+        A fast Redis lookup on the Jesse host. `status` is `running` (with `progress`: percent,
+        date reached, estimated seconds left), `finished` (with `result.message`), `failed`
+        (with `error` and `traceback`), or `cancelled`. An ID Jesse has no record of also reports
+        `finished`, so only check IDs returned by import_candles.
         """
         return await run_blocking(get_candle_import_status_service, import_id)
 
     @mcp.tool()
     async def clear_candle_cache() -> dict:
-        """
-        Clear the candles database cache to ensure fresh data loading.
+        """Delete Jesse's on-disk cache of candles loaded for backtests and research runs.
 
-        Flushes the in-memory cache used by Jesse's candle data system.
-        This forces subsequent candle queries to reload data directly from
-        the database, ensuring you see the most recent imported data.
-
-        Parameters:
-            None
-
-        Returns:
-            dict: Cache clearing result:
-
-            Success Response:
-            {
-                "status": "success",
-                "action": "cache_cleared",
-                "message": "Candles database cache cleared successfully"
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "cache_clear_failed",
-                "error_type": "api_error|network_error",
-                "message": "Failed to clear cache: [error details]"
-            }
-
-            Shape: {
-                "status": "success|error",
-                "action": "cache_cleared|cache_clear_failed",
-                "error_type": string|undefined,
-                "message": string
-            }
-
-        Raises:
-            NetworkError: If Jesse API is unreachable
-            AuthenticationError: If Jesse password is incorrect
-
-        Behavior:
-            - Clears all cached candle data from memory
-            - Forces fresh database queries on next candle access
-            - Useful after importing new data to ensure visibility
-            - Does not affect stored data, only cache layer
-            - Immediate effect on subsequent operations
-
-        When to Use:
-            - After importing new candle data to see it immediately
-            - If experiencing stale data issues
-            - Before critical backtests to ensure data freshness
-            - When troubleshooting data visibility problems
-
-        Example:
-            >>> # Clear cache after importing new data
-            >>> import_result = import_candles("Binance Spot", "BTC-USDT", "2024-01-01")
-            >>> cache_result = clear_candle_cache()
-            >>> if cache_result["status"] == "success":
-            ...     print("Cache cleared - new data will be visible")
+        Stored candles are not touched. Use it only when a run keeps using stale data after
+        candles were deleted, re-imported, or copied; the next run reloads from the database.
         """
         return await run_blocking(clear_candle_cache_service)
 
     @mcp.tool()
-    async def get_candles(exchange: str, symbol: str, timeframe: str) -> dict:
+    async def get_candles(
+        exchange: str,
+        symbol: str,
+        timeframe: str,
+        limit: int = DEFAULT_CHART_CANDLES_LIMIT,
+    ) -> dict:
+        """Return the stored candles the dashboard's live chart starts from.
+
+        This is NOT a historical reader: it returns at most the live `warm_up_candles` setting's
+        number of `timeframe` candles ending now (built from one-minute rows when the live
+        `generate_candles_from_1m` setting is on), so it is empty for data that ends in the past.
+        Only the newest `limit` (1-1000) are returned; `truncated` says whether more existed.
+        Each candle has `time` (Unix seconds), `open`, `close`, `high`, `low`, `volume`.
+
+        For stored date coverage use get_existing_candles; to read a whole stored series, write
+        it into the project with export_candles and read it with read_project_file.
         """
-        Retrieve historical candle (OHLCV) data for technical analysis.
-
-        Fetches candlestick data from the database for the specified exchange,
-        symbol, and timeframe. Returns complete OHLCV (Open, High, Low, Close, Volume)
-        data suitable for technical analysis and strategy development.
-
-        Parameters:
-            exchange (str): Exchange name where data was imported from. Must match
-                the exchange used during import_candles(). Supported exchanges:
-                - "Binance Spot", "Binance Perpetual Futures"
-                - "Bybit Spot", "Bybit USDT Perpetual", "Bybit USDC Perpetual"
-                - "Coinbase Spot", "Bitfinex Spot", "Gate USDT Perpetual"
-                Shape: String matching import exchange name
-            symbol (str): Trading pair symbol (e.g., "BTC-USDT", "ETH-USDT")
-                Must match symbol used during import_candles()
-                Shape: String in "BASE-QUOTE" format
-            timeframe (str): Candle timeframe for analysis. Supported timeframes:
-                - Minutes: "1m", "3m", "5m", "15m", "30m", "45m"
-                - Hours: "1h", "2h", "3h", "4h", "6h", "8h", "12h"
-                - Days: "1D", "3D"
-                - Weeks: "1W"
-                - Months: "1M"
-                Shape: String from supported timeframe list
-
-        Returns:
-            dict: Candle data result with OHLCV arrays:
-
-            Success Response:
-            {
-                "status": "success",
-                "action": "candles_retrieved",
-                "exchange": "Binance Spot",
-                "symbol": "BTC-USDT",
-                "timeframe": "1h",
-                "candle_count": 1000,
-                "candles": [
-                    {
-                        "timestamp": 1640995200000,  // Unix timestamp (ms)
-                        "open": 46250.00,            // Opening price
-                        "high": 46750.00,            // Highest price
-                        "low": 46100.00,             // Lowest price
-                        "close": 46500.00,           // Closing price
-                        "volume": 123.45             // Trading volume
-                    },
-                    // ... more candles
-                ],
-                "message": "Retrieved 1000 candles for BTC-USDT on Binance Spot (1h)"
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "candles_retrieval_failed",
-                "exchange": "string",
-                "symbol": "string",
-                "timeframe": "string",
-                "error_type": "api_error|network_error",
-                "message": "Failed to retrieve candles: [error details]"
-            }
-
-            Shape: {
-                "status": "success|error",
-                "action": "candles_retrieved|candles_retrieval_failed",
-                "exchange": string,
-                "symbol": string,
-                "timeframe": string,
-                "candle_count": int|undefined,
-                "candles": array[object]|undefined,
-                "error_type": string|undefined,
-                "message": string
-            }
-
-            Candle Object Shape:
-            {
-                "timestamp": int,    // Unix timestamp in milliseconds
-                "open": float,       // Opening price
-                "high": float,       // Highest price in period
-                "low": float,        // Lowest price in period
-                "close": float,      // Closing price
-                "volume": float      // Trading volume
-            }
-
-        Raises:
-            ValidationError: If exchange/symbol/timeframe format is invalid
-            NotFoundError: If requested data doesn't exist (not imported yet)
-            NetworkError: If Jesse API is unreachable
-
-        Prerequisites:
-            - Candle data must be imported first using import_candles()
-            - Exchange and symbol must match import parameters exactly
-            - Timeframe must be one of the supported values
-
-        Data Volume:
-            - Returns all available candles for the specified parameters
-            - Can return thousands of candles depending on import history
-            - Consider timeframe for data density (1m returns more data than 1D)
-
-        Example:
-            >>> # Get hourly BTC data for analysis
-            >>> candles = get_candles("Binance Spot", "BTC-USDT", "1h")
-            >>> if candles["status"] == "success":
-            ...     data = candles["candles"]
-            ...     closes = [candle["close"] for candle in data]
-            ...     print(f"Retrieved {len(closes)} price points")
-
-            >>> # Get daily ETH data
-            >>> daily_data = get_candles("Binance Spot", "ETH-USDT", "1D")
-            >>> if daily_data["status"] == "success":
-            ...     print(f"Latest close: ${daily_data['candles'][-1]['close']}")
-        """
-        return await run_blocking(get_candles_service, exchange=exchange, symbol=symbol, timeframe=timeframe)
+        return await run_blocking(
+            get_candles_service, exchange=exchange, symbol=symbol, timeframe=timeframe, limit=limit,
+        )
 
     @mcp.tool()
-    async def get_existing_candles() -> dict:
+    async def get_existing_candles(
+        exchange: Optional[str] = None,
+        symbol: Optional[str] = None,
+        availability: Literal['all', 'backtesting', 'live'] = 'all',
+        offset: int = 0,
+        limit: int = DEFAULT_CANDLE_SETS_LIMIT,
+    ) -> dict:
+        """List stored candles: one entry per exchange and symbol (the Manage Candles table).
+
+        Each entry has `exchange`, `symbol`, `start_date` and `end_date` (first and last stored
+        UTC day), `backtesting_supported` (the exchange can be used in backtests), and
+        `updatable` (it is an import source, so import_candles can extend it). Coverage can have
+        gaps between those dates; a backtest reports any missing range.
+
+        Filters work like the dashboard's: `exchange` and `symbol` match case-insensitive
+        substrings, and `availability` is `all`, `backtesting` (backtesting exchanges), or `live`
+        (live-only exchanges). Results are sorted by exchange and symbol; page with `offset` and
+        `limit` (1-1000) using `next_offset`. Listing scans the candle table and can take a while
+        on large databases. Do not call this before a backtest to pre-check data (see
+        jesse://candle); use it when the user asks what data exists or to verify an import.
         """
-        List all candle datasets available in the database.
-
-        Retrieves metadata about all imported candle data including exchange,
-        symbol, timeframe, and date ranges. Use this to check what data is
-        available before running backtests or analysis.
-
-        Parameters:
-            None
-
-        Returns:
-            dict: Available candle datasets metadata:
-
-            Success Response:
-            {
-                "status": "success",
-                "action": "existing_candles_retrieved",
-                "candle_sets_count": 5,
-                "candle_sets": [
-                    {
-                        "exchange": "Binance Spot",
-                        "symbol": "BTC-USDT",
-                        "timeframe": "1h",
-                        "count": 17520,           // Number of candles
-                        "from_date": "2020-01-01",
-                        "to_date": "2024-12-31"
-                    },
-                    {
-                        "exchange": "Binance Spot",
-                        "symbol": "ETH-USDT",
-                        "timeframe": "4h",
-                        "count": 4380,
-                        "from_date": "2020-01-01",
-                        "to_date": "2024-12-31"
-                    },
-                    // ... more datasets
-                ],
-                "message": "Found 5 candle datasets in database"
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "existing_candles_retrieval_failed",
-                "error_type": "api_error|network_error",
-                "message": "Failed to retrieve existing candles: [error details]"
-            }
-
-            Shape: {
-                "status": "success|error",
-                "action": "existing_candles_retrieved|existing_candles_retrieval_failed",
-                "candle_sets_count": int|undefined,
-                "candle_sets": array[object]|undefined,
-                "error_type": string|undefined,
-                "message": string
-            }
-
-            Candle Set Object Shape:
-            {
-                "exchange": string,     // Exchange name
-                "symbol": string,       // Trading pair
-                "timeframe": string,    // Candle timeframe
-                "count": int,           // Number of candles available
-                "from_date": string,    // Start date (YYYY-MM-DD)
-                "to_date": string       // End date (YYYY-MM-DD)
-            }
-
-        Raises:
-            NetworkError: If Jesse API is unreachable
-            AuthenticationError: If Jesse password is incorrect
-
-        Behavior:
-            - Returns metadata only, not actual candle data
-            - Shows all imported datasets across all exchanges/symbols/timeframes
-            - Includes date ranges and candle counts for each dataset
-            - Data is aggregated by exchange-symbol-timeframe combinations
-
-        Use Cases:
-            - Check what data is available before backtesting
-            - Verify import completion
-            - Plan data requirements for new strategies
-            - Audit database contents
-
-        Example:
-            >>> # Check available data
-            >>> available = get_existing_candles()
-            >>> if available["status"] == "success":
-            ...     datasets = available["candle_sets"]
-            ...     print(f"Found {len(datasets)} datasets")
-            ...
-            ...     # Find BTC data
-            ...     btc_datasets = [d for d in datasets if d["symbol"] == "BTC-USDT"]
-            ...     for dataset in btc_datasets:
-            ...         print(f"BTC-{dataset['timeframe']}: {dataset['count']} candles")
-        """
-        return await run_blocking(get_existing_candles_service)
+        return await run_blocking(
+            get_existing_candles_service,
+            exchange=exchange,
+            symbol=symbol,
+            availability=availability,
+            offset=offset,
+            limit=limit,
+        )
 
     @mcp.tool()
     async def delete_candles(exchange: str, symbol: str) -> dict:
-        """
-        Permanently delete candle data from the database.
+        """Permanently delete every stored candle of one exchange/symbol pair.
 
-        Removes all candle data for the specified exchange and symbol across all timeframes.
-        This operation is irreversible - deleted data cannot be recovered.
-        Use with caution as it affects all timeframes for the exchange-symbol pair.
-
-        Parameters:
-            exchange (str): Exchange name whose data to delete. Must match
-                the exchange name used during import. Supported exchanges:
-                - "Binance Spot", "Binance Perpetual Futures"
-                - "Bybit Spot", "Bybit USDT Perpetual", "Bybit USDC Perpetual"
-                - "Coinbase Spot", "Bitfinex Spot", "Gate USDT Perpetual"
-                Shape: String matching import exchange name exactly
-            symbol (str): Trading pair symbol to delete (e.g., "BTC-USDT", "ETH-USDT")
-                Must match symbol used during import exactly
-                Shape: String in "BASE-QUOTE" format
-
-        Returns:
-            dict: Deletion result with confirmation:
-
-            Success Response:
-            {
-                "status": "success",
-                "action": "candles_deleted",
-                "exchange": "Binance Spot",
-                "symbol": "BTC-USDT",
-                "message": "Candles for BTC-USDT on Binance Spot deleted successfully"
-            }
-
-            Error Response:
-            {
-                "status": "error",
-                "action": "candles_deletion_failed",
-                "exchange": "string",
-                "symbol": "string",
-                "error_type": "api_error|network_error",
-                "message": "Failed to delete candles: [error details]"
-            }
-
-            Shape: {
-                "status": "success|error",
-                "action": "candles_deleted|candles_deletion_failed",
-                "exchange": string,
-                "symbol": string,
-                "error_type": string|undefined,
-                "message": string
-            }
-
-        Raises:
-            ValidationError: If exchange/symbol format is invalid
-            NotFoundError: If specified exchange/symbol data doesn't exist
-            NetworkError: If Jesse API is unreachable
-
-        Behavior:
-            - Deletes ALL timeframes for the exchange-symbol pair
-            - Operation is permanent and cannot be undone
-            - Affects all imported timeframes (1m, 1h, 1D, etc.)
-            - Immediately removes data from database
-            - Cache is not automatically cleared (may need clear_candle_cache())
-
-        Safety Considerations:
-            - No confirmation prompt - deletion happens immediately
-            - Consider backing up important data before deletion
-            - Use get_existing_candles() first to verify what will be deleted
-            - Deletion affects all timeframes for the pair
-
-        When to Use:
-            - Remove obsolete or incorrect data
-            - Free up database space
-            - Clean up test data
-            - Re-import data with different parameters
-
-        Example:
-            >>> # Delete BTC data from Binance Spot
-            >>> result = delete_candles("Binance Spot", "BTC-USDT")
-            >>> if result["status"] == "success":
-            ...     print("BTC data deleted from all timeframes")
-            ... else:
-            ...     print(f"Deletion failed: {result['message']}")
-
-            >>> # Check what remains after deletion
-            >>> remaining = get_existing_candles()
-            >>> btc_data = [d for d in remaining["candle_sets"]
-            ...             if d["exchange"] == "Binance Spot" and d["symbol"] == "BTC-USDT"]
-            >>> print(f"BTC datasets remaining: {len(btc_data)}")  # Should be 0
+        Same scope as the dashboard's Delete on Manage Candles: all stored rows of that pair,
+        every timeframe, across its whole date range. It cannot be undone. `exchange` and
+        `symbol` must match get_existing_candles exactly; `deleted_count` 0 means nothing was
+        stored under that name. Only delete what the user asked to remove.
         """
         return await run_blocking(delete_candles_service, exchange=exchange, symbol=symbol)
+
+    @mcp.tool()
+    async def purge_candles(exchanges: List[str]) -> dict:
+        """Permanently delete every stored candle of whole exchanges (all their symbols).
+
+        The dashboard's "Purge Candles by Exchange" action. Pass the exchange names exactly as
+        get_existing_candles shows them. It cannot be undone and removes every symbol stored under
+        each listed exchange, so only use it when the user asked to purge those exchanges; to
+        remove one symbol use delete_candles.
+        """
+        return await run_blocking(purge_candles_service, exchanges=exchanges)
+
+    @mcp.tool()
+    async def export_candles(
+        exchange: str,
+        symbol: str,
+        path: Optional[str] = None,
+        overwrite: bool = False,
+    ) -> dict:
+        """Write a stored candle series as CSV into the Jesse project's research_scripts/ folder.
+
+        The file is the same one the dashboard's Export button downloads: the complete stored
+        one-minute series of the pair, oldest first, with columns timestamp (Unix ms), open,
+        close, high, low, volume. It stays on the Jesse host inside the project; only a summary
+        (path, row count, size, first and last candle) comes back. Use it to:
+        - read the data in pages with read_project_file(path, start_line, max_lines),
+        - feed a research script the user asked for, or
+        - re-import it as Custom Data with clean_and_import_custom_candle_csv(project_path=path).
+        To get the file onto the user's own computer, point them to Export on the dashboard's
+        Manage Candles page (`dashboard_download_page`).
+
+        `path` is a project-relative .csv under research_scripts/ (default
+        research_scripts/candle_exports/<exchange>_<symbol>_1m.csv). An existing file is replaced
+        only with `overwrite=True`. A series with no one-minute candles is `not_found`.
+        """
+        return await run_blocking(
+            export_candles_service, exchange=exchange, symbol=symbol, path=path, overwrite=overwrite,
+        )
 
     @mcp.tool()
     async def search_symbols(exchange: str, query: str, limit: int = 20) -> dict:
@@ -718,15 +342,18 @@ def register_candles_tools(mcp):
         Use this when the user wants to backtest data they already imported as if it belonged
         to a different market, for example run Massive Stocks "SPY-USD" under
         "Binance Perpetual Futures" as "SPY-USDT" to use that exchange's futures simulation.
-        The whole stored one-minute series is copied (backtests generate every other timeframe
-        from it at run time, so they follow automatically). `target_exchange` must be a backtesting-capable
-        exchange name exactly as Jesse lists it, and `target_symbol` defaults to `symbol`;
-        set it when the target market quotes in another currency (USD vs USDT).
+        Every stored row of the pair is copied (backtests generate every other timeframe
+        from the one-minute rows at run time, so they follow automatically). `target_exchange` must be a
+        backtesting-capable exchange name exactly as Jesse lists it (the source exchange with a
+        new symbol also works), and `target_symbol` defaults to `symbol`; set it when the target
+        market quotes in another currency (USD vs USDT).
 
         The copy refuses to run if the target already has candles, so nothing is ever merged.
-        With `delete_source=True` the original is removed in the same transaction (a rename);
+        With `delete_source=True` the original is removed once the copy completes (a rename);
         confirm with the user before doing that, and never do it for data that is still being
         updated from its provider, because updates only work under the original exchange name.
+        A very large copy is written in chunks; if it is interrupted, delete the partial target
+        before retrying.
         """
         return await run_blocking(
             copy_candles_service,

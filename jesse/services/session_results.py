@@ -14,7 +14,8 @@ infinite floats returned as null exactly like the dashboard API.
 
 `export_session()` returns the complete (unpaged) data of one session for temporary
 analysis jobs (jesse.services.analysis_jobs), which write it to a snapshot file so large
-arrays never have to pass through the assistant.
+arrays never have to pass through the assistant. A live session over a row cap is refused
+rather than exported in part.
 
 Live and paper sessions are only readable when the live trading plugin is installed and
 enabled, the same condition under which Jesse registers its /live routes. In their
@@ -22,14 +23,19 @@ responses and snapshots, every exact occurrence of a stored value (at least
 MIN_REDACTED_SECRET_LENGTH characters) of the saved exchange and notification keys the
 session's form references is replaced with "[redacted]", for example in a log line or
 traceback. This is string matching, not a guarantee: other keys, encoded or partial forms
-of a value, and secrets a strategy logged from elsewhere are not recognized. Reading never
-starts, stops, or changes a session (apart from the dashboard's own stale-status fix, see
-_live_session_view).
+of a value, and secrets a strategy logged from elsewhere are not recognized. Redaction runs
+before any text is cut. A session whose stored state names no readable form is redacted with
+every saved key's values; a state of an unexpected shape fails the read (_state_secrets).
+Reading never starts, stops, or changes a session (apart from the dashboard's own stale-status
+fix, see _live_session_view).
 """
 import json
 import os
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from contextlib import contextmanager
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 from uuid import UUID
+
+import peewee
 
 import jesse.helpers as jh
 from jesse.services.project_files import ProjectFileError
@@ -57,8 +63,9 @@ MAX_LOG_LINE_CHARS = 2000
 # Reading log lines from the end scans at most this many bytes, so a request for a very old
 # page of a huge log cannot read the whole file.
 MAX_LOG_SCAN_BYTES = 16 * 1024 * 1024
-# Upper bounds on rows exported for one live session into an analysis snapshot. Minute
-# equity snapshots reach ~525k per year; a snapshot stays well under its size cap.
+# Upper bounds on rows exported for one live session into an analysis snapshot; a session with
+# more is refused (too_many_records), never cut. Minute equity snapshots reach ~525k per year.
+# A session near every cap at once can still exceed the 64 MiB snapshot cap (too_large).
 MAX_EXPORT_LIVE_TRADES = 100_000
 MAX_EXPORT_LIVE_ORDERS = 200_000
 MAX_EXPORT_LIVE_EQUITY_POINTS = 600_000
@@ -361,19 +368,53 @@ def _live_plugin_available() -> bool:
     return jh.has_live_trade_plugin()
 
 
-def _live_session_view(row) -> dict:
-    """The dashboard's live session view, including its running-worker status reconciliation."""
+def _live_session_view(row, persist_reconciliation: bool = True) -> dict:
+    """
+    The dashboard's live session view, including its running-worker status reconciliation, which
+    it writes back unless `persist_reconciliation` is False (read-only snapshots).
+    """
     from jesse.services.transformers import get_live_session
-    return get_live_session(row)
+    return get_live_session(row, persist_reconciliation)
+
+
+@contextmanager
+def _read_snapshot() -> Iterator[None]:
+    """
+    Run a history page (live_history) or one analysis snapshot input (a live session export or a
+    live history dataset) against a single consistent, read-only view of the database, so its
+    counts, rows, their orders, sessions, and saved keys agree even while live sessions write.
+
+    PostgreSQL (Jesse's database): one REPEATABLE READ, READ ONLY transaction, whose snapshot is
+    taken by its first query; writers are never blocked by it and it cannot write. SQLite (tests):
+    one deferred transaction; in WAL mode its first read fixes the snapshot, otherwise its shared
+    lock holds writers back until it ends. The transaction ends with the block, including an
+    error or a generator closed early, so a refusal never leaves it open.
+    """
+    from jesse.models.ClosedTrade import ClosedTrade
+    db = ClosedTrade._meta.database
+    if db.in_transaction():
+        # Only when a caller already holds a transaction on this connection; its view applies.
+        yield
+        return
+    postgres = isinstance(db, peewee.PostgresqlDatabase)
+    if postgres and not db.is_closed():
+        # SET TRANSACTION must be the first statement of the transaction. PostgreSQL connections
+        # are idle between peewee statements (commit_select), except after an earlier failed
+        # statement on this thread's connection, which leaves an aborted transaction behind.
+        db.rollback()
+    with db.atomic():
+        if postgres:
+            db.execute_sql('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+        yield
 
 
 def _live_trades(session_id: str, offset: int, limit: Optional[int]) -> Tuple[List[dict], int]:
     """Closed and open trades of a live session, oldest first, with their executed orders' values."""
     from jesse.models.ClosedTrade import ClosedTrade
-    from jesse.repositories.closed_trade_repository import populate_order_arrays
+    from jesse.repositories.closed_trade_repository import history_query, populate_order_arrays
     from jesse.services.transformers import get_closed_trade_details
 
-    query = ClosedTrade.select().where(ClosedTrade.session_id == session_id)
+    query = history_query(session_id=session_id)
     total = query.count()
     rows = query.order_by(ClosedTrade.opened_at, ClosedTrade.id).offset(offset)
     if limit is not None:
@@ -388,9 +429,10 @@ def _live_trades(session_id: str, offset: int, limit: Optional[int]) -> Tuple[Li
 
 def _live_orders(session_id: str, offset: int, limit: Optional[int]) -> Tuple[List[dict], int]:
     from jesse.models.Order import Order
+    from jesse.repositories.order_repository import history_query
     from jesse.services.transformers import get_order_details
 
-    query = Order.select().where(Order.session_id == session_id)
+    query = history_query(session_id=session_id)
     total = query.count()
     rows = query.order_by(Order.created_at, Order.id).offset(offset)
     if limit is not None:
@@ -492,6 +534,60 @@ def _live_secrets(form: dict) -> List[str]:
         if key is not None:
             values += _credential_values(key.fields)
     return sorted({v for v in values if len(v) >= MIN_REDACTED_SECRET_LENGTH}, key=len, reverse=True)
+
+
+def _all_saved_secrets() -> List[str]:
+    """Values of every saved exchange and notification key, when a session's own keys are unknown."""
+    from jesse.models.ExchangeApiKeys import ExchangeApiKeys
+    from jesse.models.NotificationApiKeys import NotificationApiKeys
+
+    values: List[str] = []
+    for key in ExchangeApiKeys.select():
+        values += _credential_values([key.api_key, key.api_secret, key.additional_fields])
+    for key in NotificationApiKeys.select():
+        values += _credential_values(key.fields)
+    return sorted({v for v in values if len(v) >= MIN_REDACTED_SECRET_LENGTH}, key=len, reverse=True)
+
+
+def _unreadable_state(session_id: Any) -> ProjectFileError:
+    return _error('read_failed', f'The stored state of live session {session_id} cannot be read, so the saved keys it '
+                                 'uses cannot be redacted; nothing was returned.', 500)
+
+
+KEY_FORM_FIELDS = ('exchange_api_key_id', 'notification_api_key_id')
+
+
+def _state_secrets(state: Any, session_id: Any) -> List[str]:
+    """
+    Redaction values for a live session from its parsed stored state (None when it has none).
+
+    Only a readable form object whose key fields are text (or absent/null) is trusted to name the
+    session's keys, including naming none. A missing state or form says nothing about which keys
+    were used, so every saved key's values are used, as for a deleted session. A state or form of
+    any other shape fails the read (read_failed): it may reference keys in a way this code cannot see.
+    """
+    if state is None:
+        return _all_saved_secrets()
+    if not isinstance(state, dict):
+        raise _unreadable_state(session_id)
+    form = state.get('form')
+    if form is None:
+        return _all_saved_secrets()
+    if not isinstance(form, dict) or any(form.get(field) is not None and not isinstance(form[field], str)
+                                         for field in KEY_FORM_FIELDS):
+        raise _unreadable_state(session_id)
+    return _live_secrets(form)
+
+
+def _stored_state_secrets(state_text: Optional[str], session_id: Any) -> List[str]:
+    """_state_secrets for a LiveSession.state column (JSON text); unparsable text fails the read."""
+    if state_text is None or state_text == '':
+        return _state_secrets(None, session_id)
+    try:
+        state = json.loads(state_text)
+    except (TypeError, ValueError):
+        raise _unreadable_state(session_id)
+    return _state_secrets(state, session_id)
 
 
 def _redact(value: Any, secrets: List[str]) -> Any:
@@ -767,16 +863,21 @@ def _require_live_plugin() -> None:
         )
 
 
-def _live(session_id: str, section: str, offset: int, limit: int) -> dict:
+def _live(session_id: str, section: str, offset: int, limit: int, persist_reconciliation: bool = True) -> dict:
     _require_live_plugin()
     row = _load_live(session_id)
     if not row:
         raise _not_found('Live', session_id)
-    view = _clean(_live_session_view(row))
+    # From the stored column itself, not the transformed view, so no parsing step in between can
+    # turn an unreadable state into an empty one.
+    secrets = _stored_state_secrets(row.state, session_id)
+    view = _clean(_live_session_view(row, persist_reconciliation))
+    # Redact before anything is cut (description, traceback tail, log lines below), so a saved
+    # value crossing a cut is never partly returned.
+    view = _redact(view, secrets)
     state = view.get('state') if isinstance(view.get('state'), dict) else {}
     form = state.get('form') if isinstance(state.get('form'), dict) else {}
-    secrets = _live_secrets(form)
-    head ={**_base('live', session_id, view.get('status')), 'session_mode': view.get('session_mode'), 'section': section}
+    head = {**_base('live', session_id, view.get('status')), 'session_mode': view.get('session_mode'), 'section': section}
 
     if section == 'summary':
         result = {
@@ -800,7 +901,7 @@ def _live(session_id: str, section: str, offset: int, limit: int) -> dict:
         result = {**head, 'order': 'oldest first', **_db_page(rows, offset, limit, total)}
     else:
         rows, total = _live_logs(session_id, 1 if section == 'logs' else 2, offset, limit)
-        result = {**head, **_page_from_newest(rows, offset, limit, total)}
+        result = {**head, **_page_from_newest(_redact(rows, secrets), offset, limit, total)}
     return _redact(result, secrets)
 
 
@@ -831,10 +932,12 @@ def list_live_sessions(limit: int = 20, offset: int = 0, status_filter: Optional
     rows = _list_live_rows(limit, offset, title_search, status_filter, mode_filter)
     sessions = []
     for row in rows:
+        # Titles and routes are free text too; each row is redacted with its own session's keys.
+        secrets = _stored_state_secrets(row.state, row.id)
         view = _clean(_live_session_view(row))
         state = view.get('state') if isinstance(view.get('state'), dict) else {}
         form = state.get('form') if isinstance(state.get('form'), dict) else {}
-        sessions.append({
+        sessions.append(_redact({
             'id': view.get('id'),
             'title': view.get('title'),
             'status': view.get('status'),
@@ -846,7 +949,7 @@ def list_live_sessions(limit: int = 20, offset: int = 0, status_filter: Optional
             'updated_at': view.get('updated_at'),
             'finished_at': view.get('finished_at'),
             'has_error': bool(view.get('exception')),
-        })
+        }, secrets))
     return {'sessions': sessions, 'offset': offset, 'limit': limit, 'returned': len(sessions),
             'next_offset': offset + len(sessions) if len(sessions) == limit else None}
 
@@ -868,9 +971,13 @@ def export_session(session_type: str, session_id: str) -> dict:
     Return one session's complete stored results for an analysis snapshot.
 
     Contains the summary plus every row of the result arrays (logs excluded), never paged.
-    Live exports are redacted like live responses and capped at the MAX_EXPORT_LIVE_* rows.
+    Live exports are redacted like live responses, read in one consistent view (_export_live),
+    and a live session with more rows than a MAX_EXPORT_LIVE_* cap is refused
+    (too_many_records) instead of being cut.
     """
     normalized = _validate(session_type, session_id, 'summary', 0, 1)
+    if session_type == 'live':
+        return _export_live(normalized)
     summary = get_results(session_type, normalized)
     if session_type == 'backtest':
         parts = _backtest_parts(_load_backtest(normalized))
@@ -885,21 +992,54 @@ def export_session(session_type: str, session_id: str) -> dict:
         for name, child in _monte_carlo_pipelines(_load_monte_carlo(normalized)):
             pipelines[name] = _clean(child.results_json) if child.results else None
         return {'summary': summary, 'pipelines': pipelines}
-    if session_type == 'significance_test':
-        return {'summary': summary}
+    return {'summary': summary}
 
-    secrets = _live_secrets(summary.get('form') or {})
-    trades, trades_total = _live_trades(normalized, 0, MAX_EXPORT_LIVE_TRADES)
-    orders, orders_total = _live_orders(normalized, 0, MAX_EXPORT_LIVE_ORDERS)
-    equity, equity_total = _live_equity(normalized, 0, MAX_EXPORT_LIVE_EQUITY_POINTS)
-    return _redact({
-        'summary': summary,
-        'closed_trades': trades,
-        'orders': orders,
-        'equity_curve': equity,
-        'truncated': {
-            'closed_trades': trades_total > len(trades),
-            'orders': orders_total > len(orders),
-            'equity_curve': equity_total > len(equity),
-        },
-    }, secrets)
+
+def _export_live(session_id: str) -> dict:
+    """
+    A live session's snapshot, read in one consistent read-only database view (_read_snapshot):
+    the summary, its counts, and every row agree even while the session is still writing. The
+    dashboard's stale-status reconciliation is reported in the summary but not written back; it
+    reads the Redis worker set at that moment, outside the database view (best effort).
+    """
+    _require_live_plugin()
+    with _read_snapshot():
+        return _export_live_rows(session_id)
+
+
+def _export_live_rows(session_id: str) -> dict:
+    row = _load_live(session_id)
+    if not row:
+        raise _not_found('Live', session_id)
+    secrets = _stored_state_secrets(row.state, session_id)
+    summary = _live(session_id, 'summary', 0, 1, persist_reconciliation=False)
+    counts = summary.get('counts') or {}
+    sections = (
+        ('closed_trades', 'trades', _live_trades, MAX_EXPORT_LIVE_TRADES),
+        ('orders', 'orders', _live_orders, MAX_EXPORT_LIVE_ORDERS),
+        ('equity_curve', 'equity_points', _live_equity, MAX_EXPORT_LIVE_EQUITY_POINTS),
+    )
+    # Every cap is checked from the summary's counts before any rows are loaded.
+    for section, count_key, _loader, cap in sections:
+        _refuse_live_export(session_id, section, counts.get(count_key) or 0, cap)
+    data: Dict[str, Any] = {'summary': summary}
+    for section, _count_key, loader, cap in sections:
+        # One row past the cap is read: a guard for writes made through this same connection, as
+        # nothing else can change the rows inside the snapshot.
+        rows, total = loader(session_id, 0, cap + 1)
+        _refuse_live_export(session_id, section, max(total, len(rows)), cap)
+        data[section] = rows
+    data['complete'] = True
+    return _redact(data, secrets)
+
+
+def _refuse_live_export(session_id: str, section: str, count: int, cap: int) -> None:
+    if count > cap:
+        raise _error(
+            'too_many_records',
+            f'Live session {session_id} has {count} {section.replace("_", " ")} rows; an analysis snapshot of one '
+            f'session is limited to {cap}. Nothing was run. For trades and orders, analyze date windows with '
+            '{"dataset": "live_trades" | "live_orders", ...} inputs (see jesse://session_analysis); page the '
+            'equity curve with get_session_results.',
+            413,
+        )

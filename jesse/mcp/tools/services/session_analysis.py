@@ -5,7 +5,7 @@ Thin clients for the /session-results and /analysis API routes. Jesse reads the 
 sessions, writes analysis snapshots, runs analysis code, and reads artifacts on the machine
 running Jesse, so these tools work the same when the assistant runs on another computer.
 """
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from .project_files import CANCEL_TIMEOUT_SECONDS, REQUEST_TIMEOUT_SECONDS, TRANSFER_TIMEOUT_SECONDS, _call
 
@@ -33,8 +33,32 @@ def get_live_sessions_service(limit: int = 20, offset: int = 0, status_filter: O
     )
 
 
+def get_live_trades_service(start: Any = None, end: Any = None, recent_days: Any = None, mode: Any = 'live',
+                            exchange: Any = None, symbol: Any = None, session_id: Any = None,
+                            order: Any = 'newest_first', cursor: Any = None, limit: Any = 100) -> dict:
+    return _call(
+        'get_live_trades', '/session-results/live-trades',
+        {'start': start, 'end': end, 'recent_days': recent_days, 'mode': mode, 'exchange': exchange,
+         'symbol': symbol, 'session_id': session_id, 'order': order, 'cursor': cursor, 'limit': limit},
+        RESULTS_TIMEOUT_SECONDS,
+    )
+
+
+def get_live_orders_service(start: Any = None, end: Any = None, recent_days: Any = None, mode: Any = 'live',
+                            exchange: Any = None, symbol: Any = None, session_id: Any = None,
+                            time_field: Any = 'created_at', status: Any = None, order: Any = 'newest_first',
+                            cursor: Any = None, limit: Any = 100) -> dict:
+    return _call(
+        'get_live_orders', '/session-results/live-orders',
+        {'start': start, 'end': end, 'recent_days': recent_days, 'mode': mode, 'exchange': exchange,
+         'symbol': symbol, 'session_id': session_id, 'time_field': time_field, 'status': status, 'order': order,
+         'cursor': cursor, 'limit': limit},
+        RESULTS_TIMEOUT_SECONDS,
+    )
+
+
 def run_analysis_service(code: str, inputs: Optional[List[dict]] = None, timeout_minutes: int = 5) -> dict:
-    # Writing snapshots of large sessions happens inside this request.
+    # Writing snapshots of large sessions or history windows happens inside this request.
     return _call(
         'run_analysis', '/analysis/run',
         {'code': code, 'inputs': list(inputs or []), 'timeout_minutes': timeout_minutes},

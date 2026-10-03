@@ -50,9 +50,14 @@ INSTRUCTIONS = (
     "specifically asks for a script, asks for machine-learning research that needs a script or "
     "Jesse's research module, or explicitly asks to use the research module. Generic requests to "
     "research, find, or improve strategies use the catalog, backtest, optimization, Monte Carlo, "
-    "and significance-test tools instead; see jesse://research_scripts. "
+    "and significance-test tools instead; see jesse://research_scripts (candle CSV files from "
+    "export_candles, or ones the user asked to import, are data, not scripts). "
+    "Live/paper session tools start and stop real trading sessions: act only when the user asks, "
+    "always say whether a session is paper or live with real funds, and see jesse://live_trading. "
     "Read stored session results, including live/paper sessions, with get_session_results "
-    "(summary first). To analyze, compare, or chart results, use run_analysis, which runs in a "
+    "(summary first); Jesse's recorded live/paper trades and orders of a date window across "
+    "sessions with get_live_trades / get_live_orders (not the exchange account's history). "
+    "To analyze, compare, or chart results, use run_analysis, which runs in a "
     "temporary workspace and never needs research_scripts/; see jesse://session_analysis."
 )
 
