@@ -1,11 +1,10 @@
 # Jesse coordinator — experimental native backend
 
-This is an opt-in Rust service for the shared state and notifications Jesse uses.
+This is the default Rust service on this development branch for the shared state and notifications Jesse uses.
 It uses a versioned local protocol with JSON control frames, raw binary payloads, and a Python standard-library client.
 It does not implement Redis, RESP, Lua, clustering, or persistence.
 
-The current Redis backend remains the default during validation. Existing Jesse
-Live releases keep importing the same core helper module. In native mode those
+Existing Jesse Live releases keep importing the same core helper module. In native mode those
 helpers load neither `redis` nor `aioredis`; the two requirements remain in the
 distribution during this transition so existing installations do not break.
 
@@ -26,7 +25,8 @@ file. Failed diagnostic writes do not terminate the service, and repeated OS
 errors share a ten-second logging interval, but an open, undrained pipe can still
 block a write. Read the stdout readiness line before starting Jesse.
 
-Configure the Jesse project's environment file:
+Configure the Jesse project's environment file (Rust is selected even when
+`COORDINATION_BACKEND` is omitted; the connection and token still need configuration):
 
 ```dotenv
 COORDINATION_BACKEND=rust
@@ -85,7 +85,7 @@ Redis or PostgreSQL instance. Set `JESSE_COORDINATION_REQUIRE_TESTS=1` to fail r
 The development lab uses a separate Conda environment, source worktrees, project,
 and PostgreSQL cluster. No exchange credentials are copied into that lab.
 
-Before making this the default, complete native Windows/Linux validation,
+Before releasing this branch, complete native Windows/Linux validation,
 controlled live/paper trading and optimizer workloads, resource/load benchmarks,
 restart supervision, and the product decision on restart persistence. The first
 implementation is suitable for isolated evaluation, not a production release.

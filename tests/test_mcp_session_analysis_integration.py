@@ -203,6 +203,8 @@ def _env_file(project: Path, password: str, ports: dict, extra: dict) -> Path:
         'POSTGRES_PASSWORD': os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_PASSWORD', 'password'),
         'POSTGRES_SCHEMA': SCHEMA,
         'POSTGRES_SSLMODE': 'disable',
+        # This opt-in legacy transport suite writes worker markers through Redis directly.
+        'COORDINATION_BACKEND': 'redis',
         'REDIS_HOST': '127.0.0.1',
         'REDIS_PORT': '6379',
         # A Redis DB of its own, away from the developer instance's default DB 0.

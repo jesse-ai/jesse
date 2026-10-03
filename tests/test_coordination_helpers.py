@@ -7,6 +7,10 @@ import json
 import base64
 import gzip
 import unittest
+import os
+from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import patch
 
 from jesse.services import redis as helpers
@@ -65,3 +69,19 @@ class HelperFailurePolicy(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+def test_native_backend_is_default_without_redis_imports():
+    """A fresh core import selects Rust without an environment override or Redis clients."""
+    env = os.environ.copy()
+    env.pop('COORDINATION_BACKEND', None)
+    # Full core imports are slower in the Windows VM; bound a stalled import at 30 seconds.
+    result = subprocess.run(
+        [sys.executable, '-c',
+         "import sys; from jesse.services.redis import BACKEND; "
+         "assert BACKEND == 'rust'; "
+         "assert 'redis' not in sys.modules and 'aioredis' not in sys.modules"],
+        cwd=Path(__file__).resolve().parents[1], env=env,
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr

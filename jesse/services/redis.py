@@ -1,8 +1,8 @@
 """Shared-state helpers and backend selection.
 
-The module path remains stable for existing Jesse Live releases. The opt-in
-native backend imports no Redis client; legacy installations keep their current
-backend until the coordinator is packaged and release validation is complete.
+The module path remains stable for existing Jesse Live releases. Rust is the
+default backend on this development branch and imports no Redis client. An
+explicit Redis setting remains available for legacy compatibility checks.
 """
 
 import importlib
@@ -18,7 +18,7 @@ from jesse.services.coordination_client import (
     AsyncClient, Client, CoordinationConnectionError, CoordinationCapacityError, CoordinationSizeError, LockError as NativeLockError,
 )
 
-BACKEND = ENV_VALUES.get('COORDINATION_BACKEND', os.environ.get('COORDINATION_BACKEND', 'redis'))
+BACKEND = ENV_VALUES.get('COORDINATION_BACKEND', os.environ.get('COORDINATION_BACKEND', 'rust'))
 if BACKEND == 'rust':
     RedisConnectionError = CoordinationConnectionError
     RedisTimeoutError = TimeoutError
