@@ -1,9 +1,11 @@
-import aioredis
-import redis as sync_redis_lib
-from redis.exceptions import (
-    ConnectionError as RedisConnectionError,
-    TimeoutError as RedisTimeoutError,
-)
+"""Shared-state helpers and backend selection.
+
+The module path remains stable for existing Jesse Live releases. The opt-in
+native backend imports no Redis client; legacy installations keep their current
+backend until the coordinator is packaged and release validation is complete.
+"""
+
+import importlib
 import simplejson as json
 import asyncio
 import time
@@ -12,6 +14,27 @@ from jesse.libs.custom_json import NpEncoder
 import os
 import base64
 from jesse.services.env import ENV_VALUES
+from jesse.services.coordination_client import (
+    AsyncClient, Client, CoordinationConnectionError, CoordinationCapacityError, CoordinationSizeError, LockError as NativeLockError,
+)
+
+BACKEND = ENV_VALUES.get('COORDINATION_BACKEND', os.environ.get('COORDINATION_BACKEND', 'redis'))
+if BACKEND == 'rust':
+    RedisConnectionError = CoordinationConnectionError
+    RedisTimeoutError = TimeoutError
+    LockError = NativeLockError
+elif BACKEND == 'redis':
+    # Import lazily by backend so the native installation needs neither package.
+    try:
+        aioredis = importlib.import_module('aioredis')
+        sync_redis_lib = importlib.import_module('redis')
+    except ModuleNotFoundError as exc:
+        raise RuntimeError('The legacy Redis backend requires redis and aioredis; configure COORDINATION_BACKEND=rust for the native service') from exc
+    RedisConnectionError = sync_redis_lib.exceptions.ConnectionError
+    RedisTimeoutError = sync_redis_lib.exceptions.TimeoutError
+    LockError = sync_redis_lib.exceptions.LockError
+else:
+    raise ValueError(f'Unsupported COORDINATION_BACKEND: {BACKEND}')
 
 
 async def init_redis():
@@ -27,14 +50,27 @@ sync_redis = None
 _last_active_check_error_at = 0
 if jh.is_jesse_project():
     if not jh.is_notebook():
-        async_redis = asyncio.run(init_redis())
-        sync_redis = sync_redis_lib.Redis(
-            host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
-            password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None,
-            socket_connect_timeout=1,
-            socket_timeout=1,
-            health_check_interval=30,
-        )
+        if BACKEND == 'rust':
+            sync_redis = Client(
+                host=ENV_VALUES.get('COORDINATION_HOST', '127.0.0.1'),
+                port=int(ENV_VALUES.get('COORDINATION_PORT', '6381')),
+                token=ENV_VALUES.get('COORDINATION_TOKEN', ''),
+                namespace=ENV_VALUES.get('COORDINATION_NAMESPACE', ''),
+                generation=os.environ.get('JESSE_COORDINATION_GENERATION'),
+            )
+            # Spawned workers inherit the parent's generation. An empty restarted
+            # coordinator must not accept work under a previous process's locks.
+            os.environ['JESSE_COORDINATION_GENERATION'] = sync_redis.connect()
+            async_redis = AsyncClient(sync_redis)
+        else:
+            async_redis = asyncio.run(init_redis())
+            sync_redis = sync_redis_lib.Redis(
+                host=ENV_VALUES['REDIS_HOST'], port=ENV_VALUES['REDIS_PORT'], db=int(ENV_VALUES.get('REDIS_DB') or 0),
+                password=ENV_VALUES['REDIS_PASSWORD'] if ENV_VALUES['REDIS_PASSWORD'] else None,
+                socket_connect_timeout=1,
+                socket_timeout=1,
+                health_check_interval=30,
+            )
 
 
 def sync_publish(event: str, msg, compression: bool = False):
@@ -56,6 +92,10 @@ def sync_publish(event: str, msg, compression: bool = False):
             }, ignore_nan=True, cls=NpEncoder)
         )
     except Exception as e:
+        if BACKEND == 'rust' and isinstance(e, (CoordinationCapacityError, CoordinationSizeError)):
+            # A rejected/oversized result must fail visibly instead of marking a
+            # session successful while silently withholding its dashboard data.
+            raise
         # Log publish errors so we can diagnose Redis outages without crashing the worker
         jh.terminal_debug(f"Redis publish error: {e}")
 
