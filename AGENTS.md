@@ -34,40 +34,42 @@ When implementing features or fixing bugs:
 3. **Write/update tests** - Maintain test coverage
 4. **Run tests** to verify changes:
    ```bash
-   cd-jesse && pytest
+   python -m pytest
    ```
 5. **Consider jesse-live** - Does this affect live trading?
 6. **Update API routes** if needed - Follow FastAPI patterns
-7. **Don't restart server** unless specifically asked
+7. Follow the user's local workspace instructions for restarting a development server.
 
 ### Python Environment
-Use the Jesse Python interpreter:
-```
-/Users/salehmir/miniconda3/envs/jesse3.12/bin/python
-```
+Use the project's active virtual environment or Conda environment. Run the commands
+below from the repository root unless another working directory is specified.
+`python`, `jesse`, and `pyrefly` should resolve to that environment's tools.
+
+Verify that the interpreter meets the repository's Python version requirements.
+If a compatible interpreter or the intended environment cannot be found, ask the
+user which interpreter or environment to use before proceeding. Do not install
+Python, create an environment, or install packages to work around a missing or
+incompatible environment without explicit user authorization. Likewise, if a
+required dependency or tool is missing, ask the user before installing it.
 
 ### Running Jesse Backend
-The API server provides routes for the dashboard:
+Run Jesse from a Jesse project directory containing its configuration and strategies,
+rather than from this framework's source directory:
 ```bash
-# Stop any running process
-pkill -f "jesse run"
-
-# Start Jesse from bot directory (not jesse/)
-cd /Users/salehmir/codes/jesse/dev-jesse/bot
-/Users/salehmir/miniconda3/envs/jesse3.12/bin/jesse run > /tmp/jesse-output.log 2>&1 &
-
-# Server runs at http://localhost:9001
-
-# Check logs
-tail -f /tmp/jesse-output.log
+jesse run
 ```
 
-**Important**: Don't restart Jesse after code changes unless explicitly requested.
+Use the project's configured port and log location. Restart only when authorized by
+the user or local workspace instructions. Identify the process by its port and
+working directory and stop only that instance gracefully; never use a broad
+`pkill`. Check for active live/paper sessions and defer a disruptive restart while
+they are running. Preserve unrelated processes and services. After restarting,
+verify an authenticated API read succeeds on the project's configured port.
 
 ### Running Tests
 Run the test suite after changes if asked.
 ```bash
-cd-jesse && pytest
+python -m pytest
 ```
 
 Dashboard Playwright tests start Jesse from a disposable project through
@@ -78,13 +80,14 @@ routes are registered only in that mode and still require normal dashboard
 authentication. Never enable `RESET_TEST_DATABASE` against `public` or a normal
 development schema; the runtime guard intentionally rejects it.
 
-If you've updated jesse-rust, run tests after building:
+If you've updated jesse-rust, build it from its own checkout using the same Python
+environment, then run Jesse's tests. For sibling checkouts:
 ```bash
-cd /Users/salehmir/Codes/jesse/dev-jesse/jesse-rust
+cd ../jesse-rust
 ./build-local.sh
 
-cd /Users/salehmir/Codes/jesse/dev-jesse/jesse
-pytest
+cd ../jesse
+python -m pytest
 ```
 
 ## Publishing the Docker Image
@@ -108,7 +111,6 @@ Steps (run from inside `jesse/`):
    whether to bump the version in `setup.py` (and `version.py`) first.
 4. Create and push the tag:
    ```bash
-   cd /Users/salehmir/Codes/jesse/dev-jesse/jesse
    git tag v<version>
    git push origin v<version>
    ```
@@ -152,12 +154,12 @@ Notes:
   constants, fallback or retry behavior, and test fakes that encode external responses. Keep the
   rationale in the code rather than only in the conversation; do not add comments that merely
   narrate what the code already says.
-- Never try to install new packages - assume they're already installed. if need to install new packages, ask me first.
+- Use existing dependencies. Ask the user before installing additional packages.
 - Follow existing patterns and conventions
 - Maintain consistency with the current codebase
 
 ### Type Annotations (strategy-facing typing)
-User strategies are type-checked in editors (Zed runs Pyrefly), so annotations on anything strategies touch — indicators, `Strategy` properties/attributes, models like `Route` and `Position` — must be precise. Loose framework types surface as false-positive errors in every user's strategy file.
+User strategies are type-checked in editors, so annotations on anything strategies touch — indicators, `Strategy` properties/attributes, models like `Route` and `Position` — must be precise. Loose framework types surface as false-positive errors in every user's strategy file.
 
 - **Indicators**: any indicator with a `sequential` param that returns `Union[<scalar>, np.ndarray]` must ship this `@overload` trio directly above the implementation (all existing ones already do — keep new ones consistent):
   ```python
@@ -173,10 +175,9 @@ User strategies are type-checked in editors (Zed runs Pyrefly), so annotations o
 - **Late-initialized attributes** that the router/engine sets right after instantiation (`Strategy.name/symbol/exchange/timeframe/position/broker`, `Route.strategy`): declare the real post-initiation type with the `None` default silenced — e.g. `self.position: Position = None  # type: ignore` — instead of `Optional[...]`, so user strategies don't need `is not None` narrowing. `Strategy.hp` is always a `dict` (empty when the strategy has no hyperparameters); check it with falsiness (`if not self.hp`), never `is None`.
 - Verify strategy-facing typing changes with Pyrefly:
   ```bash
-  cd /Users/salehmir/Codes/jesse/dev-jesse
-  uvx pyrefly check 'jesse/jesse/indicators/*.py' jesse/jesse/strategies/Strategy.py --search-path jesse --conda-environment jesse3.12
+  pyrefly check 'jesse/indicators/*.py' jesse/strategies/Strategy.py --search-path .
   ```
-  For a broader regression check, run it over `'jesse/jesse/strategies/*/__init__.py'` (the test strategies must report 0 errors).
+  For a broader regression check, run it over `'jesse/strategies/*/__init__.py'` (the test strategies must report 0 errors).
 - Try to import only at the top of the file.
 
 ### Jesse-Rust Integration
@@ -211,7 +212,7 @@ This repository is the foundation of the Jesse ecosystem:
 - **jesse-live** - Depends heavily on jesse for live trading
 - **jesse-rust** - Performance layer integrated into jesse
 - **dashboard-v1** - Frontend that consumes jesse's API
-- **bot** - Jesse project instance that runs the framework
+- **Jesse projects** - Separate project directories that run the framework with their own configuration and strategies
 - **laravel-jesse-trade** - Laravel project that contains the api1 backend of the jesse-trade website.
 - **go-jesse-trade/backend** - Go project that contains the api2 backend of the jesse-trade website.
 - **go-jesse-trade/frontend** - NuxtJS project that contains the frontend of the jesse-trade website.
