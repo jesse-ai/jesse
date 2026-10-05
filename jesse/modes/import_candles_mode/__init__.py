@@ -7,6 +7,7 @@ import arrow
 import pydash
 
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse.exceptions import CandleNotFoundInExchange
 from jesse.models.Candle import Candle
 from jesse.modes.import_candles_mode.drivers import (
@@ -196,6 +197,7 @@ def _report_import_progress(
     _store_import_progress(client_id, percent, remaining_seconds, reached_date)
     if running_via_dashboard:
         sync_publish('progressbar', {
+            'message': f'Importing {symbol} from {exchange} — through {reached_date}',
             'current': percent,
             'estimated_remaining_seconds': remaining_seconds,
         })
@@ -263,6 +265,7 @@ def _run(
         config['app']['trading_mode'] = mode
         register_custom_exception_handler()
         store.app.set_session_id(client_id)
+        publish_status(f'Checking available candle history for {symbol} on {exchange}…')
 
     _raise_if_cancelled(client_id, running_via_dashboard)
 

@@ -6,6 +6,7 @@ import optuna
 import ray
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish
@@ -356,6 +357,7 @@ class Optimizer:
 
         # Update the progress bar and publish the current progress to the dashboard
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
@@ -465,6 +467,7 @@ class Optimizer:
         self.progressbar.index = index
         # Update UI to reflect progress
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
@@ -488,6 +491,7 @@ class Optimizer:
                 best_trial_params = None
 
             self._raise_if_cancelled()
+            publish_status('Sharing candle data with optimization workers…')
             shared_user_config = ray.put(self.user_config)
             shared_formatted_routes = ray.put(router.formatted_routes)
             shared_formatted_data_routes = ray.put(router.formatted_data_routes)
@@ -499,6 +503,7 @@ class Optimizer:
 
             max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
 
+            publish_status('Running optimization trials…')
             while self.completed_trials < self.n_trials:
                 self._raise_if_cancelled()
                 if self.completed_trials == 0:

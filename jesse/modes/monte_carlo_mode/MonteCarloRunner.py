@@ -4,6 +4,7 @@ import os
 import ray
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
@@ -73,6 +74,9 @@ class MonteCarloRunner:
         # Initialize Ray if not already
         self.ray_started_here = False
         if not ray.is_initialized():
+            for enabled, event in ((self.run_trades, 'trades_progressbar'), (self.run_candles, 'candles_progressbar')):
+                if enabled:
+                    publish_status('Starting simulation workers…', event=event, total=self.num_scenarios)
             try:
                 ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
                 logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores", session_id=self.session_id)
@@ -142,6 +146,8 @@ class MonteCarloRunner:
             self._publish_general_info()
 
             # Run trades first (faster)
+            if self.run_trades and self.run_candles:
+                publish_status('Waiting for trade simulations to finish…', event='candles_progressbar', total=self.num_scenarios)
             if self.run_trades:
                 logger.log_monte_carlo("Starting trades simulation...", session_id=self.session_id)
                 self._run_trades_simulation()
@@ -236,6 +242,8 @@ class MonteCarloRunner:
         sync_publish('trades_progressbar', {
             'current': 0,
             'total': self.num_scenarios,
+            'message': 'Running the baseline backtest…',
+            'indeterminate': True,
             'estimated_remaining_seconds': 0
         })
 
@@ -249,6 +257,7 @@ class MonteCarloRunner:
             # Extract summary metrics for display
             summary_metrics = self._extract_trades_summary_metrics(results)
 
+            publish_status('Saving simulation results…', event='trades_progressbar', total=self.num_scenarios)
             # Store results
             update_trades_session_progress(
                 id=self.trades_session_id,
@@ -257,6 +266,11 @@ class MonteCarloRunner:
             )
             update_trades_session_status(self.trades_session_id, 'finished')
             self.trades_finished = True
+            # End this panel's saving stage even if the other simulation is still running.
+            sync_publish('trades_progressbar', {
+                'current': self.num_scenarios, 'total': self.num_scenarios,
+                'estimated_remaining_seconds': 0, 'message': 'Simulation complete',
+            })
 
             # Publish results
             sync_publish('monte_carlo_trades_summary', summary_metrics)
@@ -297,6 +311,8 @@ class MonteCarloRunner:
         sync_publish('candles_progressbar', {
             'current': 0,
             'total': self.num_scenarios,
+            'message': 'Running the baseline backtest…',
+            'indeterminate': True,
             'estimated_remaining_seconds': 0
         })
 
@@ -335,6 +351,7 @@ class MonteCarloRunner:
             # Extract summary metrics for display
             summary_metrics = self._extract_candles_summary_metrics(results)
 
+            publish_status('Saving simulation results…', event='candles_progressbar', total=self.num_scenarios)
             # Store results
             update_candles_session_progress(
                 id=self.candles_session_id,
@@ -343,6 +360,11 @@ class MonteCarloRunner:
             )
             update_candles_session_status(self.candles_session_id, 'finished')
             self.candles_finished = True
+            # End this panel's saving stage even if the other simulation is still running.
+            sync_publish('candles_progressbar', {
+                'current': self.num_scenarios, 'total': self.num_scenarios,
+                'estimated_remaining_seconds': 0, 'message': 'Simulation complete',
+            })
 
             # Publish results
             sync_publish('monte_carlo_candles_summary', summary_metrics)
@@ -406,6 +428,7 @@ class MonteCarloRunner:
                         estimated_remaining = 0
                     
                     sync_publish('trades_progressbar', {
+                        'message': 'Simulating Monte Carlo scenarios…',
                         'current': completed_count,
                         'total': self.num_scenarios,
                         'estimated_remaining_seconds': estimated_remaining
@@ -475,6 +498,7 @@ class MonteCarloRunner:
                         estimated_remaining = 0
                     
                     sync_publish('candles_progressbar', {
+                        'message': 'Simulating Monte Carlo scenarios…',
                         'current': completed_count,
                         'total': self.num_scenarios,
                         'estimated_remaining_seconds': estimated_remaining

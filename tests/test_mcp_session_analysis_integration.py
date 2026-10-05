@@ -3,8 +3,8 @@ End-to-end proof of session results and temporary analysis on a disposable Jesse
 
 Starts `jesse run` from a throwaway project with its own env file, a guarded test schema
 (`mcp_analysis_e2e_test`, dropped and recreated at startup exactly like the dashboard E2E
-stack), its own ports, and its own Redis DB. Real records are written into that schema with
-Jesse's own model functions, then an MCP SDK client connects through the dashboard's
+stack), its own ports, and an owned Rust coordinator with a namespace per instance.
+Real records are written into that schema with Jesse's own model functions, then an MCP SDK client connects through the dashboard's
 authenticated /mcp route and exercises the tools: results of every session type, a real
 matplotlib analysis over snapshots, the chart as MCP image content, and earlier tools,
 including a metered run whose usage check waits on a local stand-in for the licensing backend,
@@ -16,7 +16,7 @@ served, as a normal `jesse run` does; the worker gets its OS-assigned port the r
 Nothing here reads a real .env, key, or wallet file, starts a backtest or live session, or
 contacts an exchange; the live session is seeded rows only, with fake key values.
 
-Opt-in because it needs local PostgreSQL and Redis:
+Opt-in because it needs local PostgreSQL and cached Cargo dependencies:
     JESSE_MCP_INTEGRATION=1 pytest tests/test_mcp_session_analysis_integration.py
 The database settings default to the dashboard E2E fixture's local test credentials and can
 be overridden with JESSE_MCP_INTEGRATION_POSTGRES_{HOST,PORT,NAME,USERNAME,PASSWORD}.
@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
@@ -44,7 +45,7 @@ import requests
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('JESSE_MCP_INTEGRATION') != '1',
-    reason='Set JESSE_MCP_INTEGRATION=1 to run against a disposable Jesse instance (needs PostgreSQL and Redis).',
+    reason='Set JESSE_MCP_INTEGRATION=1 to run against a disposable Jesse instance (needs PostgreSQL and cached Cargo dependencies).',
 )
 
 JESSE_ROOT = Path(__file__).resolve().parents[1]
@@ -191,7 +192,8 @@ def _hash(password: str) -> str:
     return sha256(password.encode('utf-8')).hexdigest()
 
 
-def _env_file(project: Path, password: str, ports: dict, extra: dict) -> Path:
+def _env_file(project: Path, password: str, ports: dict, extra: dict, coordinator) -> Path:
+    """Give each disposable project its own namespace on the owned native service."""
     values = {
         'PASSWORD': password,
         'APP_HOST': '127.0.0.1',
@@ -203,13 +205,11 @@ def _env_file(project: Path, password: str, ports: dict, extra: dict) -> Path:
         'POSTGRES_PASSWORD': os.environ.get('JESSE_MCP_INTEGRATION_POSTGRES_PASSWORD', 'password'),
         'POSTGRES_SCHEMA': SCHEMA,
         'POSTGRES_SSLMODE': 'disable',
-        # This opt-in legacy transport suite writes worker markers through Redis directly.
-        'COORDINATION_BACKEND': 'redis',
-        'REDIS_HOST': '127.0.0.1',
-        'REDIS_PORT': '6379',
-        # A Redis DB of its own, away from the developer instance's default DB 0.
-        'REDIS_DB': '7',
-        'REDIS_PASSWORD': '',
+        'COORDINATION_BACKEND': 'rust',
+        'COORDINATION_HOST': '127.0.0.1',
+        'COORDINATION_PORT': coordinator.port,
+        'COORDINATION_TOKEN': coordinator.token,
+        'COORDINATION_NAMESPACE': project.name,
         'IS_DEV_ENV': 'TRUE',
         'IS_TEST_ENV': 'TRUE',
         # A closed port: no license, catalog, or telemetry request can leave the machine.
@@ -223,8 +223,10 @@ def _env_file(project: Path, password: str, ports: dict, extra: dict) -> Path:
 
 
 def _child_env(env_file: Path, **extra) -> dict:
+    # Each disposable server connects afresh; never inherit a developer server generation.
     env = {key: value for key, value in os.environ.items()
-           if not key.startswith(('PYTEST', 'JESSE_DISABLE_LIVE_PLUGIN', 'JESSE_TEST_SCHEMA_READY'))}
+           if not key.startswith(('PYTEST', 'JESSE_DISABLE_LIVE_PLUGIN', 'JESSE_TEST_SCHEMA_READY',
+                                  'JESSE_COORDINATION_GENERATION'))}
     env.update(JESSE_ENV_FILE=str(env_file), PYTHONPATH=os.pathsep.join(filter(None, [str(JESSE_ROOT), env.get('PYTHONPATH')])))
     env.update(extra)
     return env
@@ -303,7 +305,53 @@ def _occupied_port() -> socket.socket:
 
 
 @pytest.fixture(scope='module')
-def instance():
+def coordinator(tmp_path_factory):
+    """Build offline and own a native service without touching developer processes."""
+    from jesse.services.coordination_client import Client, CoordinationConnectionError
+
+    native = Path(os.environ.get('JESSE_COORDINATOR_SOURCE', str(JESSE_ROOT.parent / 'jesse-rust' / 'coordination')))
+    # Bound a stalled offline build; there is no package download during this fixture.
+    built = subprocess.run(['cargo', 'build', '--offline', '--locked'], cwd=native,
+                           capture_output=True, text=True, timeout=120)
+    assert built.returncode == 0, built.stderr
+    binary = native / 'target' / 'debug' / ('jesse-coordinator.exe' if os.name == 'nt' else 'jesse-coordinator')
+    config = SimpleNamespace(port=_free_port(), token=secrets.token_hex(32))
+    log_path = tmp_path_factory.mktemp('mcp-coordinator') / 'coordinator.log'
+    with log_path.open('wb') as log:
+        process = subprocess.Popen(
+            [str(binary)], stdout=log, stderr=subprocess.STDOUT,
+            env={**os.environ, 'JESSE_COORDINATION_TOKEN': config.token,
+                 'JESSE_COORDINATION_BIND': f'127.0.0.1:{config.port}'},
+        )
+        probe = Client('127.0.0.1', config.port, config.token, 'readiness')
+        try:
+            # Authenticate before starting any Jesse child; a listening socket alone
+            # does not prove that the service accepts our protocol and credentials.
+            # Local startup should be immediate; 15 seconds tolerates loaded CI hosts.
+            deadline = time.monotonic() + 15
+            while True:
+                assert process.poll() is None, log_path.read_text()
+                try:
+                    probe.connect()
+                    break
+                except CoordinationConnectionError:
+                    if time.monotonic() >= deadline:
+                        pytest.fail('Native coordinator readiness timed out')
+                    time.sleep(0.05)
+            yield config
+        finally:
+            probe.close()
+            # Give the owned service five seconds to exit before reaping it forcibly.
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+
+
+@pytest.fixture(scope='module')
+def instance(coordinator):
     from jesse.mcp.auth import dashboard_token
     project = Path(tempfile.mkdtemp(prefix='jesse-mcp-analysis-e2e-'))
     (project / 'strategies').mkdir()
@@ -312,7 +360,7 @@ def instance():
     ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
     # An existing project's MCP_PORT, set to a port that is already taken, must not matter.
     legacy = _occupied_port()
-    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'TRUE', 'MCP_PORT': legacy.getsockname()[1]})
+    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'TRUE', 'MCP_PORT': legacy.getsockname()[1]}, coordinator)
     process, log = _start(project, _child_env(env_file), with_mcp=True)
     try:
         url = f'http://127.0.0.1:{ports["app"]}'
@@ -328,7 +376,7 @@ def instance():
         worker_port = _wait_for_mcp(url, token, process, project)
         yield SimpleNamespace(url=url, password=password, token=token, ids=ids, project=project,
                               ports=ports, env_file=env_file, worker_port=worker_port,
-                              legacy_port=legacy.getsockname()[1])
+                              legacy_port=legacy.getsockname()[1], coordinator=coordinator)
     finally:
         _stop(process, log)
         legacy.close()
@@ -775,6 +823,7 @@ def test_older_tools_answer_while_a_metered_run_waits_for_its_usage_check(instan
                 out['reply_seconds'] = time.monotonic() - cancel_sent
                 usage.release.set()
             log = instance.project / 'server.log'
+            # Local startup should be immediate; 15 seconds tolerates loaded CI hosts.
             deadline = time.monotonic() + 15
             while 'finished after its MCP request was cancelled' not in log.read_text(errors='replace') and time.monotonic() < deadline:
                 await asyncio.sleep(0.1)
@@ -810,7 +859,7 @@ def test_live_results_are_refused_without_the_live_plugin(instance):
     (project / 'strategies').mkdir()
     (project / 'storage').mkdir()
     ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
-    env_file = _env_file(project, instance.password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'JESSE_DISABLE_LIVE_PLUGIN': 'TRUE'})
+    env_file = _env_file(project, instance.password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'JESSE_DISABLE_LIVE_PLUGIN': 'TRUE'}, instance.coordinator)
     process, log = _start(project, _child_env(env_file, JESSE_DISABLE_LIVE_PLUGIN='TRUE'))
     try:
         url = f'http://127.0.0.1:{ports["app"]}'
@@ -881,7 +930,7 @@ def test_two_instances_run_their_own_workers_side_by_side(instance):
     token = dashboard_token(password)
     ports = {name: _free_port() for name in ('app', 'lsp', 'api2')}
     # Both instances carry the same stale MCP_PORT, which used to make the second one fail.
-    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'MCP_PORT': instance.legacy_port})
+    env_file = _env_file(project, password, ports, {'RESET_TEST_DATABASE': 'FALSE', 'MCP_PORT': instance.legacy_port}, instance.coordinator)
     process, log = _start(project, _child_env(env_file), with_mcp=True)
     try:
         url = f'http://127.0.0.1:{ports["app"]}'
@@ -1026,7 +1075,7 @@ def test_catalog_and_license_routes_keep_their_checks_and_do_not_stall_the_api_o
     env_file = _env_file(project, password, ports, {
         'RESET_TEST_DATABASE': 'FALSE', 'LICENSE_API_TOKEN': FAKE_LICENSE,
         'JESSE_API_URL': f'http://127.0.0.1:{ports["api1"]}/api',
-    })
+    }, instance.coordinator)
     dashboard = {'Authorization': _hash(password)}
     routes = [('GET', '/strategy/index', {'params': {'period': 'Q1 of 2026'}}), ('GET', '/strategy/periods', {}),
               ('GET', '/strategy/jesse-trade/e2e-catalog', {}),
@@ -1175,7 +1224,7 @@ print('seeded')
 '''
 
 # A live session record in status "running", as the live plugin leaves it; the test marks it
-# active in the instance's Redis worker set instead of starting any process.
+# active in the instance's coordinator worker set instead of starting any process.
 RUNNING_SESSION_SCRIPT = r'''
 import json, sys
 from jesse.repositories import live_session_repository
@@ -1200,9 +1249,19 @@ def _run_in_instance(instance, script: str, *args: str) -> str:
     return result.stdout
 
 
-def _redis():
-    import redis
-    return redis.Redis(host='127.0.0.1', port=6379, db=7)
+@contextmanager
+def _coordination(env_file: Path):
+    """Inspect worker markers through the same namespace as the target instance."""
+    from dotenv import dotenv_values
+    from jesse.services.coordination_client import Client
+
+    values = dotenv_values(env_file)
+    client = Client(values['COORDINATION_HOST'], int(values['COORDINATION_PORT']),
+                    values['COORDINATION_TOKEN'], values['COORDINATION_NAMESPACE'])
+    try:
+        yield client
+    finally:
+        client.close()
 
 
 def _dashboard_export(instance, exchange: str, symbol: str) -> bytes:
@@ -1298,9 +1357,9 @@ def test_candle_management_round_trip_through_the_mcp_client(instance):
 
 def test_live_session_management_through_the_mcp_client(instance):
     """
-    Drafts, copy, notes, stop, and delete against the real live routes, repository, and Redis
+    Drafts, copy, notes, stop, and delete against the real live routes, repository, and native
     worker set of a disposable instance. The "running" session is a stored record marked
-    active in the instance's own Redis set; nothing starts a session process here.
+    active in the instance's own coordinator set; nothing starts a session process here.
     """
     strategy = instance.project / 'strategies' / 'E2ELive'
     strategy.mkdir(exist_ok=True)
@@ -1308,7 +1367,8 @@ def test_live_session_management_through_the_mcp_client(instance):
     running_id = str(__import__('uuid').uuid4())
     _run_in_instance(instance, RUNNING_SESSION_SCRIPT, running_id)
     active_key = f'{instance.ports["app"]}|active-processes'
-    _redis().sadd(active_key, running_id)
+    with _coordination(instance.env_file) as client:
+        client.sadd(active_key, running_id)
     key_id = instance.ids['key']
 
     async def scenario(session):
@@ -1347,9 +1407,11 @@ def test_live_session_management_through_the_mcp_client(instance):
 
     try:
         out = _mcp(instance, scenario)
-        still_active = _redis().sismember(active_key, running_id)
+        with _coordination(instance.env_file) as client:
+            still_active = client.sismember(active_key, running_id)
     finally:
-        _redis().srem(active_key, running_id)
+        with _coordination(instance.env_file) as client:
+            client.srem(active_key, running_id)
 
     paper, live = out['paper'], out['live']
     assert paper['status'] == 'success' and paper['mode'] == 'paper' and paper['config']['exchange']['balance'] == 2500
@@ -1444,7 +1506,7 @@ def test_invalid_live_starts_are_refused_without_a_plan_preflight(instance):
     env_file = _env_file(project, password, ports, {
         'RESET_TEST_DATABASE': 'FALSE', 'LICENSE_API_TOKEN': FAKE_LICENSE,
         'JESSE_API_URL': f'http://127.0.0.1:{ports["api1"]}/api',
-    })
+    }, instance.coordinator)
     active_key = f'{ports["app"]}|active-processes'
 
     with _PlanBackend(ports['api1']) as backend:
@@ -1475,7 +1537,8 @@ def test_invalid_live_starts_are_refused_without_a_plan_preflight(instance):
                 return await _call(session, 'get_session_results', {'session_type': 'live', 'session_id': draft['session_id']})
 
             after = _mcp(plan_instance, status)
-            workers = {member.decode() for member in _redis().smembers(active_key)}
+            with _coordination(env_file) as client:
+                workers = {member.decode() for member in client.smembers(active_key)}
         finally:
             _stop(process, log)
             shutil.rmtree(project, ignore_errors=True)

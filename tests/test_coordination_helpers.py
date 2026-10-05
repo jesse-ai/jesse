@@ -13,9 +13,11 @@ import subprocess
 import sys
 from unittest.mock import patch
 
+import pytest
+
 from jesse.services import redis as helpers
 from jesse.services.coordination_client import (
-    CoordinationCapacityError, CoordinationConnectionError, CoordinationSizeError,
+    CoordinationCapacityError, CoordinationConnectionError, CoordinationError, CoordinationSizeError,
 )
 
 
@@ -25,7 +27,6 @@ class HelperFailurePolicy(unittest.TestCase):
                         patch.object(helpers.jh, 'app_mode', return_value='backtest'),
                         patch.object(helpers.jh, 'terminal_debug'),
                         patch.dict(helpers.ENV_VALUES, {'APP_PORT': '19081'}),
-                        patch.object(helpers, 'BACKEND', 'rust'),
                         patch.object(helpers, 'RedisConnectionError', CoordinationConnectionError),
                         patch.object(helpers, '_last_active_check_error_at', 0),
                         patch.object(helpers, 'sync_redis')]
@@ -57,6 +58,26 @@ class HelperFailurePolicy(unittest.TestCase):
             self.client.sismember.side_effect = CoordinationConnectionError(message)
             self.assertTrue(helpers.is_process_active('synthetic-session'))
 
+    def test_managed_active_check_confirms_the_service_before_cancelling(self):
+        # Fake only RPC outcomes; no credentials, ports or live service are used.
+        self.client.address = ('127.0.0.1', 0)
+        self.client.token = 'synthetic-not-a-credential'
+        self.client.namespace = 'synthetic'
+        self.client.generation = 'first-generation'
+        self.client.sismember.side_effect = CoordinationConnectionError('retired connection')
+        with patch.dict(os.environ, {'JESSE_COORDINATION_RUNTIME': 'synthetic'}), patch.object(helpers, 'Client') as factory:
+            factory.return_value.connect.return_value = 'first-generation'
+            self.assertTrue(helpers.is_process_active('synthetic-session'))
+            factory.return_value.connect.return_value = 'different-generation'
+            self.assertFalse(helpers.is_process_active('synthetic-session'))
+            factory.return_value.connect.side_effect = CoordinationError('auth: invalid credentials')
+            self.assertFalse(helpers.is_process_active('synthetic-session'))
+
+    def test_managed_active_check_stops_on_a_reassigned_authenticated_port(self):
+        self.client.sismember.side_effect = CoordinationError('auth: invalid credentials')
+        with patch.dict(os.environ, {'JESSE_COORDINATION_RUNTIME': 'synthetic'}):
+            self.assertFalse(helpers.is_process_active('synthetic-session'))
+
     def test_compressed_helper_envelope_preserves_payload(self):
         helpers.sync_publish('results', {'series': list(range(200000))}, compression=True)
         self.client.publish.assert_called_once()
@@ -71,17 +92,63 @@ if __name__ == '__main__':
     unittest.main(verbosity=2)
 
 
-def test_native_backend_is_default_without_redis_imports():
-    """A fresh core import selects Rust without an environment override or Redis clients."""
+@pytest.mark.parametrize('redis_unavailable', [False, True], ids=['existing-environment', 'without-redis'])
+def test_native_backend_and_optuna_work_without_redis(tmp_path, redis_unavailable):
+    """Rust helpers and SQLite studies work even when Redis clients cannot be imported."""
     env = os.environ.copy()
     env.pop('COORDINATION_BACKEND', None)
-    # Full core imports are slower in the Windows VM; bound a stalled import at 30 seconds.
+    # Optuna optionally imports installed Redis clients while loading its storage
+    # backends. Simulate missing packages instead of forbidding that optional import;
+    # this also exercises environments where compatibility clients remain installed.
+    script = '''
+import importlib.abc
+from pathlib import Path
+import sys
+
+redis_unavailable = sys.argv[1] == 'True'
+if redis_unavailable:
+    class MissingRedis(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path=None, target=None):
+            if fullname.split('.')[0] in {'redis', 'aioredis'}:
+                raise ModuleNotFoundError(fullname, name=fullname)
+
+    sys.meta_path.insert(0, MissingRedis())
+
+from jesse.services.redis import BACKEND
+assert BACKEND == 'rust'
+import optuna
+
+optuna.logging.set_verbosity(optuna.logging.ERROR)
+storage = 'sqlite:///' + Path(sys.argv[2]).as_posix()
+study = optuna.create_study(storage=storage, study_name='without-redis')
+study.optimize(lambda trial: trial.suggest_float('x', 0, 1), n_trials=1)
+loaded = optuna.load_study(storage=storage, study_name='without-redis')
+assert len(loaded.trials) == 1
+assert loaded.trials[0].state == optuna.trial.TrialState.COMPLETE
+assert loaded.best_value == study.best_value
+if redis_unavailable:
+    assert 'redis' not in sys.modules and 'aioredis' not in sys.modules
+'''
+    # Full core imports are slower in the Windows VM; bound a stalled child at 30 seconds.
     result = subprocess.run(
-        [sys.executable, '-c',
-         "import sys; from jesse.services.redis import BACKEND; "
-         "assert BACKEND == 'rust'; "
-         "assert 'redis' not in sys.modules and 'aioredis' not in sys.modules"],
+        [sys.executable, '-c', script, str(redis_unavailable), str(tmp_path / 'study.db')],
         cwd=Path(__file__).resolve().parents[1], env=env,
         capture_output=True, text=True, timeout=30,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('backend, accepted', [('redis', True), ('unknown', False)])
+def test_removed_backend_setting_handles_migration(backend, accepted):
+    """Old Redis projects upgrade automatically; misspelled backend settings still fail."""
+    result = subprocess.run(
+        [sys.executable, '-c', 'from jesse.services.redis import BACKEND; assert BACKEND == "rust"'],
+        cwd=Path(__file__).resolve().parents[1],
+        env={**os.environ, 'COORDINATION_BACKEND': backend},
+        capture_output=True, text=True, timeout=30,
+    )
+    if accepted:
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0
+        assert 'Only the Rust coordinator is supported' in result.stderr

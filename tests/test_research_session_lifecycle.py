@@ -40,6 +40,7 @@ def test_process_marker_exists_before_worker_starts(monkeypatch):
     manager.client_id_to_pid_to_map = {}
     manager._pending_worker_removals = set()
     manager._workers_lock = threading.Lock()
+    manager._shutting_down = False
     manager._add_process = lambda client_id: events.append(('active', client_id))
 
     monkeypatch.setattr(multiprocessing_service, 'Process', FakeProcess)
@@ -51,7 +52,7 @@ def test_process_marker_exists_before_worker_starts(monkeypatch):
 
 
 def test_process_start_failure_removes_active_marker(monkeypatch):
-    """A process that never starts must not remain cancellable in Redis."""
+    """A process that never starts must not remain cancellable in coordinator."""
     removals = []
 
     class FailingProcess:
@@ -69,6 +70,7 @@ def test_process_start_failure_removes_active_marker(monkeypatch):
     manager.client_id_to_pid_to_map = {}
     manager._pending_worker_removals = set()
     manager._workers_lock = threading.Lock()
+    manager._shutting_down = False
     manager._add_process = lambda client_id: None
     manager._remove_active_worker = lambda client_id: removals.append(client_id)
 
@@ -82,7 +84,7 @@ def test_process_start_failure_removes_active_marker(monkeypatch):
 
 
 def test_marker_publish_failure_leaves_no_unstarted_worker(monkeypatch):
-    """A Redis failure publishing the marker leaves no never-started Process in _workers."""
+    """A coordinator failure publishing the marker leaves no never-started Process in _workers."""
     removals = []
     started = []
 
@@ -94,7 +96,7 @@ def test_marker_publish_failure_leaves_no_unstarted_worker(monkeypatch):
             started.append(True)
 
     def unreachable(client_id):
-        raise ConnectionError('Redis unreachable')
+        raise ConnectionError('coordinator unreachable')
 
     manager = multiprocessing_service.ProcessManager.__new__(
         multiprocessing_service.ProcessManager
@@ -104,16 +106,33 @@ def test_marker_publish_failure_leaves_no_unstarted_worker(monkeypatch):
     manager.client_id_to_pid_to_map = {}
     manager._pending_worker_removals = set()
     manager._workers_lock = threading.Lock()
+    manager._shutting_down = False
     manager._add_process = unreachable
     manager._remove_active_worker = lambda client_id: removals.append(client_id)
 
     monkeypatch.setattr(multiprocessing_service, 'Process', RecordingProcess)
 
-    with pytest.raises(ConnectionError, match='Redis unreachable'):
+    with pytest.raises(ConnectionError, match='coordinator unreachable'):
         manager.add_task(lambda: None, 'session-id')
 
     assert manager._workers == [] and started == []
     assert removals == ['session-id']
+
+
+def test_shutdown_refuses_a_late_worker_launch(monkeypatch):
+    """An accepted request cannot escape shutdown by spawning after the snapshot."""
+    manager = multiprocessing_service.ProcessManager.__new__(multiprocessing_service.ProcessManager)
+    manager._workers_lock = threading.Lock()
+    manager._shutting_down = True
+    manager._workers = []
+
+    def unexpected_process(**kwargs):
+        raise AssertionError('Shutdown must refuse the launch before constructing a worker')
+
+    monkeypatch.setattr(multiprocessing_service, 'Process', unexpected_process)
+    with pytest.raises(RuntimeError, match='shutting down'):
+        manager.add_task(lambda: None, 'synthetic-session')
+    assert manager._workers == []
 
 
 def _significance_runner(monkeypatch, active=True):

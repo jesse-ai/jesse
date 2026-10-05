@@ -30,7 +30,7 @@ except ImportError:
     fcntl = resource = None
 
 ROOT = Path(__file__).resolve().parents[1]
-NATIVE = ROOT / 'native' / 'coordination'
+NATIVE = Path(os.environ.get('JESSE_COORDINATOR_SOURCE', str(ROOT.parent / 'jesse-rust' / 'coordination')))
 CLIENT_SOURCE = ROOT / 'jesse' / 'services' / 'coordination_client.py'
 # Load the standalone client without importing the full Jesse application. Native
 # compatibility CI needs only Python, pytest and Rust; application checks run separately.

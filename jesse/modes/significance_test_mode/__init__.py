@@ -2,6 +2,7 @@ from multiprocessing import cpu_count
 from typing import Dict, List, Optional
 import arrow
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
 from jesse.store import store
@@ -68,6 +69,7 @@ def run(
 
         start_date_timestamp = jh.arrow_to_timestamp(arrow.get(start_date, 'YYYY-MM-DD'))
         finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(finish_date, 'YYYY-MM-DD'))
+        publish_status('Loading historical candles…', total=n_simulations)
         warmup_candles, candles = load_candles(start_date_timestamp, finish_date_timestamp)
 
         runner = SignificanceTestRunner(

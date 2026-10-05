@@ -7,8 +7,6 @@ from jesse.services.redis import sync_publish, sync_redis
 from jesse.services.failure import terminate_session
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
-import os
-import signal
 
 # set multiprocessing process type to spawn
 mp.set_start_method('spawn', force=True)
@@ -54,6 +52,7 @@ class ProcessManager:
         self.client_id_to_pid_to_map = {}
         self._pending_worker_removals: set[str] = set()
         self._workers_lock = threading.Lock()
+        self._shutting_down = False
         try:
             port = ENV_VALUES.get('APP_PORT', '9000')
         except:
@@ -77,7 +76,7 @@ class ProcessManager:
             sync_redis.delete(self._active_workers_key)
         except Exception as e:
             _terminal_debug(
-                f'Error clearing active workers from Redis; cleanup will retry: {type(e).__name__}: {e}'
+                f'Error clearing active workers from coordinator; cleanup will retry: {type(e).__name__}: {e}'
             )
         else:
             self._pending_worker_removals.clear()
@@ -95,14 +94,16 @@ class ProcessManager:
 
     def add_task(self, function, *args):
         client_id = args[0]
-        w = Process(target=function, args=args)
         with self._workers_lock:
+            if self._shutting_down:
+                raise RuntimeError('Jesse is shutting down; cannot launch another session')
+            w = Process(target=function, args=args)
             self._workers.append(w)
 
             # The worker may check its active marker immediately, so publish it
             # before the child can begin executing. This also makes cancellation
             # a reliable cooperative signal instead of a startup race. Publishing
-            # can fail too (Redis unreachable); then the never-started worker must
+            # can fail too (coordinator unreachable); then the never-started worker must
             # not stay in _workers, where cleanup could never join or remove it.
             self._pending_worker_removals.discard(client_id)
             try:
@@ -131,6 +132,31 @@ class ProcessManager:
     def cancel_process(self, client_id):
         sync_redis.srem(self._active_workers_key, client_id)
 
+    def shutdown(self) -> None:
+        """Allow cooperative session cleanup before bounded forced process removal."""
+        with self._workers_lock:
+            # The same lock guards launches, so none can escape the shutdown snapshot.
+            self._shutting_down = True
+            workers = list(self._workers)
+            client_ids = list(self.client_id_to_pid_to_map)
+            for prefixed in client_ids:
+                try:
+                    self.cancel_process(jh.string_after_character(prefixed, '|'))
+                except Exception:
+                    # Private-service failure is also observed by managed workers;
+                    # a broken coordinator must not prevent final process cleanup.
+                    pass
+        # Live sessions poll once per second and may need time for their configured
+        # termination work. Bound the whole group, rather than ten seconds per worker.
+        deadline = time.monotonic() + 10
+        for worker in workers:
+            try:
+                worker.join(timeout=max(0, deadline - time.monotonic()))
+            except Exception as exc:
+                # Cleanup can close _popen between join's checks; still force-reap the rest.
+                _terminal_debug(f'Worker join during shutdown: {type(exc).__name__}: {exc}')
+        self.flush()
+
     def flush(self):
         with self._workers_lock:
             for w in self._workers:
@@ -143,7 +169,9 @@ class ProcessManager:
                     # If still alive, wait a brief moment then force kill
                     if w.is_alive():
                         time.sleep(0.5)  # Give terminate a chance to complete
-                        os.kill(w.pid, signal.SIGKILL)
+                        # multiprocessing uses TerminateProcess on Windows and SIGKILL on Unix.
+                        w.kill()
+                        w.join(timeout=3)
 
                     w.close()
                 except Exception as e:
@@ -152,7 +180,7 @@ class ProcessManager:
             self._reset()
 
     def _remove_active_worker(self, client_id: str) -> bool:
-        """Remove a finished worker's Redis marker, or retain it for retry."""
+        """Remove a finished worker's coordinator marker, or retain it for retry."""
         was_pending = client_id in self._pending_worker_removals
         try:
             sync_redis.srem(self._active_workers_key, client_id)
@@ -160,7 +188,7 @@ class ProcessManager:
             self._pending_worker_removals.add(client_id)
             if not was_pending:
                 _terminal_debug(
-                    f'Error removing finished worker {client_id} from Redis; cleanup will retry: '
+                    f'Error removing finished worker {client_id} from coordinator; cleanup will retry: '
                     f'{type(e).__name__}: {e}'
                 )
             return False
@@ -169,7 +197,7 @@ class ProcessManager:
             return True
 
     def _retry_pending_worker_removals(self) -> None:
-        """Retry Redis cleanup without removing markers owned by newer workers."""
+        """Retry coordinator cleanup without removing markers owned by newer workers."""
         for client_id in tuple(self._pending_worker_removals):
             if self._prefixed_client_id(client_id) in self.client_id_to_pid_to_map:
                 self._pending_worker_removals.discard(client_id)
@@ -177,8 +205,8 @@ class ProcessManager:
             if self._remove_active_worker(client_id):
                 _terminal_debug(f"Removed deferred worker {client_id} from active workers")
             else:
-                # One timeout is enough to treat Redis as unavailable for this cycle. Stopping here
-                # bounds how long cleanup holds the worker lock while Redis remains unreachable.
+                # One timeout is enough to treat coordinator as unavailable for this cycle. Stopping here
+                # bounds how long cleanup holds the worker lock while coordinator remains unreachable.
                 break
 
     def _cleanup_finished_workers(self):

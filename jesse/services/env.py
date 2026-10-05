@@ -14,10 +14,6 @@ if jh.is_unit_testing():
     ENV_VALUES['POSTGRES_PORT'] = '5432'
     ENV_VALUES['POSTGRES_USERNAME'] = 'jesse_user'
     ENV_VALUES['POSTGRES_PASSWORD'] = 'password'
-    ENV_VALUES['REDIS_HOST'] = 'localhost'
-    ENV_VALUES['REDIS_PORT'] = '6379'
-    ENV_VALUES['REDIS_DB'] = 0
-    ENV_VALUES['REDIS_PASSWORD'] = ''
     ENV_VALUES['APP_PORT'] = 3000
     ENV_VALUES['IS_DEV_ENV'] = 'TRUE'
     ENV_VALUES['LSP_PORT'] = 9001

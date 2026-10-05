@@ -2,6 +2,7 @@ from multiprocessing import cpu_count
 from typing import Dict, List, Tuple
 import arrow
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
 from jesse.store import store
@@ -56,6 +57,7 @@ def run(
         # validate routes
         validate_routes(router)
 
+        publish_status('Preparing optimization data…')
         # load historical candles
         training_warmup_candles, training_candles, testing_warmup_candles, testing_candles = _get_training_and_testing_candles(
             training_start_date,
@@ -102,6 +104,7 @@ def run(
             if jh.is_debugging():
                 jh.debug(f"Created new optimization session with ID: {session_id}")
 
+        publish_status('Starting optimization workers and opening the study…')
         optimizer = Optimizer(
             session_id,
             user_config,
@@ -161,8 +164,10 @@ def _get_training_and_testing_candles(
     testing_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_start_date, 'YYYY-MM-DD'))
     testing_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_finish_date, 'YYYY-MM-DD'))
 
+    publish_status('Loading training candles…')
     # fetch training candles
     training_warmup_candles, training_candles = load_candles(training_start_date_timestamp, training_finish_date_timestamp)
+    publish_status('Loading testing candles…')
     # fetch testing candles
     testing_warmup_candles, testing_candles = load_candles(testing_start_date_timestamp, testing_finish_date_timestamp)
 
