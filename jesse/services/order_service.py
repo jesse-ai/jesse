@@ -12,6 +12,17 @@ from jesse.services import closed_trade_service
 from jesse.services import position_service
 
 
+def _order_message(order: Order, event: str, qty: float | None = None) -> str:
+    """Keep order logs and channel notifications consistent and identifiable."""
+    message = (
+        f'{event} | {order.symbol} | {order.exchange} | {order.side.upper()} {order.type.upper()}'
+        f' | Qty: {abs(order.qty if qty is None else qty)}'
+    )
+    if order.price:
+        message += f' | Price: {jh.format_price(order.price)}'
+    return message
+
+
 def create_order(attributes: dict, should_silent: bool = False, should_store: bool = True) -> Order:
     if attributes.get('created_at') is None:
         attributes['created_at'] = jh.now_to_timestamp()
@@ -24,9 +35,7 @@ def create_order(attributes: dict, should_silent: bool = False, should_store: bo
             _notify_submission(order)
         
         if jh.is_debuggable('order_submission') and (order.is_active or order.is_queued):
-            txt: str = f'{"QUEUED" if order.is_queued else "SUBMITTED"} order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-            if order.price:
-                txt += f', ${jh.format_price(order.price)}'
+            txt = _order_message(order, '⏳ Order queued' if order.is_queued else '📤 Order submitted')
             logger.info(txt)
     
     # If it's an order to close pre-existing positions, we don't want to include it in calculations.
@@ -77,9 +86,7 @@ def execute_order(order: Order, silent: bool = False) -> None:
         order.fee = fee_rate * notional
 
     if not silent:
-        txt = f'EXECUTED order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-        if order.price:
-            txt += f', ${jh.format_price(order.price)}'
+        txt = _order_message(order, '✅ Order executed', order.filled_qty)
         
         if jh.is_debuggable('order_execution'):
             logger.info(txt)
@@ -109,7 +116,8 @@ def execute_order_partially(order: Order, silent: bool = False) -> None:
         order.fee = fee_rate * notional
     
     if not silent:
-        txt = f"PARTIALLY FILLED: {order.symbol}, {order.type}, {order.side}, filled qty: {order.filled_qty}, remaining qty: {order.remaining_qty}, price: {jh.format_price(order.price)}"
+        txt = _order_message(order, '⏳ Order partially filled', order.filled_qty)
+        txt += f' | Remaining qty: {abs(order.remaining_qty)}'
         
         if jh.is_debuggable('order_execution'):
             logger.info(txt)
@@ -147,9 +155,7 @@ def cancel_order(order: Order, silent: bool = False, source: str = '') -> None:
     order.status = order_statuses.CANCELED
     
     if not silent:
-        txt = f'CANCELED order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-        if order.price:
-            txt += f', ${jh.format_price(order.price)}'
+        txt = _order_message(order, '🚫 Order canceled')
         if jh.is_debuggable('order_cancellation'):
             logger.info(txt)
         if jh.is_live():
@@ -164,10 +170,7 @@ def queue_order(order: Order) -> None:
     order.status = order_statuses.QUEUED
     order.canceled_at = None
     if jh.is_debuggable('order_submission'):
-        txt = f'QUEUED order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-        if order.price:
-            txt += f', ${jh.format_price(order.price)}'
-            logger.info(txt)
+        logger.info(_order_message(order, '⏳ Order queued'))
     _notify_submission(order)
 
 
@@ -179,19 +182,13 @@ def resubmit_order(order: Order) -> None:
     order.status = order_statuses.ACTIVE
     order.canceled_at = None
     if jh.is_debuggable('order_submission'):
-        txt: str = f'SUBMITTED order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-        if order.price:
-            txt += f', ${jh.format_price(order.price)}'
-            logger.info(txt)
+        logger.info(_order_message(order, '📤 Order submitted'))
     _notify_submission(order)
 
 
 def _notify_submission(order: Order) -> None:
     if config['env']['notifications']['events']['submitted_orders'] and (order.is_active or order.is_queued):
-        txt = f'{"QUEUED" if order.is_queued else "SUBMITTED"} order: {order.symbol}, {order.type}, {order.side}, {order.qty}'
-        if order.price:
-            txt += f', ${jh.format_price(order.price)}'
-        notify(txt)
+        notify(_order_message(order, '⏳ Order queued' if order.is_queued else '📤 Order submitted'))
 
 
 def initialize_orders_state() -> None:

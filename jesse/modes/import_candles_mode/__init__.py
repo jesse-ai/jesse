@@ -1,7 +1,7 @@
 import json
 import math
 import time
-from typing import Dict, List, Any, Union
+from typing import Callable, Dict, List, Any, Union
 
 import arrow
 import pydash
@@ -190,11 +190,14 @@ def _report_import_progress(
     reached_timestamp: int,
     running_via_dashboard: bool,
     show_progressbar: bool,
+    progress_callback: Callable[[float], None] | None = None,
 ) -> None:
     """Publish range-based progress because candle counts do not measure sparse coverage."""
     percent = round(min(max(completed_span / total_span * 100, 0), 100), 1)
     reached_date = jh.timestamp_to_date(reached_timestamp)
     _store_import_progress(client_id, percent, remaining_seconds, reached_date)
+    if progress_callback is not None:
+        progress_callback(percent)
     if running_via_dashboard:
         sync_publish('progressbar', {
             'message': f'Importing {symbol} from {exchange} — through {reached_date}',
@@ -214,8 +217,9 @@ def run(
         mode: str = 'candles',
         running_via_dashboard: bool = True,
         show_progressbar: bool = False,
+        progress_callback: Callable[[float], None] | None = None,
 ):
-    """Run an import and retain its terminal state for API and MCP polling."""
+    """Run an import; an optional callback lets warm-up compose range progress."""
     if running_via_dashboard:
         store_import_outcome(client_id, 'running')
 
@@ -228,6 +232,7 @@ def run(
             mode,
             running_via_dashboard,
             show_progressbar,
+            progress_callback,
         )
     except exceptions.Termination:
         if running_via_dashboard:
@@ -258,6 +263,7 @@ def _run(
         mode: str = 'candles',
         running_via_dashboard: bool = True,
         show_progressbar: bool = False,
+        progress_callback: Callable[[float], None] | None = None,
 ):
     start_timestamp, symbol = validate_import_request(exchange, symbol, start_date_str)
 
@@ -333,6 +339,7 @@ def _run(
             end_timestamp - interval,
             running_via_dashboard,
             show_progressbar,
+            progress_callback,
         )
 
     for range_start, range_end in import_ranges:
@@ -380,6 +387,7 @@ def _run(
                     range_start,
                     running_via_dashboard,
                     show_progressbar,
+                    progress_callback,
                 )
                 cursor = range_start
                 continue
@@ -424,6 +432,7 @@ def _run(
                 page_start if is_prefix_backfill else covered_end - interval,
                 running_via_dashboard,
                 show_progressbar,
+                progress_callback,
             )
             cursor = page_start if is_prefix_backfill else covered_end
 

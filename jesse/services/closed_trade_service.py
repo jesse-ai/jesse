@@ -1,5 +1,5 @@
 import jesse.helpers as jh
-from jesse.services import logger
+from jesse.services import logger, notifier
 from jesse.repositories import closed_trade_repository, order_repository
 from jesse.store import store
 from jesse.enums import sides
@@ -111,10 +111,20 @@ def close_trade(position: Position) -> None:
 
     store.closed_trades.trades.append(t)
     closed_trade_repository.close_trade(t)
+    currency = position.exchange.settlement_currency.upper()
+    outcome = '🟢' if t.pnl > 0 else '🔴' if t.pnl < 0 else '⚪'
+    message = (
+        f'{outcome} Trade closed | {t.symbol} | {t.type.upper()} | {t.exchange}\n'
+        f'Qty: {t.qty} | Entry: {jh.format_price(t.entry_price)} | Exit: {jh.format_price(t.exit_price)}\n'
+        f'Net PnL: {t.pnl:+.2f} {currency} ({t.pnl_percentage:+.2f}%) | Fees: {jh.format_price(t.fee)} {currency}'
+    )
     if not jh.is_unit_testing():
-        logger.info(
-            f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty},"
-            f" entry_price: {t.entry_price}, exit_price: {t.exit_price}, "
-            f"PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
-        )
+        logger.info(message)
+    # Finalized trade data includes all fills and fees. Send once here, rather than
+    # emitting a second, incomplete close notification from the strategy callback.
+    if jh.is_live() and jh.get_config(
+        'env.notifications.events.closed_position',
+        jh.get_config('env.notifications.events.updated_position', True),
+    ):
+        notifier.notify(message)
     store.closed_trades._reset_current_trade(position.exchange_name, position.symbol)

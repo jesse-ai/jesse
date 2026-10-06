@@ -226,12 +226,14 @@ _LIVE_LOGGING = {**_BASE_LOGGING, 'strategy_execution': True, 'exchange_ws_recon
 _NOTIFICATION_EVENTS = (
     'errors', 'started_session', 'terminated_session', 'submitted_orders', 'cancelled_orders',
     'executed_orders', 'opened_position', 'updated_position', 'exchange_ws_reconnection',
+    'closed_position', 'account_balance',
 )
 
 _DEFAULT_NOTIFICATIONS = {
     'enabled': True,
     'position_report_timeframe': '1h',
-    'events': {event: True for event in _NOTIFICATION_EVENTS},
+    # Account amounts require an explicit opt-in, matching the dashboard defaults.
+    'events': {event: event != 'account_balance' for event in _NOTIFICATION_EVENTS},
 }
 
 # The dashboard's DEFAULT_RESEARCH_EXCHANGE, the base of every Live/Paper exchange profile.

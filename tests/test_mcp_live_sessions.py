@@ -79,9 +79,12 @@ LIVE_LOGGING = {
 }
 NOTIFICATIONS = {
     'enabled': True, 'position_report_timeframe': '1h',
-    'events': {event: True for event in ('errors', 'started_session', 'terminated_session', 'submitted_orders',
-                                         'cancelled_orders', 'executed_orders', 'opened_position', 'updated_position',
-                                         'exchange_ws_reconnection')},
+    'events': {
+        **{event: True for event in ('errors', 'started_session', 'terminated_session', 'submitted_orders',
+                                    'cancelled_orders', 'executed_orders', 'opened_position', 'updated_position',
+                                    'exchange_ws_reconnection', 'closed_position')},
+        'account_balance': False,
+    },
 }
 # Saved settings as the dashboard stores them: legacy live section plus remembered session defaults.
 SETTINGS = {
