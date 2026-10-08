@@ -272,9 +272,14 @@ def format_price(price: float) -> str:
     Formats the price for logging.
     - If abs(price) is >= 1, it will be truncated to 2 decimal places.
     - If abs(price) is < 1, it will be truncated to 5 significant digits.
+    - Non-finite prices are displayed as unavailable.
     """
     if price is None:
         return ""
+
+    # Missing fill data can produce NaN; formatting must not abort cleanup.
+    if not math.isfinite(price):
+        return "N/A"
 
     if price == 0:
         return "0.00"
