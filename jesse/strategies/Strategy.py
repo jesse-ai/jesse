@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, cast
 import os
 import csv
 import numpy as np
@@ -794,6 +794,18 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy(
                 f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
 
+    @staticmethod
+    def _validate_exit_order_values(orders: np.ndarray, name: str) -> None:
+        # Runs before the existing exit orders are cancelled. A NaN price (e.g. from an
+        # indicator still warming up or a value lost on restart) would otherwise be rejected
+        # only after the protective order is already gone, leaving the position unprotected.
+        for qty, price in orders:
+            if not np.isfinite(qty) or not np.isfinite(price):
+                raise exceptions.InvalidStrategy(
+                    f'self.{name} must contain valid numbers, but ({qty}, {price}) was given. '
+                    f'The existing {name} order was kept. Make sure the values used to calculate it are available.'
+                )
+
     def _execute_filters(self) -> bool:
         for f in self.filters():
             try:
@@ -847,6 +859,11 @@ class Strategy(ABC):
 
         if not jh.is_unit_testing() and not jh.is_live():
             store.orders.storage[f'{self.exchange}-{self.symbol}'].clear()
+
+    def _has_entries_awaiting_fill(self) -> bool:
+        """Keep confirmed executions matchable until their fill details arrive."""
+        return any(order.is_cancellable and cast(dict, order.vars or {}).get('awaiting_fill')
+                   for order in self.entry_orders)
 
     def _reset(self) -> None:
         self.buy = None
@@ -964,6 +981,7 @@ class Strategy(ABC):
 
                 # if stop_loss has been modified
                 if not _np_array_equal(self.stop_loss, self._stop_loss):
+                    self._validate_exit_order_values(self.stop_loss, 'stop_loss')
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -1007,6 +1025,7 @@ class Strategy(ABC):
 
                 # if _take_profit has been modified
                 if not _np_array_equal(self.take_profit, self._take_profit):
+                    self._validate_exit_order_values(self.take_profit, 'take_profit')
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -1082,7 +1101,8 @@ class Strategy(ABC):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # should cancel entry?
-        if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
+        if (len(self.entry_orders) and self.is_close and not self._has_entries_awaiting_fill()
+                and self.should_cancel_entry()):
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -1230,8 +1250,14 @@ class Strategy(ABC):
     def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
         
-        # get the last closed trade
-        closed_trade = store.closed_trades.trades[-1]
+        # Exactly the trade this closure recorded: neither another route's latest trade nor an
+        # older trade of this route when the closure recorded none.
+        closed_trade = store.closed_trades.pop_closure(self.exchange, self.symbol)
+        if closed_trade is None:
+            logger.info(
+                f'No closed trade was recorded for {self.exchange}-{self.symbol}; '
+                'on_close_position() receives None for closed_trade.'
+            )
 
         self._broadcast('route-close-position')
         self._execute_cancel()

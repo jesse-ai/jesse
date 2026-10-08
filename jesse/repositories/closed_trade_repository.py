@@ -356,6 +356,25 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
     if trade is None or not is_initial:
         return trade
 
+    hydrate_executed_orders(trade)
+    # No executed rows still requires exchange-history reconciliation; it does
+    # not establish that the persisted trade is flat or simulated.
+    if trade.is_simulated or (len(trade.buy_orders) == 0 and len(trade.sell_orders) == 0):
+        return trade
+
+    if trade.current_qty == 0:
+        close_trade(trade)
+        return None
+    else:
+        return trade
+
+
+def hydrate_executed_orders(trade: ClosedTrade) -> None:
+    """
+    Load a saved trade's executed orders: exchange orders become trade.orders (they carry the
+    fees), and both exchange and simulated orders (the startup position adjustments) feed the
+    qty/price arrays. Shared by restart reconciliation and in-memory trade restoration.
+    """
     exchange_orders = list(
         Order.select()
         .where(Order.trade_id == trade.id)
@@ -370,26 +389,14 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
         .where(Order.order_exist_in_exchange == False)
         .order_by(Order.executed_at)
     )
-    trade.is_simulated = False
-
-    if len(exchange_orders) == 0:
-        if len(simulated_orders) > 0:
-            for simulated_order in simulated_orders:
-                if simulated_order.side == sides.BUY:
-                    trade.buy_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-                elif simulated_order.side == sides.SELL:
-                    trade.sell_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-            trade.is_simulated = True
-        return trade
-
+    # Reconciliation may reload after inserting a synthetic quantity adjustment.
+    # Replace the snapshot instead of appending duplicate fills on each reload.
+    trade.buy_orders.flush()
+    trade.sell_orders.flush()
     trade.orders = [order for order in exchange_orders if order.exchange_id]
+    trade.is_simulated = not exchange_orders and bool(simulated_orders)
     for o in exchange_orders + simulated_orders:
         if o.side == sides.BUY:
             trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
         elif o.side == sides.SELL:
             trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
-    if trade.current_qty == 0:
-        close_trade(trade)
-        return None
-    else:
-        return trade
