@@ -38,6 +38,32 @@ def install_live(strict: bool) -> None:
 
 
 @cli.command()
+@click.option('--compression/--no-compression', default=True, help='Automatically compress candle history older than 30 days.')
+@click.option('--status', 'show_status', is_flag=True, help='Inspect storage without changing it.')
+def enable_timescale(compression: bool, show_status: bool) -> None:
+    """Opt in to TimescaleDB. Stop sessions and back up before converting history."""
+    from jesse.services.db import database
+    from jesse.services.timescale import enable, status
+    import peewee
+
+    jh.validate_cwd()
+    database.open_connection()
+    try:
+        if show_status:
+            click.echo(status())
+        else:
+            # Ensure candle storage exists without starting the server or clearing
+            # coordinator membership from this standalone maintenance command.
+            from jesse.models.Candle import Candle
+            Candle.create_table(safe=True)
+            click.echo(enable(migrate_existing=True, compression=compression))
+    except (peewee.PeeweeException, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        database.close_connection()
+
+
+@cli.command()
 @click.option(
     "--skip-agent-rules",
     is_flag=True,
