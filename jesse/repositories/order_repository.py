@@ -65,6 +65,7 @@ def create(order_data: dict) -> Order:
 
 
 def update(order: Order) -> None:
+    """Persist order state and clear the pending-fill guard on terminal events."""
     if jh.is_unit_testing():
         return
 
@@ -97,7 +98,12 @@ def update(order: Order) -> None:
             'exchange_id': order.exchange_id,
         }
         
-        if order.vars:
+        # Terminal orders cannot still await a fill. Reconstructed events may omit
+        # saved metadata, so preserve other keys while removing this guard.
+        if order.status in (order_statuses.EXECUTED, order_statuses.CANCELED, order_statuses.REJECTED):
+            metadata = {**(db_order.vars or {}), **(order.vars or {})}
+            d['vars'] = {k: v for k, v in metadata.items() if k != 'awaiting_fill'}
+        elif order.vars:
             d['vars'] = order.vars
         
         if order.is_executed:

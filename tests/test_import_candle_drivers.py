@@ -313,15 +313,30 @@ def test_bybit_rejects_provider_symbol_error(monkeypatch):
     ('payload', 'exception_type'),
     [
         ({'msg': 'temporarily unavailable'}, exceptions.ExchangeInMaintenance),
-        ({'data': {}}, exceptions.InvalidSymbol),
+        ({'data': {}}, None),
     ],
 )
-def test_apex_rejects_malformed_or_unsupported_responses(monkeypatch, payload, exception_type):
+def test_apex_handles_empty_or_unavailable_windows(monkeypatch, payload, exception_type):
     driver = drivers['Apex Omni Perpetual']()
     monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: FakeResponse(payload))
 
-    with pytest.raises(exception_type):
-        driver.fetch('BTC-USDT', START_TIMESTAMP)
+    if exception_type is None:
+        # Empty recent windows are valid; an unknown symbol still fails the
+        # separate initial full-history check.
+        assert driver.fetch('BTC-USDT', START_TIMESTAMP) == []
+        with pytest.raises(exceptions.InvalidSymbol):
+            driver.get_starting_time('NOTREAL-USDT')
+        # A narrower window may be empty after a valid full-history response.
+        responses = iter([
+            {'data': {'BTCUSDT': [{'t': START_TIMESTAMP}]}},
+            {'data': {}},
+        ])
+        monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: FakeResponse(next(responses)))
+        assert driver.get_starting_time('BTC-USDT') == START_TIMESTAMP
+        assert next(responses, None) is None  # The empty refinement window was requested.
+    else:
+        with pytest.raises(exception_type):
+            driver.fetch('BTC-USDT', START_TIMESTAMP)
 
 
 def test_futures_driver_page_sizes_match_live_provider_limits():

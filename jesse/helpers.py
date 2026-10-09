@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime
+from decimal import Decimal, ROUND_FLOOR, localcontext
 import math
 import os
 import gzip
@@ -776,6 +777,16 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
 
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = round_decimals_down(roundable_qty, precision)
+    # Exchange quantities are decimal lots. Floor their round-trip decimal
+    # representation so binary multiplication cannot lose a lot on a full exit.
+    quantities = [Decimal(str(q)) for q in roundable_qty]
+    with localcontext() as context:
+        # Preserve every input digit plus a possible carry from flooring a negative value.
+        context.prec = max([len(q.as_tuple().digits) + 1 for q in quantities if q.is_finite()] or [1])
+        factor = Decimal(10) ** precision
+        for index, quantity in enumerate(quantities):
+            if quantity.is_finite():
+                rounded[index] = float((quantity * factor).to_integral_value(rounding=ROUND_FLOOR) / factor)
 
     for index, q in enumerate(rounded):
         # if the rounded value is 0, make it the minimum possible value
