@@ -1527,6 +1527,10 @@ def test_transactions_end_when_a_snapshot_stops_early(api, db, project, monkeypa
     assert not db.in_transaction()
     _independent_write(db, 'UPDATE "order" SET fee = 1')
 
+    # Directory-descriptor snapshot writing belongs to the POSIX-only analysis workflow.
+    if os.name == 'nt':
+        pytest.skip('Analysis snapshots require Linux or macOS, including Docker.')
+
     # The byte cap stops writing mid-stream: the transaction ends and nothing is left on disk.
     monkeypatch.setattr(analysis_jobs, 'MAX_INPUT_BYTES', 900)
     workspace = project / 'workspace'
