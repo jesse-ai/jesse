@@ -558,6 +558,7 @@ def test_run_blocking_finishes_a_started_call_before_honoring_cancellation(caplo
             await anyio.sleep(0.3)
             outcome['finished_before_release'] = bool(finished)
             outcome['returned_before_release'] = 'returned_at' in outcome
+            outcome['released_at'] = time.monotonic()
             release.set()
         outcome['waited'] = outcome['returned_at'] - cancelled_at
         return outcome
@@ -567,7 +568,9 @@ def test_run_blocking_finishes_a_started_call_before_honoring_cancellation(caplo
     assert outcome['finished_before_release'] is False and outcome['returned_before_release'] is False
     assert finished == ['strategies/X/a.py']  # never abandoned: the call ran to completion
     assert 'result' not in outcome and outcome['cancelled_caught'] is True
-    assert 0.3 <= outcome['waited'] < WAIT_SECONDS
+    # Windows clock granularity can shorten the measured sleep; completion must follow the release event.
+    assert outcome['returned_at'] >= outcome['released_at']
+    assert outcome['waited'] < WAIT_SECONDS
     assert _log_messages(caplog) == [
         'write_project_file_service finished after its MCP request was cancelled or its session closed (status: success).'
     ]

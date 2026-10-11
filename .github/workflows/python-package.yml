@@ -58,5 +58,5 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
         run: |
-          # Stop at the first failure and retain a stack dump if an integration call stalls.
-          python -m pytest -x -o faulthandler_timeout=120
+          # Report every failure and retain a stack dump if an integration call stalls.
+          python -m pytest -o faulthandler_timeout=120
