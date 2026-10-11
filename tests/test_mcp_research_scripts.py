@@ -45,6 +45,9 @@ class FakeMCP:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
+    # These workflows require no-follow directory descriptors and POSIX job cleanup.
+    if os.name == 'nt':
+        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'strategies' / 'MyStrategy').mkdir(parents=True)
     (root / 'strategies' / 'MyStrategy' / '__init__.py').write_text('VALUE = 42\n', encoding='utf-8')
@@ -553,6 +556,7 @@ def test_a_cancel_after_the_script_exited_does_not_relabel_its_result(project, a
     assert _pid_gone(child_pid)  # the leftover child was still stopped
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Research process-group cleanup requires POSIX killpg.')
 def test_a_process_group_is_never_signalled_again_once_it_is_gone(monkeypatch):
     calls = []
 

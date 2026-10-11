@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import socket
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -170,8 +171,13 @@ def test_build_worker_launch_keeps_password_out_of_argv(listen_fd, handoff_args)
 class _FakeProcess:
     """A worker that stays up: it never exits during the startup check."""
 
-    pid = 4242
+    # Windows socket.share() needs a real recipient PID, even when Popen is a stand-in.
+    pid = os.getpid()
     returncode = None
+
+    def __init__(self):
+        self.handoff = bytearray()
+        self.stdin = SimpleNamespace(write=self.handoff.extend, close=lambda: None)
 
     def poll(self):
         return None
@@ -203,7 +209,9 @@ def isolated_manager(monkeypatch):
     monkeypatch.setitem(ENV_VALUES, 'PASSWORD', PASSWORD)
     monkeypatch.delitem(ENV_VALUES, 'MCP_PORT', raising=False)
     monkeypatch.setitem(ENV_VALUES, 'MCP_LOG_IN_TERMINAL', 'true')
-    return launches
+    yield launches
+    if manager.MCP_WORKER is not None:
+        manager.MCP_WORKER.release_socket()
 
 
 @pytest.mark.parametrize(
@@ -214,10 +222,14 @@ def test_run_mcp_server_launches_loopback_worker_with_public_url(isolated_manage
     manager.run_mcp_server(bind_host, 9000, 'https://jesse.example.com')
 
     [(argv, kwargs)] = isolated_manager
-    listen_fd = int(argv[argv.index('--listen_fd') + 1])
-    # Exactly the reserved listening socket is handed over; every other descriptor is closed.
-    assert kwargs['pass_fds'] == (listen_fd,)
-    assert kwargs.get('close_fds', True) is True
+    if sys.platform == 'win32':
+        assert '--listen_share' in argv and 'pass_fds' not in kwargs
+        assert kwargs['stdin'] == subprocess.PIPE
+    else:
+        listen_fd = int(argv[argv.index('--listen_fd') + 1])
+        # Exactly the reserved listening socket is handed over; every other descriptor is closed.
+        assert kwargs['pass_fds'] == (listen_fd,)
+        assert kwargs.get('close_fds', True) is True
     assert '--port' not in argv
     assert argv[argv.index('--api_url') + 1] == api_url
     assert argv[argv.index('--dashboard_url') + 1] == 'https://jesse.example.com'
@@ -227,12 +239,18 @@ def test_run_mcp_server_launches_loopback_worker_with_public_url(isolated_manage
     assert kwargs['env'][mcp_config.WORKER_PASSWORD_ENV] == PASSWORD
 
     worker = manager.MCP_WORKER
-    assert worker is not None and worker.held_socket is None
+    assert worker is not None
     assert mcp_config.MCP_WORKER_PORT == worker.port
     assert manager.running_worker_port() == worker.port
-    # This process's copy of the listening socket was closed right after the handoff.
-    with pytest.raises(OSError):
-        os.fstat(listen_fd)
+    if sys.platform == 'win32':
+        # The parent keeps its handle while the worker adopts a Windows socket share.
+        assert worker.held_socket is not None
+        with socket.fromshare(bytes(worker.process.handoff)) as adopted:
+            assert adopted.getsockname() == ('127.0.0.1', worker.port)
+    else:
+        assert worker.held_socket is None
+        with pytest.raises(OSError):
+            os.fstat(listen_fd)
 
     assert mcp_config.JESSE_API_URL == api_url
     assert mcp_config.MCP_URL == 'https://jesse.example.com/mcp'
@@ -326,7 +344,8 @@ class _HandedOverSocket:
         if self.adopted is not None:
             self.adopted.close()
         else:
-            os.close(self.fd)
+            # Winsock handles must be closed as sockets, not CRT file descriptors.
+            socket.close(self.fd)
 
 
 @pytest.fixture

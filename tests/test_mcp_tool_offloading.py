@@ -317,6 +317,9 @@ def _session_crashes(caplog) -> list:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
+    # These workflows require no-follow directory descriptors and POSIX job cleanup.
+    if os.name == 'nt':
+        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'strategies' / 'MyStrategy').mkdir(parents=True)
     (root / 'strategies' / 'MyStrategy' / '__init__.py').write_text(STRATEGY_CODE, encoding='utf-8')

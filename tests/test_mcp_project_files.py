@@ -56,6 +56,9 @@ class FakeMCP:
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
     """A disposable Jesse project; the file service resolves both roots from the working directory."""
+    # These workflows require no-follow directory descriptors and POSIX job cleanup.
+    if os.name == 'nt':
+        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     strategy = root / 'strategies' / 'MyStrategy'
     strategy.mkdir(parents=True)

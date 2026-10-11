@@ -42,6 +42,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 from uuid import uuid4
 
 from jesse.services import live_history, research_jobs, session_results
+from jesse.services import project_files
 from jesse.services.project_files import ProjectFileError
 
 ANALYSIS_ROOT = os.path.join('storage', 'mcp', 'analysis')
@@ -469,6 +470,10 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
         raise _error('too_large', f'code is limited to {MAX_CODE_BYTES // 1024} KiB.', 413)
     research_jobs.validate_timeout(timeout_minutes, MAX_TIMEOUT_MINUTES)
     validated = _validate_inputs(inputs)
+    # Workspace confinement needs no-follow directory descriptors; refuse unsupported
+    # hosts before reserving a job or creating files rather than weakening those guarantees.
+    if not project_files._platform_supported():
+        raise _error('unsupported_platform', 'Analysis jobs require Linux or macOS (including Docker).', 501)
     job_id = _reserve_slot()
     # From here on the reservation is released in `finally`, whatever fails.
     try:

@@ -103,6 +103,9 @@ def _export(session_type: str, session_id: str) -> dict:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
+    # These workflows require no-follow directory descriptors and POSIX job cleanup.
+    if os.name == 'nt':
+        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'storage').mkdir(parents=True)
     (root / 'research_scripts').mkdir()

@@ -276,7 +276,8 @@ def test_unexpected_read_failures_are_reported_without_details(api, stored, monk
 def test_backtest_summary_is_compact_and_describes_the_sections(api, stored, project):
     log = project / 'storage' / 'logs' / 'backtest-mode' / f'{BACKTEST_ID}.txt'
     log.parent.mkdir(parents=True)
-    log.write_text('a\nb\n')
+    # A fixed byte fixture keeps the size assertion independent of Windows CRLF translation.
+    log.write_bytes(b'a\nb\n')
 
     summary = _get(api, 'backtest', BACKTEST_ID)
 

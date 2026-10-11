@@ -620,7 +620,8 @@ def test_custom_csv_network_errors_are_not_reported_as_validation_errors(project
     monkeypatch.setattr(mcp_config, 'JESSE_API_URL', 'http://jesse.test')
     monkeypatch.setattr(mcp_config, 'JESSE_PASSWORD', PASSWORD)
     for service in (candles_service.preview_custom_candle_csv_service, candles_service.clean_and_import_custom_candle_csv_service):
-        kwargs = {'project_path': good, 'symbol': 'OK-USD'}
+        # Absolute host paths work on Windows too; this test isolates HTTP failure handling.
+        kwargs = {'file_path': str(project / good), 'symbol': 'OK-USD'}
         if service is candles_service.clean_and_import_custom_candle_csv_service:
             kwargs['invalid_row_policy'] = 'reject'
         assert service(**kwargs)['error_type'] == 'network_error'
