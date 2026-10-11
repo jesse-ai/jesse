@@ -20,6 +20,8 @@ jobs:
   build:
     runs-on:  ${{matrix.os}}
     strategy:
+      # Retain results for every supported platform when one compatibility check fails.
+      fail-fast: false
       matrix:
         # ubuntu-latest    = Linux x86_64
         # ubuntu-24.04-arm = Linux aarch64 (free for public repos)

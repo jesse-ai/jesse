@@ -69,7 +69,8 @@ class _Forwarder:
         route = url.removeprefix('http://jesse.test')
         self.calls.append(route)
         if files is not None:
-            return self.client.post(route, data=data, files=files, headers=headers)
+            # CSV routes must retain server tracebacks; export tests separately exercise HTTP 500 responses.
+            return TestClient(self.client.app).post(route, data=data, files=files, headers=headers)
         return self.client.post(route, json=json, headers=headers)
 
 
@@ -532,7 +533,7 @@ def test_export_then_import_as_custom_data_round_trips_every_value(api, forwarde
     imported = candles_service.clean_and_import_custom_candle_csv_service(
         project_path=exported['path'], symbol='sol-usdt', invalid_row_policy='reject')
 
-    assert preview['status'] == 'success' and preview['project_path'] == exported['path']
+    assert preview['status'] == 'success' and preview['project_path'] == exported['path'], preview
     assert preview['cleaning_report']['cleaned_row_count'] == 40 and preview['import_preview']['valid'] is True
     assert imported['status'] == 'success'
     assert (imported['exchange'], imported['symbol'], imported['project_path']) == ('Custom Data', 'SOL-USDT', exported['path'])
@@ -605,7 +606,7 @@ def test_custom_csv_sources_are_confined_and_explicit(forwarder, project, tmp_pa
 
     # An absolute path on the Jesse host still works for an assistant on the same machine.
     local = candles_service.preview_custom_candle_csv_service(file_path=str(project / good), symbol='OK-USD')
-    assert local['status'] == 'success' and local['file_path'] == str((project / good).resolve())
+    assert local['status'] == 'success' and local['file_path'] == str((project / good).resolve()), local
 
 
 def test_custom_csv_network_errors_are_not_reported_as_validation_errors(project, monkeypatch):
