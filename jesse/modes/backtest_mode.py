@@ -4,6 +4,7 @@ import re
 from typing import Dict, List, Tuple, Optional
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 import jesse.services.metrics as stats
 from jesse import exceptions
 from jesse.config import config
@@ -105,6 +106,7 @@ def _execute_backtest(
     store.reset()
     # set session id
     store.app.set_session_id(client_id)
+    publish_status('Validating routes and preparing the backtest…')
     # validate routes
     validate_routes(router)
     # initiate candle store
@@ -127,10 +129,12 @@ def _execute_backtest(
     # load historical candles
     if candles is None:
         try:
+            publish_status('Loading historical candles…')
             warmup_candles, candles = load_candles(
                 jh.date_to_timestamp(start_date),
                 jh.date_to_timestamp(finish_date)
             )
+            publish_status('Preparing warm-up candles…')
             _handle_warmup_candles(warmup_candles, start_date)
         except exceptions.CandlesNotFound as e:
             _handle_sync_no_candles(e, start_date, exchange, client_id=client_id, finish_date=finish_date)
@@ -153,6 +157,7 @@ def _execute_backtest(
     # run backtest simulation
     result = None
     try:
+        publish_status('Initializing strategies and preparing the simulation…')
         result = simulator(
             candles,
             run_silently=jh.should_execute_silently(),
@@ -217,6 +222,7 @@ def _execute_backtest(
         # Generate six analytical chart images (equity_curve, drawdown, underwater,
         # monthly_heatmap, monthly_distribution, trade_pnl).
         # Must be called BEFORE store.reset() since it reads from the live store.
+        publish_status('Generating performance charts…', current=100)
         _charts_folder = os.path.abspath('storage/backtest-charts')
         charts._plot_backtest_charts(
             session_id=client_id,
@@ -224,8 +230,6 @@ def _execute_backtest(
             theme=theme,
             benchmark=benchmark,
         )
-        # Notify the frontend that all six images are ready.
-        sync_publish('charts_image_ready', {'session_id': client_id})
         
         # Prepare chart data if requested (call formatting functions once and cache)
         chart_data = None
@@ -255,6 +259,7 @@ def _execute_backtest(
                 except Exception:
                     pass
         
+        publish_status('Saving backtest results…', current=100)
         # Update backtest session in database with results
         from jesse.models.BacktestSession import update_backtest_session_results, update_backtest_session_status
         _raise_if_cancelled(client_id)
@@ -268,6 +273,9 @@ def _execute_backtest(
             strategy_codes=strategy_codes if strategy_codes else None
         )
         update_backtest_session_status(client_id, 'finished')
+        # Reveal results only after their charts and persisted data are both ready.
+        sync_publish('progressbar', {'current': 100, 'estimated_remaining_seconds': 0, 'message': 'Backtest complete'})
+        sync_publish('charts_image_ready', {'session_id': client_id})
 
     # close database connection
     from jesse.services.db import database
@@ -456,6 +464,8 @@ def load_candles(start_date: int, finish_date: int) -> Tuple[dict, dict]:
     warmup_candles = {}
     for c in config['app']['considering_candles']:
         exchange, symbol = c[0], c[1]
+        if jh.app_mode() == 'backtest' and not jh.should_execute_silently():
+            publish_status(f'Loading historical candles for {symbol} on {exchange}…')
         warmup_candles_arr, trading_candle_arr = candle_service.get_candles_from_db(
             exchange, symbol, max_timeframe, start_date, finish_date, warmup_num, caching=True, is_for_jesse=True
         )
@@ -1410,17 +1420,22 @@ def _update_progress_bar(
     if run_silently:
         return last_update_time
 
-    if candle_index % candle_step == 0:
-        progressbar.update()
+    # candle_index is the last processed row/event, not the number of loop calls.
+    # Fast sparse batches can skip exact multiples of the reporting step.
+    completed = min(candle_index + 1, progressbar.length)
+    advance = completed - progressbar.index
+    if advance >= candle_step or (advance > 0 and completed == progressbar.length):
+        progressbar.update(advance)
 
     current_time = time.time()
-    # Cancellation uses Redis, so cap both polling and progress publication at twice per second.
-    # This also works when sparse fast-mode batches jump over exact candle-index boundaries.
+    # Cancellation and progress use the shared coordinator; twice per second keeps
+    # the dashboard responsive without making transport cost scale with candle count.
     if last_update_time is None or (current_time - last_update_time) >= 0.5:
         _raise_if_cancelled(jh.get_session_id())
         sync_publish(
             "progressbar",
             {
+                "message": "Simulating historical candles…",
                 "current": progressbar.current,
                 "estimated_remaining_seconds": progressbar.estimated_remaining_seconds,
             },
@@ -1435,13 +1450,7 @@ def _finish_progress_bar(progressbar: Progressbar, run_silently: bool):
         return
 
     progressbar.finish()
-    sync_publish(
-        "progressbar",
-        {
-            "current": 100,
-            "estimated_remaining_seconds": 0,
-        },
-    )
+    publish_status('Calculating performance metrics…', current=100)
 
 
 def _order_is_crossed_by_opening_gap(
@@ -1890,7 +1899,7 @@ def _skip_simulator(
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, candles_pipelines, i, candles_step, pairs_info, htf_info)
 
-        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
+        last_update_time = _update_progress_bar(progressbar, run_silently, i + candles_step - 1, candles_step,
                                                 last_update_time=last_update_time)
 
         _execute_routes(i, candles_step)

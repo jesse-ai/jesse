@@ -42,7 +42,7 @@ setup(
     install_requires=REQUIRED_PACKAGES,
     entry_points='''
         [console_scripts]
-        jesse=jesse.__init__:cli
+        jesse=jesse.cli:cli
     ''',
     classifiers=[
         "Programming Language :: Python :: 3",

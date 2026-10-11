@@ -208,3 +208,294 @@ def monte_carlo_engine_config(run_config: dict) -> dict:
     config['starting_balance'] = config['exchange']['balance']
     config['fee'] = config['exchange']['fee']
     return config
+
+
+# ---------------------------------------------------------------------------
+# Live and paper sessions
+#
+# A Python port of dashboard-v1/app/utils/sessionConfig.ts (normalizeLiveRunConfig,
+# normalizeSessionDefaults, resolveLiveRunConfig, syncRunConfigExchange, liveEngineConfig), so a
+# draft made through MCP gets exactly the configuration a new dashboard Live tab would get for
+# the same paper exchange or saved exchange key. Saved settings are only read here; unlike the
+# dashboard's Start button, MCP never remembers a started session's configuration as the next
+# default, so running a session never changes shared settings.
+# ---------------------------------------------------------------------------
+
+_LIVE_LOGGING = {**_BASE_LOGGING, 'strategy_execution': True, 'exchange_ws_reconnection': True}
+
+_NOTIFICATION_EVENTS = (
+    'errors', 'started_session', 'terminated_session', 'submitted_orders', 'cancelled_orders',
+    'executed_orders', 'opened_position', 'updated_position', 'exchange_ws_reconnection',
+    'closed_position', 'account_balance',
+)
+
+_DEFAULT_NOTIFICATIONS = {
+    'enabled': True,
+    'position_report_timeframe': '1h',
+    # Account amounts require an explicit opt-in, matching the dashboard defaults.
+    'events': {event: event != 'account_balance' for event in _NOTIFICATION_EVENTS},
+}
+
+# The dashboard's DEFAULT_RESEARCH_EXCHANGE, the base of every Live/Paper exchange profile.
+_DEFAULT_LIVE_EXCHANGE = {
+    'name': '',
+    'type': 'futures',
+    'simulation_model': 'perpetual_futures',
+    'annualization': 365,
+    'balance': 10_000,
+    'fee': 0.0006,
+    'futures_leverage_mode': 'cross',
+    'futures_leverage': 5,
+}
+
+LIVE_CONFIG_FIELDS = (
+    'persistency', 'generate_candles_from_1m', 'logging', 'warm_up_candles', 'notifications', 'exchange',
+)
+LIVE_LOGGING_FIELDS = tuple(_LIVE_LOGGING)
+NOTIFICATION_FIELDS = tuple(_DEFAULT_NOTIFICATIONS)
+NOTIFICATION_EVENTS = _NOTIFICATION_EVENTS
+LIVE_EXCHANGE_OVERRIDE_FIELDS = (
+    'balance', 'fee', 'futures_leverage', 'futures_leverage_mode', 'simulation_model', 'type', 'annualization',
+)
+
+
+def _record(value: object) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _finite_number(value: object, fallback, minimum: float = 0):
+    """JavaScript `finiteNumber`: numbers and numeric strings at or above `minimum`, else fallback."""
+    parsed: float
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = float(value)
+        except ValueError:
+            return fallback
+    else:
+        return fallback
+    if parsed != parsed or parsed in (float('inf'), float('-inf')) or parsed < minimum:
+        return fallback
+    return parsed
+
+
+def _string_value(value: object, fallback: str) -> str:
+    return value if isinstance(value, str) and value else fallback
+
+
+def _boolean_value(value: object, fallback: bool) -> bool:
+    return value if isinstance(value, bool) else fallback
+
+
+def _normalize_logging(value: object, fallback: dict) -> dict:
+    source = _record(value)
+    normalized = {key: _boolean_value(source.get(key), fallback[key]) for key in _BASE_LOGGING}
+    for key in ('strategy_execution', 'exchange_ws_reconnection'):
+        if key in fallback or key in source:
+            normalized[key] = _boolean_value(source.get(key), fallback.get(key, True))
+    return normalized
+
+
+def _normalize_notifications(value: object, fallback: dict) -> dict:
+    source = _record(value)
+    events = _record(source.get('events'))
+    return {
+        'enabled': _boolean_value(source.get('enabled'), fallback['enabled']),
+        'position_report_timeframe': _string_value(
+            source.get('position_report_timeframe'), fallback['position_report_timeframe'],
+        ),
+        'events': {event: _boolean_value(events.get(event), fallback['events'][event]) for event in _NOTIFICATION_EVENTS},
+    }
+
+
+def _normalize_simulation_model(value: object, fallback: str) -> str:
+    if value in ('spot', 'perpetual_futures'):
+        return str(value)
+    if value == 'futures':
+        return 'perpetual_futures'
+    return fallback
+
+
+def _legacy_type(simulation_model: str) -> str:
+    return 'futures' if simulation_model == 'perpetual_futures' else 'spot'
+
+
+def _normalize_annualization(value: object, fallback: int) -> int:
+    parsed = value
+    if isinstance(value, str):
+        try:
+            parsed = float(value)
+        except ValueError:
+            return fallback
+    if isinstance(parsed, bool):
+        return fallback
+    return int(parsed) if parsed in (252, 365) else fallback
+
+
+def _normalize_live_exchange(value: object, fallback: dict, forced_name: Optional[str] = None) -> dict:
+    source = _record(value)
+    fallback_model = _normalize_simulation_model(fallback.get('simulation_model') or fallback.get('type'), 'spot')
+    requested_model = source.get('simulation_model') or source.get('market_type') or source.get('type')
+    simulation_model = _normalize_simulation_model(requested_model, fallback_model)
+    exchange_type = _legacy_type(simulation_model)
+    normalized = {
+        'name': forced_name if forced_name is not None else _string_value(source.get('name'), fallback.get('name', '')),
+        'type': exchange_type,
+        'simulation_model': simulation_model,
+        'annualization': _normalize_annualization(source.get('annualization'), fallback.get('annualization') or 365),
+        'balance': _finite_number(source.get('balance'), fallback['balance']),
+        'fee': _finite_number(source.get('fee'), fallback['fee']),
+    }
+    if exchange_type == 'futures':
+        normalized['futures_leverage_mode'] = _string_value(
+            source.get('futures_leverage_mode'), fallback.get('futures_leverage_mode') or 'cross',
+        )
+        normalized['futures_leverage'] = _finite_number(
+            source.get('futures_leverage'), fallback.get('futures_leverage') or 1, 1,
+        )
+    return normalized
+
+
+def normalize_live_run_config(value: object, fallback: dict) -> dict:
+    """Fill a (possibly partial or malformed) live run config from `fallback`, field by field."""
+    source = _record(value)
+    return {
+        'persistency': _boolean_value(source.get('persistency'), fallback['persistency']),
+        'generate_candles_from_1m': _boolean_value(
+            source.get('generate_candles_from_1m'), fallback['generate_candles_from_1m'],
+        ),
+        'logging': _normalize_logging(source.get('logging'), fallback['logging']),
+        'warm_up_candles': _finite_number(source.get('warm_up_candles'), fallback['warm_up_candles']),
+        'notifications': _normalize_notifications(source.get('notifications'), fallback['notifications']),
+        'exchange': _normalize_live_exchange(source.get('exchange'), fallback['exchange']),
+    }
+
+
+def _exchange_annualization(info: dict) -> int:
+    if info.get('annualization'):
+        return int(info['annualization'])
+    asset_class = info.get('asset_class')
+    return 365 if not asset_class or asset_class == 'crypto' else 252
+
+
+def live_session_defaults(settings: object, exchanges: Optional[dict] = None) -> dict:
+    """
+    The dashboard's contextual Live/Paper defaults: a fallback, one profile per live-trading
+    exchange (used for Paper sessions and for Live sessions without a credential profile), and
+    the profiles remembered per saved exchange key.
+    """
+    exchanges = exchange_info if exchanges is None else exchanges
+    root = _record(settings)
+    live = _record(root.get('live'))
+    legacy_exchanges = _record(live.get('exchanges'))
+    derived_fallback = {
+        'persistency': _boolean_value(live.get('persistency'), True),
+        'generate_candles_from_1m': _boolean_value(live.get('generate_candles_from_1m'), False),
+        'logging': _normalize_logging(live.get('logging'), _LIVE_LOGGING),
+        'warm_up_candles': _finite_number(live.get('warm_up_candles'), 210),
+        'notifications': _normalize_notifications(live.get('notifications'), _DEFAULT_NOTIFICATIONS),
+        'exchange': deepcopy(_DEFAULT_LIVE_EXCHANGE),
+    }
+    live_names = list(dict.fromkeys([
+        *legacy_exchanges.keys(),
+        *(name for name, info in exchanges.items() if _record(info.get('modes')).get('live_trading')),
+    ]))
+    derived_paper = {}
+    for name in live_names:
+        info = _record(exchanges.get(name))
+        profile = {
+            **_DEFAULT_LIVE_EXCHANGE,
+            'name': name,
+            'fee': info.get('fee', _DEFAULT_LIVE_EXCHANGE['fee']),
+            'type': info.get('type', _DEFAULT_LIVE_EXCHANGE['type']),
+            'simulation_model': _normalize_simulation_model(
+                info.get('simulation_model') or info.get('type'), _DEFAULT_LIVE_EXCHANGE['simulation_model'],
+            ),
+            'annualization': _exchange_annualization(info),
+        }
+        derived_paper[name] = {
+            **deepcopy(derived_fallback),
+            'exchange': _normalize_live_exchange(legacy_exchanges.get(name), profile, name),
+        }
+
+    stored_live = _record(_record(root.get('session_defaults')).get('live'))
+    stored_paper = _record(stored_live.get('paper_by_exchange'))
+    stored_credentials = _record(stored_live.get('live_by_credential'))
+    fallback = normalize_live_run_config(stored_live.get('fallback'), derived_fallback)
+    paper_by_exchange = {
+        name: normalize_live_run_config(stored_paper.get(name), derived_paper.get(name, fallback))
+        for name in dict.fromkeys([*derived_paper.keys(), *stored_paper.keys()])
+    }
+    live_by_credential = {
+        key_id: normalize_live_run_config(stored_credentials[key_id], fallback)
+        for key_id in stored_credentials
+    }
+    return {'fallback': fallback, 'paper_by_exchange': paper_by_exchange, 'live_by_credential': live_by_credential}
+
+
+def sync_live_exchange(config_exchange: dict, exchange_name: str, lock_to_exchange: bool,
+                       exchanges: Optional[dict] = None) -> None:
+    """
+    Keep the exchange identity authoritative (the dashboard's syncRunConfigExchange). A real
+    (non-paper) session always uses the venue's own market type and annualization.
+    """
+    exchanges = exchange_info if exchanges is None else exchanges
+    info = exchanges.get(exchange_name)
+    config_exchange['name'] = exchange_name
+    authoritative = (info.get('simulation_model') or info.get('type')) if lock_to_exchange and info else None
+    simulation_model = _normalize_simulation_model(
+        authoritative or config_exchange.get('simulation_model') or config_exchange.get('type'), 'spot',
+    )
+    config_exchange['simulation_model'] = simulation_model
+    config_exchange['type'] = _legacy_type(simulation_model)
+    exchange_annualization = _exchange_annualization(info or {})
+    config_exchange['annualization'] = (
+        exchange_annualization if lock_to_exchange and info
+        else _normalize_annualization(config_exchange.get('annualization'), exchange_annualization)
+    )
+
+
+def resolve_live_run_config(
+    settings: object,
+    paper_mode: bool,
+    exchange_name: str,
+    exchange_api_key_id: str = '',
+    current: object = None,
+    overrides: Optional[dict] = None,
+    exchanges: Optional[dict] = None,
+) -> dict:
+    """
+    Resolve one Live/Paper session's own run configuration.
+
+    Mirrors a dashboard Live tab: the context default (the saved key's profile for a real
+    session, else the exchange's paper profile, else the fallback) fills in whatever `current`
+    (the draft's stored config) lacks, then `overrides` are merged and the exchange identity is
+    synced. The result belongs to that one session only.
+    """
+    defaults = live_session_defaults(settings, exchanges)
+    context_default = None
+    if not paper_mode and exchange_api_key_id:
+        context_default = defaults['live_by_credential'].get(exchange_api_key_id)
+    if context_default is None:
+        context_default = defaults['paper_by_exchange'].get(exchange_name, defaults['fallback'])
+    config = normalize_live_run_config(current, context_default) if isinstance(current, dict) else deepcopy(context_default)
+    if overrides:
+        config = normalize_live_run_config(_merge(deepcopy(config), overrides), config)
+    sync_live_exchange(config['exchange'], exchange_name, not paper_mode, exchanges)
+    return config
+
+
+def live_engine_config(run_config: dict) -> dict:
+    """Convert a LiveRunConfig into the request shape /live passes to the live engine (liveEngineConfig)."""
+    exchange = deepcopy(run_config['exchange'])
+    return {
+        'persistency': run_config['persistency'],
+        'generate_candles_from_1m': run_config['generate_candles_from_1m'],
+        'logging': deepcopy(run_config['logging']),
+        'warm_up_candles': int(run_config['warm_up_candles']),
+        'notifications': deepcopy(run_config['notifications']),
+        'exchanges': {exchange['name']: exchange},
+    }

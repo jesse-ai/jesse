@@ -8,7 +8,7 @@ _BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'unde
 
 
 def _delete_chart_images(session_id: str) -> None:
-    """Remove the six generated chart PNG files for a session, if they exist."""
+    """Remove every generated chart PNG file for a session, if it exists."""
     charts_folder = os.path.abspath('storage/backtest-charts')
     for chart_name in _BACKTEST_CHART_NAMES:
         path = os.path.join(charts_folder, f'{session_id}_{chart_name}.png')
@@ -237,6 +237,11 @@ def store_backtest_session(
     existing_session = get_backtest_session_by_id(id)
     
     if existing_session:
+        # Chart images are keyed only by session ID and their existence is what
+        # marks them available, so a rerun must drop the previous run's files
+        # before they can be served as the new run's results.
+        _delete_chart_images(id)
+
         # Update existing session - reset results but preserve state (routes/form config)
         d = {
             'status': status,

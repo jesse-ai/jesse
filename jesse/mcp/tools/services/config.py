@@ -10,6 +10,7 @@ code organization and reusability.
 """
 
 from .auth import hash_password
+from .locks import CONFIG_LOCK
 import jesse.mcp.mcp_config as mcp_config
 
 
@@ -51,13 +52,15 @@ def get_config_service() -> dict:
     auth_token_hashed = hash_password(password)
 
     try:
-        # Call the config controller endpoint (same as dashboard)
-        response = requests.post(
-            f'{api_url}/config/get',
-            json={'current_config': {}},  # Empty config to get defaults
-            headers={'Authorization': auth_token_hashed},
-            timeout=10
-        )
+        # Call the config controller endpoint (same as dashboard). It saves the row it read,
+        # so it must not overlap this worker's updates (see locks.CONFIG_LOCK).
+        with CONFIG_LOCK:
+            response = requests.post(
+                f'{api_url}/config/get',
+                json={'current_config': {}},  # Empty config to get defaults
+                headers={'Authorization': auth_token_hashed},
+                timeout=10
+            )
 
         if response.status_code == 200:
             data = response.json()
@@ -117,13 +120,15 @@ def update_config_service(config: str) -> dict:
         # Parse the config JSON
         new_config = _config_update_payload(json.loads(config))
 
-        # Call the config update endpoint (same as dashboard)
-        response = requests.post(
-            f'{api_url}/config/update',
-            json={'current_config': new_config},
-            headers={'Authorization': auth_token_hashed},
-            timeout=10
-        )
+        # Call the config update endpoint (same as dashboard), never overlapping this
+        # worker's reads (see locks.CONFIG_LOCK).
+        with CONFIG_LOCK:
+            response = requests.post(
+                f'{api_url}/config/update',
+                json={'current_config': new_config},
+                headers={'Authorization': auth_token_hashed},
+                timeout=10
+            )
 
         if response.status_code == 200:
             return {

@@ -131,6 +131,11 @@ for key in exchange_info:
 def set_config(conf: dict) -> None:
     global config
 
+    if config['app']['trading_mode'] in ('monte-carlo', 'significance-test'):
+        # The coordinator loads history before scenario workers format their own
+        # backtest settings, so both stages must use the selected warmup count.
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
+
     # optimization mode only
     if jh.is_optimizing():
         # objective function

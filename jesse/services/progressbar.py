@@ -17,15 +17,21 @@ class Progressbar:
         self.step = step
         self.is_finished = False
 
-    def update(self):
+    def update(self, advance: int | None = None):
+        """Count completed work, normalizing timing samples for unequal batch sizes."""
+        advance = self.step if advance is None else advance
+        if advance <= 0:
+            raise ValueError('advance must be greater than 0')
+        now = time()
         if not self.is_finished:
-            # The final batch may be smaller than step. Clamp it so progress and
-            # remaining work never escape their public 0-100 / non-negative bounds.
-            self.index = min(self.index + self.step, self.length)
+            # Sparse replay can cross several nominal batches in one iteration.
+            # Count the actual work and clamp the final partial batch to length.
+            processed = min(advance, self.length - self.index)
+            self.index += processed
             if self.index >= self.length:
                 self.is_finished = True
-        now = time()
-        self._execution_times.append(np.array([now - self._time]))
+            # ETA averages durations per nominal batch, even when update sizes vary.
+            self._execution_times.append(np.array([(now - self._time) * self.step / processed]))
         self._time = now
 
     @property

@@ -91,6 +91,9 @@ def run():
         Trade,
     ], safe=True)
 
+    from jesse.services.timescale import configure_if_requested
+    configure_if_requested()
+
     database.close_connection()
 
 

@@ -18,8 +18,11 @@ Requirements / gotchas:
       telling you what to import.
     - `trials` is PER hyperparameter: total trials = n_hyperparameters * trials.
     - Optimization is long-running; poll less frequently than a backtest.
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
+from .offload import run_blocking
 from .services import (
     create_optimization_draft_service,
     update_optimization_draft_service,
@@ -38,9 +41,12 @@ from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 def register_optimization_tools(mcp):
     """Register the optimization tools with the MCP server."""
+    # The usage check and the run request happen in one worker-thread call, so a cancellation
+    # never falls between them (a credit used without the run being attempted).
+    gated_run_optimization = gated(weight=CREDIT_WEIGHTS["run_optimization"])(run_optimization_service)
 
     @mcp.tool()
-    def create_optimization_draft(
+    async def create_optimization_draft(
         exchange: str = "Binance Perpetual Futures",
         routes: str = '[{"exchange": "Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
         data_routes: str = '[]',
@@ -105,7 +111,8 @@ def register_optimization_tools(mcp):
             { "status": "success", "session_id": "<uuid>", "draft_state": {...},
               "notes": {...}, "dashboard_url": "...", "message": "..." }
         """
-        return create_optimization_draft_service(
+        return await run_blocking(
+            create_optimization_draft_service,
             exchange=exchange,
             routes=routes,
             data_routes=data_routes,
@@ -128,7 +135,7 @@ def register_optimization_tools(mcp):
         )
 
     @mcp.tool()
-    def update_optimization_draft(session_id: str, state: str) -> dict:
+    async def update_optimization_draft(session_id: str, state: str) -> dict:
         """
         Replace the full state of an optimization draft.
 
@@ -137,10 +144,10 @@ def register_optimization_tools(mcp):
             state: JSON string of the complete state object ({"form": {...}, "results": {...}}).
                 Retrieve current state with get_optimization_session, modify, and send back.
         """
-        return update_optimization_draft_service(session_id, state)
+        return await run_blocking(update_optimization_draft_service, session_id, state)
 
     @mcp.tool()
-    def update_optimization_notes(
+    async def update_optimization_notes(
         session_id: str,
         title: str = None,
         description: str = None,
@@ -155,7 +162,8 @@ def register_optimization_tools(mcp):
             strategy_codes: Optional JSON object string mapping "exchange-symbol" to
                 strategy source.
         """
-        return update_optimization_notes_service(
+        return await run_blocking(
+            update_optimization_notes_service,
             session_id=session_id,
             title=title,
             description=description,
@@ -163,7 +171,7 @@ def register_optimization_tools(mcp):
         )
 
     @mcp.tool()
-    def get_optimization_session(session_id: str) -> dict:
+    async def get_optimization_session(session_id: str) -> dict:
         """
         Fetch full details of an optimization session — the primary polling tool.
 
@@ -199,10 +207,10 @@ def register_optimization_tools(mcp):
         testing_metrics. A candidate that's strong in training but weak in testing is
         overfit; prefer candidates that hold up out-of-sample.
         """
-        return get_optimization_session_service(session_id)
+        return await run_blocking(get_optimization_session_service, session_id)
 
     @mcp.tool()
-    def get_optimization_sessions(
+    async def get_optimization_sessions(
         limit: int = 50,
         offset: int = 0,
         title_search: str = None,
@@ -218,7 +226,8 @@ def register_optimization_tools(mcp):
             status_filter: "running" | "paused" | "finished" | "stopped" | "terminated".
             date_filter: "today" | "this_week" | "this_month" | "this_year".
         """
-        return get_optimization_sessions_service(
+        return await run_blocking(
+            get_optimization_sessions_service,
             limit=limit,
             offset=offset,
             title_search=title_search,
@@ -227,16 +236,15 @@ def register_optimization_tools(mcp):
         )
 
     @mcp.tool()
-    def get_optimization_logs(session_id: str) -> dict:
+    async def get_optimization_logs(session_id: str) -> dict:
         """
         Fetch the raw log file content for an optimization session. Useful for
         diagnosing a stopped run beyond the `exception` field.
         """
-        return get_optimization_logs_service(session_id)
+        return await run_blocking(get_optimization_logs_service, session_id)
 
     @mcp.tool()
-    @gated(weight=CREDIT_WEIGHTS["run_optimization"])
-    def run_optimization(session_id: str) -> dict:
+    async def run_optimization(session_id: str) -> dict:
         """
         Start a previously created optimization draft and return immediately.
 
@@ -248,38 +256,38 @@ def register_optimization_tools(mcp):
         Returns: { "status": "started", "session_id": "<uuid>", "message": "..." }
                  or { "status": "error", "message": "..." }
         """
-        return run_optimization_service(session_id)
+        return await run_blocking(gated_run_optimization, session_id)
 
     @mcp.tool()
-    def rerun_optimization(session_id: str) -> dict:
+    async def rerun_optimization(session_id: str) -> dict:
         """
         Reset and restart an existing optimization session, clearing its prior
         trials and results. Use this to run a finished or stopped session again
         (e.g. after importing missing candles or editing the strategy). Cancel a
         running session first before rerunning.
         """
-        return rerun_optimization_service(session_id)
+        return await run_blocking(rerun_optimization_service, session_id)
 
     @mcp.tool()
-    def cancel_optimization(session_id: str) -> dict:
+    async def cancel_optimization(session_id: str) -> dict:
         """
         Cooperatively cancel a running optimization. The worker stops at the next
         trial checkpoint; partial results (completed trials) are preserved.
         """
-        return cancel_optimization_service(session_id)
+        return await run_blocking(cancel_optimization_service, session_id)
 
     @mcp.tool()
-    def terminate_optimization(session_id: str) -> dict:
+    async def terminate_optimization(session_id: str) -> dict:
         """
         Hard-terminate a running optimization (marks it 'terminated' and forces the
         worker down). Prefer cancel_optimization for a graceful stop.
         """
-        return terminate_optimization_service(session_id)
+        return await run_blocking(terminate_optimization_service, session_id)
 
     @mcp.tool()
-    def purge_optimization_sessions(days_old: int = None) -> dict:
+    async def purge_optimization_sessions(days_old: int = None) -> dict:
         """
         Permanently delete optimization sessions. If days_old is given, only delete
         sessions older than that many days; otherwise delete all. Irreversible.
         """
-        return purge_optimization_sessions_service(days_old)
+        return await run_blocking(purge_optimization_sessions_service, days_old)

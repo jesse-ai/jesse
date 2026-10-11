@@ -17,6 +17,7 @@ from jesse.services.web import (
     DeleteCandlesRequestJson,
     PurgeCandlesRequestJson,
     CopyCandlesRequestJson,
+    ExportCandlesToProjectRequestJson,
 )
 from jesse.services.redis import is_process_active
 from jesse.services.custom_candle_import import (
@@ -36,6 +37,11 @@ export_router = APIRouter(
     dependencies=[Depends(require_auth_form)],
 )
 
+# Column order of every candle export; it is also the order the custom-data import expects.
+EXPORT_COLUMNS = ('timestamp', 'open', 'close', 'high', 'low', 'volume')
+# Default folder, under research_scripts/, for exports written into the project.
+EXPORT_FOLDER = 'candle_exports'
+
 
 def _safe_export_filename(exchange: str, symbol: str) -> str:
     source = re.sub(r'[^a-z0-9]+', '-', exchange.lower()).strip('-') or 'candles'
@@ -47,7 +53,7 @@ def _stream_candle_csv(exchange: str, symbol: str) -> Iterator[str]:
     """Encode bounded database batches into chunks compatible with custom-data import."""
     output = io.StringIO()
     writer = csv.writer(output, lineterminator='\n')
-    writer.writerow(('timestamp', 'open', 'close', 'high', 'low', 'volume'))
+    writer.writerow(EXPORT_COLUMNS)
     yield output.getvalue()
 
     for rows in candle_repository.stream_one_minute_candles(exchange, symbol):
@@ -72,6 +78,76 @@ def export_candles(
             'X-Content-Type-Options': 'nosniff',
         },
     )
+
+
+@router.post('/export-to-project')
+def export_candles_to_project(json_request: ExportCandlesToProjectRequestJson) -> JSONResponse:
+    """
+    Write the same CSV as /candles/export into the project's research_scripts/ folder.
+
+    Remote assistants cannot receive a browser download, so this keeps the file on the Jesse
+    host where the project file tools, research scripts, and custom-data import can use it.
+    """
+    from jesse.services import project_files
+
+    exchange = json_request.exchange
+    symbol = json_request.symbol
+    path = json_request.path or (
+        f'{project_files.RESEARCH_SCRIPTS_ROOT}/{EXPORT_FOLDER}/{_safe_export_filename(exchange, symbol)}'
+    )
+    try:
+        parts = project_files.parse_path(path)
+    except project_files.ProjectFileError as exc:
+        return JSONResponse({'error_type': exc.error_type, 'error': exc.message}, status_code=exc.status_code)
+    if parts[0] != project_files.RESEARCH_SCRIPTS_ROOT or not parts[-1].lower().endswith('.csv'):
+        return JSONResponse({
+            'error_type': 'invalid_path',
+            'error': 'Candle exports are written to a .csv file under research_scripts/.',
+        }, status_code=400)
+
+    first_timestamp, _last_timestamp = candle_repository.get_candle_timestamp_bounds(exchange, symbol, '1m')
+    if first_timestamp is None:
+        return JSONResponse({
+            'error_type': 'not_found',
+            'error': f'No one-minute candles are stored for {symbol} on {exchange}.',
+        }, status_code=404)
+
+    # The reported row count and first/last timestamps are taken from the rows actually written,
+    # not from the bounds above, which a concurrent import or delete can change before streaming.
+    written_rows = {'count': 0, 'first': None, 'last': None}
+
+    def encoded_chunks() -> Iterator[bytes]:
+        # The first chunk is the header line; every later chunk is one database batch of lines
+        # that start with the timestamp.
+        for index, chunk in enumerate(_stream_candle_csv(exchange, symbol)):
+            if index:
+                lines = chunk.splitlines()
+                if lines:
+                    if written_rows['first'] is None:
+                        written_rows['first'] = int(float(lines[0].split(',', 1)[0]))
+                    written_rows['last'] = int(float(lines[-1].split(',', 1)[0]))
+                    written_rows['count'] += len(lines)
+            yield chunk.encode('utf-8')
+        if not written_rows['count']:
+            # Deleted after the check above: publish nothing rather than a header-only file.
+            raise project_files.ProjectFileError(
+                'not_found', f'No one-minute candles are stored for {symbol} on {exchange}.', 404)
+
+    try:
+        written = project_files.write_file_from_chunks(path, encoded_chunks(), json_request.overwrite)
+    except project_files.ProjectFileError as exc:
+        return JSONResponse({'error_type': exc.error_type, 'error': exc.message}, status_code=exc.status_code)
+
+    return JSONResponse({
+        **written,
+        'exchange': exchange,
+        'symbol': symbol,
+        'timeframe': '1m',
+        'row_count': written_rows['count'],
+        'first_timestamp': written_rows['first'],
+        'last_timestamp': written_rows['last'],
+        'columns': list(EXPORT_COLUMNS),
+    }, status_code=201)
 
 
 @router.post('/custom/preview')
@@ -295,8 +371,8 @@ def delete_candles(json_request: DeleteCandlesRequestJson) -> JSONResponse:
     """
 
     try:
-        candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
-        return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
+        deleted_count = candle_repository.delete_candles_from_db(json_request.exchange, json_request.symbol)
+        return JSONResponse({'message': 'Candles deleted successfully', 'deleted_count': deleted_count}, status_code=200)
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
 

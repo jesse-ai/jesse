@@ -173,7 +173,11 @@ class ClosedTrade(peewee.Model):
         else:
             return np.nan
 
-        return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
+        quantity = orders[:, 0].sum()
+        # Merged-away trades retain metadata after their orders move to the survivor.
+        if quantity == 0:
+            return np.nan
+        return (orders[:, 0] * orders[:, 1]).sum() / quantity
 
     @property
     def current_qty(self) -> float:
@@ -196,7 +200,11 @@ class ClosedTrade(peewee.Model):
         else:
             return np.nan
 
-        return (orders[:, 0] * orders[:, 1]).sum() / orders[:, 0].sum()
+        quantity = orders[:, 0].sum()
+        # Open and merged-away trades can have no exit quantity to price.
+        if quantity == 0:
+            return np.nan
+        return (orders[:, 0] * orders[:, 1]).sum() / quantity
 
     @property
     def is_open(self) -> bool:

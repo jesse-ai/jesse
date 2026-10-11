@@ -138,7 +138,7 @@ def test_redis_snapshot_failures_do_not_escape(monkeypatch):
     assert redis_service.store_live_charts_snapshot('session-1', {}) is False
     assert redis_service.get_live_charts_snapshot('session-1') == {}
     assert len(messages) == 2
-    assert all('Redis' in message for message in messages)
+    assert all('coordinator' in message for message in messages)
 
 
 def test_strategy_charts_endpoint_returns_the_session_snapshot(monkeypatch):

@@ -45,7 +45,9 @@ class ApexOmniPerpetualMain(CandleExchange):
 
             if 'data' not in response.json():
                 raise exceptions.ExchangeInMaintenance(response.json()['msg'])
-            elif response.json()['data'] == {}:
+            # The full-history query validates the symbol. An empty narrower
+            # window only ends refinement; it does not invalidate known history.
+            elif response.json()['data'] == {} and first_timestamp is None:
                 raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
 
             data = response.json()['data'].get(dashless_symbol) or []
@@ -71,10 +73,11 @@ class ApexOmniPerpetualMain(CandleExchange):
 
         if 'data' not in response.json():
             raise exceptions.ExchangeInMaintenance(response.json()['msg'])
-        elif response.json()['data'] == {}:
-            raise exceptions.InvalidSymbol('Exchange does not support the entered symbol. Please enter a valid symbol.')
 
-        data = response.json()['data'][dashless_symbol]
+        # Apex answers {"data": {}} when the window holds no closed bar yet (e.g. the live
+        # tail request for the current minute), not only for unknown symbols. Keep symbol
+        # validation in get_starting_time(), and allow this fetch window to have no candles.
+        data = response.json()['data'].get(dashless_symbol) or []
 
         return [
             {
