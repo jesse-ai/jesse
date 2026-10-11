@@ -49,6 +49,12 @@ LockError = client_module.LockError
 def binary():
     """Build only cached dependencies; never install tools or fetch packages."""
     required = os.environ.get('JESSE_COORDINATION_REQUIRE_TESTS') == '1'
+    # Application-only checkouts lack Rust sources; dedicated native CI supplies
+    # them and treats missing sources as a failure rather than skipping coverage.
+    if not NATIVE.is_dir():
+        if required:
+            pytest.fail('Native coordinator source checkout is unavailable')
+        pytest.skip('Native sources are unavailable; coordinator checks run in dedicated CI')
     if shutil.which('cargo') is None:
         if required:
             pytest.fail('Native coordinator checks require Cargo')
