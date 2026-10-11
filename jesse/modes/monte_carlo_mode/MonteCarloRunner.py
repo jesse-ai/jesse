@@ -5,6 +5,7 @@ import ray
 import numpy as np
 import jesse.helpers as jh
 from jesse.services.progress import publish_status
+from jesse.services.ray_runtime import initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
@@ -78,13 +79,16 @@ class MonteCarloRunner:
                 if enabled:
                     publish_status('Starting simulation workers…', event=event, total=self.num_scenarios)
             try:
-                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                initialize_ray(self.cpu_cores)
                 logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores", session_id=self.session_id)
                 self.ray_started_here = True
+            except MemoryError:
+                # Startup memory limits also cover Ray services and the worker heap.
+                raise
             except Exception as e:
                 logger.log_monte_carlo(f"Error initializing Ray: {e}. Falling back to 1 CPU.", session_id=self.session_id)
                 self.cpu_cores = 1
-                ray.init(num_cpus=1, ignore_reinit_error=True)
+                initialize_ray(1)
                 self.ray_started_here = True
 
         self.client_id = jh.get_session_id()

@@ -1421,13 +1421,15 @@ def test_per_session_texts_are_redacted_before_they_are_cut(api):
     assert _secret_fragments(json.dumps([summary, logs, listing])) == []
 
 
+# Stable case names keep collection identical across workers despite random key IDs.
 @pytest.mark.parametrize('state', [
     json.dumps({'form': [KEY_A]}),                                     # a form that is not an object
     json.dumps([{'form': {'exchange_api_key_id': KEY_A}}]),            # a state that is not an object
     json.dumps({'form': {'exchange_api_key_id': {'id': KEY_A}}}),      # a key field that is not text
     json.dumps({'form': {'notification_api_key_id': 12}}),
     '{not json',
-])
+], ids=['non-object-form', 'non-object-state', 'non-text-exchange-key',
+        'non-text-notification-key', 'invalid-json'])
 def test_session_states_of_an_unexpected_shape_fail_closed(api, project, state):
     session = _session(state=state)
     _order(session, START_MS, status='ACTIVE', exchange_id=FAKE_SECRET_A)

@@ -72,6 +72,17 @@ Run the test suite after changes if asked.
 python -m pytest
 ```
 
+For a local parallel run, when `pytest-xdist` is already installed and the host has
+enough CPU and memory capacity:
+```bash
+python -m pytest -n 12 --dist=loadfile
+```
+Keep file grouping so module fixtures and tests within a file run together in one
+worker. Reduce the worker count on smaller hosts. Parallel execution is optional;
+plain `python -m pytest` remains the serial fallback for debugging and environments
+without the plugin. With the current pytest 6 requirement, use `pytest-xdist==3.5.0`;
+newer plugin releases require pytest 7. Ask before installing missing test tools.
+
 Dashboard Playwright tests start Jesse from a disposable project through
 `dashboard-v1/tests/e2e/backend.mjs`. That process selects a dedicated env file
 with `JESSE_ENV_FILE`, enables `IS_TEST_ENV=TRUE`, and uses a non-public

@@ -7,6 +7,7 @@ import ray
 import numpy as np
 import jesse.helpers as jh
 from jesse.services.progress import publish_status
+from jesse.services.ray_runtime import initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish
@@ -159,13 +160,16 @@ class Optimizer:
         self.ray_started_here = False
         if not ray.is_initialized():
             try:
-                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                initialize_ray(self.cpu_cores)
                 logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores", self.session_id )
                 self.ray_started_here = True
+            except MemoryError:
+                # Startup memory limits also cover Ray services and the worker heap.
+                raise
             except Exception as e:
                 logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.", self.session_id )
                 self.cpu_cores = 1
-                ray.init(num_cpus=1, ignore_reinit_error=True)
+                initialize_ray(1)
                 self.ray_started_here = True
 
         self.client_id = jh.get_session_id()
