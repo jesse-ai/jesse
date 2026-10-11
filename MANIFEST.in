@@ -1,6 +1,6 @@
 include README.md
 include requirements.txt
-include jesse/static/*
-include jesse/static/**/*
+# Include nested editor assets as well as the dashboard's top-level bundles.
+recursive-include jesse/static *
 include jesse/mcp/*.md
 include jesse/mcp/resources/*.md
