@@ -45,4 +45,6 @@ jobs:
       - run: cargo fmt --manifest-path jesse-rust/coordination/Cargo.toml -- --check
       - run: cargo clippy --all-targets --locked --manifest-path jesse-rust/coordination/Cargo.toml -- -D warnings
       - run: cargo test --locked --manifest-path jesse-rust/coordination/Cargo.toml
-      - run: python -m pytest tests/test_coordination.py -q
+      # This standalone suite loads the client directly. Application conftest
+      # imports require Jesse's full dependencies, absent from this minimal job.
+      - run: python -m pytest --noconftest tests/test_coordination.py -q
