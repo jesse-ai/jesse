@@ -225,6 +225,9 @@ def register_optimization_tools(mcp):
             title_search: case-insensitive title substring.
             status_filter: "running" | "paused" | "finished" | "stopped" | "terminated".
             date_filter: "today" | "this_week" | "this_month" | "this_year".
+
+        Each session row has "dashboard_url", its page on the dashboard: give the user that
+        link, not the bare ID.
         """
         return await run_blocking(
             get_optimization_sessions_service,

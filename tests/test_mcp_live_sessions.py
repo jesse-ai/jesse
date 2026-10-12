@@ -637,6 +637,7 @@ def test_notes_update_any_session(jesse):
     draft = _paper()['session_id']
     result = live_service.update_live_session_notes_service(draft, title='Renamed', description='why')
     assert result['status'] == 'success'
+    assert result['dashboard_url'] == f'https://dash.example/#/live/{draft}'
     assert (_row(draft).title, _row(draft).description) == ('Renamed', 'why')
     assert live_service.update_live_session_notes_service(draft)['error_type'] == 'invalid_request'
     assert live_service.update_live_session_notes_service(str(uuid.uuid4()), title='x')['error_type'] == 'not_found'

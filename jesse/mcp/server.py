@@ -57,6 +57,9 @@ INSTRUCTIONS = (
     "Read stored session results, including live/paper sessions, with get_session_results "
     "(summary first); Jesse's recorded live/paper trades and orders of a date window across "
     "sessions with get_live_trades / get_live_orders (not the exchange account's history). "
+    "Whenever you mention a session to the user, or they ask for its URL or link, give the "
+    "`dashboard_url` from the tool response as a link, before any other detail; a session ID "
+    "alone is of no use to them. "
     "To analyze, compare, or chart results, use run_analysis, which runs in a "
     "temporary workspace and never needs research_scripts/; see jesse://session_analysis."
 )

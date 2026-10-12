@@ -8,7 +8,7 @@ are stored here to avoid circular imports.
 The worker entry point (jesse.mcp.server) sets these values before registering tools.
 """
 
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import quote
 
 # Internal Jesse API URL. Tools call the API on this machine through it (loopback or the
@@ -83,3 +83,35 @@ def dashboard_url(category: str, session_id: str) -> str:
     if not path or not session_id:
         return ''
     return f"{DASHBOARD_URL}/#/{path}/{quote(str(session_id), safe='')}"
+
+
+def with_dashboard_urls(category: str, sessions: Any) -> Any:
+    """
+    Return the rows of a session list with each one's `dashboard_url` added (from its `id`).
+
+    The user asks for "the link to the one running on X" far more often than for an ID, so
+    every list a tool returns carries the links ready to use. Anything that is not a list of
+    session rows is returned unchanged.
+    """
+    if not isinstance(sessions, list):
+        return sessions
+    return [
+        {**row, 'dashboard_url': dashboard_url(category, row.get('id'))} if isinstance(row, dict) else row
+        for row in sessions
+    ]
+
+
+def dashboard_url_template(category: str) -> str:
+    """
+    The dashboard link of any session of a category, with a literal `{session_id}` placeholder.
+
+    For responses that name many sessions under a fixed size budget (the live history pages):
+    one constant-size field instead of a link per session. Session IDs are UUIDs, so they need
+    no escaping when they replace the placeholder.
+    """
+    if not DASHBOARD_URL:
+        return ''
+    path = _DASHBOARD_PATHS.get(category)
+    if not path:
+        return ''
+    return f"{DASHBOARD_URL}/#/{path}/{{session_id}}"

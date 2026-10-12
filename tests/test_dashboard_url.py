@@ -217,3 +217,87 @@ def test_session_tools_call_internal_api_but_link_to_public_dashboard(
 
     assert requested_urls == [f'http://127.0.0.1:9000/{api_path}/sessions/session-id']
     assert result['dashboard_url'] == f'https://jesse.example.com/#/{route}/session-id'
+
+
+def test_session_rows_get_their_own_dashboard_link(monkeypatch):
+    monkeypatch.setattr(mcp_config, 'DASHBOARD_URL', 'https://jesse.example.com')
+    rows = [{'id': 'abc-123', 'title': 'one'}, {'title': 'no id'}, 'not a row']
+
+    assert mcp_config.with_dashboard_urls('live', rows) == [
+        {'id': 'abc-123', 'title': 'one', 'dashboard_url': 'https://jesse.example.com/#/live/abc-123'},
+        {'title': 'no id', 'dashboard_url': ''},
+        'not a row',
+    ]
+    assert rows[0] == {'id': 'abc-123', 'title': 'one'}
+    assert mcp_config.with_dashboard_urls('live', None) is None
+
+
+def test_dashboard_link_template_keeps_a_literal_session_id_placeholder(monkeypatch):
+    monkeypatch.setattr(mcp_config, 'DASHBOARD_URL', 'https://jesse.example.com')
+    template = mcp_config.dashboard_url_template('live')
+    assert template == 'https://jesse.example.com/#/live/{session_id}'
+    assert template.replace('{session_id}', 'abc-123') == mcp_config.dashboard_url('live', 'abc-123')
+    assert mcp_config.dashboard_url_template('unknown') == ''
+
+    monkeypatch.setattr(mcp_config, 'DASHBOARD_URL', None)
+    assert mcp_config.dashboard_url_template('live') == ''
+
+
+SESSION_SERVICES = [
+    (backtest_service, 'backtest', 'backtest'),
+    (optimization_service, 'optimization', 'optimization'),
+    (monte_carlo_service, 'monte_carlo', 'monte-carlo'),
+    (significance_test_service, 'significance_test', 'significance-test'),
+]
+
+
+def _fake_api(monkeypatch, service, status_code: int, payload: dict) -> None:
+    monkeypatch.setattr(mcp_config, 'JESSE_API_URL', 'http://127.0.0.1:9000')
+    monkeypatch.setattr(mcp_config, 'JESSE_PASSWORD', 'test-password')
+    monkeypatch.setattr(mcp_config, 'DASHBOARD_URL', 'https://jesse.example.com')
+    monkeypatch.setattr(
+        service.requests, 'post',
+        lambda _url, **_kwargs: SimpleNamespace(status_code=status_code, text='', json=lambda: payload),
+    )
+
+
+@pytest.mark.parametrize(('service', 'name', 'route'), SESSION_SERVICES)
+def test_session_lists_link_every_row_to_the_public_dashboard(monkeypatch, service, name, route):
+    _fake_api(monkeypatch, service, 200, {'sessions': [{'id': 'first'}, {'id': 'second'}], 'count': 2})
+
+    result = getattr(service, f'get_{name}_sessions_service')()
+
+    assert [row['dashboard_url'] for row in result['sessions']] == [
+        f'https://jesse.example.com/#/{route}/first', f'https://jesse.example.com/#/{route}/second',
+    ]
+
+
+@pytest.mark.parametrize(('service', 'name', 'route'), SESSION_SERVICES)
+def test_cancelling_a_session_still_returns_its_dashboard_link(monkeypatch, service, name, route):
+    _fake_api(monkeypatch, service, 202, {})
+
+    result = getattr(service, f'cancel_{name}_service')('session-id')
+
+    assert result['status'] == 'success'
+    assert result['dashboard_url'] == f'https://jesse.example.com/#/{route}/session-id'
+
+
+@pytest.mark.parametrize(
+    ('service', 'function_name', 'payload', 'route'),
+    [
+        (optimization_service, 'get_optimization_logs_service', {'logs': 'line'}, 'optimization'),
+        (optimization_service, 'terminate_optimization_service', {}, 'optimization'),
+        (monte_carlo_service, 'get_monte_carlo_logs_service', {'logs': 'line'}, 'monte-carlo'),
+        (monte_carlo_service, 'get_monte_carlo_equity_curves_service', {'trades': [], 'candles': []}, 'monte-carlo'),
+        (monte_carlo_service, 'terminate_monte_carlo_service', {}, 'monte-carlo'),
+    ],
+)
+def test_other_single_session_reads_and_actions_return_the_dashboard_link(
+    monkeypatch, service, function_name, payload, route,
+):
+    _fake_api(monkeypatch, service, 202 if function_name.startswith('terminate') else 200, payload)
+
+    result = getattr(service, function_name)('session-id')
+
+    assert result['status'] == 'success'
+    assert result['dashboard_url'] == f'https://jesse.example.com/#/{route}/session-id'

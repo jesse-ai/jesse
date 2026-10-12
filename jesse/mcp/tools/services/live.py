@@ -807,6 +807,7 @@ def update_live_session_notes_service(session_id: str, title: Optional[str] = No
         'session_id': session_id,
         'title': title,
         'description': description,
+        'dashboard_url': mcp_config.dashboard_url('live', session_id),
         'message': 'Session notes updated.',
     }
 

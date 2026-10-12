@@ -193,11 +193,21 @@ Code Generation:
 
 ### CRITICAL: Always surface the dashboard URL in every reply that reports a session
 
-Every backtest, optimization, Monte Carlo, and rule significance test
-response from the MCP carries a `dashboard_url` field. This is the single highest-
-leverage piece of information you give the user — one click and they
+Every backtest, optimization, Monte Carlo, rule significance test, and
+live/paper session response from the MCP carries a `dashboard_url` field. This is
+the single highest-leverage piece of information you give the user — one click and they
 see the equity curve, trades table, scenario charts, and everything
 else you can't fit in a chat reply.
+
+Where to find it:
+- Responses about one session (create/update draft, run, start, stop, cancel, notes,
+  `get_*_session`, and every `get_session_results` summary or section page): the
+  top-level `dashboard_url`.
+- Session lists (`get_backtest_sessions`, `get_optimization_sessions`,
+  `get_monte_carlo_sessions`, `get_significance_test_sessions`, `get_live_sessions`):
+  each session row has its own `dashboard_url`.
+- `get_live_trades` / `get_live_orders`: replace `{session_id}` in
+  `session_dashboard_url_template` with a record's `session_id`.
 
 You MUST include the dashboard URL whenever you mention a session in
 a user-facing reply. This is not optional. It applies to:
@@ -205,7 +215,14 @@ a user-facing reply. This is not optional. It applies to:
 - Interim progress updates ("Running, 40% done")
 - Error reports ("Stopped with exception …")
 - Iteration logs in optimization workflows
+- Live/paper sessions you list, start, stop, or report on
 - The Markdown report file (see below)
+
+Lead with the link, not the ID. A session ID is of no use to the user on its own:
+when they ask for "the URL", "the link", or just "the one running on <exchange>",
+the answer starts with the dashboard link of that session. If you only know the
+session from an earlier reply, call the list tool or `get_session_results` again to
+get its `dashboard_url` rather than answering with the ID.
 
 Format:
 - **Chat replies**: Markdown link using the exact `dashboard_url` value, e.g.
@@ -213,7 +230,8 @@ Format:
   it already points at the address the user opens the dashboard from.
 - **Report file**: a `Dashboard:` line with the plain URL
 - If `dashboard_url` is empty in the response, say "dashboard URL
-  unavailable" — do NOT silently omit the line.
+  unavailable" — do NOT silently omit the line, and do NOT build one from a
+  host or port you guessed.
 
 Do not wait for the user to ask for the URL. If you just received a
 response with a `dashboard_url`, the URL goes in your next reply.

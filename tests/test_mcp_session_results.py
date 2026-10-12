@@ -576,3 +576,27 @@ def test_mcp_tools_read_results_through_the_api(tools, stored, live):
 
     refused = tools['get_session_results']('backtest', BACKTEST_ID, 'nonsense')
     assert (refused['status'], refused['error_type']) == ('error', 'invalid_request')
+
+
+def test_mcp_result_tools_return_dashboard_links(tools, stored, live, monkeypatch):
+    """Summaries, section pages, and the live session list all carry the link the user asks for."""
+    monkeypatch.setattr(project_files_service.mcp_config, 'DASHBOARD_URL', 'https://dash.example')
+    assert tools['get_session_results']('backtest', BACKTEST_ID)['dashboard_url'] == (
+        f'https://dash.example/#/backtest/{BACKTEST_ID}')
+    # The ID in the link is the one the API normalized, whatever spelling the caller used.
+    for section in ('summary', 'closed_trades', 'logs'):
+        page = tools['get_session_results']('live', LIVE_ID.upper(), section, 0, 2)
+        assert page['dashboard_url'] == f'https://dash.example/#/live/{LIVE_ID}'
+    listed = tools['get_live_sessions']()
+    assert [(row['id'], row['dashboard_url']) for row in listed['sessions']] == [
+        (LIVE_ID, f'https://dash.example/#/live/{LIVE_ID}')]
+
+    # A session that cannot be read has no page to link to.
+    for refused in (tools['get_session_results']('backtest', BACKTEST_ID, 'nonsense'),
+                    tools['get_session_results']('live', '00000000-0000-4000-8000-000000000000'),
+                    tools['get_live_sessions'](limit=101)):
+        assert refused['status'] == 'error' and 'dashboard_url' not in refused
+
+    monkeypatch.setattr(project_files_service.mcp_config, 'DASHBOARD_URL', None)
+    assert tools['get_session_results']('live', LIVE_ID)['dashboard_url'] == ''
+    assert tools['get_live_sessions']()['sessions'][0]['dashboard_url'] == ''

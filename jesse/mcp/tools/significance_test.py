@@ -221,6 +221,8 @@ def register_significance_test_tools(mcp):
 
         Returns:
             { "status": "success", "sessions": [...], "count": int, "message": ... }
+            Each session row has "dashboard_url", its page on the dashboard: give the user
+            that link, not the bare ID.
         """
         return await run_blocking(
             get_significance_test_sessions_service,

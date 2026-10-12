@@ -274,6 +274,9 @@ def register_monte_carlo_tools(mcp):
             title_search: Case-insensitive substring on title.
             status_filter: One of "draft", "running", "finished", "stopped", "terminated".
             date_filter: One of "7_days", "30_days", "90_days".
+
+        Each session row has "dashboard_url", its page on the dashboard: give the user that
+        link, not the bare ID.
         """
         return await run_blocking(
             get_monte_carlo_sessions_service,

@@ -77,7 +77,9 @@ _HISTORY_COMMON = """
         your code the complete selection on the Jesse host in its own database view.
 
         Each record carries session_id; "sessions" describes the sessions on this page (title,
-        mode, exchange, status; {"exists": false} for a deleted one); "is_active" and a
+        mode, exchange, status; {"exists": false} for a deleted one). To link a session for the
+        user, replace {session_id} in "session_dashboard_url_template" with its ID ("" when
+        no dashboard URL is known; a deleted session has no page). "is_active" and a
         stopped status for a session left marked running come from Jesse's worker registry at
         that moment, best effort, not from the page's database view. Saved key and
         notification credential values are redacted per record's session (every saved key's
@@ -130,7 +132,9 @@ def register_session_results_tools(mcp):
             "session_id", "session_status", "status_note" (for unfinished runs), "title", "form",
             results, "error" (exception + traceback tail) and "sections"/"counts". For other
             sections: {"section", "items", "offset", "limit", "returned", "total",
-            "next_offset", "has_more", "truncated_by_size"}. Values are exactly as stored;
+            "next_offset", "has_more", "truncated_by_size"}. Every successful response, summary
+            or section, also has "dashboard_url": the session's page on the dashboard. Give the
+            user that link, not the bare session ID. Values are exactly as stored;
             NaN/infinite numbers are null. Errors: {"status": "error", "error_type", "message"}
             with error_type "not_found", "invalid_request", "item_too_large" (use
             run_analysis), "offset_too_large", "live_plugin_unavailable" (live sessions need
@@ -161,9 +165,11 @@ def register_session_results_tools(mcp):
         Returns:
             dict: {"status": "success", "sessions": [{"id", "title", "status", "is_active",
             "session_mode", "exchange", "routes", "created_at", "updated_at", "finished_at",
-            "has_error"}], "next_offset"} or an error with error_type
-            "live_plugin_unavailable" or "invalid_request". Read one with
-            get_session_results(session_type="live", session_id=...).
+            "has_error", "dashboard_url"}], "next_offset"} or an error with error_type
+            "live_plugin_unavailable" or "invalid_request". "dashboard_url" opens that session
+            on the dashboard: when the user asks for a session or its link, answer with it, not
+            with the bare ID. Read one with get_session_results(session_type="live",
+            session_id=...).
         """
         return await run_blocking(get_live_sessions_service, limit, offset, status_filter, mode_filter, title_search)
 
@@ -197,7 +203,8 @@ def register_session_results_tools(mcp):
             dict: {"status": "success", "dataset": "live_trades", "source", "range",
             "filters", "order", "items", "limit", "returned", "total", "has_more",
             "truncated_by_size", "truncated_by_orders", "all_records_returned", "next_page",
-            "sessions", "open_trades_not_included", "note", "paging"} or an error with
+            "sessions", "session_dashboard_url_template", "open_trades_not_included", "note",
+            "paging"} or an error with
             error_type "invalid_request", "invalid_cursor", "mode_mismatch",
             "too_many_orders" (a trade with over 10,000 executed orders), "item_too_large",
             "live_plugin_unavailable", "read_failed", "authentication_failed", or
@@ -230,8 +237,8 @@ def register_session_results_tools(mcp):
             dict: {"status": "success", "dataset": "live_orders", "source", "range",
             "filters", "order", "items", "limit", "returned", "total", "has_more",
             "truncated_by_size", "truncated_by_orders" (always false), "all_records_returned",
-            "next_page", "sessions", "counts_by_status", "note", "paging"} or an error like
-            get_live_trades.
+            "next_page", "sessions", "session_dashboard_url_template", "counts_by_status",
+            "note", "paging"} or an error like get_live_trades.
         """
     mcp.tool()(get_live_orders)
     # A misspelled filter must be refused, not dropped, and the text "null" must stay text: either

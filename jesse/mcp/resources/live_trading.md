@@ -48,6 +48,12 @@ session's saved credential values redacted. For a period across sessions ("my tr
 days"), use `get_live_trades` / `get_live_orders` (Jesse's records, not the exchange account's
 history; live only unless `mode` says otherwise). See `jesse://session_analysis`.
 
+Every one of these, like the tools above, returns the session's dashboard link: `dashboard_url` on
+a single session's response and on each row of `get_live_sessions()`, and
+`session_dashboard_url_template` (replace `{session_id}`) on the history pages. When the user asks
+for a session, or for its URL, answer with that link first; the session ID alone does not help
+them. Opening it loads the session into a dashboard Live tab.
+
 ## What stopping does
 
 Stopping asks the session process to end; a running session notices within about a second, one

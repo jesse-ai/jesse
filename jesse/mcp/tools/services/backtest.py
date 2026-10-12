@@ -452,6 +452,7 @@ def update_backtest_draft_service(backtest_id: str, state: str) -> dict:
                 'status': 'success',
                 'backtest_id': backtest_id,
                 'draft_state': state_dict,
+                'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': 'Backtest draft updated successfully'
             }
         elif response.status_code == 401:
@@ -541,6 +542,7 @@ def update_backtest_notes_service(
                 'description': description,
                 'strategy_code_keys': list(parsed_strategy_codes.keys()) if parsed_strategy_codes else [],
                 'strategy_codes_captured': len(parsed_strategy_codes) if parsed_strategy_codes else 0,
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': 'Backtest session notes updated successfully'
             }
 
@@ -700,7 +702,7 @@ def get_backtest_sessions_service(
             data = response.json()
             return {
                 'status': 'success',
-                'sessions': data.get('sessions', []),
+                'sessions': mcp_config.with_dashboard_urls('backtest', data.get('sessions', [])),
                 'count': data.get('count', 0),
                 'message': f'Retrieved {data.get("count", 0)} backtest session(s)'
             }
@@ -890,6 +892,7 @@ def cancel_backtest_service(session_id: str) -> dict:
             return {
                 'status': 'success',
                 'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': f'Backtest {session_id} cancellation requested'
             }
         elif response.status_code == 401:

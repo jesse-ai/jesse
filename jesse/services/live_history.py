@@ -81,7 +81,8 @@ MAX_LIMIT = session_results.MAX_LIMIT
 # the JSON-RPC message. Same 128 KiB (~30k tokens) budget as get_session_results pages.
 MAX_RESPONSE_BYTES = 128 * 1024
 # Reserved within that budget for what wraps the page after it is built: the route's "status",
-# the MCP service's "action" and "location" (~130 bytes), the JSON-RPC result object (~120
+# the MCP service's "action", "location" (~130 bytes), and "session_dashboard_url_template" (one
+# link, up to ~350 bytes for the longest valid DASHBOARD_URL), the JSON-RPC result object (~120
 # bytes), and SSE framing (~25 bytes).
 TRANSPORT_ALLOWANCE = 2 * 1024
 # Cursors are small base64url JSON objects (~140 characters); anything longer is not one.

@@ -38,6 +38,10 @@ get_session_results(session_type="backtest", session_id="<uuid>", section="trade
   find session IDs. `get_backtest_session` and the other `get_*_session` tools return the
   raw dashboard record, including every trade and curve point; prefer
   `get_session_results` for reading results.
+- Every successful `get_session_results` response (summary or section) has `dashboard_url`,
+  and every row of the list tools has its own. Give the user that link whenever you mention
+  a session, and lead with it when they ask for a session or its URL; the ID alone does not
+  help them.
 
 Live and paper sessions:
 - Readable only when the live trading plugin is installed and enabled

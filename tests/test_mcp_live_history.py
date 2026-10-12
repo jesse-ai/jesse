@@ -1624,7 +1624,31 @@ def test_snapshots_load_orders_in_bounded_chunks_with_exact_values(api, project,
 UNICODE_TITLE = ('Ω≈ç√ 中文 🚀 \u0000\u001f "quoted" \\ ' * 20)[:255]
 
 
+# The longest origin DASHBOARD_URL accepts: a 253-character host name with a five-digit port.
+LONGEST_DASHBOARD_URL = 'https://' + '.'.join(['a' * 63] * 3 + ['a' * 61]) + ':65535'
+
+
+def test_history_pages_carry_one_link_template_for_all_their_sessions(api, tools, monkeypatch):
+    live, paper = _session(), _session(mode='papertrade')
+    _trade(live, START_MS + 1)
+    _trade(paper, START_MS + 2, mode='papertrade')
+    monkeypatch.setattr(project_files_service.mcp_config, 'DASHBOARD_URL', 'https://dash.example')
+    for tool, arguments in (('get_live_trades', {}), ('get_live_orders', {'time_field': 'executed_at'})):
+        page = tools[tool](start=START, end=END, mode='all', **arguments)
+        assert page['status'] == 'success'
+        assert page['session_dashboard_url_template'] == 'https://dash.example/#/live/{session_id}'
+        # The template turns any record's session into the same link the session tools return.
+        assert {page['session_dashboard_url_template'].replace('{session_id}', sid) for sid in page['sessions']} == {
+            project_files_service.mcp_config.dashboard_url('live', sid) for sid in (live, paper)}
+        # A link per session would grow with the page; the sessions block stays as the API cut it.
+        assert all('dashboard_url' not in details for details in page['sessions'].values())
+    refused = tools['get_live_trades'](start='2026-09-21')
+    assert refused['status'] == 'error' and 'session_dashboard_url_template' not in refused
+
+
 def test_whole_pages_with_many_sessions_and_unicode_fit_the_budget(api, tools, monkeypatch):
+    # The link template rides in the transport allowance, even for the longest valid origin.
+    monkeypatch.setattr(project_files_service.mcp_config, 'DASHBOARD_URL', LONGEST_DASHBOARD_URL)
     sessions = [_session(title=UNICODE_TITLE) for _ in range(40)]
     ids = [_trade(session, START_MS + i) for i, session in enumerate(sessions)]
     budget = 24 * 1024
@@ -1641,6 +1665,8 @@ def test_whole_pages_with_many_sessions_and_unicode_fit_the_budget(api, tools, m
     contents = result[0] if isinstance(result, tuple) else result
     assert len(json.dumps(contents[0].text, ensure_ascii=False).encode('utf-8')) <= budget
     assert json.loads(contents[0].text)['truncated_by_size'] is True
+    assert json.loads(contents[0].text)['session_dashboard_url_template'] == (
+        f'{LONGEST_DASHBOARD_URL}/#/live/{{session_id}}')
 
 
 def test_a_record_that_cannot_fit_a_page_is_refused_explicitly(api, monkeypatch):

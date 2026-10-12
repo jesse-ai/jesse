@@ -392,6 +392,7 @@ def register_backtest_tools(mcp):
                         "finish_date": "YYYY-MM-DD",
                         "total_trades": int,
                         "net_profit": float,
+                        "dashboard_url": "<dashboard origin>/#/backtest/uuid-string",
                         ...
                     }
                 ],
