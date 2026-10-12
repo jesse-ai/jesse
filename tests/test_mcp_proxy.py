@@ -99,6 +99,8 @@ class _UpstreamRecorder:
         self.hang = False
         self.release_event = threading.Event()
         self.disconnected = threading.Event()
+        # Set once a request has been fully read, so a test can act while the upstream is pending.
+        self.received = threading.Event()
 
     async def __call__(self, scope, receive, send) -> None:
         if scope['type'] != 'http':
@@ -115,6 +117,7 @@ class _UpstreamRecorder:
             'headers': [(name.decode('latin-1'), value.decode('latin-1')) for name, value in scope['headers']],
             'body': body,
         })
+        self.received.set()
 
         if self.hang:
             # The request body is fully read, so the next message is the disconnect.
@@ -541,13 +544,17 @@ def test_connection_nominated_authorization_is_consumed_by_proxy(proxy, worker, 
 
 def test_proxy_abandons_upstream_when_client_disconnects_before_response_headers(proxy, recorder):
     recorder.hang = True
-    # A short read timeout makes the client give up and close its connection while the
-    # worker is still withholding response headers.
-    with httpx.Client(trust_env=False, timeout=httpx.Timeout(WAIT_SECONDS, read=0.5)) as client:
-        with pytest.raises(httpx.ReadTimeout):
-            client.post(f'{proxy.url}/mcp', headers={**AUTH, 'Accept': MCP_ACCEPT}, json={'jsonrpc': '2.0', 'id': 1, 'method': 'ping'})
-
-    assert len(recorder.requests) == 1, 'the upstream request was never opened'
+    body = json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'ping'}).encode()
+    headers = {**AUTH, 'Accept': MCP_ACCEPT, 'Content-Type': 'application/json', 'Content-Length': str(len(body))}
+    head = f'POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:{proxy.port}\r\n'
+    head += ''.join(f'{name}: {value}\r\n' for name, value in headers.items()) + '\r\n'
+    # A raw socket we own, so the disconnect is exactly this socket closing, after the upstream has
+    # the request. A client read timeout would race the cold proxy's own connection setup instead.
+    with socket.create_connection(('127.0.0.1', proxy.port), timeout=WAIT_SECONDS) as sock:
+        sock.sendall(head.encode('latin-1') + body)
+        assert recorder.received.wait(WAIT_SECONDS), 'the upstream request was never opened'
+        assert len(recorder.requests) == 1
+        assert not recorder.disconnected.is_set()  # still pending: the worker withholds its headers
     assert recorder.disconnected.wait(WAIT_SECONDS), 'proxy kept the pending upstream request open'
 
 

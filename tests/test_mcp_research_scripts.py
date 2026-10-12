@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 import jesse.mcp.tools.services.project_files as project_files_service
 from jesse.controllers import research_scripts_controller
+from tests.conftest import process_exited
 from jesse.mcp.tools import register_tools
 from jesse.services import auth, research_jobs
 from tests.mcp_tool_adapters import callable_tool
@@ -45,9 +46,6 @@ class FakeMCP:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
-    # These workflows require no-follow directory descriptors and POSIX job cleanup.
-    if os.name == 'nt':
-        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'strategies' / 'MyStrategy').mkdir(parents=True)
     (root / 'strategies' / 'MyStrategy' / '__init__.py').write_text('VALUE = 42\n', encoding='utf-8')
@@ -138,9 +136,7 @@ def _pid_gone(pid: int) -> bool:
     """True once the PID no longer exists (an orphan is reaped by init shortly after it exits)."""
     deadline = time.monotonic() + WAIT_SECONDS
     while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        if process_exited(pid):
             return True
         time.sleep(0.05)
     return False
@@ -274,7 +270,8 @@ time.sleep(120)
     body = api.post('/research-scripts/cancel', json={'job_id': job['id']}, headers=HEADERS).json()
 
     assert body['job']['status'] == 'cancelled'
-    assert body['job']['exit_code'] == -9  # SIGKILL
+    if os.name != 'nt':  # Windows has no SIGKILL; its job termination reports a different status.
+        assert body['job']['exit_code'] == -9  # SIGKILL
     assert _pid_gone(job['pid'])
 
 

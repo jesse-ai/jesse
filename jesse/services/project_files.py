@@ -2,16 +2,21 @@
 Project file access for MCP assistants, confined to strategies/ and research_scripts/.
 
 Every operation resolves its path from the Jesse process's working directory (the project
-root) one folder at a time with directory file descriptors and O_NOFOLLOW, so no symlink is
-ever followed: not a symlinked root, not a symlinked strategy folder, and not a symlink that
-another local process swaps in while an operation runs. Symlinks can be listed and deleted
-(which removes only the link), but never read through, written through, copied, or moved.
+root) one folder at a time with jesse.services.nofollow_fs, so no symlink is ever followed: not
+a symlinked root, not a symlinked strategy folder, and not a symlink that another local process
+swaps in while an operation runs. POSIX uses directory descriptors and O_NOFOLLOW; Windows uses
+relative NT opens that refuse junctions and other reparse points. Symlinks can be listed and
+deleted (which removes only the link), but never read through, written through, copied, or moved.
 
 Strategy folders (`strategies/<Name>`) are ordinary folders here: they can be created,
 copied, moved or renamed, and deleted like any other folder. Only the two root folders are
 protected: they are never moved, deleted, replaced, or written as files, and strategies/ is
 never created (research_scripts/ is created on first use). Moving or copying never edits
 file contents, so a renamed strategy keeps its old class name until its code is updated.
+
+On Windows, names that Win32 and NT resolve differently are refused too: alternate data streams
+(a colon), device names such as CON, and names ending in a dot or space. POSIX accepts them
+unchanged.
 
 These checks confine the file API only. Code run from research_scripts/ (see
 jesse.services.research_jobs) or loaded from a strategy has the Jesse process's full
@@ -25,6 +30,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, Sequence
 from uuid import uuid4
+
+from jesse.services import nofollow_fs
 
 STRATEGIES_ROOT = 'strategies'
 RESEARCH_SCRIPTS_ROOT = 'research_scripts'
@@ -52,27 +59,14 @@ MAX_PATH_LENGTH = 1024
 _COPY_CHUNK_BYTES = 1024 * 1024
 _LINE_ENDINGS = ('\n', '\r')
 
-_DIR_FLAGS = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
-# O_NONBLOCK keeps open() from hanging on a FIFO; the fstat that follows then refuses it.
-_FILE_READ_FLAGS = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
-_FILE_CREATE_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0)
-# Filesystems without hard links (some network, FUSE, and container volume mounts) report
-# these when os.link is used for no-clobber publishing.
-_NO_HARD_LINK_ERRNOS = {
-    errno.EPERM, errno.EMLINK, errno.ENOSYS,
-    getattr(errno, 'ENOTSUP', errno.EPERM), getattr(errno, 'EOPNOTSUPP', errno.EPERM),
-}
-
 
 def _platform_supported() -> bool:
-    """The confinement relies on *at() system calls, which Windows does not provide."""
-    return (
-        hasattr(os, 'O_NOFOLLOW')
-        and hasattr(os, 'O_DIRECTORY')
-        and os.open in os.supports_dir_fd
-        and os.scandir in os.supports_fd
-        and os.link in os.supports_follow_symlinks
-    )
+    """Whether confined directory access is available here (POSIX *at() calls or Windows NT opens)."""
+    return nofollow_fs.supported()
+
+
+# Kept under this name so callers and tests that reach for the placeholder fallback still find it.
+_rename_into_reserved_name = nofollow_fs.rename_into_reserved_name
 
 
 class ProjectFileError(Exception):
@@ -115,7 +109,7 @@ def parse_path(path: str) -> List[str]:
     outright rather than normalized, so the requested path is exactly the path used.
     """
     if not _platform_supported():
-        raise _error('unsupported_platform', 'Project file tools require Linux or macOS (including Docker).', 501)
+        raise _error('unsupported_platform', 'Project file tools require Linux, macOS, or Windows.', 501)
     if not isinstance(path, str) or not path.strip():
         raise _error('invalid_path', 'A path such as "research_scripts/my_script.py" is required.', 400)
     if len(path) > MAX_PATH_LENGTH:
@@ -129,6 +123,12 @@ def parse_path(path: str) -> List[str]:
         raise _error('invalid_path', 'Paths cannot contain "." or ".." components.', 400)
     if not parts or parts[0] not in ROOTS:
         raise _error('invalid_path', 'Paths must start with strategies/ or research_scripts/.', 400)
+    if os.name == 'nt':
+        for part in parts:
+            problem = nofollow_fs.component_problem(part)
+            if problem is not None:
+                raise _error('invalid_path', f'{part!r} {problem}. Windows cannot tell such a name apart from a '
+                             'device or a data stream, so it is refused.', 400)
     return parts
 
 
@@ -144,9 +144,15 @@ def _require_mutable(parts: Sequence[str], action: str) -> None:
 
 def _lstat(dir_fd: int, name: str) -> Optional[os.stat_result]:
     try:
-        return os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        return nofollow_fs.lstat(dir_fd, name)
     except FileNotFoundError:
         return None
+    except OSError as exc:
+        # Windows refuses a name it cannot open safely (EINVAL) before any lookup. Treat it as
+        # unreadable rather than letting a single odd entry fail a whole listing.
+        if exc.errno == errno.EINVAL:
+            return None
+        raise
 
 
 def _entry_type(mode: int) -> str:
@@ -183,7 +189,7 @@ def _os_error(exc: OSError, display: str) -> ProjectFileError:
 def _open_child_dir(dir_fd: int, name: str, display: str) -> int:
     """Open a sub-folder without following a symlink, classifying failures for the caller."""
     try:
-        return os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
+        return nofollow_fs.open_dir(dir_fd, name)
     except FileNotFoundError:
         raise _not_found(display)
     except OSError as exc:
@@ -203,7 +209,7 @@ def open_directory(parts: Sequence[str], create: bool = False) -> int:
     symlinks, including a missing strategy folder. research_scripts/ is created on first
     use; strategies/ is never created here.
     """
-    fd = os.open('.', os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    fd = nofollow_fs.open_path('.')
     try:
         for index, name in enumerate(parts):
             display = display_path(parts[:index + 1])
@@ -221,7 +227,7 @@ def open_directory(parts: Sequence[str], create: bool = False) -> int:
                         )
                     raise
                 try:
-                    os.mkdir(name, 0o777, dir_fd=fd)
+                    nofollow_fs.make_dir(fd, name)
                 except FileExistsError:
                     pass
                 except OSError as mkdir_error:
@@ -241,9 +247,11 @@ def open_regular_file(parts: Sequence[str]) -> int:
     display = display_path(parts)
     try:
         try:
-            fd = os.open(parts[-1], _FILE_READ_FLAGS, dir_fd=parent_fd)
+            fd = nofollow_fs.open_read(parent_fd, parts[-1])
         except FileNotFoundError:
             raise _not_found(display)
+        except IsADirectoryError:
+            raise _error('wrong_type', f'{display} is a folder; use list_project_files.', 409)
         except OSError as exc:
             st = _lstat(parent_fd, parts[-1])
             if st is not None and stat.S_ISLNK(st.st_mode):
@@ -275,7 +283,7 @@ def list_files(path: str = '', recursive: bool = False, max_entries: int = DEFAU
 
     if not path or not path.strip('/'):
         entries = []
-        project_fd = os.open('.', os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+        project_fd = nofollow_fs.open_path('.')
         try:
             for root in ROOTS:
                 st = _lstat(project_fd, root)
@@ -293,8 +301,7 @@ def list_files(path: str = '', recursive: bool = False, max_entries: int = DEFAU
 
     def walk(dir_fd: int, prefix: Sequence[str]) -> None:
         nonlocal truncated
-        with os.scandir(dir_fd) as iterator:
-            children = sorted(iterator, key=lambda entry: entry.name)
+        children = sorted(nofollow_fs.scandir(dir_fd), key=lambda entry: entry.name)
         for child in children:
             if len(entries) >= max_entries:
                 truncated = True
@@ -426,41 +433,6 @@ def _temp_name() -> str:
     return f'.jesse-{uuid4().hex}.tmp'
 
 
-def _create_file(dir_fd: int, name: str) -> int:
-    """Create a new file exclusively; O_EXCL also refuses an existing symlink."""
-    return os.open(name, _FILE_CREATE_FLAGS, 0o666, dir_fd=dir_fd)
-
-
-def _rename_into_reserved_name(src_fd: int, src_name: str, dst_fd: int, dst_name: str, dst_display: str) -> None:
-    """
-    No-clobber rename for filesystems without hard links.
-
-    The destination name is first claimed with an exclusive create (which fails if anything,
-    including a symlink, already has that name), then the source is renamed over that empty
-    placeholder. A file created concurrently by someone else is therefore never replaced;
-    the only visible intermediate state is our own empty placeholder. If the rename fails the
-    placeholder is removed only while it is still the file we created.
-    """
-    try:
-        placeholder = _create_file(dst_fd, dst_name)
-    except FileExistsError:
-        raise _error('already_exists', f'{dst_display} already exists. Pass overwrite=true to replace it.', 409)
-    try:
-        ours = os.fstat(placeholder)
-    finally:
-        os.close(placeholder)
-    try:
-        os.rename(src_name, dst_name, src_dir_fd=src_fd, dst_dir_fd=dst_fd)
-    except BaseException:
-        current = _lstat(dst_fd, dst_name)
-        if current is not None and (current.st_dev, current.st_ino) == (ours.st_dev, ours.st_ino):
-            try:
-                os.unlink(dst_name, dir_fd=dst_fd)
-            except FileNotFoundError:
-                pass
-        raise
-
-
 def _publish_target(dir_fd: int, name: str, overwrite: bool, display: str) -> Optional[os.stat_result]:
     """Return the destination's current entry (None if free), refusing what publishing may not replace."""
     existing = _lstat(dir_fd, name)
@@ -478,24 +450,19 @@ def _publish(dir_fd: int, temp: str, name: str, overwrite: bool, display: str) -
     """
     Move a finished temporary file into place and return whether a file was replaced.
 
-    Without overwrite, a hard link publishes atomically and fails if the name exists, so a
-    file created concurrently is never clobbered; filesystems without hard links use an
-    exclusively created placeholder instead (_rename_into_reserved_name). With overwrite,
-    os.replace swaps the directory entry, so a symlink at the destination is replaced rather
-    than followed.
+    Without overwrite, the move never replaces an existing name, so a file created concurrently is
+    never clobbered (nofollow_fs.rename decides how: a hard link where available, otherwise an
+    exclusively created placeholder). With overwrite, the directory entry is swapped, so a symlink
+    at the destination is replaced rather than followed.
     """
     try:
         if _publish_target(dir_fd, name, overwrite, display) is not None:
-            os.replace(temp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+            nofollow_fs.rename(dir_fd, temp, dir_fd, name, replace=True)
             return True
         try:
-            os.link(temp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd, follow_symlinks=False)
+            nofollow_fs.rename(dir_fd, temp, dir_fd, name, replace=False)
         except FileExistsError:
             raise _error('already_exists', f'{display} already exists. Pass overwrite=true to replace it.', 409)
-        except OSError as exc:
-            if exc.errno not in _NO_HARD_LINK_ERRNOS:
-                raise
-            _rename_into_reserved_name(dir_fd, temp, dir_fd, name, display)
         return False
     except OSError as exc:
         if exc.errno == errno.EISDIR:
@@ -503,7 +470,7 @@ def _publish(dir_fd: int, temp: str, name: str, overwrite: bool, display: str) -
         raise _os_error(exc, display)
     finally:
         try:
-            os.unlink(temp, dir_fd=dir_fd)
+            nofollow_fs.unlink(dir_fd, temp)
         except FileNotFoundError:
             pass
 
@@ -528,12 +495,12 @@ def write_text_file(path: str, content: str, overwrite: bool = False) -> dict:
     try:
         temp = _temp_name()
         try:
-            fd = _create_file(parent_fd, temp)
+            fd = nofollow_fs.create_file(parent_fd, temp)
             with os.fdopen(fd, 'wb') as f:
                 f.write(data)
         except OSError as exc:
             try:
-                os.unlink(temp, dir_fd=parent_fd)
+                nofollow_fs.unlink(parent_fd, temp)
             except FileNotFoundError:
                 pass
             raise _os_error(exc, display)
@@ -568,14 +535,14 @@ def write_file_from_chunks(path: str, chunks: Iterable[bytes], overwrite: bool =
         temp = _temp_name()
         size = 0
         try:
-            fd = _create_file(parent_fd, temp)
+            fd = nofollow_fs.create_file(parent_fd, temp)
             with os.fdopen(fd, 'wb') as f:
                 for chunk in chunks:
                     f.write(chunk)
                     size += len(chunk)
         except BaseException as exc:
             try:
-                os.unlink(temp, dir_fd=parent_fd)
+                nofollow_fs.unlink(parent_fd, temp)
             except FileNotFoundError:
                 pass
             if isinstance(exc, OSError):
@@ -595,7 +562,7 @@ def make_directory(path: str) -> dict:
     parent_fd = open_directory(parts[:-1], create=True)
     try:
         try:
-            os.mkdir(parts[-1], 0o777, dir_fd=parent_fd)
+            nofollow_fs.make_dir(parent_fd, parts[-1])
             created = True
         except FileExistsError:
             os.close(_open_child_dir(parent_fd, parts[-1], display))  # Must be a real folder.
@@ -653,15 +620,12 @@ def move_path(source: str, destination: str, overwrite: bool = False) -> dict:
                     )
                 overwritten = True
             try:
-                if overwritten:
-                    os.replace(src_parts[-1], dst_parts[-1], src_dir_fd=src_parent, dst_dir_fd=dst_parent)
-                elif is_dir:
-                    # rename() never follows symlinks. A folder cannot be hard-linked, so a same-named
-                    # folder created after the check above is still replaced if it is empty; a
-                    # non-empty folder or a file makes rename() fail, so no file data can be lost.
-                    os.rename(src_parts[-1], dst_parts[-1], src_dir_fd=src_parent, dst_dir_fd=dst_parent)
-                else:
-                    _move_file_no_clobber(src_parent, src_parts[-1], dst_parent, dst_parts[-1], dst_display)
+                # A folder is never hard-linked: on POSIX it is renamed (which can replace a
+                # destination folder that appears empty after the check above, but never a
+                # non-empty one or a file). Windows refuses any existing destination.
+                nofollow_fs.rename(src_parent, src_parts[-1], dst_parent, dst_parts[-1], replace=overwritten)
+            except FileExistsError:
+                raise _error('already_exists', f'{dst_display} already exists.', 409)
             except OSError as exc:
                 if exc.errno == errno.EINVAL:
                     raise _error('invalid_request', 'A folder cannot be moved into itself.', 400)
@@ -673,20 +637,6 @@ def move_path(source: str, destination: str, overwrite: bool = False) -> dict:
     finally:
         os.close(src_parent)
     return {'source': src_display, 'destination': dst_display, 'type': 'directory' if is_dir else 'file', 'overwritten': overwritten}
-
-
-def _move_file_no_clobber(src_fd: int, src_name: str, dst_fd: int, dst_name: str, dst_display: str) -> None:
-    """Hard-link then unlink, so a destination created concurrently is never replaced."""
-    try:
-        os.link(src_name, dst_name, src_dir_fd=src_fd, dst_dir_fd=dst_fd, follow_symlinks=False)
-    except FileExistsError:
-        raise _error('already_exists', f'{dst_display} already exists. Pass overwrite=true to replace it.', 409)
-    except OSError as exc:
-        if exc.errno not in _NO_HARD_LINK_ERRNOS:
-            raise
-        _rename_into_reserved_name(src_fd, src_name, dst_fd, dst_name, dst_display)
-        return
-    os.unlink(src_name, dir_fd=src_fd)
 
 
 @dataclass
@@ -719,8 +669,7 @@ def _copy_file_contents(src_fd: int, dst_fd: int, budget: _CopyBudget) -> None:
 
 def _copy_tree(src_dir: int, dst_dir: int, prefix: Sequence[str], budget: _CopyBudget) -> None:
     """Copy a folder's contents; any symlink or special file aborts the whole copy."""
-    with os.scandir(src_dir) as iterator:
-        children = sorted(iterator, key=lambda entry: entry.name)
+    children = sorted(nofollow_fs.scandir(src_dir), key=lambda entry: entry.name)
     for child in children:
         budget.add_entry()
         child_parts = [*prefix, child.name]
@@ -729,7 +678,7 @@ def _copy_tree(src_dir: int, dst_dir: int, prefix: Sequence[str], budget: _CopyB
         if stat.S_ISLNK(st.st_mode):
             raise _symlink_refused(display)
         if stat.S_ISDIR(st.st_mode):
-            os.mkdir(child.name, 0o777, dir_fd=dst_dir)
+            nofollow_fs.make_dir(dst_dir, child.name)
             sub_src = _open_child_dir(src_dir, child.name, display)
             try:
                 sub_dst = _open_child_dir(dst_dir, child.name, display)
@@ -741,7 +690,7 @@ def _copy_tree(src_dir: int, dst_dir: int, prefix: Sequence[str], budget: _CopyB
                 os.close(sub_src)
         elif stat.S_ISREG(st.st_mode):
             try:
-                in_fd = os.open(child.name, _FILE_READ_FLAGS, dir_fd=src_dir)
+                in_fd = nofollow_fs.open_read(src_dir, child.name)
             except OSError as exc:
                 if exc.errno == errno.ELOOP:
                     raise _symlink_refused(display)
@@ -749,7 +698,7 @@ def _copy_tree(src_dir: int, dst_dir: int, prefix: Sequence[str], budget: _CopyB
             try:
                 if not stat.S_ISREG(os.fstat(in_fd).st_mode):
                     raise _error('wrong_type', f'{display} is not a regular file.', 409)
-                out_fd = _create_file(dst_dir, child.name)
+                out_fd = nofollow_fs.create_file(dst_dir, child.name)
                 try:
                     _copy_file_contents(in_fd, out_fd, budget)
                 finally:
@@ -795,14 +744,14 @@ def copy_path(source: str, destination: str, overwrite: bool = False) -> dict:
                 try:
                     temp = _temp_name()
                     try:
-                        out_fd = _create_file(dst_parent, temp)
+                        out_fd = nofollow_fs.create_file(dst_parent, temp)
                         try:
                             _copy_file_contents(in_fd, out_fd, budget)
                         finally:
                             os.close(out_fd)
                     except BaseException:
                         try:
-                            os.unlink(temp, dir_fd=dst_parent)
+                            nofollow_fs.unlink(dst_parent, temp)
                         except FileNotFoundError:
                             pass
                         raise
@@ -819,7 +768,7 @@ def copy_path(source: str, destination: str, overwrite: bool = False) -> dict:
                     409,
                 )
             temp = _temp_name()
-            os.mkdir(temp, 0o777, dir_fd=dst_parent)
+            nofollow_fs.make_dir(dst_parent, temp)
             try:
                 src_dir = open_directory(src_parts)
                 try:
@@ -830,9 +779,9 @@ def copy_path(source: str, destination: str, overwrite: bool = False) -> dict:
                         os.close(temp_dir)
                 finally:
                     os.close(src_dir)
-                # rename() of a folder fails if the name is now a non-empty folder or a file; an
-                # empty folder created there since the check is replaced (it holds no data).
-                os.rename(temp, dst_parts[-1], src_dir_fd=dst_parent, dst_dir_fd=dst_parent)
+                # A folder rename fails if the name is now a non-empty folder or a file; an empty
+                # folder created there since the check is replaced (it holds no data).
+                nofollow_fs.rename(dst_parent, temp, dst_parent, dst_parts[-1], replace=False)
             except BaseException:
                 _remove_tree_quietly(dst_parent, temp)
                 raise
@@ -853,17 +802,15 @@ def _remove_tree(dir_fd: int, name: str, display: str, counts: Dict[str, int]) -
     """Delete a folder's contents and the folder; symlinks inside are unlinked, never followed."""
     sub_fd = _open_child_dir(dir_fd, name, display)
     try:
-        with os.scandir(sub_fd) as iterator:
-            children = list(iterator)
-        for child in children:
+        for child in list(nofollow_fs.scandir(sub_fd)):
             if child.is_dir(follow_symlinks=False):
                 _remove_tree(sub_fd, child.name, f'{display}/{child.name}', counts)
             else:
-                os.unlink(child.name, dir_fd=sub_fd)
+                nofollow_fs.unlink(sub_fd, child.name)
                 counts['files'] += 1
     finally:
         os.close(sub_fd)
-    os.rmdir(name, dir_fd=dir_fd)
+    nofollow_fs.rmdir(dir_fd, name)
     counts['directories'] += 1
 
 
@@ -897,7 +844,7 @@ def delete_path(path: str, recursive: bool = False) -> dict:
                     _remove_tree(parent_fd, parts[-1], display, counts)
                 else:
                     try:
-                        os.rmdir(parts[-1], dir_fd=parent_fd)
+                        nofollow_fs.rmdir(parent_fd, parts[-1])
                     except OSError as exc:
                         if exc.errno in (errno.ENOTEMPTY, errno.EEXIST):
                             raise _error(
@@ -908,7 +855,7 @@ def delete_path(path: str, recursive: bool = False) -> dict:
                         raise
                     counts['directories'] += 1
             else:
-                os.unlink(parts[-1], dir_fd=parent_fd)
+                nofollow_fs.unlink(parent_fd, parts[-1])
                 counts['files'] += 1
         except FileNotFoundError:
             raise _not_found(display)

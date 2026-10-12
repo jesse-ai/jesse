@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
+from jesse.services.ray_runtime import initialize_ray
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 from matplotlib import pyplot as plt
@@ -132,7 +133,7 @@ def monte_carlo_candles(
     ray_started_here = False
     if not ray.is_initialized():
         try:
-            ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+            initialize_ray(cpu_cores)
             print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
             ray_started_here = True
         except Exception as e:

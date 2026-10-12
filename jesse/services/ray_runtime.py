@@ -1,9 +1,31 @@
-"""Memory settings shared by Jesse's local Ray workers."""
+"""Startup rules shared by Jesse's local Ray workers."""
 
 import sys
 
 import ray
+from packaging.version import Version
 from ray._private import ray_constants, utils
+
+# Ray 2.48 fixes the Windows logging handle/file-descriptor regression in Ray 2.45-2.47
+# (ray-project/ray#53852). Keep this supported minimum in step with requirements.txt so a
+# manually pinned affected build is rejected before entering native startup.
+WINDOWS_MINIMUM_RAY_VERSION = Version('2.48.0')
+
+
+class UnsupportedRayVersionError(RuntimeError):
+    """The installed Ray does not meet Jesse's supported minimum for this platform."""
+
+
+def require_supported_ray() -> None:
+    """Check the Windows version minimum before entering Ray's native startup."""
+    if sys.platform != 'win32' or Version(ray.__version__) >= WINDOWS_MINIMUM_RAY_VERSION:
+        return
+    raise UnsupportedRayVersionError(
+        f'Jesse requires Ray {WINDOWS_MINIMUM_RAY_VERSION} or newer on Windows '
+        f'(installed Ray {ray.__version__}). This minimum avoids the Windows logging '
+        f'startup regression fixed in Ray 2.48 (ray-project/ray#53852). Upgrade Ray with: '
+        f'python -m pip install --upgrade "ray>={WINDOWS_MINIMUM_RAY_VERSION}"'
+    )
 
 
 def _default_object_store_memory(available: int) -> int:
@@ -49,6 +71,7 @@ def object_store_memory() -> int:
 
 def initialize_ray(cpu_cores: int) -> None:
     """Start local research workers and explain Ray's startup memory rejections."""
+    require_supported_ray()
     try:
         # Research progress uses Jesse's dashboard, so Ray's web frontend stays off.
         ray.init(num_cpus=cpu_cores, ignore_reinit_error=True,

@@ -14,6 +14,7 @@ from jesse import exceptions
 from jesse.config import config as jesse_config, set_config
 from jesse.research.backtest import _reset_research_runtime_state
 from jesse.research.monte_carlo.common import DEFAULT_CPU_USAGE_RATIO, MIN_CPU_CORES
+from jesse.services.ray_runtime import initialize_ray
 
 from jesse.routes import router
 
@@ -227,7 +228,7 @@ def _execute_optimize(
     # ------------------------------------------------------------ init Ray
     ray_started_here = False
     if not ray.is_initialized():
-        ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+        initialize_ray(cpu_cores)
         ray_started_here = True
 
     best_trials: list = []

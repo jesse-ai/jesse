@@ -10,8 +10,9 @@ This module owns the process management shared by two separately scoped job kind
 - Temporary analysis jobs (jesse.services.analysis_jobs) run generated code inside their own
   workspace under storage/mcp/analysis/<job_id>/ and keep their record and output there.
 
-Every job runs without a shell, in its own process group, so cancelling, timing out, or
-shutting Jesse down also stops any processes it started. Each kind has its own concurrency
+Every job runs without a shell, in its own process group (POSIX) or Job Object (Windows), so
+cancelling, timing out, or shutting Jesse down also stops any processes it started. See
+jesse.services.process_tree. Each kind has its own concurrency
 limit, so analysis jobs never block research jobs or the other way round.
 
 The code is NOT sandboxed. It runs as the same OS user, with the same environment variables,
@@ -21,8 +22,9 @@ is started; they do not limit what the started code does.
 
 Running jobs are tracked in this process; a record still marked running when no job in this
 process owns it (Jesse restarted) is reported as interrupted. After a normal shutdown the
-job was stopped. After a crash (SIGKILL) Jesse cannot stop it: the orphaned process keeps
-running untracked, with no deadline enforced, until it exits on its own.
+job was stopped. After a crash on POSIX Jesse cannot stop it: the orphaned process keeps
+running untracked, with no deadline enforced, until it exits on its own. On Windows the job's
+processes are ended by the kernel when Jesse's process ends, crash included.
 """
 import json
 import os
@@ -34,9 +36,10 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from uuid import uuid4
 
+from jesse.services import process_tree
 from jesse.services.project_files import (
     RESEARCH_SCRIPTS_ROOT,
     ProjectFileError,
@@ -65,10 +68,13 @@ MAX_LOG_BYTES = 20 * 1024 * 1024
 DEFAULT_TAIL_LINES = 200
 MAX_TAIL_LINES = 2000
 MAX_TAIL_BYTES = 256 * 1024
-# Time a process group gets to exit after SIGTERM before it is sent SIGKILL.
+# Time a process group gets to exit after SIGTERM before it is force-killed (POSIX; Windows has no grace).
 TERMINATE_GRACE_SECONDS = 5.0
 # How often the supervisor checks for the deadline and pending cancellation.
 _POLL_SECONDS = 0.2
+# Windows record replacement retries (see _replace_record): at most about two seconds in total.
+_REPLACE_ATTEMPTS = 40
+_REPLACE_RETRY_SECONDS = 0.05
 # The newest job records returned when no job ID is given.
 LIST_LIMIT = 20
 # Finished research job records and logs kept on disk. Older ones are pruned when a new job
@@ -129,6 +135,30 @@ def _log_path(job_id: str) -> str:
     return os.path.join(LOGS_DIR, f'{job_id}.txt')
 
 
+def _replace_record(temp: str, path: str) -> None:
+    """
+    os.replace, retried briefly on Windows. Windows will not replace a file another process has
+    open without delete sharing, and read_record_file's open() does not grant it, so a status read
+    at the same moment makes the replace fail. A short retry covers that window; POSIX replaces
+    atomically at once.
+
+    Tradeoff: launch() calls this while holding _jobs_lock, so on Windows a long contention window
+    delays other launches and status reads by at most _REPLACE_ATTEMPTS * _REPLACE_RETRY_SECONDS
+    (about two seconds). Failing after that raises rather than waiting longer.
+    """
+    if os.name != 'nt':
+        os.replace(temp, path)
+        return
+    for attempt in range(_REPLACE_ATTEMPTS):
+        try:
+            os.replace(temp, path)
+            return
+        except PermissionError:
+            if attempt == _REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(_REPLACE_RETRY_SECONDS)
+
+
 def write_record_file(record: dict, path: str) -> None:
     """Replace a job record atomically so readers never see a half-written file."""
     directory = os.path.dirname(path)
@@ -138,7 +168,7 @@ def write_record_file(record: dict, path: str) -> None:
     try:
         with open(temp, 'w', encoding='utf-8') as f:
             json.dump(record, f, indent=2)
-        os.replace(temp, path)
+        _replace_record(temp, path)
     except BaseException:
         try:
             os.unlink(temp)
@@ -182,10 +212,13 @@ def read_record_file(path: str, label: str, job_id: str) -> Optional[dict]:
 class _Job:
     """A running job's process, its supervisor state, and the reason it is being stopped, if any."""
 
-    def __init__(self, scope: JobScope, record: dict, process: subprocess.Popen):
+    def __init__(self, scope: JobScope, record: dict, process: Any,
+                 tree: Optional[process_tree.ProcessTree] = None):
         self.scope = scope
         self.record = record
         self.process = process
+        # The tree reaches every process the job started: its process group on POSIX, its Job Object on Windows.
+        self.tree = tree if tree is not None else process_tree.ProcessTree(process)
         self.lock = threading.Lock()
         self.done = threading.Event()
         self.stop_reason: Optional[str] = None
@@ -193,26 +226,14 @@ class _Job:
         self.kill_sent = False
         self.output_truncated = False
         self.exit_code: Optional[int] = None
-        # Set once a signal to the group fails because no member is left. After that the group
-        # ID may be reused by an unrelated process, so it is never signalled again.
-        self.group_gone = False
 
     @property
-    def pgid(self) -> int:
-        # start_new_session=True makes the process the leader of a group with its PID as ID.
-        return self.process.pid
+    def group_gone(self) -> bool:
+        return self.tree.group_gone
 
     def signal_group(self, sig: int) -> bool:
-        """Signal every process in the job's group; False once none is left. Call with lock held."""
-        if self.group_gone:
-            return False
-        try:
-            os.killpg(self.pgid, sig)
-            return True
-        except (ProcessLookupError, PermissionError):
-            # PermissionError: the ID now belongs to another user's group, so ours is gone.
-            self.group_gone = True
-            return False
+        """Signal every process of the job; False once none is left. Call with lock held."""
+        return self.tree.signal(sig)
 
     def request_stop(self, reason: str) -> bool:
         """
@@ -233,11 +254,11 @@ class _Job:
         with self.lock:
             if self.stop_reason and not self.kill_sent and time.monotonic() - self.stop_sent_at >= TERMINATE_GRACE_SECONDS:
                 self.kill_sent = True
-                self.signal_group(signal.SIGKILL)
+                self.signal_group(process_tree.FORCE_KILL)
 
     def kill_now(self) -> None:
         with self.lock:
-            self.signal_group(signal.SIGKILL)
+            self.signal_group(process_tree.FORCE_KILL)
 
 
 _jobs: Dict[str, _Job] = {}
@@ -248,6 +269,35 @@ _jobs_lock = threading.Lock()
 # down would launch after the jobs were stopped and keep running untracked. `jesse run` waits for
 # every request before its lifespan shutdown, but hosts that bound or cancel that wait do not.
 _shutting_down = False
+
+
+def _child_output_chunks(fd: int):
+    """
+    The child's output in chunks, with CRLF turned into LF on Windows only.
+
+    A Python child on Windows writes "\\n" as "\\r\\n" (text-mode stdout), so the same script
+    would log different bytes on each system. Logs and API replies are LF on both, so the
+    translation happens once here, before anything is stored, and the byte caps count the stored
+    bytes. A CR that ends one read is held back until the next read shows whether a LF follows.
+    """
+    pending = b''
+    while True:
+        try:
+            chunk = os.read(fd, 64 * 1024)
+        except OSError:
+            break
+        if not chunk:
+            break
+        if os.name != 'nt':
+            yield chunk
+            continue
+        data = pending + chunk
+        pending = b'\r' if data.endswith(b'\r') else b''
+        normalized = data[:-1].replace(b'\r\n', b'\n') if pending else data.replace(b'\r\n', b'\n')
+        if normalized:
+            yield normalized
+    if pending:
+        yield pending
 
 
 def _pump_output(job: _Job, log_file, max_bytes: int) -> None:
@@ -263,13 +313,7 @@ def _pump_output(job: _Job, log_file, max_bytes: int) -> None:
     written = 0
     fd = stream.fileno()
     with log_file:
-        while True:
-            try:
-                chunk = os.read(fd, 64 * 1024)
-            except OSError:
-                break
-            if not chunk:
-                break
+        for chunk in _child_output_chunks(fd):
             if written >= max_bytes:
                 continue  # Keep draining so the script never blocks on a full pipe.
             room = max_bytes - written
@@ -316,6 +360,7 @@ def _cleanup_group(job: _Job) -> None:
 def _supervise(job: _Job, deadline: float, pump: threading.Thread) -> None:
     """Enforce the deadline, escalate stops, then clean up the group and finalize the record."""
     persisted = False
+    completed = False
     try:
         while True:
             try:
@@ -350,14 +395,16 @@ def _supervise(job: _Job, deadline: float, pump: threading.Thread) -> None:
             persisted = True
         except OSError:
             pass  # The job stays in memory, so status requests answer until Jesse restarts.
-        job.done.set()
+        completed = True
     finally:
         with job.lock:
-            if not job.done.is_set():
+            if not completed:
                 # Supervision itself failed; never leave the job looking like it still runs.
                 job.record = {**job.record, 'status': FAILED, 'finished_at': now_iso(),
                               'message': 'Jesse lost track of this job; check its output.'}
-                job.done.set()
+            # Completion and close share the signalling lock: Windows can reuse a closed handle.
+            job.done.set()
+            job.tree.close()
         if persisted:
             with _jobs_lock:
                 if _jobs.get(job.record['id']) is job:
@@ -422,17 +469,19 @@ def launch(
         env = dict(os.environ)
         # Unbuffered output makes progress visible in the log while the job runs.
         env['PYTHONUNBUFFERED'] = '1'
+        if os.name == 'nt':
+            # Snapshots, scripts and returned logs use UTF-8 even when Windows defaults to a legacy code page.
+            env['PYTHONUTF8'] = '1'
+            env['PYTHONIOENCODING'] = 'utf-8'
         env.update(env_overrides or {})
         try:
-            process = subprocess.Popen(
+            tree = process_tree.spawn(
                 argv,
                 cwd=cwd,
                 env=env,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                shell=False,
-                start_new_session=True,
             )
         except OSError as exc:
             log_file.close()
@@ -443,30 +492,79 @@ def launch(
             'id': job_id,
             **record_fields,
             'status': RUNNING,
-            'pid': process.pid,
+            'pid': tree.pid,
             'exit_code': None,
             'started_at': now_iso(),
             'finished_at': None,
             'timeout_minutes': timeout_minutes,
             'output_truncated': False,
         }
-        job = _Job(scope, record, process)
+        job = _Job(scope, record, tree.process, tree)
         _jobs[job_id] = job
+        pump_started = False
         try:
-            scope.write_record(record)
-        except OSError:
-            pass  # Tracked in memory; the record is written again when the job finishes.
+            try:
+                scope.write_record(record)
+            except OSError:
+                pass  # Tracked in memory; the record is written again when the job finishes.
 
-        pump = threading.Thread(
-            target=_pump_output, args=(job, log_file, scope.max_log_bytes()),
-            name=f'{scope.name}-log-{job_id}', daemon=True,
-        )
-        pump.start()
-        deadline = _deadline(timeout_minutes)
-        threading.Thread(
-            target=_supervise, args=(job, deadline, pump), name=f'{scope.name}-job-{job_id}', daemon=True
-        ).start()
+            pump = threading.Thread(
+                target=_pump_output, args=(job, log_file, scope.max_log_bytes()),
+                name=f'{scope.name}-log-{job_id}', daemon=True,
+            )
+            pump.start()
+            pump_started = True
+            deadline = _deadline(timeout_minutes)
+            threading.Thread(
+                target=_supervise, args=(job, deadline, pump), name=f'{scope.name}-job-{job_id}', daemon=True
+            ).start()
+        except BaseException:
+            # The process is already running, so it must not outlive a launch that failed.
+            _jobs.pop(job_id, None)
+            _abandon_launch(job, log_file, pump_started)
+            raise
     return dict(record)
+
+
+def _abandon_launch(job: _Job, log_file, pump_started: bool) -> None:
+    """
+    Stop and release a job whose launch failed after its process started (a thread could not be
+    created, for example). The caller re-raises the original error, so every step here is best-effort:
+    a failure in cleanup is dropped rather than replacing that error.
+
+    The process is killed and reaped, its tree is closed (on Windows, the job's kill-on-close), and the
+    record is rewritten as failed so no stale "running" record is left on disk. The pump owns the log
+    file once it has started; if it never started, the log file and the pipe are closed here.
+    """
+    with job.lock:
+        job.done.set()  # Not running any more; nothing else may signal it after this point.
+        try:
+            job.signal_group(process_tree.FORCE_KILL)
+        except OSError:
+            pass
+    try:
+        job.process.wait(timeout=TERMINATE_GRACE_SECONDS)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    with job.lock:
+        try:
+            job.tree.close()
+        except OSError:
+            pass
+        job.record = {**job.record, 'status': FAILED, 'finished_at': now_iso(),
+                      'message': 'Jesse could not finish starting this job, so it was stopped.'}
+    try:
+        job.scope.write_record(job.record)
+    except OSError:
+        pass
+    if not pump_started:
+        # Each close is guarded on its own, so one failing does not leave the other open.
+        for handle in (log_file, job.process.stdout):
+            try:
+                if handle is not None:
+                    handle.close()
+            except OSError:
+                pass
 
 
 def check_job_id(job_id: object, scope: JobScope) -> str:
@@ -535,7 +633,7 @@ def cancel_scoped_job(job_id: str, scope: JobScope) -> dict:
         record = get_scoped_job(job_id, scope)
         return {'job': record, 'cancel_requested': False, 'message': f'The job is not running (status: {record.get("status")}).'}
     requested = job.request_stop(CANCELLED)
-    # SIGKILL follows TERMINATE_GRACE_SECONDS after SIGTERM, and leftover children get the same
+    # The force kill follows TERMINATE_GRACE_SECONDS after SIGTERM (on Windows the job is already stopped), and leftover children get the same
     # grace, so this normally returns the final record rather than "running".
     finished = job.done.wait(timeout=TERMINATE_GRACE_SECONDS * 2 + 2)
     record = dict(job.record)

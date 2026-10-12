@@ -5,7 +5,7 @@ import ray
 import numpy as np
 import jesse.helpers as jh
 from jesse.services.progress import publish_status
-from jesse.services.ray_runtime import initialize_ray
+from jesse.services.ray_runtime import UnsupportedRayVersionError, initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
@@ -82,8 +82,9 @@ class MonteCarloRunner:
                 initialize_ray(self.cpu_cores)
                 logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores", session_id=self.session_id)
                 self.ray_started_here = True
-            except MemoryError:
-                # Startup memory limits also cover Ray services and the worker heap.
+            except (MemoryError, UnsupportedRayVersionError):
+                # Startup memory limits also cover Ray services and the worker heap, and
+                # fewer CPUs cannot make an unsupported Ray start.
                 raise
             except Exception as e:
                 logger.log_monte_carlo(f"Error initializing Ray: {e}. Falling back to 1 CPU.", session_id=self.session_id)

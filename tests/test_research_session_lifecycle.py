@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from jesse import exceptions
+from jesse.services.ray_runtime import UnsupportedRayVersionError
 
 
 multiprocessing_service = import_module('jesse.services.multiprocessing')
@@ -278,6 +279,49 @@ def _monte_carlo_runner(monkeypatch):
         pipeline_type=None,
         pipeline_params=None,
     )
+
+
+def test_monte_carlo_runner_does_not_retry_an_unsupported_ray(monkeypatch):
+    calls = []
+
+    def refuse(cpu_cores):
+        calls.append(cpu_cores)
+        raise UnsupportedRayVersionError('Upgrade Ray')
+
+    monkeypatch.setattr(monte_carlo_runner_module, 'initialize_ray', refuse)
+
+    with pytest.raises(UnsupportedRayVersionError, match='Upgrade Ray'):
+        _monte_carlo_runner(monkeypatch)
+
+    # The runner's one-CPU fallback would call the helper a second time.
+    assert calls == [1]
+
+
+def test_optimizer_does_not_retry_an_unsupported_ray(monkeypatch):
+    calls = []
+
+    def refuse(cpu_cores):
+        calls.append(cpu_cores)
+        raise UnsupportedRayVersionError('Upgrade Ray')
+
+    class Strategy:
+        @staticmethod
+        def hyperparameters(_):
+            return [{'name': 'period'}]
+
+    monkeypatch.setattr(optimizer_module, 'initialize_ray', refuse)
+    monkeypatch.setattr(optimizer_module, 'router', SimpleNamespace(routes=[SimpleNamespace(strategy_name='S')]))
+    monkeypatch.setattr(optimizer_module.jh, 'get_strategy_class', lambda name: Strategy)
+    monkeypatch.setattr(optimizer_module.jh, 'get_config', lambda key, default=None: default)
+    monkeypatch.setattr(optimizer_module.os, 'makedirs', lambda *args, **kwargs: None)
+    monkeypatch.setattr(optimizer_module, 'Progressbar', lambda total: None)
+    monkeypatch.setattr(optimizer_module.optuna, 'create_study', lambda **kwargs: FakeStudy())
+    monkeypatch.setattr(optimizer_module.ray, 'is_initialized', lambda: False)
+
+    with pytest.raises(UnsupportedRayVersionError, match='Upgrade Ray'):
+        optimizer_module.Optimizer('session-id', {}, {}, {}, {}, {}, True, 1, 1)
+
+    assert calls == [1]
 
 
 def test_monte_carlo_runner_persists_child_results_before_parent_finishes(monkeypatch):

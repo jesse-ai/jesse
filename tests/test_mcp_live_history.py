@@ -49,6 +49,7 @@ from jesse.models.NotificationApiKeys import NotificationApiKeys
 from jesse.models.Order import Order
 from jesse.repositories import closed_trade_repository, live_session_repository, order_repository
 from jesse.repositories.closed_trade_repository import populate_order_arrays
+from jesse.services import nofollow_fs
 from jesse.services import analysis_jobs, auth, live_history, research_jobs, session_results
 from jesse.services.multiprocessing import process_manager
 from jesse.services.project_files import ProjectFileError
@@ -874,8 +875,6 @@ def test_real_fastmcp_keeps_recent_days_strict_and_advertises_its_type(api, tool
 # ---------------------------------------------------------------------------
 
 def _run(api, code: str, inputs: list, expect: int = 200) -> dict:
-    if os.name == 'nt':
-        pytest.skip('Analysis snapshots require POSIX directory descriptors; history reads remain supported.')
     response = api.post('/analysis/run', json={'code': code, 'inputs': inputs, 'timeout_minutes': 5}, headers=HEADERS)
     assert response.status_code == expect, response.text
     return response.json()
@@ -922,7 +921,6 @@ plt.close(fig)
 '''
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Analysis workspaces require POSIX directory descriptors.')
 def test_a_dataset_snapshot_holds_every_record_and_its_chart_comes_back_as_an_image(api, tools, project, monkeypatch):
     # Small batches, so the snapshot is streamed in many keyset pages across equal timestamps.
     monkeypatch.setattr(live_history, 'BATCH_SIZE', 4)
@@ -1527,15 +1525,12 @@ def test_transactions_end_when_a_snapshot_stops_early(api, db, project, monkeypa
     assert not db.in_transaction()
     _independent_write(db, 'UPDATE "order" SET fee = 1')
 
-    # Directory-descriptor snapshot writing belongs to the POSIX-only analysis workflow.
-    if os.name == 'nt':
-        pytest.skip('Analysis snapshots require Linux or macOS, including Docker.')
 
     # The byte cap stops writing mid-stream: the transaction ends and nothing is left on disk.
     monkeypatch.setattr(analysis_jobs, 'MAX_INPUT_BYTES', 900)
     workspace = project / 'workspace'
     (workspace / 'inputs').mkdir(parents=True)
-    fd = os.open(workspace, os.O_RDONLY)
+    fd = nofollow_fs.open_path(str(workspace))
     try:
         with pytest.raises(ProjectFileError) as refused:
             analysis_jobs._write_inputs(fd, [{'dataset': 'live_orders', 'query': query, 'name': 'orders'}])
@@ -1811,7 +1806,6 @@ def _seed_workflow_trades(live: str, paper: str) -> dict:
     return ids
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Analysis workspaces require POSIX directory descriptors.')
 def test_the_documented_workflow_groups_by_mode_and_quote_and_refuses_unknowns(api, tools, project):
     live, paper = _session(key=KEY_A), _session(mode='papertrade')
     ids = _seed_workflow_trades(live, paper)
@@ -1857,7 +1851,6 @@ def test_the_documented_workflow_groups_by_mode_and_quote_and_refuses_unknowns(a
         assert base64.b64decode(image.data).startswith(b'\x89PNG')
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Analysis workspaces require POSIX directory descriptors.')
 def test_the_documented_input_keeps_every_returned_filter(api, tools, project):
     live, paper = _session(key=KEY_A), _session(mode='papertrade')
     ids = _seed_workflow_trades(live, paper)
@@ -1886,7 +1879,6 @@ def test_the_documented_input_keeps_every_returned_filter(api, tools, project):
     assert job['inputs'][0]['filters'] == orders['filters'] and job['inputs'][0]['count'] == orders['total']
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Analysis workspaces require POSIX directory descriptors.')
 def test_the_documented_code_handles_an_empty_selection(api, tools):
     discovery = tools['get_live_trades'](recent_days=3)
     assert discovery['total'] == 0  # the workflow stops here and runs no analysis
