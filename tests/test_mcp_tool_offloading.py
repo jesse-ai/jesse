@@ -57,6 +57,7 @@ from jesse.controllers import (
     strategy_controller,
 )
 from jesse.mcp.auth import dashboard_token
+from tests.conftest import process_exited
 from jesse.mcp.tools import offload
 from jesse.mcp.tools.services import (
     create_strategy_service,
@@ -317,9 +318,6 @@ def _session_crashes(caplog) -> list:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
-    # These workflows require no-follow directory descriptors and POSIX job cleanup.
-    if os.name == 'nt':
-        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'strategies' / 'MyStrategy').mkdir(parents=True)
     (root / 'strategies' / 'MyStrategy' / '__init__.py').write_text(STRATEGY_CODE, encoding='utf-8')
@@ -885,8 +883,7 @@ def test_a_cancelled_job_start_leaves_a_tracked_job_that_only_an_explicit_cancel
     # Cancelling the MCP request did not stop the job; it keeps running until cancelled explicitly.
     assert still['job']['status'] == 'running'
     assert cancelled['job']['status'] == 'cancelled' and cancelled['cancel_requested'] is True
-    with pytest.raises(ProcessLookupError):
-        os.kill(job['pid'], 0)
+    assert process_exited(job['pid'])  # cancel waited for the job, so its process is already gone
     assert any('run_research_script_service finished after its MCP request was cancelled' in message
                for message in _log_messages(caplog))
     assert _session_crashes(caplog) == []

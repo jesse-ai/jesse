@@ -369,7 +369,6 @@ def test_candle_writes_need_dashboard_authentication(api, forwarder, monkeypatch
 # Export
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_export_writes_the_dashboard_download_into_research_scripts(api, forwarder, project, monkeypatch):
     monkeypatch.setattr(candle_repository, 'CANDLE_EXPORT_BATCH_SIZE', 7)
     monkeypatch.setattr(mcp_config, 'DASHBOARD_URL', 'https://dash.example')
@@ -396,7 +395,6 @@ def test_export_writes_the_dashboard_download_into_research_scripts(api, forward
     assert [name for name in os.listdir(project / 'research_scripts' / 'candle_exports')] == [Path(path).name]
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_export_path_rules_overwrite_and_missing_data(forwarder, project):
     _seed('Bybit Spot', 'ETH-USDT', 5)
 
@@ -425,7 +423,6 @@ def test_export_path_rules_overwrite_and_missing_data(forwarder, project):
     assert sorted(os.listdir(project / 'research_scripts' / 'data')) == ['eth.csv']
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_an_unusable_export_target_is_refused_before_any_candle_is_read(forwarder, project, tmp_path, monkeypatch):
     """An unusable target is refused before the first candle is read, not after streaming the series."""
     _seed('Bybit Spot', 'ETH-USDT', 5)
@@ -459,13 +456,12 @@ def test_an_unusable_export_target_is_refused_before_any_candle_is_read(forwarde
     assert streamed == [('Bybit Spot', 'ETH-USDT')]
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_export_never_writes_through_a_symlinked_folder(forwarder, project, tmp_path):
     _seed('Bybit Spot', 'ETH-USDT', 5)
     outside = tmp_path / 'outside'
     outside.mkdir()
     (project / 'research_scripts').mkdir()
-    os.symlink(outside, project / 'research_scripts' / 'candle_exports')
+    os.symlink(outside, project / 'research_scripts' / 'candle_exports', target_is_directory=True)
 
     result = candles_service.export_candles_service('Bybit Spot', 'ETH-USDT')
 
@@ -473,7 +469,6 @@ def test_export_never_writes_through_a_symlinked_folder(forwarder, project, tmp_
     assert os.listdir(outside) == []
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_an_export_that_fails_midway_publishes_nothing(forwarder, project, monkeypatch):
     _seed('Bybit Spot', 'ETH-USDT', 10)
     monkeypatch.setattr(candle_repository, 'CANDLE_EXPORT_BATCH_SIZE', 3)
@@ -492,7 +487,6 @@ def test_an_export_that_fails_midway_publishes_nothing(forwarder, project, monke
     assert os.listdir(folder) == []  # Neither the CSV nor the temporary file is left behind.
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_export_reports_the_rows_it_wrote_even_when_candles_change_meanwhile(forwarder, project, monkeypatch):
     """The reported row count and bounds are those of the rows written to the file."""
     _seed('Bybit Spot', 'ETH-USDT', 12)
@@ -524,7 +518,6 @@ def _write_csv(project: Path, relative: str, rows) -> str:
     return relative
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_export_then_import_as_custom_data_round_trips_every_value(api, forwarder, project):
     source = _seed('Binance Perpetual Futures', 'SOL-USDT', 40, price=21.125)
 
@@ -545,7 +538,6 @@ def test_export_then_import_as_custom_data_round_trips_every_value(api, forwarde
     assert (project / again['path']).read_text().splitlines() == original_lines
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_custom_import_keeps_stored_timestamps_and_adds_new_ones(forwarder, project):
     first = _write_csv(project, 'research_scripts/in/a.csv', [(T0 + i * MINUTE, 10, 11, 12, 9, 1) for i in range(10)])
     second = _write_csv(project, 'research_scripts/in/b.csv', [(T0 + i * MINUTE, 50, 51, 52, 49, 5) for i in range(5, 15)])
@@ -561,7 +553,6 @@ def test_custom_import_keeps_stored_timestamps_and_adds_new_ones(forwarder, proj
     assert [row[1] for row in stored] == [10.0] * 10 + [50.0] * 5
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_custom_import_reports_file_duplicates_and_refuses_conflicts(forwarder, project):
     identical = _write_csv(project, 'research_scripts/in/dup.csv',
                            [(T0 + MINUTE, 10, 11, 12, 9, 1), (T0, 10, 11, 12, 9, 1), (T0 + MINUTE, 10, 11, 12, 9, 1)])
@@ -581,7 +572,6 @@ def test_custom_import_reports_file_duplicates_and_refuses_conflicts(forwarder, 
     assert _count('Custom Data', 'CON-USD') == 0
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Scoped project files require POSIX directory descriptors and O_NOFOLLOW.')
 def test_custom_csv_sources_are_confined_and_explicit(forwarder, project, tmp_path):
     good = _write_csv(project, 'research_scripts/in/ok.csv', [(T0, 10, 11, 12, 9, 1)])
     outside = tmp_path / 'outside.csv'

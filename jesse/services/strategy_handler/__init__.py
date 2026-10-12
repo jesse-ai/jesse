@@ -1,8 +1,11 @@
 import os
 import re
 import shutil
+import stat
 from uuid import uuid4
 from starlette.responses import JSONResponse
+
+from jesse.services.nofollow_fs import component_problem, extended_path
 
 # Strategy folder names are class names, and imports from jesse.trade are sanitized to this
 # same set. Rejecting everything else (path separators, dots) keeps the report path inside
@@ -109,6 +112,22 @@ def _report_error(message: str, status_code: int) -> JSONResponse:
     return JSONResponse({'status': 'error', 'message': message}, status_code=status_code)
 
 
+def _is_link(path: str) -> bool:
+    """
+    True for a symbolic link, and on Windows also a junction or other reparse point: os.path.islink
+    does not report junctions there, so the reparse attribute is checked as well.
+    """
+    if os.path.islink(path):
+        return True
+    if os.name != 'nt':
+        return False
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return False
+    return bool(getattr(st, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+
+
 def _write_new_file(path: str, content: str) -> None:
     """Create `path` holding `content`, raising FileExistsError if anything is already there."""
     # O_EXCL checks and creates in one step and refuses existing symlinks, so the write can
@@ -140,7 +159,10 @@ def save_report(name: str, filename: str, content: str, overwrite: bool = False)
     """
     if not _REPORT_STRATEGY_NAME.fullmatch(name):
         return _report_error(f'Invalid strategy name "{name}".', 400)
-    if len(filename) > _MAX_REPORT_FILENAME_LENGTH or not _REPORT_FILENAME.fullmatch(filename):
+    # Extended paths can create literal device aliases (e.g. CON.md) that ordinary Win32 readers
+    # interpret differently, so reports use the same Windows component rules as project files.
+    if (len(filename) > _MAX_REPORT_FILENAME_LENGTH or not _REPORT_FILENAME.fullmatch(filename)
+            or (os.name == 'nt' and component_problem(filename) is not None)):
         return _report_error(
             f'Invalid report file name "{filename}". Use a bare file name (no folders) of at most '
             f'{_MAX_REPORT_FILENAME_LENGTH} characters that uses only letters, digits, ".", "_" and "-", '
@@ -152,22 +174,26 @@ def save_report(name: str, filename: str, content: str, overwrite: bool = False)
         return _report_error('Report content is empty.', 400)
 
     strategy_path = f'strategies/{name}'
-    if not os.path.isdir(strategy_path):
+    if not os.path.isdir(extended_path(strategy_path)):
         return _report_error(f'Strategy "{name}" does not exist.', 404)
 
+    # The API reports relative paths. The file operations use extended_path, because the
+    # temporary name used for an overwrite can push the full path past Windows' 260-character limit.
+    # Links in the path are followed as before: a symlinked strategies or strategy folder is allowed.
     reports_path = f'{strategy_path}/reports'
     report_path = f'{reports_path}/{filename}'
-    if os.path.islink(reports_path) or (os.path.lexists(reports_path) and not os.path.isdir(reports_path)):
+    long_reports, long_report = extended_path(reports_path), extended_path(report_path)
+    if _is_link(long_reports) or (os.path.lexists(long_reports) and not os.path.isdir(long_reports)):
         return _report_error(
             f'{reports_path} is a symlink or not a folder, so Jesse will not write reports into it.', 403
         )
-    if os.path.islink(report_path) or (os.path.lexists(report_path) and not os.path.isfile(report_path)):
+    if _is_link(long_report) or (os.path.lexists(long_report) and not os.path.isfile(long_report)):
         return _report_error(
             f'{report_path} is a symlink or not a regular file, so Jesse will not replace it.', 403
         )
 
     exists_message = f'Report {report_path} already exists. Pass overwrite=true to replace it, or use a new file name.'
-    existed = os.path.lexists(report_path)
+    existed = os.path.lexists(long_report)
     if existed and not overwrite:
         return _report_error(exists_message, 409)
 
@@ -175,7 +201,7 @@ def save_report(name: str, filename: str, content: str, overwrite: bool = False)
         try:
             # mkdir rather than makedirs: a strategy deleted since the check above must not be
             # recreated as an empty folder just to hold its report.
-            os.mkdir(reports_path)
+            os.mkdir(long_reports)
         except FileExistsError:
             # Already there; anything other than a folder makes the write below fail.
             pass
@@ -183,14 +209,15 @@ def save_report(name: str, filename: str, content: str, overwrite: bool = False)
             # Writing a temporary file first keeps the previous report intact if the save is
             # interrupted, and os.replace swaps the folder entry rather than following a symlink.
             temp_path = f'{reports_path}/.{filename}.{uuid4().hex}.tmp'
-            _write_new_file(temp_path, content)
+            long_temp = extended_path(temp_path)
+            _write_new_file(long_temp, content)
             try:
-                os.replace(temp_path, report_path)
+                os.replace(long_temp, long_report)
             except BaseException:
-                os.unlink(temp_path)
+                os.unlink(long_temp)
                 raise
         else:
-            _write_new_file(report_path, content)
+            _write_new_file(long_report, content)
     except FileExistsError:
         # Another save created the report between the checks above and the exclusive create.
         return _report_error(exists_message, 409)

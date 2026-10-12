@@ -25,7 +25,9 @@ PyJWT~=2.11.0
 cryptography~=42.0.5
 ecdsa>=0.16.0
 optuna~=4.2.0
-ray
+ray; sys_platform != "win32"
+# Ray 2.48 fixes the Windows logging startup regression (ray-project/ray#53852).
+ray>=2.48.0; sys_platform == "win32"
 eth-account~=0.13.5
 msgpack~=1.1.0
 starkbank-ecdsa~=1.1.0

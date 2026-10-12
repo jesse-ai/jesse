@@ -14,6 +14,7 @@ from jesse.mcp.agent_rules import _load_packaged_rules
 from jesse.mcp.resources import register_resources
 from jesse.mcp.tools import register_tools
 from jesse.services import auth
+from jesse.services.nofollow_fs import extended_path
 from tests.mcp_tool_adapters import callable_tool
 
 
@@ -185,11 +186,13 @@ def test_report_created_concurrently_after_the_checks_is_not_clobbered(project, 
 def test_strategy_deleted_during_a_save_is_not_recreated(project, api_client, monkeypatch):
     strategy = project / 'strategies' / 'MyStrategy'
     real_isdir = os.path.isdir
+    # Match the path form the handler uses, including the extended Windows prefix.
+    expected_path = extended_path('strategies/MyStrategy')
 
     def isdir_then_delete_strategy(path):
         # Simulates the strategy being deleted right after save_report confirmed it exists.
         result = real_isdir(path)
-        if path == 'strategies/MyStrategy':
+        if path == expected_path:
             shutil.rmtree(strategy)
         return result
 
@@ -215,7 +218,10 @@ def test_longest_allowed_file_name_can_be_created_and_overwritten(project, api_c
 
     assert _save(api_client, filename=filename).status_code == 200
     assert _save(api_client, filename=filename, content='# updated\n', overwrite=True).status_code == 200
-    assert (project / 'strategies' / 'MyStrategy' / 'reports' / filename).read_text(encoding='utf-8') == '# updated\n'
+    # Read through the extended form: the absolute path is past Windows' 260-character limit.
+    saved = project / 'strategies' / 'MyStrategy' / 'reports' / filename
+    with open(extended_path(str(saved)), encoding='utf-8') as f:
+        assert f.read() == '# updated\n'
 
 
 def test_report_for_a_missing_strategy_is_rejected_without_creating_folders(project, api_client):

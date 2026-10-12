@@ -94,6 +94,57 @@ def test_late_ray_memory_rejection_is_actionable(monkeypatch, message):
     assert len(calls) == 1
 
 
+def _platform_with_ray(monkeypatch, platform, version):
+    """Run initialize_ray as if on `platform` with `version`, recording sizing and init."""
+    monkeypatch.setattr(ray_runtime, 'sys', SimpleNamespace(platform=platform))
+    monkeypatch.setattr(ray_runtime.ray, '__version__', version)
+    sized = []
+
+    def estimate():
+        sized.append(True)
+        return 4 * 1024**3
+
+    started = []
+    monkeypatch.setattr(ray_runtime.utils, 'estimate_available_memory', estimate)
+    # Ray's own probe asserts it runs on Linux, which the faked platform may not be.
+    monkeypatch.setattr(ray_runtime.utils, 'get_shared_memory_bytes', lambda: 64 * 1024**2)
+    monkeypatch.setattr(ray_runtime.ray, 'init', lambda **kwargs: started.append(kwargs))
+    return sized, started
+
+
+@pytest.mark.parametrize('version', ['2.43.0', '2.47.1', '2.48.0rc1'])
+def test_old_windows_ray_is_refused_before_sizing_or_init(monkeypatch, version):
+    sized, started = _platform_with_ray(monkeypatch, 'win32', version)
+
+    with pytest.raises(RuntimeError, match=r'ray>=2\.48\.0') as refused:
+        ray_runtime.initialize_ray(2)
+
+    assert isinstance(refused.value, ray_runtime.UnsupportedRayVersionError)
+    assert f'Ray {version}' in str(refused.value)
+    assert sized == []
+    assert started == []
+
+
+@pytest.mark.parametrize('version', ['2.48.0', '2.49.1', '3.0.0'])
+def test_fixed_windows_ray_starts(monkeypatch, version):
+    sized, started = _platform_with_ray(monkeypatch, 'win32', version)
+
+    ray_runtime.initialize_ray(2)
+
+    assert sized
+    assert len(started) == 1
+    assert started[0]['num_cpus'] == 2
+
+
+@pytest.mark.parametrize('platform', ['darwin', 'linux'])
+def test_older_ray_is_still_accepted_outside_windows(monkeypatch, platform):
+    _, started = _platform_with_ray(monkeypatch, platform, '2.43.0')
+
+    ray_runtime.initialize_ray(2)
+
+    assert len(started) == 1
+
+
 def test_non_memory_ray_error_is_preserved(monkeypatch):
     monkeypatch.setattr(ray_runtime.utils, 'estimate_available_memory', lambda: 4 * 1024**3)
 

@@ -24,12 +24,13 @@ from mcp.types import CallToolResult, ImageContent, TextContent
 
 import jesse.mcp.tools.services.project_files as project_files_service
 from jesse.controllers import analysis_controller, research_scripts_controller
+from tests.conftest import process_exited
 from jesse.mcp import server as mcp_server
 from jesse.mcp.agent_rules import _load_packaged_rules
 from jesse.mcp.resources import register_resources
 from jesse.mcp.tools import register_tools
 from jesse.mcp.tools.analysis import artifact_result
-from jesse.services import analysis_jobs, auth, research_jobs, session_results
+from jesse.services import analysis_jobs, auth, nofollow_fs, research_jobs, session_results
 from tests.mcp_tool_adapters import callable_tool
 
 
@@ -103,9 +104,6 @@ def _export(session_type: str, session_id: str) -> dict:
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
-    # These workflows require no-follow directory descriptors and POSIX job cleanup.
-    if os.name == 'nt':
-        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     (root / 'storage').mkdir(parents=True)
     (root / 'research_scripts').mkdir()
@@ -176,9 +174,7 @@ def _artifact(api, job_id: str, path: str, expect: int = 200) -> dict:
 def _pid_gone(pid: int) -> bool:
     deadline = time.monotonic() + WAIT_SECONDS
     while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        if process_exited(pid):
             return True
         time.sleep(0.05)
     return False
@@ -375,17 +371,18 @@ def _wait_job(job_id: str) -> dict:
 
 
 def test_every_failure_after_the_reservation_releases_it(project, monkeypatch):
-    real_open_root, real_mkdir, real_launch = analysis_jobs._open_root, os.mkdir, research_jobs.launch
+    real_open_root, real_make_dir, real_launch = analysis_jobs._open_root, nofollow_fs.make_dir, research_jobs.launch
 
     def failing_root(create=False):
         if create:
             raise PermissionError(13, 'Permission denied')
         return real_open_root(create)
 
-    def failing_job_dir(path, mode=0o777, *, dir_fd=None):
-        if dir_fd is not None and isinstance(path, str) and research_jobs.JOB_ID_PATTERN.fullmatch(path):
+    # The workspace folder is created through the shared directory seam on every platform.
+    def failing_job_dir(dir_fd, name, mode=0o777):
+        if research_jobs.JOB_ID_PATTERN.fullmatch(name):
             raise OSError(28, 'No space left on device')
-        return real_mkdir(path, mode, dir_fd=dir_fd)
+        return real_make_dir(dir_fd, name, mode)
 
     def failing_launch(*_args, **_kwargs):
         raise session_results.ProjectFileError('start_failed', 'Could not start the analysis job.', 500)
@@ -395,7 +392,7 @@ def test_every_failure_after_the_reservation_releases_it(project, monkeypatch):
 
     for target, name, replacement, expected in (
         (analysis_jobs, '_open_root', failing_root, 'io_error'),
-        (os, 'mkdir', failing_job_dir, 'io_error'),
+        (nofollow_fs, 'make_dir', failing_job_dir, 'io_error'),
         (research_jobs, 'launch', failing_launch, 'start_failed'),
         (session_results, 'export_session', failing_export, RuntimeError),
     ):
@@ -458,15 +455,15 @@ def test_a_job_still_prepared_at_shutdown_is_refused_and_cleaned_up(project, mon
 def test_a_launch_racing_shutdown_is_either_stopped_or_refused(project, monkeypatch):
     monkeypatch.setattr(research_jobs, '_shutting_down', False)
     entered, release = threading.Event(), threading.Event()
-    real_popen = research_jobs.subprocess.Popen
+    real_spawn = research_jobs.process_tree.spawn
 
-    def slow_popen(*args, **kwargs):
+    def slow_spawn(*args, **kwargs):
         # Holds the launch inside research_jobs' job lock, where it registers the job.
         entered.set()
         assert release.wait(WAIT_SECONDS)
-        return real_popen(*args, **kwargs)
+        return real_spawn(*args, **kwargs)
 
-    monkeypatch.setattr(research_jobs.subprocess, 'Popen', slow_popen)
+    monkeypatch.setattr(research_jobs.process_tree, 'spawn', slow_spawn)
     results: list = []
     thread = _start_in_thread(results, code='import time\ntime.sleep(120)\n', inputs=[])
     assert entered.wait(WAIT_SECONDS)
@@ -484,7 +481,7 @@ def test_a_launch_racing_shutdown_is_either_stopped_or_refused(project, monkeypa
     assert isinstance(launched, dict)
     assert _wait_job(launched['id'])['status'] == 'interrupted' and _pid_gone(launched['pid'])
     # Launches after shutdown are refused, leaving no reservation or workspace behind.
-    monkeypatch.setattr(research_jobs.subprocess, 'Popen', real_popen)
+    monkeypatch.setattr(research_jobs.process_tree, 'spawn', real_spawn)
     with pytest.raises(session_results.ProjectFileError) as refused:
         analysis_jobs.start_analysis('print(1)')
     assert refused.value.error_type == 'shutting_down'
@@ -677,18 +674,21 @@ def test_image_formats_sizes_and_dimensions_are_validated(project, api, monkeypa
     assert binary['kind'] == 'binary' and 'content' not in binary and 'data_base64' not in binary
     (output / 'fake.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
     assert _artifact(api, job_id, 'fake.svg')['kind'] == 'text'
-    os.mkfifo(output / 'pipe')
-    _refused(api, 'artifact', {'job_id': job_id, 'path': 'pipe'}, 409, 'wrong_type')
+    if hasattr(os, 'mkfifo'):  # FIFOs are POSIX-only; Windows has no such artifact type.
+        os.mkfifo(output / 'pipe')
+        _refused(api, 'artifact', {'job_id': job_id, 'path': 'pipe'}, 409, 'wrong_type')
 
 
 def test_text_artifacts_and_listings_are_bounded(project, api, monkeypatch):
     job_id = _finished_job(api, project)
     output = _workspace(project, job_id) / 'output'
-    (output / 'big.txt').write_text('é' * 100)
+    # Written as UTF-8 bytes: write_text would use the locale code page on Windows, which is not UTF-8.
+    (output / 'big.txt').write_bytes(('é' * 100).encode('utf-8'))
     for i in range(5):
         (output / f'f{i}.txt').write_text('x')
     monkeypatch.setattr(analysis_jobs, 'MAX_TEXT_ARTIFACT_CHARS', 10)
     text = _artifact(api, job_id, 'big.txt')
+    assert text.get('kind') == 'text', text
     assert text['content'] == 'é' * 10 and text['truncated'] is True
     monkeypatch.setattr(analysis_jobs, 'MAX_ARTIFACTS_LISTED', 3)
     listed = _post(api, 'jobs', {'job_id': job_id})
@@ -774,7 +774,9 @@ def test_an_artifact_being_read_survives_deletion_and_later_reads_fail_cleanly(p
     real_size = analysis_jobs._image_size
 
     def delete_mid_read(data, mime):
-        analysis_jobs.delete_job(job_id)  # cleanup/deletion races with the open file
+        # The bytes are already in memory and the artifact's file is closed, so deletion runs at the
+        # point where a reader used to hold the file. The response still comes from the bytes read.
+        analysis_jobs.delete_job(job_id)
         return real_size(data, mime)
 
     monkeypatch.setattr(analysis_jobs, '_image_size', delete_mid_read)
@@ -785,6 +787,7 @@ def test_an_artifact_being_read_survives_deletion_and_later_reads_fail_cleanly(p
     _refused(api, 'artifact', {'job_id': job_id, 'path': 'chart.png'}, 404, 'not_found')
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Folder permissions do not stop deletion on Windows.')
 def test_a_workspace_that_cannot_be_removed_never_blocks_runs_or_deletes(project, api):
     expired = _finished_job(api, project, 'import os\nos.makedirs("output/locked")\nopen("output/locked/f", "w").write("x")\n'
                             'os.chmod("output/locked", 0o500)\n')

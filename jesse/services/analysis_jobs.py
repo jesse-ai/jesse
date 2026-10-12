@@ -22,13 +22,19 @@ the assistant: one stored session each (jesse.services.session_results), or the 
 trades or orders of a date window across sessions (jesse.services.live_history), streamed to
 disk one batch at a time.
 
+Workspace privacy: on POSIX, workspaces and snapshots are created 0o700 / 0o600. On Windows those
+modes are not applied; workspaces inherit their parent folder's ACL. Jesse does not set a private
+DACL, so snapshot privacy depends on the project's storage-folder permissions.
+
 The code is NOT sandboxed: it runs as the Jesse user with Jesse's environment, filesystem,
 database, and network access. The workspace layout and the artifact path checks below only
 decide which files Jesse serves back; they do not limit what the code can do. After a Jesse
 crash, a job's process may outlive its record; cleanup treats that record as finished, so
-the workspace can be deleted while the orphaned process still runs.
+the workspace can be deleted while the orphaned process still runs. (On Windows the job's
+processes are ended by the kernel when Jesse exits, so they do not outlive a crash.)
 """
 import base64
+import errno
 import io
 import json
 import os
@@ -41,7 +47,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 from uuid import uuid4
 
-from jesse.services import live_history, research_jobs, session_results
+from jesse.services import live_history, nofollow_fs, research_jobs, session_results
 from jesse.services import project_files
 from jesse.services.project_files import ProjectFileError
 
@@ -87,11 +93,11 @@ MAX_IMAGE_DIMENSION = 8000
 # Text artifacts (CSV, JSON, Markdown) are returned up to this many characters.
 MAX_TEXT_ARTIFACT_CHARS = 128 * 1024
 LIST_LIMIT = 20
+# Windows delete retries while a reader's open file blocks the folder move: about two seconds in total.
+DELETE_RETRY_ATTEMPTS = 40
+DELETE_RETRY_SECONDS = 0.05
 
 _NAME = re.compile(r'[A-Za-z0-9_-]{1,64}')
-_DIR_FLAGS = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
-_FILE_READ_FLAGS = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
-_FILE_CREATE_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0)
 
 IMAGE_FORMATS = ('image/png', 'image/jpeg', 'image/gif', 'image/webp')
 
@@ -132,19 +138,19 @@ _workspace_lock = threading.Lock()
 def _open_root(create: bool = False) -> int:
     """
     Open storage/mcp/analysis. The root itself is part of Jesse's own storage folder and is
-    opened normally; every path below it is opened with O_NOFOLLOW.
+    opened normally; every path below it is opened without following links.
     """
     if create:
         os.makedirs(ANALYSIS_ROOT, exist_ok=True)
     try:
-        return os.open(ANALYSIS_ROOT, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+        return nofollow_fs.open_path(ANALYSIS_ROOT)
     except FileNotFoundError:
         raise _error('not_found', 'No analysis job exists yet.', 404)
 
 
 def _open_dir(dir_fd: int, name: str, missing_message: str) -> int:
     try:
-        return os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
+        return nofollow_fs.open_dir(dir_fd, name)
     except FileNotFoundError:
         raise _error('not_found', missing_message, 404)
     except OSError:
@@ -156,9 +162,13 @@ def _open_dir(dir_fd: int, name: str, missing_message: str) -> int:
 
 def _lstat(dir_fd: int, name: str) -> Optional[os.stat_result]:
     try:
-        return os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        return nofollow_fs.lstat(dir_fd, name)
     except FileNotFoundError:
         return None
+    except OSError as exc:
+        if exc.errno == errno.EINVAL:  # A name Windows refuses to open; see project_files._lstat.
+            return None
+        raise
 
 
 def _gone_message(job_id: str) -> str:
@@ -177,7 +187,7 @@ def _open_workspace(job_id: str) -> int:
 
 def _write_new_file(dir_fd: int, name: str, chunks, cap: int, label: str) -> int:
     """Create `name` exclusively and write chunks, refusing with too_large past `cap` bytes."""
-    fd = os.open(name, _FILE_CREATE_FLAGS, 0o600, dir_fd=dir_fd)
+    fd = nofollow_fs.create_file(dir_fd, name, 0o600)
     written = 0
     try:
         with os.fdopen(fd, 'wb') as f:
@@ -189,7 +199,7 @@ def _write_new_file(dir_fd: int, name: str, chunks, cap: int, label: str) -> int
                 f.write(data)
     except BaseException:
         try:
-            os.unlink(name, dir_fd=dir_fd)
+            nofollow_fs.unlink(dir_fd, name)
         except OSError:
             pass
         raise
@@ -199,24 +209,22 @@ def _write_new_file(dir_fd: int, name: str, chunks, cap: int, label: str) -> int
 def _remove_tree(dir_fd: int, name: str) -> None:
     """Delete a folder and everything in it; symlinks are unlinked, never followed."""
     try:
-        sub = os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
+        sub = nofollow_fs.open_dir(dir_fd, name)
     except FileNotFoundError:
         return
     try:
-        with os.scandir(sub) as entries:
-            children = list(entries)
-        for child in children:
+        for child in list(nofollow_fs.scandir(sub)):
             if child.is_dir(follow_symlinks=False):
                 _remove_tree(sub, child.name)
             else:
                 try:
-                    os.unlink(child.name, dir_fd=sub)
+                    nofollow_fs.unlink(sub, child.name)
                 except FileNotFoundError:
                     pass
     finally:
         os.close(sub)
     try:
-        os.rmdir(name, dir_fd=dir_fd)
+        nofollow_fs.rmdir(dir_fd, name)
     except FileNotFoundError:
         pass
 
@@ -224,21 +232,20 @@ def _remove_tree(dir_fd: int, name: str) -> None:
 def _tree_size(dir_fd: int, name: str) -> int:
     """Bytes used by regular files below a folder, without following symlinks."""
     try:
-        sub = os.open(name, _DIR_FLAGS, dir_fd=dir_fd)
+        sub = nofollow_fs.open_dir(dir_fd, name)
     except OSError:
         return 0
     total = 0
     try:
-        with os.scandir(sub) as entries:
-            for entry in entries:
-                try:
-                    st = entry.stat(follow_symlinks=False)
-                except OSError:
-                    continue
-                if stat.S_ISDIR(st.st_mode):
-                    total += _tree_size(sub, entry.name)
-                elif stat.S_ISREG(st.st_mode):
-                    total += st.st_size
+        for entry in nofollow_fs.scandir(sub):
+            try:
+                st = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if stat.S_ISDIR(st.st_mode):
+                total += _tree_size(sub, entry.name)
+            elif stat.S_ISREG(st.st_mode):
+                total += st.st_size
     finally:
         os.close(sub)
     return total
@@ -265,7 +272,7 @@ def _discard(root_fd: int, job_id: str) -> None:
     """
     trash = f'.trash-{job_id}-{uuid4().hex}'
     try:
-        os.rename(job_id, trash, src_dir_fd=root_fd, dst_dir_fd=root_fd)
+        nofollow_fs.rename(root_fd, job_id, root_fd, trash, replace=False)
     except FileNotFoundError:
         return
     _remove_trash(root_fd, trash)
@@ -319,7 +326,7 @@ def cleanup_workspaces(now: Optional[float] = None) -> List[str]:
         root = _open_root()
         try:
             candidates: List[Tuple[float, str]] = []
-            for entry in os.scandir(root):
+            for entry in nofollow_fs.scandir(root):
                 name = entry.name
                 if name.startswith('.trash-'):
                     _remove_trash(root, name)  # Left over from an interrupted or failed deletion.
@@ -470,10 +477,10 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
         raise _error('too_large', f'code is limited to {MAX_CODE_BYTES // 1024} KiB.', 413)
     research_jobs.validate_timeout(timeout_minutes, MAX_TIMEOUT_MINUTES)
     validated = _validate_inputs(inputs)
-    # Workspace confinement needs no-follow directory descriptors; refuse unsupported
+    # Workspace confinement needs no-follow directory access; refuse unsupported
     # hosts before reserving a job or creating files rather than weakening those guarantees.
     if not project_files._platform_supported():
-        raise _error('unsupported_platform', 'Analysis jobs require Linux or macOS (including Docker).', 501)
+        raise _error('unsupported_platform', 'Analysis jobs require Linux, macOS, or Windows.', 501)
     job_id = _reserve_slot()
     # From here on the reservation is released in `finally`, whatever fails.
     try:
@@ -485,7 +492,7 @@ def start_analysis(code: str, inputs: Optional[list] = None, timeout_minutes: in
             try:
                 root = _open_root(create=True)
                 try:
-                    os.mkdir(job_id, 0o700, dir_fd=root)
+                    nofollow_fs.make_dir(root, job_id, 0o700)
                 finally:
                     os.close(root)
             except OSError as exc:
@@ -525,8 +532,8 @@ def _prepare_and_launch(job_id: str, validated: List[dict], code_bytes: bytes, t
     try:
         workspace = _open_workspace(job_id)
         try:
-            os.mkdir(INPUTS_DIR, 0o700, dir_fd=workspace)
-            os.mkdir(OUTPUT_DIR, 0o700, dir_fd=workspace)
+            nofollow_fs.make_dir(workspace, INPUTS_DIR, 0o700)
+            nofollow_fs.make_dir(workspace, OUTPUT_DIR, 0o700)
             manifest = _write_inputs(workspace, validated)
             _write_new_file(workspace, CODE_FILE, [code_bytes], MAX_CODE_BYTES, 'code')
         except OSError as exc:
@@ -549,6 +556,18 @@ def _prepare_and_launch(job_id: str, validated: List[dict], code_bytes: bytes, t
             {'MPLBACKEND': 'Agg'},
         )
     except BaseException:
+        _discard_after_failed_start(job_id)
+        raise
+
+
+def _discard_after_failed_start(job_id: str) -> None:
+    """
+    Remove the workspace of a job that failed to start, without replacing the error that caused it.
+
+    Best-effort: if the removal itself fails (on Windows the folder cannot move while a file in it
+    is open), the workspace stays on disk and cleanup_workspaces removes it later.
+    """
+    try:
         with _workspace_lock:
             root = _open_root()
             try:
@@ -556,7 +575,8 @@ def _prepare_and_launch(job_id: str, validated: List[dict], code_bytes: bytes, t
                     _discard(root, job_id)
             finally:
                 os.close(root)
-        raise
+    except (OSError, ProjectFileError):
+        pass
 
 
 def _public(record: dict) -> dict:
@@ -634,17 +654,43 @@ def delete_job(job_id: str) -> dict:
         try:
             if _lstat(root, job_id) is None:
                 raise _error('not_found', _gone_message(job_id), 404)
-            _discard(root, job_id)
+            _discard_for_delete(root, job_id)
         except OSError as exc:
+            if os.name == 'nt' and exc.errno in (errno.EACCES, errno.EBUSY):
+                raise _error('job_busy', f'Analysis job {job_id} is still open by another request. Try again shortly.', 409)
             raise _error('io_error', f'Could not delete analysis job {job_id}: {exc.strerror or exc}.', 500)
         finally:
             os.close(root)
     return {'job_id': job_id, 'deleted': True}
 
 
+def _discard_for_delete(root_fd: int, job_id: str) -> None:
+    """
+    Discard a workspace for an explicit delete. On Windows NTFS will not move a folder while a
+    file inside it is open by someone else, and a reader holds its file only for the moment it
+    reads it (read_artifact closes before checking). Retrying briefly lets that reader finish;
+    cleanup_workspaces remains best-effort and simply retries later.
+
+    Tradeoff: the retries run while _workspace_lock is held, so on Windows other workspace
+    operations wait at most DELETE_RETRY_ATTEMPTS * DELETE_RETRY_SECONDS (about two seconds) before
+    this delete reports job_busy (409) instead of blocking longer.
+    """
+    if os.name != 'nt':
+        _discard(root_fd, job_id)
+        return
+    for attempt in range(DELETE_RETRY_ATTEMPTS):
+        try:
+            _discard(root_fd, job_id)
+            return
+        except OSError as exc:
+            if exc.errno not in (errno.EACCES, errno.EBUSY) or attempt == DELETE_RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(DELETE_RETRY_SECONDS)
+
+
 def _sniff(fd: int) -> Tuple[str, Optional[str]]:
     """Classify a file as ('image', mime), ('text', None) or ('binary', None) from its first bytes."""
-    head = os.pread(fd, 8192, 0)
+    head = nofollow_fs.read_at(fd, 8192, 0)
     mime = _image_mime(head)
     if mime:
         return 'image', mime
@@ -739,6 +785,11 @@ def _parse_artifact_path(path: object) -> List[str]:
         parts = parts[1:]
     if not parts:
         raise _error('invalid_path', 'path must name a file inside the output folder.', 400)
+    if os.name == 'nt':
+        for part in parts:
+            problem = nofollow_fs.component_problem(part)
+            if problem is not None:
+                raise _error('invalid_path', f'{part!r} {problem}; artifact names must be names Windows accepts.', 400)
     return parts
 
 
@@ -759,8 +810,7 @@ def list_artifacts(job_id: str) -> dict:
 
     def walk(dir_fd: int, prefix: Sequence[str]) -> None:
         nonlocal truncated
-        with os.scandir(dir_fd) as iterator:
-            children = sorted(iterator, key=lambda entry: entry.name)
+        children = sorted(nofollow_fs.scandir(dir_fd), key=lambda entry: entry.name)
         for child in children:
             if len(artifacts) >= MAX_ARTIFACTS_LISTED:
                 truncated = True
@@ -772,7 +822,7 @@ def list_artifacts(job_id: str) -> dict:
                 continue
             if stat.S_ISDIR(st.st_mode):
                 try:
-                    sub = os.open(child.name, _DIR_FLAGS, dir_fd=dir_fd)
+                    sub = nofollow_fs.open_dir(dir_fd, child.name)
                 except OSError:
                     continue
                 try:
@@ -785,7 +835,7 @@ def list_artifacts(job_id: str) -> dict:
                 item.update(kind='symlink', size_bytes=None)
             elif stat.S_ISREG(st.st_mode):
                 try:
-                    fd = os.open(child.name, _FILE_READ_FLAGS, dir_fd=dir_fd)
+                    fd = nofollow_fs.open_read(dir_fd, child.name)
                 except OSError:
                     continue
                 try:
@@ -826,7 +876,7 @@ def read_artifact(job_id: str, path: str) -> dict:
             os.close(dir_fd)
             dir_fd = child
         try:
-            fd = os.open(parts[-1], _FILE_READ_FLAGS, dir_fd=dir_fd)
+            fd = nofollow_fs.open_read(dir_fd, parts[-1])
         except FileNotFoundError:
             raise _error('not_found', f'{display} does not exist in the output folder of analysis job {job_id}.', 404)
         except OSError:
@@ -836,40 +886,48 @@ def read_artifact(job_id: str, path: str) -> dict:
             raise _error('wrong_type', f'{display} cannot be opened as a file.', 409)
     finally:
         os.close(dir_fd)
+    # The bytes are read and the handle closed before any checks run. Nothing holds the file open
+    # while Pillow or the caller works, so deleting the job never has to wait for a reader on Windows.
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode):
             raise _error('wrong_type', f'{display} is not a regular file.', 409)
         kind, mime = _sniff(fd)
-        base = {'job_id': job_id, 'path': display, 'size_bytes': st.st_size,
-                'modified_at': datetime.fromtimestamp(st.st_mtime, timezone.utc).isoformat(timespec='seconds')}
+        data = b''
         if kind == 'image' and mime:
             if st.st_size > MAX_IMAGE_BYTES:
                 raise _error('artifact_too_large', f'{display} is {st.st_size} bytes; images are returned up to '
                              f'{MAX_IMAGE_BYTES // (1024 * 1024)} MiB. Save it smaller (lower dpi or figure size).', 413)
-            data = os.pread(fd, MAX_IMAGE_BYTES + 1, 0)
-            if len(data) != st.st_size:
-                raise _error('artifact_changed', f'{display} changed while it was being read; fetch it again.', 409)
-            size = _image_size(data, mime)
-            if size is None:
-                raise _error('invalid_image', f'{display} starts like a {mime} file but is not a valid image.', 422)
-            width, height = size
-            # Dimensions are checked before Pillow opens the image: Pillow refuses very large
-            # pixel counts as decompression bombs, which would misreport a legitimately
-            # oversized chart as invalid instead of telling the caller to shrink it.
-            if not (1 <= width <= MAX_IMAGE_DIMENSION and 1 <= height <= MAX_IMAGE_DIMENSION):
-                raise _error('artifact_too_large', f'{display} is {width}x{height} pixels; images are returned up to '
-                             f'{MAX_IMAGE_DIMENSION} pixels per side. Save it smaller (lower dpi or figure size).', 413)
-            if not _verify_image(data):
-                raise _error('invalid_image', f'{display} starts like a {mime} file but is not a valid image.', 422)
-            return {**base, 'kind': 'image', 'mime_type': mime, 'width': width, 'height': height,
-                    'data_base64': base64.b64encode(data).decode('ascii')}
-        if kind == 'text':
-            raw = os.pread(fd, MAX_TEXT_ARTIFACT_CHARS * 4 + 4, 0)
-            text = raw.decode('utf-8', errors='replace')
-            truncated = len(text) > MAX_TEXT_ARTIFACT_CHARS or len(raw) < st.st_size
-            return {**base, 'kind': 'text', 'content': text[:MAX_TEXT_ARTIFACT_CHARS], 'truncated': truncated}
-        return {**base, 'kind': 'binary', 'message': (
-            f'{display} is a binary file; only PNG, JPEG, GIF and WebP images and text files are returned.')}
+            data = nofollow_fs.read_at(fd, MAX_IMAGE_BYTES + 1, 0)
+        elif kind == 'text':
+            data = nofollow_fs.read_at(fd, MAX_TEXT_ARTIFACT_CHARS * 4 + 4, 0)
     finally:
         os.close(fd)
+    base = {'job_id': job_id, 'path': display, 'size_bytes': st.st_size,
+            'modified_at': datetime.fromtimestamp(st.st_mtime, timezone.utc).isoformat(timespec='seconds')}
+    if kind == 'image' and mime:
+        if len(data) != st.st_size:
+            raise _error('artifact_changed', f'{display} changed while it was being read; fetch it again.', 409)
+        size = _image_size(data, mime)
+        if size is None:
+            raise _error('invalid_image', f'{display} starts like a {mime} file but is not a valid image.', 422)
+        width, height = size
+        # Dimensions are checked before Pillow opens the image: Pillow refuses very large
+        # pixel counts as decompression bombs, which would misreport a legitimately
+        # oversized chart as invalid instead of telling the caller to shrink it.
+        if not (1 <= width <= MAX_IMAGE_DIMENSION and 1 <= height <= MAX_IMAGE_DIMENSION):
+            raise _error('artifact_too_large', f'{display} is {width}x{height} pixels; images are returned up to '
+                         f'{MAX_IMAGE_DIMENSION} pixels per side. Save it smaller (lower dpi or figure size).', 413)
+        if not _verify_image(data):
+            raise _error('invalid_image', f'{display} starts like a {mime} file but is not a valid image.', 422)
+        return {**base, 'kind': 'image', 'mime_type': mime, 'width': width, 'height': height,
+                'data_base64': base64.b64encode(data).decode('ascii')}
+    if kind == 'text':
+        text = data.decode('utf-8', errors='replace')
+        if os.name == 'nt':
+            # Text written by Python on Windows has CRLF line endings; return the same text as on POSIX.
+            text = text.replace('\r\n', '\n')
+        truncated = len(text) > MAX_TEXT_ARTIFACT_CHARS or len(data) < st.st_size
+        return {**base, 'kind': 'text', 'content': text[:MAX_TEXT_ARTIFACT_CHARS], 'truncated': truncated}
+    return {**base, 'kind': 'binary', 'message': (
+        f'{display} is a binary file; only PNG, JPEG, GIF and WebP images and text files are returned.')}

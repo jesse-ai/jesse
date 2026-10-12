@@ -56,14 +56,12 @@ class FakeMCP:
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
     """A disposable Jesse project; the file service resolves both roots from the working directory."""
-    # These workflows require no-follow directory descriptors and POSIX job cleanup.
-    if os.name == 'nt':
-        pytest.skip('Project-file and research workflows require Linux or macOS, including Docker.')
     root = tmp_path / 'project'
     strategy = root / 'strategies' / 'MyStrategy'
     strategy.mkdir(parents=True)
     (root / 'storage').mkdir()
-    (strategy / '__init__.py').write_text(STRATEGY_CODE, encoding='utf-8')
+    # Byte-exact fixtures: write_text would add CRLF on Windows, which changes the sizes these tests check.
+    (strategy / '__init__.py').write_bytes(STRATEGY_CODE.encode('utf-8'))
     monkeypatch.chdir(root)
     return root
 
@@ -320,11 +318,21 @@ def test_write_stays_in_the_opened_folder_when_a_symlink_is_swapped_in_concurren
     real_temp_name = project_files._temp_name
     swapped = []
 
+    swap_refused = []
+
     def swap_then_name():
         if not swapped:
-            (scripts / 'work').rename(scripts / 'moved_away')
-            (scripts / 'work').symlink_to(outside, target_is_directory=True)
             swapped.append(True)
+            try:
+                (scripts / 'work').rename(scripts / 'moved_away')
+            except PermissionError:
+                # Windows refuses the swap itself: the write holds 'work' open without delete sharing
+                # (WinError 32), so the folder cannot be moved out from under it. That is the same guarantee.
+                if os.name != 'nt':
+                    raise
+                swap_refused.append(True)
+            else:
+                (scripts / 'work').symlink_to(outside, target_is_directory=True)
         return real_temp_name()
 
     monkeypatch.setattr(project_files, '_temp_name', swap_then_name)
@@ -334,7 +342,11 @@ def test_write_stays_in_the_opened_folder_when_a_symlink_is_swapped_in_concurren
 
     assert swapped
     assert _snapshot(outside) == before
-    assert (scripts / 'moved_away' / 'result.py').read_text() == 'safe'
+    if swap_refused:
+        assert (scripts / 'work' / 'result.py').read_text() == 'safe'
+        assert not (scripts / 'moved_away').exists()
+    else:
+        assert (scripts / 'moved_away' / 'result.py').read_text() == 'safe'
 
 
 # ---------------------------------------------------------------------------
@@ -437,7 +449,7 @@ def test_read_character_cap_splits_pages_and_cuts_a_single_huge_line(project, ap
     monkeypatch.setattr(project_files, 'MAX_READ_CHARS', 10)
     path = project / 'research_scripts' / 'wide.txt'
     path.parent.mkdir()
-    path.write_text('abcd\nefgh\nijkl\n' + 'x' * 50 + '\nend\n', encoding='utf-8')
+    path.write_bytes(('abcd\nefgh\nijkl\n' + 'x' * 50 + '\nend\n').encode('utf-8'))
 
     first = _ok(_post(api, 'read', {'path': 'research_scripts/wide.txt'}))
     assert first['content'] == 'abcd\nefgh\n' and first['next_start_line'] == 3
@@ -663,7 +675,7 @@ def test_strategy_folders_can_be_created_renamed_copied_and_deleted(project, api
     strategies = project / 'strategies'
     (strategies / 'MyStrategy' / 'model.pkl').write_bytes(MODEL_BYTES)
     (strategies / 'MyStrategy' / 'reports').mkdir()
-    (strategies / 'MyStrategy' / 'reports' / 'r.md').write_text('# report\n')
+    (strategies / 'MyStrategy' / 'reports' / 'r.md').write_bytes(b'# report\n')
 
     assert _ok(_post(api, 'mkdir', {'path': 'strategies/Fresh'}))['created'] is True
     assert _strategy_names(api) == ['Fresh', 'MyStrategy']
@@ -952,6 +964,7 @@ def test_without_hard_links_publishing_still_never_clobbers(project, api, no_har
     assert not (project / 'research_scripts' / 'b.py').exists() and _temp_leftovers(project) == []
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='The placeholder fallback runs only without hard links; Windows publishes with an atomic NT rename.')
 def test_a_failed_rename_into_a_reserved_name_leaves_no_placeholder(project, api, no_hard_links, monkeypatch):
     real_rename = os.rename
 
@@ -965,6 +978,7 @@ def test_a_failed_rename_into_a_reserved_name_leaves_no_placeholder(project, api
     assert not (project / 'research_scripts' / 'new.py').exists() and _temp_leftovers(project) == []
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='The placeholder fallback runs only without hard links; Windows publishes with an atomic NT rename.')
 def test_a_placeholder_replaced_by_another_process_is_not_removed(project, no_hard_links, monkeypatch):
     """If someone else replaced our reserved name before the rename failed, their file stays."""
     folder = project / 'research_scripts'
@@ -978,7 +992,7 @@ def test_a_placeholder_replaced_by_another_process_is_not_removed(project, no_ha
         raise OSError(errno.EIO, 'I/O error')
 
     monkeypatch.setattr(project_files.os, 'rename', replace_then_fail)
-    fd = os.open(folder, os.O_RDONLY)
+    fd = project_files.open_directory(['research_scripts'])
     try:
         with pytest.raises(OSError):
             project_files._rename_into_reserved_name(fd, 'src.tmp', fd, 'dst.py', 'research_scripts/dst.py')

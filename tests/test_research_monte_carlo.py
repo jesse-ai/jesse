@@ -1,4 +1,5 @@
 from copy import deepcopy
+from importlib import import_module
 import sys
 
 import numpy as np
@@ -273,3 +274,72 @@ def test_candle_monte_carlo_cleans_up_after_original_backtest_failure() -> None:
         )
 
     _assert_research_runtime_is_clean(ray_was_initialized)
+
+
+_SIMULATION_ENTRY_POINTS = [
+    ('jesse.research.monte_carlo.monte_carlo_trades', 'monte_carlo_trades', '_run_monte_carlo_simulation'),
+    ('jesse.research.monte_carlo.monte_carlo_candles', 'monte_carlo_candles', '_run_monte_carlo_candles_simulation'),
+]
+
+
+def _fake_ray_lifecycle(monkeypatch, module, simulation, *, initialized: bool) -> list:
+    """Replace Ray's lifecycle in `module` with a recorder, so no runtime is started."""
+    events = []
+    state = {'initialized': initialized}
+
+    def start(cpu_cores):
+        events.append(('start', cpu_cores))
+        state['initialized'] = True
+
+    def unexpected_raw_init(**kwargs):
+        raise AssertionError('Ray must be started through jesse.services.ray_runtime')
+
+    monkeypatch.setattr(module, 'cpu_count', lambda: 8)
+    monkeypatch.setattr(module, 'initialize_ray', start)
+    monkeypatch.setattr(module.ray, 'init', unexpected_raw_init)
+    monkeypatch.setattr(module.ray, 'is_initialized', lambda: state['initialized'])
+    monkeypatch.setattr(module.ray, 'shutdown', lambda: events.append('shutdown'))
+    monkeypatch.setattr(module, simulation, lambda *args: events.append('run') or 'result')
+    return events
+
+
+@pytest.mark.parametrize(('module_name', 'entry_point', 'simulation'), _SIMULATION_ENTRY_POINTS)
+def test_monte_carlo_starts_and_releases_ray_through_the_shared_runtime(
+    monkeypatch, module_name, entry_point, simulation
+) -> None:
+    module = import_module(module_name)
+    events = _fake_ray_lifecycle(monkeypatch, module, simulation, initialized=False)
+
+    assert getattr(module, entry_point)({}, [], [], {}, cpu_cores=3) == 'result'
+
+    assert events == [('start', 3), 'run', 'shutdown']
+
+
+@pytest.mark.parametrize(('module_name', 'entry_point', 'simulation'), _SIMULATION_ENTRY_POINTS)
+def test_monte_carlo_reuses_a_caller_owned_ray_runtime(
+    monkeypatch, module_name, entry_point, simulation
+) -> None:
+    module = import_module(module_name)
+    events = _fake_ray_lifecycle(monkeypatch, module, simulation, initialized=True)
+
+    assert getattr(module, entry_point)({}, [], [], {}, cpu_cores=3) == 'result'
+
+    assert events == ['run']
+
+
+@pytest.mark.parametrize(('module_name', 'entry_point', 'simulation'), _SIMULATION_ENTRY_POINTS)
+def test_monte_carlo_reports_ray_startup_refusal_without_shutting_down(
+    monkeypatch, module_name, entry_point, simulation
+) -> None:
+    module = import_module(module_name)
+    events = _fake_ray_lifecycle(monkeypatch, module, simulation, initialized=False)
+
+    def refuse(cpu_cores):
+        raise MemoryError('Not enough available memory to start research workers.')
+
+    monkeypatch.setattr(module, 'initialize_ray', refuse)
+
+    with pytest.raises(RuntimeError, match='Error initializing Ray: Not enough available memory'):
+        getattr(module, entry_point)({}, [], [], {}, cpu_cores=3)
+
+    assert events == []
