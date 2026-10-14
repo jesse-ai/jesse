@@ -32,6 +32,18 @@ def _require_loader() -> None:
         )
 
 
+def _primary_key(table: str) -> tuple | None:
+    """Return the candle primary key's constraint name and ordered column names."""
+    return database.db.execute_sql(
+        'SELECT c.conname, array_agg(a.attname ORDER BY k.ordinality) '
+        'FROM pg_constraint c CROSS JOIN LATERAL unnest(c.conkey) '
+        'WITH ORDINALITY k(attnum, ordinality) '
+        'JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum '
+        "WHERE c.conrelid = %s::regclass AND c.contype = 'p' GROUP BY c.conname",
+        (table,),
+    ).fetchone()
+
+
 def status() -> dict:
     """Describe storage without installing an extension or modifying tables."""
     db = database.db
@@ -115,21 +127,15 @@ def enable(*, migrate_existing: bool, compression: bool = True) -> str:
                 # A writer won the race after the preflight read. Roll back any
                 # extension installation as well as abandoning the conversion.
                 raise ValueError('Existing candles need maintenance: stop sessions and run jesse enable-timescale.')
-            # Timescale requires the partition timestamp in every unique index.
-            # The UUID remains the model identifier; physical uniqueness includes
-            # time, and the existing venue/symbol/timeframe/time key stays intact.
-            primary = db.execute_sql(
-                'SELECT c.conname, array_agg(a.attname ORDER BY k.ordinality) '
-                'FROM pg_constraint c CROSS JOIN LATERAL unnest(c.conkey) '
-                'WITH ORDINALITY k(attnum, ordinality) '
-                'JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum '
-                "WHERE c.conrelid = %s::regclass AND c.contype = 'p' GROUP BY c.conname",
-                (table,),
-            ).fetchone()
+            # Timescale requires the partition timestamp in every unique index, and
+            # checks each of them against compressed history. A key on the UUID
+            # would decompress every series sharing an inserted timestamp, so the
+            # venue/symbol/timeframe/time index stays the only uniqueness rule.
+            primary = _primary_key(table)
             if primary and primary[1] == ['id']:
                 # No CASCADE: custom dependent foreign keys must block conversion,
                 # rather than silently breaking a customer's schema.
-                db.execute_sql(f'ALTER TABLE {table} DROP CONSTRAINT {_identifier(primary[0])}, ADD PRIMARY KEY (id, timestamp)')
+                db.execute_sql(f'ALTER TABLE {table} DROP CONSTRAINT {_identifier(primary[0])}')
             db.execute_sql(
                 "SELECT create_hypertable(%s::regclass, 'timestamp', "
                 'chunk_time_interval => %s::bigint, migrate_data => true, if_not_exists => true)',
@@ -152,6 +158,34 @@ def enable(*, migrate_existing: bool, compression: bool = True) -> str:
             db.execute_sql('SELECT set_integer_now_func(%s::regclass, %s::regproc, replace_if_exists => true)', (table, now_function))
             db.execute_sql('SELECT add_compression_policy(%s::regclass, %s::bigint, if_not_exists => true)', (table, COMPRESS_AFTER_MS))
     return 'TimescaleDB candle storage enabled' + ('; history older than 30 days compresses automatically.' if compression else '.')
+
+
+def drop_identifier_primary_key() -> None:
+    """Remove the (id, timestamp) primary key that earlier conversions left on the hypertable.
+
+    The UUID is not a compression segment, so TimescaleDB could only check that key by
+    decompressing every series sharing an inserted timestamp. Historical imports then
+    unpacked unrelated symbols and large ones exceeded the decompression limit.
+    """
+    db = database.db
+    try:
+        if not status()['hypertable']:
+            return
+        table = f'{_identifier(postgres_schema())}."candle"'
+        with db.atomic():
+            # Every chunk is locked; yield to running sessions and retry at the next start.
+            db.execute_sql("SET LOCAL lock_timeout = '5s'")
+            primary = _primary_key(table)
+            # A key the administrator defined differently is not Jesse's to remove.
+            if not primary or primary[1] != ['id', 'timestamp']:
+                return
+            # No CASCADE: custom dependent foreign keys must block the change.
+            db.execute_sql(f'ALTER TABLE {table} DROP CONSTRAINT {_identifier(primary[0])}')
+    except (peewee.PeeweeException, ValueError) as exc:
+        # Candle storage keeps working with the old key, so startup continues.
+        print(f'Candle primary key migration skipped, retrying at the next start: {exc}')
+        return
+    print('Dropped the (id, timestamp) primary key from the TimescaleDB candle table.')
 
 
 def configure_if_requested() -> None:
