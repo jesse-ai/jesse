@@ -13,6 +13,7 @@ from jesse.services.dashboard_url import (
     InvalidDashboardUrlError,
     default_dashboard_url,
     internal_api_url,
+    live_session_url,
     mcp_endpoint_url,
     normalize_dashboard_url,
     resolve_dashboard_url,
@@ -143,6 +144,28 @@ def test_internal_api_url_uses_bind_address_not_public_url(bind_host, expected):
 
 def test_default_dashboard_url_matches_historical_localhost_link():
     assert default_dashboard_url('0.0.0.0', 9000) == 'http://localhost:9000'
+
+
+@pytest.mark.parametrize(
+    ('env_values', 'expected'),
+    [
+        ({}, 'http://localhost:9000/#/live/abc-123'),
+        ({'APP_PORT': '9005'}, 'http://localhost:9005/#/live/abc-123'),
+        ({'APP_HOST': '192.168.1.20', 'APP_PORT': '9005'}, 'http://192.168.1.20:9005/#/live/abc-123'),
+        ({'APP_PORT': '9005', 'DASHBOARD_URL': 'https://jesse.example.com/'}, 'https://jesse.example.com/#/live/abc-123'),
+    ],
+)
+def test_live_session_url_matches_the_dashboard_address_jesse_run_prints(env_values, expected):
+    assert live_session_url('abc-123', env_values) == expected
+
+
+@pytest.mark.parametrize('env_values', [{'DASHBOARD_URL': 'http://mini.local/jesse'}, {'APP_PORT': 'nine'}])
+def test_live_session_url_is_empty_when_no_working_link_can_be_built(env_values):
+    assert live_session_url('abc-123', env_values) == ''
+
+
+def test_live_session_url_escapes_the_session_id():
+    assert live_session_url('a/b', {}) == 'http://localhost:9000/#/live/a%2Fb'
 
 
 def test_mcp_endpoint_is_derived_from_the_dashboard_origin():

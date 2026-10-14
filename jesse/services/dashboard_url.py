@@ -19,10 +19,13 @@ absolute root paths, so it cannot be served under a path prefix.
 import ipaddress
 import re
 from typing import Mapping, Optional
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 DASHBOARD_URL_ENV_KEY = 'DASHBOARD_URL'
 MCP_ENDPOINT_PATH = '/mcp'
+# Where `jesse run` listens when APP_HOST and APP_PORT are not set.
+DEFAULT_APP_HOST = '0.0.0.0'
+DEFAULT_APP_PORT = 9000
 
 # One DNS label (RFC 1123). Underscores are tolerated because some LAN and container
 # hostnames use them even though they are not strictly valid DNS names.
@@ -197,6 +200,26 @@ def resolve_dashboard_url(env_values: Mapping[str, Optional[str]], bind_host: Op
     if raw is None or not str(raw).strip():
         return default_dashboard_url(bind_host, port)
     return normalize_dashboard_url(str(raw))
+
+
+def live_session_url(session_id: str, env_values: Mapping[str, Optional[str]]) -> str:
+    """
+    Return the dashboard page of a live or paper session, or '' when DASHBOARD_URL is invalid.
+
+    Sessions run in a worker process that does not receive the server's resolved origin,
+    so it is resolved again from the same .env values that `jesse run` used.
+    """
+    try:
+        origin = resolve_dashboard_url(
+            env_values,
+            env_values.get('APP_HOST') or DEFAULT_APP_HOST,
+            int(env_values.get('APP_PORT') or DEFAULT_APP_PORT),
+        )
+    except ValueError:
+        # Covers InvalidDashboardUrlError and a non-numeric APP_PORT edited after startup.
+        return ''
+    # The dashboard uses hash routing; opening this page loads the session into a Live tab.
+    return f"{origin}/#/live/{quote(str(session_id), safe='')}"
 
 
 def mcp_endpoint_url(dashboard_url: str) -> str:

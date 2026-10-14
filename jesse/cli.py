@@ -12,10 +12,11 @@ from importlib.metadata import version as get_version
 import uvicorn
 
 import jesse.helpers as jh
+from jesse.services.dashboard_url import DEFAULT_APP_HOST, DEFAULT_APP_PORT
 
 # Default Host and Port for the Jesse API server
-HOST = "0.0.0.0"
-PORT = 9000
+HOST = DEFAULT_APP_HOST
+PORT = DEFAULT_APP_PORT
 
 @click.group()
 @click.version_option(get_version("jesse"))
