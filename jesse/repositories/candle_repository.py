@@ -313,6 +313,11 @@ def store_candles_into_db(exchange: str, symbol: str, timeframe: str, candles: n
         }
         candles_list.append(d)
 
+    if on_conflict == 'replace':
+        # One statement cannot update a row twice; when a page repeats a bar
+        # (e.g. the forming one), its latest copy is stored.
+        candles_list = list({d['timestamp']: d for d in candles_list}.values())
+
     if on_conflict == 'ignore':
         Candle.insert_many(candles_list).on_conflict_ignore().execute()
     elif on_conflict == 'replace':
