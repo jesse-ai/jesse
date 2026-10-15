@@ -306,6 +306,16 @@ def _parse_config(value: Any) -> Optional[dict]:
         warm_up = value['warm_up_candles']
         if isinstance(warm_up, bool) or not isinstance(warm_up, int) or warm_up < 0:
             raise _Failure('invalid_request', 'config.warm_up_candles must be a whole number of 0 or more.')
+    # 0 turns either check off; the candle refresh also accepts null (automatic).
+    for key, extra in (
+        ('order_backup_check_seconds', ', where 0 turns it off'),
+        ('candle_backup_refresh_seconds', ', where 0 turns it off and null means automatic'),
+    ):
+        if key not in value or (key == 'candle_backup_refresh_seconds' and value[key] is None):
+            continue
+        seconds = value[key]
+        if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not 0 <= seconds < float('inf'):
+            raise _Failure('invalid_request', f'config.{key} must be a number of seconds, 0 or more{extra}.')
     if 'logging' in value:
         _check_flags(value['logging'], LIVE_LOGGING_FIELDS, 'config.logging')
     if 'notifications' in value:

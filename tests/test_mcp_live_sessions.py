@@ -460,6 +460,7 @@ def test_a_paper_draft_gets_the_dashboard_default_for_its_exchange_and_shared_se
     expected = {
         'persistency': True, 'generate_candles_from_1m': False,
         'logging': {**LIVE_LOGGING, 'balance_update': False}, 'warm_up_candles': 240,
+        'order_backup_check_seconds': 10, 'candle_backup_refresh_seconds': None,
         'notifications': {**NOTIFICATIONS, 'position_report_timeframe': '4h'},
         'exchange': {'name': 'Binance Perpetual Futures', 'type': 'futures', 'simulation_model': 'perpetual_futures',
                      'annualization': 365, 'balance': 5000, 'fee': 0.0005, 'futures_leverage_mode': 'isolated',
@@ -519,7 +520,10 @@ def test_config_overrides_are_validated_and_stay_in_the_draft(jesse):
                 {'notifications': {'events': {'erors': False}}}, {'notifications': {'enabled': 1}},
                 {'notifications': {'position_report_timeframe': '7m'}}, {'notifications': {'chat_id': 'x'}},
                 {'exchange': {'simulation_model': 'perp'}}, {'exchange': {'type': 'margin'}},
-                {'exchange': {'annualization': 300}}, {'exchange': {'annualization': True}}):
+                {'exchange': {'annualization': 300}}, {'exchange': {'annualization': True}},
+                {'order_backup_check_seconds': -1}, {'order_backup_check_seconds': None},
+                {'order_backup_check_seconds': '30'}, {'candle_backup_refresh_seconds': -1},
+                {'candle_backup_refresh_seconds': True}):
         refused = _paper(config=json.dumps(bad))
         assert (refused['status'], refused['error_type']) == ('error', 'invalid_request'), bad
     assert _paper(config='{not json')['error_type'] == 'invalid_request'
@@ -669,6 +673,24 @@ def test_starting_a_paper_draft_sends_the_dashboard_request_and_runs_nothing_its
     assert jesse.jesse_trade.authorizations == []
     assert _settings_json() == before
     _no_secrets(draft, result)
+
+
+def test_backup_check_intervals_are_set_per_draft_and_reach_the_engine(jesse):
+    draft = _paper(config={'order_backup_check_seconds': 60, 'candle_backup_refresh_seconds': 90})
+    assert draft['config']['order_backup_check_seconds'] == 60
+    assert draft['config']['candle_backup_refresh_seconds'] == 90
+
+    # null puts the candle refresh back on its automatic interval, and 0 turns the order check off.
+    updated = live_service.update_live_draft_service(
+        draft['session_id'], config={'candle_backup_refresh_seconds': None, 'order_backup_check_seconds': 0},
+    )
+    assert updated['config']['candle_backup_refresh_seconds'] is None
+    assert updated['config']['order_backup_check_seconds'] == 0
+
+    live_service.start_live_session_service(draft['session_id'])
+    [(_function, args)] = jesse.processes.started
+    assert args[5]['order_backup_check_seconds'] == 0
+    assert args[5]['candle_backup_refresh_seconds'] is None
 
 
 def test_starting_a_real_draft_sends_its_key_and_the_venue_config(jesse):

@@ -82,7 +82,9 @@ def register_live_tools(mcp):
         The draft gets its own configuration, resolved like a new dashboard tab from the saved
         defaults for that paper exchange or key; saved settings are not changed. `config` is an
         optional object (or JSON text) overriding any of: persistency, generate_candles_from_1m, logging,
-        warm_up_candles, notifications, exchange {balance, fee, futures_leverage,
+        warm_up_candles, order_backup_check_seconds (REST backup check of open orders, default 10, 0 turns it off),
+        candle_backup_refresh_seconds (REST backup refresh of recent candles; null means 5 plus 1
+        per symbol, 0 turns it off), notifications, exchange {balance, fee, futures_leverage,
         futures_leverage_mode, simulation_model} (balance, fee, and market type are simulation
         values for paper sessions; real sessions use the venue's). The result shows the resolved
         config and a dashboard link. Start it with start_live_session only when the user asks.

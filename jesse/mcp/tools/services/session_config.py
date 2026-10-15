@@ -249,8 +249,13 @@ _DEFAULT_LIVE_EXCHANGE = {
 }
 
 LIVE_CONFIG_FIELDS = (
-    'persistency', 'generate_candles_from_1m', 'logging', 'warm_up_candles', 'notifications', 'exchange',
+    'persistency', 'generate_candles_from_1m', 'logging', 'warm_up_candles',
+    'order_backup_check_seconds', 'candle_backup_refresh_seconds', 'notifications', 'exchange',
 )
+# The REST backup to the WebSocket: check open orders and refresh recent candles every N
+# seconds, where 0 turns a check off and a candle refresh of None means 5 plus 1 per symbol.
+DEFAULT_ORDER_BACKUP_CHECK_SECONDS = 10
+DEFAULT_CANDLE_BACKUP_REFRESH_SECONDS = None
 LIVE_LOGGING_FIELDS = tuple(_LIVE_LOGGING)
 NOTIFICATION_FIELDS = tuple(_DEFAULT_NOTIFICATIONS)
 NOTIFICATION_EVENTS = _NOTIFICATION_EVENTS
@@ -280,6 +285,16 @@ def _finite_number(value: object, fallback, minimum: float = 0):
     if parsed != parsed or parsed in (float('inf'), float('-inf')) or parsed < minimum:
         return fallback
     return parsed
+
+
+def _optional_seconds(source: dict, key: str, fallback):
+    """JavaScript `optionalSeconds`: an empty value means automatic (None); a missing key keeps the fallback."""
+    if key not in source:
+        return fallback
+    value = source[key]
+    if value is None or value == '':
+        return None
+    return _finite_number(value, fallback)
 
 
 def _string_value(value: object, fallback: str) -> str:
@@ -369,6 +384,12 @@ def normalize_live_run_config(value: object, fallback: dict) -> dict:
         ),
         'logging': _normalize_logging(source.get('logging'), fallback['logging']),
         'warm_up_candles': _finite_number(source.get('warm_up_candles'), fallback['warm_up_candles']),
+        'order_backup_check_seconds': _finite_number(
+            source.get('order_backup_check_seconds'), fallback['order_backup_check_seconds'],
+        ),
+        'candle_backup_refresh_seconds': _optional_seconds(
+            source, 'candle_backup_refresh_seconds', fallback['candle_backup_refresh_seconds'],
+        ),
         'notifications': _normalize_notifications(source.get('notifications'), fallback['notifications']),
         'exchange': _normalize_live_exchange(source.get('exchange'), fallback['exchange']),
     }
@@ -396,6 +417,12 @@ def live_session_defaults(settings: object, exchanges: Optional[dict] = None) ->
         'generate_candles_from_1m': _boolean_value(live.get('generate_candles_from_1m'), False),
         'logging': _normalize_logging(live.get('logging'), _LIVE_LOGGING),
         'warm_up_candles': _finite_number(live.get('warm_up_candles'), 210),
+        'order_backup_check_seconds': _finite_number(
+            live.get('order_backup_check_seconds'), DEFAULT_ORDER_BACKUP_CHECK_SECONDS,
+        ),
+        'candle_backup_refresh_seconds': _optional_seconds(
+            live, 'candle_backup_refresh_seconds', DEFAULT_CANDLE_BACKUP_REFRESH_SECONDS,
+        ),
         'notifications': _normalize_notifications(live.get('notifications'), _DEFAULT_NOTIFICATIONS),
         'exchange': deepcopy(_DEFAULT_LIVE_EXCHANGE),
     }
@@ -496,6 +523,8 @@ def live_engine_config(run_config: dict) -> dict:
         'generate_candles_from_1m': run_config['generate_candles_from_1m'],
         'logging': deepcopy(run_config['logging']),
         'warm_up_candles': int(run_config['warm_up_candles']),
+        'order_backup_check_seconds': run_config['order_backup_check_seconds'],
+        'candle_backup_refresh_seconds': run_config['candle_backup_refresh_seconds'],
         'notifications': deepcopy(run_config['notifications']),
         'exchanges': {exchange['name']: exchange},
     }
