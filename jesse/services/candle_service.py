@@ -677,11 +677,14 @@ def add_candle_from_trade(trade, exchange: str, symbol: str) -> np.ndarray | Non
     # to support both candle generation and ...
     if jh.get_config('env.data.generate_candles_from_1m'):
         return do('1m')
-    else:
-        for r in router.all_formatted_routes:
-            if r['exchange'] != exchange or r['symbol'] != symbol:
-                return None
-            return do(r['timeframe'])
+
+    # Without generation, every route timeframe of this symbol holds its own candles.
+    timeframes = []
+    for r in router.all_formatted_routes:
+        if r['exchange'] == exchange and r['symbol'] == symbol and r['timeframe'] not in timeframes:
+            timeframes.append(r['timeframe'])
+    candles = [do(timeframe) for timeframe in timeframes]
+    return candles[0] if candles else None
 
 
 def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, with_execution: bool) -> None:

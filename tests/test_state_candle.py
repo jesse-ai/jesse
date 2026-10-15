@@ -291,3 +291,40 @@ def test_live_trade_updates_candle_position_and_database(monkeypatch):
     assert len(writes) == 1
     assert writes[0][0][0:3] == ('Sandbox', 'BTC-USD', '1m')
     assert writes[0][1] == {'on_conflict': 'replace'}
+
+
+def test_live_trade_updates_every_route_timeframe_of_its_symbol(monkeypatch):
+    set_up()
+    config['app']['considering_timeframes'] = ['1m', '15m', '1h']
+    config['env']['data']['generate_candles_from_1m'] = False
+    store.reset()
+    store.candles.init_storage()
+
+    start = 1_699_999_200_000
+    for timeframe in ('15m', '1h'):
+        store.candles.get_storage('Sandbox', 'BTC-USD', timeframe).append(
+            np.array([start, 10, 11, 12, 9, 5], dtype=np.float64)
+        )
+    store.candles.initiated_pairs['Sandbox-BTC-USD'] = True
+    position = SimpleNamespace(current_price=0)
+    exchange = SimpleNamespace(vars={'precisions': {'BTC-USD': {'price_precision': 2}}})
+
+    # Another symbol's route comes first, and BTC-USD has a trading and a data route.
+    routes = [
+        {'exchange': 'Sandbox', 'symbol': 'ETH-USD', 'timeframe': '5m'},
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '15m'},
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '1h'},
+    ]
+    monkeypatch.setattr(type(candle_service.router), 'all_formatted_routes', property(lambda self: routes))
+    monkeypatch.setattr(candle_service.jh, 'is_live', lambda: True)
+    monkeypatch.setattr(candle_service.jh, 'now', lambda: start + 60_000)
+    monkeypatch.setattr(store.positions, 'get_position', lambda exchange, symbol: position)
+    monkeypatch.setattr(store.exchanges, 'get_exchange', lambda name: exchange)
+    monkeypatch.setattr(candle_service.candle_repository, 'store_candle_into_db', lambda *args, **kwargs: None)
+
+    updated = candle_service.add_candle_from_trade({'price': 13, 'volume': 2}, 'Sandbox', 'BTC-USD')
+
+    expected = np.array([start, 10, 13, 13, 9, 7], dtype=np.float64)
+    np.testing.assert_array_equal(updated, expected)
+    for timeframe in ('15m', '1h'):
+        np.testing.assert_array_equal(candle_service.get_current_candle('Sandbox', 'BTC-USD', timeframe), expected)
