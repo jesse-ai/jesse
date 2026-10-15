@@ -3,6 +3,7 @@ import arrow
 import numpy as np
 import pytest
 import jesse.helpers as jh
+from jesse.config import config
 from jesse.routes import router
 from jesse.enums import exchanges, timeframes
 
@@ -13,7 +14,9 @@ def test_app_currency():
     assert jh.app_currency() == 'USD'
 
 
-def test_app_mode():
+def test_app_mode(monkeypatch):
+    # Select the mode explicitly so this assertion also works in a fresh worker.
+    monkeypatch.setitem(config['app'], 'trading_mode', 'backtest')
     assert jh.app_mode() == 'backtest'
 
 
@@ -116,6 +119,12 @@ def test_dna_to_hp():
 def test_dump_exception():
     # uses database, which is not existing during testing
     pass
+
+
+def test_live_plugin_can_be_disabled_for_isolated_application_tests(monkeypatch):
+    monkeypatch.setenv('JESSE_DISABLE_LIVE_PLUGIN', 'TRUE')
+
+    assert jh.has_live_trade_plugin() is False
 
 
 def test_estimate_average_price():
@@ -264,7 +273,8 @@ def test_insert_list():
     assert my_list == [0, 1, 2, 3]
 
 
-def test_is_backtesting():
+def test_is_backtesting(monkeypatch):
+    monkeypatch.setitem(config['app'], 'trading_mode', 'backtest')
     assert jh.is_backtesting() is True
 
 

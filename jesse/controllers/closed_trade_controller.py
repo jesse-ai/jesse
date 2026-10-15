@@ -1,33 +1,37 @@
-from typing import Optional
-from fastapi import APIRouter, Header, Query, Body
+from fastapi import APIRouter, Query, Body, Depends
 from fastapi.responses import JSONResponse
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.repositories import closed_trade_repository
 from jesse.services.transformers import get_closed_trade_for_list, get_closed_trade_details
 from jesse.services.web import GetTradesHistoryRequestJson
 
-router = APIRouter(prefix="/closed-trades", tags=["Closed Trades"])
+router = APIRouter(prefix="/closed-trades", tags=["Closed Trades"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/list")
 def get_closed_trades(
-    session_id: str = Query(...), 
+    session_id: str = Query(...),
     limit: int = Query(10, ge=1, le=1000),
-    authorization: Optional[str] = Header(None)
+    offset: int = Query(0, ge=0),
 ) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
     try:
-        # Query trades for the session with limit
-        trades = closed_trade_repository.find_by_session_id(session_id, limit=limit)
+        # Fetch one bounded page so long-running sessions do not create an
+        # unbounded response; the dashboard follows next_offset until complete.
+        trades = closed_trade_repository.find_by_session_id(
+            session_id,
+            limit=limit,
+            offset=offset,
+        )
         
         # Transform trades for list view
         trades_list = [get_closed_trade_for_list(trade) for trade in trades]
         
         return JSONResponse({
-            'data': trades_list
+            'data': trades_list,
+            'next_offset': offset + len(trades_list),
+            'has_more': len(trades_list) == limit,
         }, status_code=200)
     except Exception as e:
         return JSONResponse({
@@ -36,9 +40,7 @@ def get_closed_trades(
 
 
 @router.get("/{trade_id}")
-def get_closed_trade_by_id(trade_id: str, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_closed_trade_by_id(trade_id: str) -> JSONResponse:
     
     try:
         # Fetch trade by ID
@@ -64,10 +66,7 @@ def get_closed_trade_by_id(trade_id: str, authorization: Optional[str] = Header(
 @router.post("/live-history")
 def get_trades_live_history(
     request_json: GetTradesHistoryRequestJson = Body(...),
-    authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         # Fetch trades with filters
@@ -96,4 +95,3 @@ def get_trades_live_history(
         return JSONResponse({
             'error': str(e)
         }, status_code=500)
-

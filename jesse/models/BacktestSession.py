@@ -8,7 +8,7 @@ _BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'unde
 
 
 def _delete_chart_images(session_id: str) -> None:
-    """Remove the six generated chart PNG files for a session, if they exist."""
+    """Remove every generated chart PNG file for a session, if it exists."""
     charts_folder = os.path.abspath('storage/backtest-charts')
     for chart_name in _BACKTEST_CHART_NAMES:
         path = os.path.join(charts_folder, f'{session_id}_{chart_name}.png')
@@ -162,7 +162,7 @@ class BacktestSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s
@@ -237,6 +237,11 @@ def store_backtest_session(
     existing_session = get_backtest_session_by_id(id)
     
     if existing_session:
+        # Chart images are keyed only by session ID and their existence is what
+        # marks them available, so a rerun must drop the previous run's files
+        # before they can be served as the new run's results.
+        _delete_chart_images(id)
+
         # Update existing session - reset results but preserve state (routes/form config)
         d = {
             'status': status,
@@ -409,7 +414,7 @@ def update_backtest_session_state(id: str, state: dict) -> None:
     Update or create (upsert) backtest session state. If session doesn't exist, creates as draft.
     """
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = BacktestSession.select().where(BacktestSession.id == id).first()
@@ -448,5 +453,4 @@ def update_backtest_session_notes(id: str, title: str = None, description: str =
         d['strategy_codes'] = json.dumps(strategy_codes)
     
     BacktestSession.update(**d).where(BacktestSession.id == id).execute()
-
 

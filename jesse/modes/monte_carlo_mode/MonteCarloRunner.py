@@ -1,10 +1,11 @@
-from datetime import timedelta
 from multiprocessing import cpu_count
 from typing import Dict, List, Optional
 import os
 import ray
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
+from jesse.services.ray_runtime import UnsupportedRayVersionError, initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
@@ -74,53 +75,95 @@ class MonteCarloRunner:
         # Initialize Ray if not already
         self.ray_started_here = False
         if not ray.is_initialized():
+            for enabled, event in ((self.run_trades, 'trades_progressbar'), (self.run_candles, 'candles_progressbar')):
+                if enabled:
+                    publish_status('Starting simulation workers…', event=event, total=self.num_scenarios)
             try:
-                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                initialize_ray(self.cpu_cores)
                 logger.log_monte_carlo(f"Successfully started Monte Carlo session with {self.cpu_cores} CPU cores", session_id=self.session_id)
                 self.ray_started_here = True
+            except (MemoryError, UnsupportedRayVersionError):
+                # Startup memory limits also cover Ray services and the worker heap, and
+                # fewer CPUs cannot make an unsupported Ray start.
+                raise
             except Exception as e:
                 logger.log_monte_carlo(f"Error initializing Ray: {e}. Falling back to 1 CPU.", session_id=self.session_id)
                 self.cpu_cores = 1
-                ray.init(num_cpus=1, ignore_reinit_error=True)
+                initialize_ray(1)
                 self.ray_started_here = True
 
-        # Setup periodic termination check
-        client_id = jh.get_session_id()
-        from timeloop import Timeloop
-        self.tl = Timeloop()
-
-        @self.tl.job(interval=timedelta(seconds=1))
-        def check_for_termination():
-            if is_process_active(client_id) is False:
-                # Update session status to 'stopped' in the database
-                if get_monte_carlo_session_by_id(self.session_id).status != 'terminated':
-                    update_monte_carlo_session_status(self.session_id, 'stopped')
-                raise exceptions.Termination
-        
-        self.tl.start()
+        self.client_id = jh.get_session_id()
 
         # Track session IDs
         self.trades_session_id = None
         self.candles_session_id = None
+        self.trades_finished = False
+        self.candles_finished = False
+        self.failure_persisted = False
+
+    def _raise_if_cancelled(self) -> None:
+        """Raise from the active simulation path after cancellation is requested."""
+        if not is_process_active(self.client_id):
+            raise exceptions.Termination
+
+    def _mark_parent_stopped_unless_terminated(self) -> None:
+        """Keep an explicit terminated status from being overwritten by cleanup."""
+        session = get_monte_carlo_session_by_id(self.session_id)
+        if session is None or session.status not in {'stopped', 'terminated'}:
+            update_monte_carlo_session_status(self.session_id, 'stopped')
+
+    def _stop_active_child(self) -> None:
+        """Stop only the child simulation that has not already completed."""
+        if self.candles_session_id and not self.candles_finished:
+            update_candles_session_status(self.candles_session_id, 'stopped')
+        elif self.trades_session_id and not self.trades_finished:
+            update_trades_session_status(self.trades_session_id, 'stopped')
+
+    def _store_unhandled_failure(self, error: str, error_traceback: str) -> None:
+        """Persist failures that occur outside a child simulation's own boundary."""
+        if self.candles_session_id:
+            self._record_child_failure(self.candles_session_id, 'candles', error, error_traceback)
+        elif self.trades_session_id:
+            self._record_child_failure(self.trades_session_id, 'trades', error, error_traceback)
+        else:
+            sync_publish('exception', {'error': error, 'traceback': error_traceback})
+
+    def _record_child_failure(self, session_id: str, session_type: str, error: str, error_traceback: str) -> None:
+        """Keep a secondary persistence failure from replacing the original error."""
+        try:
+            store_session_exception(session_id, session_type, error, error_traceback)
+            update_status = update_candles_session_status if session_type == 'candles' else update_trades_session_status
+            update_status(session_id, 'stopped')
+            self.failure_persisted = True
+        except Exception as persistence_error:
+            logger.log_monte_carlo(
+                f'Could not save Monte Carlo failure: {persistence_error}. Original error: {error}',
+                session_id=self.session_id,
+            )
+        sync_publish('exception', {'error': error, 'traceback': error_traceback})
 
     def run(self) -> None:
-        logger.log_monte_carlo(f"Monte Carlo session started with {self.cpu_cores} CPU cores", session_id=self.session_id)
-        logger.log_monte_carlo(f"Run trades: {self.run_trades}, Run candles: {self.run_candles}", session_id=self.session_id)
-
         try:
+            logger.log_monte_carlo(f"Monte Carlo session started with {self.cpu_cores} CPU cores", session_id=self.session_id)
+            logger.log_monte_carlo(f"Run trades: {self.run_trades}, Run candles: {self.run_candles}", session_id=self.session_id)
+            self._raise_if_cancelled()
             # Publish general info
             self._publish_general_info()
 
             # Run trades first (faster)
+            if self.run_trades and self.run_candles:
+                publish_status('Waiting for trade simulations to finish…', event='candles_progressbar', total=self.num_scenarios)
             if self.run_trades:
                 logger.log_monte_carlo("Starting trades simulation...", session_id=self.session_id)
                 self._run_trades_simulation()
+                self._raise_if_cancelled()
                 logger.log_monte_carlo("Trades simulation completed", session_id=self.session_id)
 
             # Then run candles
             if self.run_candles:
                 logger.log_monte_carlo("Starting candles simulation...", session_id=self.session_id)
                 self._run_candles_simulation()
+                self._raise_if_cancelled()
                 logger.log_monte_carlo("Candles simulation completed", session_id=self.session_id)
 
             # Update parent session status to 'finished'
@@ -134,26 +177,25 @@ class MonteCarloRunner:
 
         except exceptions.Termination:
             logger.log_monte_carlo("Monte Carlo simulation terminated by user", session_id=self.session_id)
-            update_monte_carlo_session_status(self.session_id, 'stopped')
+            self._mark_parent_stopped_unless_terminated()
+            self._stop_active_child()
             raise
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
+            error = f'{error_type}: {e}'
             logger.log_monte_carlo(f"ERROR: Monte Carlo simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
-            update_monte_carlo_session_status(self.session_id, 'stopped')
-            
-            # Store exception in the appropriate child session
-            if self.trades_session_id and not self.candles_session_id:
-                store_session_exception(self.trades_session_id, 'trades', str(e), error_traceback)
-            elif self.candles_session_id:
-                store_session_exception(self.candles_session_id, 'candles', str(e), error_traceback)
-            
-            # Publish exception to frontend
-            sync_publish('exception', {
-                'error': str(e),
-                'traceback': error_traceback
-            })
+            try:
+                update_monte_carlo_session_status(self.session_id, 'stopped')
+            except Exception as persistence_error:
+                logger.log_monte_carlo(
+                    f'Could not mark Monte Carlo session stopped: {persistence_error}',
+                    session_id=self.session_id,
+                )
+
+            if not self.failure_persisted:
+                self._store_unhandled_failure(error, error_traceback)
             
             raise
         finally:
@@ -162,16 +204,37 @@ class MonteCarloRunner:
 
     def _publish_general_info(self):
         general_info = {
-            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(
+                jh.timestamp_to_arrow(jh.now(force_fresh=True))
+            ),
             'run_trades': self.run_trades,
             'run_candles': self.run_candles,
             'num_scenarios': self.num_scenarios,
             'exchange_type': self.user_config['exchange']['type'],
+            'simulation_model': self.user_config['exchange'].get('simulation_model'),
+            'annualization': self.user_config['exchange'].get('annualization', 365),
             'leverage_mode': self.user_config['exchange'].get('futures_leverage_mode', 'N/A'),
             'leverage': self.user_config['exchange'].get('futures_leverage', 'N/A'),
             'cpu_cores': self.cpu_cores,
         }
         sync_publish('general_info', general_info)
+
+    def _research_config(self) -> dict:
+        """Flatten the saved exchange assumptions for both research simulations."""
+        exchange = self.user_config['exchange']
+        return {
+            # Nested session settings are authoritative, including an explicit zero fee.
+            # Flat values support older API clients that supplied the research shape.
+            'starting_balance': exchange.get('balance', self.user_config.get('starting_balance', 10000)),
+            'fee': exchange.get('fee', self.user_config.get('fee', 0.0005)),
+            'type': exchange.get('type', 'futures'),
+            'simulation_model': exchange.get('simulation_model'),
+            'annualization': exchange.get('annualization', 365),
+            'futures_leverage': exchange.get('futures_leverage', 1),
+            'futures_leverage_mode': exchange.get('futures_leverage_mode', 'cross'),
+            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
+            'exchange': self.routes[0]['exchange'],
+        }
 
     def _run_trades_simulation(self):
         # Create trades child session in DB
@@ -184,27 +247,22 @@ class MonteCarloRunner:
         sync_publish('trades_progressbar', {
             'current': 0,
             'total': self.num_scenarios,
+            'message': 'Running the baseline backtest…',
+            'indeterminate': True,
             'estimated_remaining_seconds': 0
         })
 
-        # Prepare config - flatten the structure from settings
-        config = {
-            'starting_balance': self.user_config.get('starting_balance', 10000),
-            'fee': self.user_config.get('fee', 0.0005),
-            'type': self.user_config.get('exchange', {}).get('type', 'futures'),
-            'futures_leverage': self.user_config.get('exchange', {}).get('futures_leverage', 1),
-            'futures_leverage_mode': self.user_config.get('exchange', {}).get('futures_leverage_mode', 'cross'),
-            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
-            'exchange': self.routes[0]['exchange']
-        }
+        config = self._research_config()
 
         try:
             # Call monte_carlo_trades from research module with progress tracking
             results = self._run_trades_with_progress(config)
+            self._raise_if_cancelled()
 
             # Extract summary metrics for display
             summary_metrics = self._extract_trades_summary_metrics(results)
 
+            publish_status('Saving simulation results…', event='trades_progressbar', total=self.num_scenarios)
             # Store results
             update_trades_session_progress(
                 id=self.trades_session_id,
@@ -212,31 +270,37 @@ class MonteCarloRunner:
                 results=results
             )
             update_trades_session_status(self.trades_session_id, 'finished')
+            self.trades_finished = True
+            # End this panel's saving stage even if the other simulation is still running.
+            sync_publish('trades_progressbar', {
+                'current': self.num_scenarios, 'total': self.num_scenarios,
+                'estimated_remaining_seconds': 0, 'message': 'Simulation complete',
+            })
 
             # Publish results
             sync_publish('monte_carlo_trades_summary', summary_metrics)
-            sync_publish('monte_carlo_trades_results', results)
+            # Curves load through the HTTP endpoint; do not duplicate the full
+            # scenario payload in Redis/WebSocket messages.
+            sync_publish('monte_carlo_trades_results', {
+                'num_scenarios': results.get('num_scenarios', self.num_scenarios),
+                'confidence_analysis': results.get('confidence_analysis', {}),
+            })
 
             # Log completion
             log_msg = f"Trades simulation completed: {results.get('num_scenarios', 0)} scenarios"
             append_session_logs(self.trades_session_id, 'trades', log_msg)
 
+        except exceptions.Termination:
+            raise
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
+            error = f'{error_type}: {e}'
             logger.log_monte_carlo(f"ERROR: Trades simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
-            # Store exception in database
-            store_session_exception(self.trades_session_id, 'trades', str(e), error_traceback)
-            update_trades_session_status(self.trades_session_id, 'stopped')
-            
-            # Publish exception to frontend
-            sync_publish('exception', {
-                'error': str(e),
-                'traceback': error_traceback
-            })
-            
+            self._record_child_failure(self.trades_session_id, 'trades', error, error_traceback)
+
             raise
 
     def _run_candles_simulation(self):
@@ -252,19 +316,12 @@ class MonteCarloRunner:
         sync_publish('candles_progressbar', {
             'current': 0,
             'total': self.num_scenarios,
+            'message': 'Running the baseline backtest…',
+            'indeterminate': True,
             'estimated_remaining_seconds': 0
         })
 
-        # Prepare config - flatten the structure from settings
-        config = {
-            'starting_balance': self.user_config.get('starting_balance', 10000),
-            'fee': self.user_config.get('fee', 0.0005),
-            'type': self.user_config.get('exchange', {}).get('type', 'futures'),
-            'futures_leverage': self.user_config.get('exchange', {}).get('futures_leverage', 1),
-            'futures_leverage_mode': self.user_config.get('exchange', {}).get('futures_leverage_mode', 'cross'),
-            'warm_up_candles': self.user_config.get('warm_up_candles', 210),
-            'exchange': self.routes[0]['exchange']
-        }
+        config = self._research_config()
 
         # Prepare pipeline
         pipeline_class = None
@@ -292,12 +349,14 @@ class MonteCarloRunner:
             
             # Call monte_carlo_candles from research module with progress tracking
             results = self._run_candles_with_progress(config, pipeline_class, pipeline_kwargs)
+            self._raise_if_cancelled()
             
             logger.log_monte_carlo(f"Candles simulation returned {len(results.get('scenarios', []))} scenarios", session_id=self.session_id)
 
             # Extract summary metrics for display
             summary_metrics = self._extract_candles_summary_metrics(results)
 
+            publish_status('Saving simulation results…', event='candles_progressbar', total=self.num_scenarios)
             # Store results
             update_candles_session_progress(
                 id=self.candles_session_id,
@@ -305,31 +364,37 @@ class MonteCarloRunner:
                 results=results
             )
             update_candles_session_status(self.candles_session_id, 'finished')
+            self.candles_finished = True
+            # End this panel's saving stage even if the other simulation is still running.
+            sync_publish('candles_progressbar', {
+                'current': self.num_scenarios, 'total': self.num_scenarios,
+                'estimated_remaining_seconds': 0, 'message': 'Simulation complete',
+            })
 
             # Publish results
             sync_publish('monte_carlo_candles_summary', summary_metrics)
-            sync_publish('monte_carlo_candles_results', results)
+            # Curves load through the HTTP endpoint; do not duplicate the full
+            # scenario payload in Redis/WebSocket messages.
+            sync_publish('monte_carlo_candles_results', {
+                'num_scenarios': results.get('num_scenarios', self.num_scenarios),
+                'confidence_analysis': results.get('confidence_analysis', {}),
+            })
 
             # Log completion
             log_msg = f"Candles simulation completed: {results.get('num_scenarios', 0)} scenarios"
             append_session_logs(self.candles_session_id, 'candles', log_msg)
 
+        except exceptions.Termination:
+            raise
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_type = type(e).__name__
+            error = f'{error_type}: {e}'
             logger.log_monte_carlo(f"ERROR: Candles simulation failed with {error_type}: {str(e)}", session_id=self.session_id)
             logger.log_monte_carlo(f"Traceback:\n{error_traceback}", session_id=self.session_id)
             
-            # Store exception in database
-            store_session_exception(self.candles_session_id, 'candles', str(e), error_traceback)
-            update_candles_session_status(self.candles_session_id, 'stopped')
-            
-            # Publish exception to frontend
-            sync_publish('exception', {
-                'error': str(e),
-                'traceback': error_traceback
-            })
-            
+            self._record_child_failure(self.candles_session_id, 'candles', error, error_traceback)
+
             raise
 
     def _run_trades_with_progress(self, config: dict) -> dict:
@@ -345,6 +410,7 @@ class MonteCarloRunner:
         def progress_callback(completed_count: int):
             """Called when scenarios complete to update progress"""
             nonlocal last_update_time
+            self._raise_if_cancelled()
             
             if completed_count <= self.num_scenarios:
                 current_time = time.time()
@@ -367,6 +433,7 @@ class MonteCarloRunner:
                         estimated_remaining = 0
                     
                     sync_publish('trades_progressbar', {
+                        'message': 'Simulating Monte Carlo scenarios…',
                         'current': completed_count,
                         'total': self.num_scenarios,
                         'estimated_remaining_seconds': estimated_remaining
@@ -413,6 +480,7 @@ class MonteCarloRunner:
         def progress_callback(completed_count: int):
             """Called when scenarios complete to update progress"""
             nonlocal last_update_time
+            self._raise_if_cancelled()
             
             if completed_count <= self.num_scenarios:
                 current_time = time.time()
@@ -435,6 +503,7 @@ class MonteCarloRunner:
                         estimated_remaining = 0
                     
                     sync_publish('candles_progressbar', {
+                        'message': 'Simulating Monte Carlo scenarios…',
                         'current': completed_count,
                         'total': self.num_scenarios,
                         'estimated_remaining_seconds': estimated_remaining
@@ -557,4 +626,3 @@ class MonteCarloRunner:
             })
         
         return metrics
-

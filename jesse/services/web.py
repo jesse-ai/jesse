@@ -1,8 +1,10 @@
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
+from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 fastapi_app = FastAPI()
@@ -18,6 +20,7 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+fastapi_app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
 class BacktestRequestJson(BaseModel):
@@ -32,10 +35,23 @@ class BacktestRequestJson(BaseModel):
     export_csv: bool
     export_json: bool
     export_chart: bool
-    export_tradingview: bool
     fast_mode: bool
     benchmark: bool
     theme: str = 'light'
+    state: dict
+
+    @model_validator(mode='after')
+    def validate_date_range(self):
+        """Reject malformed or reversed ranges before a worker is queued."""
+        try:
+            start = datetime.strptime(self.start_date, '%Y-%m-%d')
+            finish = datetime.strptime(self.finish_date, '%Y-%m-%d')
+        except ValueError:
+            raise ValueError('start_date and finish_date must use the YYYY-MM-DD format')
+
+        if start >= finish:
+            raise ValueError('start_date must be earlier than finish_date')
+        return self
 
 
 class OptimizationRequestJson(BaseModel):
@@ -63,6 +79,12 @@ class ImportCandlesRequestJson(BaseModel):
 
 class ExchangeSupportedSymbolsRequestJson(BaseModel):
     exchange: str
+
+
+class SearchExchangeSymbolsRequestJson(BaseModel):
+    exchange: str
+    query: str
+    limit: int = Field(default=50, ge=1, le=200)
 
 
 class CancelRequestJson(BaseModel):
@@ -97,6 +119,25 @@ class GetLogsRequestJson(BaseModel):
     id: str
     type: str
     start_time: int
+
+
+class GetStrategyChartsRequestJson(BaseModel):
+    id: str
+
+
+class GetLiveSessionChartDataRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    timeframe: str
+    anchor_time: Optional[int] = None
+    candle_count: int = 1000
+    full_history: bool = False
+
+
+class GetBacktestSessionChartDataRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    timeframe: str
 
 
 class GetOrdersRequestJson(BaseModel):
@@ -166,8 +207,130 @@ class SaveStrategyRequestJson(BaseModel):
     content: str
 
 
+class SaveStrategyReportRequestJson(BaseModel):
+    name: str
+    filename: str
+    content: str
+    overwrite: bool = False
+
+
 class DeleteStrategyRequestJson(BaseModel):
     name: str
+
+
+class ListProjectFilesRequestJson(BaseModel):
+    path: str = ''
+    recursive: bool = False
+    max_entries: int = 200
+
+
+class ReadProjectFileRequestJson(BaseModel):
+    path: str
+    start_line: int = 1
+    max_lines: int = 400
+
+
+class WriteProjectFileRequestJson(BaseModel):
+    path: str
+    content: str
+    overwrite: bool = False
+
+
+class ProjectPathRequestJson(BaseModel):
+    path: str
+
+
+class DeleteProjectPathRequestJson(BaseModel):
+    path: str
+    recursive: bool = False
+
+
+class TransferProjectPathRequestJson(BaseModel):
+    source: str
+    destination: str
+    overwrite: bool = False
+
+
+class RunResearchScriptRequestJson(BaseModel):
+    path: str
+    args: List[str] = Field(default_factory=list)
+    timeout_minutes: int = 60
+
+
+class ResearchJobRequestJson(BaseModel):
+    job_id: str = ''
+
+
+class ResearchJobOutputRequestJson(BaseModel):
+    job_id: str
+    tail_lines: int = 200
+
+
+class SessionResultsRequestJson(BaseModel):
+    session_type: str
+    session_id: str
+    section: str = 'summary'
+    offset: int = 0
+    limit: int = 50
+
+
+class LiveSessionsListRequestJson(BaseModel):
+    limit: int = 20
+    offset: int = 0
+    status_filter: Optional[str] = None
+    mode_filter: Optional[str] = None
+    title_search: Optional[str] = None
+
+
+class LiveHistoryRequestJson(BaseModel):
+    # Loosely typed on purpose: jesse.services.live_history validates every field strictly (no
+    # coercion of booleans or text to numbers) with messages that never repeat the value. Extra
+    # fields are kept so a misspelled filter is refused instead of silently widening the selection.
+    model_config = ConfigDict(extra='allow')
+
+    start: Any = None
+    end: Any = None
+    recent_days: Any = None
+    mode: Any = 'live'
+    exchange: Any = None
+    symbol: Any = None
+    session_id: Any = None
+    order: Any = 'newest_first'
+    cursor: Any = None
+    limit: Any = 100
+
+
+class LiveOrdersHistoryRequestJson(LiveHistoryRequestJson):
+    time_field: Any = 'created_at'
+    status: Any = None
+
+
+class AnalysisInputJson(BaseModel):
+    # An input is a stored session (session_type + session_id) or a live history dataset
+    # ({"dataset": "live_trades" | "live_orders", window and filters}); extra fields are kept so
+    # jesse.services.analysis_jobs can refuse unknown dataset filters instead of dropping them.
+    model_config = ConfigDict(extra='allow')
+
+    session_type: Optional[str] = None
+    session_id: Optional[str] = None
+    name: Optional[str] = None
+    dataset: Optional[str] = None
+
+
+class RunAnalysisRequestJson(BaseModel):
+    code: str
+    inputs: List[AnalysisInputJson] = Field(default_factory=list)
+    timeout_minutes: int = 5
+
+
+class AnalysisJobRequestJson(BaseModel):
+    job_id: str = ''
+    tail_lines: int = 50
+
+
+class AnalysisArtifactRequestJson(BaseModel):
+    job_id: str
+    path: str
 
 
 class ForkStrategyRequestJson(BaseModel):
@@ -204,6 +367,23 @@ class DeleteCandlesRequestJson(BaseModel):
 
 class PurgeCandlesRequestJson(BaseModel):
     exchanges: List[str]
+
+
+class ExportCandlesToProjectRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    # Project-relative CSV path under research_scripts/; defaults to research_scripts/candle_exports/<name>.csv.
+    path: Optional[str] = None
+    overwrite: bool = False
+
+
+class CopyCandlesRequestJson(BaseModel):
+    exchange: str
+    symbol: str
+    target_exchange: str
+    # Defaults to the source symbol; override it when the target market uses another quote (USD vs USDT).
+    target_symbol: Optional[str] = None
+    delete_source: bool = False
 
 
 class UpdateOptimizationSessionStateRequestJson(BaseModel):
@@ -273,6 +453,9 @@ class UpdateLiveSessionNotesRequestJson(BaseModel):
 class UpdateLiveSessionStateRequestJson(BaseModel):
     id: str
     state: dict
+    # Refuse unless the session is still a draft (or new). The dashboard leaves it off so it can
+    # keep saving the form of an ended tab; MCP draft edits set it.
+    require_draft: bool = False
 
 
 class GetEquityCurveRequestJson(BaseModel):
@@ -367,7 +550,7 @@ class SignificanceTestRequestJson(BaseModel):
     n_simulations: int = 1000
     random_seed: Optional[int] = None
     theme: str = 'light'
-    state: dict = {}
+    state: dict
 
 
 class CancelSignificanceTestRequestJson(BaseModel):

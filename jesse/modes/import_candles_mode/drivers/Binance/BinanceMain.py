@@ -58,13 +58,17 @@ class BinanceMain(CandleExchange):
 
         raise Exception(f"Failed to make request after {max_retries} attempts")
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str) -> Union[int, None]:
         dashless_symbol = jh.dashless_symbol(symbol)
 
+        # Asking for one-minute candles from time zero returns the symbol's very first candle.
+        # The previous weekly lookup skipped the whole listing week and reported a date in the
+        # future for symbols listed within the last seven days.
         payload = {
-            'interval': '1w',
+            'interval': '1m',
             'symbol': dashless_symbol,
-            'limit': 1000,
+            'startTime': 0,
+            'limit': 1,
         }
 
         response = self._make_request(
@@ -75,11 +79,9 @@ class BinanceMain(CandleExchange):
         self.validate_response(response)
 
         data = response.json()
-
-        # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
-        first_timestamp = int(data[1][0])
-        return first_timestamp
+        if not data:
+            return None
+        return int(data[0][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)

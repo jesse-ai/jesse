@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 import numpy as np
@@ -30,6 +29,11 @@ def candles_info(candles_array: np.ndarray) -> dict:
         'starting_time': candles_array[0][0],
         'finishing_time': (candles_array[-1][0] + 60_000),
         'exchange_type': trading_exchange.type,
+        'simulation_model': jh.get_config(
+            f'env.exchanges.{trading_exchange.name}.simulation_model',
+            'perpetual_futures' if trading_exchange.type == 'futures' else 'spot',
+        ),
+        'annualization': jh.get_config('env.metrics.annualization', 365),
         'exchange': trading_exchange.name,
     }
 
@@ -164,7 +168,7 @@ def max_drawdown(returns):
     return pd.Series([result])
 
 
-def calculate_max_underwater_period(daily_balance: list) -> int:
+def calculate_max_underwater_period(daily_balance: list, timestamps: list | None = None) -> int:
     """
     Calculate the maximum time it takes for balance to recover from a drawdown
     Args:
@@ -189,7 +193,10 @@ def calculate_max_underwater_period(daily_balance: list) -> int:
 
         # if we're below the previous peak, calculate underwater period
         else:
-            days_underwater = i - peak_date_index
+            if timestamps is not None and len(timestamps) == len(daily_balance):
+                days_underwater = int((timestamps[i] - timestamps[peak_date_index]) / 86_400_000)
+            else:
+                days_underwater = i - peak_date_index
 
             # update max period if this is the longest underwater period so far
             if days_underwater > max_period:
@@ -300,6 +307,7 @@ def conditional_value_at_risk(returns, sigma=1, confidence=0.95):
 
 
 def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
+    annualization = jh.get_config('env.metrics.annualization', 365)
     starting_balance = 0
     current_balance = 0
 
@@ -308,7 +316,12 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         current_balance += store.exchanges.storage[e].assets[jh.app_currency()]
 
     if not trades_list:
-        return {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
+        return {
+            'total': 0,
+            'win_rate': 0,
+            'net_profit_percentage': 0,
+            'annualization': annualization,
+        }
 
     df = pd.DataFrame.from_records([t.to_dict for t in trades_list])
 
@@ -367,10 +380,15 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     gross_profit = winning_trades['PNL'].sum()
     gross_loss = losing_trades['PNL'].sum()
 
-    start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    date_index = pd.date_range(start=start_date, periods=len(daily_balance))
-
-    daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
+    balance_timestamps = store.app.daily_balance_timestamps
+    has_balance_timestamps = len(balance_timestamps) == len(daily_balance)
+    if has_balance_timestamps:
+        date_index = pd.to_datetime(balance_timestamps, unit='ms', utc=True)
+        daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
+    else:
+        # Risk ratios can still use the observed returns, but elapsed-time ratios
+        # must remain undefined when a caller did not provide matching timestamps.
+        daily_return = pd.DataFrame(daily_balance).pct_change(1)
 
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
@@ -396,14 +414,26 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         except BaseException:
             return np.nan
 
-    # Calculate metrics using 365 days for crypto markets
+    # CAGR and Calmar use elapsed timestamps; this factor annualizes observation-based ratios.
     max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
-    max_underwater_period = np.nan if len(daily_balance) < 2 else calculate_max_underwater_period(daily_balance)
-    annual_return = np.nan if len(daily_return) < 2 else cagr(daily_return, periods=365).iloc[0] * 100
-    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=365).iloc[0]
-    calmar = np.nan if len(daily_return) < 2 else calmar_ratio(daily_return).iloc[0]
-    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=365).iloc[0]
-    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=365).iloc[0]
+    max_underwater_period = (
+        np.nan
+        if len(daily_balance) < 2
+        else calculate_max_underwater_period(daily_balance, balance_timestamps if has_balance_timestamps else None)
+    )
+    annual_return = (
+        np.nan
+        if len(daily_return) < 2 or not has_balance_timestamps
+        else cagr(daily_return, periods=annualization).iloc[0] * 100
+    )
+    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization).iloc[0]
+    calmar = (
+        np.nan
+        if len(daily_return) < 2 or not has_balance_timestamps
+        else calmar_ratio(daily_return).iloc[0]
+    )
+    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization).iloc[0]
+    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=annualization).iloc[0]
     serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
 
     return {
@@ -436,6 +466,7 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'max_drawdown': safe_convert(max_dd),
         'max_underwater_period': safe_convert(max_underwater_period),
         'annual_return': safe_convert(annual_return),
+        'annualization': annualization,
         'sharpe_ratio': safe_convert(sharpe),
         'calmar_ratio': safe_convert(calmar),
         'sortino_ratio': safe_convert(sortino),
@@ -455,7 +486,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
 
 
 def hyperparameters(routes_arr: list) -> list:
-    if routes_arr[0].strategy.hp is None:
+    # hp is an empty dict for strategies that define no hyperparameters
+    if not routes_arr[0].strategy.hp:
         return []
     # only for the first route
     hp = []

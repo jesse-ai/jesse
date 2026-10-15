@@ -1,22 +1,30 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
-from jesse.modes.import_candles_mode import CandleExchange
-from jesse.modes.import_candles_mode.drivers import drivers, driver_names
-from jesse.services import auth as authenticator
-from jesse.services.redis import sync_redis
-from jesse.services.web import ExchangeSupportedSymbolsRequestJson, StoreExchangeApiKeyRequestJson, DeleteExchangeApiKeyRequestJson
-from jesse.services.env import is_dev_env
+from jesse.services.historical_data.errors import (
+    HistoricalDataProviderError,
+    ProviderAuthenticationError,
+    ProviderEntitlementError,
+    ProviderQuotaError,
+    ProviderRateLimitError,
+    ProviderRequestError,
+    ProviderUnavailableError,
+)
+from jesse.services import symbol_catalog
+from jesse.services.auth import require_auth
+from jesse.services.web import (
+    DeleteExchangeApiKeyRequestJson,
+    ExchangeSupportedSymbolsRequestJson,
+    SearchExchangeSymbolsRequestJson,
+    StoreExchangeApiKeyRequestJson,
+)
 
 
-router = APIRouter(prefix="/exchange", tags=["Exchange"])
+router = APIRouter(prefix="/exchange", tags=["Exchange"], dependencies=[Depends(require_auth)])
 
 
 @router.post('/supported-symbols')
-def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson) -> JSONResponse:
     
     # if is_dev_env():
     #     return JSONResponse({
@@ -28,20 +36,21 @@ def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson
     return get_exchange_supported_symbols(request_json.exchange)
 
 
+@router.post('/search-symbols')
+def exchange_search_symbols(request_json: SearchExchangeSymbolsRequestJson) -> JSONResponse:
+    """Rank one source's symbols for a search term, matching tickers first and provider names second."""
+    return search_exchange_symbols(request_json.exchange, request_json.query, request_json.limit)
+
+
 @router.get('/api-keys')
-def get_exchange_api_keys_endpoint(authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_exchange_api_keys_endpoint() -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import get_exchange_api_keys
     return get_exchange_api_keys()
 
 
 @router.post('/api-keys/store')
-def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJson,
-                        authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJson) -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import store_exchange_api_keys
     return store_exchange_api_keys(
@@ -51,40 +60,44 @@ def store_exchange_api_keys_endpoint(json_request: StoreExchangeApiKeyRequestJso
 
 
 @router.post('/api-keys/delete')
-def delete_exchange_api_keys_endpoint(json_request: DeleteExchangeApiKeyRequestJson,
-                         authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def delete_exchange_api_keys_endpoint(json_request: DeleteExchangeApiKeyRequestJson) -> JSONResponse:
 
     from jesse.modes.exchange_api_keys import delete_exchange_api_keys
     return delete_exchange_api_keys(json_request.id)
 
 
+def _catalog_error_response(exc: Exception) -> JSONResponse:
+    """Map the typed historical-data errors onto the HTTP statuses the Dashboard and MCP expect."""
+    if isinstance(exc, symbol_catalog.SymbolCatalogLoadingError):
+        return JSONResponse({'error': str(exc)}, status_code=503)
+    if isinstance(exc, ProviderAuthenticationError):
+        return JSONResponse({'error': str(exc)}, status_code=401)
+    if isinstance(exc, ProviderEntitlementError):
+        return JSONResponse({'error': str(exc)}, status_code=403)
+    if isinstance(exc, (ProviderRateLimitError, ProviderQuotaError)):
+        return JSONResponse({'error': str(exc)}, status_code=429)
+    if isinstance(exc, ProviderUnavailableError):
+        return JSONResponse({'error': str(exc)}, status_code=503)
+    if isinstance(exc, (ProviderRequestError, HistoricalDataProviderError)):
+        return JSONResponse({'error': str(exc)}, status_code=502)
+    return JSONResponse({'error': str(exc)}, status_code=500)
+
+
 def get_exchange_supported_symbols(exchange: str) -> JSONResponse:
-    # first try to get from cache
-    cache_key = f'exchange-symbols:{exchange}'
-    cached_result = sync_redis.get(cache_key)
-    if cached_result is not None:
-        return JSONResponse({
-            'data': eval(cached_result)
-        }, status_code=200)
-
-    arr = []
-
     try:
-        driver: CandleExchange = drivers[exchange]()
-    except KeyError:
-        raise ValueError(f'{exchange} is not a supported exchange. Supported exchanges are: {driver_names}')
+        catalog = symbol_catalog.load_symbol_catalog(exchange)
+    except Exception as exc:
+        return _catalog_error_response(exc)
+    return JSONResponse(catalog, status_code=200)
 
+
+def search_exchange_symbols(exchange: str, query: str, limit: int) -> JSONResponse:
     try:
-        arr = driver.get_available_symbols()
-        # cache successful result for 5 minutes
-        sync_redis.setex(cache_key, 300, str(arr))
-    except Exception as e:
-        return JSONResponse({
-            'error': str(e)
-        }, status_code=500)
-
-    return JSONResponse({
-        'data': arr
-    }, status_code=200)
+        catalog = symbol_catalog.load_symbol_catalog(exchange)
+    except Exception as exc:
+        return _catalog_error_response(exc)
+    try:
+        matches = symbol_catalog.search_symbol_catalog(catalog, query, limit)
+    except ValueError as exc:
+        return JSONResponse({'error': str(exc)}, status_code=422)
+    return JSONResponse({'data': matches, 'catalog_size': len(catalog['data'])}, status_code=200)

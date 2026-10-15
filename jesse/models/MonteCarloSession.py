@@ -1,25 +1,42 @@
 import peewee
 import json
+from itertools import chain
 import numpy as np
 from jesse.services.db import database
 import jesse.helpers as jh
 
 
-def _convert_numpy_types(obj):
-    """Convert NumPy types to native Python types for JSON serialization"""
-    if isinstance(obj, dict):
-        return {k: _convert_numpy_types(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_convert_numpy_types(item) for item in obj]
-    elif isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.bool_):
-        return bool(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    return obj
+# ASCII JSON keeps each SQL parameter at most 1 MiB, well below PostgreSQL's
+# allocation limit even after quoting. Stream encoding avoids a second full copy.
+_RESULT_CHUNK_SIZE = 1024 * 1024
+_RESULT_CHUNKS_KEY = '_jesse_result_chunks_v1'
+
+
+class _ResultEncoder(json.JSONEncoder):
+    """Convert NumPy values lazily instead of copying every scenario recursively."""
+
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.floating, np.bool_)):
+            return obj.item()
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
+def _result_chunks(results: dict):
+    """Yield bounded JSON fragments, including when one encoded value is large."""
+    buffer = ''
+    for token in _ResultEncoder(separators=(',', ':'), ensure_ascii=True).iterencode(results):
+        offset = 0
+        while offset < len(token):
+            length = min(_RESULT_CHUNK_SIZE - len(buffer), len(token) - offset)
+            buffer += token[offset:offset + length]
+            offset += length
+            if len(buffer) == _RESULT_CHUNK_SIZE:
+                yield buffer
+                buffer = ''
+    if buffer:
+        yield buffer
 
 
 if database.is_closed():
@@ -60,7 +77,7 @@ class MonteCarloSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s
@@ -131,9 +148,7 @@ class MonteCarloTradesSession(peewee.Model):
 
     @property
     def results_json(self):
-        if not self.results:
-            return {}
-        return json.loads(self.results)
+        return _load_results(self.id, self.results)
 
     @results_json.setter
     def results_json(self, results_data):
@@ -175,9 +190,7 @@ class MonteCarloCandlesSession(peewee.Model):
 
     @property
     def results_json(self):
-        if not self.results:
-            return {}
-        return json.loads(self.results)
+        return _load_results(self.id, self.results)
 
     @results_json.setter
     def results_json(self, results_data):
@@ -194,11 +207,70 @@ class MonteCarloCandlesSession(peewee.Model):
         self.pipeline_params = json.dumps(params_data)
 
 
+class MonteCarloResultChunk(peewee.Model):
+    """Lossless result fragments keyed by the globally unique child session ID."""
+
+    session_id = peewee.UUIDField()
+    chunk_index = peewee.IntegerField()
+    payload = peewee.TextField()
+
+    class Meta:
+        database = database.db
+        primary_key = peewee.CompositeKey('session_id', 'chunk_index')
+
+
+def _load_results(session_id, serialized: str) -> dict:
+    """Read both legacy inline JSON and the chunked result representation."""
+    results = json.loads(serialized) if serialized else {}
+    chunk_count = results.get(_RESULT_CHUNKS_KEY)
+    if chunk_count is None:
+        return results
+    query = (MonteCarloResultChunk.select(MonteCarloResultChunk.payload)
+             .where(MonteCarloResultChunk.session_id == session_id)
+             .order_by(MonteCarloResultChunk.chunk_index))
+    chunks = [row.payload for row in query.iterator()]
+    if len(chunks) != chunk_count:
+        raise ValueError('Monte Carlo result chunks are incomplete')
+    return json.loads(''.join(chunks))
+
+
+def _store_results(model, session_id: str, completed: int, results: dict) -> None:
+    """Commit fragments and their summary together, rolling back failed writes."""
+    chunks = iter(_result_chunks(results))
+    first = next(chunks)
+    second = next(chunks, None)
+    # A failed PostgreSQL write must roll back before the runner stores its
+    # exception, and must not leave a manifest pointing to incomplete fragments.
+    with model._meta.database.atomic():
+        MonteCarloResultChunk.delete().where(MonteCarloResultChunk.session_id == session_id).execute()
+        if second is None:
+            serialized = first
+        else:
+            count = 0
+            for count, payload in enumerate(chain((first, second), chunks), start=1):
+                MonteCarloResultChunk.insert(
+                    session_id=session_id, chunk_index=count - 1, payload=payload,
+                ).execute()
+            # Summary polling never needs to hydrate all curves and trade lists.
+            summary = {key: value for key, value in results.items() if key not in {'original', 'scenarios'}}
+            summary[_RESULT_CHUNKS_KEY] = count
+            serialized = json.dumps(summary, cls=_ResultEncoder, separators=(',', ':'))
+            # The summary uses the same SQL parameter bound as a data fragment.
+            if len(serialized) > _RESULT_CHUNK_SIZE:
+                raise ValueError('Monte Carlo summary exceeds 1 MiB; reduce the number of scenarios.')
+        model.update(
+            results=serialized,
+            completed_scenarios=completed,
+            updated_at=jh.now_to_timestamp(True),
+        ).where(model.id == session_id).execute()
+
+
 # Create tables if database is open
 if database.is_open():
     MonteCarloSession.create_table()
     MonteCarloTradesSession.create_table()
     MonteCarloCandlesSession.create_table()
+    MonteCarloResultChunk.create_table()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -208,7 +280,8 @@ if database.is_open():
 # Parent Session Functions
 def get_monte_carlo_session_by_id(id: str):
     try:
-        return MonteCarloSession.get(MonteCarloSession.id == id)
+        session = MonteCarloSession.get(MonteCarloSession.id == id)
+        return _reconcile_monte_carlo_session_status(session)
     except MonteCarloSession.DoesNotExist:
         return None
 
@@ -244,12 +317,15 @@ def get_monte_carlo_sessions(limit: int = 50, offset: int = 0, title_search: str
         if threshold > 0:
             query = query.where(MonteCarloSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [
+        _reconcile_monte_carlo_session_status(session)
+        for session in query.limit(limit).offset(offset)
+    ]
 
 
 def store_monte_carlo_session(id: str, status: str, state: dict = None, strategy_codes: dict = None) -> None:
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     d = {
@@ -279,7 +355,7 @@ def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict 
     Update or create (upsert) monte carlo session state. If session doesn't exist, creates as draft.
     """
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_tradingview', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = MonteCarloSession.select().where(MonteCarloSession.id == id).first()
@@ -307,15 +383,21 @@ def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict 
 
 def delete_monte_carlo_session(id: str) -> bool:
     try:
-        # Delete child sessions first
-        MonteCarloTradesSession.delete().where(
-            MonteCarloTradesSession.monte_carlo_session_id == id
-        ).execute()
-        MonteCarloCandlesSession.delete().where(
-            MonteCarloCandlesSession.monte_carlo_session_id == id
-        ).execute()
-        # Delete parent session
-        MonteCarloSession.delete().where(MonteCarloSession.id == id).execute()
+        with MonteCarloSession._meta.database.atomic():
+            # Child IDs are UUIDs shared with the chunk table; clean every run of a
+            # resumed parent as well as the currently displayed child sessions.
+            for model in (MonteCarloTradesSession, MonteCarloCandlesSession):
+                child_ids = model.select(model.id).where(model.monte_carlo_session_id == id)
+                MonteCarloResultChunk.delete().where(MonteCarloResultChunk.session_id.in_(child_ids)).execute()
+            # Delete child sessions first
+            MonteCarloTradesSession.delete().where(
+                MonteCarloTradesSession.monte_carlo_session_id == id
+            ).execute()
+            MonteCarloCandlesSession.delete().where(
+                MonteCarloCandlesSession.monte_carlo_session_id == id
+            ).execute()
+            # Delete parent session
+            MonteCarloSession.delete().where(MonteCarloSession.id == id).execute()
         return True
     except Exception as e:
         print(f"Error deleting Monte Carlo session: {e}")
@@ -388,10 +470,24 @@ def get_running_monte_carlo_session_id():
     try:
         session = MonteCarloSession.select().where(MonteCarloSession.status == 'running').order_by(MonteCarloSession.updated_at.desc()).first()
         if session:
-            return str(session.id)
+            session = _reconcile_monte_carlo_session_status(session)
+            return str(session.id) if session.status == 'running' else None
         return None
     except Exception as e:
         raise e
+
+
+def _reconcile_monte_carlo_session_status(session: MonteCarloSession):
+    if session.status != 'running' or jh.is_unit_testing():
+        return session
+
+    from jesse.services.redis import is_process_active
+
+    if not is_process_active(str(session.id)):
+        update_monte_carlo_session_status(str(session.id), 'stopped')
+        session.status = 'stopped'
+
+    return session
 
 # Trades Session Functions
 def get_trades_session_by_parent_id(parent_id: str):
@@ -420,14 +516,13 @@ def store_trades_session(parent_id: str, num_scenarios: int) -> str:
 
 
 def update_trades_session_progress(id: str, completed: int, results: dict = None) -> None:
+    if results is not None:
+        _store_results(MonteCarloTradesSession, id, completed, results)
+        return
     d = {
         'completed_scenarios': completed,
         'updated_at': jh.now_to_timestamp(True)
     }
-    if results is not None:
-        # Convert NumPy types to native Python types before JSON serialization
-        cleaned_results = _convert_numpy_types(results)
-        d['results'] = json.dumps(cleaned_results)
     MonteCarloTradesSession.update(**d).where(MonteCarloTradesSession.id == id).execute()
 
 
@@ -468,14 +563,13 @@ def store_candles_session(parent_id: str, num_scenarios: int, pipeline_type: str
 
 
 def update_candles_session_progress(id: str, completed: int, results: dict = None) -> None:
+    if results is not None:
+        _store_results(MonteCarloCandlesSession, id, completed, results)
+        return
     d = {
         'completed_scenarios': completed,
         'updated_at': jh.now_to_timestamp(True)
     }
-    if results is not None:
-        # Convert NumPy types to native Python types before JSON serialization
-        cleaned_results = _convert_numpy_types(results)
-        d['results'] = json.dumps(cleaned_results)
     MonteCarloCandlesSession.update(**d).where(MonteCarloCandlesSession.id == id).execute()
 
 
@@ -536,5 +630,4 @@ def append_monte_carlo_session_logs(session_id: str, log_message: str) -> None:
         jh.dump(f'exception: {e}')
         raise
         pass
-
 

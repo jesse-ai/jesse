@@ -16,20 +16,31 @@ class API:
     def initiate_drivers(self) -> None:
         considering_exchanges = jh.get_config('app.considering_exchanges')
 
-        # A helpful assertion
+        # Driver construction requires the active route set.
         if not len(considering_exchanges):
             raise Exception('No exchange is available for initiating in the API class')
 
-        for e in considering_exchanges:
-            if jh.is_live():
-                def initiate_ws(exchange_name: str) -> None:
-                    exchange_class = jh.get_config(f'app.live_drivers.{exchange_name}')
-                    self.drivers[exchange_name] = exchange_class()
+        for exchange_name in considering_exchanges:
+            self.initiate_driver(exchange_name)
 
-                threading.Thread(target=initiate_ws, args=[e]).start()
-            else:
-                from jesse.exchanges import Sandbox
-                self.drivers[e] = Sandbox(e)
+    def reset_drivers(self) -> None:
+        """Discard driver instances owned by the completed runtime session."""
+        self.drivers.clear()
+
+    def initiate_driver(self, exchange_name: str) -> None:
+        """Idempotently register the API driver for one exchange."""
+        if exchange_name in self.drivers:
+            return
+
+        if jh.is_live():
+            def initiate_ws(name: str) -> None:
+                exchange_class = jh.get_config(f'app.live_drivers.{name}')
+                self.drivers[name] = exchange_class()
+
+            threading.Thread(target=initiate_ws, args=[exchange_name]).start()
+        else:
+            from jesse.exchanges import Sandbox
+            self.drivers[exchange_name] = Sandbox(exchange_name)
 
     def market_order(
         self,

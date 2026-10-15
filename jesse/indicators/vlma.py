@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import get_candle_source, slice_candles
@@ -28,6 +28,13 @@ def moving_std(source, window):
         stdArr[window-1:] = np.std(sw, axis=1)
     return stdArr
 
+
+@overload
+def vlma(candles: np.ndarray, min_period: int = ..., max_period: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def vlma(candles: np.ndarray, min_period: int = ..., max_period: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def vlma(candles: np.ndarray, min_period: int = ..., max_period: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def vlma(candles: np.ndarray, min_period: int = 5, max_period: int = 50, matype: int = 0, devtype: int = 0, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """Variable Length Moving Average"""

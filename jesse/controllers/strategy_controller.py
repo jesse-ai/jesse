@@ -1,14 +1,16 @@
 from typing import Optional
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Depends
 from fastapi.responses import JSONResponse
 import requests
 import re
+import threading
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.web import (
     NewStrategyRequestJson,
     GetStrategyRequestJson,
     SaveStrategyRequestJson,
+    SaveStrategyReportRequestJson,
     DeleteStrategyRequestJson,
     ForkStrategyRequestJson,
     ImportStrategyRequestJson
@@ -16,28 +18,34 @@ from jesse.services.web import (
 import jesse.helpers as jh
 from jesse.info import JESSE_API2_URL
 
-router = APIRouter(prefix="/strategy", tags=["Strategy"])
+router = APIRouter(prefix="/strategy", tags=["Strategy"], dependencies=[Depends(require_auth)])
+
+# The jesse.trade routes below wait on blocking `requests` calls (10 s timeout each), so they
+# are plain `def` handlers: FastAPI runs them in its threadpool, and a slow jesse.trade cannot
+# hold up the event loop that serves every other route, the websockets, and the /mcp proxy.
+# Running in threads lets two imports overlap, and strategy_handler.import_strategy checks
+# that the folder is missing before it writes into it with makedirs(exist_ok=True). This lock
+# keeps that local check-and-write one at a time within this process, so two imports of the
+# same class name cannot both report success with one's code replacing the other's. The
+# download from jesse.trade stays outside the lock.
+_IMPORT_WRITE_LOCK = threading.Lock()
 
 
 @router.post("/make")
-def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def make_strategy(json_request: NewStrategyRequestJson) -> JSONResponse:
     """
     Create a new strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.generate(json_request.name)
 
 
 @router.get("/all")
-def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
+def get_strategies() -> JSONResponse:
     """
     Get all strategies
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.get_strategies()
@@ -46,13 +54,10 @@ def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
 @router.post("/get")
 def get_strategy(
         json_request: GetStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     """
     Get a specific strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.get_strategy(json_request.name)
@@ -61,28 +66,36 @@ def get_strategy(
 @router.post("/save")
 def save_strategy(
         json_request: SaveStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     """
     Save a strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.save_strategy(json_request.name, json_request.content)
 
 
+@router.post("/save-report")
+def save_strategy_report(
+        json_request: SaveStrategyReportRequestJson,
+) -> JSONResponse:
+    """
+    Save a Markdown report into a strategy's reports folder on the Jesse host
+    """
+
+    from jesse.services import strategy_handler
+    return strategy_handler.save_report(
+        json_request.name, json_request.filename, json_request.content, json_request.overwrite
+    )
+
+
 @router.post("/fork")
 def fork_strategy(
         json_request: ForkStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     """
     Fork a strategy under a new name
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.fork_strategy(json_request.new_name, json_request.content)
@@ -91,32 +104,26 @@ def fork_strategy(
 @router.post("/delete")
 def delete_strategy(
         json_request: DeleteStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     """
     Delete a strategy
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
     return strategy_handler.delete_strategy(json_request.name)
 
 
 @router.get("/index")
-async def index_jesse_trade_strategies(
+def index_jesse_trade_strategies(
         period: str = Query(...),
         sort_by: str = Query("Sharpe Ratio"),
         submitted_after: Optional[str] = Query(None),
         submitted_before: Optional[str] = Query(None),
-        authorization: Optional[str] = Header(None),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Browse strategies from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -151,14 +158,11 @@ async def index_jesse_trade_strategies(
 
 
 @router.get("/periods")
-async def get_jesse_trade_periods(
-        authorization: Optional[str] = Header(None)
+def get_jesse_trade_periods(
 ) -> JSONResponse:
     """
     Get available trading periods from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         response = requests.get(
@@ -181,16 +185,13 @@ async def get_jesse_trade_periods(
 
 
 @router.get("/jesse-trade/{slug}")
-async def get_jesse_trade_strategy(
+def get_jesse_trade_strategy(
         slug: str,
-        authorization: Optional[str] = Header(None),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get a specific strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -218,19 +219,16 @@ async def get_jesse_trade_strategy(
 
 
 @router.get("/jesse-trade/{slug}/metrics")
-async def get_jesse_trade_strategy_metrics(
+def get_jesse_trade_strategy_metrics(
         slug: str,
         period: str = Query(...),
         symbol: str = Query(...),
         timeframe: str = Query(...),
-        authorization: Optional[str] = Header(None),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Get metrics for a specific strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         headers = {}
@@ -259,16 +257,13 @@ async def get_jesse_trade_strategy_metrics(
 
 
 @router.post("/import")
-async def import_strategy(
+def import_strategy(
         json_request: ImportStrategyRequestJson,
-        authorization: Optional[str] = Header(None),
         jesse_trade_token: Optional[str] = Header(None, alias="X-Jesse-Trade-Token")
 ) -> JSONResponse:
     """
     Import a strategy from jesse.trade
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     try:
         # Fetch the strategy from jesse.trade
@@ -310,10 +305,11 @@ async def import_strategy(
 
         # Import the strategy
         from jesse.services import strategy_handler
-        return strategy_handler.import_strategy(
-            name=class_name,
-            code=code
-        )
+        with _IMPORT_WRITE_LOCK:
+            return strategy_handler.import_strategy(
+                name=class_name,
+                code=code
+            )
         
     except requests.exceptions.RequestException as e:
         return JSONResponse({

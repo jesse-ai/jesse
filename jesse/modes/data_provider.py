@@ -218,9 +218,6 @@ def download_file(mode: str, file_type: str, session_id: str = None):
     elif mode == 'backtest' and file_type == 'full-reports':
         path = f'storage/full-reports/{session_id}.html'
         filename = f'backtest-{session_id}.html'
-    elif mode == 'backtest' and file_type == 'tradingview':
-        path = f'storage/trading-view-pine-editor/{session_id}.txt'
-        filename = f'backtest-{session_id}.txt'
     elif mode == 'optimize' and file_type == 'log':
         path = f'storage/logs/optimize-mode/{session_id}.txt'
         filename = f'optimize-{session_id}.txt'

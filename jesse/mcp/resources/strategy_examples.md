@@ -3,7 +3,8 @@
 A library of complete, copy-pasteable Jesse strategies that demonstrate real,
 verified API patterns: trend filters, ATR-based stops, partial take-profits,
 trailing stops, lifecycle hooks, multi-timeframe candles, optimization
-hyperparameters, live-monitoring watch lists, and multi-route pairs trading.
+hyperparameters, live-monitoring watch lists, multi-route pairs trading, and
+market trading hours.
 
 These are illustrative reference strategies, NOT financial advice. They exist to
 show *how the API is used*, not to recommend any particular trading approach.
@@ -11,10 +12,11 @@ Treat parameter values (periods, multipliers, leverage factors) as placeholders
 to tune, validate, and risk-check yourself.
 
 For the strategy structure, the required/optional methods, smart-order routing,
-spot-vs-futures exit rules, and the interactive-chart helpers, see
-`jesse://strategy`. For sizing/exit reference and helper signatures, see
-`jesse://position_risk` and `jesse://utilities`. This file intentionally does
-not restate that material; it only collects worked classes.
+spot-vs-futures exit rules, see `jesse://strategy`. For interactive-chart
+helpers and live intrabar behavior, see `jesse://charts`. For sizing/exit
+reference and helper signatures, see `jesse://position_risk` and
+`jesse://utilities`. This file intentionally does not restate that material; it
+only collects worked classes.
 
 Every class below is complete and starts with the canonical imports:
 
@@ -702,12 +704,12 @@ class IchimokuCloud(Strategy):
 A Turtle-style Donchian breakout (futures, long + short) over a 4h trend filter,
 with a cooldown gate and an ATR trailing stop. It demonstrates a class-level
 attribute (`last_closed_index`) updated from `on_close_position()` to enforce a
-"wait one bar after a close" rule, draws the channel on the chart in `after()`,
+"wait one bar after a close" rule, draws the channel in `update_chart()`,
 and ratchets the stop using `self.average_stop_loss`.
 
 Features shown: class-level state, `passed_time` cooldown via `self.index`,
 `donchian` breakout, ATR trailing with `self.average_stop_loss` (read the
-current stop — never index `self.stop_loss[1]`), `after()` +
+current stop — never index `self.stop_loss[1]`), `update_chart()` +
 `add_line_to_candle_chart`, and the **two-argument** `on_close_position(order,
 closed_trade)` hook.
 
@@ -778,7 +780,7 @@ class TurtleAI(Strategy):
         elif self.is_short:
             self.stop_loss = self.position.qty, min(self.average_stop_loss, self.price + ta.atr(self.candles) * 2.5)
 
-    def after(self) -> None:
+    def update_chart(self) -> None:
         self.add_line_to_candle_chart('upperband', self.donchian.upperband)
         self.add_line_to_candle_chart('lowerband', self.donchian.lowerband)
 
@@ -1021,4 +1023,80 @@ class PairsTrading2(Strategy):
     def update_position(self):
         if self.shared_vars["s2-position"] == 0:
             self.liquidate()
+```
+
+---
+
+## Example 9 — SessionBreakout (trading hours)
+
+A Donchian breakout on a **stock-linked instrument traded on a 24/7 crypto exchange** (spot, long
+only). Entries are decided only during the US regular session and every entry indicator reads
+session candles only, so nights, weekends and the drift in between never reach the signal. The
+position itself is managed around the clock: exits are set in `on_open_position()` (spot rule),
+stay on the exchange, and the trailing stop in `update_position()` keeps following the live price
+outside the session.
+
+Features shown: `trading_hours()`, `self.is_trading_hours` as the entry gate,
+`utils.filter_candles_by_hours` behind a `@cached` property, the cancel-at-close policy in
+`should_cancel_entry`, and exits that deliberately ignore the schedule.
+
+```py
+from jesse.strategies import Strategy, cached
+import jesse.indicators as ta
+from jesse import utils
+
+# Days are always explicit; unlisted days are closed. Holidays would go in a 'closed' list.
+US_EQUITIES = {'timezone': 'America/New_York', 'hours': {'Mon-Fri': '09:30-16:00'}}
+
+
+class SessionBreakout(Strategy):
+    def trading_hours(self):
+        # Same schedule in backtest and live so the indicator history matches in both.
+        return US_EQUITIES
+
+    @property
+    @cached
+    def session_candles(self):
+        # The only history the entry indicators see
+        return utils.filter_candles_by_hours(self.candles, self.trading_hours())
+
+    @property
+    def donchian(self):
+        # Previous channel (exclude the current candle)
+        return ta.donchian(self.session_candles[:-1])
+
+    @property
+    def atr(self):
+        return ta.atr(self.session_candles)
+
+    def should_long(self) -> bool:
+        # Never decide an entry outside the session
+        if not self.is_trading_hours:
+            return False
+        return self.close > self.donchian.upperband
+
+    def should_short(self) -> bool:
+        return False
+
+    def should_cancel_entry(self) -> bool:
+        # An entry that did not fill by the close is cancelled, not left working overnight
+        return not self.is_trading_hours
+
+    def go_long(self):
+        qty = utils.size_to_qty(self.balance, self.price, fee_rate=self.fee_rate)
+        self.buy = qty, self.price
+
+    def go_short(self):
+        pass
+
+    def on_open_position(self, order) -> None:
+        if self.is_long:
+            self.stop_loss = self.position.qty, self.position.entry_price - 2 * self.atr
+            self.take_profit = self.position.qty, self.position.entry_price + 3 * self.atr
+
+    def update_position(self):
+        # Runs on every candle, day or night: the exchange never closes, so the stop
+        # trails the live price. Do NOT gate this with is_trading_hours.
+        if self.is_long:
+            self.stop_loss = self.position.qty, max(self.average_stop_loss, self.price - 2 * self.atr)
 ```

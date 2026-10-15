@@ -1,8 +1,15 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 from jesse_rust import bollinger_bands_width as bollinger_bands_width_rust
 
+
+@overload
+def bollinger_bands_width(candles: np.ndarray, period: int = ..., mult: float = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def bollinger_bands_width(candles: np.ndarray, period: int = ..., mult: float = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def bollinger_bands_width(candles: np.ndarray, period: int = ..., mult: float = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def bollinger_bands_width(candles: np.ndarray, period: int = 20, mult: float = 2.0, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """

@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import slice_candles
+
+@overload
+def frama(candles: np.ndarray, window: int = ..., FC: int = ..., SC: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def frama(candles: np.ndarray, window: int = ..., FC: int = ..., SC: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def frama(candles: np.ndarray, window: int = ..., FC: int = ..., SC: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[float, np.ndarray]:
     """Fractal Adaptive Moving Average (FRAMA)"""

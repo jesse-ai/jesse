@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
+
+@overload
+def vpt(candles: np.ndarray, source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def vpt(candles: np.ndarray, source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def vpt(candles: np.ndarray, source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def vpt(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """

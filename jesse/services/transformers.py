@@ -234,10 +234,11 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
     return jh.clean_nan_values(jh.clean_infinite_values(result))
 
 
-def get_live_session(session: LiveSession) -> dict:
+def get_live_session(session: LiveSession, persist_reconciliation: bool = True) -> dict:
     """
     Transform a LiveSession model instance into a dictionary for API responses.
-    Reconciles status with actual worker state.
+    Reconciles status with actual worker state. With persist_reconciliation=False (read-only
+    snapshots) the reconciled status is only reported, not written back.
     """
     try:
         is_active = str(session.id) in process_manager.active_workers
@@ -247,8 +248,10 @@ def get_live_session(session: LiveSession) -> dict:
     status = (session.status or '').lower()
     
     # Reconcile status: if DB says starting/running but worker is not active, mark as stopped
-    if status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active:
+    reconciled = status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active
+    if reconciled:
         status = live_session_statuses.STOPPED
+    if reconciled and persist_reconciliation:
         # Update DB to reflect the reconciled status
         try:
             live_session_repository.update_live_session_status(str(session.id), live_session_statuses.STOPPED)
@@ -318,10 +321,13 @@ def _extract_candles_summary_metrics(results: dict) -> list:
     metrics = []
     results = json.loads(results)
 
-    if not results or 'confidence_analysis' not in results:
+    confidence_analysis = results.get('confidence_analysis') if isinstance(results, dict) else None
+    if not isinstance(confidence_analysis, dict):
         return metrics
 
-    ca_metrics = results['confidence_analysis']['metrics']
+    ca_metrics = confidence_analysis.get('metrics')
+    if not isinstance(ca_metrics, dict):
+        return metrics
 
     # Define metrics to display (in order)
     metric_keys = ['net_profit_percentage', 'max_drawdown', 'sharpe_ratio', 'win_rate', 'total', 'annual_return', 'calmar_ratio']
@@ -355,10 +361,13 @@ def _extract_trades_summary_metrics(results: dict) -> list:
     metrics = []
     results = json.loads(results)
 
-    if not results or 'confidence_analysis' not in results:
+    confidence_analysis = results.get('confidence_analysis') if isinstance(results, dict) else None
+    if not isinstance(confidence_analysis, dict):
         return metrics
 
-    ca_metrics = results['confidence_analysis']['metrics']
+    ca_metrics = confidence_analysis.get('metrics')
+    if not isinstance(ca_metrics, dict):
+        return metrics
 
     # Define metrics to display (in order)
     metric_keys = ['total_return', 'max_drawdown', 'sharpe_ratio', 'calmar_ratio']

@@ -59,6 +59,10 @@ class ExchangeOrderNotFound(Exception):
     pass
 
 
+class HistoryIntegrityError(ValueError):
+    pass
+
+
 class InvalidShape(Exception):
     pass
 

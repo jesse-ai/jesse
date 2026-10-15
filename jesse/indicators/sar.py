@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import slice_candles
+
+@overload
+def sar(candles: np.ndarray, acceleration: float = ..., maximum: float = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def sar(candles: np.ndarray, acceleration: float = ..., maximum: float = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def sar(candles: np.ndarray, acceleration: float = ..., maximum: float = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, sequential: bool = False) -> Union[float, np.ndarray]:
     """SAR - Parabolic SAR"""

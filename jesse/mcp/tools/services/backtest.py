@@ -24,6 +24,7 @@ from jesse.services.web import (
 )
 from pydantic import ValidationError
 from .auth import hash_password
+from .session_config import backtest_engine_config, load_session_run_config
 
 
 def _build_default_backtest_title(routes_list: list) -> str:
@@ -39,6 +40,18 @@ def _build_default_backtest_title(routes_list: list) -> str:
         return f"MCP Backtest: {strategy} on {symbol} {timeframe}{suffix}"
 
     return "MCP Backtest"
+
+
+def _build_backtest_routes_info(routes_list: list) -> list:
+    return [
+        [
+            {'value': route.get('symbol', ''), 'style': ''},
+            {'value': route.get('timeframe', ''), 'style': ''},
+            {'value': route.get('strategy', ''), 'style': ''}
+        ]
+        for route in routes_list
+        if isinstance(route, dict)
+    ]
 
 
 def _normalize_backtest_title(title: str) -> str:
@@ -74,7 +87,6 @@ def _build_default_backtest_description(
     export_csv: bool,
     export_json: bool,
     export_chart: bool,
-    export_tradingview: bool,
     fast_mode: bool,
     benchmark: bool,
     strategy_summary: Optional[str] = None,
@@ -91,8 +103,6 @@ def _build_default_backtest_description(
         options.append("JSON export")
     if export_chart:
         options.append("chart export")
-    if export_tradingview:
-        options.append("TradingView export")
     if fast_mode:
         options.append("fast mode")
     if benchmark:
@@ -196,7 +206,6 @@ def create_backtest_draft_service(
     export_csv: bool = False,
     export_json: bool = False,
     export_chart: bool = True,
-    export_tradingview: bool = False,
     fast_mode: bool = True,
     benchmark: bool = True,
     title: Optional[str] = None,
@@ -221,7 +230,6 @@ def create_backtest_draft_service(
         export_csv: Export results as CSV
         export_json: Export results as JSON
         export_chart: Export chart data
-        export_tradingview: Export TradingView pine script
         fast_mode: Enable fast mode (default True)
         benchmark: Run benchmark comparison
         title: Optional note title. Defaults to an MCP-generated title.
@@ -273,6 +281,8 @@ def create_backtest_draft_service(
             # Fallback to defaults if no routes provided
             selected_route = {"symbol": "BTC-USDT", "timeframe": "4h", "strategy": "ExampleStrategy"}
 
+        run_config = load_session_run_config('backtest', exchange)
+
         # Create complete state structure
         state_dict = {
             'form': {
@@ -285,16 +295,16 @@ def create_backtest_draft_service(
                 'export_csv': export_csv,
                 'export_json': export_json,
                 'export_chart': export_chart,
-                'export_tradingview': export_tradingview,
                 'fast_mode': fast_mode,
-                'benchmark': benchmark
+                'benchmark': benchmark,
+                'config': run_config,
             },
             'results': {
                 'showResults': False,
                 'executing': False,
                 'logsModal': False,
                 'progressbar': {'current': 0, 'estimated_remaining_seconds': 0},
-                'routes_info': [],
+                'routes_info': _build_backtest_routes_info(routes_list),
                 'metrics': {},
                 'hyperparameters': [],
                 'generalInfo': {'title': None, 'description': None},
@@ -318,7 +328,6 @@ def create_backtest_draft_service(
             export_csv=export_csv,
             export_json=export_json,
             export_chart=export_chart,
-            export_tradingview=export_tradingview,
             fast_mode=fast_mode,
             benchmark=benchmark,
             strategy_summary=strategy_summary,
@@ -443,6 +452,7 @@ def update_backtest_draft_service(backtest_id: str, state: str) -> dict:
                 'status': 'success',
                 'backtest_id': backtest_id,
                 'draft_state': state_dict,
+                'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': 'Backtest draft updated successfully'
             }
         elif response.status_code == 401:
@@ -532,6 +542,7 @@ def update_backtest_notes_service(
                 'description': description,
                 'strategy_code_keys': list(parsed_strategy_codes.keys()) if parsed_strategy_codes else [],
                 'strategy_codes_captured': len(parsed_strategy_codes) if parsed_strategy_codes else 0,
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': 'Backtest session notes updated successfully'
             }
 
@@ -691,7 +702,7 @@ def get_backtest_sessions_service(
             data = response.json()
             return {
                 'status': 'success',
-                'sessions': data.get('sessions', []),
+                'sessions': mcp_config.with_dashboard_urls('backtest', data.get('sessions', [])),
                 'count': data.get('count', 0),
                 'message': f'Retrieved {data.get("count", 0)} backtest session(s)'
             }
@@ -773,20 +784,51 @@ def run_backtest_service(session_id: str) -> dict:
 
         form_data = json.loads(form) if isinstance(form, str) else form
 
-        # Load current backtest config from Jesse
-        from .config import get_backtest_config_service
-        config_result = get_backtest_config_service()
-        if config_result['status'] != 'success':
-            return {'status': 'error', 'message': f'Failed to load backtest config: {config_result.get("message", "Unknown error")}'}
-        backtest_config = config_result['config']
+        run_config = load_session_run_config(
+            'backtest',
+            form_data.get('exchange'),
+            form_data.get('config'),
+        )
+        form_data['config'] = run_config
+        state['form'] = form_data
+        backtest_config = backtest_engine_config(run_config)
 
-        backtest_request_dict = {**form_data, 'config': backtest_config, 'id': session_id}
+        backtest_request_dict = {
+            **form_data,
+            'config': backtest_config,
+            'id': session_id,
+            'state': state,
+        }
 
         try:
             backtest_req = BacktestRequestJson(**backtest_request_dict)
             payload = backtest_req.model_dump()
         except ValidationError as e:
             return {'status': 'error', 'message': 'Invalid backtest configuration in session state', 'validation_errors': str(e)}
+
+        payload['routes'] = [
+            {**route, 'exchange': payload['exchange']}
+            for route in payload['routes']
+        ]
+        form_data['routes'] = payload['routes']
+        state['form'] = form_data
+
+        results = state.get('results')
+        if not isinstance(results, dict):
+            results = {}
+            state['results'] = results
+        results['routes_info'] = _build_backtest_routes_info(payload['routes'])
+        if payload['routes']:
+            first_route = payload['routes'][0]
+            results['selectedRoute'] = {
+                'symbol': first_route.get('symbol', ''),
+                'timeframe': first_route.get('timeframe', ''),
+                'strategy': first_route.get('strategy', '')
+            }
+
+        # Starting the run and storing its finalized form must be one request so
+        # the session history cannot describe a different configuration.
+        payload['state'] = state
 
         # Fire the backtest and return immediately
         response = requests.post(
@@ -800,6 +842,7 @@ def run_backtest_service(session_id: str) -> dict:
             return {
                 'status': 'started',
                 'backtest_id': session_id,
+                'routes': payload['routes'],
                 'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
             }
@@ -849,6 +892,7 @@ def cancel_backtest_service(session_id: str) -> dict:
             return {
                 'status': 'success',
                 'session_id': session_id,
+                'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
                 'message': f'Backtest {session_id} cancellation requested'
             }
         elif response.status_code == 401:

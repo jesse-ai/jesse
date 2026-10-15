@@ -5,7 +5,7 @@ from jesse.services import logger
 
 def validate_routes(router) -> None:
     if not router.routes:
-        raise exceptions.RouteNotFound(
+        raise exceptions.InvalidRoutes(
             'No routes found. Please add at least one route at: routes.py\nMore info: https://docs.jesse.trade/docs/routes.html#routing')
 
     # validation for number of routes in the live mode

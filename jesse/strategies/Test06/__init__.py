@@ -15,7 +15,9 @@ class Test06(Strategy):
         Notice that this is even done via a STOP order
         thanks to Jesse's ability to trade on forming-candles.
         """
-        return self.time == 1547203500000 + 60_000
+        # Enter at the 5m boundary before the observed 1m bars cross the stop;
+        # a missing source minute must not shift this callback off the clock.
+        return self.time == 1547203440000 + 60_000
 
     def go_long(self):
         qty = 10.204

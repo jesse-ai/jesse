@@ -1,12 +1,13 @@
 import os
 import json
 import base64
-from datetime import timedelta
 from multiprocessing import cpu_count
 import optuna
 import ray
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
+from jesse.services.ray_runtime import UnsupportedRayVersionError, initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish
@@ -14,7 +15,7 @@ from jesse.modes.optimize_mode.fitness import get_fitness
 from jesse.routes import router
 from jesse.services.progressbar import Progressbar
 from jesse.services.redis import is_process_active
-from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials, get_optimization_session, get_optimization_session_by_id
+from jesse.models.OptimizationSession import update_optimization_session_status, update_optimization_session_trials, get_optimization_session_by_id
 import traceback
 
 # Define a Ray-compatible remote function
@@ -34,7 +35,8 @@ def ray_evaluate_trial(
     optimal_total,
     fast_mode,
     trial_number,
-    session_id
+    session_id,
+    objective_function,
 ):
     """Ray remote function to evaluate a trial.
 
@@ -55,7 +57,8 @@ def ray_evaluate_trial(
             testing_candles,
             optimal_total,
             fast_mode,
-            session_id
+            session_id,
+            objective_function,
         )
 
         # Log the trial details if debugging is enabled
@@ -122,6 +125,9 @@ class Optimizer:
         self.testing_warmup_candles = testing_warmup_candles
         self.testing_candles = testing_candles
         self.user_config = user_config
+        # Ray workers do not inherit the coordinator's in-memory config, so
+        # every trial receives the selected objective as an explicit input.
+        self.objective_function = jh.get_config('env.optimization.objective_function', 'sharpe').lower()
 
         # Validate and set the number of CPU cores to use
         if cpu_cores < 1:
@@ -151,31 +157,37 @@ class Optimizer:
         )
 
         # Initialize Ray if not already
+        self.ray_started_here = False
         if not ray.is_initialized():
             try:
-                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                initialize_ray(self.cpu_cores)
                 logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores", self.session_id )
+                self.ray_started_here = True
+            except (MemoryError, UnsupportedRayVersionError):
+                # Startup memory limits also cover Ray services and the worker heap, and
+                # fewer CPUs cannot make an unsupported Ray start.
+                raise
             except Exception as e:
                 logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.", self.session_id )
                 self.cpu_cores = 1
-                ray.init(num_cpus=1, ignore_reinit_error=True)
+                initialize_ray(1)
+                self.ray_started_here = True
 
-        # Setup a periodic termination check in case the user ends the session
-        client_id = jh.get_session_id()
-        from timeloop import Timeloop
-        self.tl = Timeloop()
-
-        @self.tl.job(interval=timedelta(seconds=1))
-        def check_for_termination():
-            if is_process_active(client_id) is False:
-                # Update session status to 'stopped' in the database
-                if get_optimization_session(self.session_id)['status'] != 'terminated':
-                    update_optimization_session_status(self.session_id, 'stopped')
-                raise exceptions.Termination
-        self.tl.start()
+        self.client_id = jh.get_session_id()
 
         # Load existing trials from the Optuna study
         self._load_study_trials()
+
+    def _raise_if_cancelled(self) -> None:
+        """Raise from the coordinator loop after cancellation is requested."""
+        if not is_process_active(self.client_id):
+            raise exceptions.Termination
+
+    def _mark_stopped_unless_terminated(self) -> None:
+        """Keep the user's explicit terminated status intact during cleanup."""
+        session = get_optimization_session_by_id(self.session_id)
+        if session is None or session.status not in {'stopped', 'terminated'}:
+            update_optimization_session_status(self.session_id, 'stopped')
 
     def _load_study_trials(self):
         """Load trials from the database session"""
@@ -334,18 +346,23 @@ class Optimizer:
 
         # Update the dashboard with general information about the progress
         general_info = {
-            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(
+                jh.timestamp_to_arrow(jh.now(force_fresh=True))
+            ),
             'trial': f'{self.completed_trials}/{self.n_trials}',
             'objective_function': jh.get_config('env.optimization.objective_function', 'sharpe'),
             'exchange_type': self.user_config['exchange']['type'],
-            'leverage_mode': self.user_config['exchange']['futures_leverage_mode'],
-            'leverage': self.user_config['exchange']['futures_leverage'],
+            'simulation_model': self.user_config['exchange'].get('simulation_model'),
+            'annualization': self.user_config['exchange'].get('annualization', 365),
+            'leverage_mode': self.user_config['exchange'].get('futures_leverage_mode', 'N/A'),
+            'leverage': self.user_config['exchange'].get('futures_leverage', 'N/A'),
             'cpu_cores': self.cpu_cores,
         }
         sync_publish('general_info', general_info)
 
         # Update the progress bar and publish the current progress to the dashboard
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
@@ -455,29 +472,31 @@ class Optimizer:
         self.progressbar.index = index
         # Update UI to reflect progress
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
 
     def run(self) -> optuna.trial.FrozenTrial:
-        # Log the start of the optimization session
-        logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores", self.session_id )
-
-        if self.completed_trials > 0:
-            logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed", self.session_id )
-            # Make sure the progress bar is synchronized
-            self._set_progressbar_index(self.completed_trials)
-
-        # Track the best trial - handle empty study gracefully
+        active_refs = {}
         try:
-            best_trial_value = self.study.best_value if self.study.trials else 0.0
-            best_trial_params = self.study.best_params if self.study.trials else None
-        except (ValueError, AttributeError) as e:
-            logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.", self.session_id )
-            best_trial_value = 0.0
-            best_trial_params = None
+            logger.log_optimize_mode(f"Optimization session started with {self.cpu_cores} CPU cores", self.session_id )
 
-        try:
+            if self.completed_trials > 0:
+                logger.log_optimize_mode(f"Resuming from previous session with {self.completed_trials} trials already completed", self.session_id )
+                self._set_progressbar_index(self.completed_trials)
+
+            # An empty or partially restored study has no best trial yet.
+            try:
+                best_trial_value = self.study.best_value if self.study.trials else 0.0
+                best_trial_params = self.study.best_params if self.study.trials else None
+            except (ValueError, AttributeError) as e:
+                logger.log_optimize_mode(f"Could not access best trial: {e}. Using default values.", self.session_id )
+                best_trial_value = 0.0
+                best_trial_params = None
+
+            self._raise_if_cancelled()
+            publish_status('Sharing candle data with optimization workers…')
             shared_user_config = ray.put(self.user_config)
             shared_formatted_routes = ray.put(router.formatted_routes)
             shared_formatted_data_routes = ray.put(router.formatted_data_routes)
@@ -489,8 +508,9 @@ class Optimizer:
 
             max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
 
-            active_refs = {}
+            publish_status('Running optimization trials…')
             while self.completed_trials < self.n_trials:
+                self._raise_if_cancelled()
                 if self.completed_trials == 0:
                     update_optimization_session_trials(
                         self.session_id,
@@ -514,7 +534,8 @@ class Optimizer:
                         self.optimal_total,
                         self.fast_mode,
                         self.trial_counter,
-                        self.session_id
+                        self.session_id,
+                        self.objective_function,
                     )
 
                     # Store the reference
@@ -527,6 +548,7 @@ class Optimizer:
 
                 # Wait for any trial to complete (with timeout to ensure responsiveness)
                 done_refs, _ = ray.wait(list(active_refs.keys()), num_returns=1, timeout=0.5)
+                self._raise_if_cancelled()
 
                 # Process completed trials
                 for ref in done_refs:
@@ -560,6 +582,8 @@ class Optimizer:
                 # Create a dummy trial if no best trial exists
                 best_trial = None
 
+            self._raise_if_cancelled()
+
             # Update the database with final results
             update_optimization_session_trials(
                 self.session_id,
@@ -581,18 +605,29 @@ class Optimizer:
             # Handle user-initiated termination
             logger.log_optimize_mode("Optimization terminated by user", self.session_id )
             # Update session status to 'stopped'
-            update_optimization_session_status(self.session_id, 'stopped')
+            self._mark_stopped_unless_terminated()
             raise
         except Exception as e:
             logger.log_optimize_mode(f"Error during optimization: {e}", self.session_id )
             # Update session status to 'stopped' due to error
             update_optimization_session_status(self.session_id, 'stopped')
             from jesse.models.OptimizationSession import add_session_exception
-            add_session_exception(self.session_id, str(e), str(traceback.format_exc()))
+            add_session_exception(
+                self.session_id,
+                f'{type(e).__name__}: {e}',
+                str(traceback.format_exc()),
+            )
             raise
         finally:
-            # Shutdown Ray
-            ray.shutdown()
+            # Cancel only this optimization's outstanding work when sharing a
+            # pre-existing Ray runtime with another in-process caller.
+            for ref in active_refs:
+                try:
+                    ray.cancel(ref, force=True)
+                except Exception:
+                    pass
+            if self.ray_started_here and ray.is_initialized():
+                ray.shutdown()
 
         # Create an empty FrozenTrial if best_trial is None
         if best_trial is None:

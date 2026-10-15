@@ -1,21 +1,18 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.web import ConfigRequestJson
 import jesse.helpers as jh
 
-router = APIRouter(prefix="/config", tags=["Configuration"])
+router = APIRouter(prefix="/config", tags=["Configuration"], dependencies=[Depends(require_auth)])
 
 
 @router.post("/get")
-def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+def get_config(json_request: ConfigRequestJson):
     """
     Get the current configuration
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.modes.data_provider import get_config as gc
 
@@ -25,12 +22,10 @@ def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = H
 
 
 @router.post("/update")
-def update_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+def update_config(json_request: ConfigRequestJson):
     """
     Update the configuration
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     from jesse.modes.data_provider import update_config as uc
 

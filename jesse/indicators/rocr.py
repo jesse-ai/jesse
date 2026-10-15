@@ -1,9 +1,16 @@
 import numpy as np
 
-from typing import Union
+from typing import Literal, Union, overload
 
 from jesse.helpers import get_candle_source, slice_candles
 
+
+@overload
+def rocr(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def rocr(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def rocr(candles: np.ndarray, period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def rocr(candles: np.ndarray, period: int = 10, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """

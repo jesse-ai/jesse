@@ -29,7 +29,6 @@ Default Configuration:
     "export_csv": false,
     "export_json": false,
     "export_chart": true,
-    "export_tradingview": false,
     "fast_mode": true,
     "benchmark": true
 }
@@ -159,7 +158,8 @@ Process:
 4. Starts backtest execution
 5. Monitors progress via WebSocket events
 
-Returns: Success message with metrics or error details
+Returns: Immediate acknowledgement containing the session ID, the executed trading routes,
+dashboard URL, and polling instructions; or error details.
 
 ### cancel_backtest()
 
@@ -178,6 +178,21 @@ Parameters:
 - `days_old` (optional): Age threshold in days (null deletes all sessions)
 
 Returns: Number of deleted sessions
+
+### save_strategy_report()
+
+Saves the mandatory Markdown report of an optimization/backtest task. Jesse writes it on the
+machine running Jesse at `strategies/<strategy_name>/reports/<filename>` and creates the
+`reports` folder if needed, so it works the same for assistants on another computer and for
+Docker installs. Never write or look for reports with your own file tools.
+
+Parameters:
+- `strategy_name`: Exact name of an existing strategy
+- `filename`: Bare file name ending in `.md` (letters, digits, `.`, `_`, `-`; no folders), e.g. `BTCUSDT_sharpe_optimization_report.md`
+- `content`: Complete Markdown text (must not be empty)
+- `overwrite` (optional, default `false`): Replace an existing report. Without it, an existing file returns `error_type: "report_exists"`; use it only to update your own report from the same task.
+
+Returns: `path` (project-relative, e.g. `strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md`), `overwritten`, and `size_bytes`. The success response is the verification: give the user the `path` verbatim as a location inside the Jesse project.
 
 ## Usage Examples
 

@@ -22,18 +22,7 @@ from typing import Optional
 
 import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
-
-
-DEFAULT_SIG_TEST_CONFIG = {
-    'warm_up_candles': 210,
-    'exchange': {
-        'balance': 10_000,
-        'fee': 0.0006,
-        'type': 'futures',
-        'futures_leverage': 1,
-        'futures_leverage_mode': 'cross',
-    },
-}
+from .session_config import load_session_run_config
 
 
 def _build_default_title(routes_list: list) -> str:
@@ -172,6 +161,7 @@ def create_significance_test_draft_service(
         if len(routes_list) != 1:
             return {'status': 'error', 'message': 'Rule Significance Test requires exactly one trading route.'}
 
+        run_config = load_session_run_config('significance_test', exchange)
         form_data = {
             'id': session_id,
             'exchange': exchange,
@@ -181,6 +171,7 @@ def create_significance_test_draft_service(
             'finish_date': finish_date,
             'n_simulations': int(n_simulations),
             'random_seed': int(random_seed) if random_seed is not None else None,
+            'config': run_config,
         }
 
         state_dict = {
@@ -267,6 +258,7 @@ def update_significance_test_draft_service(session_id: str, state: str) -> dict:
                 'status': 'success',
                 'session_id': session_id,
                 'draft_state': state_dict,
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': 'Significance test draft updated successfully',
             }
         if response.status_code == 401:
@@ -308,6 +300,7 @@ def update_significance_test_notes_service(
                 'description': description,
                 'strategy_code_keys': list(parsed_codes.keys()) if parsed_codes else [],
                 'strategy_codes_captured': len(parsed_codes) if parsed_codes else 0,
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': 'Significance test session notes updated successfully',
             }
         return result
@@ -385,7 +378,7 @@ def get_significance_test_sessions_service(
             data = response.json()
             return {
                 'status': 'success',
-                'sessions': data.get('sessions', []),
+                'sessions': mcp_config.with_dashboard_urls('significance_test', data.get('sessions', [])),
                 'count': data.get('count', 0),
                 'message': f'Retrieved {data.get("count", 0)} significance test session(s)',
             }
@@ -436,12 +429,19 @@ def run_significance_test_service(session_id: str) -> dict:
         if len(routes_list) != 1:
             return {'status': 'error', 'message': 'Rule Significance Test requires exactly one trading route.'}
 
+        run_config = load_session_run_config(
+            'significance_test',
+            form.get('exchange'),
+            form.get('config'),
+        )
+        form['config'] = run_config
+        state['form'] = form
         payload = {
             'id': session_id,
             'exchange': form.get('exchange'),
             'routes': routes_list,
             'data_routes': form.get('data_routes', []),
-            'config': DEFAULT_SIG_TEST_CONFIG,
+            'config': run_config,
             'start_date': form.get('start_date'),
             'finish_date': form.get('finish_date'),
             'n_simulations': int(form.get('n_simulations', 2000)),
@@ -493,6 +493,7 @@ def cancel_significance_test_service(session_id: str) -> dict:
         )
         if response.status_code == 202:
             return {'status': 'success', 'session_id': session_id,
+                    'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                     'message': f'Significance test {session_id} cancellation requested'}
         if response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}

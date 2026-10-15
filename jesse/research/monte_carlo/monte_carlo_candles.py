@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
+from jesse.services.ray_runtime import initialize_ray
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 from matplotlib import pyplot as plt
@@ -40,7 +41,7 @@ class MonteCarloCandlesScenarioResult(TypedDict, total=False):
     trades: List[Dict[str, Any]]
 
 class MonteCarloCandlesReturn(TypedDict):
-    original: MonteCarloCandlesScenarioResult | None
+    original: MonteCarloCandlesScenarioResult
     scenarios: List[MonteCarloCandlesScenarioResult]
     num_scenarios: int
     total_requested: int
@@ -63,8 +64,16 @@ def _ray_run_scenario_monte_carlo_candles(
     Ray remote function to execute a single Monte Carlo candles scenario.
     """
     try:
-        # Always apply the pipeline for Monte Carlo scenarios (except scenario 0 which is original)
+        # Each seeded scenario receives its own deterministic random stream.
+        # The caller's kwargs stay immutable because Ray may reuse the object.
         should_use_pipeline = candles_pipeline_class is not None and scenario_index > 0
+        scenario_pipeline_kwargs = None
+        if should_use_pipeline:
+            scenario_pipeline_kwargs = dict(candles_pipeline_kwargs or {})
+            base_seed = scenario_pipeline_kwargs.get('seed')
+            if base_seed is not None:
+                scenario_pipeline_kwargs['seed'] = base_seed + scenario_index - 1
+
         result = backtest(
             config=config,
             routes=routes,
@@ -76,10 +85,9 @@ def _ray_run_scenario_monte_carlo_candles(
             fast_mode=fast_mode,
             benchmark=False,  # Never use benchmark mode
             candles_pipeline_class=candles_pipeline_class if should_use_pipeline else None,
-            candles_pipeline_kwargs=candles_pipeline_kwargs if should_use_pipeline else None
+            candles_pipeline_kwargs=scenario_pipeline_kwargs
         )
-        # Tag the result with its scenario index so downstream consumers can
-        # reliably identify the original vs simulated scenarios regardless of completion order
+        # Preserve scenario identity regardless of Ray completion order.
         result['scenario_index'] = scenario_index
         if 'equity_curve' not in result or result['equity_curve'] is None:
             return {
@@ -125,7 +133,7 @@ def monte_carlo_candles(
     ray_started_here = False
     if not ray.is_initialized():
         try:
-            ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+            initialize_ray(cpu_cores)
             print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
             ray_started_here = True
         except Exception as e:
@@ -153,18 +161,20 @@ def _launch_monte_carlo_candles_scenarios(
     candles_pipeline_kwargs: dict
 ) -> List[Any]:
     scenario_refs = []
-    for i in range(num_scenarios):
+    # Scenario zero is the separate, unmodified baseline. Requested Monte Carlo
+    # scenarios therefore use the inclusive range from one through the count.
+    for i in range(1, num_scenarios + 1):
         ref = _ray_run_scenario_monte_carlo_candles.remote(
-            config=shared_objects['config'],
-            routes=shared_objects['routes'],
-            data_routes=shared_objects['data_routes'],
-            candles=shared_objects['candles'],
-            warmup_candles=shared_objects['warmup_candles'],
-            hyperparameters=shared_objects['hyperparameters'],
-            fast_mode=fast_mode,
-            scenario_index=i,
-            candles_pipeline_class=candles_pipeline_class,
-            candles_pipeline_kwargs=candles_pipeline_kwargs
+            shared_objects['config'],
+            shared_objects['routes'],
+            shared_objects['data_routes'],
+            shared_objects['candles'],
+            shared_objects['warmup_candles'],
+            shared_objects['hyperparameters'],
+            fast_mode,
+            i,
+            candles_pipeline_class,
+            candles_pipeline_kwargs,
         )
         scenario_refs.append(ref)
     return scenario_refs
@@ -338,6 +348,22 @@ def _run_monte_carlo_candles_simulation(
     candles_pipeline_class, candles_pipeline_kwargs: dict, cpu_cores: int, started_ray_here: bool, progress_callback=None, result_callback=None
 ) -> dict:
     try:
+        # The original backtest is not one of the requested synthetic paths.
+        # Running it in the coordinator also propagates validation failures
+        # directly instead of converting them into an empty Ray result.
+        original_result = backtest(
+            config=config,
+            routes=routes,
+            data_routes=data_routes,
+            candles=candles,
+            warmup_candles=warmup_candles,
+            generate_equity_curve=True,
+            hyperparameters=hyperparameters,
+            fast_mode=fast_mode,
+            benchmark=False,
+        )
+        original_result['scenario_index'] = 0
+
         pbar = _setup_progress_bar(progress_bar, num_scenarios, "Monte Carlo Candles Scenarios")
         shared_objects = _create_ray_shared_objects(
             config, routes, data_routes, candles, warmup_candles, hyperparameters
@@ -350,20 +376,17 @@ def _run_monte_carlo_candles_simulation(
         if pbar:
             pbar.close()
         valid_results, filtered_count = _filter_valid_results(results)
+        valid_results.sort(key=lambda scenario: scenario['scenario_index'])
         _log_monte_carlo_candles_simulation_summary(valid_results, filtered_count, num_scenarios)
 
-        # Separate original result (scenario_index == 0) from Monte Carlo simulations
-        original_result = next((r for r in valid_results if r.get('scenario_index') == 0), None)
-        simulation_results = [r for r in valid_results if r.get('scenario_index', -1) > 0]
-
         # Calculate confidence intervals
-        confidence_analysis = _calculate_confidence_intervals_candles(original_result, simulation_results)
+        confidence_analysis = _calculate_confidence_intervals_candles(original_result, valid_results)
 
         return {
             'original': original_result,
-            'scenarios': simulation_results,
+            'scenarios': valid_results,
             'confidence_analysis': confidence_analysis,
-            'num_scenarios': len(simulation_results),
+            'num_scenarios': len(valid_results),
             'total_requested': num_scenarios
         }
     except Exception as e:
@@ -473,5 +496,3 @@ def plot_monte_carlo_candles_chart(results: dict, charts_folder: str = None) -> 
     chart_path = os.path.join(charts_folder, filename)
     plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
     print(f"Saved Monte Carlo candles chart to: {chart_path}")
-
-

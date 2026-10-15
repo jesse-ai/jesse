@@ -14,26 +14,43 @@ class HyperliquidPerpetualMain(CandleExchange):
         self.endpoint = rest_endpoint
         self.all_org_symbols = {}
 
-    def get_starting_time(self, symbol: str) -> int:
+    def get_starting_time(self, symbol: str) -> Union[int, None]:
         base_symbol = jh.get_base_asset(symbol)
-        payload = {
-            'type': 'candleSnapshot',
-            'req': {
-                'coin': base_symbol,
-                'interval': 'W',
-                'startTime': 1514811660
-            }
-        }
         headers = {
             'Content-Type': 'application/json',
         }
 
-        response = requests.post(self.endpoint, json=payload, headers=headers)
-        data = response.json()
-        # Reverse the data list
-        data = data[::-1]
+        def first_candle(interval: str, start_time: int, end_time: int) -> Union[int, None]:
+            payload = {
+                'type': 'candleSnapshot',
+                'req': {
+                    'coin': base_symbol,
+                    'interval': interval,
+                    'startTime': start_time,
+                    'endTime': end_time,
+                }
+            }
+            response = requests.post(self.endpoint, json=payload, headers=headers)
+            data = response.json()
+            if not isinstance(data, list) or not data:
+                return None
+            return int(data[0]['t'])
 
-        return int(data[1]['t'])
+        # Hyperliquid keeps only the latest 5,000 candles of each interval, and rejects a weekly
+        # interval, so the daily snapshot (available since 2020) locates the listing day. Hourly
+        # and minute snapshots then narrow it down when the listing is recent enough to still
+        # be inside their retention; an older listing keeps the day start, which is never later
+        # than the first real candle.
+        now = int(jh.now_to_timestamp())
+        first_timestamp = first_candle('1d', 0, now)
+        if first_timestamp is None:
+            return None
+        for interval, window_ms in (('1h', 86_400_000), ('1m', 3_600_000)):
+            refined = first_candle(interval, first_timestamp, first_timestamp + window_ms)
+            if refined is None:
+                break
+            first_timestamp = refined
+        return first_timestamp
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         if self.all_org_symbols == {}:

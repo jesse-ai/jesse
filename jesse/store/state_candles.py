@@ -12,6 +12,12 @@ class CandlesState:
         self.storage = {}
         self.are_all_initiated = False
         self.initiated_pairs = {}
+        # Historical timestamp replay derives forming candles from clock buckets;
+        # live mode leaves this disabled and retains its streaming behavior.
+        self.uses_timestamp_buckets = False
+        # Direct simulator fixtures may omit warmup. Production loaders and
+        # research requests enable this before enforcing configured route counts.
+        self.enforce_warmup = False
 
     def mark_all_as_initiated(self) -> None:
         for k in self.initiated_pairs:
@@ -19,10 +25,9 @@ class CandlesState:
         self.are_all_initiated = True
 
     def get_storage(self, exchange: str, symbol: str, timeframe: str) -> DynamicNumpyArray:
-        key = jh.key(exchange, symbol, timeframe)
-
+        # inline jh.key() — this is called multiple times per simulated minute
         try:
-            return self.storage[key]
+            return self.storage[f'{exchange}-{symbol}-{timeframe}']
         except KeyError:
             raise RouteNotFound(symbol, timeframe)
 
@@ -40,10 +45,10 @@ class CandlesState:
                 total_bigger_timeframe = int((bucket_size / jh.timeframe_to_one_minutes(timeframe)) + 1)
                 self.storage[key] = DynamicNumpyArray((total_bigger_timeframe, 6))
 
-
     def forming_estimation(self, exchange: str, symbol: str, timeframe: str) -> tuple:
-        long_key = jh.key(exchange, symbol, timeframe)
-        short_key = jh.key(exchange, symbol, '1m')
+        # inline jh.key() — this is on the hot path of every indicator call
+        long_key = f'{exchange}-{symbol}-{timeframe}'
+        short_key = f'{exchange}-{symbol}-1m'
         required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
         current_1m_count = len(self.get_storage(exchange, symbol, '1m'))
         dif = current_1m_count % required_1m_to_complete_count

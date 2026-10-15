@@ -6,6 +6,10 @@ This module provides MCP tools for working with Jesse's technical indicators.
 The tools include:
 - list_indicators: List all available technical indicators in Jesse
 - get_indicator_details: Get detailed information about a specific indicator
+
+Unlike the other tools, these stay synchronous: they only inspect the jesse.indicators module
+(no API, database, or network call; the first call imports it, about 10 ms) and then return
+in well under a millisecond, so they do not hold up the worker's event loop (see offload.py).
 """
 
 from .services import (
@@ -48,7 +52,7 @@ def register_indicator_tools(mcp):
                 "count": 147,                    // Total number of available indicators
                 "indicators": [                  // Alphabetically sorted array of indicator names
                     "sma", "ema", "rsi", "macd", "bollinger_bands",
-                    "stochastic", "cci", "atr", "adx", "supertrend",
+                    "stoch", "cci", "atr", "adx", "supertrend",
                     // ... all 140+ indicator names
                 ],
                 "message": "Found 147 indicators available in Jesse"
@@ -124,7 +128,7 @@ def register_indicator_tools(mcp):
 
         Parameters:
             indicator_name (str): Exact name of the indicator as returned by list_indicators()
-                Examples: "rsi", "macd", "sma", "bollinger_bands", "stochastic", "atr"
+                Examples: "rsi", "macd", "sma", "bollinger_bands", "stoch", "atr"
                 Shape: String matching available indicator names exactly
 
         Returns:

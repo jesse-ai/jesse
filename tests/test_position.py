@@ -1,7 +1,20 @@
 from jesse.enums import exchanges
 from jesse.models import Position
-from jesse.testing_utils import set_up, single_route_backtest
-from jesse.services import position_service
+from jesse.testing_utils import set_up as configure_test, single_route_backtest
+from jesse.services import exchange_service, position_service
+from jesse.routes import router
+from jesse.store import store
+
+
+def set_up():
+    """Create the sandbox exchange needed by position mutations in this module."""
+    configure_test()
+    # Position creation reads the exchange from the store, not just its config.
+    router.initiate([
+        {'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'timeframe': '1m', 'strategy': 'TestVanillaStrategy'}
+    ])
+    store.reset()
+    exchange_service.initialize_exchanges_state()
 
 
 def test_increase_a_long_position():
@@ -257,4 +270,3 @@ def test_position_total_cost_property():
         'TestPositionTotalCostProperty',
         is_futures_trading=False
     )
-

@@ -1,5 +1,5 @@
 import jesse.helpers as jh
-from jesse.services import logger
+from jesse.services import logger, notifier
 from jesse.repositories import closed_trade_repository, order_repository
 from jesse.store import store
 from jesse.enums import sides
@@ -88,6 +88,22 @@ def open_trade(position, p_orders: list = None) -> None:
             add_order_record_only(order)
 
 
+def restore_open_trade(position: Position, trade: ClosedTrade) -> None:
+    """Attach the persisted trade and its fills to the restored live position."""
+    # Hydrate once so repeat reconciliation cannot duplicate fills or their fees.
+    if not trade.orders and len(trade.buy_orders) == 0 and len(trade.sell_orders) == 0:
+        closed_trade_repository.hydrate_executed_orders(trade)
+    if trade.opened_at is None:
+        trade.opened_at = position.opened_at
+    try:
+        trade.timeframe = position.strategy.timeframe
+        trade.strategy_name = position.strategy.name
+    except AttributeError:
+        if not jh.is_unit_testing():
+            raise
+    store.closed_trades.tempt_trades[jh.key(position.exchange_name, position.symbol)] = trade
+
+
 def close_trade(position: Position) -> None:
     t: ClosedTrade = store.closed_trades._get_current_trade(position.exchange_name, position.symbol)
 
@@ -110,11 +126,22 @@ def close_trade(position: Position) -> None:
         closed_trade_repository.store_or_update(t)
 
     store.closed_trades.trades.append(t)
+    store.closed_trades.record_closure(t)
     closed_trade_repository.close_trade(t)
+    currency = position.exchange.settlement_currency.upper()
+    outcome = '🟢' if t.pnl > 0 else '🔴' if t.pnl < 0 else '⚪'
+    message = (
+        f'{outcome} Trade closed | {t.symbol} | {t.type.upper()} | {t.exchange}\n'
+        f'Qty: {t.qty} | Entry: {jh.format_price(t.entry_price)} | Exit: {jh.format_price(t.exit_price)}\n'
+        f'Net PnL: {t.pnl:+.2f} {currency} ({t.pnl_percentage:+.2f}%) | Fees: {jh.format_price(t.fee)} {currency}'
+    )
     if not jh.is_unit_testing():
-        logger.info(
-            f"CLOSED a {t.type} trade for {t.exchange}-{t.symbol}: qty: {t.qty},"
-            f" entry_price: {t.entry_price}, exit_price: {t.exit_price}, "
-            f"PNL: {round(t.pnl, 2)} ({round(t.pnl_percentage, 2)}%)"
-        )
+        logger.info(message)
+    # Finalized trade data includes all fills and fees. Send once here, rather than
+    # emitting a second, incomplete close notification from the strategy callback.
+    if jh.is_live() and jh.get_config(
+        'env.notifications.events.closed_position',
+        jh.get_config('env.notifications.events.updated_position', True),
+    ):
+        notifier.notify(message)
     store.closed_trades._reset_current_trade(position.exchange_name, position.symbol)

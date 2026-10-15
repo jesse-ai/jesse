@@ -61,9 +61,8 @@ _THEMES = {
 }
 
 
-def _compute_drawdown_series(daily_balance: list, start_date: datetime) -> list:
+def _compute_drawdown_series(daily_balance: list, dates: list[datetime]) -> list:
     """Return list of (date, drawdown_pct) where drawdown_pct <= 0."""
-    dates = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
     result = []
     peak = daily_balance[0] if daily_balance else 0.0
     for date, balance in zip(dates, daily_balance):
@@ -74,9 +73,9 @@ def _compute_drawdown_series(daily_balance: list, start_date: datetime) -> list:
     return result
 
 
-def _find_worst_drawdown_periods(daily_balance: list, start_date: datetime, n: int = 5) -> list:
+def _find_worst_drawdown_periods(daily_balance: list, dates: list[datetime], n: int = 5) -> list:
     """Return up to n worst drawdown periods sorted by max_drawdown ascending (most negative first)."""
-    dd_series = _compute_drawdown_series(daily_balance, start_date)
+    dd_series = _compute_drawdown_series(daily_balance, dates)
 
     periods = []
     in_drawdown = False
@@ -119,12 +118,11 @@ def _find_worst_drawdown_periods(daily_balance: list, start_date: datetime, n: i
     return periods[:n]
 
 
-def _compute_monthly_returns(daily_balance: list, start_date: datetime) -> dict:
+def _compute_monthly_returns(daily_balance: list, dates: list[datetime]) -> dict:
     """Return dict keyed by (year, month) -> return_pct, sorted chronologically."""
     if not daily_balance:
         return {}
 
-    dates = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
     monthly: dict = {}
 
     for date, balance in zip(dates, daily_balance):
@@ -186,8 +184,10 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     if not daily_balance or len(daily_balance) < 2:
         return
 
-    start_date = datetime.fromtimestamp(store.app.starting_time / 1000)
-    dates = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
+    dates = [
+        datetime.fromtimestamp(timestamp / 1000)
+        for timestamp in store.app.daily_balance_timestamps
+    ]
 
     # ── Chart 1: Equity Curve ────────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -217,7 +217,10 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
                 daily_returns[0] = 0
                 bench_multiplier = (1 + daily_returns / 100).cumprod()
                 bench_balance = initial_balance * bench_multiplier
-                bench_dates = [start_date + timedelta(days=x) for x in range(len(bench_balance))]
+                bench_dates = [
+                    datetime.fromtimestamp(timestamp / 1000)
+                    for timestamp in daily_candles[:, 0]
+                ]
                 color = bench_colors[i % len(bench_colors)]
                 bench_series.append((r.symbol, color, bench_dates, bench_balance, bench_multiplier))
                 ax.plot(bench_dates, bench_balance, color=color, linewidth=1.2, linestyle='--', label=r.symbol)
@@ -284,8 +287,8 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.close(fig)
 
     # ── Chart 3: Drawdown Chart (equity curve + shaded worst-5 periods) ──────
-    dd_series = _compute_drawdown_series(daily_balance, start_date)
-    worst_periods = _find_worst_drawdown_periods(daily_balance, start_date, n=5)
+    dd_series = _compute_drawdown_series(daily_balance, dates)
+    worst_periods = _find_worst_drawdown_periods(daily_balance, dates, n=5)
 
     fig, ax = plt.subplots(figsize=(10, 4))
     fig.patch.set_facecolor(t['fig_facecolor'])
@@ -339,7 +342,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.close(fig)
 
     # ── Chart 4: Monthly Returns Heatmap ─────────────────────────────────────
-    monthly_returns = _compute_monthly_returns(daily_balance, start_date)
+    monthly_returns = _compute_monthly_returns(daily_balance, dates)
 
     if monthly_returns:
         years = sorted(set(y for y, m in monthly_returns))
@@ -514,8 +517,11 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.close(fig)
 
 
-def _calculate_equity_curve(daily_balance, start_date, name: str, color: str):
-    date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
+def _calculate_equity_curve(daily_balance, start_date, name: str, color: str, timestamps=None):
+    if timestamps is not None and len(timestamps) == len(daily_balance):
+        date_list = [datetime.fromtimestamp(timestamp / 1000) for timestamp in timestamps]
+    else:
+        date_list = [start_date + timedelta(days=x) for x in range(len(daily_balance))]
     eq = [{
         'time': date.timestamp(),
         'value': balance,
@@ -555,7 +561,13 @@ def equity_curve(benchmark: bool = False) -> list:
     # Define the first 10 colors
     colors = ['#818CF8', '#fbbf24', '#fb7185', '#60A5FA', '#f472b6', '#A78BFA', '#f87171', '#6EE7B7', '#93C5FD', '#FCA5A5']
 
-    result.append(_calculate_equity_curve(daily_balance, start_date, 'Portfolio', colors[0]))
+    result.append(_calculate_equity_curve(
+        daily_balance,
+        start_date,
+        'Portfolio',
+        colors[0],
+        store.app.daily_balance_timestamps,
+    ))
 
     if benchmark:
         initial_balance = daily_balance[0]
@@ -574,6 +586,12 @@ def equity_curve(benchmark: bool = False) -> list:
             if i + 1 >= 10:
                 colors.append(_generate_color(colors[-1]))
 
-            result.append(_calculate_equity_curve(daily_balance_benchmark, start_date, r.symbol, colors[(i + 1) % len(colors)]))
+            result.append(_calculate_equity_curve(
+                daily_balance_benchmark,
+                start_date,
+                r.symbol,
+                colors[(i + 1) % len(colors)],
+                daily_candles[:, 0],
+            ))
 
     return result

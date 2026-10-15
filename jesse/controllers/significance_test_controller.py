@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header
-from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, FileResponse
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth, require_auth_any
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
     SignificanceTestRequestJson,
@@ -33,13 +34,10 @@ from jesse.modes.significance_test_mode import run as run_significance_test
 router = APIRouter(prefix="/significance-test", tags=["Significance Test"])
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_auth)])
 async def significance_test(
     request_json: SignificanceTestRequestJson,
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -59,9 +57,8 @@ async def significance_test(
         )
 
     if existing:
-        # Reuse a pre-staged draft (created via /significance-test/update-state by
-        # the dashboard, MCP, or other clients). Promote it to 'running' and refresh
-        # state/theme with whatever the start request carries.
+        # Keep the draft's identity while replacing its editable form with the
+        # exact state accepted for this run.
         update_significance_test_session_state(session_id, request_json.state)
         update_significance_test_session_status(session_id, 'running')
         if request_json.theme:
@@ -100,13 +97,10 @@ async def significance_test(
     }, status_code=202)
 
 
-@router.post("/cancel")
+@router.post("/cancel", dependencies=[Depends(require_auth)])
 def cancel_significance_test(
     request_json: CancelSignificanceTestRequestJson,
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
     return JSONResponse(
@@ -115,13 +109,10 @@ def cancel_significance_test(
     )
 
 
-@router.post("/terminate")
+@router.post("/terminate", dependencies=[Depends(require_auth)])
 def terminate_significance_test(
     request_json: TerminateSignificanceTestRequestJson,
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_significance_test_session_status(request_json.id, 'terminated')
     process_manager.cancel_process(request_json.id)
@@ -131,25 +122,19 @@ def terminate_significance_test(
     )
 
 
-@router.post("/update-state")
+@router.post("/update-state", dependencies=[Depends(require_auth)])
 def update_state(
     request_json: UpdateSignificanceTestSessionStateRequestJson,
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_significance_test_session_state(request_json.id, request_json.state)
     return JSONResponse({'message': 'Session state updated successfully'})
 
 
-@router.post("/sessions")
+@router.post("/sessions", dependencies=[Depends(require_auth)])
 def list_sessions(
     request_json: GetSignificanceTestSessionsRequestJson = GetSignificanceTestSessionsRequestJson(),
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     sessions = get_significance_test_sessions(
         limit=request_json.limit,
@@ -162,12 +147,10 @@ def list_sessions(
     return JSONResponse({'sessions': transformed, 'count': len(transformed)})
 
 
-@router.post("/sessions/{session_id}")
-def get_session(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+@router.post("/sessions/{session_id}", dependencies=[Depends(require_auth)])
+def get_session(session_id: UUID):
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
@@ -176,14 +159,9 @@ def get_session(session_id: str, authorization: Optional[str] = Header(None)):
     return JSONResponse({'session': transformed})
 
 
-@router.get("/sessions/{session_id}/chart")
-def get_chart(session_id: str, token: Optional[str] = None, authorization: Optional[str] = Header(None)):
-    # Support token via query param (for <img> src) or Authorization header
-    effective_auth = token or authorization
-    if not authenticator.is_valid_token(effective_auth):
-        return authenticator.unauthorized_response()
-
-    session = get_significance_test_session_by_id(session_id)
+@router.get("/sessions/{session_id}/chart", dependencies=[Depends(require_auth_any)])
+def get_chart(session_id: UUID):
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
     if not session.chart_path:
@@ -196,37 +174,32 @@ def get_chart(session_id: str, token: Optional[str] = None, authorization: Optio
     return FileResponse(session.chart_path, media_type='image/png')
 
 
-@router.post("/sessions/{session_id}/remove")
-def remove_session(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+@router.post("/sessions/{session_id}/remove", dependencies=[Depends(require_auth)])
+def remove_session(session_id: UUID):
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
-    result = delete_significance_test_session(session_id)
+    result = delete_significance_test_session(str(session_id))
     if not result:
         return JSONResponse({'error': 'Failed to delete session'}, status_code=500)
 
     return JSONResponse({'message': 'Session removed successfully'})
 
 
-@router.post("/sessions/{session_id}/notes")
+@router.post("/sessions/{session_id}/notes", dependencies=[Depends(require_auth)])
 def update_notes(
-    session_id: str,
+    session_id: UUID,
     request_json: UpdateSignificanceTestSessionNotesRequestJson,
-    authorization: Optional[str] = Header(None),
 ):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
     update_significance_test_session_notes(
-        session_id,
+        str(session_id),
         title=request_json.title,
         description=request_json.description,
         strategy_codes=request_json.strategy_codes,
@@ -234,13 +207,11 @@ def update_notes(
     return JSONResponse({'message': 'Notes updated successfully'})
 
 
-@router.post("/sessions/{session_id}/strategy-code")
-def get_strategy_code(session_id: str, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+@router.post("/sessions/{session_id}/strategy-code", dependencies=[Depends(require_auth)])
+def get_strategy_code(session_id: UUID):
 
     import json
-    session = get_significance_test_session_by_id(session_id)
+    session = get_significance_test_session_by_id(str(session_id))
     if not session:
         return JSONResponse({'error': f'Session {session_id} not found'}, status_code=404)
 
@@ -250,10 +221,8 @@ def get_strategy_code(session_id: str, authorization: Optional[str] = Header(Non
 
 
 
-@router.post("/purge-sessions")
-def purge_sessions(request_json: dict, authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+@router.post("/purge-sessions", dependencies=[Depends(require_auth)])
+def purge_sessions(request_json: dict):
 
     days_old = request_json.get('days_old', None)
     deleted_count = purge_significance_test_sessions(days_old)
@@ -263,9 +232,7 @@ def purge_sessions(request_json: dict, authorization: Optional[str] = Header(Non
     })
 
 
-@router.get("/running-session")
-def get_running_session(authorization: Optional[str] = Header(None)):
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+@router.get("/running-session", dependencies=[Depends(require_auth)])
+def get_running_session():
 
     return JSONResponse({'session_id': get_running_significance_test_session_id()})

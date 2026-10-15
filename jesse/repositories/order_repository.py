@@ -65,6 +65,7 @@ def create(order_data: dict) -> Order:
 
 
 def update(order: Order) -> None:
+    """Persist order state and clear the pending-fill guard on terminal events."""
     if jh.is_unit_testing():
         return
 
@@ -78,6 +79,8 @@ def update(order: Order) -> None:
         try:
             db_order = Order.select().where(Order.id == order.id).first()
         except Exception:
+            if database.db.in_transaction():
+                raise
             try:
                 database.db.rollback()
             except Exception:
@@ -95,7 +98,12 @@ def update(order: Order) -> None:
             'exchange_id': order.exchange_id,
         }
         
-        if order.vars:
+        # Terminal orders cannot still await a fill. Reconstructed events may omit
+        # saved metadata, so preserve other keys while removing this guard.
+        if order.status in (order_statuses.EXECUTED, order_statuses.CANCELED, order_statuses.REJECTED):
+            metadata = {**(db_order.vars or {}), **(order.vars or {})}
+            d['vars'] = {k: v for k, v in metadata.items() if k != 'awaiting_fill'}
+        elif order.vars:
             d['vars'] = order.vars
         
         if order.is_executed:
@@ -113,6 +121,8 @@ def update(order: Order) -> None:
         try:
             Order.update(**d).where(Order.id == db_order.id).execute()
         except Exception as e:
+            if database.db.in_transaction():
+                raise
             try:
                 database.db.rollback()
             except Exception:
@@ -142,6 +152,8 @@ def store_or_update(order: Order) -> None:
             if potential_matches and len(potential_matches) == 1:
                 order_exist = potential_matches[0]
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         order_exist = False
     
     if order_exist:
@@ -189,6 +201,8 @@ def store_or_update(order: Order) -> None:
     try:
         Order.insert(**d).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:
@@ -387,6 +401,46 @@ def get_simulated_orders(exchange: str, symbol: str, qty: float = None) -> List[
     return list(query.order_by(Order.created_at.desc()))
 
 
+def executed_for_trades_query(trade_ids):
+    """Unexecuted order selection shared by single-trade and bounded batch hydration."""
+    return Order.select().where(Order.trade_id.in_(trade_ids), Order.status == order_statuses.EXECUTED)
+
+
+def history_query(
+    *, id_search=None, status_filter=None, symbol_filter=None, exchange_filter=None,
+    type_filter=None, side_filter=None, exact_match=False, session_id=None, session_modes=None,
+    time_field='created_at', start_ms=None, end_ms=None,
+):
+    """Build history predicates without executing, paging, or changing a caller's transaction.
+
+    Substring searches preserve dashboard behavior; exact scopes and explicit half-open ranges
+    support analytics. Timestamp field names are restricted before resolving a model column.
+    """
+    if time_field not in ('created_at', 'executed_at'):
+        raise ValueError('Unsupported order history timestamp field')
+    query = Order.select()
+    if id_search:
+        query = query.where(Cast(Order.id, 'text').contains(id_search) |
+                            Cast(Order.session_id, 'text').contains(id_search) |
+                            Order.exchange_id.contains(id_search))
+    if status_filter:
+        query = query.where(Order.status == status_filter)
+    for column, value in ((Order.symbol, symbol_filter), (Order.exchange, exchange_filter),
+                          (Order.type, type_filter), (Order.side, side_filter)):
+        if value:
+            query = query.where(column == value if exact_match else column.contains(value))
+    if session_id is not None:
+        query = query.where(Order.session_id == session_id)
+    if session_modes is not None:
+        query = query.where(Order.session_mode.in_(session_modes))
+    column = getattr(Order, time_field)
+    if start_ms is not None:
+        query = query.where(column >= start_ms)
+    if end_ms is not None:
+        query = query.where(column < end_ms)
+    return query
+
+
 def find_by_filters(
     id_search: str = None,
     status_filter: str = None,
@@ -411,31 +465,7 @@ def find_by_filters(
     except Exception:
         pass
 
-    query = Order.select()
-
-    if id_search:
-        # UUID fields can't be searched with ILIKE directly; cast to text first.
-        query = query.where(
-            (Cast(Order.id, 'text').contains(id_search)) |
-            (Cast(Order.session_id, 'text').contains(id_search)) |
-            (Order.exchange_id.contains(id_search))
-        )
-
-    if status_filter:
-        query = query.where(Order.status == status_filter)
-
-    if symbol_filter:
-        query = query.where(Order.symbol.contains(symbol_filter))
-
-    if exchange_filter:
-        query = query.where(Order.exchange.contains(exchange_filter))
-
-    if type_filter:
-        query = query.where(Order.type.contains(type_filter))
-
-    if side_filter:
-        query = query.where(Order.side.contains(side_filter))
-
+    start_ms = None
     if date_filter:
         cutoff_timestamp = jh.now_to_timestamp()
         if date_filter == '7_days':
@@ -446,7 +476,11 @@ def find_by_filters(
             cutoff_timestamp -= 90 * 24 * 60 * 60 * 1000
 
         if date_filter != 'all_time':
-            query = query.where(Order.created_at >= cutoff_timestamp)
+            start_ms = cutoff_timestamp
+
+    query = history_query(id_search=id_search, status_filter=status_filter, symbol_filter=symbol_filter,
+                          exchange_filter=exchange_filter, type_filter=type_filter, side_filter=side_filter,
+                          start_ms=start_ms)
 
     query = query.order_by(Order.created_at.desc()).limit(limit).offset(offset)
 

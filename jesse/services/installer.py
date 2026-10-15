@@ -6,7 +6,7 @@ import subprocess
 import sys
 import click
 import os
-from jesse.info import JESSE_API_URL
+from jesse.info import JESSE_API_URL, JESSE_API2_URL
 
 def _pip_install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -70,7 +70,7 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
     print('Downloading the latest version of the live-trade plugin...')
     try:
         response = requests.post(
-            JESSE_API_URL + '/download-release',
+            JESSE_API2_URL + '/download-release',
             headers={'Authorization': 'Bearer ' + access_token},
             params={
                 'os': formatted_os_name,
@@ -81,7 +81,7 @@ def install(is_live_plugin_already_installed: bool, strict: bool):
         )
     except requests.exceptions.RequestException:
         response = requests.post(
-            'https://api1.jesse.trade/api/download-release',
+            JESSE_API2_URL + '/download-release',
             headers={'Authorization': 'Bearer ' + access_token},
             params={
                 'os': formatted_os_name,

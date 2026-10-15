@@ -1,6 +1,6 @@
-# Claude Code Skills
+# Shared Agent Skills
 
-This directory holds project-level [Agent Skills](https://docs.claude.com/en/docs/claude-code/skills) for the Jesse codebase. Claude Code auto-discovers every `*/SKILL.md` under here and loads a skill's full body on demand when its `description` matches what you're doing.
+This directory holds project-level [Agent Skills](https://docs.claude.com/en/docs/claude-code/skills) for the Jesse codebase. Claude Code discovers them directly from this directory; Codex discovers the same canonical files through `.agents/skills`. Both load a skill's full body on demand when its `description` matches the task.
 
 ## Layout
 

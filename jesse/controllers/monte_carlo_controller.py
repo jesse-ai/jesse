@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Header, Request
-from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 import json
 
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.multiprocessing import process_manager
 from jesse.services.web import (
     MonteCarloRequestJson,
@@ -22,22 +23,21 @@ from jesse.models.MonteCarloSession import (
     get_monte_carlo_session_by_id,
     update_monte_carlo_session_notes,
     purge_monte_carlo_sessions,
-    get_running_monte_carlo_session_id
+    get_running_monte_carlo_session_id,
+    store_monte_carlo_session,
 )
 from jesse.services.transformers import get_monte_carlo_session, get_monte_carlo_session_for_load_more
 from jesse.modes.monte_carlo_mode import run as run_monte_carlo
 
 
-router = APIRouter(prefix="/monte-carlo", tags=["Monte Carlo"])
+router = APIRouter(prefix="/monte-carlo", tags=["Monte Carlo"], dependencies=[Depends(require_auth)])
 
 
 @router.post("")
-async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, authorization: Optional[str] = Header(None)):
+async def monte_carlo(request: Request, request_json: MonteCarloRequestJson):
     """
     Start a Monte Carlo simulation
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -66,13 +66,11 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
             'message': 'A session with this ID is already running or completed.'
         }, status_code=409)
 
-    # Check session existence in monte carlo models
-    from jesse.models.MonteCarloSession import get_monte_carlo_session_by_id as db_get_mc_session_by_id
-    if db_get_mc_session_by_id(session_id):
-        return JSONResponse({
-            'error': f'Monte Carlo session with ID {session_id} already exists (in DB)',
-            'message': 'A session with this ID already exists in the database.'
-        }, status_code=409)
+    store_monte_carlo_session(
+        id=session_id,
+        status='running',
+        state=request_json.state,
+    )
 
     process_manager.add_task(
         run_monte_carlo,
@@ -100,12 +98,10 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson, aut
 
 
 @router.post("/cancel")
-def cancel_monte_carlo(request_json: CancelMonteCarloRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_monte_carlo(request_json: CancelMonteCarloRequestJson):
     """
     Cancel a Monte Carlo simulation
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
@@ -116,12 +112,10 @@ def cancel_monte_carlo(request_json: CancelMonteCarloRequestJson, authorization:
 
 
 @router.post("/terminate")
-def terminate_monte_carlo(request_json: TerminateMonteCarloRequestJson, authorization: Optional[str] = Header(None)):
+def terminate_monte_carlo(request_json: TerminateMonteCarloRequestJson):
     """
     Terminate a Monte Carlo simulation
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # First update the status to 'terminated'
     update_monte_carlo_session_status(request_json.id, 'terminated')
@@ -136,12 +130,10 @@ def terminate_monte_carlo(request_json: TerminateMonteCarloRequestJson, authoriz
 
 
 @router.post("/resume")
-async def resume_monte_carlo(request_json: MonteCarloRequestJson, authorization: Optional[str] = Header(None)):
+async def resume_monte_carlo(request_json: MonteCarloRequestJson):
     """
     Resume a Monte Carlo simulation
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     jh.validate_cwd()
 
@@ -155,11 +147,23 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson, authorization:
 
     # Transform the session using the transformer
     transformed_session = get_monte_carlo_session_for_load_more(session)
+    stored_state = session.state_json if session.state else {}
+    stored_form = stored_state.get('form', {}) if isinstance(stored_state, dict) else {}
+    stored_config = stored_form.get('config') if isinstance(stored_form, dict) else None
+
+    # A resumed simulation must keep the assumptions of its original run. When the
+    # stored form has no config, the request payload supplies the required values.
+    resume_config = stored_config if isinstance(stored_config, dict) else request_json.config
+    resume_cpu_cores = (
+        resume_config.get('cpu_cores', request_json.cpu_cores)
+        if isinstance(resume_config, dict)
+        else request_json.cpu_cores
+    )
 
     process_manager.add_task(
         run_monte_carlo,
         request_json.id,
-        request_json.config,
+        resume_config,
         request_json.exchange,
         request_json.routes,
         request_json.data_routes,
@@ -169,10 +173,10 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson, authorization:
         request_json.run_candles,
         request_json.num_scenarios,
         request_json.fast_mode,
-        request_json.cpu_cores,
+        resume_cpu_cores,
         request_json.pipeline_type,
         request_json.pipeline_params,
-        request_json.state,
+        stored_state or request_json.state,
     )
 
     return JSONResponse({
@@ -181,12 +185,10 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson, authorization:
 
 
 @router.post("/sessions")
-def get_monte_carlo_sessions_endpoint(request_json: GetMonteCarloSessionsRequestJson = GetMonteCarloSessionsRequestJson(), authorization: Optional[str] = Header(None)):
+def get_monte_carlo_sessions_endpoint(request_json: GetMonteCarloSessionsRequestJson = GetMonteCarloSessionsRequestJson()):
     """
     Get a list of Monte Carlo sessions sorted by most recently updated with pagination and filters
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get sessions from the database with pagination and filters
     sessions = get_monte_carlo_sessions(
@@ -207,15 +209,13 @@ def get_monte_carlo_sessions_endpoint(request_json: GetMonteCarloSessionsRequest
 
 
 @router.post("/sessions/{session_id}")
-def get_monte_carlo_session_by_id_endpoint(session_id: str, authorization: Optional[str] = Header(None)):
+def get_monte_carlo_session_by_id_endpoint(session_id: UUID):
     """
     Get a single Monte Carlo session by ID
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     # Get the session from the database
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -233,14 +233,12 @@ def get_monte_carlo_session_by_id_endpoint(session_id: str, authorization: Optio
 
 
 @router.post("/sessions/{session_id}/equity-curves")
-def get_monte_carlo_equity_curves(session_id: str, authorization: Optional[str] = Header(None)):
+def get_monte_carlo_equity_curves(session_id: UUID):
     """
     Get equity curve data for a Monte Carlo session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
     
     if not session:
         return JSONResponse({
@@ -252,7 +250,7 @@ def get_monte_carlo_equity_curves(session_id: str, authorization: Optional[str] 
     
     # Extract trades equity curves
     if session.trades_session and session.trades_session.results:
-        results = jh.clean_infinite_values(json.loads(session.trades_session.results))
+        results = jh.clean_infinite_values(session.trades_session.results_json)
         
         # Extract original equity curve
         original_curve = None
@@ -279,7 +277,7 @@ def get_monte_carlo_equity_curves(session_id: str, authorization: Optional[str] 
     
     # Extract candles equity curves
     if session.candles_session and session.candles_session.results:
-        results = jh.clean_infinite_values(json.loads(session.candles_session.results))
+        results = jh.clean_infinite_values(session.candles_session.results_json)
         
         # Extract original equity curve
         original_curve = None
@@ -313,13 +311,10 @@ def get_monte_carlo_equity_curves(session_id: str, authorization: Optional[str] 
 @router.post("/update-state")
 def update_session_state(
     request_json: UpdateMonteCarloSessionStateRequestJson,
-    authorization: Optional[str] = Header(None)
 ):
     """
     Update the state of a Monte Carlo session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     update_monte_carlo_session_state(request_json.id, request_json.state)
 
@@ -329,14 +324,12 @@ def update_session_state(
 
 
 @router.post("/sessions/{session_id}/remove")
-def remove_monte_carlo_session(session_id: str, authorization: Optional[str] = Header(None)):
+def remove_monte_carlo_session(session_id: UUID):
     """
     Remove a Monte Carlo session from the database
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
@@ -344,7 +337,7 @@ def remove_monte_carlo_session(session_id: str, authorization: Optional[str] = H
         }, status_code=404)
 
     # Delete the session from the database
-    result = delete_monte_carlo_session(session_id)
+    result = delete_monte_carlo_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -357,21 +350,19 @@ def remove_monte_carlo_session(session_id: str, authorization: Optional[str] = H
 
 
 @router.post("/sessions/{session_id}/notes")
-def update_session_notes(session_id: str, request_json: UpdateMonteCarloSessionNotesRequestJson, authorization: Optional[str] = Header(None)):
+def update_session_notes(session_id: UUID, request_json: UpdateMonteCarloSessionNotesRequestJson):
     """
     Update the notes (title, description, strategy_codes) of a Monte Carlo session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
 
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
         }, status_code=404)
 
-    update_monte_carlo_session_notes(session_id, request_json.title, request_json.description, request_json.strategy_codes)
+    update_monte_carlo_session_notes(str(session_id), request_json.title, request_json.description, request_json.strategy_codes)
 
     return JSONResponse({
         'message': 'Monte Carlo session notes updated successfully'
@@ -379,14 +370,12 @@ def update_session_notes(session_id: str, request_json: UpdateMonteCarloSessionN
 
 
 @router.post("/sessions/{session_id}/strategy-code")
-def get_session_strategy_code(session_id: str, authorization: Optional[str] = Header(None)):
+def get_session_strategy_code(session_id: UUID):
     """
     Get the strategy code for a Monte Carlo session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
-    session = get_monte_carlo_session_by_id(session_id)
+    session = get_monte_carlo_session_by_id(str(session_id))
     if not session:
         return JSONResponse({
             'error': f'Session with ID {session_id} not found'
@@ -398,16 +387,14 @@ def get_session_strategy_code(session_id: str, authorization: Optional[str] = He
 
 
 @router.post("/sessions/{session_id}/logs")
-def get_session_logs(session_id: str, authorization: Optional[str] = Header(None)):
+def get_session_logs(session_id: UUID):
     """
     Get the logs for a Monte Carlo session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
         
     from jesse.modes import data_provider
 
-    content = data_provider.get_monte_carlo_logs(session_id)
+    content = data_provider.get_monte_carlo_logs(str(session_id))
     
     if content is None:
         return JSONResponse({
@@ -420,12 +407,10 @@ def get_session_logs(session_id: str, authorization: Optional[str] = Header(None
     
     
 @router.post("/purge-sessions")
-def purge_sessions(request_json: dict, authorization: Optional[str] = Header(None)):
+def purge_sessions(request_json: dict):
     """
     Purge Monte Carlo sessions older than specified days
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
     
     days_old = request_json.get('days_old', None)
     
@@ -438,12 +423,10 @@ def purge_sessions(request_json: dict, authorization: Optional[str] = Header(Non
 
 
 @router.get("/running-session")
-def get_running_session(authorization: Optional[str] = Header(None)):
+def get_running_session():
     """
     Get the running session
     """
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
 
     return JSONResponse({
         'session_id': get_running_monte_carlo_session_id()

@@ -221,6 +221,41 @@ from jesse.constants import TIMEFRAME_PRIORITY
 primary_timeframe = TIMEFRAME_PRIORITY[0]  # '1D'
 ```
 
+## Trading Hours
+
+Schedule-aware helpers for markets that close (see the Trading Hours section of `jesse://strategy`
+for the schedule dict: required `timezone` and `hours`, optional `closed` and `overrides`).
+
+### filter_candles_by_hours(candles, hours)
+
+Returns only the candles whose open time falls inside the schedule, in their original order.
+Pure function: the candle store and `self.candles` are never modified, nothing is resampled.
+
+**Parameters:**
+- `candles`: Numpy candle array (`self.candles`, a `self.get_candles(...)` result, research candles)
+- `hours`: Schedule dict, or `None` to return the input unchanged
+
+**Returns:** Numpy candle array (rows may be non-contiguous in time)
+
+**Example:**
+```python
+@property
+@cached
+def session_candles(self):
+    return utils.filter_candles_by_hours(self.candles, self.trading_hours())
+```
+
+### is_in_trading_hours(timestamp, hours)
+
+Whether a UTC-millisecond timestamp falls inside the schedule. Always `True` when `hours` is
+`None`. Inside a strategy prefer `self.is_trading_hours`, which is this applied to `self.time`.
+
+**Parameters:**
+- `timestamp`: UTC milliseconds
+- `hours`: Schedule dict, or `None`
+
+**Returns:** bool
+
 ## Precision Helpers
 
 ### subtract_floats(float1, float2)

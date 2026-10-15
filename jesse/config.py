@@ -1,7 +1,16 @@
+from copy import deepcopy
+
 import jesse.helpers as jh
 from jesse.modes.utils import get_exchange_type
 from jesse.enums import exchanges
 from jesse.info import exchange_info
+from jesse.services.simulation_assumptions import (
+    Annualization,
+    legacy_type_from_simulation_model,
+    resolve_annualization,
+    resolve_simulation_model,
+    simulation_model_from_legacy_type,
+)
 
 # Main configuration used by the Jesse framework. These values are modified
 # at runtime based on the mode (backtest, live, or optimize) and user settings.
@@ -32,6 +41,7 @@ config = {
             exchanges.SANDBOX: {
                 'fee': 0,
                 'type': 'futures',
+                'annualization': 365,
                 # accepted values are: 'cross' and 'isolated'
                 'futures_leverage_mode': 'cross',
                 # 1x, 2x, 10x, 50x, etc. Enter as integers
@@ -66,6 +76,15 @@ config = {
             'warmup_candles_num': 240,
             'generate_candles_from_1m': False,
             'persistency': True,
+            # Live sessions get orders and candles over the exchange's WebSocket; these REST
+            # checks are a backup for anything it missed. 0 turns a check off; a candle refresh
+            # of None means 5 seconds plus 1 per symbol.
+            'order_backup_check_seconds': 10,
+            'candle_backup_refresh_seconds': None,
+        },
+
+        'metrics': {
+            'annualization': 365,
         },
     },
 
@@ -107,6 +126,7 @@ for key in exchange_info:
     config['env']['exchanges'][key] = {
         'fee': exchange_info[key]['fee'],
         'type': exchange_info[key]['type'],
+        'annualization': resolve_annualization(exchange_info[key]),
         'futures_leverage_mode': 'cross',
         'futures_leverage': 1,
         'balance': 10_000
@@ -115,6 +135,11 @@ for key in exchange_info:
 
 def set_config(conf: dict) -> None:
     global config
+
+    if config['app']['trading_mode'] in ('monte-carlo', 'significance-test'):
+        # The coordinator loads history before scenario workers format their own
+        # backtest settings, so both stages must use the selected warmup count.
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
 
     # optimization mode only
     if jh.is_optimizing():
@@ -136,6 +161,7 @@ def set_config(conf: dict) -> None:
         # logs
         config['env']['logging'] = conf['logging']
         # exchanges
+        selected_annualization = None
         for key, e in conf['exchanges'].items():
             # The dashboard sends each exchange entry carrying its own 'name', but the
             # exchanges map is keyed by exchange name and scripted/MCP callers pass the
@@ -145,13 +171,25 @@ def set_config(conf: dict) -> None:
             # backtest/RST worker, which then exited silently (the traceback was lost on
             # the os._exit() that follows), leaving the MCP/dashboard session stuck.
             name = e.get('name') or key
-            if not jh.is_live() and e['type']:
-                exchange_type = e['type']
+            if jh.is_livetrading():
+                simulation_model = simulation_model_from_legacy_type(get_exchange_type(name))
+                annualization = resolve_annualization(exchange_info[name])
             else:
-                exchange_type = get_exchange_type(name)
+                default_type = exchange_info.get(name, {}).get(
+                    'type',
+                    config['env']['exchanges'].get(name, {}).get('type', 'futures'),
+                )
+                simulation_model = resolve_simulation_model(e, default_type)
+                annualization = resolve_annualization(e)
+            exchange_type = legacy_type_from_simulation_model(simulation_model)
+            if selected_annualization is not None and selected_annualization != annualization:
+                raise ValueError('All exchanges in one run must use the same annualization assumption')
+            selected_annualization = annualization
             config['env']['exchanges'][name] = {
                 'fee': float(e['fee']),
                 'type': exchange_type,
+                'simulation_model': simulation_model.value,
+                'annualization': int(annualization),
                 'balance': float(e['balance'])
             }
             if config['env']['exchanges'][name]['type'] == 'futures':
@@ -159,20 +197,30 @@ def set_config(conf: dict) -> None:
                 config['env']['exchanges'][name]['futures_leverage'] = int(e.get('futures_leverage', 1))
                 # accepted values are: 'cross' and 'isolated'
                 config['env']['exchanges'][name]['futures_leverage_mode'] = e.get('futures_leverage_mode', 'cross')
+        if selected_annualization is not None:
+            config['env']['metrics']['annualization'] = int(selected_annualization)
 
     # live mode only
     if jh.is_live():
         config['env']['notifications'] = conf['notifications']
         config['env']['data']['persistency'] = conf['persistency']
         config['env']['data']['generate_candles_from_1m'] = conf['generate_candles_from_1m']
+        # Sessions saved before these settings existed keep the previous intervals; 0 turns the order check off.
+        order_seconds = conf.get('order_backup_check_seconds')
+        config['env']['data']['order_backup_check_seconds'] = 10.0 if order_seconds in (None, '') else float(order_seconds)
+        candle_seconds = conf.get('candle_backup_refresh_seconds')
+        config['env']['data']['candle_backup_refresh_seconds'] = None if candle_seconds in (None, '') else float(candle_seconds)
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'
 
 
 def reset_config() -> None:
-    global config
-    config = backup_config.copy()
+    # Modules import this dictionary directly, so resetting must preserve its
+    # identity while replacing every nested runtime mutation.
+    config.clear()
+    config.update(deepcopy(backup_config))
+    jh.clear_config_caches()
 
 
-backup_config = config.copy()
+backup_config = deepcopy(config)

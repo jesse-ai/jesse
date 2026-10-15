@@ -1,7 +1,15 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 from jesse.helpers import slice_candles
 from jesse_rust import adx as adx_rust
+
+
+@overload
+def adx(candles: np.ndarray, period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def adx(candles: np.ndarray, period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def adx(candles: np.ndarray, period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 
 def adx(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 
@@ -6,6 +6,13 @@ from jesse.helpers import get_candle_source, slice_candles
 from .roc import roc
 from .wma import wma
 
+
+@overload
+def cc(candles: np.ndarray, wma_period: int = ..., roc_short_period: int = ..., roc_long_period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def cc(candles: np.ndarray, wma_period: int = ..., roc_short_period: int = ..., roc_long_period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def cc(candles: np.ndarray, wma_period: int = ..., roc_short_period: int = ..., roc_long_period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, roc_long_period: int = 14,
        source_type: str = "close",

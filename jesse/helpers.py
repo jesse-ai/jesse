@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime
+from decimal import Decimal, ROUND_FLOOR, localcontext
 import math
 import os
 import gzip
@@ -18,6 +19,7 @@ import base64
 from jesse.constants import CANDLE_SOURCE_MAPPING
 from jesse.constants import TIMEFRAME_PRIORITY
 from jesse.constants import SUPPORTED_COLORS
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
 from jesse.enums import timeframes
 
 CACHED_CONFIG = dict()
@@ -271,9 +273,14 @@ def format_price(price: float) -> str:
     Formats the price for logging.
     - If abs(price) is >= 1, it will be truncated to 2 decimal places.
     - If abs(price) is < 1, it will be truncated to 5 significant digits.
+    - Non-finite prices are displayed as unavailable.
     """
     if price is None:
         return ""
+
+    # Missing fill data can produce NaN; formatting must not abort cleanup.
+    if not math.isfinite(price):
+        return "N/A"
 
     if price == 0:
         return "0.00"
@@ -489,19 +496,42 @@ def is_paper_trading() -> bool:
     return config['app']['trading_mode'] == 'papertrade'
 
 
+def clear_config_caches() -> None:
+    """Clear values derived from mutable runtime configuration."""
+    CACHED_CONFIG.clear()
+    for cached_helper in (app_mode, is_live, is_livetrading, is_optimizing, is_paper_trading):
+        cached_helper.cache_clear()
+
+
+@lru_cache
+def _is_pytest_script() -> bool:
+    # Check if the code is being executed from the pytest command-line tool.
+    # sys.argv[0] doesn't change within a process, so compute this once.
+    return os.path.basename(sys.argv[0]) in ("pytest", "py.test")
+
+
+_is_unit_testing_outside_pytest = None
+
+
 def is_unit_testing() -> bool:
     """Returns True if the code is running by running pytest or PyCharm's test runner, False otherwise."""
-    # Check if the PYTEST_CURRENT_TEST environment variable is set.
-    if os.environ.get("PYTEST_CURRENT_TEST"):
-        return True
+    # This function sits on the hot path via get_config(), so avoid the
+    # (surprisingly expensive) os.environ lookup when possible.
+    if 'pytest' in sys.modules:
+        # inside a pytest process the PYTEST_CURRENT_TEST env variable comes and
+        # goes per test phase, so it must be checked dynamically every time.
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return True
+        return _is_pytest_script()
 
-    # Check if the code is being executed from the pytest command-line tool.
-    script_name = os.path.basename(sys.argv[0])
-    if script_name in ["pytest", "py.test"]:
-        return True
-
-    # Otherwise, the code is not running by running pytest or PyCharm's test runner.
-    return False
+    # pytest is not imported in this process. The only way we can still be "unit
+    # testing" is having inherited pytest's environment/argv (e.g. a subprocess
+    # spawned from a test) — both of which are fixed for the process lifetime,
+    # so compute the answer once.
+    global _is_unit_testing_outside_pytest
+    if _is_unit_testing_outside_pytest is None:
+        _is_unit_testing_outside_pytest = bool(os.environ.get("PYTEST_CURRENT_TEST")) or _is_pytest_script()
+    return _is_unit_testing_outside_pytest
 
 
 def is_valid_uuid(uuid_to_test: str, version: int = 4) -> bool:
@@ -747,6 +777,16 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
 
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = round_decimals_down(roundable_qty, precision)
+    # Exchange quantities are decimal lots. Floor their round-trip decimal
+    # representation so binary multiplication cannot lose a lot on a full exit.
+    quantities = [Decimal(str(q)) for q in roundable_qty]
+    with localcontext() as context:
+        # Preserve every input digit plus a possible carry from flooring a negative value.
+        context.prec = max([len(q.as_tuple().digits) + 1 for q in quantities if q.is_finite()] or [1])
+        factor = Decimal(10) ** precision
+        for index, quantity in enumerate(quantities):
+            if quantity.is_finite():
+                rounded[index] = float((quantity * factor).to_integral_value(rounding=ROUND_FLOOR) / factor)
 
     for index, q in enumerate(rounded):
         # if the rounded value is 0, make it the minimum possible value
@@ -1228,8 +1268,12 @@ def gzip_compress(data):
 
 
 def timeframe_to_one_minutes(timeframe: str) -> int:
-    from jesse.utils import timeframe_to_one_minutes
-    return timeframe_to_one_minutes(timeframe)
+    try:
+        return TIMEFRAME_TO_ONE_MINUTES[timeframe]
+    except KeyError:
+        # delegate to the canonical implementation for the proper InvalidTimeframe error
+        from jesse.utils import timeframe_to_one_minutes
+        return timeframe_to_one_minutes(timeframe)
 
 
 def compressed_response(content: str) -> dict:
@@ -1264,6 +1308,8 @@ def validate_cwd() -> None:
 
 
 def has_live_trade_plugin() -> bool:
+    if os.environ.get('JESSE_DISABLE_LIVE_PLUGIN', '').upper() == 'TRUE':
+        return False
     try:
         import jesse_live
     except ModuleNotFoundError:

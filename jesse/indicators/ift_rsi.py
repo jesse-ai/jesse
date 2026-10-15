@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 from jesse.indicators.wma import wma
 from jesse.indicators.rsi import rsi
 import numpy as np
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
+
+@overload
+def ift_rsi(candles: np.ndarray, rsi_period: int = ..., wma_period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def ift_rsi(candles: np.ndarray, rsi_period: int = ..., wma_period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def ift_rsi(candles: np.ndarray, rsi_period: int = ..., wma_period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source_type: str = "close", sequential: bool = False) -> Union[
     float, np.ndarray]:

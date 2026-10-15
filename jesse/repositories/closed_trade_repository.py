@@ -16,31 +16,37 @@ def _ensure_db_open() -> None:
         database.open_connection()
 
 
+def history_transaction():
+    _ensure_db_open()
+    return database.db.atomic()
+
+
+def attach_executed_orders(trade: ClosedTrade, orders: list) -> ClosedTrade:
+    """Hydrate model calculations from a complete executed-order selection, without querying."""
+    trade.orders = orders
+    # Hydration is repeatable: callers may refresh the same model instance.
+    trade.buy_orders.flush()
+    trade.sell_orders.flush()
+    for order in orders:
+        if order.side == sides.BUY:
+            trade.buy_orders.append(np.array([abs(order.filled_qty), order.price]))
+        elif order.side == sides.SELL:
+            trade.sell_orders.append(np.array([abs(order.filled_qty), order.price]))
+    return trade
+
+
 def populate_order_arrays(trade: ClosedTrade) -> ClosedTrade:
     """
     Populate buy_orders and sell_orders arrays from the Order table.
     This is needed when loading trades from the database so that computed
     properties like entry_price, exit_price, qty, pnl, etc. work correctly.
     """
-    orders = list(
-        Order.select()
-        .where(Order.trade_id == trade.id)
-        .where(Order.status == order_statuses.EXECUTED)
-        .order_by(Order.executed_at)
-    )
-
-    trade.orders = orders
-
-    for o in orders:
-        if o.side == sides.BUY:
-            trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
-        elif o.side == sides.SELL:
-            trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
-
-    return trade
+    from jesse.repositories import order_repository
+    orders = list(order_repository.executed_for_trades_query([trade.id]).order_by(Order.executed_at, Order.id))
+    return attach_executed_orders(trade, orders)
 
 
-def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
+def find_by_id(trade_id: str, strict: bool = False) -> Optional[ClosedTrade]:
     if jh.is_unit_testing():
         return None
 
@@ -53,10 +59,16 @@ def find_by_id(trade_id: str) -> Optional[ClosedTrade]:
             populate_order_arrays(trade)
         return trade
     except Exception:
+        if strict or database.db.in_transaction():
+            raise
         return None
 
 
-def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
+def find_by_session_id(
+    session_id: str,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> List[ClosedTrade]:
     if jh.is_unit_testing():
         return []
 
@@ -66,11 +78,18 @@ def find_by_session_id(session_id: str, limit: int = None) -> List[ClosedTrade]:
         ClosedTrade.select()
         .where(ClosedTrade.session_id == session_id)
         # Sort by: open trades first (closed_at IS NULL), then by most recent opened_at
-        .order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc())
+        .order_by(
+            ClosedTrade.closed_at.is_null(False),
+            ClosedTrade.opened_at.desc(),
+            ClosedTrade.id.desc(),
+        )
     )
     
     if limit is not None:
         query = query.limit(limit)
+
+    if offset:
+        query = query.offset(offset)
     
     trades = list(query)
     for trade in trades:
@@ -132,6 +151,8 @@ def update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.update(**d).where(ClosedTrade.id == trade.id).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:
@@ -172,6 +193,8 @@ def store_or_update(trade: ClosedTrade) -> None:
     try:
         ClosedTrade.insert(**d).execute()
     except Exception as e:
+        if database.db.in_transaction():
+            raise
         try:
             database.db.rollback()
         except Exception:
@@ -184,6 +207,13 @@ def close_trade(trade: ClosedTrade, opened_at: int = None) -> None:
         return
 
     _ensure_db_open()
+
+    # When there is no database available (e.g. research/backtest sessions running
+    # outside a Jesse project), open_connection() is a no-op and the query below
+    # would always raise ("Query must be bound to a database") and noisily dump the
+    # error for every single closed trade. Skip the write in exactly those cases.
+    if not database.is_open():
+        return
 
     d = {
         "closed_at": trade.closed_at if trade.closed_at else jh.now_to_timestamp(),
@@ -213,6 +243,45 @@ def disable_trade(trade_id: str) -> None:
     ClosedTrade.update(**d).where(ClosedTrade.id == trade_id).execute()
 
 
+def history_query(
+    *, id_search=None, status_filter=None, symbol_filter=None, exchange_filter=None,
+    type_filter=None, exact_match=False, session_id=None, session_modes=None,
+    time_field='opened_at', start_ms=None, end_ms=None, include_soft_deleted=True,
+):
+    """Build an unexecuted history selection; the caller owns ordering, paging and transactions.
+
+    Dashboard searches use substring matching and include open/soft-deleted rows by default.
+    Explicit options let analysis select exact scopes and a half-open timestamp window without
+    changing that dashboard contract. Only trusted, validated timestamp field names are accepted.
+    """
+    if time_field not in ('opened_at', 'closed_at'):
+        raise ValueError('Unsupported trade history timestamp field')
+    query = ClosedTrade.select()
+    if id_search:
+        query = query.where(Cast(ClosedTrade.id, 'text').contains(id_search) |
+                            Cast(ClosedTrade.session_id, 'text').contains(id_search))
+    if status_filter == 'open':
+        query = query.where(ClosedTrade.closed_at.is_null(True))
+    elif status_filter == 'closed':
+        query = query.where(ClosedTrade.closed_at.is_null(False))
+    for column, value in ((ClosedTrade.symbol, symbol_filter), (ClosedTrade.exchange, exchange_filter),
+                          (ClosedTrade.type, type_filter)):
+        if value:
+            query = query.where(column == value if exact_match else column.contains(value))
+    if session_id is not None:
+        query = query.where(ClosedTrade.session_id == session_id)
+    if session_modes is not None:
+        query = query.where(ClosedTrade.session_mode.in_(session_modes))
+    if not include_soft_deleted:
+        query = query.where(ClosedTrade.soft_deleted_at.is_null(True))
+    column = getattr(ClosedTrade, time_field)
+    if start_ms is not None:
+        query = query.where(column >= start_ms)
+    if end_ms is not None:
+        query = query.where(column < end_ms)
+    return query
+
+
 def find_by_filters(
     id_search: str = None,
     status_filter: str = None,
@@ -235,30 +304,7 @@ def find_by_filters(
     except Exception:
         pass
 
-    query = ClosedTrade.select()
-
-    if id_search:
-        # UUID fields can't be searched with ILIKE directly; cast to text first.
-        query = query.where(
-            (Cast(ClosedTrade.id, 'text').contains(id_search)) |
-            (Cast(ClosedTrade.session_id, 'text').contains(id_search))
-        )
-
-    if status_filter:
-        if status_filter == 'open':
-            query = query.where(ClosedTrade.closed_at == None)
-        elif status_filter == 'closed':
-            query = query.where(ClosedTrade.closed_at != None)
-
-    if symbol_filter:
-        query = query.where(ClosedTrade.symbol.contains(symbol_filter))
-
-    if exchange_filter:
-        query = query.where(ClosedTrade.exchange.contains(exchange_filter))
-
-    if type_filter:
-        query = query.where(ClosedTrade.type.contains(type_filter))
-
+    start_ms = None
     if date_filter:
         cutoff_timestamp = jh.now_to_timestamp()
         if date_filter == '7_days':
@@ -269,7 +315,10 @@ def find_by_filters(
             cutoff_timestamp -= 90 * 24 * 60 * 60 * 1000
         
         if date_filter != 'all_time':
-            query = query.where(ClosedTrade.opened_at >= cutoff_timestamp)
+            start_ms = cutoff_timestamp
+
+    query = history_query(id_search=id_search, status_filter=status_filter, symbol_filter=symbol_filter,
+                          exchange_filter=exchange_filter, type_filter=type_filter, start_ms=start_ms)
 
     query = query.order_by(ClosedTrade.closed_at.is_null(False), ClosedTrade.opened_at.desc()).limit(limit).offset(offset)
 
@@ -307,6 +356,25 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
     if trade is None or not is_initial:
         return trade
 
+    hydrate_executed_orders(trade)
+    # No executed rows still requires exchange-history reconciliation; it does
+    # not establish that the persisted trade is flat or simulated.
+    if trade.is_simulated or (len(trade.buy_orders) == 0 and len(trade.sell_orders) == 0):
+        return trade
+
+    if trade.current_qty == 0:
+        close_trade(trade)
+        return None
+    else:
+        return trade
+
+
+def hydrate_executed_orders(trade: ClosedTrade) -> None:
+    """
+    Load a saved trade's executed orders: exchange orders become trade.orders (they carry the
+    fees), and both exchange and simulated orders (the startup position adjustments) feed the
+    qty/price arrays. Shared by restart reconciliation and in-memory trade restoration.
+    """
     exchange_orders = list(
         Order.select()
         .where(Order.trade_id == trade.id)
@@ -321,27 +389,14 @@ def get_open_trade(exchange_name: str, symbol: str, is_initial: bool = False) ->
         .where(Order.order_exist_in_exchange == False)
         .order_by(Order.executed_at)
     )
-    trade.is_simulated = False
-
-    if len(exchange_orders) == 0:
-        if len(simulated_orders) > 0:
-            for simulated_order in simulated_orders:
-                if simulated_order.side == sides.BUY:
-                    trade.buy_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-                elif simulated_order.side == sides.SELL:
-                    trade.sell_orders.append(np.array([abs(simulated_order.filled_qty), simulated_order.price]))
-            trade.is_simulated = True
-        return trade
-
+    # Reconciliation may reload after inserting a synthetic quantity adjustment.
+    # Replace the snapshot instead of appending duplicate fills on each reload.
+    trade.buy_orders.flush()
+    trade.sell_orders.flush()
     trade.orders = [order for order in exchange_orders if order.exchange_id]
+    trade.is_simulated = not exchange_orders and bool(simulated_orders)
     for o in exchange_orders + simulated_orders:
         if o.side == sides.BUY:
             trade.buy_orders.append(np.array([abs(o.filled_qty), o.price]))
         elif o.side == sides.SELL:
             trade.sell_orders.append(np.array([abs(o.filled_qty), o.price]))
-    if trade.current_qty == 0:
-        close_trade(trade)
-        return None
-    else:
-        return trade
-

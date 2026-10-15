@@ -2,6 +2,7 @@ from multiprocessing import cpu_count
 from typing import Dict, List, Tuple
 import arrow
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse.modes.backtest_mode import load_candles
 from jesse.services.validators import validate_routes
 from jesse.store import store
@@ -9,6 +10,7 @@ from .Optimize import Optimizer
 from jesse.services.failure import register_custom_exception_handler
 from jesse.routes import router
 from jesse.models.OptimizationSession import store_optimization_session, get_optimization_session_by_id, update_optimization_session_status, update_optimization_session_state
+from jesse.research.backtest import _reset_research_runtime_state
 
 
 def run(
@@ -29,19 +31,18 @@ def run(
     from jesse.config import config, set_config
     config['app']['trading_mode'] = 'optimize'
 
-    # validate cpu_cores
-    if cpu_cores < 1:
-        raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
-    # get the max number of cores
-    max_cpu_cores = cpu_count()
-    if cpu_cores > max_cpu_cores:
-        raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
-
     # Persist a terminal error on any setup/run failure (most commonly insufficient
     # candles for the training/testing windows, or a malformed config) so MCP/dashboard
     # callers stop polling a session that would otherwise stay stuck. Without this, a
     # candle shortage raised here surfaced to API clients as a silent hang.
+    optimizer_started = False
     try:
+        if cpu_cores < 1:
+            raise ValueError('cpu_cores must be an integer value greater than 0. Please check your settings page for optimization.')
+        max_cpu_cores = cpu_count()
+        if cpu_cores > max_cpu_cores:
+            raise ValueError(f'cpu_cores must be less than or equal to {max_cpu_cores} which is the number of cores on your machine.')
+
         # inject config
         set_config(user_config)
         # add exchange to routes
@@ -56,6 +57,7 @@ def run(
         # validate routes
         validate_routes(router)
 
+        publish_status('Preparing optimization data…')
         # load historical candles
         training_warmup_candles, training_candles, testing_warmup_candles, testing_candles = _get_training_and_testing_candles(
             training_start_date,
@@ -102,6 +104,7 @@ def run(
             if jh.is_debugging():
                 jh.debug(f"Created new optimization session with ID: {session_id}")
 
+        publish_status('Starting optimization workers and opening the study…')
         optimizer = Optimizer(
             session_id,
             user_config,
@@ -114,6 +117,7 @@ def run(
             cpu_cores
         )
 
+        optimizer_started = True
         optimizer.run()
     except Exception as e:
         import traceback as _tb
@@ -135,15 +139,18 @@ def run(
                 f"each start. Import enough candles for {symbol} on {exchange} and re-run."
             )
         else:
-            message = str(e)
-        try:
-            if _get_session(session_id) is None:
-                _store_session(id=session_id, status='stopped')
-            _add_exception(session_id, message, _tb.format_exc())
-            _update_status(session_id, 'stopped')
-        except Exception:
-            pass
+            message = f'{type(e).__name__}: {e}'
+        if not optimizer_started:
+            try:
+                if _get_session(session_id) is None:
+                    _store_session(id=session_id, status='stopped')
+                _add_exception(session_id, message, _tb.format_exc())
+                _update_status(session_id, 'stopped')
+            except Exception:
+                pass
         raise
+    finally:
+        _reset_research_runtime_state()
 
 
 def _get_training_and_testing_candles(
@@ -157,8 +164,10 @@ def _get_training_and_testing_candles(
     testing_start_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_start_date, 'YYYY-MM-DD'))
     testing_finish_date_timestamp = jh.arrow_to_timestamp(arrow.get(testing_finish_date, 'YYYY-MM-DD'))
 
+    publish_status('Loading training candles…')
     # fetch training candles
     training_warmup_candles, training_candles = load_candles(training_start_date_timestamp, training_finish_date_timestamp)
+    publish_status('Loading testing candles…')
     # fetch testing candles
     testing_warmup_candles, testing_candles = load_candles(testing_start_date_timestamp, testing_finish_date_timestamp)
 

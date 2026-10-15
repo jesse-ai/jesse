@@ -1,8 +1,15 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 from jesse_rust import kama as kama_rust
 
+
+@overload
+def kama(candles: np.ndarray, period: int = ..., fast_length: int = ..., slow_length: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def kama(candles: np.ndarray, period: int = ..., fast_length: int = ..., slow_length: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def kama(candles: np.ndarray, period: int = ..., fast_length: int = ..., slow_length: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def kama(candles: np.ndarray, period: int = 14, fast_length: int = 2, slow_length: int = 30, 
          source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:

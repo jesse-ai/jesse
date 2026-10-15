@@ -205,6 +205,14 @@ elif status == "stopped":
     # read session["exception"] / get_optimization_logs(sid); if missing candles,
     # import_candles() for both windows (~2 months before each start) then rerun_optimization(sid)
     ...
+
+# 5. Save the mandatory Markdown report on the Jesse host (never with local file tools)
+saved = save_strategy_report(
+    strategy_name="MyStrategy",
+    filename="BTCUSDT_sharpe_optimization_report.md",
+    content=report_markdown,
+)
+# give the user saved["path"], e.g. strategies/MyStrategy/reports/BTCUSDT_sharpe_optimization_report.md
 ```
 
 ## Constraints / common errors

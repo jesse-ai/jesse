@@ -1,16 +1,13 @@
-from typing import Optional
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from jesse.helpers import get_os
-from jesse.services import auth as authenticator
+from jesse.services.auth import require_auth
 from jesse.services.lsp import LSP_DEFAULT_PORT
 
-router = APIRouter(prefix='/lsp-config', tags=['LSP Configuration'])
+router = APIRouter(prefix='/lsp-config', tags=['LSP Configuration'], dependencies=[Depends(require_auth)])
 
 @router.get("")
-def get_lsp_config(authorization: Optional[str] = Header(None))->JSONResponse:
-    if not authenticator.is_valid_token(authorization):
-        return authenticator.unauthorized_response()
+def get_lsp_config()->JSONResponse:
 
     from jesse.services.env import ENV_VALUES
 

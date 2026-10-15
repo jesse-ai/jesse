@@ -14,6 +14,7 @@ Available Resources:
 - backtest_management: Complete backtesting workflow and candle import guidance
 - candle_management: Data import procedures and warmup requirements
 - strategy: Strategy development guides and templates
+- charts: Strategy chart APIs and live intrabar update guidance
 - indicator_cheatsheet: Technical indicators reference and usage examples
 - position_risk: Position sizing and risk management references
 - utilities: Helper functions and calculation utilities
@@ -51,7 +52,7 @@ def register_resources(mcp) -> None:
 
     for file in os.listdir(os.path.dirname(__file__)):
         if file.endswith('.md'):
-            with open(os.path.join(os.path.dirname(__file__), file), 'r') as f:
+            with open(os.path.join(os.path.dirname(__file__), file), 'r', encoding='utf-8') as f:
                 content = f.read()
             resource_name = file.replace('.md', '')
             uri = f"jesse://{resource_name}"

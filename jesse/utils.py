@@ -1,11 +1,13 @@
 import math
 from decimal import Decimal
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 
 import jesse.helpers as jh
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
+from jesse.services import trading_hours as trading_hours_service
 from jesse.enums import timeframes
 import statsmodels.api as sm
 
@@ -335,33 +337,37 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
 
     :raises InvalidTimeframe: If the provided timeframe is not supported.
     """
-    from jesse.enums import timeframes
-    from jesse.exceptions import InvalidTimeframe
-
-    dic = {
-        timeframes.MINUTE_1: 1,
-        timeframes.MINUTE_3: 3,
-        timeframes.MINUTE_5: 5,
-        timeframes.MINUTE_15: 15,
-        timeframes.MINUTE_30: 30,
-        timeframes.MINUTE_45: 45,
-        timeframes.HOUR_1: 60,
-        timeframes.HOUR_2: 60 * 2,
-        timeframes.HOUR_3: 60 * 3,
-        timeframes.HOUR_4: 60 * 4,
-        timeframes.HOUR_6: 60 * 6,
-        timeframes.HOUR_8: 60 * 8,
-        timeframes.HOUR_12: 60 * 12,
-        timeframes.DAY_1: 60 * 24,
-        timeframes.DAY_3: 60 * 24 * 3,
-        timeframes.WEEK_1: 60 * 24 * 7,
-        timeframes.MONTH_1: 60 * 24 * 30,
-    }
-
     try:
-        return dic[timeframe]
+        return TIMEFRAME_TO_ONE_MINUTES[timeframe]
     except KeyError:
+        from jesse.exceptions import InvalidTimeframe
+
         all_timeframes = [timeframe for timeframe in jh.class_iter(timeframes)]
         raise InvalidTimeframe(
             f'Timeframe "{timeframe}" is invalid. Supported timeframes are {", ".join(all_timeframes)}.'
         )
+
+
+def filter_candles_by_hours(candles: np.ndarray, hours: Optional[dict]) -> np.ndarray:
+    """
+    Returns only the candles whose open time falls inside a trading-hours schedule, so
+    indicators ignore nights, weekends and holidays of a 24/7 feed (or the extended-hours
+    rows of imported stock data). Pure function: the candle store is never touched.
+
+    :param candles: np.ndarray - any Jesse candle array (self.candles, get_candles(), research)
+    :param hours: dict | None - a schedule dict, or None to return the input unchanged
+    :return: np.ndarray - the matching rows in their original order
+    """
+    return trading_hours_service.filter_candles(candles, hours)
+
+
+def is_in_trading_hours(timestamp: int, hours: Optional[dict]) -> bool:
+    """
+    Whether a UTC-millisecond timestamp falls inside a trading-hours schedule. Always True
+    when hours is None. Strategy.is_trading_hours is this applied to self.time.
+
+    :param timestamp: int - UTC milliseconds
+    :param hours: dict | None - a schedule dict, or None
+    :return: bool
+    """
+    return trading_hours_service.is_in_trading_hours(timestamp, hours)

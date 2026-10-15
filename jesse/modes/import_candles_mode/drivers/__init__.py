@@ -19,6 +19,18 @@ from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetual im
 from jesse.modes.import_candles_mode.drivers.Hyperliquid.HyperliquidPerpetualTestnet import HyperliquidPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetual import LighterPerpetual
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterPerpetualTestnet import LighterPerpetualTestnet
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpot import KuCoinSpot
+from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinUSDTPerpetual import KuCoinUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenSpot import KrakenSpot
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetual import KrakenPerpetual
+from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetualTestnet import KrakenPerpetualTestnet
+from jesse.services.historical_data import (
+    HistoricalCandleProviderRegistry,
+    MassiveCurrenciesProvider,
+    MassiveFuturesProvider,
+    MassiveIndicesProvider,
+    MassiveStocksProvider,
+)
 
 
 drivers = {
@@ -39,12 +51,54 @@ drivers = {
     exchanges.HYPERLIQUID_PERPETUAL_TESTNET: HyperliquidPerpetualTestnet,
     exchanges.LIGHTER_PERPETUAL: LighterPerpetual,
     exchanges.LIGHTER_PERPETUAL_TESTNET: LighterPerpetualTestnet,
+    exchanges.KUCOIN_USDT_PERPETUAL: KuCoinUSDTPerpetual,
+    exchanges.KRAKEN_PERPETUAL: KrakenPerpetual,
+    exchanges.KRAKEN_PERPETUAL_TESTNET: KrakenPerpetualTestnet,
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+    exchanges.KUCOIN_SPOT: KuCoinSpot,
+    exchanges.KRAKEN_SPOT: KrakenSpot,
 }
 
 
 driver_names = list(drivers.keys())
+historical_provider_classes = {
+    **drivers,
+    exchanges.MASSIVE_STOCKS: MassiveStocksProvider,
+    exchanges.MASSIVE_CURRENCIES: MassiveCurrenciesProvider,
+    exchanges.MASSIVE_INDICES: MassiveIndicesProvider,
+    exchanges.MASSIVE_FUTURES: MassiveFuturesProvider,
+}
+historical_provider_names = list(historical_provider_classes)
+
+
+def build_crypto_historical_provider_registry(
+    provider_ids: tuple[str, ...] | None = None,
+) -> HistoricalCandleProviderRegistry:
+    """Build fresh crypto providers so sessions and rate-limit state are not shared between imports."""
+    registry = HistoricalCandleProviderRegistry()
+    selected_provider_ids = tuple(drivers) if provider_ids is None else provider_ids
+    for provider_id in selected_provider_ids:
+        provider_class = drivers.get(provider_id)
+        if provider_class is None:
+            # Use the registry's stable typed lookup error for unknown provider IDs.
+            registry.get(provider_id)
+        registry.register(provider_class())
+    return registry
+
+
+def build_historical_provider_registry(
+    provider_ids: tuple[str, ...] | None = None,
+) -> HistoricalCandleProviderRegistry:
+    """Build all import providers without exposing data-only sources as live exchange drivers."""
+    registry = HistoricalCandleProviderRegistry()
+    selected_provider_ids = tuple(historical_provider_classes) if provider_ids is None else provider_ids
+    for provider_id in selected_provider_ids:
+        provider_class = historical_provider_classes.get(provider_id)
+        if provider_class is None:
+            registry.get(provider_id)
+        registry.register(provider_class())
+    return registry

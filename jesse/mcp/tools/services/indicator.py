@@ -10,10 +10,8 @@ code organization and reusability.
 
 import os
 import inspect
-import importlib.util
+import importlib
 from typing import Dict, Any
-
-from jesse import JESSE_DIR
 
 
 def list_indicators_service() -> dict:
@@ -30,8 +28,10 @@ def list_indicators_service() -> dict:
     try:
         import jesse.indicators as ta
 
-        # Get all indicator names from the module
-        indicator_names = [name for name in dir(ta) if not name.startswith('_')]
+        indicator_names = [
+            name for name in dir(ta)
+            if not name.startswith('_') and inspect.isfunction(getattr(ta, name))
+        ]
 
         return {
             "status": "success",
@@ -62,37 +62,25 @@ def get_indicator_details_service(indicator_name: str) -> dict:
         dict: Contains status, indicator details, or error information
     """
     try:
-        # Find the indicator file
-        indicator_file = os.path.join(JESSE_DIR, 'indicators', f"{indicator_name}.py")
+        import jesse.indicators as ta
 
-        if not os.path.exists(indicator_file):
+        func = getattr(ta, indicator_name, None)
+        if not inspect.isfunction(func):
             return {
                 "status": "error",
                 "error": f"Indicator '{indicator_name}' not found",
-                "message": f"Could not find indicator file: {indicator_file}"
+                "message": f"Could not find exported indicator function: {indicator_name}"
             }
 
-        # Load the module
-        spec = importlib.util.spec_from_file_location(indicator_name, indicator_file)
-        if spec is None or spec.loader is None:
+        indicator_file = inspect.getsourcefile(func)
+        if indicator_file is None or not os.path.exists(indicator_file):
             return {
                 "status": "error",
-                "error": "Could not load indicator module",
-                "message": f"Failed to load module for indicator: {indicator_name}"
+                "error": "Could not locate indicator source",
+                "message": f"Failed to locate source for indicator: {indicator_name}"
             }
 
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        # Get the main function (assumed to have same name as file)
-        if not hasattr(module, indicator_name):
-            return {
-                "status": "error",
-                "error": f"Function '{indicator_name}' not found in module",
-                "message": f"The indicator module exists but doesn't contain function: {indicator_name}"
-            }
-
-        func = getattr(module, indicator_name)
+        module = importlib.import_module(func.__module__)
 
         # Extract function information
         sig = inspect.signature(func)

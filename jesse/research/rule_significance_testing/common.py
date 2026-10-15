@@ -3,6 +3,8 @@ Shared constants and small utilities for the rule-significance-testing package.
 """
 from multiprocessing import cpu_count
 
+from jesse.constants import TIMEFRAME_TO_ONE_MINUTES
+
 # ---------------------------------------------------------------------------
 # Multiprocessing
 # ---------------------------------------------------------------------------
@@ -12,8 +14,19 @@ MIN_CPU_CORES = 1                # never spawn fewer than 1 worker
 # ---------------------------------------------------------------------------
 # Statistical / financial
 # ---------------------------------------------------------------------------
-TRADING_DAYS_PER_YEAR = 365     # crypto markets trade 24/7, 365 days a year
 MIN_OBSERVATIONS = 30           # warn user when fewer bars are available
+
+
+def _annualization_factor(timeframe: str, annualization: int = 365) -> float:
+    """Return the number of timeframe observations implied by the run assumption."""
+    minutes_per_year = annualization * 24 * 60
+    return minutes_per_year / TIMEFRAME_TO_ONE_MINUTES[timeframe]
+
+
+def _elapsed_annualization_factor(observation_count: int, start_timestamp: int, end_timestamp: int) -> float:
+    """Annualize observed bars over real elapsed calendar time without inferring sessions."""
+    elapsed_ms = end_timestamp - start_timestamp
+    return observation_count * 365 * 86_400_000 / elapsed_ms if elapsed_ms > 0 else 0
 
 # ---------------------------------------------------------------------------
 # Progress bar

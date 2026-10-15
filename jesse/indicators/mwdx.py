@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import get_candle_source, slice_candles
+
+@overload
+def mwdx(candles: np.ndarray, factor: float = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def mwdx(candles: np.ndarray, factor: float = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def mwdx(candles: np.ndarray, factor: float = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def mwdx(candles: np.ndarray, factor: float = 0.2, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """MWDX Average"""

@@ -1,0 +1,1 @@
+function e(e,t){let n=new Date(t).getTime()-new Date(e).getTime();return Number.isNaN(n)?0:Math.max(0,Math.round(n/864e5))}export{e as t};

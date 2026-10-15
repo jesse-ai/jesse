@@ -9,6 +9,7 @@ class AppState:
         self.starting_time = None
         self.ending_time = None
         self.daily_balance = []
+        self.daily_balance_timestamps = []
 
         # used as placeholders for detecting open trades metrics
         self.total_open_trades = 0

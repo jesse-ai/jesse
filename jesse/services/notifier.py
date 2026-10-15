@@ -55,7 +55,7 @@ def start_notifier_loop():
 
 def notify(msg: str, webhook=None) -> None:
     """
-    sends notifications to "main_telegram_bot" which is supposed to receive messages.
+    Queue a message for the session's notification driver or an explicit webhook.
     """
     msg = _format_msg(msg)
 
@@ -75,7 +75,8 @@ def _telegram(msg: str, token: str, chat_id: str) -> None:
 
     try:
         response = requests.get(
-            f'https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&parse_mode=Markdown&text={msg}',
+            f'https://api.telegram.org/bot{token}/sendMessage',
+            params={'chat_id': chat_id, 'parse_mode': 'Markdown', 'text': msg},
             timeout=15
         )
         if response.status_code // 100 != 2:

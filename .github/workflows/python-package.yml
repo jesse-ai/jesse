@@ -19,7 +19,11 @@ permissions:
 jobs:
   build:
     runs-on:  ${{matrix.os}}
+    # Loopback integration tests have bounded waits; a wedged worker must not occupy a runner for hours.
+    timeout-minutes: 20
     strategy:
+      # Retain results for every supported platform when one compatibility check fails.
+      fail-fast: false
       matrix:
         # ubuntu-latest    = Linux x86_64
         # ubuntu-24.04-arm = Linux aarch64 (free for public repos)
@@ -54,4 +58,5 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
         run: |
-          python -m pytest
+          # Report every failure and retain a stack dump if an integration call stalls.
+          python -m pytest -o faulthandler_timeout=120

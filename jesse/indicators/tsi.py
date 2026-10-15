@@ -1,8 +1,15 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
+
+@overload
+def tsi(candles: np.ndarray, long_period: int = ..., short_period: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def tsi(candles: np.ndarray, long_period: int = ..., short_period: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def tsi(candles: np.ndarray, long_period: int = ..., short_period: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def tsi(candles: np.ndarray, long_period: int = 25, short_period: int = 13, source_type: str = "close",
         sequential: bool = False) -> Union[float, np.ndarray]:

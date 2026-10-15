@@ -27,6 +27,7 @@ class StoreClass:
         self.vars = {}
 
     def reset(self) -> None:
+        self.vars = {}
         self.app = AppState()
         self.orders = OrdersState()
         self.closed_trades = ClosedTrades()

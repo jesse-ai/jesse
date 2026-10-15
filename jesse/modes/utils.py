@@ -1,6 +1,7 @@
 import jesse.helpers as jh
 from jesse.services import logger
 from jesse.info import exchange_info
+from jesse.services.simulation_assumptions import SimulationModel, simulation_model_from_legacy_type
 
 
 def save_daily_portfolio_balance(is_initial=False) -> None:
@@ -40,7 +41,12 @@ def save_daily_portfolio_balance(is_initial=False) -> None:
             total_balances = pos.strategy.portfolio_value
             break
 
-    store.app.daily_balance.append(total_balances)
+    sample_timestamp = int(store.app.time)
+    if store.app.daily_balance_timestamps and store.app.daily_balance_timestamps[-1] == sample_timestamp:
+        store.app.daily_balance[-1] = total_balances
+    else:
+        store.app.daily_balance.append(total_balances)
+        store.app.daily_balance_timestamps.append(sample_timestamp)
 
     if not jh.is_livetrading():
         logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')
@@ -50,9 +56,20 @@ def get_exchange_type(exchange_name: str) -> str:
     """
     a helper for getting the exchange_type for the running session
     """
-    # in live trading, exchange type is not configurable, hence we hardcode it
-    if jh.is_live():
+    # Real exchange execution is authoritative. Paper sessions use the selected
+    # simulation model because no venue account constrains their accounting.
+    if jh.is_livetrading():
         return exchange_info[exchange_name]['type']
 
     # for other trading modes, we can get the exchange type from the config file
     return jh.get_config(f'env.exchanges.{exchange_name}.type')
+
+
+def get_simulation_model(exchange_name: str) -> SimulationModel:
+    if jh.is_livetrading():
+        return simulation_model_from_legacy_type(exchange_info[exchange_name]['type'])
+
+    value = jh.get_config(f'env.exchanges.{exchange_name}.simulation_model')
+    if value is not None:
+        return SimulationModel(value)
+    return simulation_model_from_legacy_type(get_exchange_type(exchange_name))

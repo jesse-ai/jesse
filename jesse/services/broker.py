@@ -14,6 +14,10 @@ class Broker:
         self.timeframe = timeframe
         self.exchange = exchange
         from jesse.services.api import api
+        # Non-live sessions may use arbitrary research exchange names, so each
+        # route must have a matching sandbox driver before it submits orders.
+        if not jh.is_live():
+            api.initiate_driver(exchange)
         self.api = api
 
     @staticmethod

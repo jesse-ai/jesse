@@ -1,8 +1,15 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 from jesse.helpers import slice_candles
 from jesse.indicators import ema
 
+
+@overload
+def kvo(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def kvo(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def kvo(candles: np.ndarray, short_period: int = ..., long_period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def kvo(candles: np.ndarray, short_period: int = 34, long_period: int = 55, sequential: bool = False) -> Union[float, np.ndarray]:
     """

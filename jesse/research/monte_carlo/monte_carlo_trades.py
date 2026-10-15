@@ -7,6 +7,8 @@ import os
 from datetime import datetime
 import jesse.helpers as jh
 from jesse.research import backtest
+from jesse.services.ray_runtime import initialize_ray
+from jesse.services.simulation_assumptions import resolve_annualization
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 from matplotlib import pyplot as plt
@@ -19,7 +21,6 @@ from .common import (
     CONFIDENCE_PERCENTILES,
     ALPHA_5_PERCENT,
     ALPHA_1_PERCENT,
-    ANNUALIZATION_FACTOR,
     MAX_DRAWDOWN_LIMIT,
     _setup_progress_bar,
     _process_scenario_results,
@@ -37,6 +38,7 @@ class EquityCurveSeries(TypedDict):
     data: List[EquityCurvePoint]
 
 class MonteCarloTradeScenarioResult(TypedDict, total=False):
+    scenario_index: int
     # Metrics reconstructed from shuffled trades
     total_return: float
     final_value: float
@@ -91,6 +93,7 @@ class MonteCarloTradesReturn(TypedDict):
     confidence_analysis: ConfidenceAnalysis
     num_scenarios: int
     total_requested: int
+    annualization: int
 
 
 @ray.remote
@@ -98,6 +101,7 @@ def _ray_run_scenario_monte_carlo(
     original_trades: list,
     original_equity_curve: list,
     starting_balance: float,
+    annualization: int,
     scenario_index: int,
     seed: Optional[int] = None
 ) -> Dict[str, Any]:
@@ -111,7 +115,8 @@ def _ray_run_scenario_monte_carlo(
         equity_curve = _reconstruct_equity_curve_from_trades(
             shuffled_trades, original_equity_curve, starting_balance
         )
-        result = _calculate_metrics_from_equity_curve(equity_curve, starting_balance)
+        result = _calculate_metrics_from_equity_curve(equity_curve, starting_balance, annualization)
+        result['scenario_index'] = scenario_index
         result['trades'] = shuffled_trades
         result['equity_curve'] = equity_curve
         return {'result': result, 'log': None, 'error': False}
@@ -152,7 +157,7 @@ def monte_carlo_trades(
     ray_started_here = False
     if not ray.is_initialized():
         try:
-            ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+            initialize_ray(cpu_cores)
             print(f"Successfully started Monte Carlo simulation with {cpu_cores} CPU cores")
             ray_started_here = True
         except Exception as e:
@@ -178,6 +183,7 @@ def _run_monte_carlo_simulation(
     num_scenarios: int, progress_bar: bool, cpu_cores: int, started_ray_here: bool, progress_callback=None, result_callback=None
 ) -> dict:
     try:
+        annualization = int(resolve_annualization(config))
         original_result = _run_original_backtest(
             config, routes, data_routes, candles, warmup_candles,
             hyperparameters, fast_mode, benchmark
@@ -189,9 +195,16 @@ def _run_monte_carlo_simulation(
         trades_ref = ray.put(original_trades)
         equity_curve_ref = ray.put(original_equity_curve)
         scenario_refs = _launch_monte_carlo_scenarios(
-            num_scenarios, trades_ref, equity_curve_ref, starting_balance
+            num_scenarios,
+            trades_ref,
+            equity_curve_ref,
+            starting_balance,
+            annualization,
         )
         results = _process_scenario_results(scenario_refs, pbar, progress_callback, result_callback)
+        # Ray returns completed tasks in execution order. Public results use
+        # scenario order so a seeded run has one deterministic representation.
+        results.sort(key=lambda scenario: scenario['scenario_index'])
         if pbar:
             pbar.close()
         print(f"Completed {len(results)} Monte Carlo scenarios out of {num_scenarios} requested")
@@ -201,7 +214,8 @@ def _run_monte_carlo_simulation(
             'scenarios': results,
             'confidence_analysis': confidence_analysis,
             'num_scenarios': len(results),
-            'total_requested': num_scenarios
+            'total_requested': num_scenarios,
+            'annualization': annualization,
         }
     except Exception as e:
         print(f"Error during Monte Carlo simulation: {e}")
@@ -259,16 +273,18 @@ def _launch_monte_carlo_scenarios(
     num_scenarios: int,
     trades_ref: Any,
     equity_curve_ref: Any,
-    starting_balance: float
+    starting_balance: float,
+    annualization: int,
 ) -> List[Any]:
     scenario_refs: List[Any] = []
     for i in range(num_scenarios):
         ref = _ray_run_scenario_monte_carlo.remote(
-            original_trades=trades_ref,
-            original_equity_curve=equity_curve_ref,
-            starting_balance=starting_balance,
-            scenario_index=i,
-            seed=BASE_RANDOM_SEED
+            trades_ref,
+            equity_curve_ref,
+            starting_balance,
+            annualization,
+            i,
+            BASE_RANDOM_SEED,
         )
         scenario_refs.append(ref)
     return scenario_refs
@@ -302,7 +318,11 @@ def _reconstruct_equity_curve_from_trades(shuffled_trades: list, original_equity
     return new_equity_curve
 
 
-def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: float) -> dict:
+def _calculate_metrics_from_equity_curve(
+    equity_curve: list,
+    starting_balance: float,
+    annualization: int = 365,
+) -> dict:
     if not equity_curve or not equity_curve[0].get('data'):
         return {'error': 'Invalid equity curve'}
     data = equity_curve[0]['data']
@@ -313,8 +333,17 @@ def _calculate_metrics_from_equity_curve(equity_curve: list, starting_balance: f
     final_value = values[-1]
     total_return = ((final_value - starting_balance) / starting_balance) * 100
     max_drawdown = _calculate_max_drawdown(values)
-    volatility, sharpe_ratio = _calculate_volatility_metrics(values)
-    calmar_ratio = total_return / abs(max_drawdown) if max_drawdown < 0 else 0
+    volatility, sharpe_ratio = _calculate_volatility_metrics(values, annualization)
+    first_timestamp = data[0].get('time', data[0].get('timestamp', 0))
+    last_timestamp = data[-1].get('time', data[-1].get('timestamp', 0))
+    elapsed_days = int((last_timestamp - first_timestamp) / (24 * 60 * 60))
+    if elapsed_days > 0 and max_drawdown < 0:
+        elapsed_years = elapsed_days / 365
+        growth_ratio = np.clip(final_value / starting_balance, 1e-10, 1e10)
+        annual_return = (growth_ratio ** (1 / elapsed_years) - 1) * 100
+        calmar_ratio = annual_return / abs(max_drawdown)
+    else:
+        calmar_ratio = 0
     return {
         'total_return': total_return,
         'final_value': final_value,
@@ -346,7 +375,7 @@ def _calculate_max_drawdown(values: List[float]) -> float:
     return max_drawdown * 100
 
 
-def _calculate_volatility_metrics(values: List[float]) -> Tuple[float, float]:
+def _calculate_volatility_metrics(values: List[float], annualization: int = 365) -> Tuple[float, float]:
     if len(values) <= 1:
         return 0.0, 0.0
     returns: List[float] = []
@@ -357,9 +386,9 @@ def _calculate_volatility_metrics(values: List[float]) -> Tuple[float, float]:
     if not returns:
         return 0.0, 0.0
     daily_std = np.std(returns)
-    annualized_volatility = daily_std * np.sqrt(ANNUALIZATION_FACTOR)
+    annualized_volatility = daily_std * np.sqrt(annualization)
     avg_daily_return = np.mean(returns)
-    annualized_return = avg_daily_return * ANNUALIZATION_FACTOR
+    annualized_return = avg_daily_return * annualization
     sharpe_ratio = annualized_return / annualized_volatility if annualized_volatility > 0 else 0
     return annualized_volatility, sharpe_ratio
 
@@ -579,5 +608,3 @@ def plot_monte_carlo_trades_chart(results: dict, charts_folder: str = None) -> N
     chart_path = os.path.join(charts_folder, filename)
     plt.savefig(chart_path, dpi=150, bbox_inches='tight'); plt.close()
     print(f"   💾 Trades chart saved: {chart_path}")
-
-

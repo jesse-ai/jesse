@@ -12,7 +12,9 @@ from tqdm import tqdm
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.config import config as jesse_config, set_config
+from jesse.research.backtest import _reset_research_runtime_state
 from jesse.research.monte_carlo.common import DEFAULT_CPU_USAGE_RATIO, MIN_CPU_CORES
+from jesse.services.ray_runtime import initialize_ray
 
 from jesse.routes import router
 
@@ -136,6 +138,45 @@ def optimize(
     if not routes:
         raise ValueError('At least one route is required.')
 
+    _reset_research_runtime_state()
+    try:
+        return _execute_optimize(
+            config=config,
+            routes=routes,
+            data_routes=data_routes,
+            training_candles=training_candles,
+            training_warmup_candles=training_warmup_candles,
+            testing_candles=testing_candles,
+            testing_warmup_candles=testing_warmup_candles,
+            optimal_total=optimal_total,
+            fast_mode=fast_mode,
+            cpu_cores=cpu_cores,
+            trials=trials,
+            objective_function=objective_function,
+            best_candidates_count=best_candidates_count,
+            progress_bar=progress_bar,
+        )
+    finally:
+        _reset_research_runtime_state()
+
+
+def _execute_optimize(
+    config: dict,
+    routes: List[Dict[str, str]],
+    data_routes: List[Dict[str, str]],
+    training_candles: dict,
+    training_warmup_candles: dict,
+    testing_candles: dict,
+    testing_warmup_candles: dict,
+    optimal_total: int,
+    fast_mode: bool,
+    cpu_cores: Optional[int],
+    trials: int,
+    objective_function: str,
+    best_candidates_count: int,
+    progress_bar: bool,
+) -> OptimizeReturn:
+
     # ---------------------------------------------------------- Jesse bootstrap
     # Set trading mode so that set_config() applies optimization-specific keys.
     jesse_config['app']['trading_mode'] = 'optimize'
@@ -148,14 +189,13 @@ def optimize(
         'best_candidates_count': best_candidates_count,
     })
 
-    # Inject the exchange name into routes (mirrors optimize_mode/__init__.py pattern).
+    # Each research call owns its formatted routes. Keeping the caller's route
+    # dictionaries unchanged makes repeated calls safe in notebooks and tests.
     exchange_name = config['exchange']['name']
-    for r in routes:
-        r['exchange'] = exchange_name
-    for r in data_routes:
-        r['exchange'] = exchange_name
+    formatted_routes = [{**route, 'exchange': exchange_name} for route in routes]
+    formatted_data_routes = [{**route, 'exchange': exchange_name} for route in data_routes]
 
-    router.initiate(routes, data_routes)
+    router.initiate(formatted_routes, formatted_data_routes)
 
     # ------------------------------------------------- resolve hyperparameters
     strategy_class = jh.get_strategy_class(router.routes[0].strategy_name)
@@ -188,7 +228,7 @@ def optimize(
     # ------------------------------------------------------------ init Ray
     ray_started_here = False
     if not ray.is_initialized():
-        ray.init(num_cpus=cpu_cores, ignore_reinit_error=True)
+        initialize_ray(cpu_cores)
         ray_started_here = True
 
     best_trials: list = []
@@ -236,6 +276,7 @@ def optimize(
                     fast_mode,
                     trial_counter,
                     'research',
+                    objective_function,
                 )
                 active_refs[ref] = trial_counter
                 trial_counter += 1

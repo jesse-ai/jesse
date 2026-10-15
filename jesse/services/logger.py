@@ -30,7 +30,8 @@ def _init_main_logger():
 
     new_logger = logging.getLogger(jh.app_mode())
     new_logger.setLevel(logging.INFO)
-    new_logger.addHandler(logging.FileHandler(filename, mode='w'))
+    # Explicit UTF-8 keeps notification symbols readable on Windows as well.
+    new_logger.addHandler(logging.FileHandler(filename, mode='w', encoding='utf-8'))
     LOGGERS[jh.app_mode()] = new_logger
 
 
@@ -40,7 +41,7 @@ def create_logger_file(name):
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     new_logger = logging.getLogger(name)
     new_logger.setLevel(logging.INFO)
-    new_logger.addHandler(logging.FileHandler(log_file, mode='a'))
+    new_logger.addHandler(logging.FileHandler(log_file, mode='a', encoding='utf-8'))
     LOGGERS[name] = new_logger
 
 
@@ -100,7 +101,7 @@ def error(msg: str, send_notification=True) -> None:
     }
 
     if jh.is_live() and jh.get_config('env.notifications.events.errors', True) and send_notification:
-        notify(f'ERROR:\n{msg}')
+        notify(f'🚨 Error\n{msg}')
     if (jh.is_backtesting() and jh.is_debugging()) or jh.is_live():
         sync_publish('error_log', log_dict)
 
@@ -133,7 +134,7 @@ def log_exchange_message(exchange, message):
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         new_logger = logging.getLogger(logger_name)
         new_logger.setLevel(logging.INFO)
-        new_logger.addHandler(logging.FileHandler(log_file, mode='w'))
+        new_logger.addHandler(logging.FileHandler(log_file, mode='w', encoding='utf-8'))
         LOGGERS[logger_name] = new_logger
 
     LOGGERS[logger_name].info(message)
@@ -172,12 +173,14 @@ def log_optimize_mode(message, session_id: str):
             jh.dump('error')
             print(f"Warning: Failed to write to optimize mode log file {log_file}: {e}")
 
-    # also, publish to redis
-    sync_publish('log', {
-        'id': jh.generate_unique_id(),
-        'timestamp': jh.now_to_timestamp(),
-        'message': message
-    })
+    # The research API has no dashboard session or Redis consumer. Dashboard
+    # optimizations keep publishing progress under their real session ID.
+    if session_id != 'research':
+        sync_publish('log', {
+            'id': jh.generate_unique_id(),
+            'timestamp': jh.now_to_timestamp(),
+            'message': message
+        })
 
 
 def log_monte_carlo(message, session_id: str):

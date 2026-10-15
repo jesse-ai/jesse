@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -7,6 +7,13 @@ from jesse.helpers import get_candle_source, same_length, slice_candles
 from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
+
+@overload
+def rvi(candles: np.ndarray, period: int = ..., ma_len: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def rvi(candles: np.ndarray, period: int = ..., ma_len: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def rvi(candles: np.ndarray, period: int = ..., ma_len: int = ..., matype: int = ..., devtype: int = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def rvi(candles: np.ndarray, period: int = 10, ma_len: int = 14, matype: int = 1, devtype: int = 0, source_type: str = "close",
         sequential: bool = False) -> Union[float, np.ndarray]:

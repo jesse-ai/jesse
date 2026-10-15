@@ -1,9 +1,16 @@
-from typing import Union
+from typing import Literal, Union, overload
 
 import numpy as np
 from jesse.helpers import slice_candles
 from jesse_rust import adosc as adosc_rust
 
+
+@overload
+def adosc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def adosc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def adosc(candles: np.ndarray, fast_period: int = ..., slow_period: int = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def adosc(candles: np.ndarray, fast_period: int = 3, slow_period: int = 10, sequential: bool = False) -> Union[float, np.ndarray]:
     """

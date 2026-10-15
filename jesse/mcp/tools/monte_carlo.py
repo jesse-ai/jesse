@@ -17,8 +17,11 @@ Tools exposed:
     cancel_monte_carlo
     terminate_monte_carlo
     purge_monte_carlo_sessions
+
+The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
+from .offload import run_blocking
 from .services import (
     create_monte_carlo_draft_service,
     update_monte_carlo_draft_service,
@@ -38,9 +41,12 @@ from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
 
 def register_monte_carlo_tools(mcp):
     """Register all Monte Carlo tools on the MCP server."""
+    # The usage check and the run request happen in one worker-thread call, so a cancellation
+    # never falls between them (a credit used without the run being attempted).
+    gated_run_monte_carlo = gated(weight=CREDIT_WEIGHTS["run_monte_carlo"])(run_monte_carlo_service)
 
     @mcp.tool()
-    def create_monte_carlo_draft(
+    async def create_monte_carlo_draft(
         exchange: str = "Binance Perpetual Futures",
         routes: str = '[{"exchange": "Binance Perpetual Futures", "strategy": "ExampleStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
         data_routes: str = '[]',
@@ -106,7 +112,8 @@ def register_monte_carlo_tools(mcp):
             { "status": "success", "session_id": "<uuid>",
               "draft_state": {...}, "notes": {...}, "message": "..." }
         """
-        return create_monte_carlo_draft_service(
+        return await run_blocking(
+            create_monte_carlo_draft_service,
             exchange=exchange,
             routes=routes,
             data_routes=data_routes,
@@ -127,7 +134,7 @@ def register_monte_carlo_tools(mcp):
         )
 
     @mcp.tool()
-    def update_monte_carlo_draft(session_id: str, state: str) -> dict:
+    async def update_monte_carlo_draft(session_id: str, state: str) -> dict:
         """
         Replace the full state of a Monte Carlo draft.
 
@@ -141,10 +148,10 @@ def register_monte_carlo_tools(mcp):
             session_id: Draft session UUID.
             state: JSON string of the complete state object (form + results).
         """
-        return update_monte_carlo_draft_service(session_id, state)
+        return await run_blocking(update_monte_carlo_draft_service, session_id, state)
 
     @mcp.tool()
-    def update_monte_carlo_notes(
+    async def update_monte_carlo_notes(
         session_id: str,
         title: str = None,
         description: str = None,
@@ -163,7 +170,8 @@ def register_monte_carlo_tools(mcp):
             strategy_codes: Optional JSON object string of strategy code snapshots,
                 keyed by "<exchange>-<symbol>".
         """
-        return update_monte_carlo_notes_service(
+        return await run_blocking(
+            update_monte_carlo_notes_service,
             session_id=session_id,
             title=title,
             description=description,
@@ -171,7 +179,7 @@ def register_monte_carlo_tools(mcp):
         )
 
     @mcp.tool()
-    def get_monte_carlo_session(session_id: str) -> dict:
+    async def get_monte_carlo_session(session_id: str) -> dict:
         """
         Fetch full details of a Monte Carlo session.
 
@@ -234,7 +242,7 @@ def register_monte_carlo_tools(mcp):
         — for max_drawdown this is the worst-case loss; for sharpe/profit
         it's whether the strategy survives an unlucky path.
         """
-        result = get_monte_carlo_session_service(session_id)
+        result = await run_blocking(get_monte_carlo_session_service, session_id)
         if result.get('error') is None:
             return {
                 'data': result.get('data', {}),
@@ -250,7 +258,7 @@ def register_monte_carlo_tools(mcp):
         }
 
     @mcp.tool()
-    def get_monte_carlo_sessions(
+    async def get_monte_carlo_sessions(
         limit: int = 50,
         offset: int = 0,
         title_search: str = None,
@@ -266,8 +274,12 @@ def register_monte_carlo_tools(mcp):
             title_search: Case-insensitive substring on title.
             status_filter: One of "draft", "running", "finished", "stopped", "terminated".
             date_filter: One of "7_days", "30_days", "90_days".
+
+        Each session row has "dashboard_url", its page on the dashboard: give the user that
+        link, not the bare ID.
         """
-        return get_monte_carlo_sessions_service(
+        return await run_blocking(
+            get_monte_carlo_sessions_service,
             limit=limit,
             offset=offset,
             title_search=title_search,
@@ -276,7 +288,7 @@ def register_monte_carlo_tools(mcp):
         )
 
     @mcp.tool()
-    def get_monte_carlo_equity_curves(session_id: str) -> dict:
+    async def get_monte_carlo_equity_curves(session_id: str) -> dict:
         """
         Fetch equity curve data for a finished Monte Carlo session.
 
@@ -297,10 +309,10 @@ def register_monte_carlo_tools(mcp):
         Each curve is the Portfolio equity series. Use this to inspect
         dispersion visually or compute custom statistics across scenarios.
         """
-        return get_monte_carlo_equity_curves_service(session_id)
+        return await run_blocking(get_monte_carlo_equity_curves_service, session_id)
 
     @mcp.tool()
-    def get_monte_carlo_logs(session_id: str) -> dict:
+    async def get_monte_carlo_logs(session_id: str) -> dict:
         """
         Fetch the raw log file content for a Monte Carlo session.
 
@@ -311,11 +323,10 @@ def register_monte_carlo_tools(mcp):
             { "status": "success", "session_id": "<uuid>", "logs": "<string>" }
             or { "status": "error", "message": "Log file not found" }
         """
-        return get_monte_carlo_logs_service(session_id)
+        return await run_blocking(get_monte_carlo_logs_service, session_id)
 
     @mcp.tool()
-    @gated(weight=CREDIT_WEIGHTS["run_monte_carlo"])
-    def run_monte_carlo(session_id: str) -> dict:
+    async def run_monte_carlo(session_id: str) -> dict:
         """
         Fire a Monte Carlo simulation for a previously created draft and return immediately.
 
@@ -329,10 +340,10 @@ def register_monte_carlo_tools(mcp):
             { "status": "started", "session_id": "<uuid>", "message": "..." }
             or { "status": "error", "message": "..." }
         """
-        return run_monte_carlo_service(session_id)
+        return await run_blocking(gated_run_monte_carlo, session_id)
 
     @mcp.tool()
-    def resume_monte_carlo(session_id: str) -> dict:
+    async def resume_monte_carlo(session_id: str) -> dict:
         """
         Resume a previously stopped or interrupted Monte Carlo session.
 
@@ -342,30 +353,30 @@ def register_monte_carlo_tools(mcp):
 
         Same fire-and-poll semantics as run_monte_carlo.
         """
-        return resume_monte_carlo_service(session_id)
+        return await run_blocking(resume_monte_carlo_service, session_id)
 
     @mcp.tool()
-    def cancel_monte_carlo(session_id: str) -> dict:
+    async def cancel_monte_carlo(session_id: str) -> dict:
         """
         Cooperatively cancel a running Monte Carlo session.
 
         Requests termination but lets the worker complete its current scenario.
         For an immediate hard stop use terminate_monte_carlo.
         """
-        return cancel_monte_carlo_service(session_id)
+        return await run_blocking(cancel_monte_carlo_service, session_id)
 
     @mcp.tool()
-    def terminate_monte_carlo(session_id: str) -> dict:
+    async def terminate_monte_carlo(session_id: str) -> dict:
         """
         Hard-terminate a running Monte Carlo session.
 
         Marks the session as "terminated" and force-cancels the worker process.
         Prefer cancel_monte_carlo unless the worker is stuck.
         """
-        return terminate_monte_carlo_service(session_id)
+        return await run_blocking(terminate_monte_carlo_service, session_id)
 
     @mcp.tool()
-    def purge_monte_carlo_sessions(days_old: int = None) -> dict:
+    async def purge_monte_carlo_sessions(days_old: int = None) -> dict:
         """
         Permanently delete Monte Carlo sessions.
 
@@ -373,4 +384,4 @@ def register_monte_carlo_tools(mcp):
             days_old: If set, only sessions older than this many days are deleted.
                 If None, ALL sessions are deleted (irreversible).
         """
-        return purge_monte_carlo_sessions_service(days_old)
+        return await run_blocking(purge_monte_carlo_sessions_service, days_old)

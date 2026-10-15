@@ -37,20 +37,20 @@ class BitfinexSpot(CandleExchange):
                 time.sleep(delay)
 
     def get_starting_time(self, symbol: str) -> int:
+        if self.all_unique_symbols == {}:
+            self.get_available_symbols()
         network_symbol = self.all_unique_symbols.get(symbol)
+        if network_symbol is None:
+            raise exceptions.SymbolNotFound(f"Bitfinex does not list {symbol}.")
 
-        # hard-code few common symbols
-        if symbol == 'BTC-USD':
-            return jh.date_to_timestamp('2015-08-01')
-        elif symbol == 'ETH-USD':
-            return jh.date_to_timestamp('2016-01-01')
-
+        # The oldest 1m candle is the exact listing minute; the former daily lookup skipped a day
+        # and hard-coded BTC-USD and ETH-USD to dates years after their real history begins.
         payload = {
             'sort': 1,
-            'limit': 5000,
+            'limit': 1,
         }
 
-        response = self._make_request(f"{self.endpoint}/trade:1D:t{network_symbol}/hist", params=payload)
+        response = self._make_request(f"{self.endpoint}/trade:1m:t{network_symbol}/hist", params=payload)
 
         self.validate_response(response)
 
@@ -62,10 +62,7 @@ class BitfinexSpot(CandleExchange):
                 f"No candle exists for {symbol} in Bitfinex."
             )
 
-        # since the first timestamp doesn't include all the 1m
-        # candles, let's start since the second day then
-        first_timestamp = int(data[0][0])
-        return first_timestamp + 60_000 * 1440
+        return int(data[0][0])
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str) -> list:
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp

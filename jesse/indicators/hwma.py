@@ -1,7 +1,14 @@
-from typing import Union
+from typing import Literal, Union, overload
 import numpy as np
 import jesse_rust as jr
 from jesse.helpers import get_candle_source, same_length, slice_candles
+
+@overload
+def hwma(candles: np.ndarray, na: float = ..., nb: float = ..., nc: float = ..., source_type: str = ..., sequential: Literal[False] = ...) -> float: ...
+@overload
+def hwma(candles: np.ndarray, na: float = ..., nb: float = ..., nc: float = ..., source_type: str = ..., sequential: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def hwma(candles: np.ndarray, na: float = ..., nb: float = ..., nc: float = ..., source_type: str = ..., sequential: bool = ...) -> Union[float, np.ndarray]: ...
 
 def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
     """Holt-Winter Moving Average"""

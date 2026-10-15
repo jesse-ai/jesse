@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, cast
 import os
 import csv
 import numpy as np
@@ -14,12 +14,37 @@ from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.services import metrics
 from jesse.services.broker import Broker
 from jesse.services import order_service, candle_service
+from jesse.services import trading_hours as trading_hours_service
 from jesse.repositories import order_repository
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
 from jesse.services.color import generate_unique_hex_color
 from jesse.research.ml import load_ml_model as _load_ml_model
+
+# rolling cap for chart-line arrays during live sessions (see _trim_chart_line_data)
+LIVE_CHART_MAX_POINTS_PER_LINE = 1_000
+
+
+def _np_array_equal(a1, a2) -> bool:
+    # semantically identical to np.array_equal, minus its dispatch overhead for
+    # the small ndarray pairs compared on every candle in
+    # _detect_and_handle_entry_and_exit_modifications
+    if type(a1) is np.ndarray and type(a2) is np.ndarray:
+        if a1.shape != a2.shape:
+            return False
+        n = a1.size
+        if n <= 8:
+            # scalar compares for tiny arrays — same float (and NaN) semantics
+            # as (a1 == a2).all(), without the ufunc dispatch cost
+            f1 = a1.flat
+            f2 = a2.flat
+            for i in range(n):
+                if f1[i] != f2[i]:
+                    return False
+            return True
+        return bool((a1 == a2).all())
+    return np.array_equal(a1, a2)
 
 
 class Strategy(ABC):
@@ -29,11 +54,13 @@ class Strategy(ABC):
 
     def __init__(self) -> None:
         self.id = jh.generate_unique_id()
-        self.name = None
-        self.symbol = None
-        self.exchange = None
-        self.timeframe = None
-        self.hp = None
+        # these are set by the router/engine right after instantiation, hence
+        # they are declared with their post-initiation types for type checkers
+        self.name: str = None  # type: ignore
+        self.symbol: str = None  # type: ignore
+        self.exchange: str = None  # type: ignore
+        self.timeframe: str = None  # type: ignore
+        self.hp: dict = {}
 
         self.index = 0
         self.last_trade_index = 0
@@ -64,6 +91,7 @@ class Strategy(ABC):
         self._add_extra_line_chart_values = {}
         self._add_horizontal_line_to_candle_chart_values = {}
         self._add_horizontal_line_to_extra_chart_values = {}
+        self._invalid_chart_values_logged: set[str] = set()
 
         # Variables used for ML calculations
         self.ml_mode = getattr(type(self), 'ml_mode', 'gather')
@@ -74,11 +102,13 @@ class Strategy(ABC):
         self._ml_feature_importance = None
 
         self._is_executing = False
+        self._is_updating_chart = False
         self._is_initiated = False
         self._is_handling_updated_order = False
 
-        self.position: Position | None = None
-        self.broker = None
+        # both are set in _init_objects() right after instantiation
+        self.position: Position = None  # type: ignore
+        self.broker: Broker = None  # type: ignore
 
         self._cached_methods = {}
         self._cached_metrics = {}
@@ -320,26 +350,57 @@ class Strategy(ABC):
         probs = self._ml_model.predict_proba(self._ml_scaler.transform(X))[0]
         return {int(cls): float(p) for cls, p in zip(self._ml_model.classes_, probs)}
 
-    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
-        # validate value's type
+    def _validate_chart_value(self, label: str, value: float) -> None:
         if not isinstance(value, (int, float)):
             raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if np.isfinite(value):
+            self._invalid_chart_values_logged.discard(label)
+            return
+
+        if label in self._invalid_chart_values_logged:
+            return
+
+        strategy_name = self.name or type(self).__name__
+        logger.error(
+            f'Invalid chart value in strategy "{strategy_name}" for {label}: {value}. '
+            'Chart values must be finite numbers. The dashboard will skip this value.',
+            send_notification=False,
+        )
+        self._invalid_chart_values_logged.add(label)
+
+    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
+        self._validate_chart_value(f'candle chart line "{title}"', value)
 
         if title not in self._add_line_to_candle_chart_values:
             self._add_line_to_candle_chart_values[title] = {
                 'data': [],
                 'color': color if color is not None else generate_unique_hex_color(),
             }
-        self._add_line_to_candle_chart_values[title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
-        })
+        }
+        self._store_chart_line_point(self._add_line_to_candle_chart_values[title]['data'], point)
+
+    def _store_chart_line_point(self, data: list, point: dict) -> None:
+        if self.is_live and data and data[-1]['time'] == point['time']:
+            data[-1] = point
+        else:
+            data.append(point)
+        self._trim_chart_line_data(data)
+
+    def _trim_chart_line_data(self, data: list) -> None:
+        """
+        Live sessions never end, so chart-line arrays must not grow unbounded.
+        Backtests are finite and keep their full history.
+        """
+        if self.is_live and len(data) > LIVE_CHART_MAX_POINTS_PER_LINE:
+            del data[:len(data) - LIVE_CHART_MAX_POINTS_PER_LINE]
 
     def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'candle chart horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -365,9 +426,7 @@ class Strategy(ABC):
             }
 
     def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" horizontal line "{title}"', value)
 
         if line_style == 'solid':
             lineStyle = 0
@@ -388,9 +447,7 @@ class Strategy(ABC):
         }
 
     def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
-        # validate value's type
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+        self._validate_chart_value(f'extra chart "{chart_name}" line "{title}"', value)
 
         if chart_name not in self._add_extra_line_chart_values:
             self._add_extra_line_chart_values[chart_name] = {}
@@ -401,11 +458,12 @@ class Strategy(ABC):
                 'color': color if color is not None else generate_unique_hex_color(),
             }
 
-        self._add_extra_line_chart_values[chart_name][title]['data'].append({
+        point = {
             'time': int(self.current_candle[0] / 1000),
             'value': value,
             'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
-        })
+        }
+        self._store_chart_line_point(self._add_extra_line_chart_values[chart_name][title]['data'], point)
 
     def _init_objects(self) -> None:
         """
@@ -416,7 +474,7 @@ class Strategy(ABC):
         self.position = store.positions.get_position(self.exchange, self.symbol)
         self.broker = Broker(self.position, self.exchange, self.symbol, self.timeframe)
 
-        if self.hp is None and len(self.hyperparameters()) > 0:
+        if not self.hp and len(self.hyperparameters()) > 0:
             self.hp = {}
             for dna in self.hyperparameters():
                 self.hp[dna['name']] = dna['default']
@@ -512,28 +570,27 @@ class Strategy(ABC):
 
         # call the relevant strategy event handler:
         if effect == 'opening_position':
-            txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
+            txt = f"📈 Position opened | {self.symbol} | {self.position.type.upper()} | {self.exchange} | Qty: {after_qty} | Entry: {jh.format_price(self.position.entry_price)}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
-            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+            if jh.is_live() and jh.get_config('env.notifications.events.opened_position', True):
                 notifier.notify(txt)
             self._on_open_position(order)
         elif effect == 'closing_position':
-            txt = f"CLOSED Position for {self.symbol}"
+            txt = f"🏁 Position closed | {self.symbol} | {self.exchange}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
-            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
-                notifier.notify(txt)
+            # closed_trade_service sends the finalized trade result, including PnL.
             self._on_close_position(order)
         elif effect == 'increased_position':
-            txt = f"INCREASED Position size to {after_qty}"
+            txt = f"➕ Position increased | {self.symbol} | {self.exchange} | Qty: {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
         else:  # if effect == 'reduced_position':
-            txt = f"REDUCED Position size to {after_qty}"
+            txt = f"➖ Position reduced | {self.symbol} | {self.exchange} | Qty: {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
@@ -547,6 +604,17 @@ class Strategy(ABC):
 
     def hyperparameters(self) -> list:
         return []
+
+    def trading_hours(self) -> Optional[dict]:
+        """
+        The market schedule this strategy respects, for instruments that follow a market
+        calendar but trade on a 24/7 exchange. Return a schedule dict
+        ({'timezone': ..., 'hours': {...}, 'closed': [...], 'overrides': {...}}) or None for
+        no schedule. It is a method so the answer can depend on self (mode, exchange, symbol,
+        hyperparameters). The engine never enforces it; it only feeds self.is_trading_hours
+        and is meant to be passed to utils.filter_candles_by_hours().
+        """
+        return None
 
     def dna(self) -> str:
         return ''
@@ -726,6 +794,18 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy(
                 f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
 
+    @staticmethod
+    def _validate_exit_order_values(orders: np.ndarray, name: str) -> None:
+        # Runs before the existing exit orders are cancelled. A NaN price (e.g. from an
+        # indicator still warming up or a value lost on restart) would otherwise be rejected
+        # only after the protective order is already gone, leaving the position unprotected.
+        for qty, price in orders:
+            if not np.isfinite(qty) or not np.isfinite(price):
+                raise exceptions.InvalidStrategy(
+                    f'self.{name} must contain valid numbers, but ({qty}, {price}) was given. '
+                    f'The existing {name} order was kept. Make sure the values used to calculate it are available.'
+                )
+
     def _execute_filters(self) -> bool:
         for f in self.filters():
             try:
@@ -780,6 +860,11 @@ class Strategy(ABC):
         if not jh.is_unit_testing() and not jh.is_live():
             store.orders.storage[f'{self.exchange}-{self.symbol}'].clear()
 
+    def _has_entries_awaiting_fill(self) -> bool:
+        """Keep confirmed executions matchable until their fill details arrive."""
+        return any(order.is_cancellable and cast(dict, order.vars or {}).get('awaiting_fill')
+                   for order in self.entry_orders)
+
     def _reset(self) -> None:
         self.buy = None
         self._buy = None
@@ -827,6 +912,20 @@ class Strategy(ABC):
         """
         pass
 
+    def update_chart(self) -> None:
+        pass
+
+    def _update_chart(self) -> None:
+        if self._is_executing or self._is_updating_chart:
+            return
+
+        self._is_updating_chart = True
+        try:
+            self.update_chart()
+        finally:
+            self._clear_cached_methods()
+            self._is_updating_chart = False
+
     def _update_position(self) -> None:
         self._wait_until_executing_orders_are_fully_handled()
 
@@ -849,7 +948,7 @@ class Strategy(ABC):
                 self._prepare_buy(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.buy, self._buy):
+                if not _np_array_equal(self.buy, self._buy):
                     self._buy = self.buy.copy()
 
                     # cancel orders
@@ -865,7 +964,7 @@ class Strategy(ABC):
                 self._prepare_sell(make_copies=False)
 
                 # if entry has been modified
-                if not np.array_equal(self.sell, self._sell):
+                if not _np_array_equal(self.sell, self._sell):
                     self._sell = self.sell.copy()
 
                     # cancel orders
@@ -881,7 +980,8 @@ class Strategy(ABC):
                 self._prepare_stop_loss(False)
 
                 # if stop_loss has been modified
-                if not np.array_equal(self.stop_loss, self._stop_loss):
+                if not _np_array_equal(self.stop_loss, self._stop_loss):
+                    self._validate_exit_order_values(self.stop_loss, 'stop_loss')
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -924,7 +1024,8 @@ class Strategy(ABC):
                 self._prepare_take_profit(False)
 
                 # if _take_profit has been modified
-                if not np.array_equal(self.take_profit, self._take_profit):
+                if not _np_array_equal(self.take_profit, self._take_profit):
+                    self._validate_exit_order_values(self.take_profit, 'take_profit')
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -970,7 +1071,7 @@ class Strategy(ABC):
         if (
                 self.position.is_open
                 and (self.stop_loss is not None and self.take_profit is not None)
-                and np.array_equal(self.stop_loss, self.take_profit)
+                and _np_array_equal(self.stop_loss, self.take_profit)
                 and len(self.stop_loss) > 0
         ):
             raise exceptions.InvalidStrategy(
@@ -1000,7 +1101,8 @@ class Strategy(ABC):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # should cancel entry?
-        if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
+        if (len(self.entry_orders) and self.is_close and not self._has_entries_awaiting_fill()
+                and self.should_cancel_entry()):
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -1148,8 +1250,14 @@ class Strategy(ABC):
     def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
         
-        # get the last closed trade
-        closed_trade = store.closed_trades.trades[-1]
+        # Exactly the trade this closure recorded: neither another route's latest trade nor an
+        # older trade of this route when the closure recorded none.
+        closed_trade = store.closed_trades.pop_closure(self.exchange, self.symbol)
+        if closed_trade is None:
+            logger.info(
+                f'No closed trade was recorded for {self.exchange}-{self.symbol}; '
+                'on_close_position() receives None for closed_trade.'
+            )
 
         self._broadcast('route-close-position')
         self._execute_cancel()
@@ -1250,6 +1358,8 @@ class Strategy(ABC):
         self.before()
         self._check()
         self.after()
+        if not self.is_live:
+            self.update_chart()
         self._clear_cached_methods()
 
         # Clear the cached price
@@ -1285,6 +1395,7 @@ class Strategy(ABC):
             should_long = self.should_long()
             should_short = self.should_short()
             self.after()
+            self.update_chart()
         finally:
             self._clear_cached_methods()
             self._cached_price = None
@@ -1671,7 +1782,7 @@ class Strategy(ABC):
         return self.position.liquidation_price
 
     @staticmethod
-    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: str = None) -> None:
+    def log(msg: str, log_type: str = 'info', send_notification: bool = False, webhook: Optional[str] = None) -> None:
         msg = str(msg)
 
         if log_type == 'info':
@@ -1729,28 +1840,28 @@ class Strategy(ABC):
         return store.orders.get_orders(self.exchange, self.symbol)
 
     @property
-    def entry_orders(self):
+    def entry_orders(self) -> List[Order]:
         """
         Returns all the entry orders for this position.
         """
         return order_service.get_entry_orders(self.exchange, self.symbol)
 
     @property
-    def exit_orders(self):
+    def exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_exit_orders(self.exchange, self.symbol)
 
     @property
-    def active_exit_orders(self):
+    def active_exit_orders(self) -> List[Order]:
         """
         Returns all the exit orders for this position.
         """
         return order_service.get_active_exit_orders(self.exchange, self.symbol)
 
     @property
-    def exchange_type(self):
+    def exchange_type(self) -> str:
         return store.exchanges.get_exchange(self.exchange).type
 
     @property
@@ -1762,7 +1873,7 @@ class Strategy(ABC):
         return self.exchange_type == 'futures'
 
     @property
-    def daily_balances(self):
+    def daily_balances(self) -> list:
         return store.app.daily_balance
 
     @property
@@ -1780,6 +1891,15 @@ class Strategy(ABC):
     @property
     def is_live(self) -> bool:
         return jh.is_live()
+
+    @property
+    def is_trading_hours(self) -> bool:
+        """
+        Whether the current decision time (self.time) falls inside self.trading_hours().
+        Always True when trading_hours() returns None. Use it as the entry gate in
+        should_long()/should_short() and for the unfilled-entry policy in should_cancel_entry().
+        """
+        return trading_hours_service.is_in_trading_hours(int(self.time), self.trading_hours())
 
     @property
     def min_qty(self) -> float:

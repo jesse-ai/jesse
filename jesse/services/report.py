@@ -137,6 +137,62 @@ def livetrade():
     }
 
 
+def strategy_charts() -> dict:
+    """
+    Full snapshot of every route's strategy-drawn chart data (the
+    add_line_to_candle_chart() family), keyed by route key
+    (exchange-symbol-timeframe). Used to hydrate the live dashboard chart
+    after a page (re)load.
+    """
+    result = {}
+    for r in router.routes:
+        if r.strategy is None:
+            continue
+        result[jh.key(r.exchange, r.symbol, r.timeframe)] = {
+            'lines': r.strategy._add_line_to_candle_chart_values,
+            'horizontal_lines': r.strategy._add_horizontal_line_to_candle_chart_values,
+            'extra_charts': r.strategy._add_extra_line_chart_values,
+            'horizontal_extra_lines': r.strategy._add_horizontal_line_to_extra_chart_values,
+        }
+    return result
+
+
+def strategy_charts_updates() -> dict:
+    """
+    The last point of each strategy-drawn chart line plus the current
+    horizontal lines, keyed by route key. Small enough to publish on every
+    dashboard tick; the frontend applies it idempotently with series.update().
+    """
+    result = {}
+    for r in router.routes:
+        if r.strategy is None:
+            continue
+
+        lines = {
+            title: item['data'][-1]
+            for title, item in r.strategy._add_line_to_candle_chart_values.items()
+            if item['data']
+        }
+
+        extra_charts = {}
+        for chart_name, chart_lines in r.strategy._add_extra_line_chart_values.items():
+            chart_updates = {
+                title: item['data'][-1]
+                for title, item in chart_lines.items()
+                if item['data']
+            }
+            if chart_updates:
+                extra_charts[chart_name] = chart_updates
+
+        result[jh.key(r.exchange, r.symbol, r.timeframe)] = {
+            'lines': lines,
+            'horizontal_lines': r.strategy._add_horizontal_line_to_candle_chart_values,
+            'extra_charts': extra_charts,
+            'horizontal_extra_lines': r.strategy._add_horizontal_line_to_extra_chart_values,
+        }
+    return result
+
+
 def portfolio_metrics() -> Union[dict, None]:
     if store.closed_trades.count == 0:
         return None

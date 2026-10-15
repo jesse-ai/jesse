@@ -1,15 +1,53 @@
 from typing import List, Dict
 import os
+import sys
 import uuid
 import numpy as np
 from jesse.services import candle_service, exchange_service, order_service, position_service
 from jesse.services import charts
 from jesse.services.validators import validate_routes
+from jesse.services.simulation_assumptions import resolve_annualization
 from jesse.modes.backtest_mode import simulator
 from jesse.config import config as jesse_config, reset_config, set_config
 from jesse.routes import router
 from jesse.store import store
 import jesse.helpers as jh 
+
+
+def _validate_observed_one_minute_candles(candles: dict) -> None:
+    """Validate provider-observed source rows before mutating research runtime state."""
+    if not candles:
+        raise ValueError('At least one observed candle series is required.')
+    for candle_data in candles.values():
+        candle_service.validate_observed_one_minute_candles(
+            candle_data['candles'],
+            candle_data['exchange'],
+            candle_data['symbol'],
+        )
+
+
+def _validate_contiguous_one_minute_candles(candles: dict) -> None:
+    """Retain dense-only validation for research engines not yet migrated to timestamp replay."""
+    _validate_observed_one_minute_candles(candles)
+    for candle_data in candles.values():
+        differences = np.diff(candle_data['candles'][:, 0])
+        invalid_indices = np.flatnonzero(differences != 60_000)
+        if len(invalid_indices) == 0:
+            continue
+        index = int(invalid_indices[0])
+        previous_timestamp = int(candle_data['candles'][index, 0])
+        actual_timestamp = int(candle_data['candles'][index + 1, 0])
+        difference = actual_timestamp - previous_timestamp
+        if difference > 60_000 and difference % 60_000 == 0:
+            missing_count = difference // 60_000 - 1
+            candle_word = 'candle' if missing_count == 1 else 'candles'
+            raise ValueError(
+                f'Missing {missing_count} one-minute {candle_word} for '
+                f"{candle_data['symbol']} on {candle_data['exchange']}."
+            )
+        raise ValueError(
+            f"Candles for {candle_data['symbol']} on {candle_data['exchange']} must be continuous 1m rows."
+        )
 
 
 def backtest(
@@ -18,7 +56,6 @@ def backtest(
         data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
-        generate_tradingview: bool = False,
         generate_hyperparameters: bool = False,
         generate_equity_curve: bool = False,
         benchmark: bool = False,
@@ -41,6 +78,8 @@ def backtest(
         'starting_balance': 5_000,
         'fee': 0.005,
         'type': 'futures',
+        'simulation_model': 'perpetual_futures',
+        'annualization': 365,
         'futures_leverage': 3,
         'futures_leverage_mode': 'cross',
         'exchange': 'Binance',
@@ -70,7 +109,6 @@ def backtest(
         warmup_candles,
         run_silently=True,
         hyperparameters=hyperparameters,
-        generate_tradingview=generate_tradingview,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -84,6 +122,19 @@ def backtest(
     )
 
 
+def _reset_research_runtime_state() -> None:
+    """Restore every process-wide service owned by a research run."""
+    reset_config()
+    router._reset()
+    store.reset()
+
+    # Avoid constructing the API singleton while no routes are configured. If
+    # it already exists, its sandbox drivers belong to the completed session.
+    api_module = sys.modules.get('jesse.services.api')
+    if api_module is not None:
+        api_module.api.reset_drivers()
+
+
 def _isolated_backtest(
         config: dict,
         routes: List[Dict[str, str]],
@@ -92,7 +143,6 @@ def _isolated_backtest(
         warmup_candles: dict = None,
         run_silently: bool = True,
         hyperparameters: dict = None,
-        generate_tradingview: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
@@ -104,6 +154,54 @@ def _isolated_backtest(
         candles_pipeline_kwargs: dict = None,
         generate_charts: bool = False,
 ) -> dict:
+    # Validate before configuration, routes, or stores are mutated so both execution modes fail identically.
+    _validate_observed_one_minute_candles(candles)
+
+    _reset_research_runtime_state()
+    try:
+        return _execute_isolated_backtest(
+            config,
+            routes,
+            data_routes,
+            candles,
+            warmup_candles,
+            run_silently=run_silently,
+            hyperparameters=hyperparameters,
+            generate_csv=generate_csv,
+            generate_json=generate_json,
+            generate_equity_curve=generate_equity_curve,
+            benchmark=benchmark,
+            generate_hyperparameters=generate_hyperparameters,
+            generate_logs=generate_logs,
+            fast_mode=fast_mode,
+            candles_pipeline_class=candles_pipeline_class,
+            candles_pipeline_kwargs=candles_pipeline_kwargs,
+            generate_charts=generate_charts,
+        )
+    finally:
+        _reset_research_runtime_state()
+
+
+def _execute_isolated_backtest(
+        config: dict,
+        routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
+        candles: dict,
+        warmup_candles: dict = None,
+        run_silently: bool = True,
+        hyperparameters: dict = None,
+        generate_csv: bool = False,
+        generate_json: bool = False,
+        generate_equity_curve: bool = False,
+        benchmark: bool = False,
+        generate_hyperparameters: bool = False,
+        generate_logs: bool = False,
+        fast_mode: bool = False,
+        candles_pipeline_class = None,
+        candles_pipeline_kwargs: dict = None,
+        generate_charts: bool = False,
+) -> dict:
+
     jesse_config['app']['trading_mode'] = 'backtest'
 
     # inject (formatted) configuration values
@@ -117,24 +215,13 @@ def _isolated_backtest(
     validate_routes(router)
     # initiate candle store
     store.candles.init_storage(5000)
+    store.candles.enforce_warmup = jesse_config['env']['data']['warmup_candles_num'] > 0
     # initialize exchanges state
     exchange_service.initialize_exchanges_state()
     # initialize orders state
     order_service.initialize_orders_state()
     # initialize positions state
     position_service.initialize_positions_state()
-
-    # assert that the passed candles are 1m candles
-    for key, value in candles.items():
-        candle_set = value['candles']
-        if candle_set[1][0] - candle_set[0][0] != 60_000:
-            raise ValueError(
-                f'Candles passed to the research.backtest() must be 1m candles. '
-                f'\nIf you wish to trade other timeframes, notice that you need to pass it through '
-                f'the timeframe option in your routes. '
-                f'\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than '
-                f'the accepted 60000 milliseconds.'
-            )
 
     trading_candles_dict = {
         k: {**v, 'candles': np.copy(v['candles'])} for k, v in candles.items()
@@ -145,13 +232,19 @@ def _isolated_backtest(
 
     # if warmup_candles is passed, use it
     if warmup_candles:
+        # The latest instrument start is the first boundary shared by every stream.
+        initial_common_start = max(
+            int(candle_data['candles'][0, 0])
+            for candle_data in trading_candles_dict.values()
+        )
         for c in jesse_config['app']['considering_candles']:
             key = jh.key(c[0], c[1])
             # inject warm-up candles
             candle_service.inject_warmup_candles_to_store(
                 warmup_candles_dict[key]['candles'],
                 c[0],
-                c[1]
+                c[1],
+                available_at=initial_common_start,
             )
 
     # run backtest simulation
@@ -159,7 +252,6 @@ def _isolated_backtest(
         trading_candles_dict,
         run_silently,
         hyperparameters=hyperparameters,
-        generate_tradingview=generate_tradingview,
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
@@ -184,18 +276,22 @@ def _isolated_backtest(
         backtest_result['charts_session_id'] = _session_id
         backtest_result['charts_folder'] = _charts_folder
 
+    empty_metrics = {
+        'total': 0,
+        'win_rate': 0,
+        'net_profit_percentage': 0,
+        'annualization': int(resolve_annualization(config)),
+    }
     result = {
-        'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
+        'metrics': empty_metrics,
         'logs': None,
     }
 
     if backtest_result['metrics'] is None:
-        result['metrics'] = {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
+        result['metrics'] = empty_metrics
     else:
         result['metrics'] = backtest_result['metrics']
 
-    if generate_tradingview:
-        result['tradingview'] = backtest_result['tradingview']
     if generate_csv:
         result['csv'] = backtest_result['csv']
     if generate_json:
@@ -214,10 +310,6 @@ def _isolated_backtest(
     if 'trades' in backtest_result:
         result['trades'] = backtest_result['trades']
 
-    # reset store and config so rerunning would be flawlessly possible
-    reset_config()
-    store.reset()
-
     return result
 
 
@@ -226,10 +318,19 @@ def _format_config(config):
     Jesse's required format for user_config is different from what this function accepts (so it
     would be easier to write for the researcher). Hence, we need to reformat the config_dict:
     """
+    from jesse.services.simulation_assumptions import (
+        legacy_type_from_simulation_model,
+        resolve_simulation_model,
+    )
+
+    simulation_model = resolve_simulation_model(config, config.get('type', 'futures'))
+    exchange_type = legacy_type_from_simulation_model(simulation_model)
     exchange_config = {
         'balance': config['starting_balance'],
         'fee': config['fee'],
-        'type': config['type'],
+        'type': exchange_type,
+        'simulation_model': simulation_model.value,
+        'annualization': int(resolve_annualization(config)),
         'name': config['exchange'],
     }
     # futures exchange has different config, so:

@@ -80,9 +80,15 @@ class Position:
 
         :return: str
         """
-        if self.is_long:
+        # flattened is_long/is_short: read qty and _min_qty once instead of
+        # paying for up to two full property chains — this runs several times
+        # per simulated candle (semantics identical: qty > min == is_long,
+        # qty < -abs(min) == is_short)
+        qty = self.qty
+        min_qty = self._min_qty
+        if qty > min_qty:
             return 'long'
-        elif self.is_short:
+        elif qty < -abs(min_qty):
             return 'short'
 
         return 'close'
@@ -169,7 +175,8 @@ class Position:
 
         :return: bool
         """
-        return self.type in ['long', 'short']
+        # self.type only ever returns 'long', 'short' or 'close'
+        return self.type != 'close'
 
     @property
     def is_close(self) -> bool:

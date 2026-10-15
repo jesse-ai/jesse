@@ -1,10 +1,10 @@
 import os
 import time
 import traceback
-from datetime import timedelta
 from typing import Dict, List, Optional
 
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
 from jesse.models.SignificanceTestSession import (
@@ -41,25 +41,23 @@ class SignificanceTestRunner:
 
         self.start_time = jh.now_to_timestamp()
 
-        # Periodic termination check
-        client_id = jh.get_session_id()
-        from timeloop import Timeloop
-        self.tl = Timeloop()
+        self.client_id = jh.get_session_id()
 
-        @self.tl.job(interval=timedelta(seconds=1))
-        def check_for_termination():
-            if is_process_active(client_id) is False:
-                session = get_significance_test_session_by_id(self.session_id)
-                if session and session.status != 'terminated':
-                    update_significance_test_session_status(self.session_id, 'stopped')
-                raise exceptions.Termination
+    def _raise_if_cancelled(self) -> None:
+        """Stop inside the active execution path when cancellation is requested."""
+        if not is_process_active(self.client_id):
+            raise exceptions.Termination
 
-        self.tl.start()
+    def _mark_stopped_unless_terminated(self) -> None:
+        """Preserve the explicit terminal status selected by the user."""
+        session = get_significance_test_session_by_id(self.session_id)
+        if session is None or session.status not in {'stopped', 'terminated'}:
+            update_significance_test_session_status(self.session_id, 'stopped')
 
     def run(self) -> None:
-        jh.debug(f"Rule Significance Test started: {self.n_simulations} simulations")
-
         try:
+            jh.debug(f"Rule Significance Test started: {self.n_simulations} simulations")
+            self._raise_if_cancelled()
             self._publish_general_info()
             self._run_significance_test()
             update_significance_test_session_status(self.session_id, 'finished')
@@ -73,28 +71,25 @@ class SignificanceTestRunner:
             })
 
         except exceptions.Termination:
-            update_significance_test_session_status(self.session_id, 'stopped')
+            self._mark_stopped_unless_terminated()
             raise
 
         except Exception as e:
             error_traceback = traceback.format_exc()
+            error = f'{type(e).__name__}: {e}'
             update_significance_test_session_status(self.session_id, 'stopped')
-            store_significance_test_exception(self.session_id, str(e), error_traceback)
+            store_significance_test_exception(self.session_id, error, error_traceback)
             sync_publish('exception', {
-                'error': str(e),
+                'error': error,
                 'traceback': error_traceback
             })
             raise
 
-        finally:
-            try:
-                self.tl.stop()
-            except Exception:
-                pass
-
     def _publish_general_info(self):
         sync_publish('general_info', {
-            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(),
+            'started_at': jh.timestamp_to_arrow(self.start_time).humanize(
+                jh.timestamp_to_arrow(jh.now(force_fresh=True))
+            ),
             'n_simulations': self.n_simulations,
         })
 
@@ -102,11 +97,14 @@ class SignificanceTestRunner:
         from jesse.research.rule_significance_testing import rule_significance_test, plot_significance_test
 
         # Build config same format as research.backtest()
-        # Fee, balance, type, leverage are hardcoded - they do not affect rule significance testing
+        exchange_config = self.user_config.get('exchange', {})
+        # Fee, balance, and leverage do not affect this signal-only calculation.
         config = {
             'starting_balance': 10000,
             'fee': 0,
-            'type': 'futures',
+            'type': exchange_config.get('type', 'futures'),
+            'simulation_model': exchange_config.get('simulation_model'),
+            'annualization': exchange_config.get('annualization', 365),
             'futures_leverage': 1,
             'futures_leverage_mode': 'cross',
             'warm_up_candles': self.user_config.get('warm_up_candles', 210),
@@ -118,6 +116,7 @@ class SignificanceTestRunner:
 
         def progress_callback(current_progress: int, total_progress: int):
             nonlocal last_update_time
+            self._raise_if_cancelled()
             current_time = time.time()
             should_publish = (
                 last_update_time is None
@@ -133,14 +132,17 @@ class SignificanceTestRunner:
                 else:
                     estimated_remaining = 0
                 sync_publish('progressbar', {
+                    'message': 'Testing randomized strategy signals…',
                     'current': completed_sims,
                     'total': self.n_simulations,
                     'estimated_remaining_seconds': estimated_remaining,
                 })
                 last_update_time = current_time
 
-        # Publish initial progress
+        # Signal generation precedes the measurable simulation phase.
         sync_publish('progressbar', {
+            'message': 'Calculating strategy signals…',
+            'indeterminate': True,
             'current': 0,
             'total': self.n_simulations,
             'estimated_remaining_seconds': 0,
@@ -157,6 +159,7 @@ class SignificanceTestRunner:
             progress_bar=False,
             progress_callback=progress_callback,
         )
+        self._raise_if_cancelled()
 
         # Publish completion progress
         sync_publish('progressbar', {
@@ -165,6 +168,7 @@ class SignificanceTestRunner:
             'estimated_remaining_seconds': 0,
         })
 
+        publish_status('Generating significance charts and saving results…', total=self.n_simulations)
         # Generate chart image (theme-aware)
         charts_folder = os.path.abspath('storage/significance-test-charts')
         chart_path = plot_significance_test(
@@ -173,8 +177,7 @@ class SignificanceTestRunner:
             theme=self.theme,
             show_title=False,
         )
-
-
+        self._raise_if_cancelled()
 
         # Store safe serializable results (simulated_means is a numpy array → list)
         safe_result = {

@@ -4,7 +4,7 @@ from jesse.config import config
 import jesse.helpers as jh
 from jesse import exceptions
 from jesse.models.Route import Route
-from jesse import exceptions
+
 
 class RouterClass:
     def __init__(self) -> None:
@@ -26,14 +26,14 @@ class RouterClass:
 
         # validate routes for duplicates:
         # each exchange-symbol pair can be traded only once.
-        for r in router.routes:
+        for r in self.routes:
             considering_candles.add((r.exchange, r.symbol))
 
             exchange = r.exchange
             symbol = r.symbol
             count = sum(
                 ro.exchange == exchange and ro.symbol == symbol
-                for ro in router.routes
+                for ro in self.routes
             )
 
             if count != 1:
@@ -42,16 +42,17 @@ class RouterClass:
 
         # check to make sure if trading more than one route, they all have the same quote
         # currency because otherwise we cannot calculate the correct performance metrics
-        first_routes_quote = jh.quote_asset(router.routes[0].symbol)
-        for r in router.routes:
-            if jh.quote_asset(r.symbol) != first_routes_quote:
-                raise exceptions.InvalidRoutes('All trading routes must have the same quote asset.')
+        if self.routes:
+            first_routes_quote = jh.quote_asset(self.routes[0].symbol)
+            for r in self.routes:
+                if jh.quote_asset(r.symbol) != first_routes_quote:
+                    raise exceptions.InvalidRoutes('All trading routes must have the same quote asset.')
 
         trading_exchanges = set()
         trading_timeframes = set()
         trading_symbols = set()
 
-        for r in router.routes:
+        for r in self.routes:
             trading_exchanges.add(r.exchange)
             trading_timeframes.add(r.timeframe)
             trading_symbols.add(r.symbol)
