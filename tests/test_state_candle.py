@@ -328,3 +328,35 @@ def test_live_trade_updates_every_route_timeframe_of_its_symbol(monkeypatch):
     np.testing.assert_array_equal(updated, expected)
     for timeframe in ('15m', '1h'):
         np.testing.assert_array_equal(candle_service.get_current_candle('Sandbox', 'BTC-USD', timeframe), expected)
+
+
+def _live_one_minute_trades(monkeypatch, now):
+    set_up()
+    config['app']['considering_timeframes'] = ['1m']
+    config['env']['data']['generate_candles_from_1m'] = True
+    store.reset()
+    store.candles.init_storage()
+    store.candles.initiated_pairs['Sandbox-BTC-USD'] = True
+    exchange = SimpleNamespace(vars={'precisions': {'BTC-USD': {'price_precision': 2}}})
+    monkeypatch.setattr(candle_service.jh, 'is_live', lambda: True)
+    monkeypatch.setattr(candle_service.jh, 'now', lambda: now)
+    monkeypatch.setattr(store.positions, 'get_position', lambda exchange, symbol: SimpleNamespace(current_price=0))
+    monkeypatch.setattr(store.exchanges, 'get_exchange', lambda name: exchange)
+    monkeypatch.setattr(candle_service.candle_repository, 'store_candle_into_db', lambda *args, **kwargs: None)
+    return store.candles.get_storage('Sandbox', 'BTC-USD', '1m')
+
+
+def test_late_trade_updates_the_candle_it_belongs_to(monkeypatch):
+    start = 1_700_000_040_000
+    arr = _live_one_minute_trades(monkeypatch, now=start + 60_000 + 2_000)
+    arr.append(np.array([start, 10, 11, 12, 9, 5], dtype=np.float64))
+
+    # Traded one second before the minute closed, received two seconds after it.
+    result = candle_service.add_candle_from_trade(
+        {'price': 12.5, 'volume': 2, 'timestamp': start + 59_000}, 'Sandbox', 'BTC-USD',
+    )
+
+    assert result is None
+    np.testing.assert_array_equal(arr[-2], np.array([start, 10, 12.5, 12.5, 9, 7]))
+    # the new minute stays an untouched placeholder
+    np.testing.assert_array_equal(arr[-1], np.array([start + 60_000, 11, 11, 11, 11, 0]))

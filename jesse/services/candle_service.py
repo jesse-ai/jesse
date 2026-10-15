@@ -651,7 +651,7 @@ def add_candle_from_trade(trade, exchange: str, symbol: str) -> np.ndarray | Non
     # update position's current price
     _update_position_current_price(exchange, symbol, trade['price'])
 
-    def do(t) -> np.ndarray:
+    def do(t) -> np.ndarray | None:
         # in some cases we might be missing the current forming candle like it is on FTX, hence
         # if that is the case, generate the current forming candle (it won't be super accurate)
         current_candle = get_current_candle(exchange, symbol, t)
@@ -660,6 +660,21 @@ def add_candle_from_trade(trade, exchange: str, symbol: str) -> np.ndarray | Non
             add_candle(new_candle, exchange, symbol, t)
 
         current_candle = get_current_candle(exchange, symbol, t)
+
+        # A trade from the previous candle can arrive after that candle closed; when the
+        # exchange gives the trade's time, it is added to the candle it belongs to.
+        trade_timestamp = trade.get('timestamp')
+        if trade_timestamp is not None and trade_timestamp < current_candle[0]:
+            arr = store.candles.get_storage(exchange, symbol, t)
+            if len(arr) < 2 or not arr[-2][0] <= trade_timestamp:
+                return None
+            previous_candle = arr[-2].copy()
+            previous_candle[2] = trade['price']
+            previous_candle[3] = max(previous_candle[3], trade['price'])
+            previous_candle[4] = min(previous_candle[4], trade['price'])
+            previous_candle[5] += trade['volume']
+            add_candle(previous_candle, exchange, symbol, t, with_execution=False)
+            return None
 
         new_candle = current_candle.copy()
         # close
