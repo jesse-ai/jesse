@@ -45,14 +45,28 @@ class KrakenSpotMain(CandleExchange):
         self._altname_cache = {}
         self._wsname_to_altname = {}
 
+    @staticmethod
+    def _raise_for_errors(data: dict) -> None:
+        # Kraken answers HTTP 200 and lists errors in the body. Rate limits and service
+        # outages are temporary, so they must reach the callers' retry handling instead of
+        # being reported as an unknown symbol.
+        errors = data.get('error')
+        if not errors:
+            return
+        joined = ', '.join(str(e) for e in errors)
+        if any('Too many requests' in e or 'Rate limit exceeded' in e for e in errors):
+            raise requests.exceptions.ConnectionError(f'Kraken rate limit reached: {joined}')
+        if any(str(e).startswith('EService:') for e in errors):
+            raise requests.exceptions.ConnectionError(f'Kraken service unavailable: {joined}')
+        raise exceptions.SymbolNotFound(joined)
+
     def _load_asset_pairs(self) -> None:
         if self._altname_cache:
             return
         response = self.session.get(self.endpoint + '/0/public/AssetPairs', timeout=10)
         self.validate_response(response)
         data = response.json()
-        if data.get('error'):
-            raise exceptions.SymbolNotFound(str(data['error']))
+        self._raise_for_errors(data)
         for altname, info in data['result'].items():
             wsname = info.get('wsname')  # e.g. "XBT/USD" -> dashy "BTC-USD"; we normalize Kraken aliases
             if not wsname:
@@ -87,8 +101,7 @@ class KrakenSpotMain(CandleExchange):
         response = self.session.get(self.endpoint + '/0/public/OHLC', params=payload, timeout=10)
         self.validate_response(response)
         data = response.json()
-        if data.get('error'):
-            raise exceptions.SymbolNotFound(str(data['error']))
+        self._raise_for_errors(data)
         # result is keyed by the pair's canonical name (not necessarily the altname we sent)
         result = data['result']
         candles = next(v for k, v in result.items() if k != 'last')
@@ -107,8 +120,7 @@ class KrakenSpotMain(CandleExchange):
         response = self.session.get(self.endpoint + '/0/public/OHLC', params=payload, timeout=10)
         self.validate_response(response)
         data = response.json()
-        if data.get('error'):
-            raise exceptions.SymbolNotFound(str(data['error']))
+        self._raise_for_errors(data)
 
         result = data['result']
         candles = next(v for k, v in result.items() if k != 'last')
