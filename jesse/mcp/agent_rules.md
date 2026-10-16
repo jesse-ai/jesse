@@ -166,6 +166,12 @@ Improvement Workflow:
 5. Re-run backtest and compare metrics
 6. Iterate with small, controlled changes to the same strategy file
 
+Strategy Variations:
+- When the user asks to research, test, or compare strategy variations (or variants, versions, alternatives), a variation is a change to the strategy's code: a different entry or exit rule, filter, indicator, timeframe, position sizing, or trade management. Write each one, backtest it, and compare the results.
+- Optimization trials are NOT variations. They only try different values for the `hyperparameters()` of one fixed piece of code, so an optimization session with 200 trials is still one variation. Never answer a request for variations with an optimization session alone.
+- Keep variations comparable: give each one its own strategy folder (create or copy it, then rename the class as described under Project Files), backtest them on the same routes, period, and settings, and report them side by side.
+- Optimization is still fine as a later step: tune a variation after its code is written and backtested, and report that as tuning of that variation.
+
 Optimization Principles:
 - Prefer simple rules, clear conditions, limited indicators, strong risk control
 - Focus on parameter tuning over complexity
