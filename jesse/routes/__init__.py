@@ -1,9 +1,13 @@
 import sys
-from typing import Dict, List, Any
+from typing import Dict, List, Any, TYPE_CHECKING
 from jesse.config import config
 import jesse.helpers as jh
 from jesse import exceptions
-from jesse.models.Route import Route
+
+if TYPE_CHECKING:
+    # jesse.models imports this module back (through store and the exchange models), so importing
+    # it at load time breaks whenever jesse.routes is imported first, e.g. by the live plugin.
+    from jesse.models.Route import Route
 
 
 class RouterClass:
@@ -106,9 +110,11 @@ class RouterClass:
                 raise exceptions.InvalidRoutes(
                     f'A strategy with the name of "{r["strategy"]}" could not be found.')
 
+            from jesse.models.Route import Route
             self.routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None))
 
     def set_data_routes(self, routes: List[Dict[str, str]]) -> None:
+        from jesse.models.Route import Route
         self.data_routes: List[Route] = []
         for r in routes:
             self.data_routes.append(Route(r['exchange'], r['symbol'], r['timeframe'], None, None))
