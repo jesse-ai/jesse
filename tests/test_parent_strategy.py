@@ -1271,3 +1271,23 @@ def test_base_and_quote_asset_properties():
 
 def test_trading_hours_gate_filter_and_cancel_policy():
     single_route_backtest('TestTradingHours')
+
+
+def test_trading_hours_gate_judges_the_candle_that_just_closed():
+    # 15m route, 1m candles from Fri 2026-03-06 00:00 UTC through Wed 2026-03-11 23:59 UTC,
+    # spanning the US DST switch; the edge assertions live in the strategy
+    set_up()
+    start = 1772755200000  # 2026-03-06T00:00:00Z
+    count = 6 * 1440
+    prices = np.full(count, 100.0)
+    candles = np.zeros((count, 6))
+    candles[:, 0] = start + np.arange(count) * 60_000
+    candles[:, 1:5] = prices[:, None]
+    candles[:, 5] = 1
+    routes = [{'symbol': 'BTC-USDT', 'timeframe': timeframes.MINUTE_15, 'strategy': 'TestTradingHoursCandleEdges'}]
+    backtest_mode.run(
+        '000', False, {}, exchanges.SANDBOX, routes, [], '2026-03-06', '2026-03-12',
+        {jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+            'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'candles': candles,
+        }},
+    )

@@ -353,6 +353,7 @@ def filter_candles_by_hours(candles: np.ndarray, hours: Optional[dict]) -> np.nd
     Returns only the candles whose open time falls inside a trading-hours schedule, so
     indicators ignore nights, weekends and holidays of a 24/7 feed (or the extended-hours
     rows of imported stock data). Pure function: the candle store is never touched.
+    Strategy.is_trading_hours uses the same open-time rule for the candle that just closed.
 
     :param candles: np.ndarray - any Jesse candle array (self.candles, get_candles(), research)
     :param hours: dict | None - a schedule dict, or None to return the input unchanged
@@ -364,7 +365,10 @@ def filter_candles_by_hours(candles: np.ndarray, hours: Optional[dict]) -> np.nd
 def is_in_trading_hours(timestamp: int, hours: Optional[dict]) -> bool:
     """
     Whether a UTC-millisecond timestamp falls inside a trading-hours schedule. Always True
-    when hours is None. Strategy.is_trading_hours is this applied to self.time.
+    when hours is None. To judge a candle, pass its OPEN time, as filter_candles_by_hours
+    does. Strategy.is_trading_hours is this applied to self.closed_candle_open_time; use that
+    property for custom sub-windows too, not self.time (the decision moment is the close of
+    the candle that just finished, so self.time is one candle late at every window edge).
 
     :param timestamp: int - UTC milliseconds
     :param hours: dict | None - a schedule dict, or None

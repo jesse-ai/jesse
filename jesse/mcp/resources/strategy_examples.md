@@ -1070,7 +1070,8 @@ class SessionBreakout(Strategy):
         return ta.atr(self.session_candles)
 
     def should_long(self) -> bool:
-        # Never decide an entry outside the session
+        # Only decide on session candles: the gate judges the candle that just closed by its
+        # open time, like session_candles, so the decision at 09:30 (pre-open candle) is skipped
         if not self.is_trading_hours:
             return False
         return self.close > self.donchian.upperband
@@ -1079,7 +1080,8 @@ class SessionBreakout(Strategy):
         return False
 
     def should_cancel_entry(self) -> bool:
-        # An entry that did not fill by the close is cancelled, not left working overnight
+        # An entry that did not fill by the close is cancelled once the first after-close
+        # candle has closed, not left working overnight
         return not self.is_trading_hours
 
     def go_long(self):

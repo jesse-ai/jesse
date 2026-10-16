@@ -274,7 +274,8 @@ The `Position` object exposes: `entry_price`, `qty`, `opened_at`, `value`, `type
 | `is_spot_trading` / `is_futures_trading` | bool | Market type checks. |
 | `is_backtesting` / `is_livetrading` / `is_papertrading` | bool | Run-mode checks. |
 | `is_live` | bool | True if live **or** paper trading. |
-| `is_trading_hours` | bool | True when `self.time` is inside the schedule returned by `trading_hours()`; always True when that returns `None`. |
+| `is_trading_hours` | bool | True when the candle that just closed (its open time, `closed_candle_open_time`) is inside the schedule returned by `trading_hours()`, the same rule `utils.filter_candles_by_hours` uses; always True when that returns `None`. |
+| `closed_candle_open_time` | int | Open timestamp (UTC ms) of the candle that just closed on this route, i.e. `self.time` minus one candle at decision time; never a still-forming candle. Pass it, not `self.time`, to `utils.is_in_trading_hours` for custom sub-windows. |
 | `hp` | dict | Hyperparameter values keyed by name (see Optimization). |
 | `vars` | dict | Per-strategy scratch dict. |
 | `shared_vars` | dict | Dict shared across all routes (cross-route communication). |
@@ -416,7 +417,10 @@ and `'00:00-24:00'` is a whole day. More schedules:
 
 Rules:
 
-- `self.is_trading_hours` is true when `self.time` is inside the schedule. Gate **entries** with it
+- `self.is_trading_hours` is true when the candle that just closed is a session candle, judged by
+  its **open** time exactly like `filter_candles_by_hours`. `self.time` is that candle's close,
+  so with `'04:00-20:00'` on 15m the 04:00 decision is outside (the 03:45 night candle just
+  closed) and the 20:00 decision is inside (the 19:45 candle). Gate **entries** with it
   (`should_long`/`should_short`). Do **not** gate `update_position()` or exits: stop-loss and
   take-profit stay on the exchange and position management must keep running 24/7.
 - Feed entry indicators the **filtered** candles. Gating entries while still passing raw
@@ -428,7 +432,11 @@ Rules:
   or a closing hour taken from `self.hp` for optimization. Using the same dict in backtest and
   live makes the indicator history match in both.
 - Unfilled entry at the close is the user's policy: `def should_cancel_entry(self): return not self.is_trading_hours`
-  cancels it, returning `False` leaves it working overnight.
+  cancels it once the first out-of-session candle has closed (on 15m with a 20:00 close, at
+  20:15), returning `False` leaves it working overnight.
+- Custom sub-windows (e.g. only the after-hours part of an extended session) use
+  `utils.is_in_trading_hours(self.closed_candle_open_time, WINDOW)`. Passing `self.time` is one
+  candle late at every edge: a `'16:00-20:00'` window would accept the 15:45-16:00 candle.
 
 A complete class is in `jesse://strategy_examples` (SessionBreakout).
 
@@ -470,20 +478,24 @@ Reference: [Trading Hours](https://docs.jesse.trade/docs/strategies/trading-hour
    Do not blindly apply a stock calendar to an unrelated crypto input. Preserve existing
    indicator parameters, signal rules and risk sizing. Never overwrite `self.candles`,
    fabricate closure candles, or substitute a historical session close for the live price.
-5. **Check timeframe alignment and warm-up.** Candle filtering uses candle **open times**,
-   while the entry gate uses the current **decision time**, `self.time`. A bar opening
-   before the session is excluded even if it partly overlaps it. Intraday windows can
-   discard every UTC-midnight `1D` bar; use an appropriate full-day calendar for daily
-   routes and verify the local date mapping. Filtering does not realign or rebuild bars.
-   `warm_up_candles` counts raw candles before filtering: size it for the longest required
-   lookback on each relevant input, including weekends/closures, and verify enough retained
-   candles remain. Do not assume one fixed multiplier works across timeframes and calendars.
+5. **Check timeframe alignment and warm-up.** Candle filtering and the entry gate both use
+   candle **open times**: the gate judges the candle that just closed, not the decision time
+   `self.time` (its close). A bar opening before the session is excluded even if it partly
+   overlaps it, so the first entry decision of a session comes one candle after the open.
+   Any custom sub-window check must pass `self.closed_candle_open_time`, never `self.time`.
+   Intraday windows can discard every UTC-midnight `1D` bar; use an appropriate full-day
+   calendar for daily routes and verify the local date mapping. Filtering does not realign
+   or rebuild bars. `warm_up_candles` counts raw candles before filtering: size it for the
+   longest required lookback on each relevant input, including weekends/closures, and verify
+   enough retained candles remain. Do not assume one fixed multiplier works across
+   timeframes and calendars.
 6. **Keep risk management active.** Do not gate `update_position()`, stop-loss, take-profit
    or exits by market hours, and do not flatten at the close unless requested. Make the
-   unfilled-entry policy explicit: cancel at the first execution outside the session or
-   retain overnight orders as intended. Preserve other cancellation conditions when adding
-   the close condition. Cancellation is evaluated on execution ticks, not guaranteed at
-   the exact wall-clock close. Preserve the target venue's spot/futures order rules.
+   unfilled-entry policy explicit: cancel once the first out-of-session candle has closed
+   (`not self.is_trading_hours`) or retain overnight orders as intended. Preserve other
+   cancellation conditions when adding the close condition. Cancellation is evaluated on
+   execution ticks, not guaranteed at the exact wall-clock close. Preserve the target
+   venue's spot/futures order rules.
 7. **Verify and explain the adaptation.** Read back the saved code and use MCP backtests
    with the selected session and adequate warm-up. Check session boundaries, weekend gaps
    and relevant date exceptions in the available data. State when target-venue history or
@@ -595,7 +607,7 @@ def dna(self):
 - **No dead variables** — don't compute a `stop_loss`/value you never use. If you only set the stop later in `on_open_position()` and don't use it for sizing, don't define it in `go_long()`.
 - **Check position type in `on_open_position()`** — branch on `self.is_long` / `self.is_short` before setting `stop_loss`/`take_profit`.
 - **`on_close_position` takes two args** — `def on_close_position(self, order, closed_trade) -> None`.
-- **Market hours: gate entries *and* filter candles** — for session-bound or stock-linked instruments use `trading_hours()` + `self.is_trading_hours` + `utils.filter_candles_by_hours(...)`. Don't write manual UTC-hour checks, don't reassign `self.candles`, and don't gate `update_position()`/exits by the schedule.
+- **Market hours: gate entries *and* filter candles** — for session-bound or stock-linked instruments use `trading_hours()` + `self.is_trading_hours` + `utils.filter_candles_by_hours(...)`; for custom sub-windows pass `self.closed_candle_open_time` (never `self.time`) to `utils.is_in_trading_hours`. Don't write manual UTC-hour checks, don't reassign `self.candles`, and don't gate `update_position()`/exits by the schedule.
 
 ## Utility Functions (used in strategies)
 

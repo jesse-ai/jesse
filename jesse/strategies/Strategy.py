@@ -612,7 +612,8 @@ class Strategy(ABC):
         ({'timezone': ..., 'hours': {...}, 'closed': [...], 'overrides': {...}}) or None for
         no schedule. It is a method so the answer can depend on self (mode, exchange, symbol,
         hyperparameters). The engine never enforces it; it only feeds self.is_trading_hours
-        and is meant to be passed to utils.filter_candles_by_hours().
+        and is meant to be passed to utils.filter_candles_by_hours(). Both judge a candle by
+        its open time.
         """
         return None
 
@@ -1893,13 +1894,43 @@ class Strategy(ABC):
         return jh.is_live()
 
     @property
+    def closed_candle_open_time(self) -> int:
+        """
+        Open timestamp (UTC ms) of the latest completed candle on this strategy's route: the
+        candle that just closed when should_long()/should_short() run. self.time is that
+        candle's close, so it is one candle later. Between closes (live update_chart() calls,
+        order-fill callbacks) a still-forming candle is never returned; the last completed
+        one is. Pass it to utils.is_in_trading_hours() for custom sub-windows so they match
+        utils.filter_candles_by_hours(), which also keys on candle open time.
+        """
+        candles = self.candles
+        timeframe_ms = jh.timeframe_to_one_minutes(self.timeframe) * 60_000
+        now = int(self.time)
+        if len(candles) == 0:
+            return now - now % timeframe_ms - timeframe_ms
+
+        last_open = int(candles[-1, 0])
+        if last_open + timeframe_ms <= now:
+            return last_open
+        # the last row is still forming (live intrabar, or between closes in a backtest)
+        if len(candles) > 1:
+            return int(candles[-2, 0])
+        return last_open - timeframe_ms
+
+    @property
     def is_trading_hours(self) -> bool:
         """
-        Whether the current decision time (self.time) falls inside self.trading_hours().
-        Always True when trading_hours() returns None. Use it as the entry gate in
-        should_long()/should_short() and for the unfilled-entry policy in should_cancel_entry().
+        Whether the candle that just closed (self.closed_candle_open_time) is a session candle
+        of self.trading_hours(), the same open-time rule utils.filter_candles_by_hours() uses.
+        With a 04:00-20:00 schedule on 15m it is False at the 04:00 decision (the 03:45 candle
+        just closed) and True at the 20:00 one (the 19:45 candle just closed). Always True when
+        trading_hours() returns None. Use it as the entry gate in should_long()/should_short()
+        and for the unfilled-entry policy in should_cancel_entry().
         """
-        return trading_hours_service.is_in_trading_hours(int(self.time), self.trading_hours())
+        hours = self.trading_hours()
+        if hours is None:
+            return True
+        return trading_hours_service.is_in_trading_hours(self.closed_candle_open_time, hours)
 
     @property
     def min_qty(self) -> float:

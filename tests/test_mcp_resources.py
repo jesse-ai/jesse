@@ -97,6 +97,10 @@ def test_strategy_resource_documents_the_trading_hours_api():
     # the two rules an assistant most easily gets wrong
     assert 'The engine enforces nothing' in strategy
     assert 'Do **not** gate `update_position()` or exits' in strategy
+    # the gate and sub-window checks judge the just-closed candle, not self.time
+    assert '`closed_candle_open_time`' in strategy
+    assert 'utils.is_in_trading_hours(self.closed_candle_open_time, WINDOW)' in strategy
+    assert '`self.is_trading_hours` is true when `self.time`' not in strategy
 
 
 def test_documented_trading_hours_names_exist_in_the_real_api():
@@ -108,6 +112,7 @@ def test_documented_trading_hours_names_exist_in_the_real_api():
     assert callable(utils.is_in_trading_hours)
     assert callable(Strategy.trading_hours)
     assert isinstance(Strategy.is_trading_hours, property)
+    assert isinstance(Strategy.closed_candle_open_time, property)
     assert _ALLOWED_KEYS == {'timezone', 'hours', 'closed', 'overrides'}
 
 
@@ -119,6 +124,8 @@ def test_utilities_and_examples_resources_cover_trading_hours():
     utilities = mcp.resources['jesse://utilities']()
     assert '### filter_candles_by_hours(candles, hours)' in utilities
     assert '### is_in_trading_hours(timestamp, hours)' in utilities
+    assert 'utils.is_in_trading_hours(self.closed_candle_open_time, AFTER_HOURS)' in utilities
+    assert 'which is this applied to `self.time`' not in utilities
 
     examples = mcp.resources['jesse://strategy_examples']()
     assert 'class SessionBreakout(Strategy):' in examples
@@ -148,3 +155,4 @@ def test_packaged_agent_rules_mention_trading_hours():
 
     assert 'self.is_trading_hours' in rules
     assert 'utils.filter_candles_by_hours(self.candles, self.trading_hours())' in rules
+    assert 'utils.is_in_trading_hours(self.closed_candle_open_time, ...)' in rules
