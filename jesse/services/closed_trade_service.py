@@ -131,7 +131,7 @@ def close_trade(position: Position) -> None:
     currency = position.exchange.settlement_currency.upper()
     outcome = '🟢' if t.pnl > 0 else '🔴' if t.pnl < 0 else '⚪'
     message = (
-        f'{outcome} Trade closed | {t.symbol} | {t.type.upper()} | {t.exchange}\n'
+        f'{outcome} Trade closed | {t.symbol} | {t.type.upper()} | {store.app.exchange_label(t.exchange)}\n'
         f'Qty: {t.qty} | Entry: {jh.format_price(t.entry_price)} | Exit: {jh.format_price(t.exit_price)}\n'
         f'Net PnL: {t.pnl:+.2f} {currency} ({t.pnl_percentage:+.2f}%) | Fees: {jh.format_price(t.fee)} {currency}'
     )

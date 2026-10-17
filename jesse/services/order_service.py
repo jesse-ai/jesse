@@ -15,7 +15,7 @@ from jesse.services import position_service
 def _order_message(order: Order, event: str, qty: float | None = None) -> str:
     """Keep order logs and channel notifications consistent and identifiable."""
     message = (
-        f'{event} | {order.symbol} | {order.exchange} | {order.side.upper()} {order.type.upper()}'
+        f'{event} | {order.symbol} | {store.app.exchange_label(order.exchange)} | {order.side.upper()} {order.type.upper()}'
         f' | Qty: {abs(order.qty if qty is None else qty)}'
     )
     if order.price:

@@ -570,27 +570,27 @@ class Strategy(ABC):
 
         # call the relevant strategy event handler:
         if effect == 'opening_position':
-            txt = f"📈 Position opened | {self.symbol} | {self.position.type.upper()} | {self.exchange} | Qty: {after_qty} | Entry: {jh.format_price(self.position.entry_price)}"
+            txt = f"📈 Position opened | {self.symbol} | {self.position.type.upper()} | {store.app.exchange_label(self.exchange)} | Qty: {after_qty} | Entry: {jh.format_price(self.position.entry_price)}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.opened_position', True):
                 notifier.notify(txt)
             self._on_open_position(order)
         elif effect == 'closing_position':
-            txt = f"🏁 Position closed | {self.symbol} | {self.exchange}"
+            txt = f"🏁 Position closed | {self.symbol} | {store.app.exchange_label(self.exchange)}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
             # closed_trade_service sends the finalized trade result, including PnL.
             self._on_close_position(order)
         elif effect == 'increased_position':
-            txt = f"➕ Position increased | {self.symbol} | {self.exchange} | Qty: {after_qty}"
+            txt = f"➕ Position increased | {self.symbol} | {store.app.exchange_label(self.exchange)} | Qty: {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
         else:  # if effect == 'reduced_position':
-            txt = f"➖ Position reduced | {self.symbol} | {self.exchange} | Qty: {after_qty}"
+            txt = f"➖ Position reduced | {self.symbol} | {store.app.exchange_label(self.exchange)} | Qty: {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
