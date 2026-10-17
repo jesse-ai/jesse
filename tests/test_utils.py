@@ -100,7 +100,14 @@ def test_risk_to_qty():
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
     # when fee is included
-    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.97
+    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.985
+
+
+def test_risk_to_qty_single_fee_haircut_issue_614():
+    # fee_rate=0 must stay the uncapped-by-fee path (no double-apply possible)
+    assert utils.risk_to_qty(10000, 10, 100, 90, fee_rate=0) == 100
+    # a single (1 - fee_rate * 3) haircut: 10000 * (1 - 0.005 * 3) / 100 == 98.5
+    assert utils.risk_to_qty(10000, 10, 100, 90, fee_rate=0.005) == 98.5
 
 
 def test_risk_to_size():
