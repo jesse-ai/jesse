@@ -391,6 +391,12 @@ All backtest creation parameters have sensible defaults. When a user asks to cre
 - Never ask for missing information - apply defaults
 - This enables natural conversational backtest creation
 
+Run Settings (fee, leverage, and other run config) for backtest, optimization, Monte Carlo, and significance-test drafts:
+- Set them as arguments on `create_*_draft`: `fee` (fraction per side, 0.0006 = 0.06%), `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, and `config_overrides` for any other run-config field of that mode. Omitted ones come from the saved defaults for that mode and exchange, else Jesse's built-in defaults.
+- Never replace a whole draft `state` just to change fee or leverage. Use the partial update: `update_*_draft(id, fee=..., leverage=...)` with no `state` (drafts only).
+- Check `run_config` and `config_warnings` in every create/update response. If a warning says a fee or leverage is only Jesse's built-in default, or that the saved defaults differ from the backtest defaults, pass the values explicitly: match the backtests you are following up on unless the user said otherwise.
+- A different fee or leverage for one run is a draft argument, never a reason to call `update_config`.
+
 Dynamic Data Handling: When backtesting encounters missing candle data, handle errors dynamically.
 
 Error Handling Workflow:

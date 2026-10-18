@@ -16,6 +16,7 @@ Parameters:
 - `strategy_summary` (optional): One-sentence summary of the strategy being tested.
 - `change_summary` (optional): What MCP changed before this backtest, if it edited a strategy.
 - `rationale` (optional): Why MCP made the change or ran this test.
+- Run settings (optional): `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides`. See Run Settings below.
 
 Default Configuration:
 ```json
@@ -34,7 +35,27 @@ Default Configuration:
 }
 ```
 
-Returns: Session ID (UUID format) and configuration object
+Returns: Session ID (UUID format), the draft state, and `run_config` / `config_source` / `config_warnings` (see Run Settings)
+
+#### Run Settings
+
+The run settings shared by all four research draft tools (backtest, optimization, Monte Carlo, significance test). Set them as arguments on create; never edit the draft state to change them.
+
+| Argument | Meaning |
+|---|---|
+| `fee` | Exchange fee as a fraction per side (`0.0006` = 0.06%) |
+| `leverage` | Futures leverage, a whole number >= 1. Ignored (with a warning) on spot exchanges |
+| `leverage_mode` | `"cross"` or `"isolated"`; must be a mode the exchange supports |
+| `balance` | Starting balance (more than 0) |
+| `warm_up_candles` | Candles loaded before the start date to warm up indicators |
+| `config_overrides` | JSON object for any other run-config field of the mode. Backtest: `logging` (the log flags), `warm_up_candles` and `exchange` (`fee`, `balance`, `futures_leverage`, `futures_leverage_mode`), e.g. `{"exchange": {"fee": 0.0002, "futures_leverage": 20}}`. Named arguments win over it |
+
+- Omitted settings come from the saved backtest defaults for that exchange, else Jesse's built-in defaults (fee: the exchange's listed fee, else 0.0006; leverage 1, cross; balance 10,000; 210 warm-up candles).
+- Invalid values (fee outside 0..1, fractional leverage, unsupported leverage mode, unknown `config_overrides` fields) are refused with an error and nothing is created.
+- The response shows what the draft will run with:
+  - `run_config`: exactly the config the draft runs with
+  - `config_source`: per field, one of `explicit` (this call), `stored` (already in the draft), `tool_default` (the MCP tool's own default), `saved_default` (saved defaults for this mode and exchange), `exchange_default` (the exchange's listed fee), `hard_default` (Jesse's built-in value)
+  - `config_warnings` (only when there are any): a fee or leverage that is only Jesse's built-in default, or a leverage ignored on spot. When you see one, pass the value explicitly.
 
 MCP-created drafts automatically populate the session notes fields that the dashboard already uses:
 - `title`: Short, searchable title with an `MCP Backtest:` prefix
@@ -43,13 +64,21 @@ MCP-created drafts automatically populate the session notes fields that the dash
 
 ### update_backtest_draft()
 
-Updates an existing backtest draft configuration.
+Updates an existing backtest draft: either replaces its full state, or changes only its run settings.
 
 Parameters:
 - `backtest_id`: UUID of the backtest session to update (required)
-- `state`: JSON string with complete state object
+- `state` (optional): JSON string with complete state object
+- Run settings (optional): `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides` (same meaning as in create)
 
-State Parameter Format:
+Changing only run settings (fee, leverage, ...): omit `state` and pass just the settings, e.g.
+`update_backtest_draft(backtest_id, fee=0.0004, leverage=3)`. The stored draft keeps everything
+else, and the response shows the new `run_config` and `config_source` (`explicit` for what this
+call set, `stored` for the rest). Only drafts (status `"draft"`) can change; for a finished
+session, create a new draft. Passing `state` together with run settings is an error, and so is
+passing neither.
+
+State Parameter Format (full replace, for routes, dates and other form fields):
 The state parameter must contain only the inner state object:
 
 ```json
@@ -138,8 +167,8 @@ Returns: Array of session objects sorted by most recently updated
 
 Executes a backtest using stored session configuration.
 
-Automatically loads the current backtest configuration from the database
-and merges it with the session form data.
+Runs with the draft's own run config (the `run_config` shown on create/update); saved
+defaults only fill fields the draft lacks.
 
 Parameters:
 - `session_id`: UUID of the backtest session to run
@@ -152,8 +181,8 @@ result = run_backtest(session_id)
 ```
 
 Process:
-1. Loads current backtest configuration from database
-2. Parses configuration and merges with session form data
+1. Loads the session's form and its stored run config
+2. Fills any missing run-config fields from the saved defaults
 3. Validates against BacktestRequestJson model
 4. Starts backtest execution
 5. Monitors progress via WebSocket events
@@ -214,6 +243,20 @@ draft = create_backtest_draft(
     data_routes='[{"exchange": "Binance Spot", "symbol": "ETH-USDT", "timeframe": "4h"}]',
     debug_mode=true
 )
+```
+
+### Fee and Leverage
+```python
+draft = create_backtest_draft(
+    routes='[{"exchange": "Binance Perpetual Futures", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
+    fee=0.0004,
+    leverage=3,
+    leverage_mode="isolated"
+)
+# Check draft["run_config"]["exchange"] and draft.get("config_warnings")
+
+# Later, change only the fee of the same draft
+update_backtest_draft(draft["backtest_id"], fee=0.0002)
 ```
 
 ### Multiple Strategies

@@ -28,6 +28,7 @@ from .services import (
     purge_backtest_sessions_service
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
+from .run_config_arguments import ConfigOverrides
 
 def register_backtest_tools(mcp):
     """
@@ -60,7 +61,13 @@ def register_backtest_tools(mcp):
         description: str = None,
         strategy_summary: str = None,
         change_summary: str = None,
-        rationale: str = None
+        rationale: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
     ) -> dict:
         """
         Create a new backtest draft session with specified parameters.
@@ -105,6 +112,20 @@ def register_backtest_tools(mcp):
             change_summary (str, optional): What changed before this backtest, if MCP edited a strategy.
             rationale (str, optional): Why the MCP made the change or ran this test.
 
+        Run settings (all optional; omitted ones come from the saved backtest defaults for this
+        exchange, else Jesse's built-in defaults):
+            fee: Exchange fee as a fraction per side (0.0006 = 0.06%).
+            leverage: Futures leverage, a whole number of 1 or more. Ignored on spot exchanges.
+            leverage_mode: "cross" or "isolated" (futures only; must be supported by the exchange).
+            balance: Starting balance.
+            warm_up_candles: Candles loaded before the start date to warm up indicators.
+            config_overrides: JSON object with any other run-config field: logging (the log flags),
+                e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+        Set these here instead of editing the draft state afterwards. The response's `run_config` is
+        exactly what the draft will run with, `config_source` says where each value came from
+        (explicit / saved_default / exchange_default / hard_default), and `config_warnings` flags a
+        fee or leverage that is only Jesse's built-in default, or leverage ignored on a spot exchange.
+
         Returns:
             dict: Session creation confirmation containing:
                 - backtest_id: UUID string of the created session
@@ -142,11 +163,26 @@ def register_backtest_tools(mcp):
             description=description,
             strategy_summary=strategy_summary,
             change_summary=change_summary,
-            rationale=rationale
+            rationale=rationale,
+            fee=fee,
+            leverage=leverage,
+            leverage_mode=leverage_mode,
+            balance=balance,
+            warm_up_candles=warm_up_candles,
+            config_overrides=config_overrides,
         )
 
     @mcp.tool()
-    async def update_backtest_draft(backtest_id: str, state: str) -> dict:
+    async def update_backtest_draft(
+        backtest_id: str,
+        state: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+    ) -> dict:
         """
         Update an existing backtest draft configuration with complete state object.
 
@@ -193,8 +229,18 @@ def register_backtest_tools(mcp):
             >>> import json
             >>> updated_state = json.dumps(current_state)
             >>> result = update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", updated_state)
+
+        To change only run settings, omit `state` and pass any of fee, leverage, leverage_mode,
+        balance, warm_up_candles or config_overrides (same meaning as in the create tool). The
+        stored draft keeps everything else; only drafts can change. The response shows the new
+        `run_config` and `config_source` ("explicit" for what this call set, "stored" for the rest).
+        Do not combine `state` with run settings.
         """
-        return await run_blocking(update_backtest_draft_service, backtest_id, state)
+        return await run_blocking(
+            update_backtest_draft_service, backtest_id, state,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles, config_overrides=config_overrides,
+        )
 
     @mcp.tool()
     async def update_backtest_notes(

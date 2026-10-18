@@ -1,5 +1,6 @@
 """Session-owned configuration helpers shared by Jesse's MCP run tools."""
 
+import json
 from copy import deepcopy
 from multiprocessing import cpu_count
 from typing import Optional
@@ -35,7 +36,7 @@ _MODE_FIELDS = {
 }
 
 
-def _default_cpu_cores() -> int:
+def default_cpu_cores() -> int:
     """Leave one logical CPU free and cap unattended MCP jobs at four workers."""
     try:
         return max(1, min(cpu_count() - 1, 4))
@@ -94,14 +95,14 @@ def _mode_defaults(mode: str, exchange_name: str) -> dict:
             'objective_function': 'sharpe',
             'warm_up_candles': 210,
             'trials': 200,
-            'cpu_cores': _default_cpu_cores(),
+            'cpu_cores': default_cpu_cores(),
             'best_candidates_count': 20,
             'exchange': exchange,
         }
     if mode == 'monte_carlo':
         return {
             'warm_up_candles': 210,
-            'cpu_cores': _default_cpu_cores(),
+            'cpu_cores': default_cpu_cores(),
             'exchange': exchange,
         }
     if mode == 'significance_test':
@@ -129,6 +130,21 @@ def _legacy_config(settings: dict, mode: str, exchange_name: str) -> dict:
     }
 
 
+def _saved_layer(settings: object, mode: str, exchange_name: str) -> dict:
+    """The saved settings that apply to one mode and exchange, before any explicit override."""
+    settings_dict = settings if isinstance(settings, dict) else {}
+    layer = _merge({}, _legacy_config(settings_dict, mode, exchange_name))
+
+    session_defaults = settings_dict.get('session_defaults')
+    mode_defaults = session_defaults.get(mode) if isinstance(session_defaults, dict) else None
+    if isinstance(mode_defaults, dict):
+        _merge(layer, mode_defaults.get('fallback'))
+        by_exchange = mode_defaults.get('by_exchange')
+        if isinstance(by_exchange, dict):
+            _merge(layer, by_exchange.get(exchange_name))
+    return layer
+
+
 def resolve_session_run_config(
     settings: object,
     mode: str,
@@ -136,18 +152,8 @@ def resolve_session_run_config(
     overrides: Optional[dict] = None,
 ) -> dict:
     """Resolve one MCP run config using the same exchange-scoped precedence as tabs."""
-    settings_dict = settings if isinstance(settings, dict) else {}
     resolved = _mode_defaults(mode, exchange_name)
-    _merge(resolved, _legacy_config(settings_dict, mode, exchange_name))
-
-    session_defaults = settings_dict.get('session_defaults')
-    mode_defaults = session_defaults.get(mode) if isinstance(session_defaults, dict) else None
-    if isinstance(mode_defaults, dict):
-        _merge(resolved, mode_defaults.get('fallback'))
-        by_exchange = mode_defaults.get('by_exchange')
-        if isinstance(by_exchange, dict):
-            _merge(resolved, by_exchange.get(exchange_name))
-
+    _merge(resolved, _saved_layer(settings, mode, exchange_name))
     _merge(resolved, overrides)
     default_leverage = 1 if mode == 'backtest' else 5
     resolved['exchange'] = _exchange_config(
@@ -167,19 +173,316 @@ def resolve_session_run_config(
     return {key: resolved[key] for key in _MODE_FIELDS[mode]}
 
 
+def load_saved_settings() -> dict:
+    """The saved Jesse settings, or {} when they cannot be read."""
+    from .config import get_config_service
+
+    try:
+        result = get_config_service()
+    except Exception:
+        return {}
+    settings = result.get('config', {}) if result.get('status') == 'success' else {}
+    if isinstance(settings, dict) and set(settings) == {'data'}:
+        settings = settings.get('data', {})
+    return settings if isinstance(settings, dict) else {}
+
+
 def load_session_run_config(
     mode: str,
     exchange_name: str,
     overrides: Optional[dict] = None,
 ) -> dict:
     """Load saved defaults when available and fall back to deterministic MCP values."""
-    from .config import get_config_service
+    return resolve_session_run_config(load_saved_settings(), mode, exchange_name, overrides)
 
-    result = get_config_service()
-    settings = result.get('config', {}) if result.get('status') == 'success' else {}
-    if isinstance(settings, dict) and set(settings) == {'data'}:
-        settings = settings.get('data', {})
-    return resolve_session_run_config(settings, mode, exchange_name, overrides)
+
+# ---------------------------------------------------------------------------
+# Draft tool arguments
+#
+# The MCP draft tools for backtests, optimizations, Monte Carlo runs and significance tests
+# take the run settings an agent most often sets (fee, leverage, leverage mode, balance,
+# warm-up candles) as named arguments, plus `config_overrides` for any other documented field
+# of the mode. They are the `overrides` of resolve_session_run_config, so a draft starts with
+# them instead of the saved or built-in defaults. Each draft response reports where every
+# value came from, and warns when fee or leverage is one of Jesse's built-in defaults.
+# ---------------------------------------------------------------------------
+
+DRAFT_CONFIG_ARGUMENTS = {
+    'fee': ('exchange', 'fee'),
+    'leverage': ('exchange', 'futures_leverage'),
+    'leverage_mode': ('exchange', 'futures_leverage_mode'),
+    'balance': ('exchange', 'balance'),
+    'warm_up_candles': ('warm_up_candles',),
+}
+_ARGUMENT_NAMES = {path: name for name, path in DRAFT_CONFIG_ARGUMENTS.items()}
+_EXCHANGE_OVERRIDE_KEYS = ('balance', 'fee', 'futures_leverage', 'futures_leverage_mode')
+_LEVERAGE_KEYS = ('futures_leverage', 'futures_leverage_mode')
+_OBJECTIVE_FUNCTIONS = ('sharpe', 'calmar', 'sortino', 'omega', 'serenity', 'smart sharpe', 'smart sortino')
+_MODE_LABELS = {
+    'backtest': 'backtests',
+    'optimization': 'optimizations',
+    'monte_carlo': 'Monte Carlo runs',
+    'significance_test': 'significance tests',
+}
+_MODE_NAMES = {
+    'backtest': 'backtest',
+    'optimization': 'optimization',
+    'monte_carlo': 'Monte Carlo',
+    'significance_test': 'significance test',
+}
+
+
+def _label(path: tuple) -> str:
+    """Name a field the way the agent sent it: the named argument when there is one."""
+    return _ARGUMENT_NAMES.get(path) or f"config_overrides.{'.'.join(path)}"
+
+
+def _check_number(path: tuple, value: object, minimum: float, integer: bool = False,
+                  below: Optional[float] = None, strict_minimum: bool = False) -> None:
+    label = _label(path)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f'{label} must be a number.')
+    if value != value or value in (float('inf'), float('-inf')):
+        raise ValueError(f'{label} must be a finite number.')
+    if integer and int(value) != value:
+        raise ValueError(f'{label} must be a whole number.')
+    if value < minimum or (strict_minimum and value == minimum):
+        raise ValueError(f"{label} must be {'more than' if strict_minimum else 'at least'} {minimum}.")
+    if below is not None and value >= below:
+        raise ValueError(f'{label} must be below {below}.')
+
+
+def _parse_config_overrides(mode: str, value: object) -> dict:
+    """Read `config_overrides` (a JSON object, as text or already decoded) for one mode."""
+    if value is None or value == '':
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as e:
+            raise ValueError(f'config_overrides is not valid JSON: {e}')
+    if not isinstance(value, dict):
+        raise ValueError('config_overrides must be a JSON object.')
+
+    allowed = _MODE_FIELDS[mode]
+    unknown = sorted(key for key in value if key not in allowed)
+    if unknown:
+        raise ValueError(
+            f"config_overrides has fields {mode} drafts do not use: {', '.join(unknown)}. "
+            f"Allowed: {', '.join(allowed)}."
+        )
+    exchange = value.get('exchange')
+    if exchange is not None:
+        if not isinstance(exchange, dict):
+            raise ValueError('config_overrides.exchange must be a JSON object.')
+        unknown = sorted(key for key in exchange if key not in _EXCHANGE_OVERRIDE_KEYS)
+        if unknown:
+            raise ValueError(
+                f"config_overrides.exchange cannot set: {', '.join(unknown)}. "
+                f"Allowed: {', '.join(_EXCHANGE_OVERRIDE_KEYS)} (the exchange itself is the draft's "
+                '`exchange` argument).'
+            )
+    return deepcopy(value)
+
+
+def _validate_overrides(mode: str, exchange_name: str, overrides: dict) -> None:
+    exchange = overrides.get('exchange', {})
+    if 'fee' in exchange:
+        _check_number(('exchange', 'fee'), exchange['fee'], 0, below=1)
+    if 'balance' in exchange:
+        _check_number(('exchange', 'balance'), exchange['balance'], 0, strict_minimum=True)
+    if 'futures_leverage' in exchange:
+        _check_number(('exchange', 'futures_leverage'), exchange['futures_leverage'], 1, integer=True)
+    if 'futures_leverage_mode' in exchange:
+        leverage_mode = exchange['futures_leverage_mode']
+        supported = (exchange_info.get(exchange_name) or {}).get('supported_leverage_modes') or ['cross', 'isolated']
+        if leverage_mode not in supported:
+            raise ValueError(
+                f"{_label(('exchange', 'futures_leverage_mode'))} must be one of: {', '.join(supported)}"
+                f' (the modes {exchange_name} supports).'
+            )
+    for key in ('warm_up_candles',):
+        if key in overrides:
+            _check_number((key,), overrides[key], 0, integer=True)
+    for key in ('trials', 'cpu_cores', 'best_candidates_count'):
+        if key in overrides:
+            _check_number((key,), overrides[key], 1, integer=True)
+    if 'objective_function' in overrides:
+        objective = overrides['objective_function']
+        if not isinstance(objective, str) or objective.lower() not in _OBJECTIVE_FUNCTIONS:
+            raise ValueError(
+                f"{_label(('objective_function',))} must be one of: {', '.join(_OBJECTIVE_FUNCTIONS)}."
+            )
+    if 'logging' in overrides:
+        logging = overrides['logging']
+        if not isinstance(logging, dict) or any(
+            key not in _BASE_LOGGING or not isinstance(flag, bool) for key, flag in logging.items()
+        ):
+            raise ValueError(
+                f"config_overrides.logging must map these flags to true/false: {', '.join(_BASE_LOGGING)}."
+            )
+
+
+def parse_draft_config_arguments(
+    mode: str,
+    exchange_name: str,
+    config_overrides: object = None,
+    base: Optional[dict] = None,
+    **arguments,
+) -> tuple[dict, list]:
+    """
+    Validate a draft tool's run-config arguments into overrides for resolve_session_run_config.
+
+    `base` holds the tool's own named mode-specific arguments (an optimization's `trials`, for
+    example) and `arguments` the named DRAFT_CONFIG_ARGUMENTS (None means not given); named
+    arguments win over the same field in `config_overrides`. Returns (overrides, warnings) and raises
+    ValueError with a message meant for the agent.
+    """
+    unknown = sorted(name for name in arguments if name not in DRAFT_CONFIG_ARGUMENTS)
+    if unknown:
+        raise TypeError(f"Unknown draft config arguments: {', '.join(unknown)}")
+
+    overrides = {**_parse_config_overrides(mode, config_overrides), **deepcopy(base or {})}
+    for name, value in arguments.items():
+        if value is None:
+            continue
+        *parents, key = DRAFT_CONFIG_ARGUMENTS[name]
+        target = overrides
+        for parent in parents:
+            target = target.setdefault(parent, {})
+        target[key] = value
+    _validate_overrides(mode, exchange_name, overrides)
+
+    warnings = []
+    exchange = overrides.get('exchange')
+    if (exchange_info.get(exchange_name) or {}).get('type') == 'spot' and isinstance(exchange, dict):
+        ignored = [key for key in _LEVERAGE_KEYS if exchange.pop(key, None) is not None]
+        if ignored:
+            names = ' and '.join(_label(('exchange', key)) for key in ignored)
+            warnings.append(f'{names} ignored: {exchange_name} is a spot exchange.')
+    if isinstance(exchange, dict) and not exchange:
+        overrides.pop('exchange')
+    return overrides, warnings
+
+
+def _get_path(source: object, path: tuple) -> tuple[bool, object]:
+    for key in path:
+        if not isinstance(source, dict) or key not in source:
+            return False, None
+        source = source[key]
+    return True, source
+
+
+def run_config_sources(
+    settings: object,
+    mode: str,
+    exchange_name: str,
+    config: dict,
+    explicit: Optional[dict] = None,
+    stored: Optional[dict] = None,
+    tool_defaults: Optional[dict] = None,
+) -> dict:
+    """
+    Say where each value of a resolved run config came from: "explicit" (this call's arguments),
+    "stored" (the draft already had it), "tool_default" (the MCP tool's own default, such as its
+    cpu_cores for unattended runs), "saved_default" (the saved settings for this mode and
+    exchange), "exchange_default" (the exchange's listed fee) or "hard_default" (Jesse's built-in
+    value). Logging flags are reported as one entry.
+    """
+    saved = _saved_layer(settings, mode, exchange_name)
+    paths = [('exchange', key) for key in _EXCHANGE_OVERRIDE_KEYS]
+    paths += [(key,) for key in _MODE_FIELDS[mode] if key != 'exchange']
+    sources = {}
+    for path in paths:
+        if not _get_path(config, path)[0]:
+            continue
+        if _get_path(explicit, path)[0]:
+            source = 'explicit'
+        elif _get_path(stored, path)[0]:
+            source = 'stored'
+        elif _get_path(tool_defaults, path)[0]:
+            source = 'tool_default'
+        elif _get_path(saved, path)[0]:
+            source = 'saved_default'
+        elif path == ('exchange', 'fee') and 'fee' in (exchange_info.get(exchange_name) or {}):
+            source = 'exchange_default'
+        else:
+            source = 'hard_default'
+        sources['.'.join(path)] = source
+    return sources
+
+
+def _hard_default_warnings(mode: str, exchange_name: str, config: dict, sources: dict) -> list:
+    warnings = []
+    for path, argument in ((('exchange', 'fee'), 'fee'), (('exchange', 'futures_leverage'), 'leverage')):
+        if sources.get('.'.join(path)) == 'hard_default':
+            value = _get_path(config, path)[1]
+            warnings.append(
+                f"{argument} {value} is Jesse's built-in default: nothing is saved for "
+                f'{_MODE_LABELS[mode]} on {exchange_name}. Pass {argument}= to choose it.'
+            )
+    return warnings
+
+
+def _backtest_mismatch_warnings(settings: object, mode: str, exchange_name: str, config: dict,
+                                sources: dict) -> list:
+    """
+    Flag a fee or leverage this draft inherits that differs from the backtest defaults of the
+    same exchange. The Dashboard keeps separate defaults per mode (and seeds every exchange
+    with its own), so an optimization can silently run at another fee than the backtests it
+    follows up on.
+    """
+    if mode == 'backtest':
+        return []
+    backtest = resolve_session_run_config(settings, 'backtest', exchange_name)
+    differences = []
+    for path, argument in ((('exchange', 'fee'), 'fee'), (('exchange', 'futures_leverage'), 'leverage')):
+        if sources.get('.'.join(path)) in ('explicit', 'stored', None):
+            continue
+        has_value, value = _get_path(config, path)
+        has_backtest_value, backtest_value = _get_path(backtest, path)
+        if has_value and has_backtest_value and value != backtest_value:
+            differences.append((argument, value, backtest_value))
+    if not differences:
+        return []
+    described = ', '.join(f'{argument} {value} (backtests: {backtest_value})'
+                          for argument, value, backtest_value in differences)
+    names = ' and '.join(f'{argument}=' for argument, _, _ in differences)
+    return [
+        f'The saved {_MODE_NAMES[mode]} defaults on {exchange_name} differ from its backtest '
+        f'defaults: {described}. Pass {names} to choose explicitly.'
+    ]
+
+
+def resolve_draft_run_config(
+    mode: str,
+    exchange_name: str,
+    overrides: Optional[dict] = None,
+    stored: Optional[dict] = None,
+    settings: Optional[dict] = None,
+    tool_defaults: Optional[dict] = None,
+) -> dict:
+    """
+    Resolve a draft's run config from the saved settings, the tool's own `tool_defaults` (which
+    win over saved settings), the draft's `stored` config (when updating one) and this call's
+    `overrides`, and describe it for the tool response.
+
+    Returns {'config', 'config_source', 'warnings'}.
+    """
+    if settings is None:
+        settings = load_saved_settings()
+    requested = _merge(_merge({}, tool_defaults), stored)
+    _merge(requested, overrides)
+    config = resolve_session_run_config(settings, mode, exchange_name, requested)
+    sources = run_config_sources(settings, mode, exchange_name, config, overrides, stored, tool_defaults)
+    return {
+        'config': config,
+        'config_source': sources,
+        'warnings': (
+            _hard_default_warnings(mode, exchange_name, config, sources)
+            + _backtest_mismatch_warnings(settings, mode, exchange_name, config, sources)
+        ),
+    }
 
 
 def backtest_engine_config(run_config: dict) -> dict:

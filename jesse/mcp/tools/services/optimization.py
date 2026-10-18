@@ -35,19 +35,12 @@ import json
 import os
 import uuid
 import requests
-from multiprocessing import cpu_count
 from typing import Optional
 
 import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
-from .session_config import load_session_run_config, optimization_engine_config
-
-
-def _default_cpu_cores() -> int:
-    try:
-        return max(1, min(cpu_count() - 1, 4))
-    except Exception:
-        return 2
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
+from .session_config import default_cpu_cores, load_session_run_config, optimization_engine_config
 
 
 def _build_default_title(routes_list: list) -> str:
@@ -165,10 +158,10 @@ def create_optimization_draft_service(
     testing_start_date: str = "2022-06-01",
     testing_finish_date: str = "2023-01-01",
     optimal_total: int = 50,
-    objective_function: str = "sharpe",
-    trials: int = 200,
-    best_candidates_count: int = 20,
-    warm_up_candles: int = 210,
+    objective_function: Optional[str] = None,
+    trials: Optional[int] = None,
+    best_candidates_count: Optional[int] = None,
+    warm_up_candles: Optional[int] = None,
     fast_mode: bool = True,
     cpu_cores: Optional[int] = None,
     title: Optional[str] = None,
@@ -176,6 +169,11 @@ def create_optimization_draft_service(
     strategy_summary: Optional[str] = None,
     hypothesis: Optional[str] = None,
     rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    config_overrides: Optional[str] = None,
 ) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -196,24 +194,29 @@ def create_optimization_draft_service(
         if not routes_list:
             return {'status': 'error', 'message': 'At least one trading route is required.'}
 
-        if objective_function and objective_function.lower() not in (
-            'sharpe', 'calmar', 'sortino', 'omega', 'serenity', 'smart sharpe', 'smart sortino'
-        ):
-            return {'status': 'error',
-                    'message': f'Unsupported objective_function "{objective_function}". '
-                               'Use one of: sharpe, calmar, sortino, omega, serenity, smart sharpe, smart sortino.'}
-
-        run_config = load_session_run_config(
-            'optimization',
-            exchange,
-            {
-                'objective_function': objective_function or 'sharpe',
-                'trials': int(trials),
-                'best_candidates_count': int(best_candidates_count),
-                'warm_up_candles': int(warm_up_candles),
-                'cpu_cores': int(cpu_cores) if cpu_cores is not None else _default_cpu_cores(),
-            },
-        )
+        # Omitted settings come from the saved optimization defaults for this exchange, else
+        # Jesse's built-in values (sharpe, 200 trials, 20 candidates, 210 warm-up candles).
+        # cpu_cores keeps the MCP's own default for unattended runs unless the agent sets it.
+        tool_settings = {
+            key: value
+            for key, value in (
+                ('objective_function', objective_function),
+                ('trials', trials),
+                ('best_candidates_count', best_candidates_count),
+                ('cpu_cores', cpu_cores),
+            )
+            if value is not None
+        }
+        try:
+            resolved = draft_run_config(
+                'optimization', exchange, config_overrides, base_overrides=tool_settings,
+                tool_defaults={'cpu_cores': default_cpu_cores()},
+                fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+                warm_up_candles=warm_up_candles,
+            )
+        except ValueError as e:
+            return {'status': 'error', 'message': str(e)}
+        run_config = resolved['config']
 
         form_data = {
             'id': session_id,
@@ -271,8 +274,8 @@ def create_optimization_draft_service(
             training_finish_date=training_finish_date,
             testing_start_date=testing_start_date,
             testing_finish_date=testing_finish_date,
-            objective_function=objective_function or 'sharpe',
-            trials=int(trials),
+            objective_function=run_config['objective_function'],
+            trials=int(run_config['trials']),
             strategy_summary=strategy_summary,
             hypothesis=hypothesis,
             rationale=rationale,
@@ -297,6 +300,7 @@ def create_optimization_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            **describe_run_config(resolved),
             'dashboard_url': mcp_config.dashboard_url('optimization', session_id),
             'message': f'Optimization draft created with ID: {session_id}',
         }
@@ -310,7 +314,29 @@ def create_optimization_draft_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to create optimization draft'}
 
 
-def update_optimization_draft_service(session_id: str, state: str) -> dict:
+def update_optimization_draft_service(
+    session_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {'status': 'error', 'message': 'Send either the complete state or run settings to change, not both.'}
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {'status': 'error', 'message': 'Nothing to update: pass state, or run settings such as fee or leverage.'}
+        return update_draft_run_config(
+            'optimization', session_id, 'session_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 

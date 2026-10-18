@@ -37,6 +37,7 @@ from .services import (
     purge_monte_carlo_sessions_service,
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
+from .run_config_arguments import ConfigOverrides
 
 
 def register_monte_carlo_tools(mcp):
@@ -64,6 +65,12 @@ def register_monte_carlo_tools(mcp):
         strategy_summary: str = None,
         hypothesis: str = None,
         rationale: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
     ) -> dict:
         """
         Create a new Monte Carlo simulation draft session.
@@ -108,9 +115,26 @@ def register_monte_carlo_tools(mcp):
             hypothesis: What the simulation is meant to test.
             rationale: Why this MC is being run.
 
+        Run settings (all optional; omitted ones come from the saved Monte Carlo defaults for this
+        exchange, else Jesse's built-in defaults):
+            fee: Exchange fee as a fraction per side (0.0006 = 0.06%).
+            leverage: Futures leverage, a whole number of 1 or more. Ignored on spot exchanges.
+            leverage_mode: "cross" or "isolated" (futures only; must be supported by the exchange).
+            balance: Starting balance.
+            warm_up_candles: Candles loaded before the start date to warm up indicators.
+            config_overrides: JSON object with any other run-config field (cpu_cores),
+                e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+        Set these here instead of editing the draft state afterwards. The response's `run_config` is
+        exactly what the draft will run with, `config_source` says where each value came from
+        (explicit / tool_default / saved_default / exchange_default / hard_default), and
+        `config_warnings` flags a fee or leverage that is only Jesse's built-in default, saved
+        defaults whose fee or leverage differ from this exchange's backtest defaults, or leverage
+        ignored on a spot exchange. Pass fee and leverage explicitly when a warning appears.
+
         Returns:
-            { "status": "success", "session_id": "<uuid>",
-              "draft_state": {...}, "notes": {...}, "message": "..." }
+            { "status": "success", "session_id": "<uuid>", "draft_state": {...},
+              "run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any),
+              "notes": {...}, "message": "..." }
         """
         return await run_blocking(
             create_monte_carlo_draft_service,
@@ -131,12 +155,27 @@ def register_monte_carlo_tools(mcp):
             strategy_summary=strategy_summary,
             hypothesis=hypothesis,
             rationale=rationale,
+            fee=fee,
+            leverage=leverage,
+            leverage_mode=leverage_mode,
+            balance=balance,
+            warm_up_candles=warm_up_candles,
+            config_overrides=config_overrides,
         )
 
     @mcp.tool()
-    async def update_monte_carlo_draft(session_id: str, state: str) -> dict:
+    async def update_monte_carlo_draft(
+        session_id: str,
+        state: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+    ) -> dict:
         """
-        Replace the full state of a Monte Carlo draft.
+        Update a Monte Carlo draft: replace its full state, or change only its run settings.
 
         Workflow:
             1. session = get_monte_carlo_session(session_id)
@@ -147,8 +186,18 @@ def register_monte_carlo_tools(mcp):
         Parameters:
             session_id: Draft session UUID.
             state: JSON string of the complete state object (form + results).
+
+        To change only run settings, omit `state` and pass any of fee, leverage, leverage_mode,
+        balance, warm_up_candles or config_overrides (same meaning as in the create tool). The
+        stored draft keeps everything else; only drafts can change. The response shows the new
+        `run_config` and `config_source` ("explicit" for what this call set, "stored" for the rest).
+        Do not combine `state` with run settings.
         """
-        return await run_blocking(update_monte_carlo_draft_service, session_id, state)
+        return await run_blocking(
+            update_monte_carlo_draft_service, session_id, state,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles, config_overrides=config_overrides,
+        )
 
     @mcp.tool()
     async def update_monte_carlo_notes(

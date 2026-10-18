@@ -37,6 +37,7 @@ from .services import (
     purge_optimization_sessions_service,
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
+from .run_config_arguments import ConfigOverrides
 
 
 def register_optimization_tools(mcp):
@@ -55,10 +56,10 @@ def register_optimization_tools(mcp):
         testing_start_date: str = "2022-06-01",
         testing_finish_date: str = "2023-01-01",
         optimal_total: int = 50,
-        objective_function: str = "sharpe",
-        trials: int = 200,
-        best_candidates_count: int = 20,
-        warm_up_candles: int = 210,
+        objective_function: str = None,
+        trials: int = None,
+        best_candidates_count: int = None,
+        warm_up_candles: int = None,
         fast_mode: bool = True,
         cpu_cores: int = None,
         title: str = None,
@@ -66,6 +67,11 @@ def register_optimization_tools(mcp):
         strategy_summary: str = None,
         hypothesis: str = None,
         rationale: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        config_overrides: ConfigOverrides = None,
     ) -> dict:
         """
         Create a new hyperparameter Optimization draft session.
@@ -95,20 +101,39 @@ def register_optimization_tools(mcp):
                 testing_start_date == training_finish_date (contiguous), but they can
                 be any non-overlapping ranges.
             optimal_total: Target number of best candidates to surface (default 50).
-            objective_function: What to maximize. One of: "sharpe" (default),
+            objective_function: What to maximize. One of: "sharpe" (built-in default),
                 "calmar", "sortino", "omega", "serenity", "smart sharpe",
                 "smart sortino".
-            trials: Trials PER hyperparameter (default 200). Total trials =
+            trials: Trials PER hyperparameter (built-in default 200). Total trials =
                 n_hyperparameters * trials. Lower it (e.g. 20-50) for a quick run.
-            best_candidates_count: How many top candidates to keep (default 20).
-            warm_up_candles: Warm-up candles before each window start (default 210).
+            best_candidates_count: How many top candidates to keep (built-in default 20).
             fast_mode: Faster, slightly less precise simulation (default True).
             cpu_cores: Worker count. Defaults to (cpu_count - 1, capped at 4).
             title / description: Optional notes; auto-generated if omitted.
             strategy_summary / hypothesis / rationale: Optional note context.
+            Built-in defaults apply only when nothing is saved for optimizations on this exchange;
+            otherwise the saved values do. cpu_cores is the exception: unless passed, it is the
+            MCP's own default for unattended runs.
+
+        Run settings (all optional; omitted ones come from the saved optimization defaults for this
+        exchange, else Jesse's built-in defaults):
+            fee: Exchange fee as a fraction per side (0.0006 = 0.06%).
+            leverage: Futures leverage, a whole number of 1 or more. Ignored on spot exchanges.
+            leverage_mode: "cross" or "isolated" (futures only; must be supported by the exchange).
+            balance: Starting balance.
+            warm_up_candles: Candles loaded before the start date to warm up indicators.
+            config_overrides: JSON object with any other run-config field: objective_function, trials, cpu_cores, best_candidates_count,
+                e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+        Set these here instead of editing the draft state afterwards. The response's `run_config` is
+        exactly what the draft will run with, `config_source` says where each value came from
+        (explicit / tool_default / saved_default / exchange_default / hard_default), and
+        `config_warnings` flags a fee or leverage that is only Jesse's built-in default, saved
+        defaults whose fee or leverage differ from this exchange's backtest defaults, or leverage
+        ignored on a spot exchange. Pass fee and leverage explicitly when a warning appears.
 
         Returns:
             { "status": "success", "session_id": "<uuid>", "draft_state": {...},
+              "run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any),
               "notes": {...}, "dashboard_url": "...", "message": "..." }
         """
         return await run_blocking(
@@ -132,19 +157,43 @@ def register_optimization_tools(mcp):
             strategy_summary=strategy_summary,
             hypothesis=hypothesis,
             rationale=rationale,
+            fee=fee,
+            leverage=leverage,
+            leverage_mode=leverage_mode,
+            balance=balance,
+            config_overrides=config_overrides,
         )
 
     @mcp.tool()
-    async def update_optimization_draft(session_id: str, state: str) -> dict:
+    async def update_optimization_draft(
+        session_id: str,
+        state: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+    ) -> dict:
         """
-        Replace the full state of an optimization draft.
+        Update an optimization draft: replace its full state, or change only its run settings.
 
         Parameters:
             session_id: UUID of the optimization session.
             state: JSON string of the complete state object ({"form": {...}, "results": {...}}).
                 Retrieve current state with get_optimization_session, modify, and send back.
+
+        To change only run settings, omit `state` and pass any of fee, leverage, leverage_mode,
+        balance, warm_up_candles or config_overrides (same meaning as in the create tool). The
+        stored draft keeps everything else; only drafts can change. The response shows the new
+        `run_config` and `config_source` ("explicit" for what this call set, "stored" for the rest).
+        Do not combine `state` with run settings.
         """
-        return await run_blocking(update_optimization_draft_service, session_id, state)
+        return await run_blocking(
+            update_optimization_draft_service, session_id, state,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles, config_overrides=config_overrides,
+        )
 
     @mcp.tool()
     async def update_optimization_notes(

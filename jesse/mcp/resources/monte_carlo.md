@@ -126,18 +126,51 @@ Stages a draft you can then run.
 - `run_trades` — bool (default **False**)
 - `run_candles` — bool (default **True**)
 - `fast_mode` — bool (default **True**; fast resampling-and-replay path, robust on synthetic candles — recommended)
-- `cpu_cores` — int (default: `cpu_count - 1`, capped at 4)
+- `cpu_cores` — int (default: `cpu_count - 1`, capped at 4, the MCP's own default for
+  unattended runs, reported as `tool_default`)
 - `pipeline_type` — str (default `"moving_block_bootstrap"`)
 - `pipeline_params` — optional JSON object string
 - `title`, `description`, `strategy_summary`, `hypothesis`, `rationale` —
   optional notes metadata; auto-generated if omitted
+- Run settings — `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`,
+  `config_overrides` (see Run settings below)
 
-Returns: `{ "status": "success", "session_id": "<uuid>", ... }`
+Returns: `{ "status": "success", "session_id": "<uuid>", "draft_state": {...},
+"run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any), ... }`
 
-### update_monte_carlo_draft(session_id, state)
+### Run settings
 
-Replace the whole `state` on an existing draft. Use the same
-read-modify-write pattern as `update_backtest_draft`.
+| Argument | Meaning |
+|---|---|
+| `fee` | Fraction per side (`0.0006` = 0.06%) |
+| `leverage` | Whole number >= 1; ignored with a warning on spot exchanges |
+| `leverage_mode` | `"cross"` or `"isolated"`, must be supported by the exchange |
+| `balance` | Starting balance |
+| `warm_up_candles` | Candles loaded before the start date |
+| `config_overrides` | JSON object for any other Monte Carlo run-config field: `cpu_cores`, `warm_up_candles`, `exchange` (`fee`, `balance`, `futures_leverage`, `futures_leverage_mode`), e.g. `{"exchange": {"fee": 0.0002, "futures_leverage": 20}}`. Named run-setting arguments win over it |
+
+- Omitted settings come from the saved **Monte Carlo** defaults for that exchange, else
+  Jesse's built-in defaults (fee: the exchange's listed fee, else 0.0006; leverage 5, cross;
+  balance 10,000; 210 warm-up candles). These are kept separately from the backtest defaults.
+- Invalid values are refused with an error and nothing is created.
+- `run_config` is exactly what the draft will run with; `config_source` says per field where
+  it came from (`explicit` / `stored` / `tool_default` / `saved_default` / `exchange_default` /
+  `hard_default`).
+- `config_warnings` appears when a fee or leverage is only Jesse's built-in default, or when
+  the saved Monte Carlo fee/leverage differs from the same exchange's backtest defaults. When
+  it does, pass `fee` / `leverage` explicitly, matching the backtest being stress-tested unless
+  the user said otherwise.
+
+### update_monte_carlo_draft(session_id, state?, fee?, leverage?, leverage_mode?, balance?, warm_up_candles?, config_overrides?)
+
+Either replace the whole `state` on an existing draft (same read-modify-write pattern
+as `update_backtest_draft`, for routes, dates and other form fields), or change only
+run settings: omit `state` and pass any of `fee`, `leverage`, `leverage_mode`,
+`balance`, `warm_up_candles`, `config_overrides`. The stored draft keeps everything
+else; the response shows the new `run_config` and `config_source` (`explicit` for what
+this call set, `stored` for the rest). Only drafts (status `draft`) can change. `state`
+plus run settings is an error, and so is neither. Never replace the whole state just to
+change fee or leverage.
 
 ### update_monte_carlo_notes(session_id, title?, description?, strategy_codes?)
 
@@ -293,9 +326,11 @@ draft = create_monte_carlo_draft(
     routes='[{"exchange":"Binance Perpetual Futures","strategy":"MyStrategy","symbol":"BTC-USDT","timeframe":"4h"}]',
     start_date="2023-01-01",
     finish_date="2024-01-01",
+    fee=0.0004, leverage=3,  # match the backtest being stress-tested
     hypothesis="MyStrategy is robust across resampled BTC price paths.",
 )
 sid = draft["session_id"]
+# check draft["run_config"] and draft.get("config_warnings") before firing
 
 # 2. Fire it
 run_monte_carlo(sid)

@@ -24,6 +24,7 @@ from jesse.services.web import (
 )
 from pydantic import ValidationError
 from .auth import hash_password
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import backtest_engine_config, load_session_run_config
 
 
@@ -212,7 +213,13 @@ def create_backtest_draft_service(
     description: Optional[str] = None,
     strategy_summary: Optional[str] = None,
     change_summary: Optional[str] = None,
-    rationale: Optional[str] = None
+    rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
 ) -> dict:
     """
     Create a new backtest draft with specified configuration.
@@ -237,6 +244,9 @@ def create_backtest_draft_service(
         strategy_summary: Optional short summary of the strategy being tested.
         change_summary: Optional summary of what the MCP changed before this backtest.
         rationale: Optional reason why the MCP made the change or ran the test.
+        fee, leverage, leverage_mode, balance, warm_up_candles: Optional run settings; omitted
+            ones come from the saved settings for backtests on this exchange, else Jesse's defaults.
+        config_overrides: Optional JSON object with any other run-config field (logging).
 
     Returns:
         Success confirmation with new session ID
@@ -281,7 +291,12 @@ def create_backtest_draft_service(
             # Fallback to defaults if no routes provided
             selected_route = {"symbol": "BTC-USDT", "timeframe": "4h", "strategy": "ExampleStrategy"}
 
-        run_config = load_session_run_config('backtest', exchange)
+        resolved = draft_run_config(
+            'backtest', exchange, config_overrides,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles,
+        )
+        run_config = resolved['config']
 
         # Create complete state structure
         state_dict = {
@@ -370,6 +385,7 @@ def create_backtest_draft_service(
                     'strategy_code_keys': list(strategy_codes.keys()),
                     'strategy_codes_captured': len(strategy_codes)
                 },
+                **describe_run_config(resolved),
                 'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id}'
             }
@@ -387,6 +403,7 @@ def create_backtest_draft_service(
                 'status': 'success',
                 'backtest_id': backtest_id,
                 'draft_state': state_dict,
+                **describe_run_config(resolved),
                 'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id} (state not persisted)',
                 'warning': 'Could not persist state to database'
@@ -412,22 +429,53 @@ def create_backtest_draft_service(
         }
 
 
-def update_backtest_draft_service(backtest_id: str, state: str) -> dict:
+def update_backtest_draft_service(
+    backtest_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
     """
-    Update an existing backtest draft configuration with complete state.
+    Update an existing backtest draft.
 
-    This replaces the entire state of an existing backtest session. For complex updates
+    With `state`, this replaces the entire state of the session. For complex updates
     (like adding routes), use get_backtest_session first to retrieve current state,
     perform merging logic, then call this function with the complete new state.
+    Without `state`, only the given run settings change (see draft_config).
 
     Args:
         backtest_id: ID of the backtest session to update (required)
         state: JSON string with complete state object containing 'form' and 'results'.
             Should match dashboard state format with complete data.
+        fee, leverage, leverage_mode, balance, warm_up_candles, config_overrides: Run settings
+            to change on the stored draft; not combined with `state`.
 
     Returns:
         Success confirmation with updated configuration
     """
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {
+            'status': 'error',
+            'message': 'Send either the complete state or run settings to change, not both.',
+        }
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {
+                'status': 'error',
+                'message': 'Nothing to update: pass state, or run settings such as fee or leverage.',
+            }
+        return update_draft_run_config(
+            'backtest', backtest_id, 'backtest_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 

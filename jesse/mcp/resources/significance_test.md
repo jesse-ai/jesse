@@ -44,13 +44,34 @@ Creates a draft session you can then run.
 - `title`, `description` — optional; auto-generated otherwise
 - `strategy_summary`, `hypothesis`, `rationale` — optional, populate the
   Markdown description
+- Run settings (optional) — `fee` (fraction per side, `0.0006` = 0.06%),
+  `leverage` (whole number >= 1; ignored with a warning on spot exchanges),
+  `leverage_mode` (`"cross"` / `"isolated"`, must be supported by the exchange),
+  `balance`, `warm_up_candles`, and `config_overrides` (JSON object; for this mode
+  only `warm_up_candles` and `exchange` with `fee`, `balance`, `futures_leverage`,
+  `futures_leverage_mode`, e.g. `{"exchange": {"fee": 0.0002}}`; named arguments
+  win over it). Omitted ones come from the saved **significance test** defaults for
+  that exchange, else Jesse's built-in defaults (exchange's listed fee else 0.0006,
+  leverage 5 cross, balance 10,000, 210 warm-up candles). Invalid values are refused
+  and nothing is created.
 
-Returns: `{ "status": "success", "session_id": "<uuid>", ... }`
+Returns: `{ "status": "success", "session_id": "<uuid>", "draft_state": {...},
+"run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any), ... }`
 
-### update_significance_test_draft(session_id, state)
+`run_config` is exactly what the draft will run with; `config_source` says per field
+where it came from (`explicit` / `stored` / `saved_default` / `exchange_default` /
+`hard_default`). `config_warnings` appears when a fee or leverage is only Jesse's
+built-in default, or the saved significance-test fee/leverage differs from the same
+exchange's backtest defaults; then pass `fee` / `leverage` explicitly.
 
-Replace the whole `state` (form + results) on an existing draft. Use the same
-read-modify-write pattern as `update_backtest_draft`.
+### update_significance_test_draft(session_id, state?, fee?, leverage?, leverage_mode?, balance?, warm_up_candles?, config_overrides?)
+
+Either replace the whole `state` (form + results) on an existing draft (same
+read-modify-write pattern as `update_backtest_draft`), or change only run settings:
+omit `state` and pass any of `fee`, `leverage`, `leverage_mode`, `balance`,
+`warm_up_candles`, `config_overrides`. The stored draft keeps everything else; the
+response shows the new `run_config` and `config_source`. Only drafts (status `draft`)
+can change. `state` plus run settings is an error, and so is neither.
 
 ### update_significance_test_notes(session_id, title?, description?, strategy_codes?)
 

@@ -22,6 +22,7 @@ from typing import Optional
 
 import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import load_session_run_config
 
 
@@ -141,6 +142,12 @@ def create_significance_test_draft_service(
     strategy_summary: Optional[str] = None,
     hypothesis: Optional[str] = None,
     rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
 ) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -161,7 +168,15 @@ def create_significance_test_draft_service(
         if len(routes_list) != 1:
             return {'status': 'error', 'message': 'Rule Significance Test requires exactly one trading route.'}
 
-        run_config = load_session_run_config('significance_test', exchange)
+        try:
+            resolved = draft_run_config(
+                'significance_test', exchange, config_overrides,
+                fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+                warm_up_candles=warm_up_candles,
+            )
+        except ValueError as e:
+            return {'status': 'error', 'message': str(e)}
+        run_config = resolved['config']
         form_data = {
             'id': session_id,
             'exchange': exchange,
@@ -225,6 +240,7 @@ def create_significance_test_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            **describe_run_config(resolved),
             'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
             'message': f'Significance test draft created with ID: {session_id}',
         }
@@ -238,7 +254,29 @@ def create_significance_test_draft_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to create significance test draft'}
 
 
-def update_significance_test_draft_service(session_id: str, state: str) -> dict:
+def update_significance_test_draft_service(
+    session_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {'status': 'error', 'message': 'Send either the complete state or run settings to change, not both.'}
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {'status': 'error', 'message': 'Nothing to update: pass state, or run settings such as fee or leverage.'}
+        return update_draft_run_config(
+            'significance_test', session_id, 'session_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 

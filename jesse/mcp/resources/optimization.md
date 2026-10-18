@@ -34,7 +34,7 @@ up on data they weren't tuned on?"
 |---|---|
 | **Training window** | `training_start_date` → `training_finish_date`. The in-sample period the optimizer tunes on. |
 | **Testing window** | `testing_start_date` → `testing_finish_date`. The out-of-sample period each candidate is re-evaluated on (not used for tuning). Conventionally `testing_start_date == training_finish_date` (contiguous), but any non-overlapping ranges are fine. |
-| **objective_function** | What to maximize. One of `sharpe` (default), `calmar`, `sortino`, `omega`, `serenity`, `smart sharpe`, `smart sortino`. |
+| **objective_function** | What to maximize. One of `sharpe` (built-in default), `calmar`, `sortino`, `omega`, `serenity`, `smart sharpe`, `smart sortino`. |
 | **trials** | Trials **per hyperparameter**. Total trials = `n_hyperparameters × trials`. With 2 hyperparameters and `trials=200`, the optimizer runs 400 trials. Lower it (e.g. 20–50) for a quick exploratory run. |
 | **best_candidates** | The ranked top parameter sets, each with training AND testing metrics. |
 
@@ -71,19 +71,56 @@ Stages a draft you can then run.
 - `training_start_date`, `training_finish_date` — `YYYY-MM-DD`
 - `testing_start_date`, `testing_finish_date` — `YYYY-MM-DD`
 - `optimal_total` — int, target number of best candidates to surface (default 50)
-- `objective_function` — str (default `"sharpe"`; see list above)
-- `trials` — int, per hyperparameter (default 200)
-- `best_candidates_count` — int (default 20)
-- `warm_up_candles` — int (default 210)
+- `objective_function` — str (see list above)
+- `trials` — int, per hyperparameter
+- `best_candidates_count` — int
+- `warm_up_candles` — int
 - `fast_mode` — bool (default True)
-- `cpu_cores` — int (default `cpu_count - 1`, capped at 4)
+- `cpu_cores` — int (default `cpu_count - 1`, capped at 4, the MCP's own default for
+  unattended runs, reported as `tool_default`)
 - `title`, `description`, `strategy_summary`, `hypothesis`, `rationale` — optional
   notes metadata; auto-generated if omitted
+- Run settings — `fee`, `leverage`, `leverage_mode`, `balance`, `config_overrides`
+  (see Run settings below)
 
-Returns: `{ "status": "success", "session_id": "<uuid>", ... }`
+Omitted `objective_function`, `trials`, `best_candidates_count` and `warm_up_candles`
+come from the saved optimization defaults for that exchange, else the built-in
+`sharpe` / 200 / 20 / 210.
 
-### update_optimization_draft(session_id, state)
-Replace the whole `state` on an existing draft (read-modify-write).
+Returns: `{ "status": "success", "session_id": "<uuid>", "draft_state": {...},
+"run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any), ... }`
+
+### Run settings
+
+| Argument | Meaning |
+|---|---|
+| `fee` | Fraction per side (`0.0006` = 0.06%) |
+| `leverage` | Whole number >= 1; ignored with a warning on spot exchanges |
+| `leverage_mode` | `"cross"` or `"isolated"`, must be supported by the exchange |
+| `balance` | Starting balance |
+| `warm_up_candles` | Candles loaded before each start date |
+| `config_overrides` | JSON object for any other optimization run-config field: `objective_function`, `trials`, `cpu_cores`, `best_candidates_count`, `warm_up_candles`, `exchange` (`fee`, `balance`, `futures_leverage`, `futures_leverage_mode`), e.g. `{"exchange": {"fee": 0.0002, "futures_leverage": 20}}`. Named arguments (including `trials`, `objective_function`, `best_candidates_count`, `cpu_cores`) win over it |
+
+- Omitted settings come from the saved **optimization** defaults for that exchange, else
+  Jesse's built-in defaults (fee: the exchange's listed fee, else 0.0006; leverage 5,
+  cross; balance 10,000). These are kept separately from the backtest defaults, so they can differ.
+- Invalid values are refused with an error and nothing is created.
+- `run_config` is exactly what the draft will run with; `config_source` says per field where
+  it came from (`explicit` / `stored` / `tool_default` / `saved_default` / `exchange_default` /
+  `hard_default`).
+- `config_warnings` appears when a fee or leverage is only Jesse's built-in default, or when
+  the saved optimization fee/leverage differs from the same exchange's backtest defaults.
+  When it does, pass `fee` / `leverage` explicitly, matching the backtests you are following
+  up on unless the user said otherwise.
+
+### update_optimization_draft(session_id, state?, fee?, leverage?, leverage_mode?, balance?, warm_up_candles?, config_overrides?)
+Either replace the whole `state` on an existing draft (read-modify-write, for routes,
+dates and other form fields), or change only run settings: omit `state` and pass any
+of `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides`.
+The stored draft keeps everything else; the response shows the new `run_config` and
+`config_source` (`explicit` for what this call set, `stored` for the rest). Only drafts
+(status `draft`) can change. `state` plus run settings is an error, and so is neither.
+Never replace the whole state just to change fee or leverage.
 
 ### update_optimization_notes(session_id, title?, description?, strategy_codes?)
 Update notes — typically to record the chosen parameters and conclusion.
@@ -181,9 +218,11 @@ draft = create_optimization_draft(
     training_start_date="2023-01-01", training_finish_date="2024-06-01",
     testing_start_date="2024-06-01",  testing_finish_date="2024-12-01",
     objective_function="sharpe", trials=100,
+    fee=0.0004, leverage=3,  # match the backtests this follows up on
     hypothesis="MyStrategy's EMA periods generalize out-of-sample.",
 )
 sid = draft["session_id"]
+# check draft["run_config"] and draft.get("config_warnings") before firing
 
 # 2. Fire it
 run_optimization(sid)
