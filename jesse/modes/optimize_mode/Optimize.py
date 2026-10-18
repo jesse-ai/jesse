@@ -6,6 +6,8 @@ import optuna
 import ray
 import numpy as np
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
+from jesse.services.ray_runtime import UnsupportedRayVersionError, initialize_ray
 import jesse.services.logger as logger
 from jesse import exceptions
 from jesse.services.redis import sync_publish
@@ -158,13 +160,17 @@ class Optimizer:
         self.ray_started_here = False
         if not ray.is_initialized():
             try:
-                ray.init(num_cpus=self.cpu_cores, ignore_reinit_error=True)
+                initialize_ray(self.cpu_cores)
                 logger.log_optimize_mode(f"Successfully started optimization session with {self.cpu_cores} CPU cores", self.session_id )
                 self.ray_started_here = True
+            except (MemoryError, UnsupportedRayVersionError):
+                # Startup memory limits also cover Ray services and the worker heap, and
+                # fewer CPUs cannot make an unsupported Ray start.
+                raise
             except Exception as e:
                 logger.log_optimize_mode(f"Error initializing Ray: {e}. Falling back to 1 CPU.", self.session_id )
                 self.cpu_cores = 1
-                ray.init(num_cpus=1, ignore_reinit_error=True)
+                initialize_ray(1)
                 self.ray_started_here = True
 
         self.client_id = jh.get_session_id()
@@ -356,6 +362,7 @@ class Optimizer:
 
         # Update the progress bar and publish the current progress to the dashboard
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
@@ -465,6 +472,7 @@ class Optimizer:
         self.progressbar.index = index
         # Update UI to reflect progress
         sync_publish('progressbar', {
+            'message': f'Optimizing strategies — {self.completed_trials} of {self.n_trials} trials completed',
             'current': self.progressbar.current,
             'estimated_remaining_seconds': self.progressbar.estimated_remaining_seconds
         })
@@ -488,6 +496,7 @@ class Optimizer:
                 best_trial_params = None
 
             self._raise_if_cancelled()
+            publish_status('Sharing candle data with optimization workers…')
             shared_user_config = ray.put(self.user_config)
             shared_formatted_routes = ray.put(router.formatted_routes)
             shared_formatted_data_routes = ray.put(router.formatted_data_routes)
@@ -499,6 +508,7 @@ class Optimizer:
 
             max_workers = min(self.cpu_cores * 2, self.n_trials - self.completed_trials)
 
+            publish_status('Running optimization trials…')
             while self.completed_trials < self.n_trials:
                 self._raise_if_cancelled()
                 if self.completed_trials == 0:

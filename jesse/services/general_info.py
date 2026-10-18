@@ -7,7 +7,11 @@ from hashlib import sha256
 
 import requests
 import jesse.helpers as jh
+import jesse.mcp.manager as mcp_manager
 from jesse.info import exchange_info, jesse_supported_timeframes, JESSE_API_URL, JESSE_API2_URL
+from jesse.services.dashboard_url import (
+    DASHBOARD_URL_ENV_KEY, InvalidDashboardUrlError, mcp_endpoint_url, normalize_dashboard_url,
+)
 from jesse.services.env import ENV_VALUES, is_dev_env
 
 
@@ -122,6 +126,33 @@ def _format_limits(limits: dict) -> dict:
     }
 
 
+def _get_mcp_info() -> dict:
+    """
+    Describe the MCP endpoint for the dashboard's assistant-connection settings.
+
+    `configured_url` is set only when DASHBOARD_URL is explicitly configured. Otherwise it
+    is None and the dashboard derives the endpoint from the address the browser used,
+    which is more accurate than the localhost default for Docker and VPS users. The token
+    is never included: the dashboard already holds it after login.
+
+    `is_running` reports whether the MCP worker started by `jesse run` in this process is
+    still alive. It is False when MCP was never started (e.g. test mode) or has exited.
+    """
+    raw = ENV_VALUES.get(DASHBOARD_URL_ENV_KEY)
+    configured_url = None
+    if raw is not None and str(raw).strip():
+        try:
+            configured_url = mcp_endpoint_url(normalize_dashboard_url(str(raw)))
+        except InvalidDashboardUrlError:
+            # `jesse run` rejects invalid values at startup; fall back to the browser origin.
+            configured_url = None
+
+    return {
+        'configured_url': configured_url,
+        'is_running': mcp_manager.is_worker_running(),
+    }
+
+
 def get_local_general_info(has_live=False) -> dict:
     from jesse.services.auth import get_access_token
     from jesse.version import __version__ as jesse_version
@@ -154,6 +185,7 @@ def get_local_general_info(has_live=False) -> dict:
         'has_live_plugin_installed': plugin_installed,
         'has_license_token': bool(access_token),
         'system_info': system_info,
+        'mcp': _get_mcp_info(),
         'bootstrap_context_id': _get_bootstrap_context_id(access_token, jesse_version, live_version),
     }
 

@@ -4,6 +4,7 @@ import traceback
 from typing import Dict, List, Optional
 
 import jesse.helpers as jh
+from jesse.services.progress import publish_status
 from jesse import exceptions
 from jesse.services.redis import sync_publish, is_process_active
 from jesse.models.SignificanceTestSession import (
@@ -131,14 +132,17 @@ class SignificanceTestRunner:
                 else:
                     estimated_remaining = 0
                 sync_publish('progressbar', {
+                    'message': 'Testing randomized strategy signals…',
                     'current': completed_sims,
                     'total': self.n_simulations,
                     'estimated_remaining_seconds': estimated_remaining,
                 })
                 last_update_time = current_time
 
-        # Publish initial progress
+        # Signal generation precedes the measurable simulation phase.
         sync_publish('progressbar', {
+            'message': 'Calculating strategy signals…',
+            'indeterminate': True,
             'current': 0,
             'total': self.n_simulations,
             'estimated_remaining_seconds': 0,
@@ -164,6 +168,7 @@ class SignificanceTestRunner:
             'estimated_remaining_seconds': 0,
         })
 
+        publish_status('Generating significance charts and saving results…', total=self.n_simulations)
         # Generate chart image (theme-aware)
         charts_folder = os.path.abspath('storage/significance-test-charts')
         chart_path = plot_significance_test(

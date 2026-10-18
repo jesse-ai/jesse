@@ -1,5 +1,5 @@
 from jesse.config import config
-from jesse.models import Position
+from jesse.models import Position, ClosedTrade
 from jesse.store import store
 import jesse.helpers as jh
 from jesse.exceptions import EmptyPosition, OpenPositionError
@@ -216,7 +216,7 @@ def on_executed_order(position: Position, order: Order) -> None:
         position.strategy._on_updated_position(order)
 
 
-def update_from_stream(position: Position, data: dict, is_initial: bool, open_trade: dict = None, p_orders: list = None) -> None:
+def update_from_stream(position: Position, data: dict, is_initial: bool, open_trade: ClosedTrade | None = None, p_orders: list = None) -> None:
     """
     Used for updating the position from the WS stream (only for live trading)
     """
@@ -246,7 +246,10 @@ def update_from_stream(position: Position, data: dict, is_initial: bool, open_tr
         #         self.qty, self.entry_price
         #     )
         position.opened_at = jh.now_to_timestamp()
-        if not open_trade:
+        # Saved trades belong to startup reconciliation, never a new stream entry.
+        if is_initial and open_trade is not None:
+            closed_trade_service.restore_open_trade(position, open_trade)
+        else:
             _open(position, p_orders)
     elif closing_position:
         position.closed_at = jh.now_to_timestamp()

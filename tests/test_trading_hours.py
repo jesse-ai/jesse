@@ -291,3 +291,66 @@ def test_mask_and_contains_match_a_brute_force_reference_across_zones_and_dst():
             assert schedule.contains(int(t)) is expected
             checks += 1
     assert checks == 60 * 4 * 24 * 6
+
+
+# ---- Strategy.closed_candle_open_time / is_trading_hours --------------------------------
+# The engine-driven edges (15m, DST, 'closed' day) are in TestTradingHoursCandleEdges; these
+# cover the moments a backtest never produces, such as a live update_chart() between closes.
+
+EXTENDED_HOURS = {'timezone': 'America/New_York', 'hours': {'Mon-Fri': '04:00-20:00'}}
+FIFTEEN_MIN = 15 * 60_000
+
+
+def _probe(candle_opens, now, hours=EXTENDED_HOURS):
+    from jesse.strategies import Strategy
+
+    class Probe(Strategy):
+        def trading_hours(self):
+            return hours
+
+        def should_long(self):
+            return False
+
+        def go_long(self):
+            pass
+
+    Probe.candles = property(lambda self: candles_at(np.asarray(candle_opens, dtype=np.int64)))
+    Probe.time = property(lambda self: now)
+    strategy = Probe()
+    strategy.timeframe = '15m'
+    return strategy
+
+
+def test_gate_uses_the_candle_that_just_closed_not_self_time():
+    # Monday 2026-09-14: at the 04:00 decision the 03:45 night candle just closed
+    night = _probe([ms(2026, 9, 14, 3, 30), ms(2026, 9, 14, 3, 45)], ms(2026, 9, 14, 4, 0))
+    assert night.closed_candle_open_time == ms(2026, 9, 14, 3, 45)
+    assert night.is_trading_hours is False
+    # ... and at the 20:00 decision the 19:45 session candle just closed
+    last = _probe([ms(2026, 9, 14, 19, 30), ms(2026, 9, 14, 19, 45)], ms(2026, 9, 14, 20, 0))
+    assert last.is_trading_hours is True
+
+
+def test_gate_never_looks_at_a_forming_candle():
+    # live: the 04:00 candle already has ticks (forming row) when the 04:00 close is handled,
+    # and update_chart() keeps running every second between closes
+    opens = [ms(2026, 9, 14, 3, 30), ms(2026, 9, 14, 3, 45), ms(2026, 9, 14, 4, 0)]
+    for now in (ms(2026, 9, 14, 4, 0), ms(2026, 9, 14, 4, 7), ms(2026, 9, 14, 4, 14)):
+        strategy = _probe(opens, now)
+        assert strategy.closed_candle_open_time == ms(2026, 9, 14, 3, 45)
+        assert strategy.is_trading_hours is False
+    # once the 04:00 candle closes it is the one judged
+    closed = _probe(opens, ms(2026, 9, 14, 4, 15))
+    assert closed.closed_candle_open_time == ms(2026, 9, 14, 4, 0)
+    assert closed.is_trading_hours is True
+
+
+def test_closed_candle_open_time_without_a_previous_row():
+    # a lone forming row, or no candles at all, falls back to the previous clock bucket
+    assert _probe([ms(2026, 9, 14, 4, 0)], ms(2026, 9, 14, 4, 5)).closed_candle_open_time == ms(2026, 9, 14, 3, 45)
+    assert _probe([], ms(2026, 9, 14, 4, 5)).closed_candle_open_time == ms(2026, 9, 14, 3, 45)
+
+
+def test_no_schedule_means_always_in_trading_hours():
+    strategy = _probe([ms(2026, 9, 12, 3, 0)], ms(2026, 9, 12, 3, 15), hours=None)  # a Saturday night
+    assert strategy.is_trading_hours is True

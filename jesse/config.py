@@ -76,6 +76,11 @@ config = {
             'warmup_candles_num': 240,
             'generate_candles_from_1m': False,
             'persistency': True,
+            # Live sessions get orders and candles over the exchange's WebSocket; these REST
+            # checks are a backup for anything it missed. 0 turns a check off; a candle refresh
+            # of None means 5 seconds plus 1 per symbol.
+            'order_backup_check_seconds': 10,
+            'candle_backup_refresh_seconds': None,
         },
 
         'metrics': {
@@ -130,6 +135,11 @@ for key in exchange_info:
 
 def set_config(conf: dict) -> None:
     global config
+
+    if config['app']['trading_mode'] in ('monte-carlo', 'significance-test'):
+        # The coordinator loads history before scenario workers format their own
+        # backtest settings, so both stages must use the selected warmup count.
+        config['env']['data']['warmup_candles_num'] = int(conf['warm_up_candles'])
 
     # optimization mode only
     if jh.is_optimizing():
@@ -200,6 +210,11 @@ def set_config(conf: dict) -> None:
         config['env']['notifications'] = conf['notifications']
         config['env']['data']['persistency'] = conf['persistency']
         config['env']['data']['generate_candles_from_1m'] = conf['generate_candles_from_1m']
+        # Sessions saved before these settings existed keep the previous intervals; 0 turns the order check off.
+        order_seconds = conf.get('order_backup_check_seconds')
+        config['env']['data']['order_backup_check_seconds'] = 10.0 if order_seconds in (None, '') else float(order_seconds)
+        candle_seconds = conf.get('candle_backup_refresh_seconds')
+        config['env']['data']['candle_backup_refresh_seconds'] = None if candle_seconds in (None, '') else float(candle_seconds)
 
     # TODO: must become a config value later when we go after multi account support?
     config['env']['identifier'] = 'main'

@@ -233,3 +233,16 @@ def test_reset_config_clears_values_cached_from_the_previous_mode() -> None:
     assert jh.app_mode() == ''
     assert jh.is_live() is False
     assert jh.is_paper_trading() is False
+
+
+def test_routes_can_be_imported_before_the_models():
+    # The live plugin imports jesse.routes first; jesse.models imports it back, so a load-time
+    # import of jesse.models in jesse.routes was circular. A fresh interpreter keeps it honest.
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, '-c', 'import jesse.routes; from jesse.routes import router; print(router)'],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr

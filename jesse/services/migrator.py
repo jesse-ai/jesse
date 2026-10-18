@@ -91,6 +91,10 @@ def run():
         Trade,
     ], safe=True)
 
+    from jesse.services.timescale import configure_if_requested, drop_identifier_primary_key
+    drop_identifier_primary_key()
+    configure_if_requested()
+
     database.close_connection()
 
 

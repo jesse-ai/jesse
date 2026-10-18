@@ -258,6 +258,7 @@ def update_significance_test_draft_service(session_id: str, state: str) -> dict:
                 'status': 'success',
                 'session_id': session_id,
                 'draft_state': state_dict,
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': 'Significance test draft updated successfully',
             }
         if response.status_code == 401:
@@ -299,6 +300,7 @@ def update_significance_test_notes_service(
                 'description': description,
                 'strategy_code_keys': list(parsed_codes.keys()) if parsed_codes else [],
                 'strategy_codes_captured': len(parsed_codes) if parsed_codes else 0,
+                'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': 'Significance test session notes updated successfully',
             }
         return result
@@ -376,7 +378,7 @@ def get_significance_test_sessions_service(
             data = response.json()
             return {
                 'status': 'success',
-                'sessions': data.get('sessions', []),
+                'sessions': mcp_config.with_dashboard_urls('significance_test', data.get('sessions', [])),
                 'count': data.get('count', 0),
                 'message': f'Retrieved {data.get("count", 0)} significance test session(s)',
             }
@@ -491,6 +493,7 @@ def cancel_significance_test_service(session_id: str) -> dict:
         )
         if response.status_code == 202:
             return {'status': 'success', 'session_id': session_id,
+                    'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                     'message': f'Significance test {session_id} cancellation requested'}
         if response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}

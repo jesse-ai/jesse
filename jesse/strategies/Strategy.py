@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, cast
 import os
 import csv
 import numpy as np
@@ -570,28 +570,27 @@ class Strategy(ABC):
 
         # call the relevant strategy event handler:
         if effect == 'opening_position':
-            txt = f"OPENED {self.position.type} position for {self.symbol}: qty: {after_qty}, entry_price: {self.position.entry_price}"
+            txt = f"📈 Position opened | {self.symbol} | {self.position.type.upper()} | {self.exchange} | Qty: {after_qty} | Entry: {jh.format_price(self.position.entry_price)}"
             if jh.is_debuggable('position_opened'):
                 logger.info(txt)
-            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
+            if jh.is_live() and jh.get_config('env.notifications.events.opened_position', True):
                 notifier.notify(txt)
             self._on_open_position(order)
         elif effect == 'closing_position':
-            txt = f"CLOSED Position for {self.symbol}"
+            txt = f"🏁 Position closed | {self.symbol} | {self.exchange}"
             if jh.is_debuggable('position_closed'):
                 logger.info(txt)
-            if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
-                notifier.notify(txt)
+            # closed_trade_service sends the finalized trade result, including PnL.
             self._on_close_position(order)
         elif effect == 'increased_position':
-            txt = f"INCREASED Position size to {after_qty}"
+            txt = f"➕ Position increased | {self.symbol} | {self.exchange} | Qty: {after_qty}"
             if jh.is_debuggable('position_increased'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
                 notifier.notify(txt)
             self._on_increased_position(order)
         else:  # if effect == 'reduced_position':
-            txt = f"REDUCED Position size to {after_qty}"
+            txt = f"➖ Position reduced | {self.symbol} | {self.exchange} | Qty: {after_qty}"
             if jh.is_debuggable('position_reduced'):
                 logger.info(txt)
             if jh.is_live() and jh.get_config('env.notifications.events.updated_position'):
@@ -613,7 +612,8 @@ class Strategy(ABC):
         ({'timezone': ..., 'hours': {...}, 'closed': [...], 'overrides': {...}}) or None for
         no schedule. It is a method so the answer can depend on self (mode, exchange, symbol,
         hyperparameters). The engine never enforces it; it only feeds self.is_trading_hours
-        and is meant to be passed to utils.filter_candles_by_hours().
+        and is meant to be passed to utils.filter_candles_by_hours(). Both judge a candle by
+        its open time.
         """
         return None
 
@@ -795,6 +795,18 @@ class Strategy(ABC):
             raise exceptions.InvalidStrategy(
                 f'self.take_profit must be either a list or a tuple. example: (qty, price). You set {type(self.take_profit)}')
 
+    @staticmethod
+    def _validate_exit_order_values(orders: np.ndarray, name: str) -> None:
+        # Runs before the existing exit orders are cancelled. A NaN price (e.g. from an
+        # indicator still warming up or a value lost on restart) would otherwise be rejected
+        # only after the protective order is already gone, leaving the position unprotected.
+        for qty, price in orders:
+            if not np.isfinite(qty) or not np.isfinite(price):
+                raise exceptions.InvalidStrategy(
+                    f'self.{name} must contain valid numbers, but ({qty}, {price}) was given. '
+                    f'The existing {name} order was kept. Make sure the values used to calculate it are available.'
+                )
+
     def _execute_filters(self) -> bool:
         for f in self.filters():
             try:
@@ -848,6 +860,11 @@ class Strategy(ABC):
 
         if not jh.is_unit_testing() and not jh.is_live():
             store.orders.storage[f'{self.exchange}-{self.symbol}'].clear()
+
+    def _has_entries_awaiting_fill(self) -> bool:
+        """Keep confirmed executions matchable until their fill details arrive."""
+        return any(order.is_cancellable and cast(dict, order.vars or {}).get('awaiting_fill')
+                   for order in self.entry_orders)
 
     def _reset(self) -> None:
         self.buy = None
@@ -965,6 +982,7 @@ class Strategy(ABC):
 
                 # if stop_loss has been modified
                 if not _np_array_equal(self.stop_loss, self._stop_loss):
+                    self._validate_exit_order_values(self.stop_loss, 'stop_loss')
                     # prepare format
                     self._stop_loss = self.stop_loss.copy()
 
@@ -1008,6 +1026,7 @@ class Strategy(ABC):
 
                 # if _take_profit has been modified
                 if not _np_array_equal(self.take_profit, self._take_profit):
+                    self._validate_exit_order_values(self.take_profit, 'take_profit')
                     self._take_profit = self.take_profit.copy()
 
                     # if there's only one order in self._stop_loss, then it could be a liquidation order, store its price
@@ -1083,7 +1102,8 @@ class Strategy(ABC):
             logger.info(f'Executing  {self.name}-{self.exchange}-{self.symbol}-{self.timeframe}')
 
         # should cancel entry?
-        if len(self.entry_orders) and self.is_close and self.should_cancel_entry():
+        if (len(self.entry_orders) and self.is_close and not self._has_entries_awaiting_fill()
+                and self.should_cancel_entry()):
             self._execute_cancel()
 
             # make sure order cancellation response is received via WS
@@ -1237,8 +1257,14 @@ class Strategy(ABC):
     def _on_close_position(self, order: Order) -> None:
         self.last_trade_index = self.index
         
-        # get the last closed trade
-        closed_trade = store.closed_trades.trades[-1]
+        # Exactly the trade this closure recorded: neither another route's latest trade nor an
+        # older trade of this route when the closure recorded none.
+        closed_trade = store.closed_trades.pop_closure(self.exchange, self.symbol)
+        if closed_trade is None:
+            logger.info(
+                f'No closed trade was recorded for {self.exchange}-{self.symbol}; '
+                'on_close_position() receives None for closed_trade.'
+            )
 
         self._broadcast('route-close-position')
         self._execute_cancel()
@@ -1887,13 +1913,43 @@ class Strategy(ABC):
         return jh.is_live()
 
     @property
+    def closed_candle_open_time(self) -> int:
+        """
+        Open timestamp (UTC ms) of the latest completed candle on this strategy's route: the
+        candle that just closed when should_long()/should_short() run. self.time is that
+        candle's close, so it is one candle later. Between closes (live update_chart() calls,
+        order-fill callbacks) a still-forming candle is never returned; the last completed
+        one is. Pass it to utils.is_in_trading_hours() for custom sub-windows so they match
+        utils.filter_candles_by_hours(), which also keys on candle open time.
+        """
+        candles = self.candles
+        timeframe_ms = jh.timeframe_to_one_minutes(self.timeframe) * 60_000
+        now = int(self.time)
+        if len(candles) == 0:
+            return now - now % timeframe_ms - timeframe_ms
+
+        last_open = int(candles[-1, 0])
+        if last_open + timeframe_ms <= now:
+            return last_open
+        # the last row is still forming (live intrabar, or between closes in a backtest)
+        if len(candles) > 1:
+            return int(candles[-2, 0])
+        return last_open - timeframe_ms
+
+    @property
     def is_trading_hours(self) -> bool:
         """
-        Whether the current decision time (self.time) falls inside self.trading_hours().
-        Always True when trading_hours() returns None. Use it as the entry gate in
-        should_long()/should_short() and for the unfilled-entry policy in should_cancel_entry().
+        Whether the candle that just closed (self.closed_candle_open_time) is a session candle
+        of self.trading_hours(), the same open-time rule utils.filter_candles_by_hours() uses.
+        With a 04:00-20:00 schedule on 15m it is False at the 04:00 decision (the 03:45 candle
+        just closed) and True at the 20:00 one (the 19:45 candle just closed). Always True when
+        trading_hours() returns None. Use it as the entry gate in should_long()/should_short()
+        and for the unfilled-entry policy in should_cancel_entry().
         """
-        return trading_hours_service.is_in_trading_hours(int(self.time), self.trading_hours())
+        hours = self.trading_hours()
+        if hours is None:
+            return True
+        return trading_hours_service.is_in_trading_hours(self.closed_candle_open_time, hours)
 
     @property
     def min_qty(self) -> float:

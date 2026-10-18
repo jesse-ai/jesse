@@ -2,12 +2,16 @@ import numpy as np
 
 import jesse.helpers as jh
 from jesse.config import config, reset_config
+from jesse.routes import router
 from jesse.store import store
 
 
 def set_up():
     reset_config()
-    config['app']['considering_candles'] = [('Sandbox', 'BTC-USD')]
+    # Market-data storage allocates from the router, so initialize this test's route.
+    router.initiate([
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '1m', 'strategy': 'TestVanillaStrategy'}
+    ])
     store.reset()
     store.tickers.init_storage()
 

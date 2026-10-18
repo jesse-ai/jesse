@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime
+from decimal import Decimal, ROUND_FLOOR, localcontext
 import math
 import os
 import gzip
@@ -272,9 +273,14 @@ def format_price(price: float) -> str:
     Formats the price for logging.
     - If abs(price) is >= 1, it will be truncated to 2 decimal places.
     - If abs(price) is < 1, it will be truncated to 5 significant digits.
+    - Non-finite prices are displayed as unavailable.
     """
     if price is None:
         return ""
+
+    # Missing fill data can produce NaN; formatting must not abort cleanup.
+    if not math.isfinite(price):
+        return "N/A"
 
     if price == 0:
         return "0.00"
@@ -771,6 +777,16 @@ def round_qty_for_live_mode(roundable_qty: float, precision: int) -> Union[float
 
     # for qty rounding down is important to prevent InsufficenMargin
     rounded = round_decimals_down(roundable_qty, precision)
+    # Exchange quantities are decimal lots. Floor their round-trip decimal
+    # representation so binary multiplication cannot lose a lot on a full exit.
+    quantities = [Decimal(str(q)) for q in roundable_qty]
+    with localcontext() as context:
+        # Preserve every input digit plus a possible carry from flooring a negative value.
+        context.prec = max([len(q.as_tuple().digits) + 1 for q in quantities if q.is_finite()] or [1])
+        factor = Decimal(10) ** precision
+        for index, quantity in enumerate(quantities):
+            if quantity.is_finite():
+                rounded[index] = float((quantity * factor).to_integral_value(rounding=ROUND_FLOOR) / factor)
 
     for index, q in enumerate(rounded):
         # if the rounded value is 0, make it the minimum possible value

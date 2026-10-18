@@ -2,6 +2,15 @@ from jesse.models import ClosedTrade
 from jesse.store import store
 from jesse.testing_utils import single_route_backtest
 import numpy as np
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def clean_trade_store():
+    """Isolate engine state before and after each completed-trade test."""
+    store.reset()
+    yield
+    store.reset()
 
 
 def test_completed_trade_in_a_simple_strategy():
@@ -68,4 +77,3 @@ def test_trade_qty_entry_price_exit_price_size_properties():
     assert t2.exit_price == 150
     assert t2.entry_price == 350
     assert t2.size == 20 * 350
-

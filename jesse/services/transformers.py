@@ -234,10 +234,11 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
     return jh.clean_nan_values(jh.clean_infinite_values(result))
 
 
-def get_live_session(session: LiveSession) -> dict:
+def get_live_session(session: LiveSession, persist_reconciliation: bool = True) -> dict:
     """
     Transform a LiveSession model instance into a dictionary for API responses.
-    Reconciles status with actual worker state.
+    Reconciles status with actual worker state. With persist_reconciliation=False (read-only
+    snapshots) the reconciled status is only reported, not written back.
     """
     try:
         is_active = str(session.id) in process_manager.active_workers
@@ -247,8 +248,10 @@ def get_live_session(session: LiveSession) -> dict:
     status = (session.status or '').lower()
     
     # Reconcile status: if DB says starting/running but worker is not active, mark as stopped
-    if status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active:
+    reconciled = status in [live_session_statuses.STARTING, live_session_statuses.RUNNING] and not is_active
+    if reconciled:
         status = live_session_statuses.STOPPED
+    if reconciled and persist_reconciliation:
         # Update DB to reflect the reconciled status
         try:
             live_session_repository.update_live_session_status(str(session.id), live_session_statuses.STOPPED)

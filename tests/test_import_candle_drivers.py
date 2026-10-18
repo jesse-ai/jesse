@@ -30,6 +30,7 @@ from jesse.modes.import_candles_mode.drivers.KuCoin.KuCoinSpotMain import KuCoin
 from jesse.modes.import_candles_mode.drivers.Lighter.LighterMain import LighterMain
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.services.historical_data import HistoricalCandleRange, HistoricalCandleRequest
+from jesse.services.historical_data.errors import ProviderRateLimitError
 
 
 START_TIMESTAMP = 1_700_000_040_000
@@ -327,18 +328,69 @@ def test_bybit_rejects_provider_symbol_error(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ('error', 'exception_type', 'message'),
+    [
+        ('EGeneral:Too many requests', requests.exceptions.ConnectionError, 'rate limit'),
+        ('EAPI:Rate limit exceeded', requests.exceptions.ConnectionError, 'rate limit'),
+        ('EService:Unavailable', requests.exceptions.ConnectionError, 'unavailable'),
+        ('EQuery:Unknown asset pair', exceptions.SymbolNotFound, 'Unknown asset pair'),
+    ],
+)
+def test_kraken_spot_maps_errors_by_kind(monkeypatch, error, exception_type, message):
+    driver = drivers['Kraken Pro Spot']()
+    driver._altname_cache = {'BTC-USD': 'XBTUSD'}
+    monkeypatch.setattr(driver.session, 'get', lambda *args, **kwargs: FakeResponse({'error': [error]}))
+
+    with pytest.raises(exception_type, match=message):
+        driver.fetch('BTC-USD', START_TIMESTAMP)
+    with pytest.raises(exception_type, match=message):
+        driver.get_starting_time('BTC-USD')
+
+
+def test_kraken_spot_rate_limit_is_retryable_for_imports_and_symbol_list(monkeypatch):
+    driver = drivers['Kraken Pro Spot']()
+    monkeypatch.setattr(
+        driver.session, 'get', lambda *args, **kwargs: FakeResponse({'error': ['EGeneral:Too many requests']})
+    )
+
+    # The live warm-up retries requests' ConnectionError; imports retry ProviderRateLimitError.
+    with pytest.raises(requests.exceptions.ConnectionError):
+        driver.get_available_symbols()
+    request = HistoricalCandleRequest(
+        'BTC-USD', '1m', HistoricalCandleRange(START_TIMESTAMP, START_TIMESTAMP + 60_000)
+    )
+    with pytest.raises(ProviderRateLimitError):
+        driver._fetch_candles(request)
+
+
+@pytest.mark.parametrize(
     ('payload', 'exception_type'),
     [
         ({'msg': 'temporarily unavailable'}, exceptions.ExchangeInMaintenance),
-        ({'data': {}}, exceptions.InvalidSymbol),
+        ({'data': {}}, None),
     ],
 )
-def test_apex_rejects_malformed_or_unsupported_responses(monkeypatch, payload, exception_type):
+def test_apex_handles_empty_or_unavailable_windows(monkeypatch, payload, exception_type):
     driver = drivers['Apex Omni Perpetual']()
     monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: FakeResponse(payload))
 
-    with pytest.raises(exception_type):
-        driver.fetch('BTC-USDT', START_TIMESTAMP)
+    if exception_type is None:
+        # Empty recent windows are valid; an unknown symbol still fails the
+        # separate initial full-history check.
+        assert driver.fetch('BTC-USDT', START_TIMESTAMP) == []
+        with pytest.raises(exceptions.InvalidSymbol):
+            driver.get_starting_time('NOTREAL-USDT')
+        # A narrower window may be empty after a valid full-history response.
+        responses = iter([
+            {'data': {'BTCUSDT': [{'t': START_TIMESTAMP}]}},
+            {'data': {}},
+        ])
+        monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: FakeResponse(next(responses)))
+        assert driver.get_starting_time('BTC-USDT') == START_TIMESTAMP
+        assert next(responses, None) is None  # The empty refinement window was requested.
+    else:
+        with pytest.raises(exception_type):
+            driver.fetch('BTC-USDT', START_TIMESTAMP)
 
 
 def test_futures_driver_page_sizes_match_live_provider_limits():

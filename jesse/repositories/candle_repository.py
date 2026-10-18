@@ -18,11 +18,12 @@ OBSERVED_CANDLE_INSERT_BATCH_SIZE = 5_000
 CANDLE_EXPORT_BATCH_SIZE = 5_000
 
 
-def delete_candles_from_db(exchange: str, symbol: str) -> None:
+def delete_candles_from_db(exchange: str, symbol: str) -> int:
     """
-    Deletes all candles for the given exchange and symbol
+    Deletes all candles (every stored timeframe) for the given exchange and symbol and
+    returns the number of deleted rows.
     """
-    Candle.delete().where(
+    return Candle.delete().where(
         Candle.exchange == exchange,
         Candle.symbol == symbol
     ).execute()
@@ -311,6 +312,11 @@ def store_candles_into_db(exchange: str, symbol: str, timeframe: str, candles: n
             'timeframe': timeframe,
         }
         candles_list.append(d)
+
+    if on_conflict == 'replace':
+        # One statement cannot update a row twice; when a page repeats a bar
+        # (e.g. the forming one), its latest copy is stored.
+        candles_list = list({d['timestamp']: d for d in candles_list}.values())
 
     if on_conflict == 'ignore':
         Candle.insert_many(candles_list).on_conflict_ignore().execute()

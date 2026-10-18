@@ -5,7 +5,8 @@ from jesse import utils
 
 # The fake up-trend candles start on Thursday 2020-12-31 23:59 UTC and step one minute per
 # candle, so a schedule with a single Friday window between 00:30 and 01:00 UTC lands in the
-# middle of the run: some decisions fall inside it and most fall outside.
+# middle of the run: some decisions fall inside it and most fall outside. A decision belongs to
+# the candle that just closed, so it is judged by that candle's open time (self.time - 1m here).
 SCHEDULE = {'timezone': 'UTC', 'hours': {'Fri': '00:30-01:00'}}
 MINUTE_MS = 60_000
 DAY_MS = 86_400_000
@@ -34,7 +35,10 @@ class TestTradingHours(Strategy):
         if self.index == 0:
             _state.update(opened=0, cancelled_at=None)
 
-        assert self.is_trading_hours == _inside_window(int(self.time))
+        # the just-closed candle, not self.time (its close), decides the gate
+        assert self.closed_candle_open_time == int(self.current_candle[0])
+        assert self.closed_candle_open_time == int(self.time) - MINUTE_MS
+        assert self.is_trading_hours == _inside_window(self.closed_candle_open_time)
 
         candles = self.candles
         expected = candles[[_inside_window(int(t)) for t in candles[:, 0]]]
@@ -74,6 +78,7 @@ class TestTradingHours(Strategy):
     def terminate(self):
         assert _state['opened'] == 1
         assert self.trades_count == 1
-        # the resting limit entry was cancelled on the first execution after the 01:00 close
+        # the resting limit entry was cancelled once the first out-of-session candle (01:00-01:01)
+        # had closed, i.e. at 01:01; under the old self.time rule it was cancelled at 01:00
         assert _state['cancelled_at'] is not None
-        assert (_state['cancelled_at'] % DAY_MS) // MINUTE_MS == 60
+        assert (_state['cancelled_at'] % DAY_MS) // MINUTE_MS == 61

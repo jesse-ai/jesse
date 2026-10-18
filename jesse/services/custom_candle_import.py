@@ -1,3 +1,4 @@
+import codecs
 import csv
 import math
 import re
@@ -88,7 +89,9 @@ def scan_custom_candle_csv(
         raise CustomCandleImportError('Each required candle field must map to a different CSV column.')
 
     file_object.seek(0)
-    text_stream = TextIOWrapper(file_object, encoding='utf-8-sig', newline='')
+    # Python 3.10 uploads use SpooledTemporaryFile without TextIOWrapper's readable()
+    # interface. The codec reader streams UTF-8/BOM data without owning the binary file.
+    text_stream = codecs.getreader('utf-8-sig')(file_object)
     try:
         reader = csv.DictReader(text_stream)
         headers = tuple((header or '').strip().lower() for header in (reader.fieldnames or ()))
@@ -168,8 +171,6 @@ def scan_custom_candle_csv(
         raise CustomCandleImportError('The CSV must be UTF-8 encoded.') from exc
     except csv.Error as exc:
         raise CustomCandleImportError(f'Malformed CSV: {exc}') from exc
-    finally:
-        text_stream.detach()
 
 
 def clean_custom_candle_csv(
@@ -201,7 +202,8 @@ def clean_custom_candle_csv(
     errors = []
     previous_timestamp = None
     file_object.seek(0)
-    text_stream = TextIOWrapper(file_object, encoding='utf-8-sig', newline='')
+    # Keep upload decoding compatible with Python 3.10's spooled files and leave them open.
+    text_stream = codecs.getreader('utf-8-sig')(file_object)
     try:
         reader = csv.DictReader(text_stream)
         headers = tuple((header or '').strip().lower() for header in (reader.fieldnames or ()))
@@ -295,8 +297,6 @@ def clean_custom_candle_csv(
         raise CustomCandleImportError('The CSV must be UTF-8 encoded.') from exc
     except csv.Error as exc:
         raise CustomCandleImportError(f'Malformed CSV: {exc}') from exc
-    finally:
-        text_stream.detach()
 
     can_import_with_drop = cleaned_row_count > 0 and conflicting_duplicate_count == 0
     can_import_with_reject = can_import_with_drop and invalid_row_count == 0

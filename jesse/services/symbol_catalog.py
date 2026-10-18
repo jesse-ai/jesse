@@ -9,11 +9,10 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from redis.exceptions import LockError
 
 from jesse.enums import exchanges
 from jesse.services.historical_data.contracts import SymbolCatalogEntry
-from jesse.services.redis import sync_redis
+from jesse.services.redis import LockError, sync_redis
 
 
 # The free-tier catalog may cross several one-minute quota windows; the lock expires after ten.

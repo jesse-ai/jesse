@@ -162,6 +162,60 @@ def test_ray_fitness_uses_explicit_worker_configuration(monkeypatch: pytest.Monk
     assert fitness._formatted_inputs_for_isolated_backtest(user_config, routes)['warm_up_candles'] == 37
 
 
+def _optimize_until_ray(monkeypatch: pytest.MonkeyPatch, *, initialized: bool) -> list:
+    """Run research.optimize with Ray's lifecycle recorded; it stops at its first Ray use."""
+    optimize_module = importlib.import_module('jesse.research.optimize')
+    events = []
+
+    class StoppedAtRay(Exception):
+        pass
+
+    def start(cpu_cores):
+        events.append(('start', cpu_cores))
+        raise StoppedAtRay
+
+    def reused_runtime_put(value):
+        events.append('put')
+        raise StoppedAtRay
+
+    def unexpected_raw_init(**kwargs):
+        raise AssertionError('Ray must be started through jesse.services.ray_runtime')
+
+    monkeypatch.setattr(optimize_module, 'cpu_count', lambda: 8)
+    monkeypatch.setattr(optimize_module, 'initialize_ray', start)
+    monkeypatch.setattr(optimize_module.ray, 'init', unexpected_raw_init)
+    monkeypatch.setattr(optimize_module.ray, 'is_initialized', lambda: initialized)
+    monkeypatch.setattr(optimize_module.ray, 'put', reused_runtime_put)
+    monkeypatch.setattr(optimize_module.ray, 'shutdown', lambda: events.append('shutdown'))
+
+    config_input, routes, data_routes, training_candles, testing_candles = _optimization_inputs()
+    with pytest.raises(StoppedAtRay):
+        research.optimize(
+            config=config_input,
+            routes=routes,
+            data_routes=data_routes,
+            training_candles=training_candles,
+            training_warmup_candles={},
+            testing_candles=testing_candles,
+            testing_warmup_candles={},
+            cpu_cores=2,
+            trials=1,
+            progress_bar=False,
+        )
+
+    _assert_research_runtime_is_clean()
+    return events
+
+
+def test_optimization_starts_ray_through_the_shared_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _optimize_until_ray(monkeypatch, initialized=False) == [('start', 2)]
+
+
+def test_optimization_reuses_a_caller_owned_ray_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A runtime the caller started is neither restarted nor shut down by the research call.
+    assert _optimize_until_ray(monkeypatch, initialized=True) == ['put']
+
+
 def test_optimization_cleans_parent_state_after_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     optimize_module = importlib.import_module('jesse.research.optimize')
 

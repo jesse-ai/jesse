@@ -1,3 +1,4 @@
+import threading
 from typing import Optional
 from uuid import UUID
 
@@ -25,6 +26,8 @@ from jesse.enums import live_session_statuses, live_session_modes
 
 router = APIRouter(prefix="/live", tags=["Live Trading"])
 
+_LIFECYCLE_LOCK = threading.Lock()
+
 
 @router.post("", dependencies=[Depends(require_auth)])
 def live(request_json: LiveRequestJson) -> JSONResponse:
@@ -37,16 +40,30 @@ def live(request_json: LiveRequestJson) -> JSONResponse:
 
     trading_mode = live_session_modes.LIVETRADE if request_json.paper_mode is False else live_session_modes.PAPERTRADE
 
-    existing_session = live_session_repository.get_live_session_by_id(request_json.id)
-    if existing_session and existing_session.status != live_session_statuses.DRAFT:
-        return JSONResponse(
-            {
-                'error': f'Live session with ID {request_json.id} already exists.',
-                'message': 'Create a new session before starting again.',
-            },
-            status_code=409,
-        )
+    with _LIFECYCLE_LOCK:
+        existing_session = live_session_repository.get_live_session_by_id(request_json.id)
+        if existing_session and existing_session.status != live_session_statuses.DRAFT:
+            return JSONResponse(
+                {
+                    'error': f'Live session with ID {request_json.id} already exists.',
+                    'message': 'Create a new session before starting again.',
+                },
+                status_code=409,
+            )
+        _store_and_start(request_json, trading_mode, live_mode, existing_session)
 
+    mode = 'live' if request_json.paper_mode is False else 'paper'
+    return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
+
+
+def _store_and_start(request_json: LiveRequestJson, trading_mode: str, live_mode, previous) -> None:
+    """
+    Mark the session as starting and spawn its process; called with _LIFECYCLE_LOCK held.
+
+    If the process could not be launched, the row is put back as it was before (`previous`, the
+    draft or nothing), so a failed launch leaves a startable draft rather than a "starting" row
+    with no process behind it, and the error still reaches the caller.
+    """
     live_session_repository.store_live_session(
         id=request_json.id,
         status=live_session_statuses.STARTING,
@@ -67,21 +84,47 @@ def live(request_json: LiveRequestJson) -> JSONResponse:
     )
 
     # execute live session
-    process_manager.add_task(
-        live_mode.run,
-        request_json.id,
-        request_json.debug_mode,
-        request_json.exchange,
-        request_json.exchange_api_key_id,
-        request_json.notification_api_key_id,
-        request_json.config,
-        request_json.routes,
-        request_json.data_routes,
-        trading_mode,
-    )
+    try:
+        process_manager.add_task(
+            live_mode.run,
+            request_json.id,
+            request_json.debug_mode,
+            request_json.exchange,
+            request_json.exchange_api_key_id,
+            request_json.notification_api_key_id,
+            request_json.config,
+            request_json.routes,
+            request_json.data_routes,
+            trading_mode,
+        )
+    except BaseException:
+        if not _has_active_marker(str(request_json.id)):
+            live_session_repository.restore_live_session(request_json.id, previous)
+        raise
 
-    mode = 'live' if request_json.paper_mode is False else 'paper'
-    return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
+
+def _has_active_marker(session_id: str) -> bool:
+    """
+    Whether the session is marked active, i.e. a process may have been launched.
+
+    add_task removes the marker itself when launching the process fails, but it can also raise
+    after a successful launch; then the row must stay "starting" (it is reconciled once the process
+    ends) so the draft cannot be started a second time. A marker that cannot be read counts as set.
+    """
+    try:
+        return session_id in process_manager.active_workers
+    except Exception:
+        return True
+
+
+def _active_session_response(session_id) -> JSONResponse:
+    return JSONResponse(
+        {
+            'error': f'Live session {session_id} is starting or running.',
+            'message': 'Stop the session first; a running session cannot be deleted or edited.',
+        },
+        status_code=409,
+    )
 
 
 @router.post("/cancel", dependencies=[Depends(require_auth)])
@@ -90,7 +133,10 @@ def cancel_live(request_json: LiveCancelRequestJson):
     Cancel live trading
     """
 
-    process_manager.cancel_process(request_json.id)
+    # A stop that arrives while the same session is being started waits for the start to publish
+    # its active marker, so removing the marker cannot happen first and be undone by the start.
+    with _LIFECYCLE_LOCK:
+        process_manager.cancel_process(request_json.id)
 
     return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
 
@@ -227,15 +273,22 @@ def remove_live_session(session_id: UUID):
     Remove a live session from the database
     """
 
-    session = live_session_repository.get_live_session_by_id(str(session_id))
+    with _LIFECYCLE_LOCK:
+        session = live_session_repository.get_live_session_by_id(str(session_id))
 
-    if not session:
-        return JSONResponse({
-            'error': f'Session with ID {session_id} not found'
-        }, status_code=404)
+        if not session:
+            return JSONResponse({
+                'error': f'Session with ID {session_id} not found'
+            }, status_code=404)
 
-    # Delete the session from the database
-    result = live_session_repository.delete_live_session(str(session_id))
+        # Deleting the record of a session whose process is running would leave that process
+        # trading with no session to show, stop, or log to. A row still marked "starting" or
+        # "running" without an active process (after a crash) can be deleted.
+        if _has_active_marker(str(session_id)):
+            return _active_session_response(session_id)
+
+        # Delete the session from the database
+        result = live_session_repository.delete_live_session(str(session_id))
 
     if not result:
         return JSONResponse({
@@ -279,9 +332,27 @@ def update_session_notes(
 def update_state(request_json: UpdateLiveSessionStateRequestJson):
     """
     Upsert live session state (creates draft if doesn't exist, updates if exists)
+
+    The form of a session that is starting or running is what that process runs, so it is never
+    replaced (the dashboard only saves tabs being edited; a save that loses the race with Start is
+    refused). Ended sessions can still be saved, as the dashboard does when it applies settings to
+    ended tabs. With `require_draft`, anything but a draft or a new session is refused.
     """
 
-    live_session_repository.upsert_live_session_state(request_json.id, request_json.state)
+    with _LIFECYCLE_LOCK:
+        if _has_active_marker(request_json.id):
+            return _active_session_response(request_json.id)
+        if request_json.require_draft:
+            existing = live_session_repository.get_live_session_by_id(request_json.id)
+            if existing and existing.status != live_session_statuses.DRAFT:
+                return JSONResponse(
+                    {
+                        'error': f'Live session {request_json.id} is {existing.status}, not a draft.',
+                        'message': 'Only drafts can be edited; create a new session instead.',
+                    },
+                    status_code=409,
+                )
+        live_session_repository.upsert_live_session_state(request_json.id, request_json.state)
 
     return JSONResponse({
         'message': 'Live session state updated successfully'
