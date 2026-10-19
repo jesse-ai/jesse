@@ -172,7 +172,6 @@ defaults only fill fields the draft lacks.
 
 Parameters:
 - `session_id`: UUID of the backtest session to run
-- `timeout_seconds` (optional): Maximum wait time (default: 24 hours)
 
 **Workflow**:
 ```python
@@ -188,7 +187,8 @@ Process:
 5. Monitors progress via WebSocket events
 
 Returns: Immediate acknowledgement containing the session ID, the executed trading routes,
-dashboard URL, and polling instructions; or error details.
+and dashboard URL; or error details. It does not wait: follow it with `wait_for_sessions`
+(see "Waiting for runs" below).
 
 ### cancel_backtest()
 
@@ -222,6 +222,45 @@ Parameters:
 - `overwrite` (optional, default `false`): Replace an existing report. Without it, an existing file returns `error_type: "report_exists"`; use it only to update your own report from the same task.
 
 Returns: `path` (project-relative, e.g. `strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md`), `overwritten`, and `size_bytes`. The success response is the verification: give the user the `path` verbatim as a location inside the Jesse project.
+
+## Waiting for runs
+
+`run_backtest`, `run_optimization` / `rerun_optimization`, `run_monte_carlo` / `resume_monte_carlo`
+and `run_significance_test` return as soon as the run starts. Wait for them with one tool,
+`wait_for_sessions`, never with sleep-and-poll loops over `get_*_session` or `get_session_results`.
+It waits on the Jesse host, reports, and never starts, stops or cancels anything.
+
+`wait_for_sessions(session_ids, until="all", timeout_seconds=240, stall_minutes=None)`
+- `session_ids`: up to 50 IDs of any research type, mixed is fine. Pass every run you started.
+- `until`: `"all"` returns when every session is settled; `"any"` at the first one, so you can
+  start the next run and keep a fixed number running in parallel.
+- `timeout_seconds`: 0-540. If it passes first, `done` is `false`: call again with the same IDs.
+- `stall_minutes`: how long a live worker may go without progress before it counts as stalled.
+  Defaults: backtest 10, optimization 30 (progress is recorded per finished trial; raise it for very
+  slow trials), Monte Carlo and significance test 20.
+
+| `outcome` | Meaning | Next |
+|---|---|---|
+| `finished` | Completed | `get_session_results(type, id)` |
+| `ended` | Stopped, cancelled or terminated; `error` says why. A dead worker (killed, out of memory, lost DB connection, machine gone) lands here within ~90 seconds | Fix the cause, run again |
+| `stalled` | Worker alive, but no progress past the stall limit | Check its logs; if stuck, cancel it and run it again |
+| `not_started` | Still a draft | Start it with its run tool |
+| `not_found` | No session has that ID | Check the ID |
+| `running` | Not settled yet; shows `progress` and `progress_age_seconds` | Keep waiting |
+
+A session started by an older Jesse version has no heartbeat: it can never show as stalled,
+only its end is detected. `claimed_by` names the machine running it; a run on another machine must
+be cancelled through that machine's Jesse. Give the user each session's `dashboard_url`.
+
+```python
+ids = [draft_a_id, draft_b_id]
+for sid in ids:
+    run_backtest(sid)
+w = wait_for_sessions(ids)            # repeat while w["done"] is False
+for s in w["sessions"]:
+    if s["outcome"] == "finished":
+        get_session_results("backtest", s["session_id"])
+```
 
 ## Usage Examples
 
@@ -299,8 +338,9 @@ update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", merged_state)
 # Config is automatically loaded from database
 result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
 
-# Check results
-session_details = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
+# Wait until it ends or stalls (repeat while done is False), then read results
+wait_for_sessions(["550e8400-e29b-41d4-a716-446655440000"])
+summary = get_session_results("backtest", "550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ## Supported Exchanges
@@ -401,7 +441,7 @@ draft2 = create_backtest_draft(
 
 - Missing Data: do NOT pre-import. Run the backtest first; if it fails with a missing-candle error, then import (starting ~2 months before `start_date`) and retry. Never call `get_existing_candles()` as a pre-flight gate.
 - Configuration Errors: Check JSON structure and parameter formats
-- Timeout Issues: Adjust timeout_seconds parameter (default: 86400 = 24 hours)
+- Long runs: `wait_for_sessions` returns `done: false` at its timeout; call it again (see Waiting for runs).
 - State Conflicts: Retrieve current state before updates
 
 ## Best Practices
@@ -445,7 +485,8 @@ run_backtest(draft1.backtest_id, config)
 draft2 = create_backtest_draft(routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]')
 run_backtest(draft2.backtest_id, config)
 
-# Compare results across sessions
+# Wait for both, then compare results across sessions
+wait_for_sessions([draft1.backtest_id, draft2.backtest_id])
 session1_response = get_backtest_session(draft1.backtest_id)
 session2_response = get_backtest_session(draft2.backtest_id)
 session1_results = session1_response.data.session

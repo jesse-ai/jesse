@@ -606,9 +606,9 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
             'session_id': payload['id'],
             'dashboard_url': mcp_config.dashboard_url('optimization', payload['id']),
             'message': (
-                'Optimization started. Poll get_optimization_session(session_id) until status is '
-                '"finished" (or "stopped"/"terminated"). Optimization is long-running — poll less '
-                'frequently (e.g. every 20-30s) and watch completed_trials / total_trials.'
+                'Optimization started. Call wait_for_sessions([session_id]) to wait until it ends or stalls '
+                '(optimizations are long-running: call it again while it returns done=false), then read '
+                'the best trials with get_session_results.'
             ),
         }
     if response.status_code == 401:
@@ -645,7 +645,7 @@ def run_optimization_service(session_id: str) -> dict:
                 'dashboard_url': mcp_config.dashboard_url('optimization', session_id),
                 'message': (
                     f'Optimization session {session_id} is already running. '
-                    'Poll get_optimization_session(session_id) for progress.'
+                    'Call wait_for_sessions([session_id]) to wait for it.'
                 ),
             }
         if session_status == 'finished':

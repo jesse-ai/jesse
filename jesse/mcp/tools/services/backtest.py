@@ -892,7 +892,7 @@ def run_backtest_service(session_id: str) -> dict:
                 'backtest_id': session_id,
                 'routes': payload['routes'],
                 'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
-                'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
+                'message': 'Backtest started. Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
             }
         elif response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}

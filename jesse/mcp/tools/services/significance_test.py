@@ -502,7 +502,7 @@ def run_significance_test_service(session_id: str) -> dict:
                 'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': (
                     'Rule significance test started. '
-                    'Poll get_significance_test_session(session_id) until status is "finished".'
+                    'Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
                 ),
             }
         if response.status_code == 401:

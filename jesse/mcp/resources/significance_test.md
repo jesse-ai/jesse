@@ -110,9 +110,12 @@ List sessions (most recent first). `status_filter` values: `draft`, `running`,
 
 ### run_significance_test(session_id)
 
-Fire-and-poll. Returns `{ "status": "started", "session_id": ... }` immediately
-when the server accepts (HTTP 202). Then poll `get_significance_test_session`
-every few seconds until `status == "finished"` (or `stopped` / `terminated`).
+Returns `{ "status": "started", "session_id": ... }` immediately when the server
+accepts (HTTP 202). Then wait with `wait_for_sessions([session_id])` (call again
+while `done` is `false`) and read `results` with
+`get_session_results("significance_test", session_id)`. Never sleep-and-poll
+`get_significance_test_session`. Arguments, outcomes and stall handling: "Waiting
+for runs" in `jesse://backtest_management`.
 
 ### cancel_significance_test(session_id)
 
@@ -142,18 +145,12 @@ sid = draft["session_id"]
 # 3. Fire it
 run_significance_test(sid)
 
-# 4. Poll until done
-while True:
-    s = get_significance_test_session(sid)
-    status = s["data"]["session"]["status"]
-    if status in ("finished", "stopped", "terminated"):
-        break
-    time.sleep(3)
+# 4. Wait until it ends or stalls (repeat while done is False)
+w = wait_for_sessions([sid])
 
 # 5. Inspect
-session = s["data"]["session"]
-if status == "finished":
-    r = session["results"]
+if w["sessions"][0]["outcome"] == "finished":
+    r = get_session_results("significance_test", sid)["results"]
     edge = "confirmed" if r["p_value"] < 0.05 else "not confirmed"
     update_significance_test_notes(
         sid,

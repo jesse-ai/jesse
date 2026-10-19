@@ -290,6 +290,7 @@ def register_backtest_tools(mcp):
         Fetches complete session data from the database including configuration,
         execution status, performance metrics, trade history, and results.
         This is the primary method for inspecting backtest state and results.
+        To wait for a running backtest, use wait_for_sessions, not repeated calls to this.
 
         Parameters:
             session_id (str): UUID string of the backtest session to retrieve
@@ -487,11 +488,12 @@ def register_backtest_tools(mcp):
     @mcp.tool()
     async def run_backtest(session_id: str) -> dict:
         """
-        Trigger a backtest and return immediately (fire-and-poll pattern).
+        Trigger a backtest and return immediately.
 
         Starts the backtest for the given session and returns as soon as Jesse
         acknowledges the request. Does NOT wait for the backtest to finish.
-        Use get_backtest_session(session_id) to poll for progress and results.
+        Wait for it with wait_for_sessions([session_id]), then read its results
+        with get_session_results("backtest", session_id).
 
         Parameters:
             session_id (str): UUID string of the backtest session to execute
@@ -513,7 +515,7 @@ def register_backtest_tools(mcp):
                     }
                 ],
                 "dashboard_url": "<dashboard origin>/#/backtest/uuid-string",
-                "message": "Backtest started. Poll get_backtest_session(session_id) to check progress."
+                "message": "Backtest started. Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results."
             }
 
             Error Response:
@@ -531,33 +533,30 @@ def register_backtest_tools(mcp):
         Workflow:
             1. create_backtest_draft() → creates session with configuration
             2. run_backtest(session_id) → fires the backtest, returns immediately
-            3. Poll get_backtest_session(session_id) every few seconds
-            4. When session status is "finished", results are in metrics/trades/equity_curve
-            5. When session status is "stopped", check session.exception for error details
+            3. wait_for_sessions([session_id]) → returns when it ends or stalls
+               (call again with the same IDs while it returns done=false)
+            4. outcome "finished" → read metrics/trades/equity curve with get_session_results
+            5. outcome "ended" → read `error` (or get_session_results' summary); "stalled" →
+               check its logs, then cancel_backtest and run it again
 
-        Polling:
-            - Check session["data"]["session"]["status"] for: "running", "finished", "stopped", "cancelled"
-            - Results available when status == "finished"
-            - Error details in session["data"]["session"]["exception"] when status == "stopped"
+        Waiting:
+            - Never sleep-and-poll get_backtest_session; wait_for_sessions does the waiting
+            - Started several backtests? Pass all their IDs; until="any" returns at the first
+              one that settles so you can start the next
 
         Example:
             >>> # Step 1: fire the backtest
             >>> result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
             >>> assert result["status"] == "started"
 
-            >>> # Step 2: poll until done
-            >>> import time
-            >>> while True:
-            ...     session = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
-            ...     status = session["data"]["session"]["status"]
-            ...     if status == "finished":
-            ...         metrics = session["data"]["session"]["metrics"]
-            ...         print(f"Done! Net profit: {metrics['net_profit']}")
-            ...         break
-            ...     elif status == "stopped":
-            ...         print(f"Failed: {session['data']['session']['exception']}")
-            ...         break
-            ...     time.sleep(5)
+            >>> # Step 2: wait until done
+            >>> waited = wait_for_sessions(["550e8400-e29b-41d4-a716-446655440000"])
+            >>> # repeat the same call while waited["done"] is False
+            >>> session = waited["sessions"][0]
+            >>> if session["outcome"] == "finished":
+            ...     summary = get_session_results("backtest", "550e8400-e29b-41d4-a716-446655440000")
+            ... else:
+            ...     print(session["outcome"], session.get("error") or session.get("note"))
         """
         return await run_blocking(gated_run_backtest, session_id)
 

@@ -2,13 +2,13 @@
 Jesse Optimization Tools
 
 MCP tools for hyperparameter optimization, mirroring the Monte Carlo tools so the
-agent uses the same draft / run / poll workflow.
+agent uses the same draft / run / wait workflow.
 
 Workflow:
     1. create_optimization_draft(...)  -> returns session_id
     2. run_optimization(session_id)    -> fires the run, returns immediately
-    3. poll get_optimization_session(session_id) until status == "finished"
-       (or "stopped"/"terminated"); read best_candidates for the tuned params.
+    3. wait_for_sessions([session_id]) until done (call again while done=false),
+       then read the best trials with get_session_results("optimization", session_id).
 
 Requirements / gotchas:
     - The strategy MUST define a non-empty hyperparameters() list — otherwise there
@@ -17,7 +17,7 @@ Requirements / gotchas:
       before each). If they're missing the session stops with a clear message
       telling you what to import.
     - `trials` is PER hyperparameter: total trials = n_hyperparameters * trials.
-    - Optimization is long-running; poll less frequently than a backtest.
+    - Optimization is long-running; expect several wait_for_sessions calls.
 
 The tools are async and run their API calls in a worker thread (see offload.py).
 """
@@ -222,7 +222,8 @@ def register_optimization_tools(mcp):
     @mcp.tool()
     async def get_optimization_session(session_id: str) -> dict:
         """
-        Fetch full details of an optimization session — the primary polling tool.
+        Fetch full details of an optimization session. To wait for a run, use
+        wait_for_sessions instead of calling this repeatedly.
 
         Returns (shape):
             {
@@ -247,7 +248,7 @@ def register_optimization_tools(mcp):
               "message": str
             }
 
-        Polling: status == "running" → keep polling (every ~20-30s; optimization is
+        Status: "running" → wait with wait_for_sessions([session_id]) (optimization is
         slow). status == "finished" → read best_candidates (rank #1 is best by the
         objective). status == "stopped" → read `exception` (e.g. missing candles, or
         the strategy has no hyperparameters).
@@ -300,10 +301,10 @@ def register_optimization_tools(mcp):
         """
         Start a previously created optimization draft and return immediately.
 
-        Fire-and-poll: returns once the server acknowledges. Then poll
-        get_optimization_session(session_id) until status is "finished" (or
-        "stopped"/"terminated"). Optimization is long-running — poll less frequently
-        (every ~20-30s) and watch completed_trials / total_trials.
+        Returns once the server acknowledges. Then call wait_for_sessions([session_id])
+        until it ends or stalls; optimization is long-running, so call it again while it
+        returns done=false (its `progress` shows completed / total trials). Then read the
+        best trials with get_session_results("optimization", session_id).
 
         Returns: { "status": "started", "session_id": "<uuid>", "message": "..." }
                  or { "status": "error", "message": "..." }
@@ -316,7 +317,8 @@ def register_optimization_tools(mcp):
         Reset and restart an existing optimization session, clearing its prior
         trials and results. Use this to run a finished or stopped session again
         (e.g. after importing missing candles or editing the strategy). Cancel a
-        running session first before rerunning.
+        running session first before rerunning. Wait for it with
+        wait_for_sessions([session_id]), as after run_optimization.
         """
         return await run_blocking(rerun_optimization_service, session_id)
 

@@ -6,13 +6,14 @@ from fastapi.responses import JSONResponse
 
 import jesse.helpers as jh
 from jesse.controllers.project_files_controller import respond
-from jesse.services import live_history, session_results
+from jesse.services import live_history, session_results, session_status
 from jesse.services.auth import require_auth
 from jesse.services.web import (
     LiveHistoryRequestJson,
     LiveOrdersHistoryRequestJson,
     LiveSessionsListRequestJson,
     SessionResultsRequestJson,
+    SessionStatusRequestJson,
 )
 
 # Bounded, read-only views of stored session results for MCP assistants. Live/paper sessions
@@ -44,6 +45,24 @@ def get_session_results(json_request: SessionResultsRequestJson) -> JSONResponse
         json_request.session_type, json_request.session_id, json_request.section,
         json_request.offset, json_request.limit,
     )
+
+
+@router.post("/status")
+def get_session_statuses(json_request: SessionStatusRequestJson) -> JSONResponse:
+    """The status, owner, heartbeat and progress of up to 50 research sessions, for waiting clients."""
+    try:
+        result = session_status.get_statuses(json_request.session_ids)
+    except session_status.StatusRequestError as e:
+        return JSONResponse({'status': 'error', 'error_type': e.error_type, 'message': e.message},
+                            status_code=e.status_code)
+    except Exception as e:
+        jh.debug(f'Reading session statuses failed: {traceback.format_exc()}')
+        return JSONResponse(
+            {'status': 'error', 'error_type': 'read_failed',
+             'message': f'Jesse could not read the stored data ({type(e).__name__}). Check the Jesse log for details.'},
+            status_code=500,
+        )
+    return JSONResponse({'status': 'success', **result})
 
 
 @router.post("/live-sessions")

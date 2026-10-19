@@ -24,6 +24,7 @@ from .services import (
     get_live_sessions_service,
     get_live_trades_service,
     get_session_results_service,
+    wait_for_sessions_service,
 )
 
 # The history tools take every argument as Any with the schema they advertise. FastMCP's pydantic
@@ -37,6 +38,12 @@ _Mode = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['live', 'paper
 _Order = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['newest_first', 'oldest_first']})]
 _Limit = Annotated[Any, WithJsonSchema({'type': 'integer', 'minimum': 1, 'maximum': 500})]
 _TimeField = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['created_at', 'executed_at']})]
+# wait_for_sessions validates its arguments itself (see services/session_wait.py).
+_SessionIds = Annotated[Any, WithJsonSchema({'anyOf': [
+    {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1, 'maxItems': 50}, {'type': 'string'},
+]})]
+_Until = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['all', 'any']})]
+_AnyNumber = Annotated[Any, WithJsonSchema({'anyOf': [{'type': 'number'}, {'type': 'null'}]})]
 _Status = Annotated[Any, WithJsonSchema({'anyOf': [
     {'type': 'string', 'enum': ['ACTIVE', 'CANCELED', 'EXECUTED', 'PARTIALLY FILLED', 'QUEUED', 'LIQUIDATED',
                                 'REJECTED']},
@@ -241,6 +248,58 @@ def register_session_results_tools(mcp):
             "note", "paging"} or an error like get_live_trades.
         """
     mcp.tool()(get_live_orders)
+
+    @mcp.tool()
+    async def wait_for_sessions(
+        session_ids: _SessionIds,
+        until: _Until = 'all',
+        timeout_seconds: _AnyNumber = 240,
+        stall_minutes: _AnyNumber = None,
+    ) -> dict:
+        """
+        Wait until research sessions end or stall, instead of polling them one by one. Read-only:
+        never starts, stops, or changes a session.
+
+        Use it after run_backtest / run_optimization / run_monte_carlo / run_significance_test
+        (or their resume/rerun tools), with every session you started. It waits on the Jesse host
+        and returns as soon as the sessions are settled, or after `timeout_seconds`.
+
+        Parameters:
+            session_ids: Up to 50 session IDs of any of the four research types (mixed is fine).
+            until: "all" (default) waits until every session is settled; "any" returns when the
+                first one is, so you can start the next run while others continue.
+            timeout_seconds: 0-540, default 240. When it passes first, `done` is false: call
+                again with the same session_ids (an empty wait costs nothing on the Jesse host).
+            stall_minutes: Minutes without progress from a running session's (still alive) worker
+                after which it counts as stalled. Defaults: backtest 10, optimization 30 (progress
+                is recorded per finished trial, so raise it for very slow trials), Monte Carlo and
+                significance test 20.
+
+        Settled means one of these `outcome`s:
+            finished      the run completed; read it with get_session_results.
+            ended         stopped / cancelled / terminated; `error` says why when Jesse knows.
+                          A worker that died (killed, out of memory, lost database connection,
+                          machine gone) is reported here once its lease runs out (90 seconds),
+                          or at once by the machine that ran it.
+            stalled       its worker is alive but made no progress past the stall limit. Nothing
+                          is cancelled for you: check its logs, then cancel it and run it again
+                          if it is stuck.
+            not_started   still a draft (start it with its run tool).
+            not_found     no session has that ID.
+        Unsettled sessions show outcome "running" with their `progress` (backtest/significance
+        percent, optimization trials, Monte Carlo scenarios) and `heartbeat_age_seconds`.
+
+        Returns:
+            {"status": "success", "done": bool, "until", "waited_seconds", "outcomes": {outcome: count},
+             "sessions": [{"session_id", "session_type", "status", "outcome", "settled", "progress",
+             "progress_age_seconds", "heartbeat_age_seconds", "claimed_by", "error"?, "note"?, "dashboard_url"}],
+             "next"? (when not done)}
+            or {"status": "error", "error_type", "message"}.
+        Give the user each session's dashboard_url, not its ID.
+        """
+        return await run_blocking(
+            wait_for_sessions_service, session_ids, until, timeout_seconds, stall_minutes,
+        )
     # A misspelled filter must be refused, not dropped, and the text "null" must stay text: either
     # would silently widen the selection. All arguments of these two tools are scalars.
     keep_raw_argument_values(mcp, 'get_live_trades', 'get_live_orders')

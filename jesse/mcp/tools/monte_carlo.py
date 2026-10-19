@@ -2,7 +2,8 @@
 Jesse Monte Carlo MCP Tools
 
 Mirrors the backtest / significance_test tool surface so the agent can stage
-and run Monte Carlo simulations with the same draft / run / poll workflow.
+and run Monte Carlo simulations with the same draft / run / wait workflow
+(run, then wait_for_sessions, then get_session_results).
 
 Tools exposed:
     create_monte_carlo_draft
@@ -379,11 +380,10 @@ def register_monte_carlo_tools(mcp):
         """
         Fire a Monte Carlo simulation for a previously created draft and return immediately.
 
-        Fire-and-poll: returns once the server acknowledges (202). Then poll
-        get_monte_carlo_session(session_id) every few seconds until
-        status == "finished" (or "stopped"/"terminated"). Summary metrics live
-        in session.trades_session.summary_metrics and
-        session.candles_session.summary_metrics once finished.
+        Returns once the server acknowledges (202). Then call
+        wait_for_sessions([session_id]) until it ends or stalls (call again while it
+        returns done=false), and read the summary metrics with
+        get_session_results("monte_carlo", session_id).
 
         Returns:
             { "status": "started", "session_id": "<uuid>", "message": "..." }
@@ -400,7 +400,7 @@ def register_monte_carlo_tools(mcp):
         when a run was interrupted (server restart, conversation reset).
         For brand-new runs use run_monte_carlo instead.
 
-        Same fire-and-poll semantics as run_monte_carlo.
+        Same semantics as run_monte_carlo: wait for it with wait_for_sessions([session_id]).
         """
         return await run_blocking(resume_monte_carlo_service, session_id)
 

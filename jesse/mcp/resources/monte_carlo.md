@@ -181,7 +181,8 @@ conclusion.
 
 Fetch full details. Both `trades_session` and `candles_session` carry their
 own `status`, `num_scenarios`, `completed_scenarios`, and `summary_metrics`.
-The outer `status` reflects overall progress.
+The outer `status` reflects overall progress. To wait for a run, use
+`wait_for_sessions`, not repeated calls to this.
 
 ```json
 {
@@ -235,10 +236,9 @@ progress in a long run.
 
 ### run_monte_carlo(session_id)
 
-Fire-and-poll. Returns `{ "status": "started", "session_id": ... }` when the
-server accepts (HTTP 202). Then keep checking `get_monte_carlo_session`
-until `status == "finished"` (or `stopped` / `terminated`). **See "Checking
-for results" below — keep checking until a terminal status is reached, no
+Returns `{ "status": "started", "session_id": ... }` when the server accepts
+(HTTP 202). Then wait with `wait_for_sessions([session_id])`. **See "Checking
+for results" below — keep waiting until the session is settled, no
 exceptions, and never ask the user to drive the loop.**
 
 ## Checking for results
@@ -246,63 +246,48 @@ exceptions, and never ask the user to drive the loop.**
 Monte Carlo runs are slow — candles MC re-runs the full strategy on
 `num_scenarios` resampled price series. A 200-scenario candles MC on a
 one-year window typically takes minutes; longer windows or more scenarios
-can take **30+ minutes or hours**. Three requirements when checking:
+can take **30+ minutes or hours**. Wait with `wait_for_sessions([sid])`
+(never sleep-and-poll `get_monte_carlo_session`); arguments, outcomes and
+stall handling are in "Waiting for runs" in `jesse://backtest_management`.
+Two requirements:
 
-1. **Keep checking until terminal status.** Terminal statuses are
-   `finished`, `stopped`, `terminated`. Do NOT stop checking because
-   "it's taking a while" or "progress hasn't moved" — candles MC often
-   processes all scenarios in a batch and only updates
-   `completed_scenarios` at the end. Reporting "done" before
-   `status` is terminal is a hard error.
+1. **Keep waiting until the session is settled.** While `done` is
+   `false` (outcome `running`), call `wait_for_sessions` again with the
+   same IDs. Do NOT stop because "it's taking a while" or "progress
+   hasn't moved" — candles MC often processes all scenarios in a batch
+   and only updates `completed_scenarios` at the end. Stalls are judged
+   from the worker's lease and last reported activity, not from scenario
+   counts, so a slow count alone is not a stall. Reporting "done" before the outcome
+   is `finished` or `ended` is a hard error.
 2. **Never ask the user to drive the loop.** Do not say "let me know
    when you'd like me to check again", "want me to keep checking?", or
    anything similar. The user expects autonomous progress to
-   completion. Just keep checking.
-3. **Adapt the interval to expected remaining time** so you don't
-   hammer the server every second on a 30-minute run. Use the
-   schedule below.
+   completion. Just keep waiting.
 
-Adaptive check schedule (when `status == "running"`):
-
-| Elapsed since fire | Check every |
-|---|---|
-| 0 – 1 min | 5 s |
-| 1 – 5 min | 15 s |
-| 5 – 15 min | 30 s |
-| 15 – 60 min | 60 s |
-| > 1 h | 2 – 3 min |
-
-Refinements:
-- If `candles_session.completed_scenarios > 0`, you can estimate ETA as
-  `elapsed * (num_scenarios / completed_scenarios)`. Set the next check
-  to roughly `min(remaining_eta / 5, max_interval)`.
-- If `completed_scenarios` is still 0 after several minutes, that's
-  expected for candles MC — it batches across `cpu_cores` workers and
-  reports only at the end. **Don't conclude it's stuck, and don't ask
-  the user what to do — keep checking.**
-- The ONLY case where surfacing a "what should I do?" question is
-  acceptable is after at least ~2 hours of elapsed time with no terminal
-  status AND no scenario progress at all. Even then, keep periodically
-  checking in the background.
+If `progress` shows `completed_scenarios > 0`, you can estimate ETA as
+`elapsed * (num_scenarios / completed_scenarios)`.
 
 User-facing language: in your chat replies, say **"checking for
 results"** or **"checking again"** — not "polling". "Polling" is
 engineering jargon and confuses non-technical readers.
 
-Status semantics:
-- `running` → keep checking
-- `finished` → done, read `summary_metrics`
-- `stopped` → run failed; fetch `get_monte_carlo_logs(sid)` for the
-  underlying error and report it to the user
-- `terminated` → user-initiated stop; report the partial state, do not
-  retry without the user's say-so
+Outcome semantics:
+- `running` → call `wait_for_sessions` again
+- `finished` → done, read `summary_metrics` with
+  `get_session_results("monte_carlo", sid)`
+- `ended` → a stop with an `error` is a failed run: fetch
+  `get_monte_carlo_logs(sid)` for the underlying error and report it to
+  the user. `terminated` is a user-initiated stop; report the partial
+  state, do not retry without the user's say-so
+- `stalled` → check `get_monte_carlo_logs(sid)`; if stuck,
+  `cancel_monte_carlo` and run it again (`resume_monte_carlo`)
 
 ### resume_monte_carlo(session_id)
 
 Re-fire an existing session whose status is `stopped`, `terminated`, or
 otherwise interrupted (server restart, conversation reset). Most of the time
 the agent will create its own sessions — this is mainly for picking up a
-previously-stopped run on user request.
+previously-stopped run on user request. Wait for it with `wait_for_sessions`.
 
 ### cancel_monte_carlo(session_id)
 
@@ -335,18 +320,14 @@ sid = draft["session_id"]
 # 2. Fire it
 run_monte_carlo(sid)
 
-# 3. Poll until done
-while True:
-    s = get_monte_carlo_session(sid)
-    status = s["data"]["session"]["status"]
-    if status in ("finished", "stopped", "terminated"):
-        break
-    time.sleep(5)
+# 3. Wait until it ends or stalls (repeat while done is False)
+w = wait_for_sessions([sid])
+outcome = w["sessions"][0]["outcome"]
 
 # 4. Inspect summary metrics
-session = s["data"]["session"]
-if status == "finished":
-    candles = session["candles_session"]
+if outcome == "finished":
+    summary = get_session_results("monte_carlo", sid)
+    candles = summary["pipelines"]["candles"]
     by_metric = {m["metric"]: m for m in candles["summary_metrics"]}
     sharpe = by_metric.get("sharpe_ratio", {})
     orig, med, best5, worst5 = (
@@ -369,7 +350,7 @@ if status == "finished":
             f"best_5={best5:.2f} worst_5={worst5:.2f}. {verdict}."
         ),
     )
-elif status in ("stopped", "terminated"):
+elif outcome in ("ended", "stalled"):
     logs = get_monte_carlo_logs(sid)
     # surface logs["logs"] to the user
 ```

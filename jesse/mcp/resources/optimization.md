@@ -126,7 +126,8 @@ Never replace the whole state just to change fee or leverage.
 Update notes — typically to record the chosen parameters and conclusion.
 
 ### get_optimization_session(session_id)
-Fetch full details — the primary polling tool.
+Fetch full details (the raw dashboard record). To wait for a run, use `wait_for_sessions`,
+not repeated calls to this.
 ```json
 {
   "data": { "session": {
@@ -158,14 +159,14 @@ Fetch the log file content. Useful when `status == "stopped"` to find the
 underlying error, or to watch trial-by-trial progress on a long run.
 
 ### run_optimization(session_id)
-Fire-and-poll. Returns `{ "status": "started", ... }` when the server accepts.
-Then keep checking `get_optimization_session` until a terminal status. See
-"Checking for results" below.
+Returns `{ "status": "started", ... }` when the server accepts. Then wait with
+`wait_for_sessions([session_id])`. See "Checking for results" below.
 
 ### rerun_optimization(session_id)
 Reset (clears prior trials/best_candidates) and restart an existing session. Use
 this to run a finished/stopped session again — e.g. after importing missing
-candles or editing the strategy. Cancel a running session first.
+candles or editing the strategy. Cancel a running session first. Wait for it with
+`wait_for_sessions` like a new run.
 
 ### cancel_optimization(session_id)
 Cooperative cancel — stops at the next trial checkpoint; completed trials are kept.
@@ -180,31 +181,25 @@ Delete old sessions. If `days_old` is omitted, deletes **all** sessions.
 ## Checking for results
 
 Optimization is the **slowest** of the modes — it runs `n_hyperparameters ×
-trials` backtests, each on both the training and testing windows. Keep checking
-until a terminal status (`finished`, `stopped`, `terminated`); never ask the user
-to drive the loop. Watch `completed_trials / total_trials` for progress and ETA.
+trials` backtests, each on both the training and testing windows. Wait with
+`wait_for_sessions([sid])` and call it again while it returns `done: false`; never
+ask the user to drive the loop and never sleep-and-poll `get_optimization_session`.
+Its `progress` shows `completed_trials / total_trials`; once `completed_trials > 0`,
+estimate ETA as `elapsed × (total_trials / completed_trials)`. The default stall
+limit is 30 minutes (progress is recorded per finished trial): raise `stall_minutes` when
+a single trial takes longer. Arguments, outcomes and stall handling: "Waiting for
+runs" in `jesse://backtest_management`.
 
-Adaptive check schedule (when `status == "running"`):
-
-| Elapsed since fire | Check every |
-|---|---|
-| 0 – 1 min | 5 s |
-| 1 – 5 min | 20 s |
-| 5 – 30 min | 60 s |
-| 30 – 120 min | 2 – 3 min |
-| > 2 h | 5 min |
-
-If `completed_trials > 0`, estimate ETA as
-`elapsed × (total_trials / completed_trials)` and set the next check to roughly
-`min(remaining_eta / 5, max_interval)`.
-
-Status semantics:
-- `running` / `paused` → keep checking
-- `finished` → read `best_candidates`; report the train-vs-test verdict
-- `stopped` → run failed; read `exception` (e.g. missing candles, or the strategy
-  has no hyperparameters) and `get_optimization_logs(sid)`, then report it
-- `terminated` → user-initiated stop; report the partial state, don't retry
-  without the user's say-so
+Outcome semantics:
+- `running` → call `wait_for_sessions` again
+- `finished` → read `best_trials` with `get_session_results("optimization", sid,
+  section="best_trials")`; report the train-vs-test verdict
+- `ended` → read `error` and `get_optimization_logs(sid)`. A stop with an error
+  (e.g. missing candles, or the strategy has no hyperparameters) is a failed run:
+  report it. `terminated` is a user-initiated stop; report the partial state,
+  don't retry without the user's say-so
+- `stalled` → check `get_optimization_logs(sid)`; if stuck, `cancel_optimization`
+  and `rerun_optimization`
 
 User-facing language: say **"checking for results"** in chat, not "polling".
 
@@ -227,21 +222,16 @@ sid = draft["session_id"]
 # 2. Fire it
 run_optimization(sid)
 
-# 3. Keep checking until terminal (optimization is slow — widen the interval)
-while True:
-    s = get_optimization_session(sid)
-    status = s["data"]["session"]["status"]
-    if status in ("finished", "stopped", "terminated"):
-        break
-    time.sleep(20)
+# 3. Wait until it ends or stalls (optimization is slow — repeat while done is False)
+w = wait_for_sessions([sid])
+outcome = w["sessions"][0]["outcome"]
 
 # 4. Pick the candidate that generalizes best (smallest train->test drop)
-session = s["data"]["session"]
-if status == "finished":
-    cands = session["best_candidates"]
+if outcome == "finished":
+    cands = get_session_results("optimization", sid, section="best_trials")
     # report rank #1 plus train-vs-test for the top few; flag overfit candidates
-elif status == "stopped":
-    # read session["exception"] / get_optimization_logs(sid); if missing candles,
+elif outcome == "ended":
+    # read w["sessions"][0]["error"] / get_optimization_logs(sid); if missing candles,
     # import_candles() for both windows (~2 months before each start) then rerun_optimization(sid)
     ...
 

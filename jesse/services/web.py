@@ -266,6 +266,11 @@ class ResearchJobOutputRequestJson(BaseModel):
     tail_lines: int = 200
 
 
+class SessionStatusRequestJson(BaseModel):
+    # Validated by services/session_status.py, so a wrong shape gets its message, not pydantic's.
+    session_ids: Any = None
+
+
 class SessionResultsRequestJson(BaseModel):
     session_type: str
     session_id: str

@@ -103,7 +103,7 @@ SYNC_TOOLS = {'list_indicators', 'get_indicator_details', 'get_exchange_api_key_
 # Every tool the worker registers, including the 7 live/paper session tools, the 2 live/paper
 # trade and order history tools, and the candle export and purge tools; the live tools are
 # registered even without the plugin and answer live_plugin_unavailable then.
-REGISTERED_TOOL_COUNT = 101
+REGISTERED_TOOL_COUNT = 102
 # Tools metered by usage_limits.gated, with the route prefix whose /sessions/{id} they read first.
 GATED_RUN_TOOLS = {
     'run_backtest': 'backtest',

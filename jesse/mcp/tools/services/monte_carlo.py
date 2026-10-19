@@ -637,7 +637,7 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
             'dashboard_url': mcp_config.dashboard_url('monte_carlo', payload['id']),
             'message': (
                 'Monte Carlo simulation started. '
-                'Poll get_monte_carlo_session(session_id) until status is "finished".'
+                'Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
             ),
         }
     if response.status_code == 401:
@@ -672,7 +672,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
                 'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
                 'message': (
                     f'Monte Carlo session {session_id} is already running. '
-                    'Poll get_monte_carlo_session(session_id) for progress.'
+                    'Call wait_for_sessions([session_id]) to wait for it.'
                 ),
             }
         if session_status == 'finished':

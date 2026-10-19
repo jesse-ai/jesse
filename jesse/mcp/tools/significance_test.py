@@ -2,7 +2,8 @@
 Jesse Rule Significance Test MCP Tools
 
 Mirrors the backtest MCP tool surface so the agent can stage and run rule
-significance tests with the same draft / run / poll workflow it already knows.
+significance tests with the same draft / run / wait workflow it already knows
+(run, then wait_for_sessions, then get_session_results).
 
 Tools exposed:
     create_significance_test_draft
@@ -287,10 +288,10 @@ def register_significance_test_tools(mcp):
         """
         Fire a Rule Significance Test for a previously created draft and return immediately.
 
-        Fire-and-poll: this returns once the server acknowledges (202). Then poll
-        get_significance_test_session(session_id) every few seconds until
-        status == "finished" (or "stopped"/"terminated"). Results live in
-        session["results"] once finished.
+        This returns once the server acknowledges (202). Then call
+        wait_for_sessions([session_id]) until it ends or stalls (call again while it
+        returns done=false), and read the results with
+        get_session_results("significance_test", session_id).
 
         Returns:
             { "status": "started", "session_id": "<uuid>", "message": "..." }
