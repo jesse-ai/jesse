@@ -192,20 +192,27 @@ def _exchange_api_keys(migrator):
 
 
 def _liveness_fields() -> list:
-    # Session owner and worker heartbeat (services/session_liveness.py), on every research session table.
+    # Worker lease and progress (services/session_liveness.py), on every research session table.
     return [
-        {'action': migration_actions.ADD, 'name': 'owner', 'type': CharField(max_length=255, null=True)},
+        {'action': migration_actions.ADD, 'name': 'claimed_by', 'type': CharField(max_length=255, null=True)},
         {'action': migration_actions.ADD, 'name': 'heartbeat_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'progress_at', 'type': BigIntegerField(null=True)},
         {'action': migration_actions.ADD, 'name': 'progress', 'type': FloatField(null=True)},
     ]
 
 
-def _backtest_session(migrator):
-    fields = _liveness_fields()
+def _liveness_migrate(migrator, table: str) -> None:
+    """Add the liveness columns; `owner` (from unreleased builds) became `claimed_by`."""
+    columns = database.db.get_columns(table)
+    if any(column.name == 'owner' for column in columns) and not any(column.name == 'claimed_by' for column in columns):
+        migrate(migrator.rename_column(table, 'owner', 'claimed_by'))
+        print(f"'owner' column successfully changed to claimed_by in the '{table}' table.")
+    _migrate(migrator, _liveness_fields(), database.db.get_columns(table), table)
 
+
+def _backtest_session(migrator):
     if 'backtestsession' in database.db.get_tables():
-        backtest_session_columns = database.db.get_columns('backtestsession')
-        _migrate(migrator, fields, backtest_session_columns, 'backtestsession')
+        _liveness_migrate(migrator, 'backtestsession')
 
 
 def _optimization_session(migrator):
@@ -213,31 +220,28 @@ def _optimization_session(migrator):
         {'action': migration_actions.ADD, 'name': 'title', 'type': CharField(max_length=255, null=True)},
         {'action': migration_actions.ADD, 'name': 'description', 'type': TextField(null=True)},
         {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
-        *_liveness_fields(),
     ]
 
     if 'optimizationsession' in database.db.get_tables():
         optimization_session_columns = database.db.get_columns('optimizationsession')
         _migrate(migrator, fields, optimization_session_columns, 'optimizationsession')
+        _liveness_migrate(migrator, 'optimizationsession')
 
 
 def _monte_carlo_session(migrator):
     fields = [
         {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
-        *_liveness_fields(),
     ]
 
     if 'montecarlosession' in database.db.get_tables():
         monte_carlo_session_columns = database.db.get_columns('montecarlosession')
         _migrate(migrator, fields, monte_carlo_session_columns, 'montecarlosession')
+        _liveness_migrate(migrator, 'montecarlosession')
 
 
 def _significance_test_session(migrator):
-    fields = _liveness_fields()
-
     if 'significancetestsession' in database.db.get_tables():
-        cols = database.db.get_columns('significancetestsession')
-        _migrate(migrator, fields, cols, 'significancetestsession')
+        _liveness_migrate(migrator, 'significancetestsession')
 
 
 def _migrate(migrator, fields, columns, table):

@@ -55,10 +55,11 @@ class BacktestSession(peewee.Model):
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
 
-    # Liveness (see services/session_liveness.py): the instance that runs the session, and the
-    # worker's last sign of life and progress while it runs.
-    owner = peewee.CharField(max_length=255, null=True)
+    # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
+    # its worker's lease, and its last progress while it runs.
+    claimed_by = peewee.CharField(max_length=255, null=True)
     heartbeat_at = peewee.BigIntegerField(null=True)
+    progress_at = peewee.BigIntegerField(null=True)
     progress = peewee.FloatField(null=True)
 
     class Meta:
@@ -237,13 +238,13 @@ def get_backtest_session_by_id(id: str):
 
 def _reconcile_backtest_session_status(session: BacktestSession) -> BacktestSession:
     """
-    Stop a running backtest whose worker this instance no longer has. Rows without an owner are
-    left alone: backtests were never reconciled before owners existed, and such a row may belong
-    to another instance sharing this database.
+    Stop a running backtest whose lease ran out. Rows without a lease are left alone: backtests
+    were never reconciled before leases existed, and such a row may be running on another
+    instance sharing this database.
     """
     from jesse.services import session_liveness
 
-    if session_liveness.worker_is_gone(session, allow_unowned=False):
+    if session_liveness.worker_is_gone(session, legacy_coordinator_check=False):
         message = 'The backtest worker is no longer running, so this backtest stopped without a result.'
         BacktestSession.update(
             status='stopped',

@@ -53,10 +53,11 @@ class MonteCarloSession(peewee.Model):
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
 
-    # Liveness (see services/session_liveness.py): the instance that runs the session, and the
-    # worker's last sign of life and progress while it runs.
-    owner = peewee.CharField(max_length=255, null=True)
+    # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
+    # its worker's lease, and its last progress while it runs.
+    claimed_by = peewee.CharField(max_length=255, null=True)
     heartbeat_at = peewee.BigIntegerField(null=True)
+    progress_at = peewee.BigIntegerField(null=True)
     progress = peewee.FloatField(null=True)
 
     class Meta:
@@ -474,10 +475,10 @@ def purge_monte_carlo_sessions(days_old: int = None) -> int:
 
 def get_running_monte_carlo_session_id():
     try:
-        from jesse.services.session_liveness import owned_here_clause
+        from jesse.services.session_liveness import claimed_here_clause
 
         session = MonteCarloSession.select().where(
-            (MonteCarloSession.status == 'running') & owned_here_clause(MonteCarloSession)
+            (MonteCarloSession.status == 'running') & claimed_here_clause(MonteCarloSession)
         ).order_by(MonteCarloSession.updated_at.desc()).first()
         if session:
             session = _reconcile_monte_carlo_session_status(session)
@@ -488,8 +489,7 @@ def get_running_monte_carlo_session_id():
 
 
 def _reconcile_monte_carlo_session_status(session: MonteCarloSession):
-    # Only the instance that owns a running session can tell from its coordinator that the
-    # worker is gone (see services/session_liveness.py).
+    # A running session whose lease ran out has no live worker (see services/session_liveness.py).
     from jesse.services import session_liveness
 
     if session_liveness.worker_is_gone(session):

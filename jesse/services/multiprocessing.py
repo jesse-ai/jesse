@@ -210,8 +210,11 @@ class ProcessManager:
                 break
 
     def _cleanup_finished_workers(self):
+        from jesse.services import session_liveness
+        last_renewal = 0.0
         while True:
             exited = []
+            live_client_ids = []
             try:
                 with self._workers_lock:
                     self._retry_pending_worker_removals()
@@ -248,11 +251,21 @@ class ProcessManager:
                                         _terminal_debug(f"Cleaned up finished worker {client_id}")
                             except Exception as e:
                                 _terminal_debug(f"Error during worker cleanup: {type(e).__name__}: {e}")
+                    live_client_ids = [
+                        jh.string_after_character(client_id, '|')
+                        for client_id, pid in self.client_id_to_pid_to_map.items()
+                    ]
             except Exception as e:
                 _terminal_debug(f"Error in cleanup thread: {type(e).__name__}: {e}")
             # Outside the lock: the database may be slow, and starting workers must not wait on it.
             for client_id, exit_code in exited:
                 self._reconcile_exited_session(client_id, exit_code)
+            if live_client_ids and time.monotonic() - last_renewal >= session_liveness.HEARTBEAT_INTERVAL_SECONDS:
+                last_renewal = time.monotonic()
+                try:
+                    session_liveness.renew_leases(live_client_ids)
+                except Exception as e:
+                    _terminal_debug(f'Error renewing session leases: {type(e).__name__}: {e}')
             time.sleep(5)
 
     @staticmethod

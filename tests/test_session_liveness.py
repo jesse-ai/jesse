@@ -34,14 +34,14 @@ def db(monkeypatch):
         database.create_tables(MODELS)
         # The liveness writes are skipped in unit-test mode; these tests run them on SQLite.
         monkeypatch.setattr(session_liveness, 'jh', SimpleNamespace(is_unit_testing=lambda: False))
-        monkeypatch.setattr(session_liveness, '_owner', HERE)
-        monkeypatch.setattr(session_liveness, 'instance_owner', lambda: HERE)
+        monkeypatch.setattr(session_liveness, 'machine_label', lambda: HERE)
+        monkeypatch.setattr(session_liveness, 'now_ms', lambda: int(time.time() * 1000))
         yield database
 
 
 @pytest.fixture
 def active(monkeypatch):
-    """The session ids this instance's coordinator has workers for."""
+    """The session ids this machine's coordinator has workers for."""
     ids = set()
     monkeypatch.setattr(coordinator, 'is_process_active', lambda client_id: str(client_id) in ids)
     return ids
@@ -51,9 +51,10 @@ def _ms(seconds_ago: float = 0) -> int:
     return int((time.time() - seconds_ago) * 1000)
 
 
-def _row(model, status='running', owner=HERE, heartbeat_seconds_ago=600, **fields):
+def _row(model, status='running', claimed_by=HERE, heartbeat_seconds_ago=5, **fields):
     session_id = str(uuid.uuid4())
-    values = {'id': session_id, 'status': status, 'owner': owner, 'created_at': _ms(), 'updated_at': _ms(), **fields}
+    values = {'id': session_id, 'status': status, 'claimed_by': claimed_by, 'created_at': _ms(), 'updated_at': _ms(),
+              **fields}
     if heartbeat_seconds_ago is not None:
         values['heartbeat_at'] = _ms(heartbeat_seconds_ago)
     model.insert(**values).execute()
@@ -65,64 +66,98 @@ def _status(model, session_id):
 
 
 # ---------------------------------------------------------------------------
-# Claiming and judging a session
+# Claiming, leases and judging a session
 # ---------------------------------------------------------------------------
 
-def test_claim_records_this_instance_and_can_mark_the_session_running(db):
-    session_id = _row(OptimizationSession, status='draft', owner=None, heartbeat_seconds_ago=None)
+def test_claim_starts_the_lease_and_progress_clocks_and_can_mark_the_session_running(db):
+    session_id = _row(OptimizationSession, status='draft', claimed_by=None, heartbeat_seconds_ago=None)
 
     session_liveness.claim('optimization', session_id, mark_running=True)
 
     row = OptimizationSession.get(OptimizationSession.id == session_id)
-    assert (row.status, row.owner) == ('running', HERE)
-    assert abs(row.heartbeat_at - _ms()) < 5_000
+    assert (row.status, row.claimed_by) == ('running', HERE)
+    assert abs(row.heartbeat_at - _ms()) < 5_000 and row.progress_at == row.heartbeat_at
 
 
-@pytest.mark.parametrize(('owner', 'heartbeat_seconds_ago', 'worker', 'allow_unowned', 'gone'), [
-    (HERE, 600, False, True, True),        # owned, quiet, no worker: gone
-    (HERE, 600, True, True, False),        # owned, worker alive
-    (HERE, 5, False, True, False),         # just claimed: grace period
-    (OTHER, 600, False, True, False),      # another instance's session: never judged here
-    (None, None, False, True, True),       # legacy row: judged as Jesse always did
+@pytest.mark.parametrize(('claimed_by', 'heartbeat_seconds_ago', 'worker', 'legacy_check', 'gone'), [
+    (HERE, 600, True, True, True),         # lease ran out: gone, whatever the coordinator says
+    (OTHER, 600, False, True, True),       # any machine may expire another machine's lapsed lease
+    (HERE, 30, False, True, False),        # lease still valid
+    (OTHER, 30, False, True, False),       # another machine's live run is left alone
+    (None, None, False, True, True),       # legacy row (no lease): judged by the coordinator as before
+    (None, None, True, True, False),
     (None, None, False, False, False),     # legacy row where the caller opts out
 ])
-def test_worker_is_gone_only_for_this_instances_quiet_sessions(db, active, owner, heartbeat_seconds_ago,
-                                                               worker, allow_unowned, gone):
-    session_id = _row(OptimizationSession, owner=owner, heartbeat_seconds_ago=heartbeat_seconds_ago)
+def test_worker_is_gone_when_the_lease_runs_out(db, active, claimed_by, heartbeat_seconds_ago, worker,
+                                              legacy_check, gone):
+    session_id = _row(OptimizationSession, claimed_by=claimed_by, heartbeat_seconds_ago=heartbeat_seconds_ago)
     if worker:
         active.add(session_id)
     session = OptimizationSession.get(OptimizationSession.id == session_id)
 
-    assert session_liveness.worker_is_gone(session, allow_unowned=allow_unowned) is gone
+    assert session_liveness.worker_is_gone(session, legacy_coordinator_check=legacy_check) is gone
+
+
+def test_renew_leases_refreshes_only_running_research_sessions(db):
+    running = _row(BacktestSession, heartbeat_seconds_ago=60)
+    finished = _row(OptimizationSession, status='finished', heartbeat_seconds_ago=60)
+
+    session_liveness.renew_leases([running, finished, 'not-a-uuid', 'import-123'])
+
+    assert abs(BacktestSession.get(BacktestSession.id == running).heartbeat_at - _ms()) < 5_000
+    assert _ms() - OptimizationSession.get(OptimizationSession.id == finished).heartbeat_at > 50_000
+
+
+def test_has_live_worker_follows_the_lease(db, active):
+    fresh = OptimizationSession.get(OptimizationSession.id == _row(OptimizationSession, heartbeat_seconds_ago=10))
+    lapsed = OptimizationSession.get(OptimizationSession.id == _row(OptimizationSession, heartbeat_seconds_ago=600))
+    legacy_id = _row(OptimizationSession, claimed_by=None, heartbeat_seconds_ago=None)
+    active.add(legacy_id)
+    legacy = OptimizationSession.get(OptimizationSession.id == legacy_id)
+
+    assert session_liveness.has_live_worker(fresh) is True
+    assert session_liveness.has_live_worker(lapsed) is False
+    assert session_liveness.has_live_worker(legacy) is True
+
+
+def test_times_come_from_the_database_clock(monkeypatch):
+    monkeypatch.setattr(session_liveness, '_clock_offset_ms', None)
+    monkeypatch.setattr(session_liveness, '_database_now_ms', lambda: int(time.time() * 1000) + 120_000)
+    assert 119_000 < session_liveness.now_ms() - _ms() < 121_000
+
+    def unreachable():
+        raise RuntimeError('database is down')
+
+    monkeypatch.setattr(session_liveness, '_clock_offset_ms', None)
+    monkeypatch.setattr(session_liveness, '_database_now_ms', unreachable)
+    assert abs(session_liveness.now_ms() - _ms()) < 1_000
 
 
 # ---------------------------------------------------------------------------
 # Reading sessions
 # ---------------------------------------------------------------------------
 
-def test_reading_another_instances_running_optimization_leaves_it_running(db, active):
-    theirs = _row(OptimizationSession, owner=OTHER)
-    mine = _row(OptimizationSession, owner=HERE)
+def test_reading_a_running_optimization_stops_it_only_once_its_lease_ran_out(db, active):
+    live_elsewhere = _row(OptimizationSession, claimed_by=OTHER, heartbeat_seconds_ago=20)
+    dead_elsewhere = _row(OptimizationSession, claimed_by=OTHER, heartbeat_seconds_ago=600)
 
-    assert get_optimization_session_by_id(theirs).status == 'running'
-    assert get_optimization_session_by_id(mine).status == 'stopped'
-    assert (_status(OptimizationSession, theirs), _status(OptimizationSession, mine)) == ('running', 'stopped')
+    assert get_optimization_session_by_id(live_elsewhere).status == 'running'
+    assert get_optimization_session_by_id(dead_elsewhere).status == 'stopped'
+    assert _status(OptimizationSession, dead_elsewhere) == 'stopped'
 
 
-def test_the_running_session_shown_here_is_one_this_instance_owns(db, active):
-    theirs = _row(OptimizationSession, owner=OTHER, updated_at=_ms() + 10_000)
-    mine = _row(OptimizationSession, owner=HERE)
-    active.add(mine)
+def test_the_running_session_shown_here_is_one_this_machine_runs(db, active):
+    theirs = _row(OptimizationSession, claimed_by=OTHER, updated_at=_ms() + 10_000)
+    mine = _row(OptimizationSession, claimed_by=HERE)
 
     assert get_running_optimization_session_id() == mine
     assert _status(OptimizationSession, theirs) == 'running'
 
 
-def test_an_orphaned_backtest_is_stopped_with_a_reason_but_unowned_ones_are_left_alone(db, active):
-    orphan = _row(BacktestSession, owner=HERE)
-    legacy = _row(BacktestSession, owner=None, heartbeat_seconds_ago=None)
-    alive = _row(BacktestSession, owner=HERE)
-    active.add(alive)
+def test_a_backtest_whose_lease_ran_out_is_stopped_with_a_reason_but_legacy_rows_are_left_alone(db, active):
+    orphan = _row(BacktestSession, heartbeat_seconds_ago=600)
+    legacy = _row(BacktestSession, claimed_by=None, heartbeat_seconds_ago=None)
+    alive = _row(BacktestSession, claimed_by=OTHER, heartbeat_seconds_ago=10)
 
     stopped = get_backtest_session_by_id(orphan)
     listed = {str(s.id): s.status for s in get_backtest_sessions()}
@@ -137,7 +172,7 @@ def test_an_orphaned_backtest_is_stopped_with_a_reason_but_unowned_ones_are_left
 # ---------------------------------------------------------------------------
 
 def test_a_worker_that_exits_without_reporting_leaves_a_stopped_session(db, active):
-    session_id = _row(OptimizationSession, owner=HERE, heartbeat_seconds_ago=1)
+    session_id = _row(OptimizationSession, heartbeat_seconds_ago=1)
 
     assert session_liveness.reconcile_exited_worker(session_id, -9) == ['optimization']
 
@@ -146,12 +181,12 @@ def test_a_worker_that_exits_without_reporting_leaves_a_stopped_session(db, acti
     assert 'exited (exit code -9) without reporting a result' in row.exception
 
 
-@pytest.mark.parametrize('case', ['finished', 'other_owner', 'rerun'])
+@pytest.mark.parametrize('case', ['finished', 'claimed_elsewhere', 'rerun'])
 def test_worker_exit_does_not_touch_finished_foreign_or_rerun_sessions(db, active, case):
     session_id = _row(
         BacktestSession,
         status='finished' if case == 'finished' else 'running',
-        owner=OTHER if case == 'other_owner' else HERE,
+        claimed_by=OTHER if case == 'claimed_elsewhere' else HERE,
     )
     if case == 'rerun':
         active.add(session_id)  # a newer worker already runs the same session
@@ -161,7 +196,7 @@ def test_worker_exit_does_not_touch_finished_foreign_or_rerun_sessions(db, activ
 
 
 def test_worker_exit_also_stops_the_running_parts_of_a_monte_carlo_session(db, active):
-    session_id = _row(MonteCarloSession, owner=HERE)
+    session_id = _row(MonteCarloSession)
     MonteCarloTradesSession.insert(id=str(uuid.uuid4()), monte_carlo_session_id=session_id, num_scenarios=10,
                                    status='running', created_at=_ms(), updated_at=_ms()).execute()
     MonteCarloCandlesSession.insert(id=str(uuid.uuid4()), monte_carlo_session_id=session_id, num_scenarios=10,
@@ -189,23 +224,24 @@ def test_the_process_manager_reconciles_without_ever_raising(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Heartbeat
+# Progress
 # ---------------------------------------------------------------------------
 
-def test_heartbeat_refreshes_the_tracked_running_session_at_most_every_interval(db):
-    session_id = _row(OptimizationSession, owner=HERE, heartbeat_seconds_ago=600)
+def test_progress_is_recorded_at_most_every_interval_and_does_not_renew_the_lease(db):
+    session_id = _row(OptimizationSession, heartbeat_seconds_ago=600)
     session_liveness.track('optimize', session_id)
 
     session_liveness.beat(42)
     first = OptimizationSession.get(OptimizationSession.id == session_id)
-    assert abs(first.heartbeat_at - _ms()) < 5_000 and first.progress == 42
+    assert abs(first.progress_at - _ms()) < 5_000 and first.progress == 42
+    assert _ms() - first.heartbeat_at > 500_000  # only the process manager renews the lease
 
     session_liveness.beat(43)  # within the interval: no write
     assert OptimizationSession.get(OptimizationSession.id == session_id).progress == 42
 
 
-def test_heartbeat_never_revives_an_ended_session_or_tracks_other_modes(db):
-    stopped = _row(BacktestSession, status='stopped', owner=HERE, heartbeat_seconds_ago=600)
+def test_progress_never_revives_an_ended_session_or_tracks_other_modes(db):
+    stopped = _row(BacktestSession, status='stopped', heartbeat_seconds_ago=600)
     session_liveness.track('backtest', stopped)
     session_liveness.beat(10)
     row = BacktestSession.get(BacktestSession.id == stopped)
