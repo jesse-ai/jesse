@@ -6,6 +6,7 @@ import json
 
 from jesse.services.auth import require_auth
 from jesse.services.multiprocessing import process_manager
+from jesse.services import session_liveness
 from jesse.services.web import (
     MonteCarloRequestJson,
     CancelMonteCarloRequestJson,
@@ -71,6 +72,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson):
         status='running',
         state=request_json.state,
     )
+    session_liveness.claim('monte_carlo', session_id)
 
     process_manager.add_task(
         run_monte_carlo,
@@ -145,6 +147,16 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson):
             'error': f'Session with ID {request_json.id} not found'
         }, status_code=404)
 
+    if session_liveness.has_live_worker(session):
+        return JSONResponse({
+            'error': f'Monte Carlo session {request_json.id} is already running.'
+        }, status_code=409)
+
+    # Mark it running before its worker starts, so a worker that dies while loading candles
+    # cannot leave the session a draft.
+    session_liveness.claim('monte_carlo', request_json.id, mark_running=True)
+    session.status = 'running'
+
     # Transform the session using the transformer
     transformed_session = get_monte_carlo_session_for_load_more(session)
     stored_state = session.state_json if session.state else {}
@@ -160,24 +172,29 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson):
         else request_json.cpu_cores
     )
 
-    process_manager.add_task(
-        run_monte_carlo,
-        request_json.id,
-        resume_config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.start_date,
-        request_json.finish_date,
-        request_json.run_trades,
-        request_json.run_candles,
-        request_json.num_scenarios,
-        request_json.fast_mode,
-        resume_cpu_cores,
-        request_json.pipeline_type,
-        request_json.pipeline_params,
-        stored_state or request_json.state,
-    )
+    try:
+        process_manager.add_task(
+            run_monte_carlo,
+            request_json.id,
+            resume_config,
+            request_json.exchange,
+            request_json.routes,
+            request_json.data_routes,
+            request_json.start_date,
+            request_json.finish_date,
+            request_json.run_trades,
+            request_json.run_candles,
+            request_json.num_scenarios,
+            request_json.fast_mode,
+            resume_cpu_cores,
+            request_json.pipeline_type,
+            request_json.pipeline_params,
+            stored_state or request_json.state,
+        )
+    except Exception as e:
+        error = f'{type(e).__name__}: {e}'
+        session_liveness.release_failed_start('monte_carlo', request_json.id, error)
+        return JSONResponse({'error': error}, status_code=500)
 
     return JSONResponse({
         'session': transformed_session

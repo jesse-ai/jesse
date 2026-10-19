@@ -8,6 +8,7 @@ import json
 
 from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
+from jesse.services import session_liveness
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
 from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, store_optimization_session, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
@@ -47,6 +48,7 @@ async def optimization(request_json: OptimizationRequestJson):
 
     store_optimization_session(id=session_id, status='running')
     update_optimization_session_state(session_id, request_json.state)
+    session_liveness.claim('optimization', session_id)
 
     process_manager.add_task(
         run_optimization,
@@ -87,8 +89,14 @@ async def rerun_optimization(request_json: OptimizationRequestJson):
             'error': f'Session with ID {request_json.id} not found'
         }, status_code=404)
 
+    if session_liveness.has_live_worker(session):
+        return JSONResponse({
+            'error': f'Optimization session {request_json.id} is already running.'
+        }, status_code=409)
+
     # reset the session
     reset_optimization_session(request_json.id)
+    session_liveness.claim('optimization', request_json.id)
 
     process_manager.add_task(
         run_optimization,
@@ -224,25 +232,40 @@ async def resume_optimization(request_json: OptimizationRequestJson):
             'error': f'Session with ID {request_json.id} not found'
         }, status_code=404)
 
+    if session_liveness.has_live_worker(session):
+        return JSONResponse({
+            'error': f'Optimization session {request_json.id} is already running.'
+        }, status_code=409)
+
+    # Mark it running before its worker starts: the worker only does so itself after loading
+    # candles, and a worker that never got that far must not leave the session a draft.
+    session_liveness.claim('optimization', request_json.id, mark_running=True)
+    session.status = 'running'
+
     # Transform the session using the transformer
     transformed_session = get_optimization_session_for_load_more(session)
 
-    process_manager.add_task(
-        run_optimization,
-        request_json.id,
-        request_json.config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.training_start_date,
-        request_json.training_finish_date,
-        request_json.testing_start_date,
-        request_json.testing_finish_date,
-        request_json.optimal_total,
-        request_json.fast_mode,
-        request_json.cpu_cores,
-        request_json.state,
-    )
+    try:
+        process_manager.add_task(
+            run_optimization,
+            request_json.id,
+            request_json.config,
+            request_json.exchange,
+            request_json.routes,
+            request_json.data_routes,
+            request_json.training_start_date,
+            request_json.training_finish_date,
+            request_json.testing_start_date,
+            request_json.testing_finish_date,
+            request_json.optimal_total,
+            request_json.fast_mode,
+            request_json.cpu_cores,
+            request_json.state,
+        )
+    except Exception as e:
+        error = f'{type(e).__name__}: {e}'
+        session_liveness.release_failed_start('optimization', request_json.id, error)
+        return JSONResponse({'error': error}, status_code=500)
 
     return JSONResponse({
         'session': transformed_session

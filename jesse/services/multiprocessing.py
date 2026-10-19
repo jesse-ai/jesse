@@ -211,6 +211,7 @@ class ProcessManager:
 
     def _cleanup_finished_workers(self):
         while True:
+            exited = []
             try:
                 with self._workers_lock:
                     self._retry_pending_worker_removals()
@@ -231,7 +232,6 @@ class ProcessManager:
                                 _terminal_debug(
                                     f'Worker {client_id} (PID {worker_pid}) exited with code {exit_code}'
                                 )
-
                                 w.close()
                                 self._workers.remove(w)
                                 self._pid_to_client_id_map.pop(prefixed_pid, None)
@@ -241,13 +241,31 @@ class ProcessManager:
                                     and self.client_id_to_pid_to_map.get(prefixed_client_id) == prefixed_pid
                                 ):
                                     self.client_id_to_pid_to_map.pop(prefixed_client_id, None)
+                                    # Only the session's latest worker decides its fate; a rerun
+                                    # may already have started a newer one under the same id.
+                                    exited.append((client_id, exit_code))
                                     if self._remove_active_worker(client_id):
                                         _terminal_debug(f"Cleaned up finished worker {client_id}")
                             except Exception as e:
                                 _terminal_debug(f"Error during worker cleanup: {type(e).__name__}: {e}")
             except Exception as e:
                 _terminal_debug(f"Error in cleanup thread: {type(e).__name__}: {e}")
+            # Outside the lock: the database may be slow, and starting workers must not wait on it.
+            for client_id, exit_code in exited:
+                self._reconcile_exited_session(client_id, exit_code)
             time.sleep(5)
+
+    @staticmethod
+    def _reconcile_exited_session(client_id: str, exit_code) -> None:
+        """Stop a research session that still says running after its worker exited."""
+        try:
+            from jesse.services.session_liveness import reconcile_exited_worker
+            stopped = reconcile_exited_worker(client_id, exit_code)
+        except Exception as e:
+            _terminal_debug(f'Error reconciling session {client_id} after its worker exited: {type(e).__name__}: {e}')
+            return
+        for kind in stopped:
+            _terminal_debug(f'Marked {kind} session {client_id} stopped: its worker exited with code {exit_code}')
 
     @property
     def active_workers(self) -> set:

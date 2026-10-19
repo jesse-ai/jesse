@@ -27,6 +27,10 @@ class AppState:
 
     def set_session_id(self, session_id) -> None:
         self.session_id = session_id
+        # A research worker refreshes its session's heartbeat while it publishes progress.
+        import jesse.helpers as jh
+        from jesse.services import session_liveness
+        session_liveness.track(jh.app_mode(), session_id)
 
     def set_exchange_api_key(self, exchange_api_key_id: str) -> None:
         if self.exchange_api_key is not None:

@@ -55,6 +55,12 @@ class BacktestSession(peewee.Model):
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
 
+    # Liveness (see services/session_liveness.py): the instance that runs the session, and the
+    # worker's last sign of life and progress while it runs.
+    owner = peewee.CharField(max_length=255, null=True)
+    heartbeat_at = peewee.BigIntegerField(null=True)
+    progress = peewee.FloatField(null=True)
+
     class Meta:
         from jesse.services.db import database
 
@@ -224,9 +230,29 @@ if database.is_open():
 
 def get_backtest_session_by_id(id: str):
     try:
-        return BacktestSession.get(BacktestSession.id == id)
+        return _reconcile_backtest_session_status(BacktestSession.get(BacktestSession.id == id))
     except BacktestSession.DoesNotExist:
         return None
+
+
+def _reconcile_backtest_session_status(session: BacktestSession) -> BacktestSession:
+    """
+    Stop a running backtest whose worker this instance no longer has. Rows without an owner are
+    left alone: backtests were never reconciled before owners existed, and such a row may belong
+    to another instance sharing this database.
+    """
+    from jesse.services import session_liveness
+
+    if session_liveness.worker_is_gone(session, allow_unowned=False):
+        message = 'The backtest worker is no longer running, so this backtest stopped without a result.'
+        BacktestSession.update(
+            status='stopped',
+            exception=session.exception or message,
+            updated_at=jh.now_to_timestamp(True),
+        ).where((BacktestSession.id == session.id) & (BacktestSession.status == 'running')).execute()
+        session.status = 'stopped'
+        session.exception = session.exception or message
+    return session
 
 
 def store_backtest_session(
@@ -355,7 +381,7 @@ def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = 
         if threshold > 0:
             query = query.where(BacktestSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [_reconcile_backtest_session_status(session) for session in query.limit(limit).offset(offset)]
 
 
 def delete_backtest_session(id: str) -> bool:

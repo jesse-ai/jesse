@@ -50,6 +50,12 @@ class OptimizationSession(peewee.Model):
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
 
+    # Liveness (see services/session_liveness.py): the instance that runs the session, and the
+    # worker's last sign of life and progress while it runs.
+    owner = peewee.CharField(max_length=255, null=True)
+    heartbeat_at = peewee.BigIntegerField(null=True)
+    progress = peewee.FloatField(null=True)
+
     class Meta:
         from jesse.services.db import database
 
@@ -396,7 +402,11 @@ def purge_optimization_sessions(days_old: int = None) -> int:
 
 def get_running_optimization_session_id():
     try:
-        session = OptimizationSession.select().where(OptimizationSession.status == 'running').order_by(OptimizationSession.updated_at.desc()).first()
+        from jesse.services.session_liveness import owned_here_clause
+
+        session = OptimizationSession.select().where(
+            (OptimizationSession.status == 'running') & owned_here_clause(OptimizationSession)
+        ).order_by(OptimizationSession.updated_at.desc()).first()
         if session:
             session = _reconcile_optimization_session_status(session)
             return str(session.id) if session.status == 'running' else None
@@ -406,12 +416,11 @@ def get_running_optimization_session_id():
 
 
 def _reconcile_optimization_session_status(session: OptimizationSession):
-    if session.status != 'running' or jh.is_unit_testing():
-        return session
+    # Only the instance that owns a running session can tell from its coordinator that the
+    # worker is gone (see services/session_liveness.py).
+    from jesse.services import session_liveness
 
-    from jesse.services.redis import is_process_active
-
-    if not is_process_active(str(session.id)):
+    if session_liveness.worker_is_gone(session):
         update_optimization_session_status(str(session.id), 'stopped')
         session.status = 'stopped'
 

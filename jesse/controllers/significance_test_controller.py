@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from jesse.services.auth import require_auth, require_auth_any
 from jesse.services.multiprocessing import process_manager
+from jesse.services import session_liveness
 from jesse.services.web import (
     SignificanceTestRequestJson,
     CancelSignificanceTestRequestJson,
@@ -75,6 +76,7 @@ async def significance_test(
             state=request_json.state,
             theme=request_json.theme,
         )
+    session_liveness.claim('significance_test', session_id)
 
     process_manager.add_task(
         run_significance_test,

@@ -27,6 +27,7 @@ def run():
     _ticker(migrator)
     _trade(migrator)
     _exchange_api_keys(migrator)
+    _backtest_session(migrator)
     _optimization_session(migrator)
     _monte_carlo_session(migrator)
     _significance_test_session(migrator)
@@ -190,11 +191,29 @@ def _exchange_api_keys(migrator):
         _migrate(migrator, fields, exchange_api_keys_columns, 'exchange_api_keys')
 
 
+def _liveness_fields() -> list:
+    # Session owner and worker heartbeat (services/session_liveness.py), on every research session table.
+    return [
+        {'action': migration_actions.ADD, 'name': 'owner', 'type': CharField(max_length=255, null=True)},
+        {'action': migration_actions.ADD, 'name': 'heartbeat_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'progress', 'type': FloatField(null=True)},
+    ]
+
+
+def _backtest_session(migrator):
+    fields = _liveness_fields()
+
+    if 'backtestsession' in database.db.get_tables():
+        backtest_session_columns = database.db.get_columns('backtestsession')
+        _migrate(migrator, fields, backtest_session_columns, 'backtestsession')
+
+
 def _optimization_session(migrator):
     fields = [
         {'action': migration_actions.ADD, 'name': 'title', 'type': CharField(max_length=255, null=True)},
         {'action': migration_actions.ADD, 'name': 'description', 'type': TextField(null=True)},
         {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
+        *_liveness_fields(),
     ]
 
     if 'optimizationsession' in database.db.get_tables():
@@ -205,6 +224,7 @@ def _optimization_session(migrator):
 def _monte_carlo_session(migrator):
     fields = [
         {'action': migration_actions.ADD, 'name': 'strategy_codes', 'type': TextField(null=True)},
+        *_liveness_fields(),
     ]
 
     if 'montecarlosession' in database.db.get_tables():
@@ -213,7 +233,7 @@ def _monte_carlo_session(migrator):
 
 
 def _significance_test_session(migrator):
-    fields = []
+    fields = _liveness_fields()
 
     if 'significancetestsession' in database.db.get_tables():
         cols = database.db.get_columns('significancetestsession')

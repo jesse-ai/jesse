@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 import json
 from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
+from jesse.services import session_liveness
 from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
 import jesse.helpers as jh
 from jesse.models.BacktestSession import (
@@ -40,6 +41,7 @@ def backtest(request_json: BacktestRequestJson):
         # publish progress or results for the same session.
         update_backtest_session_state(request_json.id, request_json.state)
         update_backtest_session_status(request_json.id, 'running')
+        session_liveness.claim('backtest', request_json.id)
 
         process_manager.add_task(
             run_backtest,
