@@ -237,6 +237,23 @@ def test_crypto_daily_return_metrics_use_365_day_annualization() -> None:
     assert metrics.max_drawdown(returns).iloc[0] == pytest.approx(-0.02)
 
 
+def test_autocorr_penalty_ignores_the_leading_nan_from_pct_change() -> None:
+    # metrics.trades() builds daily returns with pct_change(), whose first value is NaN.
+    returns = pd.Series([10_000, 10_200, 10_098, 10_401, 10_193, 10_295, 10_090]).pct_change(1)
+
+    penalty = metrics.autocorr_penalty(returns)
+
+    assert np.isfinite(penalty)
+    assert penalty >= 1
+    assert penalty == pytest.approx(metrics.autocorr_penalty(returns.dropna()))
+    assert metrics.sharpe_ratio(returns, periods=365, smart=True).iloc[0] == pytest.approx(
+        metrics.sharpe_ratio(returns, periods=365).iloc[0] / penalty
+    )
+    assert metrics.sortino_ratio(returns, periods=365, smart=True).iloc[0] == pytest.approx(
+        metrics.sortino_ratio(returns, periods=365).iloc[0] / penalty
+    )
+
+
 def test_winning_only_daily_returns_have_stable_undefined_ratios() -> None:
     returns = _daily_returns([0.01, 0.02, 0.03])
 
@@ -345,6 +362,16 @@ def test_mixed_multi_day_backtest_metrics_contract() -> None:
     assert np.isnan(stats['serenity_index'])
     assert len(store.app.daily_balance_timestamps) == len(store.app.daily_balance)
     assert store.app.daily_balance_timestamps == sorted(store.app.daily_balance_timestamps)
+
+
+def test_backtest_metrics_include_the_smart_ratios() -> None:
+    stats = _run_metrics_backtest(_MixedMetricsStrategy, _mixed_trade_prices())['metrics']
+
+    # The optimize mode's "smart sharpe" / "smart sortino" objectives read these keys.
+    assert np.isfinite(stats['smart_sharpe'])
+    assert np.isfinite(stats['smart_sortino'])
+    assert 0 < stats['smart_sharpe'] <= stats['sharpe_ratio']
+    assert 0 < stats['smart_sortino'] <= stats['sortino_ratio']
 
 
 def test_stock_annualization_changes_ratios_without_changing_timestamp_based_growth() -> None:
