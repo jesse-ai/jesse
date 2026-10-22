@@ -115,8 +115,15 @@ def autocorr_penalty(returns):
     """
     Calculates the autocorrelation penalty for returns
     """
+    # Daily returns come from pct_change(), whose first value is NaN; a single
+    # NaN would make the correlation (and so the smart ratios) NaN.
+    returns = returns.dropna()
     num = len(returns)
-    coef = np.abs(np.corrcoef(returns[:-1], returns[1:])[0, 1])
+    if num < 3:
+        # Too few observations to estimate the lag-1 autocorrelation.
+        return np.nan
+    with np.errstate(divide='ignore', invalid='ignore'):
+        coef = np.abs(np.corrcoef(returns[:-1], returns[1:])[0, 1])
     corr = [((num - x) / num) * coef**x for x in range(1, num)]
     return np.sqrt(1 + 2 * np.sum(corr))
 
@@ -433,6 +440,12 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         else calmar_ratio(daily_return).iloc[0]
     )
     sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization).iloc[0]
+    smart_sharpe = (
+        np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization, smart=True).iloc[0]
+    )
+    smart_sortino = (
+        np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization, smart=True).iloc[0]
+    )
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=annualization).iloc[0]
     serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
 
@@ -470,6 +483,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'sharpe_ratio': safe_convert(sharpe),
         'calmar_ratio': safe_convert(calmar),
         'sortino_ratio': safe_convert(sortino),
+        'smart_sharpe': safe_convert(smart_sharpe),
+        'smart_sortino': safe_convert(smart_sortino),
         'omega_ratio': safe_convert(omega),
         'serenity_index': safe_convert(serenity),
         'total_open_trades': safe_convert(total_open_trades, int),
