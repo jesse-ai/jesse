@@ -399,11 +399,22 @@ def _supervise(job: _Job, deadline: float, pump: threading.Thread) -> None:
             job.record = record
         completed = True
     finally:
+        if not completed:
+            # Supervision itself failed; never leave the job looking like it still runs. As above,
+            # save the record before publishing it: otherwise the file keeps saying running, and
+            # after a restart the job reads as interrupted. A failed save is ignored: the writer
+            # itself may be what failed, and the error to re-raise is the original one.
+            with job.lock:
+                failed = {**job.record, 'status': FAILED, 'finished_at': now_iso(),
+                          'message': 'Jesse lost track of this job; check its output.'}
+            try:
+                job.scope.write_record(failed)
+                persisted = True
+            except Exception:
+                pass
         with job.lock:
             if not completed:
-                # Supervision itself failed; never leave the job looking like it still runs.
-                job.record = {**job.record, 'status': FAILED, 'finished_at': now_iso(),
-                              'message': 'Jesse lost track of this job; check its output.'}
+                job.record = failed
             # Completion and close share the signalling lock: Windows can reuse a closed handle.
             job.done.set()
             job.tree.close()
