@@ -129,8 +129,15 @@ class ProcessManager:
     def get_pid(self, client_id):
         return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
 
-    def cancel_process(self, client_id):
+    def cancel_process(self, client_id, notify_runners: bool = True):
         sync_redis.srem(self._active_workers_key, client_id)
+        if notify_runners:
+            # A queued research job is dropped, and one running on a runner machine is stopped there.
+            try:
+                from jesse.services import runner_queue
+                runner_queue.cancel(client_id)
+            except Exception as e:
+                _terminal_debug(f'Could not cancel the runner job of {client_id}: {type(e).__name__}: {e}')
 
     def shutdown(self) -> None:
         """Allow cooperative session cleanup before bounded forced process removal."""
@@ -141,7 +148,7 @@ class ProcessManager:
             client_ids = list(self.client_id_to_pid_to_map)
             for prefixed in client_ids:
                 try:
-                    self.cancel_process(jh.string_after_character(prefixed, '|'))
+                    self.cancel_process(jh.string_after_character(prefixed, '|'), notify_runners=False)
                 except Exception:
                     # Private-service failure is also observed by managed workers;
                     # a broken coordinator must not prevent final process cleanup.
@@ -276,9 +283,16 @@ class ProcessManager:
             stopped = reconcile_exited_worker(client_id, exit_code)
         except Exception as e:
             _terminal_debug(f'Error reconciling session {client_id} after its worker exited: {type(e).__name__}: {e}')
-            return
+            stopped = []
         for kind in stopped:
             _terminal_debug(f'Marked {kind} session {client_id} stopped: its worker exited with code {exit_code}')
+        try:
+            from jesse.services import runner
+            current = runner.current()
+            if current is not None:
+                current.on_worker_exit(client_id, exit_code)
+        except Exception as e:
+            _terminal_debug(f'Error completing the runner job of {client_id}: {type(e).__name__}: {e}')
 
     @property
     def active_workers(self) -> set:

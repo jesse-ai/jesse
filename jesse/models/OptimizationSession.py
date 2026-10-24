@@ -1,5 +1,7 @@
 import os
 import peewee
+
+from jesse.services import session_liveness
 import json
 from jesse.services.db import database
 import jesse.helpers as jh
@@ -53,6 +55,8 @@ class OptimizationSession(peewee.Model):
     # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
     # its worker's lease, and its last progress while it runs.
     claimed_by = peewee.CharField(max_length=255, null=True)
+    # The runner claim of a queued job (services/runner_queue.py); its worker's writes require it.
+    claim_id = peewee.CharField(max_length=36, null=True)
     heartbeat_at = peewee.BigIntegerField(null=True)
     progress_at = peewee.BigIntegerField(null=True)
     progress = peewee.FloatField(null=True)
@@ -209,7 +213,7 @@ def update_optimization_session_status(id: str, status: str) -> None:
         'updated_at': jh.now_to_timestamp(True)
     }
     
-    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    OptimizationSession.update(**d).where(session_liveness.fenced(OptimizationSession, OptimizationSession.id == id)).execute()
 
 
 def add_session_exception(id: str, exception: str, traceback: str) -> None:
@@ -219,7 +223,7 @@ def add_session_exception(id: str, exception: str, traceback: str) -> None:
         'updated_at': jh.now_to_timestamp(True)
     }
 
-    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    OptimizationSession.update(**d).where(session_liveness.fenced(OptimizationSession, OptimizationSession.id == id)).execute()
 
 
 def update_optimization_session_trials(
@@ -237,7 +241,7 @@ def update_optimization_session_trials(
     if best_trials is not None:
         d['best_trials'] = json.dumps(best_trials)
 
-    OptimizationSession.update(**d).where(OptimizationSession.id == id).execute()
+    OptimizationSession.update(**d).where(session_liveness.fenced(OptimizationSession, OptimizationSession.id == id)).execute()
     
 
 def get_optimization_session(id: str) -> dict:
@@ -421,7 +425,10 @@ def _reconcile_optimization_session_status(session: OptimizationSession):
     from jesse.services import session_liveness
 
     if session_liveness.worker_is_gone(session):
-        update_optimization_session_status(str(session.id), 'stopped')
-        session.status = 'stopped'
+        # A runner job goes back to the queue instead (services/runner_queue.py).
+        from jesse.services import runner_queue
+
+        session.status = runner_queue.settle_lapsed(
+            'optimization', session, lambda: update_optimization_session_status(str(session.id), 'stopped'))
 
     return session

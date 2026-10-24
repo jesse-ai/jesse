@@ -8,13 +8,40 @@ import json
 
 from jesse.services.auth import require_auth, require_auth_token
 from jesse.services.multiprocessing import process_manager
-from jesse.services import session_liveness
+from jesse.services import runner_queue, session_liveness
 from jesse.services.web import OptimizationRequestJson, CancelRequestJson, UpdateOptimizationSessionStateRequestJson, UpdateOptimizationSessionStatusRequestJson, TerminateOptimizationRequestJson, UpdateOptimizationSessionNotesRequestJson, GetOptimizationSessionsRequestJson
 from jesse import helpers as jh
+from jesse.models.OptimizationSession import add_session_exception
 from jesse.models.OptimizationSession import get_optimization_sessions as get_sessions, store_optimization_session, update_optimization_session_state, update_optimization_session_status, delete_optimization_session, reset_optimization_session, update_optimization_session_notes, purge_optimization_sessions, get_running_optimization_session_id
 from jesse.services.transformers import get_optimization_session, get_optimization_session_for_load_more
 from jesse.models.OptimizationSession import get_optimization_session_by_id as get_optimization_session_by_id_from_db
 from jesse.modes.optimize_mode import run as run_optimization
+
+
+def _optimization_arguments(session_id: str, request_json: OptimizationRequestJson) -> tuple:
+    """The optimization worker's arguments, the same whether it starts here or on a runner."""
+    return (
+        session_id,
+        request_json.config,
+        request_json.exchange,
+        request_json.routes,
+        request_json.data_routes,
+        request_json.training_start_date,
+        request_json.training_finish_date,
+        request_json.testing_start_date,
+        request_json.testing_finish_date,
+        request_json.optimal_total,
+        request_json.fast_mode,
+        request_json.cpu_cores,
+        request_json.state,
+    )
+
+
+def _queue(session_id: str, request_json: OptimizationRequestJson):
+    """Queue the run for a research runner when `where` asks for it (services/runner_queue.py)."""
+    return runner_queue.queue_if_requested('optimization', 'optimization',
+                                           _optimization_arguments(session_id, request_json),
+                                           request_json.routes, getattr(request_json, 'where', None))
 
 
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
@@ -48,24 +75,16 @@ async def optimization(request_json: OptimizationRequestJson):
 
     store_optimization_session(id=session_id, status='running')
     update_optimization_session_state(session_id, request_json.state)
+    try:
+        queued = _queue(session_id, request_json)
+    except runner_queue.QueueError as e:
+        update_optimization_session_status(session_id, 'draft')
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        return JSONResponse(queued, status_code=202)
     session_liveness.claim('optimization', session_id)
 
-    process_manager.add_task(
-        run_optimization,
-        session_id,
-        request_json.config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.training_start_date,
-        request_json.training_finish_date,
-        request_json.testing_start_date,
-        request_json.testing_finish_date,
-        request_json.optimal_total,
-        request_json.fast_mode,
-        request_json.cpu_cores,
-        request_json.state,
-    )
+    process_manager.add_task(run_optimization, *_optimization_arguments(session_id, request_json))
 
     return JSONResponse({
         'message': 'Started optimization...',
@@ -93,27 +112,30 @@ async def rerun_optimization(request_json: OptimizationRequestJson):
         return JSONResponse({
             'error': f'Optimization session {request_json.id} is already running.'
         }, status_code=409)
+    if getattr(session, 'status', None) == 'queued':
+        return JSONResponse({
+            'error': f'Optimization session {request_json.id} is already queued for a research runner. '
+                     'Cancel it first to start it again.'
+        }, status_code=409)
+
+    try:
+        runner_queue.resolve_target(getattr(request_json, 'where', None))
+    except runner_queue.QueueError as e:
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
 
     # reset the session
     reset_optimization_session(request_json.id)
+    try:
+        queued = _queue(request_json.id, request_json)
+    except runner_queue.QueueError as e:
+        update_optimization_session_status(request_json.id, 'stopped')
+        add_session_exception(request_json.id, e.message, '')
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        return JSONResponse(queued, status_code=202)
     session_liveness.claim('optimization', request_json.id)
 
-    process_manager.add_task(
-        run_optimization,
-        request_json.id,
-        request_json.config,
-        request_json.exchange,
-        request_json.routes,
-        request_json.data_routes,
-        request_json.training_start_date,
-        request_json.training_finish_date,
-        request_json.testing_start_date,
-        request_json.testing_finish_date,
-        request_json.optimal_total,
-        request_json.fast_mode,
-        request_json.cpu_cores,
-        request_json.state,
-    )
+    process_manager.add_task(run_optimization, *_optimization_arguments(request_json.id, request_json))
 
     return JSONResponse({'message': 'Started optimization...'}, status_code=202)
 
@@ -236,6 +258,19 @@ async def resume_optimization(request_json: OptimizationRequestJson):
         return JSONResponse({
             'error': f'Optimization session {request_json.id} is already running.'
         }, status_code=409)
+    if getattr(session, 'status', None) == 'queued':
+        return JSONResponse({
+            'error': f'Optimization session {request_json.id} is already queued for a research runner. '
+                     'Cancel it first to start it again.'
+        }, status_code=409)
+
+    try:
+        queued = _queue(request_json.id, request_json)
+    except runner_queue.QueueError as e:
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        session.status = 'queued'
+        return JSONResponse({'session': get_optimization_session_for_load_more(session), **queued})
 
     # Mark it running before its worker starts: the worker only does so itself after loading
     # candles, and a worker that never got that far must not leave the session a draft.
@@ -246,22 +281,7 @@ async def resume_optimization(request_json: OptimizationRequestJson):
     transformed_session = get_optimization_session_for_load_more(session)
 
     try:
-        process_manager.add_task(
-            run_optimization,
-            request_json.id,
-            request_json.config,
-            request_json.exchange,
-            request_json.routes,
-            request_json.data_routes,
-            request_json.training_start_date,
-            request_json.training_finish_date,
-            request_json.testing_start_date,
-            request_json.testing_finish_date,
-            request_json.optimal_total,
-            request_json.fast_mode,
-            request_json.cpu_cores,
-            request_json.state,
-        )
+        process_manager.add_task(run_optimization, *_optimization_arguments(request_json.id, request_json))
     except Exception as e:
         error = f'{type(e).__name__}: {e}'
         session_liveness.release_failed_start('optimization', request_json.id, error)

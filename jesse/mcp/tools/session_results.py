@@ -7,6 +7,8 @@ rule significance tests, and live/paper sessions:
 - get_live_sessions: the live/paper session list (the other kinds have their own list tools)
 - get_live_trades / get_live_orders: Jesse's recorded live/paper trades and orders of a date
   window across sessions (for example "my trades of the last 7 days")
+- wait_for_sessions: wait until research sessions end or stall
+- list_runners: the research runners that run queued jobs for this Jesse
 
 Details and the snapshot format used by temporary analysis: jesse://session_analysis.
 
@@ -24,6 +26,7 @@ from .services import (
     get_live_sessions_service,
     get_live_trades_service,
     get_session_results_service,
+    list_runners_service,
     wait_for_sessions_service,
 )
 
@@ -287,7 +290,9 @@ def register_session_results_tools(mcp):
             not_started   still a draft (start it with its run tool).
             not_found     no session has that ID.
         Unsettled sessions show outcome "running" with their `progress` (backtest/significance
-        percent, optimization trials, Monte Carlo scenarios) and `heartbeat_age_seconds`.
+        percent, optimization trials, Monte Carlo scenarios) and `heartbeat_age_seconds`, or
+        "queued" while waiting for a research runner (`queue` holds its target and wait time; if it
+        waits long, check list_runners: never start the same run again).
 
         Returns:
             {"status": "success", "done": bool, "until", "waited_seconds", "outcomes": {outcome: count},
@@ -300,6 +305,34 @@ def register_session_results_tools(mcp):
         return await run_blocking(
             wait_for_sessions_service, session_ids, until, timeout_seconds, stall_minutes,
         )
+
+    @mcp.tool()
+    async def list_runners() -> dict:
+        """
+        List this Jesse's research runners: other machines that share its database and run queued
+        research jobs (backtests, optimizations, Monte Carlo runs, significance tests) started
+        with `where` set to "auto", "any", or a runner's name. Read-only.
+
+        Use it before choosing `where` for a run tool (to see which runners are alive, have free
+        slots, and how loaded each machine is), or when wait_for_sessions shows a session queued for
+        long. Results of a run on a runner land in the same database, so get_session_results reads
+        them as usual. "runner_order" is the user's RUNNER_ORDER (from the hub's .env): with
+        where="auto"/"any", jobs go to the first runner in that order with a free slot ("*" = any
+        other runner); respect it and only name a runner when the user asks for one.
+
+        Returns:
+            {"status": "success", "enabled": bool (runners turned on for this Jesse),
+             "hub_jesse_version", "runner_order", "queued_jobs": int (jobs waiting for a runner),
+             "runners": [{"name", "host", "alive", "last_seen_seconds_ago", "slots", "busy",
+             "free" (0 when not alive), "cpu_cores", "cpu_percent", "load_1m", "memory_total_gb",
+             "memory_used_gb", "memory_percent" (machine-wide, refreshed every ~10 s; None when
+             the system does not tell), "jesse_version", "compatible" (same Jesse version as this
+             one), "running": [{"session_id", "session_type"}]}]}
+            or {"status": "error", "error_type", "message"}.
+        A runner that is not alive or not compatible takes no jobs. With "enabled" false every run
+        starts on this Jesse and `where` other than "auto"/"local" is refused.
+        """
+        return await run_blocking(list_runners_service)
     # A misspelled filter must be refused, not dropped, and the text "null" must stay text: either
     # would silently widen the selection. All arguments of these two tools are scalars.
     keep_raw_argument_values(mcp, 'get_live_trades', 'get_live_orders')

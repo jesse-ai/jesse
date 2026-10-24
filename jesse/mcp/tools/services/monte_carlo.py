@@ -29,6 +29,16 @@ import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
 from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import default_cpu_cores, load_session_run_config, monte_carlo_engine_config
+from .runners import (
+    DEFAULT_WHERE,
+    already_queued_result,
+    body_error,
+    with_error_details,
+    invalid_where,
+    normalized_where,
+    queued_result,
+    response_body,
+)
 
 # Standard parameters for the moving_block_bootstrap candle pipeline. The
 # Dashboard session form requires each value to be a concrete number.
@@ -556,7 +566,7 @@ def get_monte_carlo_logs_service(session_id: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve Monte Carlo logs'}
 
 
-def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
+def _build_run_payload(session_id: str, form: dict, state: dict, where: str = DEFAULT_WHERE) -> dict:
     overrides = {}
     if 'cpu_cores' in form:
         overrides['cpu_cores'] = form['cpu_cores']
@@ -587,6 +597,7 @@ def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
         'pipeline_type': form.get('pipeline_type') or 'moving_block_bootstrap',
         'pipeline_params': form.get('pipeline_params'),
         'state': state if isinstance(state, dict) else {},
+        'where': normalized_where(where),
     }
 
 
@@ -631,6 +642,9 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
         timeout=10,
     )
     if response.status_code in (200, 202):
+        queued = queued_result('monte_carlo', payload['id'], response_body(response))
+        if queued:
+            return queued
         return {
             'status': 'started',
             'session_id': payload['id'],
@@ -643,13 +657,15 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
     if response.status_code == 401:
         return {'status': 'error', 'message': 'Authentication failed'}
     if response.status_code == 409:
-        return {'status': 'error', 'message': f'Session {payload["id"]} is already running or completed.'}
+        return with_error_details({'status': 'error', 'message': f'Session {payload["id"]} is already running or completed.'}, response)
     if response.status_code == 404:
         return {'status': 'error', 'message': f'Session {payload["id"]} not found'}
+    if response.status_code == 400 and body_error(response):
+        return {'status': 'error', 'message': f'Failed to start Monte Carlo: {body_error(response)}'}
     return {'status': 'error', 'message': f'Failed to start Monte Carlo: {response.text}'}
 
 
-def _run_or_resume(session_id: str, op_label: str) -> dict:
+def _run_or_resume(session_id: str, op_label: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Shared implementation for run_monte_carlo / resume_monte_carlo.
 
@@ -659,11 +675,17 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
+    refused = invalid_where(where)
+    if refused:
+        return refused
+
     try:
         auth = hash_password(password)
         form, state, session_status, err = _fetch_session(api_url, auth, session_id)
         if err:
             return err
+        if session_status == 'queued':
+            return already_queued_result('monte_carlo', session_id, 'Monte Carlo')
 
         if session_status == 'running':
             return {
@@ -687,7 +709,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
                 ),
             }
 
-        payload = _build_run_payload(session_id, form, state)
+        payload = _build_run_payload(session_id, form, state, where)
         return _fire(api_url, auth, '/monte-carlo/resume', payload)
 
     except requests.exceptions.RequestException as e:
@@ -696,12 +718,12 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': f'Failed to {op_label} Monte Carlo'}
 
 
-def run_monte_carlo_service(session_id: str) -> dict:
-    return _run_or_resume(session_id, 'run')
+def run_monte_carlo_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
+    return _run_or_resume(session_id, 'run', where)
 
 
-def resume_monte_carlo_service(session_id: str) -> dict:
-    return _run_or_resume(session_id, 'resume')
+def resume_monte_carlo_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
+    return _run_or_resume(session_id, 'resume', where)
 
 
 def cancel_monte_carlo_service(session_id: str) -> dict:

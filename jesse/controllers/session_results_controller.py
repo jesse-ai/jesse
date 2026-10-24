@@ -65,6 +65,18 @@ def get_session_statuses(json_request: SessionStatusRequestJson) -> JSONResponse
     return JSONResponse({'status': 'success', **result})
 
 
+@router.post("/runners")
+def list_runners() -> JSONResponse:
+    """The research runners sharing this database: alive, slots, busy, version, what they run."""
+    from jesse.services import runner_queue
+    try:
+        return JSONResponse({'status': 'success', **runner_queue.runners_payload()})
+    except Exception as e:
+        jh.debug(f'Reading runners failed: {traceback.format_exc()}')
+        return JSONResponse({'status': 'error', 'error_type': 'read_failed',
+                             'message': f'Jesse could not read the runners ({type(e).__name__}).'}, status_code=500)
+
+
 @router.post("/live-sessions")
 def list_live_sessions(json_request: LiveSessionsListRequestJson) -> JSONResponse:
     return respond_reading(

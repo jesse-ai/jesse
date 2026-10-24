@@ -7,6 +7,9 @@ ended (finished, stopped, cancelled, terminated), is still a draft or does not e
 stalled: its worker is alive but has made no progress for longer than the stall limit. A worker
 that died loses its lease, and Jesse then stops its session, so that case arrives as an ended
 session. Waiting never cancels anything; the agent decides.
+
+list_runners reads the research runners (machines sharing this Jesse's database that run queued
+jobs; see jesse/services/runner_queue.py), for a session that waits long with outcome "queued".
 """
 
 import json
@@ -14,7 +17,7 @@ import time
 from typing import Any, Optional
 
 import jesse.mcp.mcp_config as mcp_config
-from .project_files import _call
+from .project_files import REQUEST_TIMEOUT_SECONDS, _call
 
 POLL_SECONDS = 3.0
 STATUS_TIMEOUT_SECONDS = 30
@@ -68,7 +71,7 @@ def _judge(session: dict, stall_minutes: Optional[float]) -> dict:
     kind = session.get('session_type')
     judged = {key: session[key] for key in (
         'session_id', 'session_type', 'status', 'progress', 'progress_age_seconds', 'heartbeat_age_seconds',
-        'claimed_by', 'error',
+        'claimed_by', 'queue', 'error',
     ) if key in session}
     if kind:
         judged['dashboard_url'] = mcp_config.dashboard_url(kind, session.get('session_id'))
@@ -77,6 +80,15 @@ def _judge(session: dict, stall_minutes: Optional[float]) -> dict:
         judged.update(settled=True, outcome='finished' if status == 'finished' else 'ended')
     elif status == 'not_found':
         judged.update(settled=True, outcome='not_found')
+    elif status == 'queued':
+        queue = session.get('queue') or {}
+        waited = queue.get('queued_age_seconds')
+        note = f"Waiting for {'runner ' + queue['target'] if queue.get('target') not in (None, 'any') else 'a runner'}"
+        note += f' for {waited / 60:.0f} minutes.' if waited else '.'
+        if queue.get('note'):
+            note += f" {queue['note']}"
+        note += ' Check list_runners if it waits long.'
+        judged.update(settled=False, outcome='queued', note=note)
     elif status == 'draft':
         judged.update(settled=True, outcome='not_started',
                       note=f'Still a draft: nothing is running. Start it with {_RUN_TOOLS.get(kind, "its run tool")}.')
@@ -160,3 +172,12 @@ def wait_for_sessions_service(
     if last_failure is not None:
         response['warning'] = f"The last status read failed ({last_failure.get('message', 'unknown error')}); statuses are from the read before it."
     return response
+
+
+def list_runners_service() -> dict:
+    """The research runners sharing this Jesse's database (/session-results/runners)."""
+    result = _call('list_runners', '/session-results/runners', {}, REQUEST_TIMEOUT_SECONDS)
+    if result.get('http_status') == 404:
+        result['message'] = ('This Jesse has no research runners (its version predates them), so every run '
+                             'starts on it: leave `where` at its default.')
+    return result

@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from jesse.services.auth import require_auth, require_auth_any
 from jesse.services.multiprocessing import process_manager
-from jesse.services import session_liveness
+from jesse.services import runner_queue, session_liveness
 from jesse.services.web import (
     SignificanceTestRequestJson,
     CancelSignificanceTestRequestJson,
@@ -76,10 +76,7 @@ async def significance_test(
             state=request_json.state,
             theme=request_json.theme,
         )
-    session_liveness.claim('significance_test', session_id)
-
-    process_manager.add_task(
-        run_significance_test,
+    arguments = (
         session_id,
         request_json.config,
         request_json.exchange,
@@ -92,6 +89,18 @@ async def significance_test(
         request_json.theme,
         request_json.state,
     )
+    # With `where` set, a research runner may run it instead (services/runner_queue.py).
+    try:
+        queued = runner_queue.queue_if_requested('significance_test', 'significance_test', arguments,
+                                                 request_json.routes, getattr(request_json, 'where', None))
+    except runner_queue.QueueError as e:
+        update_significance_test_session_status(session_id, 'draft')
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        return JSONResponse(queued, status_code=202)
+    session_liveness.claim('significance_test', session_id)
+
+    process_manager.add_task(run_significance_test, *arguments)
 
     return JSONResponse({
         'message': 'Started Rule Significance Test...',

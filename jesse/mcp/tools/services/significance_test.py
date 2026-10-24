@@ -24,6 +24,15 @@ import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
 from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import load_session_run_config
+from .runners import (
+    DEFAULT_WHERE,
+    body_error,
+    invalid_where,
+    normalized_where,
+    queued_result,
+    response_body,
+    with_error_details,
+)
 
 
 def _build_default_title(routes_list: list) -> str:
@@ -430,9 +439,13 @@ def get_significance_test_sessions_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve significance test sessions'}
 
 
-def run_significance_test_service(session_id: str) -> dict:
+def run_significance_test_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
+
+    refused = invalid_where(where)
+    if refused:
+        return refused
 
     try:
         auth = hash_password(password)
@@ -486,6 +499,7 @@ def run_significance_test_service(session_id: str) -> dict:
             'random_seed': form.get('random_seed'),
             'theme': 'light',
             'state': state if isinstance(state, dict) else {},
+            'where': normalized_where(where),
         }
 
         response = requests.post(
@@ -496,6 +510,9 @@ def run_significance_test_service(session_id: str) -> dict:
         )
 
         if response.status_code == 202:
+            queued = queued_result('significance_test', session_id, response_body(response))
+            if queued:
+                return queued
             return {
                 'status': 'started',
                 'session_id': session_id,
@@ -508,7 +525,9 @@ def run_significance_test_service(session_id: str) -> dict:
         if response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}
         if response.status_code == 409:
-            return {'status': 'error', 'message': f'Session {session_id} is already running or completed.'}
+            return with_error_details({'status': 'error', 'message': f'Session {session_id} is already running or completed.'}, response)
+        if response.status_code == 400 and body_error(response):
+            return {'status': 'error', 'message': f'Failed to start significance test: {body_error(response)}'}
         return {'status': 'error', 'message': f'Failed to start significance test: {response.text}'}
 
     except requests.exceptions.RequestException as e:

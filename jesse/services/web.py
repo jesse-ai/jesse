@@ -52,6 +52,8 @@ class BacktestRequestJson(BaseModel):
         if start >= finish:
             raise ValueError('start_date must be earlier than finish_date')
         return self
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class OptimizationRequestJson(BaseModel):
@@ -68,6 +70,8 @@ class OptimizationRequestJson(BaseModel):
     fast_mode: bool
     cpu_cores: int
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class ImportCandlesRequestJson(BaseModel):
@@ -487,6 +491,8 @@ class MonteCarloRequestJson(BaseModel):
     pipeline_type: Optional[str] = 'moving_block_bootstrap'
     pipeline_params: Optional[dict] = None
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class UpdateMonteCarloSessionStateRequestJson(BaseModel):
@@ -556,6 +562,8 @@ class SignificanceTestRequestJson(BaseModel):
     random_seed: Optional[int] = None
     theme: str = 'light'
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class CancelSignificanceTestRequestJson(BaseModel):

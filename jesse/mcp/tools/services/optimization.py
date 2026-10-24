@@ -41,6 +41,16 @@ import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
 from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import default_cpu_cores, load_session_run_config, optimization_engine_config
+from .runners import (
+    DEFAULT_WHERE,
+    already_queued_result,
+    body_error,
+    with_error_details,
+    invalid_where,
+    normalized_where,
+    queued_result,
+    response_body,
+)
 
 
 def _build_default_title(routes_list: list) -> str:
@@ -522,7 +532,7 @@ def get_optimization_logs_service(session_id: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve optimization logs'}
 
 
-def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
+def _build_run_payload(session_id: str, form: dict, state: dict, where: str = DEFAULT_WHERE) -> dict:
     legacy_overrides = {
         key: form[key]
         for key in (
@@ -557,6 +567,7 @@ def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
         'fast_mode': bool(form.get('fast_mode', True)),
         'cpu_cores': int(run_config['cpu_cores']),
         'state': state if isinstance(state, dict) else {},
+        'where': normalized_where(where),
     }
 
 
@@ -601,6 +612,9 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
         timeout=10,
     )
     if response.status_code in (200, 202):
+        queued = queued_result('optimization', payload['id'], response_body(response))
+        if queued:
+            return queued
         return {
             'status': 'started',
             'session_id': payload['id'],
@@ -614,13 +628,15 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
     if response.status_code == 401:
         return {'status': 'error', 'message': 'Authentication failed'}
     if response.status_code == 409:
-        return {'status': 'error', 'message': f'Session {payload["id"]} already exists / is running.'}
+        return with_error_details({'status': 'error', 'message': f'Session {payload["id"]} already exists / is running.'}, response)
     if response.status_code == 404:
         return {'status': 'error', 'message': f'Session {payload["id"]} not found'}
+    if response.status_code == 400 and body_error(response):
+        return {'status': 'error', 'message': f'Failed to start optimization: {body_error(response)}'}
     return {'status': 'error', 'message': f'Failed to start optimization: {response.text}'}
 
 
-def run_optimization_service(session_id: str) -> dict:
+def run_optimization_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Start a previously created optimization draft.
 
@@ -632,11 +648,17 @@ def run_optimization_service(session_id: str) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
+    refused = invalid_where(where)
+    if refused:
+        return refused
+
     try:
         auth = hash_password(password)
         form, state, session_status, err = _fetch_session(api_url, auth, session_id)
         if err:
             return err
+        if session_status == 'queued':
+            return already_queued_result('optimization', session_id, 'Optimization')
 
         if session_status == 'running':
             return {
@@ -660,7 +682,7 @@ def run_optimization_service(session_id: str) -> dict:
                 ),
             }
 
-        payload = _build_run_payload(session_id, form, state)
+        payload = _build_run_payload(session_id, form, state, where)
         return _fire(api_url, auth, '/optimization/resume', payload)
 
     except requests.exceptions.RequestException as e:
@@ -669,7 +691,7 @@ def run_optimization_service(session_id: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to run optimization'}
 
 
-def rerun_optimization_service(session_id: str) -> dict:
+def rerun_optimization_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Reset and restart an existing optimization session (clears prior trials/results).
     Goes to POST /optimization/rerun. Use this to re-run a finished or stopped session.
@@ -677,11 +699,17 @@ def rerun_optimization_service(session_id: str) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
+    refused = invalid_where(where)
+    if refused:
+        return refused
+
     try:
         auth = hash_password(password)
         form, state, session_status, err = _fetch_session(api_url, auth, session_id)
         if err:
             return err
+        if session_status == 'queued':
+            return already_queued_result('optimization', session_id, 'Optimization')
 
         if session_status == 'running':
             return {
@@ -693,7 +721,7 @@ def rerun_optimization_service(session_id: str) -> dict:
                 ),
             }
 
-        payload = _build_run_payload(session_id, form, state)
+        payload = _build_run_payload(session_id, form, state, where)
         return _fire(api_url, auth, '/optimization/rerun', payload)
 
     except requests.exceptions.RequestException as e:

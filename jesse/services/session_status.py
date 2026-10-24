@@ -39,6 +39,11 @@ def _lookups() -> tuple:
     )
 
 
+def lookup_session(kind: str, session_id: str):
+    """A session by kind and id through its model's by-id read (which settles a lapsed lease)."""
+    return dict(_lookups())[kind](session_id)
+
+
 def _short_error(session) -> str:
     text = getattr(session, 'exception', None) or ''
     first_line = text.strip().splitlines()[0] if text.strip() else ''
@@ -90,6 +95,12 @@ def _describe(kind: str, session, now_ms: int) -> dict:
         'progress_age_seconds': _age_seconds(now_ms, session.progress_at),
         'progress': progress,
     }
+    if session.status == 'queued' or getattr(session, 'claim_id', None):
+        # Queued for (or running on) a research runner: where, which attempt, how long it waited.
+        from jesse.services import runner_queue
+        queue = runner_queue.queue_info(str(session.id))
+        if queue is not None:
+            described['queue'] = queue
     if error:
         described['error'] = error
     return described

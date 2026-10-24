@@ -74,6 +74,7 @@ Waiting for Runs:
 - To keep a fixed number of runs going, pass them all with `until="any"`, start the next run when one settles, and wait again.
 - Outcome `finished`: read it with `get_session_results`. `ended`: report its `error`. `stalled`: check its logs, then cancel it and run it again. `not_started`: it is still a draft; start it. Waiting never cancels anything.
 - Give the user each session's `dashboard_url` as a link. Details: "Waiting for runs" in `jesse://backtest_management`.
+- Research runners: the run tools take `where`; the default `"auto"` is fine. Pass `where` (`"local"`, `"any"`, or a runner name) only when the user wants a specific machine, and check `list_runners` to see which runners are alive and free. A queued run shows outcome `queued` in `wait_for_sessions`; never start the same variant again because a queued job looks slow.
 
 Live and Paper Sessions:
 - Create, start, stop, or delete a live/paper session only when the user asks for that action. Every session is either PAPER (simulated, no funds) or LIVE (real orders with real funds through a saved exchange key); before starting one, tell the user which it is and on which exchange and key.

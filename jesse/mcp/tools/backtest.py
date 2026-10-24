@@ -17,6 +17,7 @@ The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from .offload import run_blocking
+from .services.runners import invalid_where
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
@@ -486,7 +487,7 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    async def run_backtest(session_id: str) -> dict:
+    async def run_backtest(session_id: str, where: str = 'auto') -> dict:
         """
         Trigger a backtest and return immediately.
 
@@ -498,6 +499,11 @@ def register_backtest_tools(mcp):
         Parameters:
             session_id (str): UUID string of the backtest session to execute
                 Shape: UUID format string (e.g., "550e8400-e29b-41d4-a716-446655440000")
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
 
         Returns:
             dict: Immediate acknowledgement:
@@ -524,7 +530,7 @@ def register_backtest_tools(mcp):
                 "message": "error description"
             }
 
-            Shape: {"status": "started|error", "backtest_id": string, "routes": array, "dashboard_url": string, "message": string}
+            Shape: {"status": "started|queued|error", "backtest_id": string, "routes": array, "dashboard_url": string, "message": string}
 
         Raises:
             NotFoundError: If session_id does not exist
@@ -558,7 +564,10 @@ def register_backtest_tools(mcp):
             ... else:
             ...     print(session["outcome"], session.get("error") or session.get("note"))
         """
-        return await run_blocking(gated_run_backtest, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(gated_run_backtest, session_id, where)
 
     @mcp.tool()
     async def cancel_backtest(session_id: str) -> dict:

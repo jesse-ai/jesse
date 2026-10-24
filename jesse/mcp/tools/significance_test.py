@@ -19,6 +19,7 @@ The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from .offload import run_blocking
+from .services.runners import invalid_where
 from .services import (
     create_significance_test_draft_service,
     update_significance_test_draft_service,
@@ -284,7 +285,7 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
-    async def run_significance_test(session_id: str) -> dict:
+    async def run_significance_test(session_id: str, where: str = 'auto') -> dict:
         """
         Fire a Rule Significance Test for a previously created draft and return immediately.
 
@@ -293,8 +294,15 @@ def register_significance_test_tools(mcp):
         returns done=false), and read the results with
         get_session_results("significance_test", session_id).
 
+        Parameters:
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
+
         Returns:
-            { "status": "started", "session_id": "<uuid>", "message": "..." }
+            { "status": "started" | "queued", "session_id": "<uuid>", "message": "..." }
             or { "status": "error", "message": "..." }
 
         Interpreting results:
@@ -303,7 +311,10 @@ def register_significance_test_tools(mcp):
             - p_value > 0.10         → HARD STOP. Indistinguishable from random;
               do not silently proceed to a full backtest
         """
-        return await run_blocking(gated_run_significance_test, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(gated_run_significance_test, session_id, where)
 
     @mcp.tool()
     async def cancel_significance_test(session_id: str) -> dict:

@@ -23,6 +23,7 @@ The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from .offload import run_blocking
+from .services.runners import invalid_where
 from .services import (
     create_optimization_draft_service,
     update_optimization_draft_service,
@@ -297,7 +298,7 @@ def register_optimization_tools(mcp):
         return await run_blocking(get_optimization_logs_service, session_id)
 
     @mcp.tool()
-    async def run_optimization(session_id: str) -> dict:
+    async def run_optimization(session_id: str, where: str = 'auto') -> dict:
         """
         Start a previously created optimization draft and return immediately.
 
@@ -306,21 +307,41 @@ def register_optimization_tools(mcp):
         returns done=false (its `progress` shows completed / total trials). Then read the
         best trials with get_session_results("optimization", session_id).
 
-        Returns: { "status": "started", "session_id": "<uuid>", "message": "..." }
+        Parameters:
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
+
+        Returns: { "status": "started" | "queued", "session_id": "<uuid>", "message": "..." }
                  or { "status": "error", "message": "..." }
         """
-        return await run_blocking(gated_run_optimization, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(gated_run_optimization, session_id, where)
 
     @mcp.tool()
-    async def rerun_optimization(session_id: str) -> dict:
+    async def rerun_optimization(session_id: str, where: str = 'auto') -> dict:
         """
         Reset and restart an existing optimization session, clearing its prior
         trials and results. Use this to run a finished or stopped session again
         (e.g. after importing missing candles or editing the strategy). Cancel a
         running session first before rerunning. Wait for it with
         wait_for_sessions([session_id]), as after run_optimization.
+
+        Parameters:
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
         """
-        return await run_blocking(rerun_optimization_service, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(rerun_optimization_service, session_id, where)
 
     @mcp.tool()
     async def cancel_optimization(session_id: str) -> dict:

@@ -247,6 +247,7 @@ It waits on the Jesse host, reports, and never starts, stops or cancels anything
 | `not_started` | Still a draft | Start it with its run tool |
 | `not_found` | No session has that ID | Check the ID |
 | `running` | Not settled yet; shows `progress` and `progress_age_seconds` | Keep waiting |
+| `queued` | Not settled yet; waiting for a research runner (`queue` holds its target and wait time) | Keep waiting; if it waits long, check `list_runners` |
 
 A session started by an older Jesse version has no heartbeat: it can never show as stalled,
 only its end is detected. `claimed_by` names the machine running it; a run on another machine must
@@ -261,6 +262,24 @@ for s in w["sessions"]:
     if s["outcome"] == "finished":
         get_session_results("backtest", s["session_id"])
 ```
+
+### Research runners
+
+A Jesse can have research runners: other machines sharing its database that pick up queued
+research jobs. Every run tool (`run_backtest`, `run_optimization` / `rerun_optimization`,
+`run_monte_carlo` / `resume_monte_carlo`, `run_significance_test`) takes `where`:
+
+- `"auto"` (default): a free runner when this Jesse has runners turned on and one is alive, else here.
+- `"local"`: always here.
+- `"any"`: queue it for whichever runner is free first.
+- a runner name from `list_runners`: queue it for that machine only.
+
+A queued run returns `status: "queued"` with `target`, `job_id`, `dashboard_url` and, when no
+matching runner is connected, a `warning`; it shows outcome `queued` in `wait_for_sessions` until
+a runner claims it, then `running` as usual. `list_runners()` shows each runner's `alive`, `free`
+slots, `jesse_version` / `compatible`, and what it runs, plus `queued_jobs`. Results land in the
+same database, so `get_session_results` and `run_analysis` work exactly as for a local run.
+A slow queue is not a failed run: never start the same variant again because it is still queued.
 
 ## Usage Examples
 

@@ -1,5 +1,7 @@
 import os
 import peewee
+
+from jesse.services import session_liveness
 import json
 from jesse.services.db import database
 import jesse.helpers as jh
@@ -58,6 +60,8 @@ class BacktestSession(peewee.Model):
     # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
     # its worker's lease, and its last progress while it runs.
     claimed_by = peewee.CharField(max_length=255, null=True)
+    # The runner claim of a queued job (services/runner_queue.py); its worker's writes require it.
+    claim_id = peewee.CharField(max_length=36, null=True)
     heartbeat_at = peewee.BigIntegerField(null=True)
     progress_at = peewee.BigIntegerField(null=True)
     progress = peewee.FloatField(null=True)
@@ -246,13 +250,19 @@ def _reconcile_backtest_session_status(session: BacktestSession) -> BacktestSess
 
     if session_liveness.worker_is_gone(session, legacy_coordinator_check=False):
         message = 'The backtest worker is no longer running, so this backtest stopped without a result.'
-        BacktestSession.update(
-            status='stopped',
-            exception=session.exception or message,
-            updated_at=jh.now_to_timestamp(True),
-        ).where((BacktestSession.id == session.id) & (BacktestSession.status == 'running')).execute()
-        session.status = 'stopped'
-        session.exception = session.exception or message
+
+        def stop() -> None:
+            BacktestSession.update(
+                status='stopped',
+                exception=session.exception or message,
+                updated_at=jh.now_to_timestamp(True),
+            ).where((BacktestSession.id == session.id) & (BacktestSession.status == 'running')).execute()
+            session.exception = session.exception or message
+
+        # A runner job goes back to the queue instead (services/runner_queue.py).
+        from jesse.services import runner_queue
+
+        session.status = runner_queue.settle_lapsed('backtest', session, stop)
     return session
 
 
@@ -300,7 +310,7 @@ def update_backtest_session_status(id: str, status: str) -> None:
         'updated_at': jh.now_to_timestamp(True)
     }
     
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def store_backtest_session_exception(id: str, exception: str, traceback: str) -> None:
@@ -310,7 +320,7 @@ def store_backtest_session_exception(id: str, exception: str, traceback: str) ->
         'updated_at': jh.now_to_timestamp(True)
     }
 
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def update_backtest_session_results(
@@ -348,7 +358,7 @@ def update_backtest_session_results(
     if strategy_codes is not None:
         d['strategy_codes'] = json.dumps(strategy_codes)
 
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None) -> list:

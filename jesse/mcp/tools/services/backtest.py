@@ -26,6 +26,7 @@ from pydantic import ValidationError
 from .auth import hash_password
 from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import backtest_engine_config, load_session_run_config
+from .runners import DEFAULT_WHERE, body_error, invalid_where, normalized_where, queued_result, response_body
 
 
 def _build_default_backtest_title(routes_list: list) -> str:
@@ -784,7 +785,7 @@ def get_backtest_sessions_service(
         }
 
 
-def run_backtest_service(session_id: str) -> dict:
+def run_backtest_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Trigger a backtest and return immediately.
 
@@ -795,12 +796,18 @@ def run_backtest_service(session_id: str) -> dict:
 
     Args:
         session_id: ID of the backtest session to run
+        where: "auto", "local", "any", or a runner name (see services/runners.py)
 
     Returns:
-        {"status": "started", "backtest_id": session_id} on success, or an error dict.
+        {"status": "started", "backtest_id": session_id} on success, {"status": "queued", ...}
+        when Jesse queued it for a research runner, or an error dict.
     """
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
+
+    refused = invalid_where(where)
+    if refused:
+        return refused
 
     try:
         auth_token_hashed = hash_password(password)
@@ -877,6 +884,7 @@ def run_backtest_service(session_id: str) -> dict:
         # Starting the run and storing its finalized form must be one request so
         # the session history cannot describe a different configuration.
         payload['state'] = state
+        payload['where'] = normalized_where(where)
 
         # Fire the backtest and return immediately
         response = requests.post(
@@ -887,6 +895,9 @@ def run_backtest_service(session_id: str) -> dict:
         )
 
         if response.status_code == 202:
+            queued = queued_result('backtest', session_id, response_body(response))
+            if queued:
+                return {**queued, 'backtest_id': session_id, 'routes': payload['routes']}
             return {
                 'status': 'started',
                 'backtest_id': session_id,
@@ -896,6 +907,8 @@ def run_backtest_service(session_id: str) -> dict:
             }
         elif response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}
+        elif response.status_code in (400, 409) and body_error(response):
+            return {'status': 'error', 'message': f'Failed to start backtest: {body_error(response)}'}
         else:
             return {'status': 'error', 'message': f'Failed to start backtest: {response.text}'}
 

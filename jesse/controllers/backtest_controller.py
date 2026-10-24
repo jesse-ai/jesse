@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 import json
 from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
-from jesse.services import session_liveness
+from jesse.services import runner_queue, session_liveness
 from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
 import jesse.helpers as jh
 from jesse.models.BacktestSession import (
@@ -40,11 +40,7 @@ def backtest(request_json: BacktestRequestJson):
         # The upsert makes the accepted request visible before the worker can
         # publish progress or results for the same session.
         update_backtest_session_state(request_json.id, request_json.state)
-        update_backtest_session_status(request_json.id, 'running')
-        session_liveness.claim('backtest', request_json.id)
-
-        process_manager.add_task(
-            run_backtest,
+        arguments = (
             request_json.id,
             request_json.debug_mode,
             request_json.config,
@@ -61,6 +57,18 @@ def backtest(request_json: BacktestRequestJson):
             request_json.benchmark,
             request_json.theme,
         )
+        # With `where` set, a research runner may run it instead (services/runner_queue.py).
+        queued = runner_queue.queue_if_requested('backtest', 'backtest', arguments, request_json.routes,
+                                                 getattr(request_json, 'where', None))
+        if queued is not None:
+            return JSONResponse(queued, status_code=202)
+
+        update_backtest_session_status(request_json.id, 'running')
+        session_liveness.claim('backtest', request_json.id)
+
+        process_manager.add_task(run_backtest, *arguments)
+    except runner_queue.QueueError as e:
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
     except Exception as e:
         import traceback
 

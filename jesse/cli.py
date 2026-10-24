@@ -137,6 +137,13 @@ def run(skip_agent_rules: bool, skip_lsp: bool) -> None:
         try:
             if owns_runtime:
                 try:
+                    # Give running research jobs back to the queue before the workers stop.
+                    from jesse.services import runner as research_runner
+                    if research_runner.current() is not None:
+                        research_runner.current().stop()
+                except Exception:
+                    pass
+                try:
                     from jesse.services import research_jobs
                     research_jobs.shutdown()
                 finally:
@@ -294,6 +301,12 @@ def _run_server(skip_agent_rules: bool, skip_lsp: bool, listener: socket.socket)
     # run the main application
     process_manager.flush()
 
+    # A hub (RESEARCH_RUNNERS=true) or a machine offering RUNNER_SLOTS also runs research jobs
+    # queued in the shared database (services/runner_queue.py). Off by default.
+    from jesse.services import runner as research_runner
+    if research_runner.start_in_server() is not None:
+        print("")
+
     class _SuppressUvicornStartup(logging.Filter):
         def filter(self, record):
             return "Uvicorn running on" not in record.getMessage()
@@ -305,3 +318,63 @@ def _run_server(skip_agent_rules: bool, skip_lsp: bool, listener: socket.socket)
     # An empty replacement would invalidate active locks; exit the whole instance instead.
     coordination_runtime.monitor(lambda: setattr(server, 'should_exit', True))
     server.run(sockets=[listener])
+
+
+@cli.command()
+@click.option('--name', default=None, help='Name shown for this runner (default: RUNNER_NAME in .env, else the host name).')
+@click.option('--slots', type=int, default=None, help='How many jobs to run at once (default: RUNNER_SLOTS in .env, else 2).')
+def runner(name, slots) -> None:
+    """
+    Run research jobs a hub queued in the shared database (no dashboard, no API).
+
+    Start it in its own Jesse project folder whose .env points at the hub's database.
+    """
+    from jesse.services import coordination_runtime
+    from jesse.services.env import ENV_VALUES
+
+    jh.validate_cwd()
+    name = (name or str(ENV_VALUES.get('RUNNER_NAME') or '').strip() or socket.gethostname()).strip()
+    if slots is None:
+        try:
+            slots = int(ENV_VALUES.get('RUNNER_SLOTS', 2))
+        except ValueError:
+            slots = 2
+    client = coordination_runtime.create_client(ENV_VALUES, owner=True)
+    stop_signals = [signal.SIGTERM] + ([signal.SIGBREAK] if hasattr(signal, 'SIGBREAK') else [])
+
+    def terminate(signum, frame) -> None:
+        raise SystemExit(128 + signum)
+
+    for sig in stop_signals:
+        signal.signal(sig, terminate)
+    started = None
+    owns_runtime = False
+    try:
+        coordination_runtime.start(client)
+        owns_runtime = True
+        # The same (idempotent) migrations the hub runs, in case this runner starts first.
+        from jesse.services.migrator import run as run_migrations
+        run_migrations()
+        from jesse.services import runner as research_runner
+        from jesse.services.multiprocessing import process_manager
+        process_manager.flush()
+        started = research_runner.Runner(name, slots, hub=False)
+        started.start()
+        click.echo(f'Runner "{name}" is waiting for jobs with {slots} slot(s). Press Ctrl+C to stop.')
+        while not coordination_runtime.failed():
+            time.sleep(1)
+        raise click.ClickException('The bundled coordinator stopped unexpectedly; restart the runner')
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            if started is not None:
+                click.echo('Giving running jobs back to the queue...')
+                started.stop()
+        finally:
+            try:
+                if owns_runtime:
+                    from jesse.services.multiprocessing import process_manager
+                    process_manager.shutdown()
+            finally:
+                coordination_runtime.stop()

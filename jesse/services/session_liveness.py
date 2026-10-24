@@ -53,6 +53,8 @@ _NAMES = {
 }
 
 _label: Optional[str] = None
+# Set in a runner's worker process: its writes only land while its claim still holds.
+_claim_id: Optional[str] = None
 _clock_offset_ms: Optional[int] = None
 _clock_checked_at = 0.0
 _tracked: Optional[tuple] = None
@@ -60,19 +62,45 @@ _last_beat = 0.0
 
 
 def machine_label() -> str:
-    """Which machine runs a session, for people and the dashboard: its host name and API port."""
+    """
+    Which machine runs a session, for people and the dashboard: RUNNER_NAME from .env when set,
+    else its host name and API port.
+    """
     global _label
     if _label is None:
-        _label = f"{socket.gethostname() or 'unknown-host'}:{ENV_VALUES.get('APP_PORT', '9000')}"
+        name = str(ENV_VALUES.get('RUNNER_NAME') or '').strip()
+        _label = name or f"{socket.gethostname() or 'unknown-host'}:{ENV_VALUES.get('APP_PORT', '9000')}"
     return _label
 
 
-def _database_now_ms() -> Optional[int]:
-    from jesse.services.db import database
+def set_machine_label(name: str) -> None:
+    global _label
+    _label = name
 
-    if database.db is None:
+
+def set_claim(claim_id: Optional[str]) -> None:
+    """Fence this worker process's session writes to its runner claim (see fenced())."""
+    global _claim_id
+    _claim_id = claim_id
+
+
+def fenced(model, condition):
+    """
+    `condition`, plus "the session is still claimed by this worker" inside a runner job's worker.
+    A runner that lost its job (its lease lapsed and another runner took it) cannot overwrite the
+    new run's status or results. Outside runner jobs, the condition is unchanged.
+    """
+    if _claim_id is None:
+        return condition
+    return condition & (model.claim_id == _claim_id)
+
+
+def _database_now_ms() -> Optional[int]:
+    # The handle the session models are bound to (Jesse's own is reset after migrations).
+    database = _models()['backtest']._meta.database
+    if database is None:
         return None
-    cursor = database.db.execute_sql('SELECT (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint')
+    cursor = database.execute_sql('SELECT (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint')
     return int(cursor.fetchone()[0])
 
 
@@ -104,16 +132,18 @@ def _models() -> dict:
     }
 
 
-def claim(kind: str, session_id: str, mark_running: bool = False) -> None:
+def claim(kind: str, session_id: str, mark_running: bool = False, claim_id: Optional[str] = None) -> None:
     """
     Start the session's lease and progress clocks on this machine; call it before starting the
-    worker. `mark_running` also sets the status, for start routes that did not already.
+    worker. `mark_running` also sets the status, for start routes that did not already. A runner
+    passes its `claim_id`; a local start clears any earlier one.
     """
     if jh.is_unit_testing():
         return
     model = _models()[kind]
     now = now_ms()
-    changes = {'claimed_by': machine_label(), 'heartbeat_at': now, 'progress_at': now, 'progress': None}
+    changes = {'claimed_by': machine_label(), 'claim_id': claim_id, 'heartbeat_at': now, 'progress_at': now,
+               'progress': None}
     if mark_running:
         changes.update(status='running', updated_at=now)
     model.update(**changes).where(model.id == session_id).execute()
@@ -151,8 +181,26 @@ def renew_leases(client_ids: Iterable[str]) -> None:
 
 
 def lease_expired(session) -> bool:
+    """
+    Whether the session's lease ran out. For a session this machine claimed, its own coordinator
+    decides first: after the machine slept (a closed laptop), the lease looks old while the worker
+    is fine, so a live local worker renews the lease instead.
+    """
     heartbeat_at = getattr(session, 'heartbeat_at', None)
-    return heartbeat_at is not None and now_ms() - int(heartbeat_at) > LEASE_SECONDS * 1000
+    if heartbeat_at is None or now_ms() - int(heartbeat_at) <= LEASE_SECONDS * 1000:
+        return False
+    if getattr(session, 'claimed_by', None) == machine_label():
+        from jesse.services.redis import is_process_active
+
+        try:
+            alive = is_process_active(str(session.id))
+        except Exception:
+            alive = False
+        if alive:
+            renew_leases([str(session.id)])
+            session.heartbeat_at = now_ms()
+            return False
+    return True
 
 
 def has_live_worker(session) -> bool:

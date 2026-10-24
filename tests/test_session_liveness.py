@@ -80,7 +80,9 @@ def test_claim_starts_the_lease_and_progress_clocks_and_can_mark_the_session_run
 
 
 @pytest.mark.parametrize(('claimed_by', 'heartbeat_seconds_ago', 'worker', 'legacy_check', 'gone'), [
-    (HERE, 600, True, True, True),         # lease ran out: gone, whatever the coordinator says
+    (HERE, 600, True, True, False),        # lapsed lease, but this machine's worker lives (it slept)
+    (HERE, 600, False, True, True),        # lapsed lease and no local worker: gone
+    (OTHER, 600, True, True, True),        # another machine's lapsed lease: gone, whatever this coordinator says
     (OTHER, 600, False, True, True),       # any machine may expire another machine's lapsed lease
     (HERE, 30, False, True, False),        # lease still valid
     (OTHER, 30, False, True, False),       # another machine's live run is left alone
@@ -330,3 +332,11 @@ def test_monte_carlo_resume_claims_the_session_before_starting(monkeypatch):
 
     assert response.status_code == 200
     assert calls == [('claim', ('monte_carlo', 'mc-id'), {'mark_running': True}), ('worker', 'mc-id')]
+
+
+def test_a_machine_that_slept_renews_its_live_runs_instead_of_stopping_them(db, active):
+    session_id = _row(BacktestSession, heartbeat_seconds_ago=40 * 60)
+    active.add(session_id)
+
+    assert get_backtest_session_by_id(session_id).status == 'running'
+    assert _ms() - BacktestSession.get(BacktestSession.id == session_id).heartbeat_at < 5_000

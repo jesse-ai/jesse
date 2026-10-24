@@ -31,6 +31,7 @@ def run():
     _optimization_session(migrator)
     _monte_carlo_session(migrator)
     _significance_test_session(migrator)
+    _research_runners(migrator)
 
     # create initial tables
     from jesse.models import (
@@ -63,6 +64,7 @@ def run():
     from jesse.models.Orderbook import Orderbook
     from jesse.models.Ticker import Ticker
     from jesse.models.Trade import Trade
+    from jesse.models.RunnerJob import CodeBlob, Runner, RunnerFile, RunnerJob
     database.db.create_tables([
         AiModel,
         BacktestSession,
@@ -90,6 +92,10 @@ def run():
         LiveChartPoint,
         Ticker,
         Trade,
+        RunnerJob,
+        Runner,
+        CodeBlob,
+        RunnerFile,
     ], safe=True)
 
     from jesse.services.timescale import configure_if_requested, drop_identifier_primary_key
@@ -195,6 +201,7 @@ def _liveness_fields() -> list:
     # Worker lease and progress (services/session_liveness.py), on every research session table.
     return [
         {'action': migration_actions.ADD, 'name': 'claimed_by', 'type': CharField(max_length=255, null=True)},
+        {'action': migration_actions.ADD, 'name': 'claim_id', 'type': CharField(max_length=36, null=True)},
         {'action': migration_actions.ADD, 'name': 'heartbeat_at', 'type': BigIntegerField(null=True)},
         {'action': migration_actions.ADD, 'name': 'progress_at', 'type': BigIntegerField(null=True)},
         {'action': migration_actions.ADD, 'name': 'progress', 'type': FloatField(null=True)},
@@ -237,6 +244,22 @@ def _monte_carlo_session(migrator):
         monte_carlo_session_columns = database.db.get_columns('montecarlosession')
         _migrate(migrator, fields, monte_carlo_session_columns, 'montecarlosession')
         _liveness_migrate(migrator, 'montecarlosession')
+
+
+def _research_runners(migrator):
+    # Columns added to the research runner tables after they were first created.
+    tables = database.db.get_tables()
+    if 'runnerjob' in tables:
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'placement', 'type': TextField(null=True)},
+        ], database.db.get_columns('runnerjob'), 'runnerjob')
+    if 'runner' in tables:
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'cpu_percent', 'type': FloatField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'load_1m', 'type': FloatField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'memory_total_bytes', 'type': BigIntegerField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'memory_used_bytes', 'type': BigIntegerField(null=True)},
+        ], database.db.get_columns('runner'), 'runner')
 
 
 def _significance_test_session(migrator):
