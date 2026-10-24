@@ -2,8 +2,8 @@
 from jesse.services import runner_console as console
 
 
-def _runner(name, alive=True, version='3.4.0', role='runner', slots=3, cores=8, seconds=2.0):
-    return {'name': name, 'alive': alive, 'jesse_version': version, 'role': role, 'slots': slots, 'cpu_cores': cores,
+def _runner(name, alive=True, version='3.4.0', role='runner', budget=7, cores=8, seconds=2.0):
+    return {'name': name, 'alive': alive, 'jesse_version': version, 'role': role, 'cores_budget': budget, 'cpu_cores': cores,
             'compatible': version == '3.4.0', 'last_seen_seconds_ago': seconds}
 
 
@@ -22,27 +22,27 @@ def test_a_runner_on_another_version_than_the_hub_is_told_exactly_what_to_do():
 
 
 def test_the_runner_banner_says_its_role_and_whether_the_hub_is_online():
-    lines = console.runner_banner('mini', 3, 8, '3.4.0', '192.168.1.20:5432/jesse_db',
+    lines = console.runner_banner('mini', 7, 8, '3.4.0', '192.168.1.20:5432/jesse_db',
                                   [_runner('macbook', role='hub')], inside_server=False)
 
-    assert lines[0] == 'Research runner "mini": 3 slot(s), 8 CPU cores, Jesse 3.4.0.'
+    assert lines[0] == 'Research runner "mini": uses 7 of its 8 CPU cores for jobs, Jesse 3.4.0.'
     assert lines[1] == 'Takes research jobs from the database at 192.168.1.20:5432/jesse_db.'
     assert lines[2] == 'Hub "macbook" is online (Jesse 3.4.0).'
-    waiting = console.runner_banner('mini', 3, 8, '3.4.0', 'db', [], inside_server=True)
+    waiting = console.runner_banner('mini', 7, 8, '3.4.0', 'db', [], inside_server=True)
     assert 'alongside this Jesse' in waiting[1] and waiting[2].startswith('The hub is not online yet')
 
 
 def test_the_hub_banner_lists_its_runners_and_flags_a_version_mismatch():
-    lines = console.hub_banner('macbook', 1, 'mini,macbook', '3.4.0', [
-        _runner('macbook', role='hub', slots=1, cores=16),
+    lines = console.hub_banner('macbook', 4, 'mini,macbook', '3.4.0', [
+        _runner('macbook', role='hub', budget=4, cores=16),
         _runner('mini'),
         _runner('air', alive=False, version='3.3.9', seconds=7300),
     ])
 
-    assert lines[0] == 'Research hub "macbook": Jesse 3.4.0, runs 1 job(s) itself, order: mini,macbook.'
+    assert lines[0] == 'Research hub "macbook": Jesse 3.4.0, runs jobs itself on 4 core(s), order: mini,macbook.'
     assert lines[1] == 'Runners:'
-    assert lines[2] == '  - mini: online, 3 slot(s), 8 cores'
-    assert lines[3] == '  - air: offline (last seen 2 h ago), 3 slot(s), 8 cores, Jesse 3.3.9: VERSION MISMATCH'
+    assert lines[2] == '  - mini: online, 7 of 8 cores for jobs'
+    assert lines[3] == '  - air: offline (last seen 2 h ago), 7 of 8 cores for jobs, Jesse 3.3.9: VERSION MISMATCH'
     alone = console.hub_banner('macbook', 0, None, '3.4.0', [_runner('macbook', role='hub')])
     assert 'only dispatches jobs' in alone[0] and 'any free runner' in alone[0]
     assert alone[1].startswith('No runners have connected yet')
@@ -53,7 +53,7 @@ def test_the_hub_reports_runners_connecting_dropping_and_mismatching_once():
     assert watcher.update([_runner('mini', alive=False)], []) == []  # baseline
 
     assert watcher.update([_runner('mini')], []) == [
-        ('good', 'Runner "mini" connected: 3 slot(s), 8 cores, Jesse 3.4.0.')]
+        ('good', 'Runner "mini" connected: 7 of 8 cores for jobs, Jesse 3.4.0.')]
     assert watcher.update([_runner('mini', alive=False)], []) == [('warn', 'Runner "mini" went offline.')]
     events = watcher.update([_runner('mini'), _runner('air', version='3.3.9')], [])
     assert ('error', 'Runner "air" runs Jesse 3.3.9, this hub runs 3.4.0: it takes no jobs until both run the same '

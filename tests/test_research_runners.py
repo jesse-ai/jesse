@@ -205,9 +205,16 @@ def _backtest(status='draft'):
 
 
 def _runner(name, version=None, seconds_ago=0):
-    Runner.insert(name=name, host=name, slots=2, busy=0, cpu_cores=8,
+    Runner.insert(name=name, host=name, cores_budget=8, cores_used=0, cpu_cores=8,
                   jesse_version=version or runner_queue.jesse_version(), started_at=_now(),
                   last_seen=_now() - seconds_ago * 1000).execute()
+
+
+def _claim(name):
+    """claim_next with the runner's budget and free cores from its row (8 of 8 for an unknown runner)."""
+    row = Runner.get_or_none(Runner.name == name)
+    budget = row.cores_budget if row else 8
+    return runner_queue.claim_next(name, budget - (row.cores_used if row else 0), budget)
 
 
 def _enqueue(project, session_id, target=None, strategy='Variant7'):
@@ -260,7 +267,7 @@ def test_two_runners_never_take_the_same_job(pg, project, monkeypatch):
     def take(name):
         while True:
             with pg.connection_context():
-                job = runner_queue.claim_next(name)
+                job = runner_queue.claim_next(name, 8, 8)
             if job is None:
                 return
             claimed[name].append(job['session_id'])
@@ -279,15 +286,15 @@ def test_claims_respect_the_target_the_version_and_exclusions(pg, project, monke
     monkeypatch.chdir(project)
     for_mini = _backtest()
     _enqueue(project, for_mini, target='mini')
-    assert runner_queue.claim_next('air') is None
+    assert _claim('air') is None
 
-    job = runner_queue.claim_next('mini')
+    job = _claim('mini')
     assert job['session_id'] == for_mini and job['attempt'] == 1 and job['packages'] == ['numpy', 'talib']
 
     other = _backtest()
     _enqueue(project, other)
     RunnerJob.update(jesse_version='0.0.1').where(RunnerJob.session_id == other).execute()
-    assert runner_queue.claim_next('mini') is None
+    assert _claim('mini') is None
 
 
 def test_a_runner_missing_a_package_gives_the_job_to_another(pg, project, monkeypatch):
@@ -297,13 +304,13 @@ def test_a_runner_missing_a_package_gives_the_job_to_another(pg, project, monkey
     session_id = _backtest()
     _enqueue(project, session_id)
 
-    job = runner_queue.claim_next('mini')
+    job = _claim('mini')
     runner_queue.release(job, 'mini', 'Runner mini does not have the package(s) talib.')
 
     row = RunnerJob.get(RunnerJob.session_id == session_id)
     assert (row.status, row.attempt, row.excluded) == ('queued', 0, ',mini,')
-    assert runner_queue.claim_next('mini') is None
-    job = runner_queue.claim_next('air')
+    assert _claim('mini') is None
+    job = _claim('air')
     assert job is not None
     runner_queue.release(job, 'air', 'Runner air does not have the package(s) talib.')
 
@@ -319,14 +326,14 @@ def test_a_lost_runners_job_is_queued_again_until_its_attempts_run_out(pg, proje
     lapsed = _now() - 10 * 60 * 1000
 
     for attempt in (1, 2):
-        job = runner_queue.claim_next(f'runner{attempt}')
+        job = _claim(f'runner{attempt}')
         session_liveness.claim('backtest', session_id, mark_running=True, claim_id=job['claim_id'])
         BacktestSession.update(heartbeat_at=lapsed).where(BacktestSession.id == session_id).execute()
         from jesse.models.BacktestSession import get_backtest_session_by_id
         assert get_backtest_session_by_id(session_id).status == 'queued'
         assert 'stopped answering' in RunnerJob.get(RunnerJob.session_id == session_id).error
 
-    job = runner_queue.claim_next('runner3')
+    job = _claim('runner3')
     session_liveness.claim('backtest', session_id, mark_running=True, claim_id=job['claim_id'])
     BacktestSession.update(heartbeat_at=lapsed).where(BacktestSession.id == session_id).execute()
     from jesse.models.BacktestSession import get_backtest_session_by_id
@@ -339,7 +346,7 @@ def test_a_stale_worker_cannot_overwrite_the_run_that_replaced_it(pg, project, m
     monkeypatch.chdir(project)
     session_id = _backtest()
     _enqueue(project, session_id)
-    old = runner_queue.claim_next('runner1')
+    old = _claim('runner1')
     session_liveness.claim('backtest', session_id, mark_running=True, claim_id=old['claim_id'])
     # The job moved to another runner.
     BacktestSession.update(claim_id='newer-claim').where(BacktestSession.id == session_id).execute()
@@ -371,7 +378,7 @@ def test_cancelling_drops_a_queued_job_and_signals_a_running_one(pg, project, mo
 
     running = _backtest()
     _enqueue(project, running)
-    runner_queue.claim_next('mini')
+    _claim('mini')
     runner_queue.cancel(running)
     assert RunnerJob.get(RunnerJob.session_id == running).status == 'cancelled'
     assert (runner_queue.CHANNEL_CANCEL, running) in notified
@@ -385,7 +392,7 @@ def test_queuing_again_replaces_a_waiting_job_but_not_a_running_one(pg, project,
     statuses = sorted(job.status for job in RunnerJob.select().where(RunnerJob.session_id == session_id))
     assert statuses == ['cancelled', 'queued']
 
-    runner_queue.claim_next('mini')
+    _claim('mini')
     with pytest.raises(runner_queue.QueueError, match='already running on a runner'):
         _enqueue(project, session_id)
 
@@ -394,7 +401,7 @@ def test_shutdown_gives_a_job_back_without_using_an_attempt(pg, project, monkeyp
     monkeypatch.chdir(project)
     session_id = _backtest()
     _enqueue(project, session_id)
-    job = runner_queue.claim_next('mini')
+    job = _claim('mini')
 
     runner_queue.requeue(job, 'Runner mini shut down; queued again.')
 
@@ -409,13 +416,13 @@ def test_the_runners_list_and_queue_info(pg, project, monkeypatch):
     _runner('air', version='0.0.1', seconds_ago=600)
     session_id = _backtest()
     _enqueue(project, session_id)
-    runner_queue.claim_next('mini')
+    _claim('mini')
 
     payload = runner_queue.runners_payload()
     runners = {r['name']: r for r in payload['runners']}
     assert runners['mini']['alive'] and runners['mini']['compatible']
     assert runners['mini']['running'] == [{'session_id': session_id, 'session_type': 'backtest'}]
-    assert not runners['air']['alive'] and not runners['air']['compatible'] and runners['air']['free'] == 0
+    assert not runners['air']['alive'] and not runners['air']['compatible'] and runners['air']['cores_free'] == 0
     info = runner_queue.queue_info(session_id)
     assert info['job_status'] == 'running' and info['attempt'] == 1 and info['target'] == 'any'
 
@@ -448,8 +455,8 @@ def test_a_runner_caps_cpu_cores_at_its_own_count(monkeypatch):
     assert small[11] == 2 and small[1]['cpu_cores'] == 2
 
 
-def test_only_runners_with_slots_on_this_version_count_for_auto(pg):
-    Runner.insert(name='hub', host='hub', slots=0, busy=0, cpu_cores=8, jesse_version=runner_queue.jesse_version(),
+def test_only_runners_with_cores_on_this_version_count_for_auto(pg):
+    Runner.insert(name='hub', host='hub', cores_budget=0, cores_used=0, cpu_cores=8, jesse_version=runner_queue.jesse_version(),
                   started_at=_now(), last_seen=_now()).execute()
     _runner('old', version='0.0.1')
     assert runner_queue.resolve_target('auto') == ('local', None)
@@ -512,15 +519,15 @@ def test_a_rerun_that_cannot_be_queued_stops_with_the_reason(monkeypatch):
 # RUNNER_ORDER placement and machine stats
 # ---------------------------------------------------------------------------
 
-def _set_free(name, slots, busy):
-    Runner.update(slots=slots, busy=busy).where(Runner.name == name).execute()
+def _set_free(name, budget, used):
+    Runner.update(cores_budget=budget, cores_used=used).where(Runner.name == name).execute()
 
 
 @pytest.mark.parametrize(('order', 'mini_free', 'expect_hub', 'expect_mini'), [
     (None, 3, True, True),                 # no order: first come first served
     ('macmini,hub', 3, False, True),       # the mini first while it has room
-    ('macmini,hub', 0, True, True),        # the hub only when the mini is full
-    ('macmini', 0, False, True),           # only the mini, the hub just orchestrates
+    ('macmini,hub', 0, True, False),       # the hub only when the mini is full
+    ('macmini', 0, False, False),          # only the mini (full now), the hub just orchestrates
     ('hub,*', 1, True, False),             # the hub first, then any other runner (hub has room)
 ])
 def test_runner_order_decides_who_takes_a_job(pg, project, monkeypatch, order, mini_free, expect_hub, expect_mini):
@@ -534,16 +541,16 @@ def test_runner_order_decides_who_takes_a_job(pg, project, monkeypatch, order, m
     session_id = _backtest()
     _enqueue(project, session_id)
 
-    hub_job = runner_queue.claim_next('hub')
+    hub_job = _claim('hub')
     if hub_job:
         runner_queue.requeue(hub_job, 'test')
-    mini_job = runner_queue.claim_next('macmini')
+    mini_job = _claim('macmini')
 
     assert (hub_job is not None) is expect_hub
     assert (mini_job is not None) is expect_mini
 
 
-def test_a_lower_ranked_runner_leaves_the_preferred_one_just_its_free_slots(pg, project, monkeypatch):
+def test_a_lower_ranked_runner_leaves_the_preferred_one_just_its_free_cores(pg, project, monkeypatch):
     monkeypatch.chdir(project)
     monkeypatch.setitem(runner_queue.ENV_VALUES, 'RUNNER_ORDER', 'macmini,hub')
     _runner('hub')
@@ -556,7 +563,7 @@ def test_a_lower_ranked_runner_leaves_the_preferred_one_just_its_free_slots(pg, 
 
     taken = []
     while True:
-        job = runner_queue.claim_next('hub')
+        job = runner_queue.claim_next('hub', 8, 8)
         if job is None:
             break
         taken.append(job['session_id'])
@@ -612,7 +619,7 @@ def test_a_job_folder_sees_the_runner_projects_env(tmp_path):
 
 def test_a_version_mismatch_stops_a_standalone_runner_and_pauses_one_inside_jesse_run(pg, monkeypatch):
     from jesse.services.runner import Runner as RunnerLoop
-    Runner.insert(name='macbook', host='macbook', role='hub', slots=1, busy=0, cpu_cores=16, jesse_version='9.9.9',
+    Runner.insert(name='macbook', host='macbook', role='hub', cores_budget=1, cores_used=0, cpu_cores=16, jesse_version='9.9.9',
                   started_at=_now(), last_seen=_now()).execute()
     printed = []
     monkeypatch.setattr('jesse.services.runner._log', lambda text, level='info': printed.append((level, text)))
@@ -637,11 +644,82 @@ def test_a_runner_that_stops_shows_as_recently_offline_and_survives_cleanup(pg, 
     from jesse.services.runner import Runner as RunnerLoop
     monkeypatch.chdir(project)
     loop = RunnerLoop('mini', 2, hub=False, standalone=True)
-    loop._heartbeat(busy=0)
+    loop._heartbeat()
     assert runner_queue.runners_payload()['runners'][0]['alive'] is True
 
-    loop._heartbeat(busy=0, offline=True)
+    loop._heartbeat(offline=True)
     runner_queue.sweep()
 
     runner = runner_queue.runners_payload()['runners'][0]
     assert runner['name'] == 'mini' and runner['alive'] is False and runner['last_seen_seconds_ago'] < 120
+
+
+
+def _enqueue_job(project, function='backtest', cores=None, target=None):
+    session_id = _backtest()
+    os.chdir(project)
+    arguments = [session_id, False, {}] if function == 'backtest' else [session_id, {'cpu_cores': cores}] + [None] * 9 + [cores, {}]
+    runner_queue.enqueue('backtest', function, arguments, ['Variant7'], target)
+    return session_id
+
+
+def test_a_job_uses_the_cores_it_asked_for(pg, project, monkeypatch):
+    monkeypatch.chdir(project)
+    backtest = _enqueue_job(project)
+    optimization = _enqueue_job(project, 'optimization', cores=6)
+
+    assert {str(j.session_id): j.cores for j in RunnerJob.select()} == {backtest: 1, optimization: 6}
+    assert runner_queue.claim_next('mini', 8, 8)['cost'] == 1
+    assert runner_queue.claim_next('mini', 7, 8)['cost'] == 6
+    assert runner_queue.claim_next('mini', 1, 8) is None
+
+
+def test_a_big_job_is_never_overtaken_on_the_runner_that_waits_for_it(pg, project, monkeypatch):
+    monkeypatch.chdir(project)
+    _runner('mini')
+    _set_free('mini', 8, 3)  # three backtests running
+    optimization = _enqueue_job(project, 'optimization', cores=8)
+    _enqueue_job(project)  # a backtest that would fit
+
+    assert runner_queue.claim_next('mini', 5, 8) is None  # drains instead of starting the backtest
+    _set_free('mini', 8, 0)
+    assert runner_queue.claim_next('mini', 8, 8)['session_id'] == optimization
+
+
+def test_other_runners_keep_working_while_one_waits_for_a_big_job(pg, project, monkeypatch):
+    monkeypatch.chdir(project)
+    _runner('mini')
+    _runner('air')
+    _set_free('mini', 8, 3)
+    _set_free('air', 4, 0)
+    optimization = _enqueue_job(project, 'optimization', cores=8)
+    backtest = _enqueue_job(project)
+
+    # The air could only give it 4 of its 8 cores, so it leaves it to the mini and takes the backtest.
+    assert runner_queue.claim_next('air', 4, 4)['session_id'] == backtest
+    assert runner_queue.claim_next('mini', 5, 8) is None
+    assert RunnerJob.get(RunnerJob.session_id == optimization).status == 'queued'
+
+
+def test_a_job_bigger_than_every_runner_is_capped_to_the_biggest(pg, project, monkeypatch):
+    monkeypatch.chdir(project)
+    _runner('mini')
+    _set_free('mini', 7, 0)
+    _enqueue_job(project, 'optimization', cores=16)
+
+    job = runner_queue.claim_next('mini', 7, 7)
+    assert job['cores'] == 16 and job['cost'] == 7
+
+
+def test_the_order_decides_which_runner_waits_for_a_big_job(pg, project, monkeypatch):
+    monkeypatch.chdir(project)
+    monkeypatch.setitem(runner_queue.ENV_VALUES, 'RUNNER_ORDER', 'air,mini')
+    _runner('mini')
+    _runner('air')
+    _set_free('mini', 8, 2)
+    _set_free('air', 8, 2)
+    _enqueue_job(project, 'optimization', cores=8)
+    backtest = _enqueue_job(project)
+
+    assert runner_queue.claim_next('air', 6, 8) is None  # air is first in the order: it waits
+    assert runner_queue.claim_next('mini', 6, 8)['session_id'] == backtest

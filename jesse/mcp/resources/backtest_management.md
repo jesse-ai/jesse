@@ -276,8 +276,10 @@ research jobs. Every run tool (`run_backtest`, `run_optimization` / `rerun_optim
 
 A queued run returns `status: "queued"` with `target`, `job_id`, `dashboard_url` and, when no
 matching runner is connected, a `warning`; it shows outcome `queued` in `wait_for_sessions` until
-a runner claims it, then `running` as usual. `list_runners()` shows each runner's `alive`, `free`
-slots, `jesse_version` / `compatible`, and what it runs, plus `queued_jobs`. Results land in the
+a runner claims it, then `running` as usual. `list_runners()` shows each runner's `alive`,
+`cores_budget` / `cores_free`, `jesse_version` / `compatible`, and what it runs, plus `queued_jobs`.
+A backtest or significance test uses 1 core and an optimization or Monte Carlo run its `cpu_cores`;
+jobs start in queue order, and a big job waiting for cores is not overtaken on its runner. Results land in the
 same database, so `get_session_results` and `run_analysis` work exactly as for a local run.
 A slow queue is not a failed run: never start the same variant again because it is still queued.
 

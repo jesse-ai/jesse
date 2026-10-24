@@ -10,6 +10,7 @@ use the job's code, never the runner project's strategies/ folder, and the files
 import json
 import os
 import sys
+from typing import Optional
 
 
 def _mode_function(function: str):
@@ -35,16 +36,13 @@ def _forget_project_modules(job_dir: str) -> None:
             del sys.modules[name]
 
 
-# Position of the cpu_cores argument of the modes that use several cores.
-_CPU_CORES_ARGUMENT = {'optimization': 11, 'monte_carlo': 11}
-
-
-def _fit_cpu_cores(function: str, arguments: list) -> None:
-    """The hub chose cpu_cores for its own machine; use at most the cores this runner has."""
+def _fit_cpu_cores(function: str, arguments: list, max_cores: Optional[int] = None) -> None:
+    """The hub chose cpu_cores for its own machine; use at most this runner's cores for the job."""
     from multiprocessing import cpu_count
+    from jesse.services.runner_queue import CPU_CORES_ARGUMENT
 
-    position = _CPU_CORES_ARGUMENT.get(function)
-    available = max(1, cpu_count())
+    position = CPU_CORES_ARGUMENT.get(function)
+    available = max(1, min(cpu_count(), max_cores or cpu_count()))
     if position is not None and isinstance(arguments[position], int) and arguments[position] > available:
         arguments[position] = available
     config = arguments[1] if isinstance(arguments[1], dict) else None
@@ -52,7 +50,8 @@ def _fit_cpu_cores(function: str, arguments: list) -> None:
         config['cpu_cores'] = available
 
 
-def run_queued_job(session_id: str, function: str, arguments_json: str, job_dir: str, claim_id: str) -> None:
+def run_queued_job(session_id: str, function: str, arguments_json: str, job_dir: str, claim_id: str,
+                   max_cores: Optional[int] = None) -> None:
     from jesse.services import session_liveness
 
     os.chdir(job_dir)
@@ -65,5 +64,5 @@ def run_queued_job(session_id: str, function: str, arguments_json: str, job_dir:
     arguments = json.loads(arguments_json)
     if str(arguments[0]) != str(session_id):
         raise ValueError('The job arguments do not belong to this session.')
-    _fit_cpu_cores(function, arguments)
+    _fit_cpu_cores(function, arguments, max_cores)
     _mode_function(function)(*arguments)

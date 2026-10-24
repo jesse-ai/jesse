@@ -22,6 +22,9 @@ class RunnerJob(peewee.Model):
     arguments = peewee.TextField()
     # {"strategies/Name/__init__.py": "<sha256>", ...}: the code the job runs, in CodeBlob.
     code_manifest = peewee.TextField()
+    # CPU cores the job uses: 1 for a backtest or significance test, its cpu_cores for an
+    # optimization or Monte Carlo run (a runner caps it at its own core budget).
+    cores = peewee.IntegerField(default=1)
     # Third-party packages the code imports; a runner without them does not take the job.
     packages = peewee.TextField(null=True)
     # A runner name, or null for any runner.
@@ -51,8 +54,9 @@ class Runner(peewee.Model):
     host = peewee.CharField(max_length=255)
     # "hub" for the machine with RESEARCH_RUNNERS=true, else "runner".
     role = peewee.CharField(max_length=16, default='runner')
-    slots = peewee.IntegerField()
-    busy = peewee.IntegerField(default=0)
+    # CPU cores it may use for jobs (RUNNER_CORES) and the cores its running jobs use now.
+    cores_budget = peewee.IntegerField()
+    cores_used = peewee.IntegerField(default=0)
     cpu_cores = peewee.IntegerField()
     jesse_version = peewee.CharField(max_length=32)
     started_at = peewee.BigIntegerField()

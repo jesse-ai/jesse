@@ -301,7 +301,7 @@ def _run_server(skip_agent_rules: bool, skip_lsp: bool, listener: socket.socket)
     # run the main application
     process_manager.flush()
 
-    # A hub (RESEARCH_RUNNERS=true) or a machine offering RUNNER_SLOTS also runs research jobs
+    # A hub (RESEARCH_RUNNERS=true) or a machine offering RUNNER_CORES also runs research jobs
     # queued in the shared database (services/runner_queue.py). Off by default.
     from jesse.services import runner as research_runner
     if research_runner.start_in_server() is not None:
@@ -322,8 +322,9 @@ def _run_server(skip_agent_rules: bool, skip_lsp: bool, listener: socket.socket)
 
 @cli.command()
 @click.option('--name', default=None, help='Name shown for this runner (default: RUNNER_NAME in .env, else the host name).')
-@click.option('--slots', type=int, default=None, help='How many jobs to run at once (default: RUNNER_SLOTS in .env, else 2).')
-def runner(name, slots) -> None:
+@click.option('--cores', type=int, default=None,
+              help='CPU cores its jobs may use together (default: RUNNER_CORES in .env, else all cores but one).')
+def runner(name, cores) -> None:
     """
     Run research jobs a hub queued in the shared database (no dashboard, no API).
 
@@ -334,11 +335,9 @@ def runner(name, slots) -> None:
 
     jh.validate_cwd()
     name = (name or str(ENV_VALUES.get('RUNNER_NAME') or '').strip() or socket.gethostname()).strip()
-    if slots is None:
-        try:
-            slots = int(ENV_VALUES.get('RUNNER_SLOTS', 2))
-        except ValueError:
-            slots = 2
+    if cores is None:
+        from jesse.services.runner import cores_from_env, default_cores
+        cores = cores_from_env(default_cores()) or default_cores()
     client = coordination_runtime.create_client(ENV_VALUES, owner=True)
     stop_signals = [signal.SIGTERM] + ([signal.SIGBREAK] if hasattr(signal, 'SIGBREAK') else [])
 
@@ -358,10 +357,10 @@ def runner(name, slots) -> None:
         from jesse.services import runner as research_runner
         from jesse.services.multiprocessing import process_manager
         process_manager.flush()
-        started = research_runner.Runner(name, slots, hub=False, standalone=True)
+        started = research_runner.Runner(name, cores, hub=False, standalone=True)
         started.start()
         if started.fatal_error is None:
-            click.echo(f'Runner "{name}" is waiting for jobs with {slots} slot(s). Press Ctrl+C to stop.')
+            click.echo(f'Runner "{name}" is waiting for jobs with {cores} core(s). Press Ctrl+C to stop.')
         while not coordination_runtime.failed() and started.fatal_error is None:
             time.sleep(1)
         if started.fatal_error is not None:

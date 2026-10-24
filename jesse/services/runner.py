@@ -2,13 +2,13 @@
 A research runner: takes queued jobs from the shared database and runs them here (see
 services/runner_queue.py for the whole picture).
 
-It runs either inside `jesse run` (RUNNER_SLOTS in .env; a hub with RESEARCH_RUNNERS=true also
+It runs either inside `jesse run` (RUNNER_CORES in .env; a hub with RESEARCH_RUNNERS=true also
 starts one to save runner files locally) or alone with `jesse runner` on a machine that only
 provides compute. Threads:
 - a listener holding its own database connection that LISTENs for queue, cancel and file
   notifications and wakes the loop (it reconnects after a network drop);
 - the loop, which wakes on a notification or every POLL_SECONDS: it refreshes the runner's row,
-  drops jobs it no longer holds, claims jobs into free slots, and on the hub saves runner files.
+  drops jobs it no longer holds, claims jobs that fit its free cores, and on the hub saves runner files.
 Jobs run through the process manager like local runs, so their leases, progress and crash
 handling are the same; on_worker_exit (called by the process manager) completes them.
 """
@@ -62,9 +62,10 @@ def _listen_connection():
 
 
 class Runner:
-    def __init__(self, name: str, slots: int, hub: bool, project_root: str = '.', standalone: bool = False):
+    def __init__(self, name: str, cores: int, hub: bool, project_root: str = '.', standalone: bool = False):
         self.name = name
-        self.slots = max(0, int(slots))
+        # How many CPU cores its jobs may use together (RUNNER_CORES).
+        self.cores = max(0, int(cores))
         self.hub = hub
         # `jesse runner` exits on a Jesse version mismatch; a runner inside `jesse run` stops taking jobs.
         self.standalone = standalone
@@ -87,7 +88,7 @@ class Runner:
         global _current
         _current = self
         session_liveness.set_machine_label(self.name)
-        self._heartbeat(busy=0)
+        self._heartbeat()
         self._print_banner()
         if not self.hub:
             self._check_version()
@@ -104,7 +105,7 @@ class Runner:
         except Exception:
             runners = []
         if self.hub:
-            lines = runner_console.hub_banner(self.name, self.slots, runner_queue.placement(),
+            lines = runner_console.hub_banner(self.name, self.cores, runner_queue.placement(),
                                               runner_queue.jesse_version(), runners)
             if self._watcher is not None:
                 try:
@@ -116,7 +117,7 @@ class Runner:
             database = (f"{ENV_VALUES.get('POSTGRES_HOST')}:{ENV_VALUES.get('POSTGRES_PORT')}/"
                         f"{ENV_VALUES.get('POSTGRES_NAME')}")
             hubs = [runner for runner in runners if runner.get('role') == 'hub' and runner['name'] != self.name]
-            lines = runner_console.runner_banner(self.name, self.slots, os.cpu_count() or 1,
+            lines = runner_console.runner_banner(self.name, self.cores, os.cpu_count() or 1,
                                                  runner_queue.jesse_version(), database, hubs,
                                                  inside_server=not self.standalone)
         for line in lines:
@@ -190,7 +191,7 @@ class Runner:
             except Exception as e:
                 jh.debug(f'Could not give job {session_id} back: {e}')
         try:
-            self._heartbeat(busy=0, offline=True)
+            self._heartbeat(offline=True)
         except Exception:
             pass
         if _current is self:
@@ -242,7 +243,7 @@ class Runner:
                 jh.debug(f'Runner loop error: {type(e).__name__}: {e}')
 
     def _tick(self) -> None:
-        self._heartbeat(busy=len(self.jobs))
+        self._heartbeat()
         self._drop_lost_jobs()
         if self.hub:
             self._save_runner_files()
@@ -254,22 +255,26 @@ class Runner:
         if time.monotonic() - self._last_sweep > SWEEP_SECONDS:
             self._last_sweep = time.monotonic()
             runner_queue.sweep()
-        while len(self.jobs) < self.slots and not self._stopping.is_set() and not self._blocked:
-            job = runner_queue.claim_next(self.name)
+        while not self._stopping.is_set() and not self._blocked:
+            job = runner_queue.claim_next(self.name, self.cores - self.cores_used(), self.cores)
             if job is None:
                 break
             self._launch(job)
-        self._heartbeat(busy=len(self.jobs))
+        self._heartbeat()
 
     # ------------------------------------------------------------------ jobs
-    def _heartbeat(self, busy: int, offline: bool = False) -> None:
+    def cores_used(self) -> int:
+        with self._lock:
+            return sum(job.get('cost', 1) for job in self.jobs.values())
+
+    def _heartbeat(self, offline: bool = False) -> None:
         from jesse.models.RunnerJob import Runner as RunnerRow
 
         now = session_liveness.now_ms()
         stats = machine_stats.collect()
         values = {
             'host': socket.gethostname() or 'unknown-host', 'role': 'hub' if self.hub else 'runner',
-            'slots': self.slots, 'busy': busy,
+            'cores_budget': self.cores, 'cores_used': 0 if offline else self.cores_used(),
             'cpu_cores': os.cpu_count() or 1, 'jesse_version': runner_queue.jesse_version(),
             # Stopping marks it offline at once, keeping when it was last seen for the runners list.
             'started_at': self._started_at,
@@ -304,7 +309,7 @@ class Runner:
             with self._lock:
                 self.jobs[session_id] = job
             process_manager.add_task(run_queued_job, session_id, job['function'], json.dumps(job['arguments']),
-                                     job_dir, job['claim_id'])
+                                     job_dir, job['claim_id'], job['cost'])
         except Exception as e:
             with self._lock:
                 self.jobs.pop(session_id, None)
@@ -422,19 +427,24 @@ class Runner:
             RunnerFile.delete().where(RunnerFile.id == row.id).execute()
 
 
-def _slots_from_env(default: int) -> int:
+def default_cores() -> int:
+    """All of the machine's cores but one, so it stays responsive."""
+    return max(1, (os.cpu_count() or 2) - 1)
+
+
+def cores_from_env(default: int) -> int:
     try:
-        return max(0, int(ENV_VALUES.get('RUNNER_SLOTS', default)))
+        return max(0, int(ENV_VALUES.get('RUNNER_CORES', default)))
     except ValueError:
         return default
 
 
 def start_in_server() -> Optional[Runner]:
-    """Start a runner inside `jesse run` when this instance is a hub or offers runner slots."""
+    """Start a runner inside `jesse run` when this instance is a hub or offers RUNNER_CORES."""
     hub = runner_queue.enabled()
-    slots = _slots_from_env(1 if hub else 0)
-    if not hub and slots == 0:
+    cores = cores_from_env(default_cores() if hub else 0)
+    if not hub and cores == 0:
         return None
-    runner = Runner(session_liveness.machine_label(), slots, hub)
+    runner = Runner(session_liveness.machine_label(), cores, hub)
     runner.start()
     return runner

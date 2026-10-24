@@ -5,7 +5,7 @@ machines that share this database.
 One machine is the hub (RESEARCH_RUNNERS=true in its .env): the dashboard and the MCP agent talk
 to it. A run started with `where` other than "local" is not started on the hub; it is queued as
 a RunnerJob that carries the worker call and the job's code (services/code_bundle.py). Runners
-(`jesse runner`, or `jesse run` with RUNNER_SLOTS) take queued jobs from the database, run them in
+(`jesse runner`, or `jesse run` with RUNNER_CORES) take queued jobs from the database, run them in
 their own process manager and write results to the same tables, so the hub's dashboard shows them.
 
 - Waking up: queuing sends NOTIFY on CHANNEL_JOBS; runners LISTEN, and also check the queue
@@ -61,7 +61,7 @@ def enabled() -> bool:
 def placement() -> Optional[str]:
     """
     The hub's RUNNER_ORDER: runner names in order of preference, comma-separated. A job goes to
-    the first listed runner with a free slot; "*" stands for any other runner. Unset means any
+    the first listed runner with room for it; "*" stands for any other runner. Unset means any
     runner, first come first served. Examples: "macmini,macbook" (the mini first, the hub when the
     mini is full), "macmini" (only the mini), "macmini,*" (the mini first, then anyone).
     """
@@ -111,10 +111,10 @@ def notify(channel: str, payload: str = '') -> None:
 
 
 def live_runners() -> list:
-    """Runners that are connected, take jobs (slots above 0) and run this hub's Jesse version."""
+    """Runners that are connected, take jobs (a core budget above 0) and run this hub's Jesse version."""
     _, Runner, _, _ = _models()
     cutoff = session_liveness.now_ms() - RUNNER_ALIVE_SECONDS * 1000
-    return list(Runner.select().where((Runner.last_seen >= cutoff) & (Runner.slots > 0)
+    return list(Runner.select().where((Runner.last_seen >= cutoff) & (Runner.cores_budget > 0)
                                       & (Runner.jesse_version == jesse_version())).order_by(Runner.name))
 
 
@@ -156,6 +156,22 @@ def mark_session_queued(kind: str, session_id: str) -> None:
                  progress=None, updated_at=session_liveness.now_ms()).where(model.id == session_id).execute()
 
 
+# Position of the cpu_cores argument of the modes that use several cores.
+CPU_CORES_ARGUMENT = {'optimization': 11, 'monte_carlo': 11}
+
+
+def job_cores(function: str, arguments: list) -> int:
+    """The CPU cores a job uses: its cpu_cores for an optimization or Monte Carlo run, else 1."""
+    position = CPU_CORES_ARGUMENT.get(function)
+    if position is None:
+        return 1
+    value = arguments[position] if len(arguments) > position else None
+    if not isinstance(value, int) or isinstance(value, bool):
+        config = arguments[1] if len(arguments) > 1 and isinstance(arguments[1], dict) else {}
+        value = config.get('cpu_cores')
+    return max(1, int(value)) if isinstance(value, int) and not isinstance(value, bool) else 1
+
+
 def enqueue(kind: str, function: str, arguments: list, strategy_names: list, target: Optional[str]) -> str:
     """Queue a session's run for a runner; the session shows as queued until one claims it."""
     if function not in FUNCTIONS:
@@ -176,6 +192,7 @@ def enqueue(kind: str, function: str, arguments: list, strategy_names: list, tar
     job_id = str(uuid.uuid4())
     RunnerJob.insert(
         id=job_id, session_id=session_id, kind=kind, status='queued', function=function,
+        cores=job_cores(function, arguments),
         arguments=json.dumps(arguments), code_manifest=json.dumps(manifest),
         packages=json.dumps(bundle['packages']), target=target, placement=None if target else placement(),
         jesse_version=jesse_version(),
@@ -187,70 +204,133 @@ def enqueue(kind: str, function: str, arguments: list, strategy_names: list, tar
 
 
 _CLAIM_COLUMNS = ('id', 'session_id', 'kind', 'function', 'arguments', 'code_manifest', 'packages', 'attempt',
-                  'max_attempts')
+                  'max_attempts', 'cores')
 
 
-def _free_runners() -> dict:
-    """{name: free slots} of the live, compatible runners, from their last heartbeat."""
-    return {runner.name: max(0, runner.slots - runner.busy) for runner in live_runners()}
+def _capacity() -> dict:
+    """{name: {'budget', 'free'}} of the live, compatible runners, from their last heartbeat."""
+    return {runner.name: {'budget': runner.cores_budget, 'free': max(0, runner.cores_budget - runner.cores_used)}
+            for runner in live_runners()}
 
 
-def _eligible(job: dict, runner_name: str, free: dict) -> bool:
-    """
-    Whether this runner may take the job now. `free` holds the free slots of the other runners and
-    is used up as jobs are left to them: walking the queue in order, each job a higher-ranked runner
-    can take uses one of its free slots, so with 3 slots free on the preferred runner, this runner
-    leaves it the 3 oldest jobs and takes the next one.
-    """
+def _allowed(job: dict, runner_name: str) -> bool:
     if job['target'] is not None:
         return job['target'] == runner_name
-    excluded = job['excluded'] or ''
-    if f',{runner_name},' in excluded:
+    if f',{runner_name},' in (job['excluded'] or ''):
         return False
-    my_rank = _rank(job['placement'], runner_name)
-    if my_rank is None:
-        return False
-    better = [(rank, name) for name, slots in free.items()
-              if name != runner_name and slots > 0 and f',{name},' not in excluded
-              for rank in [_rank(job['placement'], name)] if rank is not None and rank < my_rank]
-    if better:
-        free[min(better)[1]] -= 1
-        return False
-    return True
+    return _rank(job['placement'], runner_name) is not None
 
 
-def claim_next(runner_name: str) -> Optional[dict]:
-    """Take the oldest queued job this runner may run under its target and the hub's RUNNER_ORDER, or None."""
+def _cost(job: dict, budget: int) -> int:
+    return max(1, min(int(job['cores'] or 1), budget))
+
+
+def _candidates(job: dict, runners: dict) -> list:
+    """
+    The runners that may run the job: those allowed by its target and RUNNER_ORDER and, when any of
+    them can give it all the cores it asked for, only those. A job is capped to a smaller runner's
+    budget only when no connected runner is big enough, so its cpu_cores is never cut just because
+    a smaller machine happened to be free.
+    """
+    allowed = [name for name in runners if _allowed(job, name)]
+    big_enough = [name for name in allowed if runners[name]['budget'] >= int(job['cores'] or 1)]
+    return big_enough or allowed
+
+
+def _reserver(job: dict, runners: dict) -> Optional[str]:
+    """
+    The one runner that waits for this job when no runner has room for it yet: the first in the
+    job's RUNNER_ORDER, else the one with the most cores. The others keep working on newer jobs.
+    """
+    candidates = _candidates(job, runners)
+    if not candidates:
+        return None
+    return min(candidates, key=lambda name: (_rank(job['placement'], name), -runners[name]['budget'], name))
+
+
+def _choose(waiting: list, runner_name: str, budget: int, free: int, runners: dict) -> tuple:
+    """
+    Pick the job this runner should start, walking the queue oldest first: ('claim', job) to start
+    it now, ('wait', job) to start nothing until this runner has room for a job it reserves, or
+    (None, None).
+
+    - Only runners that can give a job all its cores take it (see _candidates).
+    - A job goes to the best-ranked of them that has room for it now (its RUNNER_ORDER rank, then
+      first come); the walk counts those cores as used, so each runner gets as many jobs as it has
+      room for.
+    - When none of them has room yet, its reserving runner (_reserver) starts nothing newer until
+      enough of its own cores are free, so a big job is never overtaken by small ones there; the
+      other runners keep taking newer jobs.
+    """
+    everyone = {name: dict(capacity) for name, capacity in runners.items()}
+    everyone[runner_name] = {'budget': budget, 'free': free}
+    for job in waiting:
+        candidates = _candidates(job, everyone)
+        # Runners with room for it now, best-ranked first (a runner holding for a big job has none).
+        with_room = sorted(
+            (_rank(job['placement'], name), name) for name in candidates
+            if everyone[name]['free'] >= _cost(job, everyone[name]['budget'])
+        )
+        if runner_name in candidates:
+            my_rank = _rank(job['placement'], runner_name)
+            if (my_rank, runner_name) in with_room and not any(rank < my_rank for rank, _ in with_room):
+                return 'claim', job
+        if with_room:
+            # Another runner takes it: count its cores as used for the rest of this walk.
+            taker = next(name for _, name in with_room if name != runner_name)
+            everyone[taker]['free'] -= _cost(job, everyone[taker]['budget'])
+            continue
+        if not candidates:
+            continue
+        reserver = _reserver(job, everyone)
+        if reserver == runner_name:
+            return 'wait', job
+        # The reserving runner starts nothing newer until this job fits there.
+        everyone[reserver]['free'] = -1
+    return None, None
+
+
+def claim_next(runner_name: str, free_cores: int, budget: int) -> Optional[dict]:
+    """
+    Take the job this runner should start now under the queue order, targets, the hub's
+    RUNNER_ORDER and core budgets, or None (nothing fits, or it waits for a job it reserves).
+    """
+    if budget <= 0:
+        return None
     RunnerJob, _, _, _ = _models()
-    waiting = list(RunnerJob.select(RunnerJob.id, RunnerJob.target, RunnerJob.placement, RunnerJob.excluded)
+    waiting = list(RunnerJob.select(RunnerJob.id, RunnerJob.target, RunnerJob.placement, RunnerJob.excluded,
+                                    RunnerJob.cores)
                    .where((RunnerJob.status == 'queued') & (RunnerJob.jesse_version == jesse_version()))
-                   .order_by(RunnerJob.queued_at).limit(100).dicts())
+                   .order_by(RunnerJob.queued_at).limit(200).dicts())
     if not waiting:
         return None
-    free = _free_runners()
-    free.pop(runner_name, None)
-    for candidate in waiting:
-        if not _eligible(candidate, runner_name, free):
-            continue
+    runners = _capacity()
+    for _ in range(len(waiting)):
+        decision, candidate = _choose(waiting, runner_name, budget, free_cores, runners)
+        if decision != 'claim':
+            return None
         claim_id = str(uuid.uuid4())
         cursor = _database().execute_sql(
             """
             UPDATE runnerjob SET status = 'running', claim_id = %s, claimed_by = %s, attempt = attempt + 1,
                    claimed_at = %s
             WHERE id = (SELECT id FROM runnerjob WHERE id = %s AND status = 'queued' FOR UPDATE SKIP LOCKED)
-            RETURNING id, session_id, kind, function, arguments, code_manifest, packages, attempt, max_attempts
+            RETURNING id, session_id, kind, function, arguments, code_manifest, packages, attempt, max_attempts, cores
             """,
             (claim_id, runner_name, session_liveness.now_ms(), str(candidate['id'])),
         )
         row = cursor.fetchone()
         if row is None:
-            continue  # another runner took it a moment ago
+            # Another runner took it a moment ago: decide again without it.
+            waiting = [job for job in waiting if job['id'] != candidate['id']]
+            continue
         job = dict(zip(_CLAIM_COLUMNS, row))
         job['id'], job['session_id'] = str(job['id']), str(job['session_id'])
         job['arguments'] = json.loads(job['arguments'])
         job['code_manifest'] = json.loads(job['code_manifest'])
         job['packages'] = json.loads(job['packages'] or '[]')
         job['claim_id'] = claim_id
+        job['cost'] = _cost(job, budget)
         return job
     return None
 
@@ -391,8 +471,8 @@ def runners_payload() -> dict:
         age = round(max(0, now - runner.last_seen) / 1000, 1)
         runners.append({
             'name': runner.name, 'role': runner.role, 'host': runner.host, 'alive': age <= RUNNER_ALIVE_SECONDS,
-            'last_seen_seconds_ago': age, 'slots': runner.slots, 'busy': runner.busy,
-            'free': max(0, runner.slots - runner.busy) if age <= RUNNER_ALIVE_SECONDS else 0,
+            'last_seen_seconds_ago': age, 'cores_budget': runner.cores_budget, 'cores_used': runner.cores_used,
+            'cores_free': max(0, runner.cores_budget - runner.cores_used) if age <= RUNNER_ALIVE_SECONDS else 0,
             'cpu_cores': runner.cpu_cores, 'cpu_percent': runner.cpu_percent, 'load_1m': runner.load_1m,
             'memory_total_gb': machine_stats.gigabytes(runner.memory_total_bytes),
             'memory_used_gb': machine_stats.gigabytes(runner.memory_used_bytes),

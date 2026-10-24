@@ -253,7 +253,17 @@ def _research_runners(migrator):
         _migrate(migrator, [
             {'action': migration_actions.ADD, 'name': 'placement', 'type': TextField(null=True)},
         ], database.db.get_columns('runnerjob'), 'runnerjob')
+    if 'runnerjob' in tables:
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'cores', 'type': IntegerField(default=1)},
+        ], database.db.get_columns('runnerjob'), 'runnerjob')
     if 'runner' in tables:
+        # Runner capacity is counted in cores, not job slots (columns of unreleased builds renamed).
+        columns = [column.name for column in database.db.get_columns('runner')]
+        for old, new in (('slots', 'cores_budget'), ('busy', 'cores_used')):
+            if old in columns and new not in columns:
+                migrate(migrator.rename_column('runner', old, new))
+                print(f"'{old}' column successfully changed to {new} in the 'runner' table.")
         _migrate(migrator, [
             {'action': migration_actions.ADD, 'name': 'role', 'type': CharField(max_length=16, default='runner')},
             {'action': migration_actions.ADD, 'name': 'cpu_percent', 'type': FloatField(null=True)},

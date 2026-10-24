@@ -247,8 +247,8 @@ def test_a_session_already_queued_is_not_queued_again(monkeypatch, name):
 RUNNERS = {
     'status': 'success', 'enabled': True, 'hub_jesse_version': '3.2.1', 'queued_jobs': 2,
     'runners': [{
-        'name': 'macmini', 'host': '192.168.1.103', 'alive': True, 'last_seen_seconds_ago': 4.2, 'slots': 2,
-        'busy': 1, 'free': 1, 'cpu_cores': 10, 'jesse_version': '3.2.1', 'compatible': True,
+        'name': 'macmini', 'role': 'runner', 'host': '192.168.1.103', 'alive': True, 'last_seen_seconds_ago': 4.2,
+        'cores_budget': 9, 'cores_used': 4, 'cores_free': 5, 'cpu_cores': 10, 'jesse_version': '3.2.1', 'compatible': True,
         'running': [{'session_id': 'abc', 'session_type': 'optimization'}],
     }],
 }

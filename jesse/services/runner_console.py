@@ -30,10 +30,10 @@ def version_problem(my_name: str, my_version: str, hubs: list) -> Optional[str]:
     return None
 
 
-def runner_banner(name: str, slots: int, cores: int, version: str, database: str, hubs: list,
+def runner_banner(name: str, budget: int, cores: int, version: str, database: str, hubs: list,
                   inside_server: bool) -> list:
     lines = [
-        f'Research runner "{name}": {slots} slot(s), {cores} CPU cores, Jesse {version}.',
+        f'Research runner "{name}": uses {budget} of its {cores} CPU cores for jobs, Jesse {version}.',
         f'Takes research jobs from the database at {database}'
         + (' (alongside this Jesse\'s own dashboard).' if inside_server else '.'),
     ]
@@ -46,8 +46,8 @@ def runner_banner(name: str, slots: int, cores: int, version: str, database: str
     return lines
 
 
-def hub_banner(name: str, slots: int, order: Optional[str], version: str, runners: list) -> list:
-    own = f'runs {slots} job(s) itself' if slots else 'only dispatches jobs (RUNNER_SLOTS=0)'
+def hub_banner(name: str, budget: int, order: Optional[str], version: str, runners: list) -> list:
+    own = f'runs jobs itself on {budget} core(s)' if budget else 'only dispatches jobs (RUNNER_CORES=0)'
     lines = [f'Research hub "{name}": Jesse {version}, {own}, order: {order or "any free runner"}.']
     others = [runner for runner in runners if runner['name'] != name]
     if not others:
@@ -57,7 +57,7 @@ def hub_banner(name: str, slots: int, order: Optional[str], version: str, runner
     for runner in others:
         state = 'online' if runner['alive'] else f'offline (last seen {_ago(runner["last_seen_seconds_ago"])})'
         version_note = '' if runner['compatible'] else f', Jesse {runner["jesse_version"]}: VERSION MISMATCH'
-        lines.append(f'  - {runner["name"]}: {state}, {runner["slots"]} slot(s), {runner["cpu_cores"]} cores'
+        lines.append(f'  - {runner["name"]}: {state}, {runner["cores_budget"]} of {runner["cpu_cores"]} cores for jobs'
                      f'{version_note}')
     return lines
 
@@ -100,8 +100,8 @@ class ClusterWatcher:
             for name, runner in current.items():
                 before = self.runners.get(name)
                 if runner['alive'] and (before is None or not before['alive']):
-                    events.append(('good', f'Runner "{name}" connected: {runner["slots"]} slot(s), '
-                                           f'{runner["cpu_cores"]} cores, Jesse {runner["jesse_version"]}.'))
+                    events.append(('good', f'Runner "{name}" connected: {runner["cores_budget"]} of '
+                                           f'{runner["cpu_cores"]} cores for jobs, Jesse {runner["jesse_version"]}.'))
                 elif before is not None and before['alive'] and not runner['alive']:
                     events.append(('warn', f'Runner "{name}" went offline.'))
         for name, runner in current.items():

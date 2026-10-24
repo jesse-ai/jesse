@@ -313,18 +313,24 @@ def register_session_results_tools(mcp):
         research jobs (backtests, optimizations, Monte Carlo runs, significance tests) started
         with `where` set to "auto", "any", or a runner's name. Read-only.
 
-        Use it before choosing `where` for a run tool (to see which runners are alive, have free
-        slots, and how loaded each machine is), or when wait_for_sessions shows a session queued for
-        long. Results of a run on a runner land in the same database, so get_session_results reads
-        them as usual. "runner_order" is the user's RUNNER_ORDER (from the hub's .env): with
-        where="auto"/"any", jobs go to the first runner in that order with a free slot ("*" = any
-        other runner); respect it and only name a runner when the user asks for one.
+        Use it before choosing `where` for a run tool (to see which runners are alive, how many of
+        their cores are free, and how loaded each machine is), or when wait_for_sessions shows a
+        session queued for long. Capacity is counted in CPU cores: a backtest or significance test
+        uses 1 core, an optimization or Monte Carlo run its cpu_cores (capped at the runner's
+        budget). Jobs start in queue order; a big job waiting for cores is not overtaken by newer
+        small jobs on the runner that waits for it, so a queued optimization can hold back
+        backtests there. To share a machine, give the optimization fewer cpu_cores. Results of a
+        run on a runner land in the same database, so get_session_results reads them as usual.
+        "runner_order" is the user's RUNNER_ORDER (from the hub's .env): with where="auto"/"any",
+        jobs go to the first runner in that order with enough free cores ("*" = any other runner);
+        respect it and only name a runner when the user asks for one.
 
         Returns:
             {"status": "success", "enabled": bool (runners turned on for this Jesse),
              "hub_jesse_version", "runner_order", "queued_jobs": int (jobs waiting for a runner),
-             "runners": [{"name", "host", "alive", "last_seen_seconds_ago", "slots", "busy",
-             "free" (0 when not alive), "cpu_cores", "cpu_percent", "load_1m", "memory_total_gb",
+             "runners": [{"name", "role" ("hub" or "runner"), "host", "alive", "last_seen_seconds_ago",
+             "cores_budget" (cores it may use for jobs), "cores_used", "cores_free" (0 when not
+             alive), "cpu_cores" (the machine's), "cpu_percent", "load_1m", "memory_total_gb",
              "memory_used_gb", "memory_percent" (machine-wide, refreshed every ~10 s; None when
              the system does not tell), "jesse_version", "compatible" (same Jesse version as this
              one), "running": [{"session_id", "session_type"}]}]}
