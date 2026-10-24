@@ -24,7 +24,7 @@ import time
 from typing import Optional
 
 import jesse.helpers as jh
-from jesse.services import code_bundle, machine_stats, runner_queue, session_liveness
+from jesse.services import code_bundle, machine_stats, runner_console, runner_queue, session_liveness
 from jesse.services.env import ENV_VALUES
 
 POLL_SECONDS = 10
@@ -39,8 +39,8 @@ def current() -> Optional['Runner']:
     return _current
 
 
-def _log(message: str) -> None:
-    print(jh.color(f'[runner] {message}', 'cyan'), flush=True)
+def _log(message: str, level: str = 'info') -> None:
+    print(jh.color(f'[runner] {message}', runner_console.LEVEL_COLORS.get(level, 'cyan')), flush=True)
 
 
 def _listen_connection():
@@ -62,10 +62,16 @@ def _listen_connection():
 
 
 class Runner:
-    def __init__(self, name: str, slots: int, hub: bool, project_root: str = '.'):
+    def __init__(self, name: str, slots: int, hub: bool, project_root: str = '.', standalone: bool = False):
         self.name = name
         self.slots = max(0, int(slots))
         self.hub = hub
+        # `jesse runner` exits on a Jesse version mismatch; a runner inside `jesse run` stops taking jobs.
+        self.standalone = standalone
+        self.fatal_error: Optional[str] = None
+        self._blocked: Optional[str] = None
+        self._watcher = runner_console.ClusterWatcher(name, runner_queue.jesse_version()) if hub else None
+        self._titles: dict = {}
         self.root = os.path.abspath(project_root)
         self.jobs: dict = {}
         self._lock = threading.Lock()
@@ -81,12 +87,92 @@ class Runner:
         global _current
         _current = self
         session_liveness.set_machine_label(self.name)
+        self._heartbeat(busy=0)
+        self._print_banner()
+        if not self.hub:
+            self._check_version()
+            if self.fatal_error:
+                return
         for target in (self._listen, self._loop):
             thread = threading.Thread(target=target, name=f'runner-{target.__name__}', daemon=True)
             thread.start()
             self._threads.append(thread)
-        role = 'hub' if self.hub else 'runner'
-        _log(f'{self.name} started as a {role} with {self.slots} slot(s), Jesse {runner_queue.jesse_version()}.')
+
+    def _print_banner(self) -> None:
+        try:
+            runners = runner_queue.runners_payload()['runners']
+        except Exception:
+            runners = []
+        if self.hub:
+            lines = runner_console.hub_banner(self.name, self.slots, runner_queue.placement(),
+                                              runner_queue.jesse_version(), runners)
+            if self._watcher is not None:
+                try:
+                    # Baseline: what exists now is shown by the banner, not reported as new events.
+                    self._watcher.update(runners, self._job_snapshot()[0])
+                except Exception:
+                    pass
+        else:
+            database = (f"{ENV_VALUES.get('POSTGRES_HOST')}:{ENV_VALUES.get('POSTGRES_PORT')}/"
+                        f"{ENV_VALUES.get('POSTGRES_NAME')}")
+            hubs = [runner for runner in runners if runner.get('role') == 'hub' and runner['name'] != self.name]
+            lines = runner_console.runner_banner(self.name, self.slots, os.cpu_count() or 1,
+                                                 runner_queue.jesse_version(), database, hubs,
+                                                 inside_server=not self.standalone)
+        for line in lines:
+            _log(line)
+
+    def _check_version(self) -> None:
+        """Compare this runner's Jesse version with the online hub's; refuse jobs (or exit) on a mismatch."""
+        try:
+            hubs = [runner for runner in runner_queue.runners_payload()['runners']
+                    if runner.get('role') == 'hub' and runner['alive']]
+        except Exception:
+            return
+        problem = runner_console.version_problem(self.name, runner_queue.jesse_version(), hubs)
+        if problem and problem != self._blocked:
+            self._blocked = problem
+            if not self.standalone:  # `jesse runner` exits with this message instead
+                _log(problem, 'error')
+            if self.standalone:
+                self.fatal_error = problem
+                self._stopping.set()
+                self._wake.set()
+            else:
+                _log('This runner takes no jobs until the versions match.', 'error')
+        elif not problem and self._blocked:
+            self._blocked = None
+            _log('The hub now runs the same Jesse version; taking jobs again.', 'good')
+
+    def _report_cluster_events(self) -> None:
+        """On the hub: one line per change across the runners and their jobs."""
+        jobs, titles = self._job_snapshot()
+        for level, text in self._watcher.update(runner_queue.runners_payload()['runners'], jobs, titles):
+            _log(text, level)
+
+    def _job_snapshot(self) -> tuple:
+        """Waiting and running jobs plus those that ended in the last two minutes, with session titles."""
+        from jesse.models.RunnerJob import RunnerJob
+        from jesse.services.session_status import lookup_session
+
+        recent = session_liveness.now_ms() - 120_000
+        rows = list(RunnerJob.select().where(RunnerJob.status.in_(['queued', 'running'])
+                                             | (RunnerJob.finished_at >= recent))
+                    .order_by(RunnerJob.queued_at).limit(300))
+        jobs = [{'id': str(row.id), 'session_id': str(row.session_id), 'kind': row.kind, 'status': row.status,
+                 'claimed_by': row.claimed_by, 'attempt': row.attempt, 'error': row.error, 'target': row.target}
+                for row in rows]
+        for job in jobs:
+            if job['session_id'] in self._titles:
+                continue
+            try:
+                session = lookup_session(job['kind'], job['session_id'])
+                self._titles[job['session_id']] = (getattr(session, 'title', None) or '').replace('MCP Backtest: ', '')[:60]
+            except Exception:
+                self._titles[job['session_id']] = ''
+        if len(self._titles) > 5000:
+            self._titles = {job['session_id']: self._titles.get(job['session_id'], '') for job in jobs}
+        return jobs, self._titles
 
     def stop(self) -> None:
         """Stop taking jobs and give running ones back to the queue for other runners."""
@@ -160,10 +246,15 @@ class Runner:
         self._drop_lost_jobs()
         if self.hub:
             self._save_runner_files()
+            self._report_cluster_events()
+        else:
+            self._check_version()
+            if self._stopping.is_set():
+                return
         if time.monotonic() - self._last_sweep > SWEEP_SECONDS:
             self._last_sweep = time.monotonic()
             runner_queue.sweep()
-        while len(self.jobs) < self.slots and not self._stopping.is_set():
+        while len(self.jobs) < self.slots and not self._stopping.is_set() and not self._blocked:
             job = runner_queue.claim_next(self.name)
             if job is None:
                 break
@@ -177,9 +268,12 @@ class Runner:
         now = session_liveness.now_ms()
         stats = machine_stats.collect()
         values = {
-            'host': socket.gethostname() or 'unknown-host', 'slots': self.slots, 'busy': busy,
+            'host': socket.gethostname() or 'unknown-host', 'role': 'hub' if self.hub else 'runner',
+            'slots': self.slots, 'busy': busy,
             'cpu_cores': os.cpu_count() or 1, 'jesse_version': runner_queue.jesse_version(),
-            'started_at': self._started_at, 'last_seen': 0 if offline else now,
+            # Stopping marks it offline at once, keeping when it was last seen for the runners list.
+            'started_at': self._started_at,
+            'last_seen': now - (runner_queue.RUNNER_ALIVE_SECONDS + 1) * 1000 if offline else now,
             'cpu_percent': stats['cpu_percent'], 'load_1m': stats['load_1m'],
             'memory_total_bytes': stats['memory_total_bytes'], 'memory_used_bytes': stats['memory_used_bytes'],
         }
@@ -219,7 +313,8 @@ class Runner:
             runner_queue.fail(job, reason)
             shutil.rmtree(job_dir, ignore_errors=True)
             return
-        _log(f'Started {job["kind"]} {session_id[:8]} (attempt {job["attempt"]}).')
+        if not self.hub:  # the hub reports every job, its own included, as cluster events
+            _log(f'Started {job["kind"]} {session_id[:8]} (attempt {job["attempt"]}).')
 
     def _link_env(self, job_dir: str) -> None:
         """
@@ -270,7 +365,8 @@ class Runner:
             error = None if status in _ENDED else f'The worker exited with code {exit_code} and status {status}.'
             runner_queue.finish(job['id'], job['claim_id'], status, error)
             self._return_files(job)
-            _log(f'Finished {job["kind"]} {client_id[:8]}: {status}.')
+            if not self.hub:
+                _log(f'Finished {job["kind"]} {client_id[:8]}: {status}.')
         except Exception as e:
             jh.debug(f'Runner could not complete job {client_id}: {e}')
         finally:

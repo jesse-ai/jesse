@@ -608,3 +608,40 @@ def test_a_job_folder_sees_the_runner_projects_env(tmp_path):
     import shutil
     shutil.rmtree(job_dir)
     assert (project_dir / '.env').exists()  # removing the job folder leaves the project's .env alone
+
+
+def test_a_version_mismatch_stops_a_standalone_runner_and_pauses_one_inside_jesse_run(pg, monkeypatch):
+    from jesse.services.runner import Runner as RunnerLoop
+    Runner.insert(name='macbook', host='macbook', role='hub', slots=1, busy=0, cpu_cores=16, jesse_version='9.9.9',
+                  started_at=_now(), last_seen=_now()).execute()
+    printed = []
+    monkeypatch.setattr('jesse.services.runner._log', lambda text, level='info': printed.append((level, text)))
+
+    standalone = RunnerLoop('mini', 2, hub=False, standalone=True)
+    standalone._check_version()
+    assert standalone.fatal_error and 'the hub "macbook" runs Jesse 9.9.9' in standalone.fatal_error
+    assert standalone._stopping.is_set()
+
+    inside = RunnerLoop('mini', 2, hub=False, standalone=False)
+    inside._check_version()
+    assert inside.fatal_error is None and inside._blocked and not inside._stopping.is_set()
+    assert ('error', 'This runner takes no jobs until the versions match.') in printed
+
+    Runner.update(jesse_version=runner_queue.jesse_version()).where(Runner.name == 'macbook').execute()
+    inside._check_version()
+    assert inside._blocked is None
+    assert ('good', 'The hub now runs the same Jesse version; taking jobs again.') in printed
+
+
+def test_a_runner_that_stops_shows_as_recently_offline_and_survives_cleanup(pg, project, monkeypatch):
+    from jesse.services.runner import Runner as RunnerLoop
+    monkeypatch.chdir(project)
+    loop = RunnerLoop('mini', 2, hub=False, standalone=True)
+    loop._heartbeat(busy=0)
+    assert runner_queue.runners_payload()['runners'][0]['alive'] is True
+
+    loop._heartbeat(busy=0, offline=True)
+    runner_queue.sweep()
+
+    runner = runner_queue.runners_payload()['runners'][0]
+    assert runner['name'] == 'mini' and runner['alive'] is False and runner['last_seen_seconds_ago'] < 120

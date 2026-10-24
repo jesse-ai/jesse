@@ -49,6 +49,8 @@ class Runner(peewee.Model):
     """A machine that takes queued jobs. It keeps its own row fresh while it runs."""
     name = peewee.CharField(max_length=255, primary_key=True)
     host = peewee.CharField(max_length=255)
+    # "hub" for the machine with RESEARCH_RUNNERS=true, else "runner".
+    role = peewee.CharField(max_length=16, default='runner')
     slots = peewee.IntegerField()
     busy = peewee.IntegerField(default=0)
     cpu_cores = peewee.IntegerField()

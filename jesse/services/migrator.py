@@ -255,6 +255,7 @@ def _research_runners(migrator):
         ], database.db.get_columns('runnerjob'), 'runnerjob')
     if 'runner' in tables:
         _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'role', 'type': CharField(max_length=16, default='runner')},
             {'action': migration_actions.ADD, 'name': 'cpu_percent', 'type': FloatField(null=True)},
             {'action': migration_actions.ADD, 'name': 'load_1m', 'type': FloatField(null=True)},
             {'action': migration_actions.ADD, 'name': 'memory_total_bytes', 'type': BigIntegerField(null=True)},

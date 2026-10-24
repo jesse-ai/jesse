@@ -358,18 +358,22 @@ def runner(name, slots) -> None:
         from jesse.services import runner as research_runner
         from jesse.services.multiprocessing import process_manager
         process_manager.flush()
-        started = research_runner.Runner(name, slots, hub=False)
+        started = research_runner.Runner(name, slots, hub=False, standalone=True)
         started.start()
-        click.echo(f'Runner "{name}" is waiting for jobs with {slots} slot(s). Press Ctrl+C to stop.')
-        while not coordination_runtime.failed():
+        if started.fatal_error is None:
+            click.echo(f'Runner "{name}" is waiting for jobs with {slots} slot(s). Press Ctrl+C to stop.')
+        while not coordination_runtime.failed() and started.fatal_error is None:
             time.sleep(1)
+        if started.fatal_error is not None:
+            raise click.ClickException(started.fatal_error)
         raise click.ClickException('The bundled coordinator stopped unexpectedly; restart the runner')
     except KeyboardInterrupt:
         pass
     finally:
         try:
             if started is not None:
-                click.echo('Giving running jobs back to the queue...')
+                if started.jobs:
+                    click.echo('Giving running jobs back to the queue...')
                 started.stop()
         finally:
             try:

@@ -390,7 +390,7 @@ def runners_payload() -> dict:
     for runner in Runner.select().order_by(Runner.name):
         age = round(max(0, now - runner.last_seen) / 1000, 1)
         runners.append({
-            'name': runner.name, 'host': runner.host, 'alive': age <= RUNNER_ALIVE_SECONDS,
+            'name': runner.name, 'role': runner.role, 'host': runner.host, 'alive': age <= RUNNER_ALIVE_SECONDS,
             'last_seen_seconds_ago': age, 'slots': runner.slots, 'busy': runner.busy,
             'free': max(0, runner.slots - runner.busy) if age <= RUNNER_ALIVE_SECONDS else 0,
             'cpu_cores': runner.cpu_cores, 'cpu_percent': runner.cpu_percent, 'load_1m': runner.load_1m,
