@@ -1,7 +1,7 @@
 """
 How busy this machine is, for the research runners list: CPU use, memory, load. Uses psutil when it
-is installed, else what the operating system offers without it (Linux and macOS). Every value can
-be None when the system does not tell.
+is installed, else what the operating system offers without it (Linux and macOS; on Windows only
+memory, which has no load average). Every value can be None when the system does not tell.
 """
 
 import os
@@ -10,7 +10,29 @@ import subprocess
 from typing import Optional
 
 
+def _windows_memory() -> tuple:
+    import ctypes
+
+    class MemoryStatus(ctypes.Structure):
+        _fields_ = [('length', ctypes.c_ulong), ('memory_load', ctypes.c_ulong),
+                    ('total_physical', ctypes.c_ulonglong), ('available_physical', ctypes.c_ulonglong),
+                    ('total_page_file', ctypes.c_ulonglong), ('available_page_file', ctypes.c_ulonglong),
+                    ('total_virtual', ctypes.c_ulonglong), ('available_virtual', ctypes.c_ulonglong),
+                    ('available_extended_virtual', ctypes.c_ulonglong)]
+
+    status = MemoryStatus()
+    status.length = ctypes.sizeof(MemoryStatus)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        return None, None
+    return int(status.total_physical), int(status.available_physical)
+
+
 def _memory_without_psutil() -> tuple:
+    if os.name == 'nt':
+        try:
+            return _windows_memory()
+        except Exception:
+            return None, None
     try:
         total = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
     except (ValueError, OSError, AttributeError):

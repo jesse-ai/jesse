@@ -602,7 +602,9 @@ def test_machine_stats_work_without_psutil(monkeypatch):
     monkeypatch.setattr(builtins, '__import__', no_psutil)
     stats = machine_stats.collect()
     assert stats['memory_total_bytes'] and stats['memory_used_bytes'] is not None
-    assert 0 <= stats['memory_percent'] <= 100 and stats['cpu_percent'] is not None
+    assert 0 <= stats['memory_percent'] <= 100
+    # Without psutil, CPU use comes from the load average, which Windows does not have.
+    assert (stats['cpu_percent'] is not None) == hasattr(os, 'getloadavg')
 
 
 def test_a_job_folder_sees_the_runner_projects_env(tmp_path):

@@ -94,7 +94,8 @@ def build(strategy_names: Iterable[str], project_root: str = '.') -> dict:
                 raise BundleError(f'Strategy "{relative.split(os.sep, 1)[1]}" was not found in {root}/strategies.')
             continue
         for path in _files_under(absolute):
-            relative_path = os.path.relpath(path, root)
+            # Bundles move between machines, so their paths always use "/" (also on Windows).
+            relative_path = os.path.relpath(path, root).replace(os.sep, '/')
             if relative_path in files:
                 continue
             with open(path, 'rb') as f:
