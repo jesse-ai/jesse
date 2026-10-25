@@ -185,6 +185,8 @@ def pg(monkeypatch):
     monkeypatch.setattr(session_liveness, '_claim_id', None)
     monkeypatch.setattr(coordinator, 'is_process_active', lambda client_id: False)
     monkeypatch.setitem(runner_queue.ENV_VALUES, 'RESEARCH_RUNNERS', 'true')
+    # _enqueue changes into the project folder; later tests must not run from there.
+    monkeypatch.chdir(os.getcwd())
     try:
         with database.bind_ctx(QUEUE_MODELS + SESSION_MODELS):
             database.create_tables(QUEUE_MODELS + SESSION_MODELS)
