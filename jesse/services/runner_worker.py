@@ -36,6 +36,21 @@ def _forget_project_modules(job_dir: str) -> None:
             del sys.modules[name]
 
 
+def _make_packages(job_dir: str) -> None:
+    """
+    Give each code folder of the job an __init__.py. Python prefers a regular package (with
+    __init__.py) anywhere on the path over a folder without one, so the runner project's own
+    `strategies` package would otherwise hide the job's strategies.
+    """
+    for name in os.listdir(job_dir):
+        path = os.path.join(job_dir, name)
+        if name == 'storage' or name.startswith('.') or not os.path.isdir(path):
+            continue
+        init = os.path.join(path, '__init__.py')
+        if not os.path.exists(init):
+            open(init, 'a').close()
+
+
 def _fit_cpu_cores(function: str, arguments: list, max_cores: Optional[int] = None) -> None:
     """The hub chose cpu_cores for its own machine; use at most this runner's cores for the job."""
     from multiprocessing import cpu_count
@@ -55,6 +70,7 @@ def run_queued_job(session_id: str, function: str, arguments_json: str, job_dir:
     from jesse.services import session_liveness
 
     os.chdir(job_dir)
+    _make_packages(job_dir)
     _forget_project_modules(job_dir)
     sys.path.insert(0, job_dir)
     # Ray and multiprocessing workers this run starts find the job's code too.

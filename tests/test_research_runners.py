@@ -153,6 +153,42 @@ def test_a_runner_worker_runs_the_jobs_own_code_in_the_job_folder(tmp_path, monk
     session_liveness.set_claim(None)
 
 
+def test_a_runner_projects_own_strategies_package_does_not_hide_the_jobs(tmp_path, monkeypatch):
+    # A runner inside `jesse run` has its own project on the path, whose strategies/ is a regular
+    # package. The job's bundle may have no strategies/__init__.py (the hub's project has none).
+    runner_project = str(tmp_path / 'research')
+    _write(runner_project, 'strategies/__init__.py', '')
+    _write(runner_project, 'strategies/Other/__init__.py', 'WHERE = "runner project"\n')
+    job_dir = str(tmp_path / 'job')
+    _write(job_dir, 'strategies/Probe/__init__.py', 'WHERE = "bundle"\n')
+    os.makedirs(os.path.join(job_dir, 'storage'))
+    seen = {}
+
+    def fake_run(session_id, value):
+        import importlib
+        seen['module'] = importlib.import_module('strategies.Probe').WHERE
+
+    monkeypatch.setattr(runner_worker, '_mode_function', lambda function: fake_run)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, 'path', list(sys.path) + [runner_project])
+    monkeypatch.setenv('PYTHONPATH', '')
+    try:
+        runner_worker.run_queued_job('sid-2', 'backtest', json.dumps(['sid-2', 0]), job_dir, 'claim-2')
+    finally:
+        session_liveness.set_claim(None)
+        for name in [n for n in sys.modules if n == 'strategies' or n.startswith('strategies.')]:
+            del sys.modules[name]
+
+    assert seen == {'module': 'bundle'}
+    assert not os.path.exists(os.path.join(job_dir, 'storage', '__init__.py'))
+
+
+def test_a_bundle_carries_the_projects_strategies_package(project):
+    _write(project, 'strategies/__init__.py', '# package\n')
+    bundle = code_bundle.build(['Variant7'], project)
+    assert bundle['files']['strategies/__init__.py'] == b'# package\n'
+
+
 # ---------------------------------------------------------------------------
 # The queue, on a real PostgreSQL in a throwaway schema
 # ---------------------------------------------------------------------------

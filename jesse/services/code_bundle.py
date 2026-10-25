@@ -115,6 +115,12 @@ def build(strategy_names: Iterable[str], project_root: str = '.') -> dict:
                 else:
                     packages.add(top)
 
+    # Strategy folders are bundled one by one; their parent package comes along as it is here.
+    package_init = os.path.join(root, 'strategies', '__init__.py')
+    if os.path.isfile(package_init):
+        with open(package_init, 'rb') as f:
+            files['strategies/__init__.py'] = f.read()
+
     size = sum(len(content) for content in files.values())
     if size > MAX_BUNDLE_BYTES:
         largest = max(files, key=lambda p: len(files[p]))
