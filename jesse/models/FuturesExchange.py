@@ -7,7 +7,6 @@ from jesse.enums import sides
 from jesse.exceptions import InsufficientMargin
 from jesse.models.Order import Order
 from jesse.models.Exchange import Exchange
-from jesse.store import store
 
 
 class FuturesExchange(Exchange):
@@ -51,6 +50,9 @@ class FuturesExchange(Exchange):
     def available_margin(self) -> float:
         if jh.is_livetrading():
             return self._available_margin
+
+        # Store initialization imports exchange models, so resolve it only when margin is requested.
+        from jesse.store import store
 
         # In both live trading and backtesting/paper trading, we start with the balance
         margin = self.wallet_balance
