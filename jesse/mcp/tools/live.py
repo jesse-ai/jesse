@@ -2,7 +2,7 @@
 Live and Paper Session Tools
 
 MCP counterparts of the dashboard's Live page, through the same authenticated routes:
-create/update/copy drafts, start, stop, notes, and delete. Reading sessions (status, orders,
+create/update/copy drafts, start, restart, stop, notes, and delete. Reading sessions (status, orders,
 closed trades, equity, logs, errors) stays with get_live_sessions and get_session_results.
 
 All tools need the live trading plugin on the Jesse instance and run their API calls in a
@@ -18,6 +18,7 @@ from jesse.mcp.tools.services.live import (
     copy_live_session_service,
     create_live_draft_service,
     delete_live_session_service,
+    restart_live_session_service,
     start_live_session_service,
     stop_live_session_service,
     update_live_draft_service,
@@ -67,6 +68,10 @@ def register_live_tools(mcp):
     ) -> dict:
         """Create a live or paper trading session draft (a new dashboard Live tab); nothing starts.
 
+        To run a session that already ran again (after a stop, crash or error), use
+        restart_live_session instead: a new draft starts from saved defaults, not from that
+        session's leverage and settings.
+
         `paper_mode` and `routes` are required. `paper_mode` decides what the session trades:
         - true: PAPER trading. Orders are simulated against live market data; no real funds and
           no exchange key. Pass `exchange` (a live-trading exchange name exactly as Jesse lists it).
@@ -87,7 +92,12 @@ def register_live_tools(mcp):
         per symbol, 0 turns it off), notifications, exchange {balance, fee, futures_leverage,
         futures_leverage_mode, simulation_model} (balance, fee, and market type are simulation
         values for paper sessions; real sessions use the venue's). The result shows the resolved
-        config and a dashboard link. Start it with start_live_session only when the user asks.
+        config, `config_source` (where leverage, and a paper session's balance and fee, came from:
+        explicit, saved_default, exchange_default or hard_default), and a dashboard link.
+        `config_warnings` flags a leverage or fee that is only Jesse's built-in default, and
+        `earlier_session` names a session that already ran (or is running) these routes on the same
+        key or paper exchange; tell the user about both before starting. Start it with
+        start_live_session only when the user asks.
         """
         return await run_blocking(
             create_live_draft_service,
@@ -140,10 +150,11 @@ def register_live_tools(mcp):
     async def copy_live_session(session_id: str, title: Optional[str] = None) -> dict:
         """Create a new draft with the same mode, exchange, key, routes, and settings as a session.
 
-        The dashboard's "New session" action: use it to run a stopped, failed, or finished
-        session again (restart = copy_live_session, then start_live_session on the new ID), or to
-        start from a draft's form. The source is unchanged and nothing starts. If the source's
-        saved key or strategies no longer exist, the copy is refused with the reason.
+        The dashboard's "New session" action, for a copy to review or change before it starts. To
+        simply run a session again, use restart_live_session. The source is unchanged and nothing
+        starts. `config_source` shows which money settings were copied; any other source means the
+        source session did not store that value. If the source's saved key or strategies no longer
+        exist, the copy is refused with the reason.
         """
         return await run_blocking(copy_live_session_service, session_id=session_id, title=title)
 
@@ -164,6 +175,26 @@ def register_live_tools(mcp):
         research credits.
         """
         return await run_blocking(start_live_session_service, session_id=session_id)
+
+    @mcp.tool()
+    async def restart_live_session(session_id: str, title: Optional[str] = None) -> dict:
+        """Run a stopped, crashed, failed or finished live/paper session again with its exact settings.
+
+        Use this whenever the user wants a session "restarted", "run again" or "back up": it makes
+        a new session with the same mode (paper or LIVE with real funds), exchange, API key,
+        routes, data routes and configuration (leverage, margin mode, and for paper sessions
+        balance and fee), and starts it in one step. Never rebuild a session with
+        create_live_draft for this; a new draft takes saved defaults instead.
+
+        Only restart when the user asks, and tell them whether it is PAPER or LIVE. The new
+        session keeps the source's title unless `title` is given; the source stays as it was.
+        Refused while the session is still running (stop it only if the user asks), when another
+        session already runs the same routes on that key or paper exchange, and for a draft
+        (start it instead). If the source did not store a money setting, the copy is saved as a
+        draft and not started (`settings_not_copied`); confirm the values with the user first.
+        Then follow it with get_session_results("live", new_session_id) like start_live_session.
+        """
+        return await run_blocking(restart_live_session_service, session_id=session_id, title=title)
 
     @mcp.tool()
     async def stop_live_session(session_id: str) -> dict:

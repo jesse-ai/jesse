@@ -31,13 +31,58 @@ credential tools (`jesse://credentials`).
    Follow it with `get_session_results("live", session_id)` until `session_status` is `running`;
    a license or plan refusal, or any other failure, shows up there as `error`.
 4. `stop_live_session(session_id)`: the dashboard's Stop button. See "What stopping does".
-5. `copy_live_session(session_id)`: the dashboard's "New session": a new draft with the same form.
-   To run a finished or failed session again, copy it and start the copy.
-6. `update_live_session_notes(session_id, title, description)` and
+5. `restart_live_session(session_id)`: run a session again after it stopped, crashed, or failed.
+   See "Restarting a session".
+6. `copy_live_session(session_id)`: the dashboard's "New session": a new draft with the same form,
+   to review or change before starting it.
+7. `update_live_session_notes(session_id, title, description)` and
    `delete_live_session(session_id)` (refused while the session runs or is open in a dashboard Live
    tab; it never touches the exchange account).
 
 Live and paper sessions do not use research credits.
+
+## Restarting a session
+
+When the user wants a session restarted, run again, or brought back up, use
+`restart_live_session(session_id)`. It creates a new session with the same mode (paper, or live
+with real funds), exchange, API key, routes, data routes, and configuration, including leverage,
+margin mode, and for paper sessions balance and fee, and starts it in one step. The new session
+keeps the old title unless you pass `title`; the old session stays in the history unchanged.
+
+Never rebuild a session with `create_live_draft` to restart it. A new draft takes the saved
+defaults for its key or paper exchange, not the settings the session ran with, so its leverage can
+silently differ.
+
+A restart is refused:
+
+- while the session is still running (`session_active`): it never stops a session. Stop it only
+  if the user asks (see "What stopping does"), then restart it;
+- when another session already runs the same routes on the same key or paper exchange
+  (`routes_already_running`): that one may be the restart already;
+- for a draft (`is_draft`): start it with `start_live_session`.
+
+If the session did not store all of its money settings (sessions that ran on older Jesse
+versions), the restart saves the copy as a draft and does not start it (`settings_not_copied`).
+The message lists the values the copy would use and where each came from. Confirm them with the
+user, change them with `update_live_draft(config={"exchange": {...}})` if needed, then start it.
+
+## Where a session's settings come from
+
+Draft, copy, and restart results include `config_source`: where the leverage and margin mode (and,
+for paper sessions, the balance and fee) came from:
+
+- `explicit`: this call's `config`;
+- `stored`: the draft already had it; `copied`: the session it was copied or restarted from;
+- `saved_default`: the dashboard's saved settings for that API key or paper exchange;
+- `exchange_default`: the exchange's listed fee;
+- `hard_default`: Jesse's built-in value (5x cross leverage, 10,000 balance), because nothing
+  was saved. `config_warnings` then flags the leverage or fee; ask the user before starting.
+
+`create_live_draft` also returns `earlier_session` when a started session already ran (or is
+running) the same routes in the same mode on the same key or paper exchange, with any money
+setting that differs. Usually the user means to restart that session: tell them, and use
+`restart_live_session` unless they want a separate new session. A running one means a second
+session would trade the same symbols twice.
 
 ## Reading sessions
 
@@ -71,8 +116,10 @@ orders, and logs.
 
 ## Rules for assistants
 
-- Create, start, stop, or delete sessions only when the user asks for that action. Before starting,
-  state whether it is a paper or a real-money live session, on which exchange and key.
+- Create, start, restart, stop, or delete sessions only when the user asks for that action. Before
+  starting, state whether it is a paper or a real-money live session, on which exchange and key,
+  and its leverage.
+- Restart with `restart_live_session`, never with a new draft.
 - There is no order placement or manual position tool. Strategies trade; you manage sessions.
 - A cancelled or timed-out call may still have taken effect: check with
   `get_session_results("live", session_id)` or `get_live_sessions()` before retrying a start or
@@ -89,4 +136,8 @@ draft = create_live_draft(
 )
 start_live_session(draft["session_id"])          # only when the user asks
 get_session_results("live", draft["session_id"])  # until session_status is "running"
+
+# Later, after it stopped or crashed: run it again with the same settings.
+again = restart_live_session(draft["session_id"])
+get_session_results("live", again["session_id"])
 ```

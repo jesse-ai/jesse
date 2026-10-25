@@ -818,6 +818,85 @@ def resolve_live_run_config(
     return config
 
 
+def _live_default_source(settings: object, paper_mode: bool, exchange_name: str, exchange_api_key_id: str,
+                         field: str, exchanges: Optional[dict] = None) -> str:
+    """
+    Where resolve_live_run_config takes an exchange `field` from when neither the call nor the
+    session has it, following live_session_defaults: the saved profile of the key (a real session
+    whose key the dashboard remembered), else the exchange's paper profile (saved, or the older
+    live.exchanges settings, or the exchange's listed fee), else the fallback profile.
+    """
+    exchanges = exchange_info if exchanges is None else exchanges
+    root = _record(settings)
+    legacy = _record(_record(root.get('live')).get('exchanges'))
+    stored_live = _record(_record(root.get('session_defaults')).get('live'))
+
+    def saved_in(profile: object) -> bool:
+        return field in _record(_record(profile).get('exchange'))
+
+    fallback_source = 'saved_default' if saved_in(stored_live.get('fallback')) else 'hard_default'
+    credentials = _record(stored_live.get('live_by_credential'))
+    if not paper_mode and exchange_api_key_id and exchange_api_key_id in credentials:
+        return 'saved_default' if saved_in(credentials[exchange_api_key_id]) else fallback_source
+    if saved_in(_record(stored_live.get('paper_by_exchange')).get(exchange_name)):
+        return 'saved_default'
+    info = _record(exchanges.get(exchange_name))
+    if exchange_name not in legacy and not _record(info.get('modes')).get('live_trading'):
+        return fallback_source
+    if field in _record(legacy.get(exchange_name)):
+        return 'saved_default'
+    if field == 'fee' and 'fee' in info:
+        return 'exchange_default'
+    return 'hard_default'
+
+
+def live_config_sources(
+    settings: object,
+    paper_mode: bool,
+    exchange_name: str,
+    exchange_api_key_id: str,
+    config: dict,
+    explicit: Optional[dict] = None,
+    carried: object = None,
+    carried_as: str = 'stored',
+    exchanges: Optional[dict] = None,
+) -> dict:
+    """
+    Say where the money settings of a resolved live/paper config came from: "explicit" (this
+    call's config), `carried_as` ("stored" for a draft's own config, "copied" for the session a
+    copy or restart was made from), "saved_default", "exchange_default" (the listed fee) or
+    "hard_default" (Jesse's built-in value). A real session trades with the venue's balance and
+    fee, so only its leverage is reported; spot sessions have no leverage.
+    """
+    fields = ('futures_leverage', 'futures_leverage_mode') if config['exchange'].get('type') == 'futures' else ()
+    if paper_mode:
+        fields = ('balance', 'fee') + fields
+    sources = {}
+    for field in fields:
+        path = ('exchange', field)
+        if _get_path(explicit, path)[0]:
+            source = 'explicit'
+        elif _get_path(carried, path)[0]:
+            source = carried_as
+        else:
+            source = _live_default_source(settings, paper_mode, exchange_name, exchange_api_key_id, field, exchanges)
+        sources['.'.join(path)] = source
+    return sources
+
+
+def live_default_warnings(paper_mode: bool, exchange_name: str, config: dict, sources: dict) -> list:
+    """Warn about a leverage or fee that is only Jesse's built-in default (nothing saved, nothing copied)."""
+    where = f'paper sessions on {exchange_name}' if paper_mode else 'this API key'
+    warnings = []
+    for field, label in (('futures_leverage', 'leverage'), ('fee', 'fee')):
+        if sources.get(f'exchange.{field}') == 'hard_default':
+            warnings.append(
+                f"{label} {config['exchange'][field]} is Jesse's built-in default: nothing is saved for {where}. "
+                f'Set config.exchange.{field} to choose it.'
+            )
+    return warnings
+
+
 def live_engine_config(run_config: dict) -> dict:
     """Convert a LiveRunConfig into the request shape /live passes to the live engine (liveEngineConfig)."""
     exchange = deepcopy(run_config['exchange'])

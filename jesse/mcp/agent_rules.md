@@ -34,7 +34,7 @@ Use MCP Tools For:
 - Files inside the project's `strategies/` and `research_scripts/` folders (project file tools)
 - Running research scripts, only under the opt-in rule below
 - Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`), and Jesse's recorded live/paper trades and orders by date window across sessions (`get_live_trades`, `get_live_orders`)
-- Managing live/paper sessions (drafts, start, stop, notes, delete), only under the rules below
+- Managing live/paper sessions (drafts, start, restart, stop, notes, delete), only under the rules below
 - Temporary analyses and charts of stored results (`run_analysis`), under the rules below
 
 Prohibited Actions:
@@ -78,7 +78,9 @@ Waiting for Runs:
 
 Live and Paper Sessions:
 - Create, start, stop, or delete a live/paper session only when the user asks for that action. Every session is either PAPER (simulated, no funds) or LIVE (real orders with real funds through a saved exchange key); before starting one, tell the user which it is and on which exchange and key.
-- Start and stop exactly like the dashboard: `start_live_session` only starts drafts (copy a finished session with `copy_live_session` to run it again), and the session itself checks the license and plan. Never say a stop closed positions: a paper session, or a live session with persistency off, closes its positions and cancels its orders while ending; a live session with persistency on leaves them on the exchange. Confirm the outcome with `get_session_results("live", session_id)`.
+- Start and stop exactly like the dashboard: `start_live_session` only starts drafts, and the session itself checks the license and plan.
+- To run a session again after it stopped, crashed, or failed ("restart it", "bring it back up"), always use `restart_live_session(session_id)`: it reuses the session's exact mode, key, routes, leverage, and settings and starts the copy. Never rebuild it with `create_live_draft`, which takes saved defaults and can silently change the leverage. If `create_live_draft` returns `earlier_session`, stop and tell the user: that session already ran (or is running) these routes on the same key. If a restart returns `settings_not_copied`, confirm the listed values with the user before starting the draft it saved.
+- Report `config_warnings` and any money setting whose `config_source` is `hard_default` before starting a session; the user must confirm its leverage. Never say a stop closed positions: a paper session, or a live session with persistency off, closes its positions and cancels its orders while ending; a live session with persistency on leaves them on the exchange. Confirm the outcome with `get_session_results("live", session_id)`.
 - There is no order placement tool. Details: `jesse://live_trading`.
 
 Cancelled or Timed-Out Calls:
@@ -113,7 +115,7 @@ Key resources include:
 - jesse://strategy_catalog - Browsing, comparing, and importing jesse.trade community strategies
 - jesse://research_scripts - When research scripts are allowed, project file tools, running scripts, and promoting trained models into a strategy
 - jesse://session_analysis - Reading stored session results (including live/paper), live/paper trades and orders by date window, temporary analyses, charts, and snapshot layouts
-- jesse://live_trading - Live vs paper sessions, their lifecycle (draft, start, stop, copy, delete), and what stopping does
+- jesse://live_trading - Live vs paper sessions, their lifecycle (draft, start, restart, stop, copy, delete), where their settings come from, and what stopping does
 
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 

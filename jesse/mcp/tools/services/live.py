@@ -5,6 +5,11 @@ same authenticated Jesse routes it calls.
 - Drafts: create, update, and copy ("New session") store the session form with
   /live/update-state, exactly as a dashboard Live tab saves itself. Each draft carries its own
   run configuration; shared settings are only read (see session_config.resolve_live_run_config).
+  Every result says where the money settings (leverage, and a paper session's balance and fee)
+  came from, and warns when one is only Jesse's built-in default. A new draft for routes that an
+  earlier session already ran on the same key (or paper exchange) points to that session.
+- Restart: copy + start in one call, for a session that ended. It never stops a session, and it
+  does not start a copy whose money settings could not all be taken from the session it restarts.
 - Start: /live with the dashboard Start button's payload and no check of its own beyond the
   form validation: the license, the plan's allowed exchanges, route counts, and timeframes, the
   paper-trading plan requirement, and the exchange connection are all checked by the live plugin
@@ -48,6 +53,8 @@ from .session_config import (
     LIVE_LOGGING_FIELDS,
     NOTIFICATION_EVENTS,
     NOTIFICATION_FIELDS,
+    live_config_sources,
+    live_default_warnings,
     live_engine_config,
     resolve_live_run_config,
 )
@@ -58,6 +65,8 @@ REQUEST_TIMEOUT_SECONDS = 30
 ACTIVE_STATUSES = ('starting', 'running')
 DRAFT_STATUS = 'draft'
 LEVERAGE_MODES = ('cross', 'isolated')
+# How many recent started sessions a new draft is compared with (see _earlier_runs).
+EARLIER_RUNS_SCANNED = 50
 
 # What stopping does, as implemented by the live plugin (LiveExchange._on_termination).
 STOP_SEMANTICS = (
@@ -505,6 +514,8 @@ def _describe(session_id: str, form: dict, context: dict, status: str) -> dict:
         'data_routes': form['data_routes'],
         'debug_mode': form['debug_mode'],
         'config': form.get('config'),
+        'config_source': context.get('config_source'),
+        **({'config_warnings': context['warnings']} if context.get('warnings') else {}),
         'dashboard_url': mcp_config.dashboard_url('live', session_id),
     }
 
@@ -544,17 +555,29 @@ def _require_draft(session: dict, session_id: str, doing: str) -> None:
 
 def _prepare_form(info: dict, settings: dict, *, paper_mode: Any, exchange: Any, exchange_api_key_id: Any,
                   notification_api_key_id: Any, routes: list, data_routes: list, debug_mode: Any,
-                  current_config: Any, overrides: Optional[dict], key_explicit: bool) -> tuple[dict, dict]:
+                  current_config: Any, overrides: Optional[dict], key_explicit: bool,
+                  carried_as: str = 'stored') -> tuple[dict, dict]:
+    """
+    Validate and build a session form. `current_config` is the config the form already has: the
+    draft's own (`carried_as` "stored") or the copied session's ("copied"). The context gets
+    `config_source` and `warnings` for the money settings (session_config.live_config_sources).
+    """
     if not isinstance(debug_mode, bool):
         raise _Failure('invalid_request', 'debug_mode must be true or false.')
     context = _resolve_context(info, paper_mode, exchange, exchange_api_key_id, notification_api_key_id, key_explicit)
     strategies = info.get('strategies') if isinstance(info.get('strategies'), list) else []
     clean_routes, clean_data_routes = _clean_routes(routes, data_routes, context['exchange'], strategies)
     exchanges = info.get('exchanges') if isinstance(info.get('exchanges'), dict) else None
+    carried = _engine_shaped_config(current_config, context['exchange'])
     config = resolve_live_run_config(
         settings, context['paper_mode'], context['exchange'], context['exchange_api_key_id'],
-        current=_engine_shaped_config(current_config, context['exchange']), overrides=overrides, exchanges=exchanges,
+        current=carried, overrides=overrides, exchanges=exchanges,
     )
+    context['config_source'] = live_config_sources(
+        settings, context['paper_mode'], context['exchange'], context['exchange_api_key_id'], config,
+        explicit=overrides, carried=carried, carried_as=carried_as, exchanges=exchanges,
+    )
+    context['warnings'] = live_default_warnings(context['paper_mode'], context['exchange'], config, context['config_source'])
     # A real futures session uses the venue's margin modes; paper sessions simulate cross and isolated.
     supported_modes = ((exchanges or {}).get(context['exchange']) or {}).get('supported_leverage_modes') or []
     leverage_mode = config['exchange'].get('futures_leverage_mode')
@@ -577,6 +600,130 @@ def _stored_bool(value: Any, default: bool) -> bool:
     if isinstance(value, str) and value.strip().lower() in ('1', 'true', '0', 'false'):
         return value.strip().lower() in ('1', 'true')
     return default if value is None else bool(value)
+
+
+def _copy_form(info: dict, source: dict) -> tuple[dict, dict]:
+    """A new draft's form from a session's stored form, as the dashboard's "New session" builds it."""
+    stored = _session_form(source)
+    paper_mode = _stored_bool(stored.get('paper_mode'), source.get('session_mode') != 'livetrade')
+    form, context = _prepare_form(
+        info, _settings(),
+        paper_mode=paper_mode,
+        exchange=stored.get('exchange') or source.get('exchange'),
+        exchange_api_key_id='' if paper_mode else stored.get('exchange_api_key_id'),
+        notification_api_key_id=stored.get('notification_api_key_id'),
+        routes=_parse_json_list(stored.get('routes') or [], 'routes'),
+        data_routes=_parse_json_list(stored.get('data_routes') or [], 'data_routes'),
+        debug_mode=_stored_bool(stored.get('debug_mode'), True),
+        current_config=stored.get('config'),
+        overrides=None,
+        key_explicit=False,
+        carried_as='copied',
+    )
+    if paper_mode and stored.get('exchange_api_key_id'):
+        form['exchange_api_key_id'] = stored['exchange_api_key_id']
+    return form, context
+
+
+def _post_start(session_id: str, form: dict) -> None:
+    """Send a validated draft form to /live with the dashboard Start button's payload."""
+    response = _call('POST', '/live', {
+        'id': session_id,
+        'exchange': form['exchange'],
+        # The dashboard never sends a key for a paper session.
+        'exchange_api_key_id': '' if form['paper_mode'] else form['exchange_api_key_id'],
+        'notification_api_key_id': form['notification_api_key_id'],
+        'routes': form['routes'],
+        'data_routes': form['data_routes'],
+        'config': live_engine_config(form['config']),
+        'debug_mode': form['debug_mode'],
+        'paper_mode': form['paper_mode'],
+    })
+    if response.status_code == 409:
+        raise _Failure('not_draft', f'Live session {session_id} was already started. Use copy_live_session for a new run.')
+    if response.status_code != 202:
+        raise _jesse_failure('start the live session', response)
+
+
+def _route_set(routes: Any) -> tuple:
+    return tuple(sorted(
+        tuple(str(route.get(key) or '').strip() for key in ('strategy', 'symbol', 'timeframe'))
+        for route in (routes if isinstance(routes, list) else []) if isinstance(route, dict)
+    ))
+
+
+def _earlier_runs(form: dict, skip: str = ''):
+    """
+    Started sessions, newest first, that trade the same routes as `form` in the same mode on the
+    same exchange (and, for real money, with the same key). Best effort: the lookup never blocks a
+    draft, so a failed one simply yields nothing.
+    """
+    try:
+        response = _call('POST', '/session-results/live-sessions', {
+            'limit': EARLIER_RUNS_SCANNED, 'offset': 0,
+            'mode_filter': 'papertrade' if form['paper_mode'] else 'livetrade',
+        })
+    except _Failure:
+        return
+    rows = response.payload.get('sessions') if response.status_code == 200 and isinstance(response.payload, dict) else None
+    wanted = _route_set(form['routes'])
+    for row in rows if isinstance(rows, list) else []:
+        if (not isinstance(row, dict) or str(row.get('id')) == skip or row.get('exchange') != form['exchange']
+                or _route_set(row.get('routes')) != wanted):
+            continue
+        try:
+            session = _load_session(_session_id(row.get('id')))
+        except _Failure:
+            continue
+        if not form['paper_mode'] and _session_form(session).get('exchange_api_key_id') != form['exchange_api_key_id']:
+            continue
+        yield session
+
+
+def _money_differences(form: dict, session: dict) -> dict:
+    """Money settings of `form` that differ from those `session` stored, as {field: {earlier, this_draft}}."""
+    earlier = _engine_shaped_config(_session_form(session).get('config'), form['exchange'])
+    earlier_exchange = earlier.get('exchange') if isinstance(earlier, dict) and isinstance(earlier.get('exchange'), dict) else {}
+    fields = ('futures_leverage', 'futures_leverage_mode') + (('balance', 'fee') if form['paper_mode'] else ())
+    now = form['config']['exchange']
+    return {
+        field: {'earlier': earlier_exchange[field], 'this_draft': now[field]}
+        for field in fields if field in now and field in earlier_exchange and earlier_exchange[field] != now[field]
+    }
+
+
+def _earlier_run_note(form: dict) -> tuple[Optional[dict], list]:
+    """
+    The session a new draft most likely repeats, and a warning: running sessions first (a second
+    one would trade the same symbols twice on one account), else the newest one that ended.
+    """
+    earlier = list(_earlier_runs(form))
+    if not earlier:
+        return None, []
+    session = next((s for s in earlier if _is_active(s)), earlier[0])
+    sid = session.get('id') or ''
+    differences = _money_differences(form, session)
+    note = {
+        'session_id': sid, 'status': session.get('status'), 'title': session.get('title'),
+        'is_active': _is_active(session), 'money_settings_that_differ': differences,
+        'dashboard_url': mcp_config.dashboard_url('live', sid),
+    }
+    where = 'paper exchange' if form['paper_mode'] else 'API key'
+    if note['is_active']:
+        warning = (
+            f'Session {sid} is {session.get("status")} with these routes on this {where} right now. Starting this '
+            'draft too would trade the same symbols twice' + ('' if form['paper_mode'] else ' on one account') + '.'
+        )
+    else:
+        warning = (
+            f'Session {sid} ({session.get("status")}) already ran these routes on this {where}. To run it again with '
+            f'its exact settings, use restart_live_session("{sid}") instead of a new draft.'
+        )
+    if differences:
+        warning += ' This draft differs from it: ' + ', '.join(
+            f'{field} {values["this_draft"]} (it had {values["earlier"]})' for field, values in differences.items()
+        ) + '.'
+    return note, [warning]
 
 
 # ---------------------------------------------------------------------------
@@ -610,6 +757,8 @@ def create_live_draft_service(
         notification_api_key_id=notification_api_key_id, routes=route_list, data_routes=data_route_list,
         debug_mode=debug_mode, current_config=None, overrides=overrides, key_explicit=True,
     )
+    earlier, warnings = _earlier_run_note(form)
+    context['warnings'] = context['warnings'] + warnings
     session_id = str(uuid.uuid4())
     _save_state(session_id, form)
     _save_notes(session_id, title, description)
@@ -617,6 +766,7 @@ def create_live_draft_service(
         'status': 'success',
         'action': 'live_draft_created',
         **_describe(session_id, form, context, DRAFT_STATUS),
+        **({'earlier_session': earlier} if earlier else {}),
         'message': (
             f'Created a {_mode(form["paper_mode"])["mode"]} session draft on {form["exchange"]}. Nothing is running yet; '
             'start it with start_live_session when the user asks.'
@@ -688,24 +838,7 @@ def copy_live_session_service(session_id: str, title: Optional[str] = None) -> d
     session_id = _session_id(session_id)
     # The copy is a new draft with a fresh ID; the source is only read, so no lock is needed.
     info = _local_info()
-    source = _load_session(session_id)
-    stored = _session_form(source)
-    paper_mode = _stored_bool(stored.get('paper_mode'), source.get('session_mode') != 'livetrade')
-    form, context = _prepare_form(
-        info, _settings(),
-        paper_mode=paper_mode,
-        exchange=stored.get('exchange') or source.get('exchange'),
-        exchange_api_key_id='' if paper_mode else stored.get('exchange_api_key_id'),
-        notification_api_key_id=stored.get('notification_api_key_id'),
-        routes=_parse_json_list(stored.get('routes') or [], 'routes'),
-        data_routes=_parse_json_list(stored.get('data_routes') or [], 'data_routes'),
-        debug_mode=_stored_bool(stored.get('debug_mode'), True),
-        current_config=stored.get('config'),
-        overrides=None,
-        key_explicit=False,
-    )
-    if paper_mode and stored.get('exchange_api_key_id'):
-        form['exchange_api_key_id'] = stored['exchange_api_key_id']
+    form, context = _copy_form(info, _load_session(session_id))
     new_id = str(uuid.uuid4())
     _save_state(new_id, form)
     _save_notes(new_id, title, None)
@@ -741,22 +874,7 @@ def start_live_session_service(session_id: str) -> dict:
             overrides=None,
             key_explicit=False,
         )
-        response = _call('POST', '/live', {
-            'id': session_id,
-            'exchange': form['exchange'],
-            # The dashboard never sends a key for a paper session.
-            'exchange_api_key_id': '' if form['paper_mode'] else form['exchange_api_key_id'],
-            'notification_api_key_id': form['notification_api_key_id'],
-            'routes': form['routes'],
-            'data_routes': form['data_routes'],
-            'config': live_engine_config(form['config']),
-            'debug_mode': form['debug_mode'],
-            'paper_mode': form['paper_mode'],
-        })
-        if response.status_code == 409:
-            raise _Failure('not_draft', f'Live session {session_id} was already started. Use copy_live_session for a new run.')
-        if response.status_code != 202:
-            raise _jesse_failure('start the live session', response)
+        _post_start(session_id, form)
     return {
         'status': 'success',
         'action': 'live_session_started',
@@ -765,6 +883,73 @@ def start_live_session_service(session_id: str) -> dict:
             f'Started a {_mode(form["paper_mode"])["mode"]} session on {form["exchange"]}. The session now validates the '
             'license and plan, connects to the exchange, and loads warm-up candles; any failure appears as the '
             'session error. Check get_session_results("live", session_id) until session_status is running.'
+        ),
+    }
+
+
+@_contained('live_session_restart_failed')
+def restart_live_session_service(session_id: str, title: Optional[str] = None) -> dict:
+    """
+    Run an ended session again: a copy with the same mode, exchange, key, routes and settings,
+    started at once. Refused while the session (or another one with its routes on the same key)
+    is running, and the copy is not started when a money setting could not be copied.
+    """
+    session_id = _session_id(session_id)
+    with LIVE_SESSIONS_LOCK:
+        info = _local_info()
+        source = _load_session(session_id)
+        status = source.get('status')
+        if _is_active(source):
+            raise _Failure(
+                'session_active',
+                f'Live session {session_id} is {status}. restart_live_session runs a session again after it ended; '
+                'it never stops one. Stop it with stop_live_session only if the user asks (stopping may close '
+                'positions; see its result), then restart it.',
+                session_status=status,
+            )
+        if status == DRAFT_STATUS:
+            raise _Failure(
+                'is_draft', f'Live session {session_id} is a draft that never ran; start it with start_live_session.',
+                session_status=status,
+            )
+        form, context = _copy_form(info, source)
+        running = next((s for s in _earlier_runs(form, skip=session_id) if _is_active(s)), None)
+        if running is not None:
+            raise _Failure(
+                'routes_already_running',
+                f'Session {running.get("id")} is already {running.get("status")} with these routes on this '
+                f'{"paper exchange" if form["paper_mode"] else "API key"}, so a restart would trade the same symbols '
+                'twice. It may be the restart already.',
+                running_session_id=running.get('id'),
+                dashboard_url=mcp_config.dashboard_url('live', running.get('id') or ''),
+            )
+        new_id = str(uuid.uuid4())
+        _save_state(new_id, form)
+        _save_notes(new_id, title if title is not None else source.get('title'), None)
+        not_copied = {path: source_name for path, source_name in context['config_source'].items() if source_name != 'copied'}
+        if not_copied:
+            values = ', '.join(f'{path.split(".")[-1]} {form["config"]["exchange"][path.split(".")[-1]]} ({source_name})'
+                               for path, source_name in not_copied.items())
+            raise _Failure(
+                'settings_not_copied',
+                f'Session {session_id} did not store all of its money settings, so the copy would use: {values}. '
+                f'The copy {new_id} was saved as a draft and NOT started. Confirm these values with the user, set '
+                'them with update_live_draft(config={"exchange": {...}}) if needed, then start_live_session.',
+                draft_session_id=new_id,
+                config_source=context['config_source'],
+                dashboard_url=mcp_config.dashboard_url('live', new_id),
+            )
+        _post_start(new_id, form)
+    return {
+        'status': 'success',
+        'action': 'live_session_restarted',
+        'restarted_from': session_id,
+        **_describe(new_id, form, context, 'starting'),
+        'message': (
+            f'Started a new {_mode(form["paper_mode"])["mode"]} session {new_id} on {form["exchange"]} with the routes '
+            f'and settings of session {session_id}. Its leverage and other money settings were copied, not taken '
+            'from defaults. The session now validates the license and plan, connects to the exchange, and loads '
+            'warm-up candles; check get_session_results("live", session_id) until session_status is running.'
         ),
     }
 

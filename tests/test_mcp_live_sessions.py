@@ -44,6 +44,7 @@ from jesse.controllers import (
     exchange_controller,
     live_controller,
     notification_controller,
+    session_results_controller,
     system_controller,
     tabs_controller,
 )
@@ -300,7 +301,8 @@ def jesse(tmp_path, monkeypatch, processes, jesse_trade, plugin):
         return await call_next(request)
 
     for router in (config_controller.router, exchange_controller.router, notification_controller.router,
-                   system_controller.router, tabs_controller.router, live_controller.router):
+                   system_controller.router, tabs_controller.router, live_controller.router,
+                   session_results_controller.router):
         app.include_router(router)
 
     # uvicorn serves routes from several threads; SQLite waits up to 5 s for another thread's write lock
@@ -365,7 +367,7 @@ def _writes(jesse) -> list:
 def test_live_tools_are_registered_with_explicit_mode_and_honest_stop_semantics():
     tools = {tool.name: tool for tool in create_mcp_server(0)._tool_manager.list_tools()}
     live_tools = {'create_live_draft', 'update_live_draft', 'copy_live_session', 'start_live_session',
-                  'stop_live_session', 'update_live_session_notes', 'delete_live_session'}
+                  'restart_live_session', 'stop_live_session', 'update_live_session_notes', 'delete_live_session'}
     assert live_tools <= set(tools) and all(tools[name].is_async for name in live_tools)
     # No order placement, liquidation, or secret-reading tool exists. get_live_orders only reads
     # the orders Jesse recorded (test_mcp_live_history.py).
@@ -1169,3 +1171,144 @@ def test_json_arguments_work_as_text_or_as_objects_through_fastmcp(jesse):
     assert as_objects['status'] == 'success' and as_objects['config']['exchange']['balance'] == 55
     assert updated['status'] == 'success' and updated['routes'][0]['symbol'] == 'ETH-USDT'
     assert updated['config']['persistency'] is False and updated['config']['warm_up_candles'] == 99
+
+
+# ---------------------------------------------------------------------------
+# Restart and where money settings come from
+# ---------------------------------------------------------------------------
+
+def _live_futures(**overrides) -> dict:
+    arguments = {'paper_mode': False, 'exchange_api_key_id': BYBIT_KEY, 'routes': json.dumps(ROUTES),
+                 'config': json.dumps({'exchange': {'futures_leverage': 12, 'futures_leverage_mode': 'cross'}})}
+    arguments.update(overrides)
+    return live_service.create_live_draft_service(**arguments)
+
+
+def _ran_and_stopped(session_id: str) -> None:
+    """Start a draft, save it the way the running live plugin does (live_mode.run), then stop it."""
+    assert live_service.start_live_session_service(session_id)['status'] == 'success'
+    form = _form(session_id)
+    live_session_repository.store_live_session(
+        id=session_id, status='running', session_mode=_row(session_id).session_mode, exchange=form['exchange'],
+        state={'form': {key: form[key] for key in ('debug_mode', 'paper_mode', 'exchange_api_key_id',
+                                                   'notification_api_key_id', 'exchange', 'routes', 'data_routes')}},
+    )
+    live_service.stop_live_session_service(session_id)
+    LiveSession.update(status='stopped').where(LiveSession.id == session_id).execute()
+
+
+def test_a_session_that_ran_keeps_its_config_when_the_plugin_saves_it_again(jesse):
+    session_id = _live_futures()['session_id']
+
+    _ran_and_stopped(session_id)
+
+    exchange = _form(session_id)['config']['exchanges']['Bybit USDT Perpetual']
+    assert (exchange['futures_leverage'], exchange['futures_leverage_mode']) == (12, 'cross')
+
+
+def test_restart_runs_an_ended_session_again_with_its_exact_settings(jesse):
+    original = _live_futures(title='BTC trend')
+    session_id = original['session_id']
+    _ran_and_stopped(session_id)
+
+    result = live_service.restart_live_session_service(session_id)
+
+    assert result['status'] == 'success' and result['action'] == 'live_session_restarted', result
+    new_id = result['session_id']
+    assert new_id != session_id and result['restarted_from'] == session_id
+    assert (result['mode'], result['exchange'], result['routes']) == ('live', 'Bybit USDT Perpetual', ROUTES)
+    assert result['exchange_api_key']['id'] == BYBIT_KEY
+    assert result['config']['exchange']['futures_leverage'] == 12
+    assert result['config_source'] == {'exchange.futures_leverage': 'copied', 'exchange.futures_leverage_mode': 'copied'}
+    assert 'config_warnings' not in result
+    assert [args[0] for _function, args in jesse.processes.started] == [session_id, new_id]
+    assert _row(new_id).title == 'BTC trend' and _row(session_id).status == 'stopped'
+    _no_secrets(result)
+
+
+def test_restart_refuses_a_running_session_and_a_draft(jesse):
+    draft = _live_futures()['session_id']
+    refused = live_service.restart_live_session_service(draft)
+    assert (refused['error_type'], refused['session_status']) == ('is_draft', 'draft')
+
+    live_service.start_live_session_service(draft)
+    running = live_service.restart_live_session_service(draft)
+    assert running['error_type'] == 'session_active' and 'never stops one' in running['message']
+    assert jesse.processes.cancelled == [] and len(jesse.processes.started) == 1
+
+
+def test_restart_refuses_when_these_routes_already_run_on_the_key(jesse):
+    ended = _live_futures()['session_id']
+    _ran_and_stopped(ended)
+    already = live_service.restart_live_session_service(ended)['session_id']
+
+    again = live_service.restart_live_session_service(ended)
+
+    assert again['error_type'] == 'routes_already_running' and again['running_session_id'] == already
+    assert len(jesse.processes.started) == 2
+
+
+def test_restart_does_not_start_a_copy_whose_money_settings_were_lost(jesse):
+    session_id = _live_futures()['session_id']
+    _ran_and_stopped(session_id)
+    # A session that ran before Jesse kept its config: its stored form has none.
+    stored = _form(session_id)
+    stored.pop('config')
+    LiveSession.update(state=json.dumps({'form': stored})).where(LiveSession.id == session_id).execute()
+
+    result = live_service.restart_live_session_service(session_id)
+
+    assert result['error_type'] == 'settings_not_copied', result
+    assert result['config_source']['exchange.futures_leverage'] == 'saved_default'
+    assert 'NOT started' in result['message'] and 'futures_leverage 7' in result['message']
+    assert _row(result['draft_session_id']).status == 'draft'
+    assert len(jesse.processes.started) == 1
+
+
+def test_a_new_draft_for_routes_that_already_ran_points_to_restart(jesse):
+    ended = _live_futures()['session_id']
+    _ran_and_stopped(ended)
+
+    draft = _live_futures(config=None)
+
+    assert draft['status'] == 'success'
+    assert draft['earlier_session']['session_id'] == ended and draft['earlier_session']['is_active'] is False
+    assert draft['earlier_session']['money_settings_that_differ'] == {
+        'futures_leverage': {'earlier': 12, 'this_draft': 7}}
+    warning = draft['config_warnings'][-1]
+    assert f'restart_live_session("{ended}")' in warning and 'futures_leverage 7 (it had 12)' in warning
+
+    other_routes = _live_futures(routes=json.dumps([{**ROUTES[0], 'symbol': 'ETH-USDT'}]))
+    assert 'earlier_session' not in other_routes and 'config_warnings' not in other_routes
+
+
+def test_a_new_draft_warns_when_the_same_routes_are_running_on_the_key(jesse):
+    running = _live_futures()['session_id']
+    live_service.start_live_session_service(running)
+
+    draft = _live_futures()
+
+    assert draft['earlier_session']['session_id'] == running and draft['earlier_session']['is_active'] is True
+    assert 'trade the same symbols twice on one account' in draft['config_warnings'][-1]
+
+
+def test_drafts_say_where_their_money_settings_came_from(jesse):
+    saved = _paper(exchange='Bybit USDT Perpetual')
+    assert set(saved['config_source'].values()) == {'saved_default'} and 'config_warnings' not in saved
+
+    nothing_saved = _paper(exchange='KuCoin USDT Perpetual')
+    assert nothing_saved['config_source'] == {
+        'exchange.balance': 'hard_default', 'exchange.fee': 'exchange_default',
+        'exchange.futures_leverage': 'hard_default', 'exchange.futures_leverage_mode': 'hard_default'}
+    assert nothing_saved['config_warnings'] == [
+        "leverage 5 is Jesse's built-in default: nothing is saved for paper sessions on KuCoin USDT Perpetual. "
+        'Set config.exchange.futures_leverage to choose it.']
+
+    chosen = _paper(exchange='KuCoin USDT Perpetual', config=json.dumps({'exchange': {'futures_leverage': 3}}))
+    assert chosen['config_source']['exchange.futures_leverage'] == 'explicit'
+    assert 'config_warnings' not in chosen
+
+    updated = live_service.update_live_draft_service(chosen['session_id'], debug_mode=False)
+    assert updated['config_source']['exchange.futures_leverage'] == 'stored'
+    copied = live_service.copy_live_session_service(chosen['session_id'])
+    assert copied['config_source']['exchange.futures_leverage'] == 'copied'
