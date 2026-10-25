@@ -132,6 +132,12 @@ def _models() -> dict:
     }
 
 
+def session_status(kind: str, session_id: str) -> Optional[str]:
+    """Only the status column: a finished backtest's row can hold tens of MB of trades and charts."""
+    model = _models()[kind]
+    return model.select(model.status).where(model.id == session_id).scalar()
+
+
 def claim(kind: str, session_id: str, mark_running: bool = False, claim_id: Optional[str] = None) -> None:
     """
     Start the session's lease and progress clocks on this machine; call it before starting the

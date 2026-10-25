@@ -290,18 +290,22 @@ def _choose(waiting: list, runner_name: str, budget: int, free: int, runners: di
     return None, None
 
 
-def claim_next(runner_name: str, free_cores: int, budget: int) -> Optional[dict]:
+def claim_next(runner_name: str, free_cores: int, budget: int, busy_sessions=()) -> Optional[dict]:
     """
     Take the job this runner should start now under the queue order, targets, the hub's
     RUNNER_ORDER and core budgets, or None (nothing fits, or it waits for a job it reserves).
+    `busy_sessions`: sessions this runner still has a worker or unfinished cleanup for; it never
+    starts a second worker for one of them (a job it lost may come back to the queue meanwhile).
     """
     if budget <= 0:
         return None
     RunnerJob, _, _, _ = _models()
-    waiting = list(RunnerJob.select(RunnerJob.id, RunnerJob.target, RunnerJob.placement, RunnerJob.excluded,
-                                    RunnerJob.cores)
-                   .where((RunnerJob.status == 'queued') & (RunnerJob.jesse_version == jesse_version()))
-                   .order_by(RunnerJob.queued_at).limit(200).dicts())
+    busy = {str(session_id) for session_id in busy_sessions}
+    waiting = [job for job in RunnerJob.select(RunnerJob.id, RunnerJob.session_id, RunnerJob.target,
+                                               RunnerJob.placement, RunnerJob.excluded, RunnerJob.cores)
+               .where((RunnerJob.status == 'queued') & (RunnerJob.jesse_version == jesse_version()))
+               .order_by(RunnerJob.queued_at).limit(200).dicts()
+               if str(job['session_id']) not in busy]
     if not waiting:
         return None
     runners = _capacity()

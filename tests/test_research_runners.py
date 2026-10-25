@@ -723,3 +723,71 @@ def test_the_order_decides_which_runner_waits_for_a_big_job(pg, project, monkeyp
 
     assert runner_queue.claim_next('air', 6, 8) is None  # air is first in the order: it waits
     assert runner_queue.claim_next('mini', 6, 8)['session_id'] == backtest
+
+
+# ---------------------------------------------------------------------------
+# A runner's own bookkeeping: lost jobs and finished jobs
+# ---------------------------------------------------------------------------
+
+def _runner_with_claimed_job(project, tmp_path, monkeypatch):
+    from jesse.services import runner as runner_module
+    from jesse.services.multiprocessing import process_manager
+
+    session_id = _backtest()
+    _enqueue(project, session_id)
+    job = _claim('mini')
+    job_dir = tmp_path / 'jobs' / session_id
+    (job_dir / 'storage' / 'logs').mkdir(parents=True)
+    (job_dir / 'storage' / 'logs' / 'run.txt').write_text('log')
+    job['job_dir'] = str(job_dir)
+    cancelled = []
+    monkeypatch.setattr(process_manager, 'cancel_process', lambda client_id, notify_runners=True: cancelled.append(client_id))
+    runner = runner_module.Runner('mini', 8, hub=False, project_root=str(tmp_path))
+    runner.jobs[session_id] = job
+    return runner, job, cancelled
+
+
+def test_a_runner_never_takes_a_session_it_still_has_a_worker_for(pg, project, monkeypatch):
+    first, second = _backtest(), _backtest()
+    _enqueue(project, first)
+    _enqueue(project, second)
+
+    assert runner_queue.claim_next('mini', 8, 8, busy_sessions={first})['session_id'] == second
+
+
+def test_a_lost_job_keeps_its_folder_and_cores_until_its_worker_exits(pg, project, tmp_path, monkeypatch):
+    runner, job, cancelled = _runner_with_claimed_job(project, tmp_path, monkeypatch)
+    session_id = job['session_id']
+    # The hub gave the job back to the queue (its lease ran out) while the worker kept running here.
+    RunnerJob.update(status='queued', claim_id=None, claimed_by=None).where(RunnerJob.id == job['id']).execute()
+
+    runner._drop_lost_jobs()
+
+    assert cancelled == [session_id]
+    assert runner.cores_used() == 1 and os.path.isdir(job['job_dir'])
+    assert runner_queue.claim_next('mini', 7, 8, busy_sessions=runner._busy_sessions()) is None
+
+    runner.on_worker_exit(session_id, 1)
+
+    assert not os.path.exists(job['job_dir'])
+    assert runner.cores_used() == 0 and runner._finished.empty()
+    assert runner_queue.claim_next('mini', 8, 8, busy_sessions=runner._busy_sessions())['session_id'] == session_id
+
+
+def test_a_finished_job_is_completed_off_the_process_managers_thread(pg, project, tmp_path, monkeypatch):
+    runner, job, _ = _runner_with_claimed_job(project, tmp_path, monkeypatch)
+    session_id = job['session_id']
+    update_backtest_session_status(session_id, 'finished')
+
+    runner.on_worker_exit(session_id, 0)
+
+    # Its cores are free at once, but the session stays busy here until its files are sent.
+    assert runner.cores_used() == 0 and session_id in runner._busy_sessions()
+    assert RunnerJob.get(RunnerJob.id == job['id']).status == 'running'
+
+    threading.Thread(target=runner._complete_finished_jobs, daemon=True).start()
+    runner._finished.join()
+
+    assert RunnerJob.get(RunnerJob.id == job['id']).status == 'done'
+    assert [f.path for f in RunnerFile.select().where(RunnerFile.session_id == session_id)] == ['storage/logs/run.txt']
+    assert not os.path.exists(job['job_dir']) and session_id not in runner._busy_sessions()

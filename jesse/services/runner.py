@@ -8,14 +8,20 @@ provides compute. Threads:
 - a listener holding its own database connection that LISTENs for queue, cancel and file
   notifications and wakes the loop (it reconnects after a network drop);
 - the loop, which wakes on a notification or every POLL_SECONDS: it refreshes the runner's row,
-  drops jobs it no longer holds, claims jobs that fit its free cores, and on the hub saves runner files.
+  drops jobs it no longer holds, claims jobs that fit its free cores, and on the hub saves runner files;
+- the completer, which records how each finished job ended and sends its files to the hub. This is
+  slow over a network, so it stays off the process manager's thread, which renews the leases of the
+  jobs still running.
 Jobs run through the process manager like local runs, so their leases, progress and crash
-handling are the same; on_worker_exit (called by the process manager) completes them.
+handling are the same; on_worker_exit (called by the process manager) hands them to the completer.
+A runner never runs two workers for one session: a job it lost keeps its folder until the old
+worker exits, and the runner does not take that session again before then.
 """
 
 import importlib.util
 import json
 import os
+import queue
 import select
 import shutil
 import socket
@@ -29,6 +35,8 @@ from jesse.services.env import ENV_VALUES
 
 POLL_SECONDS = 10
 SWEEP_SECONDS = 60
+# How long stopping waits for finished jobs to report their status and send their files.
+COMPLETION_WAIT_SECONDS = 60
 MAX_RETURNED_FILE_BYTES = 50 * 1024 * 1024
 _ENDED = ('finished', 'stopped', 'cancelled', 'terminated')
 
@@ -79,6 +87,10 @@ class Runner:
         self._wake = threading.Event()
         self._stopping = threading.Event()
         self._cancel_requests: set = set()
+        # Finished jobs wait here to report their status and send their files. A thread of their own
+        # does it, so the process manager's thread keeps renewing the leases of the jobs still running.
+        self._finished: queue.Queue = queue.Queue()
+        self._completing: set = set()
         self._started_at = session_liveness.now_ms()
         self._last_sweep = 0.0
         self._threads = []
@@ -94,7 +106,7 @@ class Runner:
             self._check_version()
             if self.fatal_error:
                 return
-        for target in (self._listen, self._loop):
+        for target in (self._listen, self._loop, self._complete_finished_jobs):
             thread = threading.Thread(target=target, name=f'runner-{target.__name__}', daemon=True)
             thread.start()
             self._threads.append(thread)
@@ -181,7 +193,7 @@ class Runner:
         self._stopping.set()
         self._wake.set()
         with self._lock:
-            jobs = dict(self.jobs)
+            jobs = {session_id: job for session_id, job in self.jobs.items() if not job.get('dropped')}
             self.jobs.clear()
         from jesse.services.multiprocessing import process_manager
         for session_id, job in jobs.items():
@@ -190,6 +202,7 @@ class Runner:
                 process_manager.cancel_process(session_id, notify_runners=False)
             except Exception as e:
                 jh.debug(f'Could not give job {session_id} back: {e}')
+        self._wait_for_completions()
         try:
             self._heartbeat(offline=True)
         except Exception:
@@ -256,7 +269,8 @@ class Runner:
             self._last_sweep = time.monotonic()
             runner_queue.sweep()
         while not self._stopping.is_set() and not self._blocked:
-            job = runner_queue.claim_next(self.name, self.cores - self.cores_used(), self.cores)
+            job = runner_queue.claim_next(self.name, self.cores - self.cores_used(), self.cores,
+                                          busy_sessions=self._busy_sessions())
             if job is None:
                 break
             self._launch(job)
@@ -266,6 +280,11 @@ class Runner:
     def cores_used(self) -> int:
         with self._lock:
             return sum(job.get('cost', 1) for job in self.jobs.values())
+
+    def _busy_sessions(self) -> set:
+        """Sessions with a worker here (a dropped one until it exits) or a finished job still completing."""
+        with self._lock:
+            return set(self.jobs) | self._completing
 
     def _heartbeat(self, offline: bool = False) -> None:
         from jesse.models.RunnerJob import Runner as RunnerRow
@@ -337,46 +356,76 @@ class Runner:
             os.chmod(target, 0o600)
 
     def _drop_lost_jobs(self) -> None:
-        """Stop workers whose job was cancelled or taken over by another runner."""
+        """
+        Stop workers whose job was cancelled or taken over by another runner. A dropped job keeps
+        its cores and folder until its worker exits (see on_worker_exit): the worker is still
+        running in that folder, and the job may come back to the queue in the meantime.
+        """
         from jesse.models.RunnerJob import RunnerJob
         from jesse.services.multiprocessing import process_manager
 
         with self._lock:
-            jobs = dict(self.jobs)
+            jobs = {session_id: job for session_id, job in self.jobs.items() if not job.get('dropped')}
         for session_id, job in jobs.items():
             row = RunnerJob.get_or_none(RunnerJob.id == job['id'])
             lost = row is None or row.claim_id != job['claim_id'] or row.status != 'running'
             if lost or session_id in self._cancel_requests:
                 self._cancel_requests.discard(session_id)
-                with self._lock:
-                    self.jobs.pop(session_id, None)
+                job['dropped'] = True
                 process_manager.cancel_process(session_id, notify_runners=False)
                 _log(f'Stopped {job["kind"]} {session_id[:8]}: '
                      f'{"cancelled" if row is not None and row.status == "cancelled" else "no longer held here"}.')
-                shutil.rmtree(job.get('job_dir', ''), ignore_errors=True)
         self._cancel_requests.clear()
 
     def on_worker_exit(self, client_id: str, exit_code) -> None:
-        """Called by the process manager when a worker exits: complete the job and send its files."""
+        """Called by the process manager when a worker exits: frees its cores and hands it to completion."""
         with self._lock:
             job = self.jobs.pop(client_id, None)
+            if job is not None and not job.get('dropped'):
+                self._completing.add(client_id)
         if job is None:
             return
-        try:
-            from jesse.services.session_status import lookup_session
+        if job.get('dropped'):
+            # Its result belongs to whoever holds the job now: only the folder is left to clean up.
+            shutil.rmtree(job.get('job_dir', ''), ignore_errors=True)
+        else:
+            self._finished.put((job, exit_code))
+        self._wake.set()
 
-            session = lookup_session(job['kind'], client_id)
-            status = getattr(session, 'status', None)
+    def _complete_finished_jobs(self) -> None:
+        while True:
+            job, exit_code = self._finished.get()
+            try:
+                self._complete(job, exit_code)
+            finally:
+                with self._lock:
+                    self._completing.discard(job['session_id'])
+                self._finished.task_done()
+                self._wake.set()
+
+    def _complete(self, job: dict, exit_code) -> None:
+        """Record how a finished job ended and send its files to the hub."""
+        session_id = job['session_id']
+        try:
+            status = session_liveness.session_status(job['kind'], session_id)
             error = None if status in _ENDED else f'The worker exited with code {exit_code} and status {status}.'
             runner_queue.finish(job['id'], job['claim_id'], status, error)
             self._return_files(job)
             if not self.hub:
-                _log(f'Finished {job["kind"]} {client_id[:8]}: {status}.')
+                _log(f'Finished {job["kind"]} {session_id[:8]}: {status}.')
         except Exception as e:
-            jh.debug(f'Runner could not complete job {client_id}: {e}')
+            jh.debug(f'Runner could not complete job {session_id}: {e}')
         finally:
             shutil.rmtree(job.get('job_dir', ''), ignore_errors=True)
-            self._wake.set()
+
+    def _wait_for_completions(self) -> None:
+        """Give finished jobs a moment to report and send their files before the runner goes away."""
+        deadline = time.monotonic() + COMPLETION_WAIT_SECONDS
+        while time.monotonic() < deadline:
+            with self._lock:
+                if not self._completing:
+                    return
+            time.sleep(0.2)
 
     def _return_files(self, job: dict) -> None:
         """Send the files the run wrote (logs, charts, exports) to the hub through the database."""
