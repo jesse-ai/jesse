@@ -186,7 +186,9 @@ def test_a_runner_projects_own_strategies_package_does_not_hide_the_jobs(tmp_pat
 def test_a_bundle_carries_the_projects_strategies_package(project):
     _write(project, 'strategies/__init__.py', '# package\n')
     bundle = code_bundle.build(['Variant7'], project)
-    assert bundle['files']['strategies/__init__.py'] == b'# package\n'
+    # Byte for byte as on disk (text mode writes \r\n on Windows).
+    with open(os.path.join(project, 'strategies', '__init__.py'), 'rb') as f:
+        assert bundle['files']['strategies/__init__.py'] == f.read()
 
 
 # ---------------------------------------------------------------------------
