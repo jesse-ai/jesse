@@ -1,0 +1,1 @@
+import{b as e,mt as t,xt as n}from"./CoKk4mC0.js";import{t as r}from"./BDNMzG2s2.js";var i={},a={class:`text-2xl mb-4`};function o(r,i){return t(),e(`h3`,a,[n(r.$slots,`default`)])}var s=Object.assign(r(i,[[`render`,o]]),{__name:`Heading`});export{s as t};
