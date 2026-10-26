@@ -79,8 +79,7 @@ class Cache:
             return False
 
         try:
-            with open(data_path, 'rb') as f:
-                cache_value = pickle.load(f)
+            cache_value = _load_pickle(data_path)
         except (EOFError, pickle.UnpicklingError, FileNotFoundError):
             # If the file is missing or broken, remove the record and return False
             self._forget(key)
@@ -104,8 +103,7 @@ class Cache:
 
     def _read_db(self) -> dict:
         try:
-            with open(f"{self.path}{INDEX_NAME}", 'rb') as f:
-                db = pickle.load(f)
+            db = _load_pickle(f"{self.path}{INDEX_NAME}")
         except FileNotFoundError:
             return {}
         except (EOFError, pickle.UnpicklingError, UnicodeDecodeError):
@@ -159,6 +157,19 @@ class Cache:
                     except FileNotFoundError:
                         pass
             self.db = {}
+
+
+def _load_pickle(path: str) -> Any:
+    for attempt in range(100):
+        try:
+            with open(path, 'rb') as f:
+                return pickle.load(f)
+        except PermissionError:
+            # Windows refuses to open a file while another process's os.replace() is swapping it,
+            # so a reader that doesn't hold the index lock waits for the swap like the writer does
+            if attempt == 99:
+                raise
+            sleep(0.05)
 
 
 def _lock(f) -> None:
