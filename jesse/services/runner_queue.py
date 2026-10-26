@@ -18,6 +18,8 @@ their own process manager and write results to the same tables, so the hub's das
   max_attempts claims; a worker that crashes is not retried.
 - Cancelling: process_manager.cancel_process calls cancel(): a queued job is dropped, a running
   one is signalled to its runner on CHANNEL_CANCEL.
+- Candle cache: each machine keeps the candles its jobs load in its own storage/temp/. Clearing
+  the cache on the hub sends CHANNEL_CACHE, and connected runners clear theirs too.
 
 Turned off (no RESEARCH_RUNNERS on the hub), every start route runs locally exactly as before.
 """
@@ -33,6 +35,7 @@ from jesse.services.env import ENV_VALUES
 CHANNEL_JOBS = 'jesse_runner_jobs'
 CHANNEL_CANCEL = 'jesse_runner_cancel'
 CHANNEL_FILES = 'jesse_runner_files'
+CHANNEL_CACHE = 'jesse_runner_cache'
 RUNNER_ALIVE_SECONDS = 45
 LOCAL = 'local'
 ANY = 'any'

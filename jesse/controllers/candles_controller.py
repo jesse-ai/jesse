@@ -278,7 +278,11 @@ def clear_candles_database_cache():
     """
 
     from jesse.services.cache import cache
+    from jesse.services import runner_queue
     cache.flush()
+    # runners keep their own copy of the candles they load
+    if runner_queue.enabled():
+        runner_queue.notify(runner_queue.CHANNEL_CACHE)
 
     return JSONResponse({
         'status': 'success',

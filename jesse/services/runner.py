@@ -6,7 +6,8 @@ It runs either inside `jesse run` (RUNNER_CORES in .env; a hub with RESEARCH_RUN
 starts one to save runner files locally) or alone with `jesse runner` on a machine that only
 provides compute. Threads:
 - a listener holding its own database connection that LISTENs for queue, cancel and file
-  notifications and wakes the loop (it reconnects after a network drop);
+  notifications and wakes the loop (it reconnects after a network drop); it also clears this
+  machine's candle cache when the hub's is cleared;
 - the loop, which wakes on a notification or every POLL_SECONDS: it refreshes the runner's row,
   drops jobs it no longer holds, claims jobs that fit its free cores, and on the hub saves runner files;
 - the completer, which records how each finished job ended and sends its files to the hub. This is
@@ -64,7 +65,8 @@ def _listen_connection():
     )
     connection.set_isolation_level(0)  # autocommit: notifications arrive outside transactions
     with connection.cursor() as cursor:
-        for channel in (runner_queue.CHANNEL_JOBS, runner_queue.CHANNEL_CANCEL, runner_queue.CHANNEL_FILES):
+        for channel in (runner_queue.CHANNEL_JOBS, runner_queue.CHANNEL_CANCEL, runner_queue.CHANNEL_FILES,
+                        runner_queue.CHANNEL_CACHE):
             cursor.execute(f'LISTEN {channel}')
     return connection
 
@@ -213,6 +215,20 @@ class Runner:
     def wake(self) -> None:
         self._wake.set()
 
+    def cache_dir(self) -> str:
+        """The candle cache this machine's jobs share (the project's own, so local runs use it too)."""
+        return os.path.join(self.root, 'storage', 'temp')
+
+    def clear_cache(self) -> None:
+        from jesse.services.cache import Cache
+
+        try:
+            Cache(self.cache_dir()).flush()
+            if not self.hub:
+                _log('Cleared the candle cache, as the hub did.')
+        except Exception as e:
+            jh.debug(f'Runner could not clear its candle cache: {e}')
+
     # ------------------------------------------------------------------ threads
     def _listen(self) -> None:
         backoff = 1
@@ -235,6 +251,8 @@ class Runner:
                         notification = connection.notifies.pop(0)
                         if notification.channel == runner_queue.CHANNEL_CANCEL:
                             self._cancel_requests.add(notification.payload)
+                        elif notification.channel == runner_queue.CHANNEL_CACHE:
+                            self.clear_cache()
                         self._wake.set()
             except Exception as e:
                 jh.debug(f'Runner listener lost its connection: {e}')
@@ -328,7 +346,7 @@ class Runner:
             with self._lock:
                 self.jobs[session_id] = job
             process_manager.add_task(run_queued_job, session_id, job['function'], json.dumps(job['arguments']),
-                                     job_dir, job['claim_id'], job['cost'])
+                                     job_dir, job['claim_id'], job['cost'], self.cache_dir())
         except Exception as e:
             with self._lock:
                 self.jobs.pop(session_id, None)

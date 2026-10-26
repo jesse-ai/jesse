@@ -183,6 +183,37 @@ def test_a_runner_projects_own_strategies_package_does_not_hide_the_jobs(tmp_pat
     assert not os.path.exists(os.path.join(job_dir, 'storage', '__init__.py'))
 
 
+def test_a_runner_job_caches_candles_in_the_runner_project(tmp_path, monkeypatch):
+    # The job folder is deleted after the job; the next jobs on this machine reuse the candles.
+    from jesse.services import cache as cache_module
+
+    cache_dir = str(tmp_path / 'research' / 'storage' / 'temp')
+    job_dir = str(tmp_path / 'job')
+    os.makedirs(os.path.join(job_dir, 'storage'))
+
+    def fake_run(session_id, value):
+        from jesse.services.cache import cache
+        cache.set_value('candles', [1, 2, 3])
+
+    monkeypatch.setattr(runner_worker, '_mode_function', lambda function: fake_run)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    monkeypatch.setenv('PYTHONPATH', '')
+    monkeypatch.delenv(cache_module.CACHE_DIR_ENV, raising=False)
+    original_path = cache_module.cache.path
+    try:
+        runner_worker.run_queued_job('sid-3', 'backtest', json.dumps(['sid-3', 0]), job_dir, 'claim-3', 1, cache_dir)
+        assert os.environ[cache_module.CACHE_DIR_ENV] == cache_dir  # for Ray workers the run starts
+    finally:
+        session_liveness.set_claim(None)
+        job_has_temp = os.path.exists(os.path.join(job_dir, 'storage', 'temp'))
+        os.chdir(tmp_path)
+        cache_module.cache.use_path(original_path)
+
+    assert cache_module.Cache(cache_dir).get_value('candles') == [1, 2, 3]
+    assert not job_has_temp
+
+
 def test_a_bundle_carries_the_projects_strategies_package(project):
     _write(project, 'strategies/__init__.py', '# package\n')
     bundle = code_bundle.build(['Variant7'], project)

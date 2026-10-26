@@ -4,7 +4,8 @@ The worker process of a runner job (see services/runner.py).
 It runs in the job's own folder, which holds the job's code (strategies/ and project modules from
 its bundle) and an empty storage/. Python, Ray workers and Jesse's relative paths therefore all
 use the job's code, never the runner project's strategies/ folder, and the files the run writes
-(logs, charts) land in the job folder, from where the runner sends them to the hub.
+(logs, charts) land in the job folder, from where the runner sends them to the hub. Only the
+candle cache stays the runner project's storage/temp/, so the machine's next jobs reuse it.
 """
 
 import json
@@ -65,10 +66,20 @@ def _fit_cpu_cores(function: str, arguments: list, max_cores: Optional[int] = No
         config['cpu_cores'] = available
 
 
+def _use_runner_cache(cache_dir: str) -> None:
+    """Keep candles cached in the runner project instead of the job folder, which is deleted after the job."""
+    from jesse.services.cache import CACHE_DIR_ENV, cache
+
+    os.environ[CACHE_DIR_ENV] = cache_dir  # for the processes the run starts
+    cache.use_path(cache_dir)
+
+
 def run_queued_job(session_id: str, function: str, arguments_json: str, job_dir: str, claim_id: str,
-                   max_cores: Optional[int] = None) -> None:
+                   max_cores: Optional[int] = None, cache_dir: Optional[str] = None) -> None:
     from jesse.services import session_liveness
 
+    if cache_dir:
+        _use_runner_cache(cache_dir)
     os.chdir(job_dir)
     _make_packages(job_dir)
     _forget_project_modules(job_dir)
