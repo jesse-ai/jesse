@@ -18,7 +18,7 @@ Algo-trading was 😵‍💫, we made it 🤩
 
 ---
 
-Jesse is an advanced crypto trading framework that aims to **simplify** **researching** and defining **YOUR OWN trading strategies** for backtesting, optimizing, and live trading.
+Jesse is an advanced algorithmic trading framework in Python that aims to **simplify** **researching** and defining **YOUR OWN trading strategies** for backtesting, optimizing, and live trading.
 
 ## What is Jesse?
 Watch this video to get a quick overview of Jesse:
