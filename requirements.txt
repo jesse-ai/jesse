@@ -1,7 +1,8 @@
 arrow~=1.2.1
 blinker~=1.4
 click~=8.0.3
-numpy~=1.26.4
+# Newer NumPy and SciPy releases drop older Pythons; pip picks the newest pair each Python supports.
+numpy>=2.2.6,<2.6
 pandas~=2.2.3
 peewee~=3.14.8
 psycopg2-binary~=2.9.9
@@ -9,7 +10,7 @@ pydash~=6.0.0
 fnc~=0.5.3
 pytest~=6.2.5
 requests~=2.32.0
-scipy~=1.15.0
+scipy>=1.15.3,<1.19
 statsmodels~=0.14.4
 tabulate~=0.8.9
 timeloop~=1.0.2
