@@ -1352,6 +1352,7 @@ class Strategy(ABC):
             return
 
         self._is_executing = True
+        self._clear_cached_methods()
 
         # Cache the current price at the start of execution
         self._cached_price = self.close
@@ -1388,6 +1389,7 @@ class Strategy(ABC):
             return 0, self.close
 
         self._is_executing = True
+        self._clear_cached_methods()
         self._cached_price = self.close
         close_price = self.close
 

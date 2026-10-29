@@ -196,9 +196,14 @@ def _unlock(f) -> None:
 cache = Cache(os.environ.get(CACHE_DIR_ENV) or "storage/temp/")
 
 
-# Using functools.lru_cache
+# Using functools.lru_cache. Values are only cached while the strategy is executing a candle;
+# calls from anywhere else (live watch list, chart updates, order events) compute fresh and
+# store nothing, so they can never leak a forming candle's values into the next execution.
 def cached(method):
     def decorated(self, *args, **kwargs):
+        if not self._is_executing:
+            return method(self, *args, **kwargs)
+
         cached_method = self._cached_methods.get(method)
         if cached_method is None:
             cached_method = lru_cache()(method)
