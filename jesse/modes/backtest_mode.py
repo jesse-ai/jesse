@@ -219,8 +219,8 @@ def _execute_backtest(
         sync_publish('metrics', result['metrics'])
         sync_publish('trades', result['trades'], compression=True)
 
-        # Generate six analytical chart images (equity_curve, drawdown, underwater,
-        # monthly_heatmap, monthly_distribution, trade_pnl).
+        # Generate analytical chart images (equity_curve, drawdown, underwater,
+        # monthly_heatmap, monthly_distribution, trade_pnl, entry_timing).
         # Must be called BEFORE store.reset() since it reads from the live store.
         publish_status('Generating performance charts…', current=100)
         _charts_folder = os.path.abspath('storage/backtest-charts')

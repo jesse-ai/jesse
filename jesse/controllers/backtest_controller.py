@@ -84,7 +84,7 @@ def backtest(request_json: BacktestRequestJson):
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
 
 
-BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 
 
 @router.get("/sessions/{session_id}/charts-image", dependencies=[Depends(require_auth_any)])
@@ -94,7 +94,7 @@ def get_charts_image(
 ):
     """
     Serve a chart PNG image for a specific backtest session.
-    chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl
+    chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl, entry_timing
     """
 
     if chart not in BACKTEST_CHART_NAMES:

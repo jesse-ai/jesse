@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from jesse.controllers import backtest_controller
-from jesse.services import auth, transformers
+from jesse.services import auth, charts, transformers
 
 # jesse.models re-exports the model class under the module's name, so load the
 # module itself to reach its DB helper functions.
@@ -173,3 +173,21 @@ def test_same_id_rerun_serves_only_the_new_runs_chart_images(charts_folder, db_u
         assert response.status_code == 200
         assert response.content == b'new-run'
     assert transformers.get_backtest_session_for_load_more(session)['has_charts_image'] is True
+
+
+def test_every_chart_list_includes_the_entry_timing_chart():
+    assert 'entry_timing' in charts.BACKTEST_CHART_NAMES
+    assert backtest_controller.BACKTEST_CHART_NAMES == charts.BACKTEST_CHART_NAMES
+    assert backtest_session_model._BACKTEST_CHART_NAMES == charts.BACKTEST_CHART_NAMES
+
+
+def test_entry_timing_counts_entries_by_utc_weekday_and_hour():
+    monday_0230 = 1609727400000  # 2021-01-04 02:30 UTC
+    sunday_2359 = 1610323140000  # 2021-01-10 23:59 UTC
+
+    grid = charts._compute_entry_timing([monday_0230, monday_0230 + 60_000, sunday_2359])
+
+    assert grid.shape == (7, 24)
+    assert grid.sum() == 3
+    assert grid[0, 2] == 2
+    assert grid[6, 23] == 1

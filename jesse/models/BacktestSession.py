@@ -6,7 +6,7 @@ import json
 from jesse.services.db import database
 import jesse.helpers as jh
 
-_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 
 
 def _delete_chart_images(session_id: str) -> None:

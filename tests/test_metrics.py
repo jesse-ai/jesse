@@ -301,6 +301,60 @@ def test_max_underwater_period_counts_days_until_recovery() -> None:
     assert metrics.calculate_max_underwater_period(balances) == 2
 
 
+def _sample_time(date: str) -> int:
+    """Daily balances are sampled one minute into the day after the one they measure."""
+    return jh.date_to_timestamp(date) + 60_000
+
+
+def test_monthly_returns_keep_the_last_day_of_each_month() -> None:
+    # regression: the heatmap compared each month's first and last samples, so the
+    # return of the last day of every month was lost.
+    balances = [100, 100, 100, 110, 110]
+    timestamps = [
+        jh.date_to_timestamp('2021-01-30'),
+        _sample_time('2021-01-31'),
+        _sample_time('2021-02-01'),
+        _sample_time('2021-02-02'),
+        _sample_time('2021-03-01'),
+    ]
+
+    assert metrics.monthly_returns(balances, timestamps) == {
+        (2021, 1): pytest.approx(0),
+        (2021, 2): pytest.approx(10),
+    }
+
+
+def test_monthly_returns_compound_to_the_total_return() -> None:
+    balances = [100, 120, 90, 99]
+    timestamps = [
+        jh.date_to_timestamp('2021-01-01'),
+        _sample_time('2021-02-01'),
+        _sample_time('2021-03-01'),
+        _sample_time('2021-04-01'),
+    ]
+
+    returns = metrics.monthly_returns(balances, timestamps)
+
+    assert returns == {
+        (2021, 1): pytest.approx(20),
+        (2021, 2): pytest.approx(-25),
+        (2021, 3): pytest.approx(10),
+    }
+    assert np.prod([1 + r / 100 for r in returns.values()]) == pytest.approx(0.99)
+
+
+def test_a_final_sample_at_midnight_does_not_open_a_new_month() -> None:
+    balances = [100, 105]
+    timestamps = [jh.date_to_timestamp('2021-01-01'), jh.date_to_timestamp('2021-02-01')]
+
+    assert metrics.monthly_returns(balances, timestamps) == {(2021, 1): pytest.approx(5)}
+
+
+def test_monthly_returns_need_matching_timestamps() -> None:
+    assert metrics.monthly_returns([100, 110], [jh.date_to_timestamp('2021-01-01')]) == {}
+    assert metrics.monthly_returns([100], [jh.date_to_timestamp('2021-01-01')]) == {}
+
+
 def test_winning_only_backtest_metrics_include_fees() -> None:
     result = _run_metrics_backtest(
         _WinningMetricsStrategy,
@@ -354,6 +408,8 @@ def test_mixed_multi_day_backtest_metrics_contract() -> None:
     assert stats['open_pl'] == 0
     assert stats['max_drawdown'] == pytest.approx(-0.10200014186112494)
     assert stats['max_underwater_period'] == 2
+    assert stats['positive_months'] == 1
+    assert stats['negative_months'] == 0
     assert stats['annual_return'] == pytest.approx(5.465903612204692)
     assert stats['sharpe_ratio'] == pytest.approx(2.45661087496446)
     assert stats['sortino_ratio'] == pytest.approx(4.591544590351203)

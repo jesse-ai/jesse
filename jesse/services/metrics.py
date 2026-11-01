@@ -8,6 +8,8 @@ from jesse.models import ClosedTrade
 from jesse.store import store
 from jesse.routes import router
 
+BALANCE_SAMPLE_LAG_MS = 120_000
+
 
 def candles_info(candles_array: np.ndarray) -> dict:
     period = jh.date_diff_in_days(
@@ -210,6 +212,35 @@ def calculate_max_underwater_period(daily_balance: list, timestamps: list | None
                 max_period = days_underwater
 
     return max_period
+
+
+def monthly_returns(daily_balance: list, timestamps: list) -> dict:
+    """
+    Calculate the return of each UTC calendar month, closing balance to closing balance
+    Args:
+        daily_balance: List of daily balances
+        timestamps: Sample timestamps in milliseconds, one per balance
+    Returns:
+        Dict of (year, month) -> return percentage, sorted chronologically
+    """
+    if len(daily_balance) < 2 or len(timestamps) != len(daily_balance):
+        return {}
+
+    # The first balance only opens the first month. Samples land just after the day
+    # they measure ended, so one taken right after midnight on the 1st still closes
+    # the previous month.
+    month_closes = {}
+    for timestamp, balance in zip(timestamps[1:], daily_balance[1:]):
+        date = jh.timestamp_to_arrow(timestamp - BALANCE_SAMPLE_LAG_MS)
+        month_closes[(date.year, date.month)] = balance
+
+    result = {}
+    previous_close = daily_balance[0]
+    for key, close in month_closes.items():
+        result[key] = (close / previous_close - 1) * 100 if previous_close != 0 else 0.0
+        previous_close = close
+
+    return result
 
 
 def cagr(returns, rf=0.0, compounded=True, periods=365):
@@ -448,6 +479,10 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     )
     omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=annualization).iloc[0]
     serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
+    # A flat month (no change in balance) counts as neither positive nor negative.
+    month_returns = list(monthly_returns(daily_balance, balance_timestamps).values())
+    positive_months = np.nan if not has_balance_timestamps else sum(r > 0 for r in month_returns)
+    negative_months = np.nan if not has_balance_timestamps else sum(r < 0 for r in month_returns)
 
     return {
         'total': safe_convert(total_completed, int),
@@ -497,6 +532,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'avg_trades_per_day': safe_convert(avg_trades_per_day),
         'avg_trades_per_week': safe_convert(avg_trades_per_week),
         'avg_trades_per_month': safe_convert(avg_trades_per_month),
+        'positive_months': safe_convert(positive_months, int),
+        'negative_months': safe_convert(negative_months, int),
     }
 
 

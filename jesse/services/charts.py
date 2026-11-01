@@ -1,10 +1,11 @@
 import os
 import numpy as np
 from scipy.stats import gaussian_kde
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jesse.routes import router
 from jesse.store import store
 from jesse.services.candle_service import get_candles_from_db
+from jesse.services.metrics import monthly_returns as compute_monthly_returns
 from jesse.utils import prices_to_returns
 
 import matplotlib
@@ -12,9 +13,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
-from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
-_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 BACKTEST_CHART_NAMES = _BACKTEST_CHART_NAMES
 
 _THEMES = {
@@ -37,6 +38,7 @@ _THEMES = {
         'kde_line':         'steelblue',
         'mean_line':        'darkred',
         'median_line':      '#f59e0b',
+        'heatmap_peak':     '#3730a3',
     },
     'dark': {
         'fig_facecolor':    '#333333',
@@ -57,6 +59,7 @@ _THEMES = {
         'kde_line':         '#3b82f6',
         'mean_line':        '#fca5a5',
         'median_line':      '#fbbf24',
+        'heatmap_peak':     '#a5b4fc',
     },
 }
 
@@ -118,27 +121,13 @@ def _find_worst_drawdown_periods(daily_balance: list, dates: list[datetime], n: 
     return periods[:n]
 
 
-def _compute_monthly_returns(daily_balance: list, dates: list[datetime]) -> dict:
-    """Return dict keyed by (year, month) -> return_pct, sorted chronologically."""
-    if not daily_balance:
-        return {}
-
-    monthly: dict = {}
-
-    for date, balance in zip(dates, daily_balance):
-        key = (date.year, date.month)
-        if key not in monthly:
-            monthly[key] = {'first': balance, 'last': balance}
-        else:
-            monthly[key]['last'] = balance
-
-    result = {}
-    for key in sorted(monthly.keys()):
-        first = monthly[key]['first']
-        last = monthly[key]['last']
-        result[key] = (last / first - 1) * 100 if first != 0 else 0.0
-
-    return result
+def _compute_entry_timing(opened_at: list) -> np.ndarray:
+    """Return a 7x24 grid of entry counts: rows Monday to Sunday, columns UTC hours."""
+    grid = np.zeros((7, 24), dtype=int)
+    for timestamp in opened_at:
+        date = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+        grid[date.weekday(), date.hour] += 1
+    return grid
 
 
 def _apply_chart_theme(fig, ax, c: dict) -> None:
@@ -167,7 +156,7 @@ def _style_legend(ax, c: dict) -> None:
 
 def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'light', benchmark: bool = False) -> None:  # noqa: C901
     """
-    Internal. Generate six separate PNG chart images for a completed backtest.
+    Internal. Generate separate PNG chart images for a completed backtest.
     Must be called while store.app and store.closed_trades are still populated
     (i.e. before store.reset()).
 
@@ -342,7 +331,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.close(fig)
 
     # ── Chart 4: Monthly Returns Heatmap ─────────────────────────────────────
-    monthly_returns = _compute_monthly_returns(daily_balance, dates)
+    monthly_returns = compute_monthly_returns(daily_balance, store.app.daily_balance_timestamps)
 
     if monthly_returns:
         years = sorted(set(y for y, m in monthly_returns))
@@ -514,6 +503,35 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     _apply_chart_theme(fig, ax, t)
     plt.tight_layout()
     plt.savefig(os.path.join(charts_folder, f'{session_id}_trade_pnl.png'), dpi=130, bbox_inches='tight', facecolor=t['fig_facecolor'])
+    plt.close(fig)
+
+    # ── Chart 7: Entry Timing (hour × weekday) ──────────────────────────────
+    entry_grid = _compute_entry_timing([trade.opened_at for trade in store.closed_trades.trades])
+    cmap = LinearSegmentedColormap.from_list('entry_timing', [t['axes_facecolor'], t['heatmap_peak']])
+
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    _apply_chart_theme(fig, ax, t)
+    ax.grid(False)
+    mesh = ax.pcolormesh(
+        entry_grid, cmap=cmap, vmin=0, vmax=max(int(entry_grid.max()), 1),
+        edgecolors=t['fig_facecolor'], linewidth=1.5
+    )
+    ax.invert_yaxis()
+    ax.set_xticks(np.arange(24) + 0.5)
+    ax.set_xticklabels(range(24), fontsize=9, color=t['tick_color'])
+    ax.set_yticks(np.arange(7) + 0.5)
+    ax.set_yticklabels(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], fontsize=9, color=t['tick_color'])
+    ax.tick_params(length=0)
+    ax.set_xlabel('Hour of day (UTC)', color=t['text_color'])
+    ax.set_ylabel('Day of week', color=t['text_color'])
+
+    colorbar = fig.colorbar(mesh, ax=ax, fraction=0.03, pad=0.02, ticks=mticker.MaxNLocator(integer=True))
+    colorbar.set_label('Entries', color=t['text_color'], fontsize=9)
+    colorbar.ax.tick_params(colors=t['tick_color'], labelsize=9, length=0)
+    colorbar.outline.set_edgecolor(t['spine_color'])
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(charts_folder, f'{session_id}_entry_timing.png'), dpi=130, bbox_inches='tight', facecolor=t['fig_facecolor'])
     plt.close(fig)
 
 
