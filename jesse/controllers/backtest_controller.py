@@ -20,7 +20,7 @@ from jesse.models.BacktestSession import (
 )
 from jesse.services.transformers import get_backtest_session, get_backtest_session_for_load_more
 from jesse.modes.backtest_mode import run as run_backtest
-from jesse.modes.data_provider import get_backtest_logs, download_backtest_log
+from jesse.modes.data_provider import get_backtest_logs, download_backtest_log, get_chart_theme
 import os
 
 
@@ -55,7 +55,7 @@ def backtest(request_json: BacktestRequestJson):
             request_json.export_json,
             request_json.fast_mode,
             request_json.benchmark,
-            request_json.theme,
+            request_json.theme or get_chart_theme(),
         )
         # With `where` set, a research runner may run it instead (services/runner_queue.py).
         queued = runner_queue.queue_if_requested('backtest', 'backtest', arguments, request_json.routes,

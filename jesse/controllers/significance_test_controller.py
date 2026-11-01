@@ -15,6 +15,7 @@ from jesse.services.web import (
     GetSignificanceTestSessionsRequestJson,
 )
 from jesse import helpers as jh
+from jesse.modes.data_provider import get_chart_theme
 from jesse.models.SignificanceTestSession import (
     get_significance_test_session_by_id,
     get_significance_test_sessions,
@@ -49,6 +50,7 @@ async def significance_test(
         return JSONResponse({'error': 'Rule Significance Test requires exactly one trading route.'}, status_code=400)
 
     session_id = request_json.id or jh.generate_unique_id()
+    theme = request_json.theme or get_chart_theme()
 
     existing = get_significance_test_session_by_id(session_id)
     if existing and existing.status != 'draft':
@@ -62,11 +64,10 @@ async def significance_test(
         # exact state accepted for this run.
         update_significance_test_session_state(session_id, request_json.state)
         update_significance_test_session_status(session_id, 'running')
-        if request_json.theme:
-            from jesse.models.SignificanceTestSession import SignificanceTestSession
-            SignificanceTestSession.update(theme=request_json.theme).where(
-                SignificanceTestSession.id == session_id
-            ).execute()
+        from jesse.models.SignificanceTestSession import SignificanceTestSession
+        SignificanceTestSession.update(theme=theme).where(
+            SignificanceTestSession.id == session_id
+        ).execute()
     else:
         # Create the session record immediately so the frontend can find it while
         # candles are still loading in the background process
@@ -74,7 +75,7 @@ async def significance_test(
             id=session_id,
             status='running',
             state=request_json.state,
-            theme=request_json.theme,
+            theme=theme,
         )
     arguments = (
         session_id,
@@ -86,7 +87,7 @@ async def significance_test(
         request_json.finish_date,
         request_json.n_simulations,
         request_json.random_seed,
-        request_json.theme,
+        theme,
         request_json.state,
     )
     # With `where` set, a research runner may run it instead (services/runner_queue.py).

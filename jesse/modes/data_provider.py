@@ -178,6 +178,21 @@ def get_config(client_config: dict, has_live=False) -> dict:
     }
 
 
+def get_chart_theme() -> str:
+    """
+    Return the color mode the dashboard last reported. Runs started without a browser
+    (MCP, scripts) have no theme of their own, so their chart images use this one.
+    """
+    database.open_connection()
+
+    from jesse.models.Option import Option
+
+    o = Option.get_or_none(Option.type == 'config')
+    theme = json.loads(o.json).get('theme') if o else None
+
+    return theme if theme in ('light', 'dark') else 'light'
+
+
 def update_config(client_config: dict):
     from jesse.services.db import database
     database.open_connection()

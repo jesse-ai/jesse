@@ -124,6 +124,17 @@ def test_where_defaults_to_auto_and_is_sent_with_the_start(monkeypatch, name):
     assert [payload['where'] for payload in jesse.starts()] == ['auto', 'macmini']
 
 
+@pytest.mark.parametrize('name', ['backtest', 'significance_test'])
+def test_chart_producing_runs_leave_the_theme_to_jesse(monkeypatch, name):
+    # regression: MCP runs always sent a light theme, so their chart images never
+    # followed the dashboard's theme.
+    jesse, run, _ = _drafted(monkeypatch, name)
+
+    run(SID)
+
+    assert jesse.starts()[0].get('theme') is None
+
+
 @pytest.mark.parametrize('name', sorted(RUNS))
 @pytest.mark.parametrize('where', ['', '   ', None, 5, ['local']])
 def test_an_invalid_where_is_refused_before_calling_jesse(monkeypatch, name, where):

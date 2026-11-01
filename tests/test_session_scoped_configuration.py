@@ -114,6 +114,7 @@ def test_backtest_persists_the_accepted_form_before_starting_worker(monkeypatch)
         'add_task',
         lambda *args: calls.append(('worker', args)),
     )
+    monkeypatch.setattr(backtest_controller, 'get_chart_theme', lambda: 'light')
 
     response = backtest_controller.backtest(_backtest_request(state))
 

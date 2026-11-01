@@ -497,7 +497,6 @@ def run_significance_test_service(session_id: str, where: str = DEFAULT_WHERE) -
             'finish_date': form.get('finish_date'),
             'n_simulations': int(form.get('n_simulations', 2000)),
             'random_seed': form.get('random_seed'),
-            'theme': 'light',
             'state': state if isinstance(state, dict) else {},
             'where': normalized_where(where),
         }
