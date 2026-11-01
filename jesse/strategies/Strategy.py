@@ -105,6 +105,7 @@ class Strategy(ABC):
         self._is_updating_chart = False
         self._is_initiated = False
         self._is_handling_updated_order = False
+        self._position_qty_at_last_event = None
 
         # both are set in _init_objects() right after instantiation
         self.position: Position = None  # type: ignore
@@ -554,6 +555,15 @@ class Strategy(ABC):
         # the position. We need to know what its effect was:
         before_qty = self.position.previous_qty
         after_qty = self.position.qty
+
+        # In live trading, an exchange can report fills the position already reflects (several partial
+        # fills seen at once, or resent ones). previous_qty only moves when the qty does, so without
+        # this they would repeat the last position event.
+        if jh.is_livetrading():
+            if after_qty == self._position_qty_at_last_event:
+                self._is_handling_updated_order = False
+                return
+            self._position_qty_at_last_event = after_qty
 
         # if opening position
         if abs(before_qty) <= abs(self.position._min_qty) < abs(after_qty):
