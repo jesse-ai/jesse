@@ -104,6 +104,34 @@ def remove_open_tab(module: str, session_id: str) -> List[str]:
     return get_open_tab_session_ids(module)
 
 
+def replace_open_tab(module: str, old_session_id: str, new_session_id: str) -> List[str]:
+    """
+    Point the tab of old_session_id at new_session_id, keeping its position, as the dashboard's
+    "New session" does. Without such a tab, the new session is simply added.
+    Returns ordered list of session IDs.
+    """
+    if jh.is_unit_testing():
+        return []
+
+    _ensure_db_open()
+
+    old_tab = OpenTab.select().where(
+        (OpenTab.module == module) & (OpenTab.session_id == old_session_id)
+    )
+    if not old_tab.exists():
+        return add_open_tab(module, new_session_id)
+
+    # A draft opened from its dashboard link already has a tab of its own.
+    OpenTab.delete().where(
+        (OpenTab.module == module) & (OpenTab.session_id == new_session_id)
+    ).execute()
+    OpenTab.update(session_id=new_session_id, updated_at=jh.now_to_timestamp(True)).where(
+        (OpenTab.module == module) & (OpenTab.session_id == old_session_id)
+    ).execute()
+
+    return get_open_tab_session_ids(module)
+
+
 def reorder_open_tabs(module: str, session_ids: List[str]) -> List[str]:
     """
     Reorder tabs to match the provided session_ids list.

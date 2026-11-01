@@ -106,6 +106,8 @@ class LiveRequestJson(BaseModel):
     data_routes: List[Dict[str, str]]
     debug_mode: bool
     paper_mode: bool
+    # The session this one follows; its dashboard tab is handed over once that session has stopped.
+    replaces_session_id: Optional[str] = None
 
 
 class LiveCancelRequestJson(BaseModel):

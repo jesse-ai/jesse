@@ -29,7 +29,8 @@ credential tools (`jesse://credentials`).
    is validated again; then the session itself checks the license and plan (allowed exchanges,
    routes, timeframes, and paper trading), connects to the exchange, and loads warm-up candles.
    Follow it with `get_session_results("live", session_id)` until `session_status` is `running`;
-   a license or plan refusal, or any other failure, shows up there as `error`.
+   a license or plan refusal, or any other failure, shows up there as `error`. A started session
+   opens in a dashboard Live tab on its own. See "Dashboard tabs".
 4. `stop_live_session(session_id)`: the dashboard's Stop button. See "What stopping does".
 5. `restart_live_session(session_id)`: run a session again after it stopped, crashed, or failed.
    See "Restarting a session".
@@ -40,6 +41,16 @@ credential tools (`jesse://credentials`).
    tab; it never touches the exchange account).
 
 Live and paper sessions do not use research credits.
+
+## Dashboard tabs
+
+Every started session gets a dashboard Live tab. A session started with `restart_live_session`, or
+from a draft made by `copy_live_session`, takes over the tab of the session it came from once that
+one has stopped, so editing a session several times leaves one tab, not a row of ended ones. A
+draft from `create_live_draft` does the same with the earlier session it reports as
+`earlier_session`. If that session is still running, both tabs stay open. The ended session stays
+in the history; only its tab goes. `delete_live_session` is refused while a session has a tab, so
+ask the user to close the tab of a session they want deleted.
 
 ## Restarting a session
 

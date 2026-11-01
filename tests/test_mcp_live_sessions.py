@@ -980,6 +980,55 @@ def test_a_copy_is_refused_when_its_saved_key_is_gone(jesse):
 
 
 # ---------------------------------------------------------------------------
+# Dashboard tabs
+# ---------------------------------------------------------------------------
+
+def _open_tabs() -> list:
+    return open_tab_repository.get_open_tab_session_ids('live')
+
+
+def test_a_started_session_gets_a_dashboard_tab(jesse):
+    session_id = _paper()['session_id']
+
+    live_service.start_live_session_service(session_id)
+
+    assert _open_tabs() == [session_id]
+
+
+def test_a_restart_takes_over_the_stopped_session_s_tab_and_its_position(jesse):
+    ended = _live_futures()['session_id']
+    _ran_and_stopped(ended)
+    other = str(uuid.uuid4())
+    open_tab_repository.add_open_tab('live', other)
+
+    restarted = live_service.restart_live_session_service(ended)['session_id']
+
+    assert _open_tabs() == [restarted, other]
+    assert _row(ended).status == 'stopped'
+
+
+def test_a_session_still_running_keeps_its_tab_beside_its_copy(jesse):
+    running = _paper()['session_id']
+    live_service.start_live_session_service(running)
+    copy = live_service.copy_live_session_service(running)['session_id']
+
+    live_service.start_live_session_service(copy)
+
+    assert _open_tabs() == [running, copy]
+
+
+def test_a_draft_with_its_own_tab_ends_up_with_one_tab(jesse):
+    ended = _live_futures()['session_id']
+    _ran_and_stopped(ended)
+    copy = live_service.copy_live_session_service(ended)['session_id']
+    open_tab_repository.add_open_tab('live', copy)
+
+    live_service.start_live_session_service(copy)
+
+    assert _open_tabs() == [copy]
+
+
+# ---------------------------------------------------------------------------
 # Delete
 # ---------------------------------------------------------------------------
 
@@ -998,6 +1047,11 @@ def test_delete_refuses_active_sessions_and_open_dashboard_tabs(jesse):
     assert live_service.delete_live_session_service(tabbed)['error_type'] == 'open_in_dashboard_tab'
 
     live_service.stop_live_session_service(running)
+    # A started session has its own tab, so it stays until that tab is closed too.
+    assert live_service.delete_live_session_service(running)['error_type'] == 'open_in_dashboard_tab'
+    removed = requests.post(f'{mcp_config.JESSE_API_URL}/tabs/remove', json={'module': 'live', 'id': running},
+                            headers={'Authorization': AUTH}, timeout=WAIT_SECONDS)
+    assert removed.status_code == 200
     deleted = live_service.delete_live_session_service(running)
     assert deleted['status'] == 'success' and 'never affected the exchange' in deleted['message']
     assert LiveSession.select().where(LiveSession.id == running).count() == 0

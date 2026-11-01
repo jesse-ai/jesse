@@ -7,9 +7,12 @@ same authenticated Jesse routes it calls.
   run configuration; shared settings are only read (see session_config.resolve_live_run_config).
   Every result says where the money settings (leverage, and a paper session's balance and fee)
   came from, and warns when one is only Jesse's built-in default. A new draft for routes that an
-  earlier session already ran on the same key (or paper exchange) points to that session.
+  earlier session already ran on the same key (or paper exchange) points to that session. A draft
+  stores the session it follows (the copied one, or that earlier run) as `source_session_id`.
 - Restart: copy + start in one call, for a session that ended. It never stops a session, and it
   does not start a copy whose money settings could not all be taken from the session it restarts.
+- Dashboard tabs: /live opens one for every started session and hands over the tab of the session
+  it follows once that one has stopped, so editing a session does not leave a trail of ended tabs.
 - Start: /live with the dashboard Start button's payload and no check of its own beyond the
   form validation: the license, the plan's allowed exchanges, route counts, and timeframes, the
   paper-trading plan requirement, and the exchange connection are all checked by the live plugin
@@ -520,9 +523,19 @@ def _describe(session_id: str, form: dict, context: dict, status: str) -> dict:
     }
 
 
-def _save_state(session_id: str, form: dict) -> None:
+def _session_source(session: dict) -> Optional[str]:
+    """The session a draft follows, whose dashboard tab it takes over when started."""
+    state = session.get('state') if isinstance(session.get('state'), dict) else {}
+    source = state.get('source_session_id')
+    return source if isinstance(source, str) and source else None
+
+
+def _save_state(session_id: str, form: dict, source_session_id: Optional[str] = None) -> None:
     """Store a draft's form; the route refuses (409) once the session is no longer a draft."""
-    response = _call('POST', '/live/update-state', {'id': session_id, 'state': {'form': form}, 'require_draft': True})
+    state: dict = {'form': form}
+    if source_session_id:
+        state['source_session_id'] = source_session_id
+    response = _call('POST', '/live/update-state', {'id': session_id, 'state': state, 'require_draft': True})
     if response.status_code == 409:
         raise _Failure(
             'not_draft',
@@ -625,8 +638,11 @@ def _copy_form(info: dict, source: dict) -> tuple[dict, dict]:
     return form, context
 
 
-def _post_start(session_id: str, form: dict) -> None:
-    """Send a validated draft form to /live with the dashboard Start button's payload."""
+def _post_start(session_id: str, form: dict, source_session_id: Optional[str] = None) -> None:
+    """
+    Send a validated draft form to /live with the dashboard Start button's payload, plus the
+    session this one follows, so the route can hand over that session's dashboard tab.
+    """
     response = _call('POST', '/live', {
         'id': session_id,
         'exchange': form['exchange'],
@@ -638,6 +654,7 @@ def _post_start(session_id: str, form: dict) -> None:
         'config': live_engine_config(form['config']),
         'debug_mode': form['debug_mode'],
         'paper_mode': form['paper_mode'],
+        **({'replaces_session_id': source_session_id} if source_session_id else {}),
     })
     if response.status_code == 409:
         raise _Failure('not_draft', f'Live session {session_id} was already started. Use copy_live_session for a new run.')
@@ -760,7 +777,7 @@ def create_live_draft_service(
     earlier, warnings = _earlier_run_note(form)
     context['warnings'] = context['warnings'] + warnings
     session_id = str(uuid.uuid4())
-    _save_state(session_id, form)
+    _save_state(session_id, form, earlier['session_id'] if earlier else None)
     _save_notes(session_id, title, description)
     return {
         'status': 'success',
@@ -823,7 +840,7 @@ def update_live_draft_service(
         if new_paper_mode and exchange_api_key_id is None and stored.get('exchange_api_key_id'):
             # The dashboard keeps a paper tab's key selection for switching back; so does MCP.
             form['exchange_api_key_id'] = stored['exchange_api_key_id']
-        _save_state(session_id, form)
+        _save_state(session_id, form, _session_source(session))
     return {
         'status': 'success',
         'action': 'live_draft_updated',
@@ -840,7 +857,7 @@ def copy_live_session_service(session_id: str, title: Optional[str] = None) -> d
     info = _local_info()
     form, context = _copy_form(info, _load_session(session_id))
     new_id = str(uuid.uuid4())
-    _save_state(new_id, form)
+    _save_state(new_id, form, session_id)
     _save_notes(new_id, title, None)
     return {
         'status': 'success',
@@ -874,7 +891,7 @@ def start_live_session_service(session_id: str) -> dict:
             overrides=None,
             key_explicit=False,
         )
-        _post_start(session_id, form)
+        _post_start(session_id, form, _session_source(session))
     return {
         'status': 'success',
         'action': 'live_session_started',
@@ -924,7 +941,7 @@ def restart_live_session_service(session_id: str, title: Optional[str] = None) -
                 dashboard_url=mcp_config.dashboard_url('live', running.get('id') or ''),
             )
         new_id = str(uuid.uuid4())
-        _save_state(new_id, form)
+        _save_state(new_id, form, session_id)
         _save_notes(new_id, title if title is not None else source.get('title'), None)
         not_copied = {path: source_name for path, source_name in context['config_source'].items() if source_name != 'copied'}
         if not_copied:
@@ -939,7 +956,7 @@ def restart_live_session_service(session_id: str, title: Optional[str] = None) -
                 config_source=context['config_source'],
                 dashboard_url=mcp_config.dashboard_url('live', new_id),
             )
-        _post_start(new_id, form)
+        _post_start(new_id, form, session_id)
     return {
         'status': 'success',
         'action': 'live_session_restarted',
