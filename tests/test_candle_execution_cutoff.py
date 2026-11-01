@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import pytest
 
@@ -18,6 +20,11 @@ SYMBOL = 'BTC-USDT'
 
 def _candle(open_time: int) -> np.ndarray:
     return np.array([open_time, 100, 101, 102, 99, 10], dtype=float)
+
+
+def _in_another_thread(work):
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(work).result()
 
 
 @pytest.fixture
@@ -64,3 +71,27 @@ def test_a_cutoff_before_every_candle_reads_nothing(stored):
 
     assert len(candle_service.get_candles(EXCHANGE, SYMBOL, '1m')) == 0
     assert len(candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')) == 0
+
+
+def test_only_the_thread_running_strategies_has_a_cutoff(stored):
+    store.candles.execution_cutoff = BOUNDARY
+
+    assert _in_another_thread(lambda: store.candles.execution_cutoff) is None
+    assert _in_another_thread(lambda: candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0]) == BOUNDARY
+    assert _in_another_thread(lambda: candle_service.get_candles(EXCHANGE, SYMBOL, '5m')[-1][0]) == BOUNDARY
+    assert candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0] == BOUNDARY - MINUTE
+
+
+def test_a_trade_during_a_late_run_goes_into_the_forming_candle(stored, monkeypatch):
+    store.candles.initiated_pairs[f'{EXCHANGE}-{SYMBOL}'] = True
+    monkeypatch.setattr(jh, 'now', lambda *args, **kwargs: BOUNDARY + 1000)
+    monkeypatch.setattr(candle_service, '_store_or_update_candle_into_db', lambda *args: None)
+    monkeypatch.setattr(candle_service, '_update_position_current_price', lambda *args: None)
+    store.candles.execution_cutoff = BOUNDARY
+
+    _in_another_thread(lambda: candle_service.add_candle_from_trade({'price': 105, 'volume': 3}, EXCHANGE, SYMBOL))
+
+    store.candles.execution_cutoff = None
+    closed, forming = candle_service.get_candles(EXCHANGE, SYMBOL, '1m')[-2:]
+    assert closed.tolist() == _candle(BOUNDARY - MINUTE).tolist()
+    assert forming.tolist() == [BOUNDARY, 100, 105, 105, 99, 13]
