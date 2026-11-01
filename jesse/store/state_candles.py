@@ -18,6 +18,9 @@ class CandlesState:
         # Direct simulator fixtures may omit warmup. Production loaders and
         # research requests enable this before enforcing configured route counts.
         self.enforce_warmup = False
+        # While live strategies run, the boundary they run for: candles that opened at or
+        # after it stay hidden, so a late run reads what an on-time one would have.
+        self.execution_cutoff = None
 
     def mark_all_as_initiated(self) -> None:
         for k in self.initiated_pairs:

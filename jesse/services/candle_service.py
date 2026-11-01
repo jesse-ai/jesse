@@ -740,6 +740,12 @@ def batch_add_candle(
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    cutoff = store.candles.execution_cutoff
+    if cutoff is not None:
+        array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
+        visible = array[:index + 1]
+        return visible[:np.searchsorted(visible[:, 0], cutoff)]
+
     # this runs on every single indicator call, so storage access is done with
     # plain dict lookups instead of going through forming_estimation +
     # get_storage (which rebuild the same key strings several times per call).
@@ -834,6 +840,10 @@ def _get_timestamp_bucket_candles(exchange: str, symbol: str, timeframe: str) ->
 
 
 def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    if store.candles.execution_cutoff is not None:
+        candles = get_candles(exchange, symbol, timeframe)
+        return candles[-1] if len(candles) else np.zeros((0, 6))
+
     # no need to worry for forming candles when timeframe == 1m
     if timeframe == '1m':
         arr: DynamicNumpyArray = store.candles.get_storage(exchange, symbol, '1m')
