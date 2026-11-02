@@ -15,26 +15,40 @@ from jesse.services.db import database
 from fastapi.responses import StreamingResponse
 
 
-def get_candles(exchange: str, symbol: str, timeframe: str):
+def _get_live_candle_settings(session_id: str | None) -> tuple[int, bool]:
+    """
+    Return the warm-up candles and 1m generation setting for a live chart. A session keeps
+    the ones it started with, so the chart reads the same candles the session does.
+    """
+    from jesse.models.Option import Option
+    from jesse.repositories import live_session_repository
+
+    settings = dict(json.loads(Option.get(Option.type == 'config').json)['live'])
+
+    # Other callers send an id of their own, and a malformed one would fail the query.
+    is_session_id = session_id is not None and jh.is_valid_uuid(session_id)
+    session = live_session_repository.get_live_session_by_id(session_id) if is_session_id else None
+    session_config = session.state_json.get('form', {}).get('config') if session else None
+    if isinstance(session_config, dict):
+        for key in ('warm_up_candles', 'generate_candles_from_1m'):
+            if key in session_config:
+                settings[key] = session_config[key]
+
+    return settings['warm_up_candles'], settings['generate_candles_from_1m']
+
+
+def get_candles(exchange: str, symbol: str, timeframe: str, session_id: str | None = None):
     from jesse.services.db import database
     database.open_connection()
 
     if 'hyperliquid' not in exchange.lower():
         symbol = symbol.upper()
 
-    # fetch the current value for warmup_candles from the database
-    from jesse.models.Option import Option
-    o = Option.get(Option.type == 'config')
-    db_config = json.loads(o.json)
-    warmup_candles_num = db_config['live']['warm_up_candles']
+    warmup_candles_num, generate_candles_from_1m = _get_live_candle_settings(session_id)
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
     start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
-
-    # fetch value of generate_candles_from_1m fresh from the database
-    o = Option.get(Option.type == 'config')
-    generate_candles_from_1m: bool = json.loads(o.json)['live']['generate_candles_from_1m']
 
     # fetch 1m candles from database
     if generate_candles_from_1m:

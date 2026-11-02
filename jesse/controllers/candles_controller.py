@@ -300,7 +300,8 @@ def get_candles(json_request: GetCandlesRequestJson) -> JSONResponse:
 
     from jesse.modes.data_provider import get_candles as gc
 
-    arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe)
+    # A live session's chart sends the session's id; other callers send an id of their own.
+    arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe, json_request.id)
 
     return JSONResponse({
         'id': json_request.id,
