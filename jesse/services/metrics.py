@@ -153,8 +153,9 @@ def calmar_ratio(returns):
     with np.errstate(over='ignore', under='ignore'):
         cagr_ratio = ratio ** (1 / years) - 1
 
-    # Calculate Max Drawdown using cumulative returns
-    cum_returns = (1 + returns).cumprod()
+    # Calculate Max Drawdown using cumulative returns. The first return of a balance is NaN, and
+    # counting it as 0 keeps the starting balance as the first peak.
+    cum_returns = (1 + returns.fillna(0)).cumprod()
     rolling_max = cum_returns.expanding(min_periods=1).max()
     drawdown = cum_returns / rolling_max - 1
     max_dd = abs(drawdown.min())
@@ -170,7 +171,9 @@ def max_drawdown(returns):
     """
     Calculates the maximum drawdown
     """
-    prices = (returns + 1).cumprod()
+    # The first return of a balance is NaN, and counting it as 0 keeps the starting balance as the
+    # first peak. Skipping it would miss a fall that starts from there.
+    prices = (returns.fillna(0) + 1).cumprod()
     result = (prices / prices.expanding(min_periods=0).max()).min() - 1
 
     # Always convert to pandas Series
@@ -298,7 +301,9 @@ def serenity_index(returns, rf=0):
     Calculates the serenity index score
     """
     dd = to_drawdown_series(returns)
-    pitfall = -conditional_value_at_risk(dd) / returns.std()
+    # Drawdowns are never positive, so this is its size. Negating it instead would turn the zero
+    # of a balance that never fell into -0, which flips that balance's index to -infinity.
+    pitfall = abs(conditional_value_at_risk(dd)) / returns.std()
     result = (returns.sum() - rf) / (ulcer_index(returns) * pitfall)
 
     # Always convert to pandas Series
@@ -317,7 +322,9 @@ def to_drawdown_series(returns):
     """
     Convert returns series to drawdown series
     """
-    prices = (1 + returns).cumprod()
+    # Daily returns come from pct_change(), whose first value is NaN. That row is the starting
+    # balance, the first peak to measure from, and a NaN there would spread through every peak.
+    prices = (1 + returns.fillna(0)).cumprod()
     dd = prices / np.maximum.accumulate(prices) - 1.0
     return dd.replace([np.inf, -np.inf, -0], 0)
 

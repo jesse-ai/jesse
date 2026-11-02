@@ -59,6 +59,14 @@ def _fitness(objective: str, monkeypatch) -> tuple:
     return score, training_metrics, log
 
 
+def test_the_serenity_objective_gives_a_score_trials_can_be_ranked_by(monkeypatch) -> None:
+    # regression: every profitable trial scored infinity, so the optimizer couldn't rank them
+    score, training_metrics, _ = _fitness('serenity', monkeypatch)
+
+    assert math.isfinite(training_metrics['serenity_index'])
+    assert math.isfinite(score)
+
+
 @pytest.mark.parametrize('objective', OBJECTIVES)
 def test_every_offered_objective_reads_a_metric_the_backtest_emits(objective, monkeypatch) -> None:
     score, training_metrics, log = _fitness(objective, monkeypatch)
