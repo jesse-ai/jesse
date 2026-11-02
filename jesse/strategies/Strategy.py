@@ -1741,8 +1741,16 @@ class Strategy(ABC):
 
         if self.position.pnl > 0:
             self.take_profit = self.position.qty, self.price
+            other_exits = [o for o in self.active_exit_orders if o.is_stop_loss]
         else:
             self.stop_loss = self.position.qty, self.price
+            other_exits = [o for o in self.active_exit_orders if o.is_take_profit]
+
+        # on spot, the exits this order doesn't replace hold the base asset it has to sell
+        if self.is_spot_trading:
+            for o in other_exits:
+                if o.is_active or o.is_queued:
+                    self.broker.cancel_order(o.id)
 
     @property
     def shared_vars(self) -> dict:

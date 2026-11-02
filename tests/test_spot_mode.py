@@ -1,6 +1,8 @@
 from jesse.testing_utils import single_route_backtest
 import pytest
 from jesse import exceptions
+from jesse.services import metrics
+from jesse.store import store
 
 
 def test_should_be_able_to_short_in_spot_mode():
@@ -92,6 +94,49 @@ def test_balances_are_handled_correctly_for_cancelling_orders_in_spot():
     )
 
 
+@pytest.mark.parametrize('trend', ['up', 'down'])
+def test_sell_order_sums_follow_resting_orders_in_spot(trend):
+    single_route_backtest(
+        'TestSpotSellOrderSumsFollowRestingOrders',
+        is_futures_trading=False,
+        trend=trend
+    )
+
+
+@pytest.mark.parametrize('strategy_name', [
+    'TestCannotOversellByReplacingTakeProfitInSpot',
+    'TestCannotOversellByReplacingStopLossInSpot',
+])
+def test_replacing_exit_orders_cannot_oversell_in_spot(strategy_name):
+    with pytest.raises(exceptions.InsufficientBalance):
+        single_route_backtest(strategy_name, is_futures_trading=False)
+
+
+def test_split_exits_within_a_rounding_error_of_the_balance_are_not_an_oversell():
+    single_route_backtest(
+        'TestSplitExitsWithinRoundingErrorOfBalanceInSpot',
+        is_futures_trading=False,
+        fee=0.001
+    )
+
+
+@pytest.mark.parametrize('is_futures_trading', [False, True], ids=['spot', 'futures'])
+def test_liquidate_at_a_loss_cancels_resting_take_profit(is_futures_trading):
+    single_route_backtest(
+        'TestLiquidateAtALossCancelsRestingTakeProfit',
+        is_futures_trading=is_futures_trading,
+        trend='down'
+    )
+
+
+@pytest.mark.parametrize('is_futures_trading', [False, True], ids=['spot', 'futures'])
+def test_liquidate_at_a_profit_cancels_resting_stop_loss(is_futures_trading):
+    single_route_backtest(
+        'TestLiquidateAtAProfitCancelsRestingStopLoss',
+        is_futures_trading=is_futures_trading
+    )
+
+
 def test_position_open_increase_reduce_close_events_in_spot():
     single_route_backtest(
         'TestPositionOpenIncreaseReduceCloseEventsInSpot',
@@ -106,6 +151,25 @@ def test_balance_and_fee_reduction_works_correctly_in_spot_mode_in_both_buy_and_
         is_futures_trading=False,
         fee=0.001
     )
+
+
+@pytest.mark.parametrize('is_futures_trading', [False, True], ids=['spot', 'futures'])
+@pytest.mark.parametrize('trend', ['up', 'down'])
+def test_net_profit_agrees_with_finishing_balance(trend, is_futures_trading):
+    single_route_backtest(
+        'TestTradePnlMatchesWalletChange',
+        is_futures_trading=is_futures_trading,
+        trend=trend,
+        fee=0.001
+    )
+
+    stats = metrics.trades(store.closed_trades.trades, store.app.daily_balance)
+
+    assert stats['total'] == 3
+    assert stats['total_open_trades'] == 1
+    assert stats['fee'] > 0
+    assert (stats['net_profit'] > 0) == (trend == 'up')
+    assert round(stats['finishing_balance'] - stats['starting_balance'], 8) == round(stats['net_profit'], 8)
 
 
 def test_cannot_set_stop_loss_order_in_go_long():

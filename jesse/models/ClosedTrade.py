@@ -108,8 +108,9 @@ class ClosedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        # calculate raw profit/loss
-        qty = abs(self.qty)
+        # calculate raw profit/loss. A spot buy pays its fee in the base asset, so
+        # only the qty left after that fee was ever held and sold.
+        qty = self.exit_qty if self.is_spot else abs(self.qty)
         profit = qty * (self.exit_price - self.entry_price)
         
         if self.type == 'short':
@@ -156,11 +157,25 @@ class ClosedTrade(peewee.Model):
         return self.type == trade_types.SHORT
 
     @property
+    def is_spot(self) -> bool:
+        from jesse.modes.utils import get_exchange_type
+        return get_exchange_type(self.exchange) == 'spot'
+
+    @property
     def qty(self) -> float:
         if self.is_long:
             return self.buy_orders[:][:, 0].sum()
         elif self.is_short:
             return self.sell_orders[:][:, 0].sum()
+        else:
+            return 0.0
+
+    @property
+    def exit_qty(self) -> float:
+        if self.is_long:
+            return self.sell_orders[:][:, 0].sum()
+        elif self.is_short:
+            return self.buy_orders[:][:, 0].sum()
         else:
             return 0.0
 
