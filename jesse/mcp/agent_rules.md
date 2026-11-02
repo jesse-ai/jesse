@@ -31,6 +31,7 @@ Use MCP Tools For:
 - Importing, inspecting, copying, exporting, and deleting candle data (the dashboard's candle pages)
 - Managing configuration settings
 - Saving the mandatory Markdown reports (`save_strategy_report`)
+- PDF reports of backtests, only when the user asks for one: `create_backtest_draft(export_pdf=true)`, run it, then `export_backtest_report`
 - Files inside the project's `strategies/` and `research_scripts/` folders (project file tools)
 - Running research scripts, only under the opt-in rule below
 - Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`), and Jesse's recorded live/paper trades and orders by date window across sessions (`get_live_trades`, `get_live_orders`)

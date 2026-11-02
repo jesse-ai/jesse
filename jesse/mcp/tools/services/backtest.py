@@ -91,6 +91,7 @@ def _build_default_backtest_description(
     export_chart: bool,
     fast_mode: bool,
     benchmark: bool,
+    export_pdf: bool = False,
     strategy_summary: Optional[str] = None,
     change_summary: Optional[str] = None,
     rationale: Optional[str] = None
@@ -103,6 +104,8 @@ def _build_default_backtest_description(
         options.append("CSV export")
     if export_json:
         options.append("JSON export")
+    if export_pdf:
+        options.append("PDF report")
     if export_chart:
         options.append("chart export")
     if fast_mode:
@@ -221,6 +224,7 @@ def create_backtest_draft_service(
     balance: Optional[float] = None,
     warm_up_candles: Optional[int] = None,
     config_overrides: Optional[str] = None,
+    export_pdf: bool = False,
 ) -> dict:
     """
     Create a new backtest draft with specified configuration.
@@ -248,6 +252,7 @@ def create_backtest_draft_service(
         fee, leverage, leverage_mode, balance, warm_up_candles: Optional run settings; omitted
             ones come from the saved settings for backtests on this exchange, else Jesse's defaults.
         config_overrides: Optional JSON object with any other run-config field (logging).
+        export_pdf: Keep what the PDF report needs. Only when the user asks for one.
 
     Returns:
         Success confirmation with new session ID
@@ -310,6 +315,7 @@ def create_backtest_draft_service(
                 'debug_mode': debug_mode,
                 'export_csv': export_csv,
                 'export_json': export_json,
+                'export_pdf': export_pdf,
                 'export_chart': export_chart,
                 'fast_mode': fast_mode,
                 'benchmark': benchmark,
@@ -343,6 +349,7 @@ def create_backtest_draft_service(
             debug_mode=debug_mode,
             export_csv=export_csv,
             export_json=export_json,
+            export_pdf=export_pdf,
             export_chart=export_chart,
             fast_mode=fast_mode,
             benchmark=benchmark,
@@ -916,6 +923,56 @@ def run_backtest_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
     except Exception as e:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to run backtest'}
+
+
+def export_backtest_report_service(session_id: str, path: Optional[str] = None, overwrite: bool = False) -> dict:
+    """
+    Write the PDF report of a finished backtest into the Jesse project (research_scripts/).
+
+    It is written on the Jesse host; nothing is sent to the assistant except the summary.
+    """
+    try:
+        response = requests.post(
+            f'{mcp_config.JESSE_API_URL}/backtest/sessions/{session_id}/report/export-to-project',
+            json={'path': path, 'overwrite': bool(overwrite)},
+            headers={'Authorization': hash_password(mcp_config.JESSE_PASSWORD)},
+            timeout=60,
+        )
+    except requests.exceptions.RequestException as e:
+        return {
+            'status': 'error',
+            'action': 'backtest_report_export_failed',
+            'session_id': session_id,
+            'error_type': 'network_error',
+            'message': f'Network error during report export: {str(e)}',
+        }
+
+    payload = response_body(response)
+    if response.status_code != 201:
+        return {
+            'status': 'error',
+            'action': 'backtest_report_export_failed',
+            'session_id': session_id,
+            'error_type': payload.get('error_type') or 'api_error',
+            'http_status': response.status_code,
+            'message': f"Failed to export the report: {payload.get('error') or response.text}",
+        }
+
+    dashboard_url = mcp_config.dashboard_url('backtest', session_id)
+    return {
+        'status': 'success',
+        'action': 'backtest_report_exported',
+        'session_id': session_id,
+        'location': "Jesse project on the Jesse host (not the assistant's machine)",
+        'path': payload.get('path'),
+        'overwritten': payload.get('overwritten'),
+        'size_bytes': payload.get('size_bytes'),
+        'dashboard_url': dashboard_url,
+        'message': (
+            f"Wrote the PDF report to {payload.get('path')} in the Jesse project. To download it to your "
+            "own computer, open the session on the dashboard and click PDF report."
+        ),
+    }
 
 
 def cancel_backtest_service(session_id: str) -> dict:

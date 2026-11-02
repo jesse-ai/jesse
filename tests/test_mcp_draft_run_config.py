@@ -250,6 +250,75 @@ def test_backtest_run_sends_the_fee_the_draft_was_created_with(monkeypatch, save
     assert (engine_exchange['fee'], engine_exchange['futures_leverage']) == (0.0003, 7)
 
 
+@pytest.mark.parametrize('arguments, expected', [({}, False), ({'export_pdf': True}, True)])
+def test_a_backtest_keeps_its_report_only_when_the_draft_asks(monkeypatch, saved_settings, arguments, expected):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        if url.endswith('/backtest/update-state') or url.endswith('/notes'):
+            return _Ok()
+        if url.endswith('/backtest/sessions/draft-id'):
+            state = calls[0][1]['json']['state']
+            return SimpleNamespace(status_code=200, text='', json=lambda: {'session': {'state': state}})
+        if url.endswith('/backtest'):
+            return SimpleNamespace(status_code=202, text='')
+        raise AssertionError(url)
+
+    monkeypatch.setattr(backtest_service.requests, 'post', post)
+    monkeypatch.setattr(backtest_service, 'hash_password', lambda password: 'hashed')
+    monkeypatch.setattr(backtest_service.uuid, 'uuid4', lambda: 'draft-id')
+
+    backtest_service.create_backtest_draft_service(exchange=FUTURES, routes=_route(), **arguments)
+    started = backtest_service.run_backtest_service('draft-id')
+
+    assert started['status'] == 'started'
+    assert calls[0][1]['json']['state']['form']['export_pdf'] is expected
+    assert calls[-1][1]['json']['export_pdf'] is expected
+
+
+def test_exporting_a_report_points_the_user_to_the_dashboard(monkeypatch):
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        return SimpleNamespace(status_code=201, text='', json=lambda: {'path': 'research_scripts/backtest_reports/a.pdf', 'size_bytes': 10, 'overwritten': False})
+
+    monkeypatch.setattr(backtest_service.requests, 'post', post)
+    monkeypatch.setattr(backtest_service, 'hash_password', lambda password: 'hashed')
+    monkeypatch.setattr(backtest_service.mcp_config, 'dashboard_url', lambda kind, session_id: f'http://jesse.test/#/{kind}/{session_id}')
+
+    result = backtest_service.export_backtest_report_service('session-id', overwrite=True)
+
+    assert calls[0][0].endswith('/backtest/sessions/session-id/report/export-to-project')
+    assert calls[0][1]['json'] == {'path': None, 'overwrite': True}
+    assert result['status'] == 'success'
+    assert result['path'] == 'research_scripts/backtest_reports/a.pdf'
+    assert result['dashboard_url'] == 'http://jesse.test/#/backtest/session-id'
+
+
+def test_exporting_a_backtest_without_a_report_explains_itself(monkeypatch):
+    refusal = {'error_type': 'no_report', 'error': 'Run it with the Export PDF option.'}
+    monkeypatch.setattr(backtest_service.requests, 'post', lambda url, **kwargs: SimpleNamespace(status_code=404, text='', json=lambda: refusal))
+    monkeypatch.setattr(backtest_service, 'hash_password', lambda password: 'hashed')
+
+    result = backtest_service.export_backtest_report_service('session-id')
+
+    assert result['status'] == 'error'
+    assert result['error_type'] == 'no_report'
+    assert 'Export PDF' in result['message']
+
+
+def test_a_network_failure_during_a_report_export_is_reported(monkeypatch):
+    def post(url, **kwargs):
+        raise backtest_service.requests.exceptions.ConnectionError('down')
+
+    monkeypatch.setattr(backtest_service.requests, 'post', post)
+    monkeypatch.setattr(backtest_service, 'hash_password', lambda password: 'hashed')
+
+    assert backtest_service.export_backtest_report_service('session-id')['error_type'] == 'network_error'
+
+
 # ---------------------------------------------------------------------------
 # Partial updates
 # ---------------------------------------------------------------------------

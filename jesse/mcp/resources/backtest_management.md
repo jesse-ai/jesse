@@ -10,7 +10,7 @@ Parameters:
 - `data_routes` (optional): JSON string array of data route configurations
 - `start_date` (optional): Backtest start date (default: "2024-01-01")
 - `finish_date` (optional): Backtest end date (default: "2024-03-01")
-- Additional options: debug_mode, export_csv, export_json, export_chart, fast_mode, benchmark
+- Additional options: debug_mode, export_csv, export_json, export_pdf, export_chart, fast_mode, benchmark
 - `title` (optional): Note title for the MCP-created session. If omitted, MCP generates one with an `MCP Backtest:` prefix.
 - `description` (optional): Full note description. If omitted, MCP generates a short markdown summary.
 - `strategy_summary` (optional): One-sentence summary of the strategy being tested.
@@ -29,6 +29,7 @@ Default Configuration:
     "debug_mode": false,
     "export_csv": false,
     "export_json": false,
+    "export_pdf": false,
     "export_chart": true,
     "fast_mode": true,
     "benchmark": true
@@ -207,6 +208,19 @@ Parameters:
 - `days_old` (optional): Age threshold in days (null deletes all sessions)
 
 Returns: Number of deleted sessions
+
+### export_backtest_report()
+
+Writes the PDF report of a finished backtest into the Jesse project. Use it only when the user asks for a PDF: leave `export_pdf` false otherwise.
+
+To give the user a PDF, create the draft with `export_pdf=true`, run it, wait for it, then call this tool. A backtest that ran without `export_pdf`, or made no trades, returns `error_type: "no_report"`, and only running it again with `export_pdf=true` gives it a report.
+
+Parameters:
+- `session_id`: UUID of the finished backtest
+- `path` (optional): Project-relative `.pdf` path under `research_scripts/` (default `research_scripts/backtest_reports/<name>.pdf`)
+- `overwrite` (optional, default `false`): Replace an existing file
+
+Returns: `path`, `size_bytes`, `overwritten` and `dashboard_url`. The file stays on the Jesse host. To get it onto the user's own computer, give them `dashboard_url`: the session's page has a PDF report button.
 
 ### save_strategy_report()
 

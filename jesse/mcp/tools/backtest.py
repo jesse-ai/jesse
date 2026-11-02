@@ -26,6 +26,7 @@ from .services import (
     get_backtest_sessions_service,
     run_backtest_service,
     cancel_backtest_service,
+    export_backtest_report_service,
     purge_backtest_sessions_service
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
@@ -69,6 +70,7 @@ def register_backtest_tools(mcp):
         balance: float = None,
         warm_up_candles: int = None,
         config_overrides: ConfigOverrides = None,
+        export_pdf: bool = False,
     ) -> dict:
         """
         Create a new backtest draft session with specified parameters.
@@ -122,6 +124,8 @@ def register_backtest_tools(mcp):
             warm_up_candles: Candles loaded before the start date to warm up indicators.
             config_overrides: JSON object with any other run-config field: logging (the log flags),
                 e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+            export_pdf (bool): Keep what the PDF report needs. Defaults to False: set it only when the
+                user asks for a PDF report, then call export_backtest_report() after the run.
         Set these here instead of editing the draft state afterwards. The response's `run_config` is
         exactly what the draft will run with, `config_source` says where each value came from
         (explicit / saved_default / exchange_default / hard_default), and `config_warnings` flags a
@@ -171,6 +175,7 @@ def register_backtest_tools(mcp):
             balance=balance,
             warm_up_candles=warm_up_candles,
             config_overrides=config_overrides,
+            export_pdf=export_pdf,
         )
 
     @mcp.tool()
@@ -568,6 +573,30 @@ def register_backtest_tools(mcp):
         if refused:
             return refused
         return await run_blocking(gated_run_backtest, session_id, where)
+
+    @mcp.tool()
+    async def export_backtest_report(session_id: str, path: str = None, overwrite: bool = False) -> dict:
+        """
+        Write the PDF report of a finished backtest into the Jesse project.
+
+        Use it only when the user asks for a PDF report. It works on a backtest that ran with
+        export_pdf=True and made at least one trade; any other is refused with error_type
+        "no_report", and running it again with export_pdf=True is what gives it a report.
+
+        The file stays on the Jesse host; only a summary comes back. To get it onto the user's own
+        computer, give them `dashboard_url`: the session's page has a PDF report button.
+
+        Parameters:
+            session_id (str): UUID string of the finished backtest session.
+            path (str, optional): Project-relative .pdf path under research_scripts/ (default
+                research_scripts/backtest_reports/<name>.pdf).
+            overwrite (bool): Replace an existing file. Defaults to False.
+
+        Returns:
+            dict: {"status": "success", "action": "backtest_report_exported", "session_id", "location",
+            "path", "overwritten", "size_bytes", "dashboard_url", "message"} or an error with error_type.
+        """
+        return await run_blocking(export_backtest_report_service, session_id=session_id, path=path, overwrite=overwrite)
 
     @mcp.tool()
     async def cancel_backtest(session_id: str) -> dict:
