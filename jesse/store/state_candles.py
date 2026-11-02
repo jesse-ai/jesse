@@ -30,8 +30,10 @@ class CandlesState:
     def execution_cutoff(self) -> int | None:
         """
         While live strategies run, the boundary they run for: candles that opened at or after
-        it stay hidden, so a late run reads what an on-time one would have. Only the thread
-        that set it sees it, as the threads adding candles must keep reading the latest one.
+        it stay hidden. Strategies rely on it to run on closed candles: a late run can find the
+        next candle started, and on exchanges without a candle stream an on-time run can too,
+        as a trade starts its candle right at the boundary. Only the thread that set it sees
+        it, as the threads adding candles must keep reading the latest one.
         """
         return self._thread_state.execution_cutoff
 
