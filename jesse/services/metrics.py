@@ -351,6 +351,86 @@ def conditional_value_at_risk(returns, sigma=1, confidence=0.95):
     return c_var if ~np.isnan(c_var) else 0
 
 
+def safe_convert(value, convert_type=float):
+    """Convert a metric to a plain number, keeping an undefined one as NaN."""
+    try:
+        if isinstance(value, pd.Series):
+            value = value.iloc[0]
+        if np.isnan(value):
+            return np.nan
+        return convert_type(value)
+    except BaseException:
+        return np.nan
+
+
+def balance_metrics(daily_balance: list, timestamps: list, annualization: int) -> dict:
+    """
+    Calculate the metrics that depend only on a balance series, so a strategy and a
+    buy-and-hold benchmark are measured the same way
+    Args:
+        daily_balance: List of daily balances
+        timestamps: Sample timestamps in milliseconds, one per balance
+        annualization: Periods per year used to annualize the observation-based ratios
+    Returns:
+        Dict of metric name -> value, NaN when the series can't define that metric
+    """
+    has_balance_timestamps = len(timestamps) == len(daily_balance)
+    if has_balance_timestamps:
+        date_index = pd.to_datetime(timestamps, unit='ms', utc=True)
+        daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
+    else:
+        # Risk ratios can still use the observed returns, but elapsed-time ratios
+        # must remain undefined when a caller did not provide matching timestamps.
+        daily_return = pd.DataFrame(daily_balance).pct_change(1)
+
+    # CAGR and Calmar use elapsed timestamps; this factor annualizes observation-based ratios.
+    max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
+    max_underwater_period = (
+        np.nan
+        if len(daily_balance) < 2
+        else calculate_max_underwater_period(daily_balance, timestamps if has_balance_timestamps else None)
+    )
+    annual_return = (
+        np.nan
+        if len(daily_return) < 2 or not has_balance_timestamps
+        else cagr(daily_return, periods=annualization).iloc[0] * 100
+    )
+    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization).iloc[0]
+    calmar = (
+        np.nan
+        if len(daily_return) < 2 or not has_balance_timestamps
+        else calmar_ratio(daily_return).iloc[0]
+    )
+    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization).iloc[0]
+    smart_sharpe = (
+        np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization, smart=True).iloc[0]
+    )
+    smart_sortino = (
+        np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization, smart=True).iloc[0]
+    )
+    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=annualization).iloc[0]
+    serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
+    # A flat month (no change in balance) counts as neither positive nor negative.
+    month_returns = list(monthly_returns(daily_balance, timestamps).values())
+    positive_months = np.nan if not has_balance_timestamps else sum(r > 0 for r in month_returns)
+    negative_months = np.nan if not has_balance_timestamps else sum(r < 0 for r in month_returns)
+
+    return {
+        'max_drawdown': safe_convert(max_dd),
+        'max_underwater_period': safe_convert(max_underwater_period),
+        'annual_return': safe_convert(annual_return),
+        'sharpe_ratio': safe_convert(sharpe),
+        'calmar_ratio': safe_convert(calmar),
+        'sortino_ratio': safe_convert(sortino),
+        'smart_sharpe': safe_convert(smart_sharpe),
+        'smart_sortino': safe_convert(smart_sortino),
+        'omega_ratio': safe_convert(omega),
+        'serenity_index': safe_convert(serenity),
+        'positive_months': safe_convert(positive_months, int),
+        'negative_months': safe_convert(negative_months, int),
+    }
+
+
 def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = True) -> dict:
     annualization = jh.get_config('env.metrics.annualization', 365)
     starting_balance = 0
@@ -425,16 +505,6 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
     gross_profit = winning_trades['PNL'].sum()
     gross_loss = losing_trades['PNL'].sum()
 
-    balance_timestamps = store.app.daily_balance_timestamps
-    has_balance_timestamps = len(balance_timestamps) == len(daily_balance)
-    if has_balance_timestamps:
-        date_index = pd.to_datetime(balance_timestamps, unit='ms', utc=True)
-        daily_return = pd.DataFrame(daily_balance, index=date_index).pct_change(1)
-    else:
-        # Risk ratios can still use the observed returns, but elapsed-time ratios
-        # must remain undefined when a caller did not provide matching timestamps.
-        daily_return = pd.DataFrame(daily_balance).pct_change(1)
-
     total_open_trades = store.app.total_open_trades
     open_pl = store.app.total_open_pl
 
@@ -447,49 +517,6 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         avg_trades_per_day = 0
     avg_trades_per_week = avg_trades_per_day * 7
     avg_trades_per_month = avg_trades_per_day * 30.44
-
-    # Helper function to safely convert values
-    def safe_convert(value, convert_type=float):
-        try:
-            if isinstance(value, pd.Series):
-                value = value.iloc[0]
-            if np.isnan(value):
-                return np.nan
-            return convert_type(value)
-        except BaseException:
-            return np.nan
-
-    # CAGR and Calmar use elapsed timestamps; this factor annualizes observation-based ratios.
-    max_dd = np.nan if len(daily_return) < 2 else max_drawdown(daily_return).iloc[0] * 100
-    max_underwater_period = (
-        np.nan
-        if len(daily_balance) < 2
-        else calculate_max_underwater_period(daily_balance, balance_timestamps if has_balance_timestamps else None)
-    )
-    annual_return = (
-        np.nan
-        if len(daily_return) < 2 or not has_balance_timestamps
-        else cagr(daily_return, periods=annualization).iloc[0] * 100
-    )
-    sharpe = np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization).iloc[0]
-    calmar = (
-        np.nan
-        if len(daily_return) < 2 or not has_balance_timestamps
-        else calmar_ratio(daily_return).iloc[0]
-    )
-    sortino = np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization).iloc[0]
-    smart_sharpe = (
-        np.nan if len(daily_return) < 2 else sharpe_ratio(daily_return, periods=annualization, smart=True).iloc[0]
-    )
-    smart_sortino = (
-        np.nan if len(daily_return) < 2 else sortino_ratio(daily_return, periods=annualization, smart=True).iloc[0]
-    )
-    omega = np.nan if len(daily_return) < 2 else omega_ratio(daily_return, periods=annualization).iloc[0]
-    serenity = np.nan if len(daily_return) < 2 else serenity_index(daily_return).iloc[0]
-    # A flat month (no change in balance) counts as neither positive nor negative.
-    month_returns = list(monthly_returns(daily_balance, balance_timestamps).values())
-    positive_months = np.nan if not has_balance_timestamps else sum(r > 0 for r in month_returns)
-    negative_months = np.nan if not has_balance_timestamps else sum(r < 0 for r in month_returns)
 
     return {
         'total': safe_convert(total_completed, int),
@@ -518,17 +545,8 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'average_losing_holding_period': safe_convert(average_losing_holding_period),
         'gross_profit': safe_convert(gross_profit),
         'gross_loss': safe_convert(gross_loss),
-        'max_drawdown': safe_convert(max_dd),
-        'max_underwater_period': safe_convert(max_underwater_period),
-        'annual_return': safe_convert(annual_return),
         'annualization': annualization,
-        'sharpe_ratio': safe_convert(sharpe),
-        'calmar_ratio': safe_convert(calmar),
-        'sortino_ratio': safe_convert(sortino),
-        'smart_sharpe': safe_convert(smart_sharpe),
-        'smart_sortino': safe_convert(smart_sortino),
-        'omega_ratio': safe_convert(omega),
-        'serenity_index': safe_convert(serenity),
+        **balance_metrics(daily_balance, store.app.daily_balance_timestamps, annualization),
         'total_open_trades': safe_convert(total_open_trades, int),
         'open_pl': safe_convert(open_pl),
         'winning_streak': safe_convert(winning_streak, int),
@@ -539,8 +557,6 @@ def trades(trades_list: List[ClosedTrade], daily_balance: list, final: bool = Tr
         'avg_trades_per_day': safe_convert(avg_trades_per_day),
         'avg_trades_per_week': safe_convert(avg_trades_per_week),
         'avg_trades_per_month': safe_convert(avg_trades_per_month),
-        'positive_months': safe_convert(positive_months, int),
-        'negative_months': safe_convert(negative_months, int),
     }
 
 

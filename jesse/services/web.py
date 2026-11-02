@@ -40,6 +40,7 @@ class BacktestRequestJson(BaseModel):
     # Omitted by runs without a browser (MCP), which use the stored dashboard theme.
     theme: Optional[str] = None
     state: dict
+    export_pdf: bool = False
 
     @model_validator(mode='after')
     def validate_date_range(self):
@@ -379,6 +380,12 @@ class DeleteCandlesRequestJson(BaseModel):
 
 class PurgeCandlesRequestJson(BaseModel):
     exchanges: List[str]
+
+
+class ExportBacktestReportRequestJson(BaseModel):
+    # Project-relative PDF path under research_scripts/; defaults to research_scripts/backtest_reports/<name>.pdf.
+    path: Optional[str] = None
+    overwrite: bool = False
 
 
 class ExportCandlesToProjectRequestJson(BaseModel):

@@ -89,7 +89,7 @@ def test_a_backtest_without_a_theme_uses_the_stored_one(backtest_client):
     response = client.post('/backtest', json=_backtest_payload(), headers=_headers())
 
     assert response.status_code == 202
-    assert started[0][-1] == 'dark'
+    assert started[0][-2] == 'dark'
 
 
 def test_a_backtest_keeps_the_theme_it_was_sent(backtest_client):
@@ -98,7 +98,16 @@ def test_a_backtest_keeps_the_theme_it_was_sent(backtest_client):
     response = client.post('/backtest', json=_backtest_payload(theme='light'), headers=_headers())
 
     assert response.status_code == 202
-    assert started[0][-1] == 'light'
+    assert started[0][-2] == 'light'
+
+
+def test_a_backtest_keeps_its_report_only_when_asked(backtest_client):
+    client, started = backtest_client
+
+    client.post('/backtest', json=_backtest_payload(), headers=_headers())
+    client.post('/backtest', json=_backtest_payload(export_pdf=True), headers=_headers())
+
+    assert [arguments[-1] for arguments in started] == [False, True]
 
 
 def test_a_significance_test_without_a_theme_uses_the_stored_one(monkeypatch):
