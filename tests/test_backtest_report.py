@@ -845,6 +845,8 @@ def test_a_market_that_closes_on_weekends_still_works(pages):
     _assert_fits_the_pages(pages)
 
 
+# Windows can't switch the process's timezone, as time.tzset() only exists on Unix.
+@pytest.mark.skipif(not hasattr(time, 'tzset'), reason='needs time.tzset()')
 def test_a_report_is_the_same_in_every_timezone(pages):
     session = _session()
     original = os.environ.get('TZ')
