@@ -332,6 +332,19 @@ def test_a_backtest_with_neither_the_report_nor_the_benchmark_builds_no_curves(b
     assert 'benchmark' not in backtest.saved['metrics']
 
 
+def test_a_chart_failure_still_saves_the_finished_backtest(backtest, monkeypatch):
+    def fail(**kwargs):
+        raise MemoryError('Unable to allocate 165. GiB for an array')
+
+    monkeypatch.setattr(charts, '_plot_backtest_charts', fail)
+
+    backtest.run(SINGLE_ROUTE, get_btc_candles(100), True, pdf=False)
+
+    assert backtest.statuses == ['finished']
+    assert backtest.saved['metrics'] == backtest.published['metrics']
+    assert 'MemoryError' in backtest.published['notification']['message']
+
+
 def test_a_single_route_backtest_saves_its_benchmark(backtest):
     backtest.run(SINGLE_ROUTE, get_btc_candles(100), True)
 

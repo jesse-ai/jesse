@@ -232,13 +232,20 @@ def _execute_backtest(
         # Must be called BEFORE store.reset() since it reads from the live store.
         publish_status('Generating performance charts…', current=100)
         _charts_folder = os.path.abspath('storage/backtest-charts')
-        charts._plot_backtest_charts(
-            session_id=client_id,
-            charts_folder=_charts_folder,
-            theme=theme,
-            benchmark=benchmark,
-        )
-        
+        # The images are optional extras: a chart failure must not discard a finished simulation.
+        try:
+            charts._plot_backtest_charts(
+                session_id=client_id,
+                charts_folder=_charts_folder,
+                theme=theme,
+                benchmark=benchmark,
+            )
+        except Exception as e:
+            sync_publish('notification', {
+                'message': f'Could not generate the performance charts ({type(e).__name__}: {e}). The backtest results are saved.',
+                'type': 'error'
+            })
+
         # Prepare chart data if requested (call formatting functions once and cache)
         chart_data = None
         if chart:
