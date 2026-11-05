@@ -7,6 +7,7 @@ import jesse.mcp.tools.services.config as config_service
 from jesse.mcp.tools.services import backtest as backtest_service
 from jesse.mcp.tools.services import monte_carlo as monte_carlo_service
 from jesse.mcp.tools.services import optimization as optimization_service
+from jesse.mcp.tools.services import session_config
 from jesse.mcp.tools.services import significance_test as significance_test_service
 from jesse.mcp.tools.services.session_config import (
     backtest_engine_config,
@@ -182,7 +183,7 @@ def test_mcp_drafts_store_session_owned_config(
     ])
     monkeypatch.setattr(service.requests, 'post', lambda *args, **kwargs: _SuccessfulResponse())
     monkeypatch.setattr(service, 'hash_password', lambda password: 'hashed')
-    monkeypatch.setattr(service, 'load_session_run_config', _spot_config)
+    monkeypatch.setattr(session_config, 'load_saved_settings', lambda: {})
 
     result = creator(exchange='Binance Spot', routes=route)
 

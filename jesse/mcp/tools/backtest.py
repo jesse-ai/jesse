@@ -17,6 +17,7 @@ The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from .offload import run_blocking
+from .services.runners import invalid_where
 from .services import (
     create_backtest_draft_service,
     update_backtest_draft_service,
@@ -25,9 +26,11 @@ from .services import (
     get_backtest_sessions_service,
     run_backtest_service,
     cancel_backtest_service,
+    export_backtest_report_service,
     purge_backtest_sessions_service
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
+from .run_config_arguments import ConfigOverrides
 
 def register_backtest_tools(mcp):
     """
@@ -60,7 +63,14 @@ def register_backtest_tools(mcp):
         description: str = None,
         strategy_summary: str = None,
         change_summary: str = None,
-        rationale: str = None
+        rationale: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+        export_pdf: bool = False,
     ) -> dict:
         """
         Create a new backtest draft session with specified parameters.
@@ -105,6 +115,22 @@ def register_backtest_tools(mcp):
             change_summary (str, optional): What changed before this backtest, if MCP edited a strategy.
             rationale (str, optional): Why the MCP made the change or ran this test.
 
+        Run settings (all optional; omitted ones come from the saved backtest defaults for this
+        exchange, else Jesse's built-in defaults):
+            fee: Exchange fee as a fraction per side (0.0006 = 0.06%).
+            leverage: Futures leverage, a whole number of 1 or more. Ignored on spot exchanges.
+            leverage_mode: "cross" or "isolated" (futures only; must be supported by the exchange).
+            balance: Starting balance.
+            warm_up_candles: Candles loaded before the start date to warm up indicators.
+            config_overrides: JSON object with any other run-config field: logging (the log flags),
+                e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+            export_pdf (bool): Keep what the PDF report needs. Defaults to False: set it only when the
+                user asks for a PDF report, then call export_backtest_report() after the run.
+        Set these here instead of editing the draft state afterwards. The response's `run_config` is
+        exactly what the draft will run with, `config_source` says where each value came from
+        (explicit / saved_default / exchange_default / hard_default), and `config_warnings` flags a
+        fee or leverage that is only Jesse's built-in default, or leverage ignored on a spot exchange.
+
         Returns:
             dict: Session creation confirmation containing:
                 - backtest_id: UUID string of the created session
@@ -142,11 +168,27 @@ def register_backtest_tools(mcp):
             description=description,
             strategy_summary=strategy_summary,
             change_summary=change_summary,
-            rationale=rationale
+            rationale=rationale,
+            fee=fee,
+            leverage=leverage,
+            leverage_mode=leverage_mode,
+            balance=balance,
+            warm_up_candles=warm_up_candles,
+            config_overrides=config_overrides,
+            export_pdf=export_pdf,
         )
 
     @mcp.tool()
-    async def update_backtest_draft(backtest_id: str, state: str) -> dict:
+    async def update_backtest_draft(
+        backtest_id: str,
+        state: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+    ) -> dict:
         """
         Update an existing backtest draft configuration with complete state object.
 
@@ -193,8 +235,18 @@ def register_backtest_tools(mcp):
             >>> import json
             >>> updated_state = json.dumps(current_state)
             >>> result = update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", updated_state)
+
+        To change only run settings, omit `state` and pass any of fee, leverage, leverage_mode,
+        balance, warm_up_candles or config_overrides (same meaning as in the create tool). The
+        stored draft keeps everything else; only drafts can change. The response shows the new
+        `run_config` and `config_source` ("explicit" for what this call set, "stored" for the rest).
+        Do not combine `state` with run settings.
         """
-        return await run_blocking(update_backtest_draft_service, backtest_id, state)
+        return await run_blocking(
+            update_backtest_draft_service, backtest_id, state,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles, config_overrides=config_overrides,
+        )
 
     @mcp.tool()
     async def update_backtest_notes(
@@ -244,6 +296,7 @@ def register_backtest_tools(mcp):
         Fetches complete session data from the database including configuration,
         execution status, performance metrics, trade history, and results.
         This is the primary method for inspecting backtest state and results.
+        To wait for a running backtest, use wait_for_sessions, not repeated calls to this.
 
         Parameters:
             session_id (str): UUID string of the backtest session to retrieve
@@ -439,17 +492,23 @@ def register_backtest_tools(mcp):
         )
 
     @mcp.tool()
-    async def run_backtest(session_id: str) -> dict:
+    async def run_backtest(session_id: str, where: str = 'auto') -> dict:
         """
-        Trigger a backtest and return immediately (fire-and-poll pattern).
+        Trigger a backtest and return immediately.
 
         Starts the backtest for the given session and returns as soon as Jesse
         acknowledges the request. Does NOT wait for the backtest to finish.
-        Use get_backtest_session(session_id) to poll for progress and results.
+        Wait for it with wait_for_sessions([session_id]), then read its results
+        with get_session_results("backtest", session_id).
 
         Parameters:
             session_id (str): UUID string of the backtest session to execute
                 Shape: UUID format string (e.g., "550e8400-e29b-41d4-a716-446655440000")
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
 
         Returns:
             dict: Immediate acknowledgement:
@@ -467,7 +526,7 @@ def register_backtest_tools(mcp):
                     }
                 ],
                 "dashboard_url": "<dashboard origin>/#/backtest/uuid-string",
-                "message": "Backtest started. Poll get_backtest_session(session_id) to check progress."
+                "message": "Backtest started. Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results."
             }
 
             Error Response:
@@ -476,7 +535,7 @@ def register_backtest_tools(mcp):
                 "message": "error description"
             }
 
-            Shape: {"status": "started|error", "backtest_id": string, "routes": array, "dashboard_url": string, "message": string}
+            Shape: {"status": "started|queued|error", "backtest_id": string, "routes": array, "dashboard_url": string, "message": string}
 
         Raises:
             NotFoundError: If session_id does not exist
@@ -485,35 +544,59 @@ def register_backtest_tools(mcp):
         Workflow:
             1. create_backtest_draft() → creates session with configuration
             2. run_backtest(session_id) → fires the backtest, returns immediately
-            3. Poll get_backtest_session(session_id) every few seconds
-            4. When session status is "finished", results are in metrics/trades/equity_curve
-            5. When session status is "stopped", check session.exception for error details
+            3. wait_for_sessions([session_id]) → returns when it ends or stalls
+               (call again with the same IDs while it returns done=false)
+            4. outcome "finished" → read metrics/trades/equity curve with get_session_results
+            5. outcome "ended" → read `error` (or get_session_results' summary); "stalled" →
+               check its logs, then cancel_backtest and run it again
 
-        Polling:
-            - Check session["data"]["session"]["status"] for: "running", "finished", "stopped", "cancelled"
-            - Results available when status == "finished"
-            - Error details in session["data"]["session"]["exception"] when status == "stopped"
+        Waiting:
+            - Never sleep-and-poll get_backtest_session; wait_for_sessions does the waiting
+            - Started several backtests? Pass all their IDs; until="any" returns at the first
+              one that settles so you can start the next
 
         Example:
             >>> # Step 1: fire the backtest
             >>> result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
             >>> assert result["status"] == "started"
 
-            >>> # Step 2: poll until done
-            >>> import time
-            >>> while True:
-            ...     session = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
-            ...     status = session["data"]["session"]["status"]
-            ...     if status == "finished":
-            ...         metrics = session["data"]["session"]["metrics"]
-            ...         print(f"Done! Net profit: {metrics['net_profit']}")
-            ...         break
-            ...     elif status == "stopped":
-            ...         print(f"Failed: {session['data']['session']['exception']}")
-            ...         break
-            ...     time.sleep(5)
+            >>> # Step 2: wait until done
+            >>> waited = wait_for_sessions(["550e8400-e29b-41d4-a716-446655440000"])
+            >>> # repeat the same call while waited["done"] is False
+            >>> session = waited["sessions"][0]
+            >>> if session["outcome"] == "finished":
+            ...     summary = get_session_results("backtest", "550e8400-e29b-41d4-a716-446655440000")
+            ... else:
+            ...     print(session["outcome"], session.get("error") or session.get("note"))
         """
-        return await run_blocking(gated_run_backtest, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(gated_run_backtest, session_id, where)
+
+    @mcp.tool()
+    async def export_backtest_report(session_id: str, path: str = None, overwrite: bool = False) -> dict:
+        """
+        Write the PDF report of a finished backtest into the Jesse project.
+
+        Use it only when the user asks for a PDF report. It works on a backtest that ran with
+        export_pdf=True and made at least one trade; any other is refused with error_type
+        "no_report", and running it again with export_pdf=True is what gives it a report.
+
+        The file stays on the Jesse host; only a summary comes back. To get it onto the user's own
+        computer, give them `dashboard_url`: the session's page has a PDF report button.
+
+        Parameters:
+            session_id (str): UUID string of the finished backtest session.
+            path (str, optional): Project-relative .pdf path under research_scripts/ (default
+                research_scripts/backtest_reports/<name>.pdf).
+            overwrite (bool): Replace an existing file. Defaults to False.
+
+        Returns:
+            dict: {"status": "success", "action": "backtest_report_exported", "session_id", "location",
+            "path", "overwritten", "size_bytes", "dashboard_url", "message"} or an error with error_type.
+        """
+        return await run_blocking(export_backtest_report_service, session_id=session_id, path=path, overwrite=overwrite)
 
     @mcp.tool()
     async def cancel_backtest(session_id: str) -> dict:

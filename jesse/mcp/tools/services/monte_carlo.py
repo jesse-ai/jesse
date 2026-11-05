@@ -23,20 +23,22 @@ import json
 import os
 import uuid
 import requests
-from multiprocessing import cpu_count
 from typing import Optional
 
 import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
-from .session_config import load_session_run_config, monte_carlo_engine_config
-
-
-def _default_cpu_cores() -> int:
-    try:
-        return max(1, min(cpu_count() - 1, 4))
-    except Exception:
-        return 2
-
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
+from .session_config import default_cpu_cores, load_session_run_config, monte_carlo_engine_config
+from .runners import (
+    DEFAULT_WHERE,
+    already_queued_result,
+    body_error,
+    with_error_details,
+    invalid_where,
+    normalized_where,
+    queued_result,
+    response_body,
+)
 
 # Standard parameters for the moving_block_bootstrap candle pipeline. The
 # Dashboard session form requires each value to be a concrete number.
@@ -179,6 +181,12 @@ def create_monte_carlo_draft_service(
     strategy_summary: Optional[str] = None,
     hypothesis: Optional[str] = None,
     rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
 ) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -222,11 +230,17 @@ def create_monte_carlo_draft_service(
                 else {}
             )
 
-        run_config = load_session_run_config(
-            'monte_carlo',
-            exchange,
-            {'cpu_cores': int(cpu_cores) if cpu_cores is not None else _default_cpu_cores()},
-        )
+        try:
+            resolved = draft_run_config(
+                'monte_carlo', exchange, config_overrides,
+                base_overrides={'cpu_cores': cpu_cores} if cpu_cores is not None else None,
+                tool_defaults={'cpu_cores': default_cpu_cores()},
+                fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+                warm_up_candles=warm_up_candles,
+            )
+        except ValueError as e:
+            return {'status': 'error', 'message': str(e)}
+        run_config = resolved['config']
 
         form_data = {
             'id': session_id,
@@ -297,6 +311,7 @@ def create_monte_carlo_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            **describe_run_config(resolved),
             'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
             'message': f'Monte Carlo draft created with ID: {session_id}',
         }
@@ -310,7 +325,29 @@ def create_monte_carlo_draft_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to create Monte Carlo draft'}
 
 
-def update_monte_carlo_draft_service(session_id: str, state: str) -> dict:
+def update_monte_carlo_draft_service(
+    session_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {'status': 'error', 'message': 'Send either the complete state or run settings to change, not both.'}
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {'status': 'error', 'message': 'Nothing to update: pass state, or run settings such as fee or leverage.'}
+        return update_draft_run_config(
+            'monte_carlo', session_id, 'session_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
@@ -529,7 +566,7 @@ def get_monte_carlo_logs_service(session_id: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve Monte Carlo logs'}
 
 
-def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
+def _build_run_payload(session_id: str, form: dict, state: dict, where: str = DEFAULT_WHERE) -> dict:
     overrides = {}
     if 'cpu_cores' in form:
         overrides['cpu_cores'] = form['cpu_cores']
@@ -560,6 +597,7 @@ def _build_run_payload(session_id: str, form: dict, state: dict) -> dict:
         'pipeline_type': form.get('pipeline_type') or 'moving_block_bootstrap',
         'pipeline_params': form.get('pipeline_params'),
         'state': state if isinstance(state, dict) else {},
+        'where': normalized_where(where),
     }
 
 
@@ -604,25 +642,30 @@ def _fire(api_url: str, auth: str, path: str, payload: dict) -> dict:
         timeout=10,
     )
     if response.status_code in (200, 202):
+        queued = queued_result('monte_carlo', payload['id'], response_body(response))
+        if queued:
+            return queued
         return {
             'status': 'started',
             'session_id': payload['id'],
             'dashboard_url': mcp_config.dashboard_url('monte_carlo', payload['id']),
             'message': (
                 'Monte Carlo simulation started. '
-                'Poll get_monte_carlo_session(session_id) until status is "finished".'
+                'Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
             ),
         }
     if response.status_code == 401:
         return {'status': 'error', 'message': 'Authentication failed'}
     if response.status_code == 409:
-        return {'status': 'error', 'message': f'Session {payload["id"]} is already running or completed.'}
+        return with_error_details({'status': 'error', 'message': f'Session {payload["id"]} is already running or completed.'}, response)
     if response.status_code == 404:
         return {'status': 'error', 'message': f'Session {payload["id"]} not found'}
+    if response.status_code == 400 and body_error(response):
+        return {'status': 'error', 'message': f'Failed to start Monte Carlo: {body_error(response)}'}
     return {'status': 'error', 'message': f'Failed to start Monte Carlo: {response.text}'}
 
 
-def _run_or_resume(session_id: str, op_label: str) -> dict:
+def _run_or_resume(session_id: str, op_label: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Shared implementation for run_monte_carlo / resume_monte_carlo.
 
@@ -632,11 +675,17 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
+    refused = invalid_where(where)
+    if refused:
+        return refused
+
     try:
         auth = hash_password(password)
         form, state, session_status, err = _fetch_session(api_url, auth, session_id)
         if err:
             return err
+        if session_status == 'queued':
+            return already_queued_result('monte_carlo', session_id, 'Monte Carlo')
 
         if session_status == 'running':
             return {
@@ -645,7 +694,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
                 'dashboard_url': mcp_config.dashboard_url('monte_carlo', session_id),
                 'message': (
                     f'Monte Carlo session {session_id} is already running. '
-                    'Poll get_monte_carlo_session(session_id) for progress.'
+                    'Call wait_for_sessions([session_id]) to wait for it.'
                 ),
             }
         if session_status == 'finished':
@@ -660,7 +709,7 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
                 ),
             }
 
-        payload = _build_run_payload(session_id, form, state)
+        payload = _build_run_payload(session_id, form, state, where)
         return _fire(api_url, auth, '/monte-carlo/resume', payload)
 
     except requests.exceptions.RequestException as e:
@@ -669,12 +718,12 @@ def _run_or_resume(session_id: str, op_label: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': f'Failed to {op_label} Monte Carlo'}
 
 
-def run_monte_carlo_service(session_id: str) -> dict:
-    return _run_or_resume(session_id, 'run')
+def run_monte_carlo_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
+    return _run_or_resume(session_id, 'run', where)
 
 
-def resume_monte_carlo_service(session_id: str) -> dict:
-    return _run_or_resume(session_id, 'resume')
+def resume_monte_carlo_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
+    return _run_or_resume(session_id, 'resume', where)
 
 
 def cancel_monte_carlo_service(session_id: str) -> dict:

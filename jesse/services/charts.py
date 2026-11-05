@@ -1,20 +1,24 @@
 import os
 import numpy as np
 from scipy.stats import gaussian_kde
-from datetime import datetime, timedelta
-from jesse.routes import router
+from datetime import datetime, timedelta, timezone
 from jesse.store import store
-from jesse.services.candle_service import get_candles_from_db
-from jesse.utils import prices_to_returns
+from jesse.services import benchmark as benchmark_service
+from jesse.services.metrics import monthly_returns as compute_monthly_returns
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
-from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
-_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+# With more symbols than this, the legend alone would cover the chart. They stay in the chart as
+# quiet lines behind the portfolio and the combined holding, and only those two are named.
+MAX_LABELED_SYMBOLS = 8
+# How close two drawdown labels can be, as a share of the chart's width, before they'd touch.
+LABEL_CLEARANCE = 0.07
+_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 BACKTEST_CHART_NAMES = _BACKTEST_CHART_NAMES
 
 _THEMES = {
@@ -37,6 +41,7 @@ _THEMES = {
         'kde_line':         'steelblue',
         'mean_line':        'darkred',
         'median_line':      '#f59e0b',
+        'heatmap_peak':     '#3730a3',
     },
     'dark': {
         'fig_facecolor':    '#333333',
@@ -57,6 +62,7 @@ _THEMES = {
         'kde_line':         '#3b82f6',
         'mean_line':        '#fca5a5',
         'median_line':      '#fbbf24',
+        'heatmap_peak':     '#a5b4fc',
     },
 }
 
@@ -118,27 +124,13 @@ def _find_worst_drawdown_periods(daily_balance: list, dates: list[datetime], n: 
     return periods[:n]
 
 
-def _compute_monthly_returns(daily_balance: list, dates: list[datetime]) -> dict:
-    """Return dict keyed by (year, month) -> return_pct, sorted chronologically."""
-    if not daily_balance:
-        return {}
-
-    monthly: dict = {}
-
-    for date, balance in zip(dates, daily_balance):
-        key = (date.year, date.month)
-        if key not in monthly:
-            monthly[key] = {'first': balance, 'last': balance}
-        else:
-            monthly[key]['last'] = balance
-
-    result = {}
-    for key in sorted(monthly.keys()):
-        first = monthly[key]['first']
-        last = monthly[key]['last']
-        result[key] = (last / first - 1) * 100 if first != 0 else 0.0
-
-    return result
+def _compute_entry_timing(opened_at: list) -> np.ndarray:
+    """Return a 7x24 grid of entry counts: rows Monday to Sunday, columns UTC hours."""
+    grid = np.zeros((7, 24), dtype=int)
+    for timestamp in opened_at:
+        date = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+        grid[date.weekday(), date.hour] += 1
+    return grid
 
 
 def _apply_chart_theme(fig, ax, c: dict) -> None:
@@ -154,6 +146,12 @@ def _apply_chart_theme(fig, ax, c: dict) -> None:
     ax.grid(True, color=c['grid_color'], linewidth=0.5, alpha=0.5)
 
 
+def _percent_tick(multiplier: float, decimals: int) -> str:
+    """Format a growth multiplier as a return: 1.0 is "0%", 2.0 is "+100%" and 0.5 is "-50%"."""
+    change = round((multiplier - 1) * 100, decimals)
+    return f'{change:+,.{decimals}f}%' if change != 0 else '0%'
+
+
 def _style_legend(ax, c: dict) -> None:
     """Apply theme colours to a legend already attached to ax."""
     legend = ax.get_legend()
@@ -167,7 +165,7 @@ def _style_legend(ax, c: dict) -> None:
 
 def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'light', benchmark: bool = False) -> None:  # noqa: C901
     """
-    Internal. Generate six separate PNG chart images for a completed backtest.
+    Internal. Generate separate PNG chart images for a completed backtest.
     Must be called while store.app and store.closed_trades are still populated
     (i.e. before store.reset()).
 
@@ -193,40 +191,25 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     fig, ax = plt.subplots(figsize=(10, 4))
     fig.patch.set_facecolor(t['fig_facecolor'])
     ax.set_facecolor(t['axes_facecolor'])
-    ax.plot(dates, daily_balance, color=t['portfolio_line'], linewidth=1.5, label='Strategy')
+    ax.plot(dates, daily_balance, color=t['portfolio_line'], linewidth=1.5, label='Portfolio')
 
-    # Fetch and cache benchmark candles once — reused by both chart 1 and chart 2
-    bench_series = []  # list of (symbol, color, bench_dates, bench_balance, bench_multiplier)
+    # Fetch benchmark candles once — reused by both chart 1 and chart 2
+    bench_series = []  # list of (series, color, bench_dates, line style)
     if benchmark:
-        initial_balance = daily_balance[0]
         bench_colors = t['benchmark_colors']
-        # Use store.app.ending_time directly (no +24h). ending_time is just ~1 minute
-        # past the last simulated candle, so floor(ending_time) - 1 min lands exactly
-        # on the last candle timestamp that exists in the DB. Adding 24h previously
-        # caused the fetch to request a finish date one full day beyond the last DB
-        # candle, which always raised CandleNotFoundInDatabase.
-        benchmark_finish = store.app.ending_time
-        for i, r in enumerate(router.routes):
-            try:
-                _, daily_candles = get_candles_from_db(
-                    r.exchange, r.symbol, '1D', store.app.starting_time,
-                    benchmark_finish,
-                    is_for_jesse=False, warmup_candles_num=0, caching=True
-                )
-                daily_returns = prices_to_returns(daily_candles[:, 2])
-                daily_returns[0] = 0
-                bench_multiplier = (1 + daily_returns / 100).cumprod()
-                bench_balance = initial_balance * bench_multiplier
-                bench_dates = [
-                    datetime.fromtimestamp(timestamp / 1000)
-                    for timestamp in daily_candles[:, 0]
-                ]
-                color = bench_colors[i % len(bench_colors)]
-                bench_series.append((r.symbol, color, bench_dates, bench_balance, bench_multiplier))
-                ax.plot(bench_dates, bench_balance, color=color, linewidth=1.2, linestyle='--', label=r.symbol)
-            except Exception as e:
-                import jesse.helpers as jh
-                jh.error(f'Could not generate benchmark chart for {r.symbol}: {e}')
+        all_series = benchmark_service.get_series(daily_balance[0])
+        symbols_count = len([s for s in all_series if s['name'] != benchmark_service.BUY_AND_HOLD_NAME])
+        for i, series in enumerate(all_series):
+            bench_dates = [datetime.fromtimestamp(timestamp / 1000) for timestamp in series['timestamps']]
+            # The combined holding of a multi-route run stands apart from the dashed symbols.
+            if series['name'] == benchmark_service.BUY_AND_HOLD_NAME:
+                color, line_style = t['text_color'], {'linewidth': 1.6, 'linestyle': '-', 'label': series['name']}
+            elif symbols_count > MAX_LABELED_SYMBOLS:
+                color, line_style = bench_colors[i % len(bench_colors)], {'linewidth': 0.8, 'linestyle': '--', 'alpha': 0.35}
+            else:
+                color, line_style = bench_colors[i % len(bench_colors)], {'linewidth': 1.2, 'linestyle': '--', 'label': series['name']}
+            bench_series.append((series, color, bench_dates, line_style))
+            ax.plot(bench_dates, series['balance'], color=color, **line_style)
 
     ax.set_ylabel('Balance', color=t['text_color'])
     ax.set_xlabel('Date', color=t['text_color'])
@@ -250,11 +233,11 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     fig.patch.set_facecolor(t['fig_facecolor'])
     ax.set_facecolor(t['axes_facecolor'])
 
-    ax.plot(dates, portfolio_multiplier, color=t['portfolio_line'], linewidth=1.5, label='Strategy')
+    ax.plot(dates, portfolio_multiplier, color=t['portfolio_line'], linewidth=1.5, label='Portfolio')
 
     # Reuse cached benchmark series — no second fetch needed
-    for symbol, color, bench_dates, _bench_balance, bench_multiplier in bench_series:
-        ax.plot(bench_dates, bench_multiplier, color=color, linewidth=1.2, linestyle='--', label=symbol)
+    for series, color, bench_dates, line_style in bench_series:
+        ax.plot(bench_dates, series['multiplier'], color=color, **line_style)
 
     # 0% return line — multiplier of 1.0
     ax.axhline(1.0, color=t['spine_color'], linewidth=1.0, linestyle='--', zorder=2)
@@ -262,12 +245,17 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     # Log scale: equal multiplicative distances appear equal visually
     ax.set_yscale('log')
 
-    # Format y-axis ticks as percentage returns: multiplier 1.0 → "0%", 2.0 → "100%", 0.5 → "-50%"
-    def _pct_formatter(x, _):
-        pct = (x - 1) * 100
-        return f'{pct:+.0f}%' if pct != 0 else '0%'
+    plotted = np.concatenate([portfolio_multiplier, *[series['multiplier'] for series, *_ in bench_series]])
+    highest, lowest = float(np.max(plotted)), float(np.min(plotted))
+    # The default of one tick per decade leaves most runs with a single label. A run spanning
+    # many decades takes fewer of them, or their labels would run into each other.
+    subs = (1, 2, 5) if lowest <= 0 or highest / lowest > 100 else (1, 1.5, 2, 3, 5, 7)
+    ax.yaxis.set_major_locator(mticker.LogLocator(base=10, subs=subs, numticks=12))
 
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_formatter))
+    # A run that moved less than a percent needs decimals, or all of its labels would read 0%.
+    spread = (highest - lowest) * 100
+    decimals = 0 if spread >= 10 else 1 if spread >= 1 else 2
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: _percent_tick(x, decimals)))
     ax.yaxis.set_minor_formatter(mticker.NullFormatter())
 
     ax.set_ylabel('Cumulative Return', color=t['text_color'])
@@ -302,11 +290,22 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     fig.autofmt_xdate(rotation=30)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f'{x:,.0f}'))
 
+    # Labels sit at the bottom of the chart. One too close to the label before it moves up a level,
+    # which keeps the rest clear of the equity line.
+    label_levels = {}
+    previous_mid, previous_level = None, 0
+    for period in sorted(worst_periods, key=lambda period: period['start']):
+        mid = period['start'] + ((period['recovery'] or dates[-1]) - period['start']) / 2
+        is_close = previous_mid is not None and (mid - previous_mid) < (dates[-1] - dates[0]) * LABEL_CLEARANCE
+        previous_level = previous_level + 1 if is_close else 0
+        previous_mid = mid
+        label_levels[id(period)] = previous_level
+
     for rank, period in enumerate(worst_periods, start=1):
         end = period['recovery'] if period['recovery'] else dates[-1]
         ax.axvspan(period['start'], end, alpha=0.15, color=t['shading'])
         mid = period['start'] + (end - period['start']) / 2
-        y_pos = min(daily_balance) + (max(daily_balance) - min(daily_balance)) * 0.05
+        y_pos = min(daily_balance) + (max(daily_balance) - min(daily_balance)) * (0.05 + label_levels[id(period)] * 0.12)
         ax.text(
             mid, y_pos,
             f"#{rank}\n{period['max_drawdown']:.1f}%",
@@ -342,7 +341,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.close(fig)
 
     # ── Chart 4: Monthly Returns Heatmap ─────────────────────────────────────
-    monthly_returns = _compute_monthly_returns(daily_balance, dates)
+    monthly_returns = compute_monthly_returns(daily_balance, store.app.daily_balance_timestamps)
 
     if monthly_returns:
         years = sorted(set(y for y, m in monthly_returns))
@@ -516,6 +515,35 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     plt.savefig(os.path.join(charts_folder, f'{session_id}_trade_pnl.png'), dpi=130, bbox_inches='tight', facecolor=t['fig_facecolor'])
     plt.close(fig)
 
+    # ── Chart 7: Entry Timing (hour × weekday) ──────────────────────────────
+    entry_grid = _compute_entry_timing([trade.opened_at for trade in store.closed_trades.trades])
+    cmap = LinearSegmentedColormap.from_list('entry_timing', [t['axes_facecolor'], t['heatmap_peak']])
+
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    _apply_chart_theme(fig, ax, t)
+    ax.grid(False)
+    mesh = ax.pcolormesh(
+        entry_grid, cmap=cmap, vmin=0, vmax=max(int(entry_grid.max()), 1),
+        edgecolors=t['fig_facecolor'], linewidth=1.5
+    )
+    ax.invert_yaxis()
+    ax.set_xticks(np.arange(24) + 0.5)
+    ax.set_xticklabels(range(24), fontsize=9, color=t['tick_color'])
+    ax.set_yticks(np.arange(7) + 0.5)
+    ax.set_yticklabels(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], fontsize=9, color=t['tick_color'])
+    ax.tick_params(length=0)
+    ax.set_xlabel('Hour of day (UTC)', color=t['text_color'])
+    ax.set_ylabel('Day of week', color=t['text_color'])
+
+    colorbar = fig.colorbar(mesh, ax=ax, fraction=0.03, pad=0.02, ticks=mticker.MaxNLocator(integer=True))
+    colorbar.set_label('Entries', color=t['text_color'], fontsize=9)
+    colorbar.ax.tick_params(colors=t['tick_color'], labelsize=9, length=0)
+    colorbar.outline.set_edgecolor(t['spine_color'])
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(charts_folder, f'{session_id}_entry_timing.png'), dpi=130, bbox_inches='tight', facecolor=t['fig_facecolor'])
+    plt.close(fig)
+
 
 def _calculate_equity_curve(daily_balance, start_date, name: str, color: str, timestamps=None):
     if timestamps is not None and len(timestamps) == len(daily_balance):
@@ -570,28 +598,17 @@ def equity_curve(benchmark: bool = False) -> list:
     ))
 
     if benchmark:
-        initial_balance = daily_balance[0]
-        # Use store.app.ending_time directly — same reasoning as _plot_backtest_charts above.
-        benchmark_finish = store.app.ending_time
-        for i, r in enumerate(router.routes):
-            _, daily_candles = get_candles_from_db(
-                r.exchange, r.symbol, '1D', store.app.starting_time,
-                benchmark_finish, is_for_jesse=False, warmup_candles_num=0, caching=True
-            )
-            daily_returns = prices_to_returns(daily_candles[:, 2])
-            daily_returns[0] = 0
-            daily_balance_benchmark = initial_balance * (1 + daily_returns/100).cumprod()
-
+        for i, series in enumerate(benchmark_service.get_series(daily_balance[0])):
             # If there are more than 10 routes, generate new colors
             if i + 1 >= 10:
                 colors.append(_generate_color(colors[-1]))
 
             result.append(_calculate_equity_curve(
-                daily_balance_benchmark,
+                series['balance'],
                 start_date,
-                r.symbol,
+                series['name'],
                 colors[(i + 1) % len(colors)],
-                daily_candles[:, 0],
+                series['timestamps'],
             ))
 
     return result

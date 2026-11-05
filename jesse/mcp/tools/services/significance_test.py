@@ -22,7 +22,17 @@ from typing import Optional
 
 import jesse.mcp.mcp_config as mcp_config
 from .auth import hash_password
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import load_session_run_config
+from .runners import (
+    DEFAULT_WHERE,
+    body_error,
+    invalid_where,
+    normalized_where,
+    queued_result,
+    response_body,
+    with_error_details,
+)
 
 
 def _build_default_title(routes_list: list) -> str:
@@ -141,6 +151,12 @@ def create_significance_test_draft_service(
     strategy_summary: Optional[str] = None,
     hypothesis: Optional[str] = None,
     rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
 ) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
@@ -161,7 +177,15 @@ def create_significance_test_draft_service(
         if len(routes_list) != 1:
             return {'status': 'error', 'message': 'Rule Significance Test requires exactly one trading route.'}
 
-        run_config = load_session_run_config('significance_test', exchange)
+        try:
+            resolved = draft_run_config(
+                'significance_test', exchange, config_overrides,
+                fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+                warm_up_candles=warm_up_candles,
+            )
+        except ValueError as e:
+            return {'status': 'error', 'message': str(e)}
+        run_config = resolved['config']
         form_data = {
             'id': session_id,
             'exchange': exchange,
@@ -225,6 +249,7 @@ def create_significance_test_draft_service(
                 'strategy_code_keys': list(strategy_codes.keys()),
                 'strategy_codes_captured': len(strategy_codes),
             },
+            **describe_run_config(resolved),
             'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
             'message': f'Significance test draft created with ID: {session_id}',
         }
@@ -238,7 +263,29 @@ def create_significance_test_draft_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to create significance test draft'}
 
 
-def update_significance_test_draft_service(session_id: str, state: str) -> dict:
+def update_significance_test_draft_service(
+    session_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {'status': 'error', 'message': 'Send either the complete state or run settings to change, not both.'}
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {'status': 'error', 'message': 'Nothing to update: pass state, or run settings such as fee or leverage.'}
+        return update_draft_run_config(
+            'significance_test', session_id, 'session_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
@@ -392,9 +439,13 @@ def get_significance_test_sessions_service(
         return {'status': 'error', 'error': str(e), 'message': 'Failed to retrieve significance test sessions'}
 
 
-def run_significance_test_service(session_id: str) -> dict:
+def run_significance_test_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
+
+    refused = invalid_where(where)
+    if refused:
+        return refused
 
     try:
         auth = hash_password(password)
@@ -446,8 +497,8 @@ def run_significance_test_service(session_id: str) -> dict:
             'finish_date': form.get('finish_date'),
             'n_simulations': int(form.get('n_simulations', 2000)),
             'random_seed': form.get('random_seed'),
-            'theme': 'light',
             'state': state if isinstance(state, dict) else {},
+            'where': normalized_where(where),
         }
 
         response = requests.post(
@@ -458,19 +509,24 @@ def run_significance_test_service(session_id: str) -> dict:
         )
 
         if response.status_code == 202:
+            queued = queued_result('significance_test', session_id, response_body(response))
+            if queued:
+                return queued
             return {
                 'status': 'started',
                 'session_id': session_id,
                 'dashboard_url': mcp_config.dashboard_url('significance_test', session_id),
                 'message': (
                     'Rule significance test started. '
-                    'Poll get_significance_test_session(session_id) until status is "finished".'
+                    'Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
                 ),
             }
         if response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}
         if response.status_code == 409:
-            return {'status': 'error', 'message': f'Session {session_id} is already running or completed.'}
+            return with_error_details({'status': 'error', 'message': f'Session {session_id} is already running or completed.'}, response)
+        if response.status_code == 400 and body_error(response):
+            return {'status': 'error', 'message': f'Failed to start significance test: {body_error(response)}'}
         return {'status': 'error', 'message': f'Failed to start significance test: {response.text}'}
 
     except requests.exceptions.RequestException as e:

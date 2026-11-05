@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from jesse.controllers import backtest_controller
-from jesse.services import auth, transformers
+from jesse.services import auth, charts, transformers
 
 # jesse.models re-exports the model class under the module's name, so load the
 # module itself to reach its DB helper functions.
@@ -173,3 +173,51 @@ def test_same_id_rerun_serves_only_the_new_runs_chart_images(charts_folder, db_u
         assert response.status_code == 200
         assert response.content == b'new-run'
     assert transformers.get_backtest_session_for_load_more(session)['has_charts_image'] is True
+
+
+def test_the_equity_charts_call_the_balance_line_the_portfolio(tmp_path, monkeypatch):
+    class BothChartsSaved(Exception):
+        pass
+
+    legends = []
+
+    def record_legend(path, **kwargs):
+        legends.append([text.get_text() for text in charts.plt.gca().get_legend().get_texts()])
+        if len(legends) == 2:
+            raise BothChartsSaved
+
+    day_ms = 86_400_000
+    timestamps = [1_672_531_200_000 + day * day_ms for day in range(3)]
+    balances = [100.0, 110.0, 105.0]
+    monkeypatch.setattr(charts.plt, 'savefig', record_legend)
+    monkeypatch.setattr(charts, 'store', SimpleNamespace(
+        closed_trades=SimpleNamespace(count=1),
+        app=SimpleNamespace(daily_balance=balances, daily_balance_timestamps=timestamps),
+    ))
+    monkeypatch.setattr(charts.benchmark_service, 'get_series', lambda initial_balance: [{
+        'name': 'BTC-USDT', 'timestamps': timestamps, 'balance': balances, 'multiplier': [1.0, 1.1, 1.05],
+    }])
+
+    with pytest.raises(BothChartsSaved):
+        charts._plot_backtest_charts('session', str(tmp_path), benchmark=True)
+    charts.plt.close('all')
+
+    assert legends == [['Portfolio', 'BTC-USDT'], ['Portfolio', 'BTC-USDT']]
+
+
+def test_every_chart_list_includes_the_entry_timing_chart():
+    assert 'entry_timing' in charts.BACKTEST_CHART_NAMES
+    assert backtest_controller.BACKTEST_CHART_NAMES == charts.BACKTEST_CHART_NAMES
+    assert backtest_session_model._BACKTEST_CHART_NAMES == charts.BACKTEST_CHART_NAMES
+
+
+def test_entry_timing_counts_entries_by_utc_weekday_and_hour():
+    monday_0230 = 1609727400000  # 2021-01-04 02:30 UTC
+    sunday_2359 = 1610323140000  # 2021-01-10 23:59 UTC
+
+    grid = charts._compute_entry_timing([monday_0230, monday_0230 + 60_000, sunday_2359])
+
+    assert grid.shape == (7, 24)
+    assert grid.sum() == 3
+    assert grid[0, 2] == 2
+    assert grid[6, 23] == 1

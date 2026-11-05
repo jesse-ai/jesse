@@ -37,8 +37,10 @@ class BacktestRequestJson(BaseModel):
     export_chart: bool
     fast_mode: bool
     benchmark: bool
-    theme: str = 'light'
+    # Omitted by runs without a browser (MCP), which use the stored dashboard theme.
+    theme: Optional[str] = None
     state: dict
+    export_pdf: bool = False
 
     @model_validator(mode='after')
     def validate_date_range(self):
@@ -52,6 +54,8 @@ class BacktestRequestJson(BaseModel):
         if start >= finish:
             raise ValueError('start_date must be earlier than finish_date')
         return self
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class OptimizationRequestJson(BaseModel):
@@ -68,6 +72,8 @@ class OptimizationRequestJson(BaseModel):
     fast_mode: bool
     cpu_cores: int
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class ImportCandlesRequestJson(BaseModel):
@@ -101,6 +107,8 @@ class LiveRequestJson(BaseModel):
     data_routes: List[Dict[str, str]]
     debug_mode: bool
     paper_mode: bool
+    # The session this one follows; its dashboard tab is handed over once that session has stopped.
+    replaces_session_id: Optional[str] = None
 
 
 class LiveCancelRequestJson(BaseModel):
@@ -266,6 +274,11 @@ class ResearchJobOutputRequestJson(BaseModel):
     tail_lines: int = 200
 
 
+class SessionStatusRequestJson(BaseModel):
+    # Validated by services/session_status.py, so a wrong shape gets its message, not pydantic's.
+    session_ids: Any = None
+
+
 class SessionResultsRequestJson(BaseModel):
     session_type: str
     session_id: str
@@ -367,6 +380,12 @@ class DeleteCandlesRequestJson(BaseModel):
 
 class PurgeCandlesRequestJson(BaseModel):
     exchanges: List[str]
+
+
+class ExportBacktestReportRequestJson(BaseModel):
+    # Project-relative PDF path under research_scripts/; defaults to research_scripts/backtest_reports/<name>.pdf.
+    path: Optional[str] = None
+    overwrite: bool = False
 
 
 class ExportCandlesToProjectRequestJson(BaseModel):
@@ -482,6 +501,8 @@ class MonteCarloRequestJson(BaseModel):
     pipeline_type: Optional[str] = 'moving_block_bootstrap'
     pipeline_params: Optional[dict] = None
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class UpdateMonteCarloSessionStateRequestJson(BaseModel):
@@ -549,8 +570,11 @@ class SignificanceTestRequestJson(BaseModel):
     finish_date: str
     n_simulations: int = 1000
     random_seed: Optional[int] = None
-    theme: str = 'light'
+    # Omitted by runs without a browser (MCP), which use the stored dashboard theme.
+    theme: Optional[str] = None
     state: dict
+    # Where to run: "local" (default), "auto", "any" or a runner name (services/runner_queue.py).
+    where: Optional[str] = None
 
 
 class CancelSignificanceTestRequestJson(BaseModel):

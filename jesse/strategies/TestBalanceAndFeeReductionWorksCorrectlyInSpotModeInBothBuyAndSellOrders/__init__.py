@@ -71,5 +71,12 @@ class TestBalanceAndFeeReductionWorksCorrectlyInSpotModeInBothBuyAndSellOrders(S
         assert self.position.exchange.assets['USDT'] == self.balance
         assert self.position.exchange.assets['BTC'] == self.position.qty == 0
 
+        # the trade bought 3 but the 0.003 paid as fee was never held, so only 2.997 earns the move
+        assert closed_trade.qty == 3
+        assert closed_trade.exit_qty == 2.997
+        assert round(closed_trade.fee, 8) == 0.082951
+        assert round(closed_trade.pnl, 8) == 14.902049
+        assert round(closed_trade.pnl, 8) == round(self.balance - 10_000, 8)
+
     def should_cancel_entry(self):
         return False

@@ -1,3 +1,5 @@
+import threading
+
 import numpy as np
 from jesse.routes import router
 import jesse.helpers as jh
@@ -5,6 +7,10 @@ from jesse.config import config
 from jesse.enums import timeframes
 from jesse.exceptions import RouteNotFound
 from jesse.libs import DynamicNumpyArray
+
+
+class _ThreadState(threading.local):
+    execution_cutoff = None
 
 
 class CandlesState:
@@ -18,6 +24,22 @@ class CandlesState:
         # Direct simulator fixtures may omit warmup. Production loaders and
         # research requests enable this before enforcing configured route counts.
         self.enforce_warmup = False
+        self._thread_state = _ThreadState()
+
+    @property
+    def execution_cutoff(self) -> int | None:
+        """
+        While live strategies run, the boundary they run for: candles that opened at or after
+        it stay hidden. Strategies rely on it to run on closed candles: a late run can find the
+        next candle started, and on exchanges without a candle stream an on-time run can too,
+        as a trade starts its candle right at the boundary. Only the thread that set it sees
+        it, as the threads adding candles must keep reading the latest one.
+        """
+        return self._thread_state.execution_cutoff
+
+    @execution_cutoff.setter
+    def execution_cutoff(self, timestamp: int | None) -> None:
+        self._thread_state.execution_cutoff = timestamp
 
     def mark_all_as_initiated(self) -> None:
         for k in self.initiated_pairs:

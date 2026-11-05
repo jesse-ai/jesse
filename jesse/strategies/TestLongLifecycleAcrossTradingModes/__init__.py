@@ -83,15 +83,14 @@ class TestLongLifecycleAcrossTradingModes(Strategy):
 
         exchange = store.exchanges.get_exchange(self.exchange)
         if self.is_spot_trading:
-            # The spot buy fee reduces BTC before the two sell fees reduce USDT.
-            # This makes the quote-wallet delta intentionally differ from the
-            # trade model's quote-denominated fee calculation: quote proceeds
-            # are 0.999 BTC at 12 and 14, each charged a 0.1% sell fee.
+            # The spot buy fee reduces BTC before the two sell fees reduce USDT, so
+            # only the 1.998 BTC left after it earns the move from 10 to 13: quote
+            # proceeds are 0.999 BTC at 12 and 14, each charged a 0.1% sell fee.
             assert jh.base_asset(self.symbol) == 'BTC'
             assert exchange.assets['BTC'] == 0
             assert round(exchange.wallet_balance, 8) == 10_005.948026
             assert round(closed_trade.fee, 8) == 0.045974
-            assert round(closed_trade.pnl, 8) == 5.954026
+            assert round(closed_trade.pnl, 8) == round(exchange.wallet_balance - 10_000, 8)
         else:
             # Futures charges 0.1% in USDT on the 20 entry notional and the
             # two exit notionals of 12 and 14.

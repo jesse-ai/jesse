@@ -1,11 +1,13 @@
+from typing import Iterator
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 import json
 from jesse.services.auth import require_auth, require_auth_any, require_auth_token
 from jesse.services.multiprocessing import process_manager
-from jesse.services.web import BacktestRequestJson, CancelRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
+from jesse.services import backtest_report, runner_queue, session_liveness
+from jesse.services.web import BacktestRequestJson, CancelRequestJson, ExportBacktestReportRequestJson, UpdateBacktestSessionStateRequestJson, GetBacktestSessionsRequestJson, UpdateBacktestSessionNotesRequestJson, GetBacktestSessionChartDataRequestJson
 import jesse.helpers as jh
 from jesse.models.BacktestSession import (
     get_backtest_sessions as get_sessions,
@@ -19,12 +21,15 @@ from jesse.models.BacktestSession import (
 )
 from jesse.services.transformers import get_backtest_session, get_backtest_session_for_load_more
 from jesse.modes.backtest_mode import run as run_backtest
-from jesse.modes.data_provider import get_backtest_logs, download_backtest_log
+from jesse.modes.data_provider import get_backtest_logs, download_backtest_log, get_chart_theme
 import os
 
 
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
+
+REPORTS_FOLDER = 'backtest_reports'
+NO_REPORT_MESSAGE = 'This backtest has no PDF report. Run it with the Export PDF option, and it needs at least one trade.'
 
 
 @router.post("", dependencies=[Depends(require_auth)])
@@ -39,10 +44,7 @@ def backtest(request_json: BacktestRequestJson):
         # The upsert makes the accepted request visible before the worker can
         # publish progress or results for the same session.
         update_backtest_session_state(request_json.id, request_json.state)
-        update_backtest_session_status(request_json.id, 'running')
-
-        process_manager.add_task(
-            run_backtest,
+        arguments = (
             request_json.id,
             request_json.debug_mode,
             request_json.config,
@@ -57,8 +59,21 @@ def backtest(request_json: BacktestRequestJson):
             request_json.export_json,
             request_json.fast_mode,
             request_json.benchmark,
-            request_json.theme,
+            request_json.theme or get_chart_theme(),
+            request_json.export_pdf,
         )
+        # With `where` set, a research runner may run it instead (services/runner_queue.py).
+        queued = runner_queue.queue_if_requested('backtest', 'backtest', arguments, request_json.routes,
+                                                 getattr(request_json, 'where', None))
+        if queued is not None:
+            return JSONResponse(queued, status_code=202)
+
+        update_backtest_session_status(request_json.id, 'running')
+        session_liveness.claim('backtest', request_json.id)
+
+        process_manager.add_task(run_backtest, *arguments)
+    except runner_queue.QueueError as e:
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
     except Exception as e:
         import traceback
 
@@ -74,7 +89,7 @@ def backtest(request_json: BacktestRequestJson):
     return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
 
 
-BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 
 
 @router.get("/sessions/{session_id}/charts-image", dependencies=[Depends(require_auth_any)])
@@ -84,7 +99,7 @@ def get_charts_image(
 ):
     """
     Serve a chart PNG image for a specific backtest session.
-    chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl
+    chart param must be one of: equity_curve, drawdown, underwater, monthly_heatmap, monthly_distribution, trade_pnl, entry_timing
     """
 
     if chart not in BACKTEST_CHART_NAMES:
@@ -97,6 +112,61 @@ def get_charts_image(
         return JSONResponse({'error': 'Chart image not yet available'}, status_code=404)
 
     return FileResponse(path, media_type='image/png')
+
+
+@router.get("/sessions/{session_id}/report", dependencies=[Depends(require_auth_any)])
+def download_backtest_report(session_id: UUID):
+    """
+    Download the PDF report of a finished backtest. This is a GET so that the dashboard can
+    link to it like the CSV and JSON exports.
+    """
+
+    session = get_backtest_session_by_id_from_db(str(session_id))
+    if not session:
+        return JSONResponse({'error': f'Session with ID {session_id} not found'}, status_code=404)
+
+    if not backtest_report.is_available(session):
+        return JSONResponse({'error': NO_REPORT_MESSAGE}, status_code=404)
+
+    return Response(
+        backtest_report.generate_pdf(session),
+        media_type='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="{backtest_report.file_name(session)}"'},
+    )
+
+
+@router.post("/sessions/{session_id}/report/export-to-project", dependencies=[Depends(require_auth)])
+def export_backtest_report_to_project(session_id: UUID, json_request: ExportBacktestReportRequestJson) -> JSONResponse:
+    """
+    Write the PDF report into the project's research_scripts/ folder. Remote assistants cannot
+    receive a browser download, so the file stays on the Jesse host.
+    """
+    from jesse.services import project_files
+
+    session = get_backtest_session_by_id_from_db(str(session_id))
+    if not session:
+        return JSONResponse({'error_type': 'not_found', 'error': f'Session with ID {session_id} not found'}, status_code=404)
+    if not backtest_report.is_available(session):
+        return JSONResponse({'error_type': 'no_report', 'error': NO_REPORT_MESSAGE}, status_code=404)
+
+    def report_chunks() -> Iterator[bytes]:
+        # Built only once the path is known to be writable.
+        yield backtest_report.generate_pdf(session)
+
+    name = backtest_report.file_name(session).removesuffix('.pdf')
+    path = json_request.path or f'{project_files.RESEARCH_SCRIPTS_ROOT}/{REPORTS_FOLDER}/{name}-{str(session_id)[:8]}.pdf'
+    try:
+        parts = project_files.parse_path(path)
+        if parts[0] != project_files.RESEARCH_SCRIPTS_ROOT or not parts[-1].lower().endswith('.pdf'):
+            return JSONResponse({
+                'error_type': 'invalid_path',
+                'error': 'Backtest reports are written to a .pdf file under research_scripts/.',
+            }, status_code=400)
+        result = project_files.write_file_from_chunks(path, report_chunks(), json_request.overwrite)
+    except project_files.ProjectFileError as exc:
+        return JSONResponse({'error_type': exc.error_type, 'error': exc.message}, status_code=exc.status_code)
+
+    return JSONResponse(result, status_code=201)
 
 
 @router.post("/cancel", dependencies=[Depends(require_auth)])

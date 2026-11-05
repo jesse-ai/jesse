@@ -7,6 +7,8 @@ rule significance tests, and live/paper sessions:
 - get_live_sessions: the live/paper session list (the other kinds have their own list tools)
 - get_live_trades / get_live_orders: Jesse's recorded live/paper trades and orders of a date
   window across sessions (for example "my trades of the last 7 days")
+- wait_for_sessions: wait until research sessions end or stall
+- list_runners: the research runners that run queued jobs for this Jesse
 
 Details and the snapshot format used by temporary analysis: jesse://session_analysis.
 
@@ -24,6 +26,8 @@ from .services import (
     get_live_sessions_service,
     get_live_trades_service,
     get_session_results_service,
+    list_runners_service,
+    wait_for_sessions_service,
 )
 
 # The history tools take every argument as Any with the schema they advertise. FastMCP's pydantic
@@ -37,6 +41,12 @@ _Mode = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['live', 'paper
 _Order = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['newest_first', 'oldest_first']})]
 _Limit = Annotated[Any, WithJsonSchema({'type': 'integer', 'minimum': 1, 'maximum': 500})]
 _TimeField = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['created_at', 'executed_at']})]
+# wait_for_sessions validates its arguments itself (see services/session_wait.py).
+_SessionIds = Annotated[Any, WithJsonSchema({'anyOf': [
+    {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1, 'maxItems': 50}, {'type': 'string'},
+]})]
+_Until = Annotated[Any, WithJsonSchema({'type': 'string', 'enum': ['all', 'any']})]
+_AnyNumber = Annotated[Any, WithJsonSchema({'anyOf': [{'type': 'number'}, {'type': 'null'}]})]
 _Status = Annotated[Any, WithJsonSchema({'anyOf': [
     {'type': 'string', 'enum': ['ACTIVE', 'CANCELED', 'EXECUTED', 'PARTIALLY FILLED', 'QUEUED', 'LIQUIDATED',
                                 'REJECTED']},
@@ -241,6 +251,94 @@ def register_session_results_tools(mcp):
             "note", "paging"} or an error like get_live_trades.
         """
     mcp.tool()(get_live_orders)
+
+    @mcp.tool()
+    async def wait_for_sessions(
+        session_ids: _SessionIds,
+        until: _Until = 'all',
+        timeout_seconds: _AnyNumber = 240,
+        stall_minutes: _AnyNumber = None,
+    ) -> dict:
+        """
+        Wait until research sessions end or stall, instead of polling them one by one. Read-only:
+        never starts, stops, or changes a session.
+
+        Use it after run_backtest / run_optimization / run_monte_carlo / run_significance_test
+        (or their resume/rerun tools), with every session you started. It waits on the Jesse host
+        and returns as soon as the sessions are settled, or after `timeout_seconds`.
+
+        Parameters:
+            session_ids: Up to 50 session IDs of any of the four research types (mixed is fine).
+            until: "all" (default) waits until every session is settled; "any" returns when the
+                first one is, so you can start the next run while others continue.
+            timeout_seconds: 0-540, default 240. When it passes first, `done` is false: call
+                again with the same session_ids (an empty wait costs nothing on the Jesse host).
+            stall_minutes: Minutes without progress from a running session's (still alive) worker
+                after which it counts as stalled. Defaults: backtest 10, optimization 30 (progress
+                is recorded per finished trial, so raise it for very slow trials), Monte Carlo and
+                significance test 20.
+
+        Settled means one of these `outcome`s:
+            finished      the run completed; read it with get_session_results.
+            ended         stopped / cancelled / terminated; `error` says why when Jesse knows.
+                          A worker that died (killed, out of memory, lost database connection,
+                          machine gone) is reported here once its lease runs out (90 seconds),
+                          or at once by the machine that ran it.
+            stalled       its worker is alive but made no progress past the stall limit. Nothing
+                          is cancelled for you: check its logs, then cancel it and run it again
+                          if it is stuck.
+            not_started   still a draft (start it with its run tool).
+            not_found     no session has that ID.
+        Unsettled sessions show outcome "running" with their `progress` (backtest/significance
+        percent, optimization trials, Monte Carlo scenarios) and `heartbeat_age_seconds`, or
+        "queued" while waiting for a research runner (`queue` holds its target and wait time; if it
+        waits long, check list_runners: never start the same run again).
+
+        Returns:
+            {"status": "success", "done": bool, "until", "waited_seconds", "outcomes": {outcome: count},
+             "sessions": [{"session_id", "session_type", "status", "outcome", "settled", "progress",
+             "progress_age_seconds", "heartbeat_age_seconds", "claimed_by", "error"?, "note"?, "dashboard_url"}],
+             "next"? (when not done)}
+            or {"status": "error", "error_type", "message"}.
+        Give the user each session's dashboard_url, not its ID.
+        """
+        return await run_blocking(
+            wait_for_sessions_service, session_ids, until, timeout_seconds, stall_minutes,
+        )
+
+    @mcp.tool()
+    async def list_runners() -> dict:
+        """
+        List this Jesse's research runners: other machines that share its database and run queued
+        research jobs (backtests, optimizations, Monte Carlo runs, significance tests) started
+        with `where` set to "auto", "any", or a runner's name. Read-only.
+
+        Use it before choosing `where` for a run tool (to see which runners are alive, how many of
+        their cores are free, and how loaded each machine is), or when wait_for_sessions shows a
+        session queued for long. Capacity is counted in CPU cores: a backtest or significance test
+        uses 1 core, an optimization or Monte Carlo run its cpu_cores (capped at the runner's
+        budget). Jobs start in queue order; a big job waiting for cores is not overtaken by newer
+        small jobs on the runner that waits for it, so a queued optimization can hold back
+        backtests there. To share a machine, give the optimization fewer cpu_cores. Results of a
+        run on a runner land in the same database, so get_session_results reads them as usual.
+        "runner_order" is the user's RUNNER_ORDER (from the hub's .env): with where="auto"/"any",
+        jobs go to the first runner in that order with enough free cores ("*" = any other runner);
+        respect it and only name a runner when the user asks for one.
+
+        Returns:
+            {"status": "success", "enabled": bool (runners turned on for this Jesse),
+             "hub_jesse_version", "runner_order", "queued_jobs": int (jobs waiting for a runner),
+             "runners": [{"name", "role" ("hub" or "runner"), "host", "alive", "last_seen_seconds_ago",
+             "cores_budget" (cores it may use for jobs), "cores_used", "cores_free" (0 when not
+             alive), "cpu_cores" (the machine's), "cpu_percent", "load_1m", "memory_total_gb",
+             "memory_used_gb", "memory_percent" (machine-wide, refreshed every ~10 s; None when
+             the system does not tell), "jesse_version", "compatible" (same Jesse version as this
+             one), "running": [{"session_id", "session_type"}]}]}
+            or {"status": "error", "error_type", "message"}.
+        A runner that is not alive or not compatible takes no jobs. With "enabled" false every run
+        starts on this Jesse and `where` other than "auto"/"local" is refused.
+        """
+        return await run_blocking(list_runners_service)
     # A misspelled filter must be refused, not dropped, and the text "null" must stay text: either
     # would silently widen the selection. All arguments of these two tools are scalars.
     keep_raw_argument_values(mcp, 'get_live_trades', 'get_live_orders')

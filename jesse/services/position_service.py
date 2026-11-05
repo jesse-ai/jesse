@@ -253,3 +253,6 @@ def update_from_stream(position: Position, data: dict, is_initial: bool, open_tr
             _open(position, p_orders)
     elif closing_position:
         position.closed_at = jh.now_to_timestamp()
+        # Whatever opens next is a new position, even at the size of the one that just closed.
+        if position.strategy:
+            position.strategy._position_qty_at_last_event = None

@@ -131,11 +131,16 @@ def test_no_tool_can_export_or_reveal_credentials():
         name for name in tools
         if any(word in name for word in ('api_key', 'credential', 'secret', 'passphrase', 'export'))
     }
-    # export_candles writes stored market data into the project; it never reaches a credential route.
-    assert credential_like == CREDENTIAL_TOOLS | {'export_candles'}
+    # export_candles and export_backtest_report write stored market data and backtest results into
+    # the project; they never reach a credential route.
+    assert credential_like == CREDENTIAL_TOOLS | {'export_candles', 'export_backtest_report'}
+    import jesse.mcp.tools.services.backtest as backtest_service
     import jesse.mcp.tools.services.candles as candles_service
     candle_source = open(candles_service.__file__, encoding='utf-8').read()
     assert '/api-keys' not in candle_source and 'credentials' not in candle_source.split('def export_candles_service')[1]
+    backtest_source = open(backtest_service.__file__, encoding='utf-8').read()
+    report_source = backtest_source.split('def export_backtest_report_service')[1].split('\ndef ')[0]
+    assert '/api-keys' not in report_source and 'credentials' not in report_source
     source = open(credentials_service.__file__, encoding='utf-8').read()
     # The Dashboard's password-confirmed CSV export and import routes stay Dashboard-only.
     assert 'download-api-keys' not in source and 'import-api-keys' not in source

@@ -1,10 +1,12 @@
 import os
 import peewee
+
+from jesse.services import session_liveness
 import json
 from jesse.services.db import database
 import jesse.helpers as jh
 
-_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl']
+_BACKTEST_CHART_NAMES = ['equity_curve', 'cumulative_returns', 'drawdown', 'underwater', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing']
 
 
 def _delete_chart_images(session_id: str) -> None:
@@ -54,6 +56,15 @@ class BacktestSession(peewee.Model):
     # Timestamps for session management
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
+
+    # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
+    # its worker's lease, and its last progress while it runs.
+    claimed_by = peewee.CharField(max_length=255, null=True)
+    # The runner claim of a queued job (services/runner_queue.py); its worker's writes require it.
+    claim_id = peewee.CharField(max_length=36, null=True)
+    heartbeat_at = peewee.BigIntegerField(null=True)
+    progress_at = peewee.BigIntegerField(null=True)
+    progress = peewee.FloatField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -162,7 +173,7 @@ class BacktestSession(peewee.Model):
             return {}
         s = json.loads(self.state)
         if isinstance(s, dict) and 'form' in s and isinstance(s['form'], dict):
-            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+            for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'export_pdf', 'fast_mode', 'benchmark']:
                 if key in s['form']:
                     s['form'][key] = jh.normalize_bool(s['form'].get(key))
         return s
@@ -224,9 +235,35 @@ if database.is_open():
 
 def get_backtest_session_by_id(id: str):
     try:
-        return BacktestSession.get(BacktestSession.id == id)
+        return _reconcile_backtest_session_status(BacktestSession.get(BacktestSession.id == id))
     except BacktestSession.DoesNotExist:
         return None
+
+
+def _reconcile_backtest_session_status(session: BacktestSession) -> BacktestSession:
+    """
+    Stop a running backtest whose lease ran out. Rows without a lease are left alone: backtests
+    were never reconciled before leases existed, and such a row may be running on another
+    instance sharing this database.
+    """
+    from jesse.services import session_liveness
+
+    if session_liveness.worker_is_gone(session, legacy_coordinator_check=False):
+        message = 'The backtest worker is no longer running, so this backtest stopped without a result.'
+
+        def stop() -> None:
+            BacktestSession.update(
+                status='stopped',
+                exception=session.exception or message,
+                updated_at=jh.now_to_timestamp(True),
+            ).where((BacktestSession.id == session.id) & (BacktestSession.status == 'running')).execute()
+            session.exception = session.exception or message
+
+        # A runner job goes back to the queue instead (services/runner_queue.py).
+        from jesse.services import runner_queue
+
+        session.status = runner_queue.settle_lapsed('backtest', session, stop)
+    return session
 
 
 def store_backtest_session(
@@ -273,7 +310,7 @@ def update_backtest_session_status(id: str, status: str) -> None:
         'updated_at': jh.now_to_timestamp(True)
     }
     
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def store_backtest_session_exception(id: str, exception: str, traceback: str) -> None:
@@ -283,7 +320,7 @@ def store_backtest_session_exception(id: str, exception: str, traceback: str) ->
         'updated_at': jh.now_to_timestamp(True)
     }
 
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def update_backtest_session_results(
@@ -321,7 +358,7 @@ def update_backtest_session_results(
     if strategy_codes is not None:
         d['strategy_codes'] = json.dumps(strategy_codes)
 
-    BacktestSession.update(**d).where(BacktestSession.id == id).execute()
+    BacktestSession.update(**d).where(session_liveness.fenced(BacktestSession, BacktestSession.id == id)).execute()
 
 
 def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = None, status_filter: str = None, date_filter: str = None) -> list:
@@ -355,7 +392,7 @@ def get_backtest_sessions(limit: int = 50, offset: int = 0, title_search: str = 
         if threshold > 0:
             query = query.where(BacktestSession.created_at >= threshold)
     
-    return list(query.limit(limit).offset(offset))
+    return [_reconcile_backtest_session_status(session) for session in query.limit(limit).offset(offset)]
 
 
 def delete_backtest_session(id: str) -> bool:
@@ -414,7 +451,7 @@ def update_backtest_session_state(id: str, state: dict) -> None:
     Update or create (upsert) backtest session state. If session doesn't exist, creates as draft.
     """
     if isinstance(state, dict) and 'form' in state and isinstance(state['form'], dict):
-        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
+        for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'export_pdf', 'fast_mode', 'benchmark']:
             if key in state['form']:
                 state['form'][key] = jh.normalize_bool(state['form'].get(key))
     existing = BacktestSession.select().where(BacktestSession.id == id).first()

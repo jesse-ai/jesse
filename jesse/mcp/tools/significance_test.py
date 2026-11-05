@@ -2,7 +2,8 @@
 Jesse Rule Significance Test MCP Tools
 
 Mirrors the backtest MCP tool surface so the agent can stage and run rule
-significance tests with the same draft / run / poll workflow it already knows.
+significance tests with the same draft / run / wait workflow it already knows
+(run, then wait_for_sessions, then get_session_results).
 
 Tools exposed:
     create_significance_test_draft
@@ -18,6 +19,7 @@ The tools are async and run their API calls in a worker thread (see offload.py).
 """
 
 from .offload import run_blocking
+from .services.runners import invalid_where
 from .services import (
     create_significance_test_draft_service,
     update_significance_test_draft_service,
@@ -29,6 +31,7 @@ from .services import (
     purge_significance_test_sessions_service,
 )
 from jesse.mcp.usage_limits import gated, CREDIT_WEIGHTS
+from .run_config_arguments import ConfigOverrides
 
 
 def register_significance_test_tools(mcp):
@@ -51,6 +54,12 @@ def register_significance_test_tools(mcp):
         strategy_summary: str = None,
         hypothesis: str = None,
         rationale: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
     ) -> dict:
         """
         Create a new Rule Significance Test draft session.
@@ -83,11 +92,28 @@ def register_significance_test_tools(mcp):
             hypothesis: The trading hypothesis being validated.
             rationale: Why this rule is being significance-tested.
 
+        Run settings (all optional; omitted ones come from the saved significance test defaults for this
+        exchange, else Jesse's built-in defaults):
+            fee: Exchange fee as a fraction per side (0.0006 = 0.06%).
+            leverage: Futures leverage, a whole number of 1 or more. Ignored on spot exchanges.
+            leverage_mode: "cross" or "isolated" (futures only; must be supported by the exchange).
+            balance: Starting balance.
+            warm_up_candles: Candles loaded before the start date to warm up indicators.
+            config_overrides: JSON object with the run-config fields warm_up_candles and exchange,
+                e.g. {"exchange": {"fee": 0.0002, "futures_leverage": 20}}. Named arguments win over it.
+        Set these here instead of editing the draft state afterwards. The response's `run_config` is
+        exactly what the draft will run with, `config_source` says where each value came from
+        (explicit / saved_default / exchange_default / hard_default), and
+        `config_warnings` flags a fee or leverage that is only Jesse's built-in default, saved
+        defaults whose fee or leverage differ from this exchange's backtest defaults, or leverage
+        ignored on a spot exchange. Pass fee and leverage explicitly when a warning appears.
+
         Returns:
             {
               "status": "success",
               "session_id": "<uuid>",
               "draft_state": {...},
+              "run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any),
               "notes": {"title": ..., "description": ..., ...},
               "message": "..."
             }
@@ -106,12 +132,27 @@ def register_significance_test_tools(mcp):
             strategy_summary=strategy_summary,
             hypothesis=hypothesis,
             rationale=rationale,
+            fee=fee,
+            leverage=leverage,
+            leverage_mode=leverage_mode,
+            balance=balance,
+            warm_up_candles=warm_up_candles,
+            config_overrides=config_overrides,
         )
 
     @mcp.tool()
-    async def update_significance_test_draft(session_id: str, state: str) -> dict:
+    async def update_significance_test_draft(
+        session_id: str,
+        state: str = None,
+        fee: float = None,
+        leverage: int = None,
+        leverage_mode: str = None,
+        balance: float = None,
+        warm_up_candles: int = None,
+        config_overrides: ConfigOverrides = None,
+    ) -> dict:
         """
-        Replace the full state of a Rule Significance Test draft.
+        Update a Rule Significance Test draft: replace its full state, or change only its run settings.
 
         Workflow:
             1. session = get_significance_test_session(session_id)
@@ -123,10 +164,20 @@ def register_significance_test_tools(mcp):
             session_id: Draft session UUID.
             state: JSON string of the complete state object (form + results).
 
+        To change only run settings, omit `state` and pass any of fee, leverage, leverage_mode,
+        balance, warm_up_candles or config_overrides (same meaning as in the create tool). The
+        stored draft keeps everything else; only drafts can change. The response shows the new
+        `run_config` and `config_source` ("explicit" for what this call set, "stored" for the rest).
+        Do not combine `state` with run settings.
+
         Returns:
             { "status": "success", "session_id": ..., "draft_state": ..., "message": ... }
         """
-        return await run_blocking(update_significance_test_draft_service, session_id, state)
+        return await run_blocking(
+            update_significance_test_draft_service, session_id, state,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles, config_overrides=config_overrides,
+        )
 
     @mcp.tool()
     async def update_significance_test_notes(
@@ -234,17 +285,24 @@ def register_significance_test_tools(mcp):
         )
 
     @mcp.tool()
-    async def run_significance_test(session_id: str) -> dict:
+    async def run_significance_test(session_id: str, where: str = 'auto') -> dict:
         """
         Fire a Rule Significance Test for a previously created draft and return immediately.
 
-        Fire-and-poll: this returns once the server acknowledges (202). Then poll
-        get_significance_test_session(session_id) every few seconds until
-        status == "finished" (or "stopped"/"terminated"). Results live in
-        session["results"] once finished.
+        This returns once the server acknowledges (202). Then call
+        wait_for_sessions([session_id]) until it ends or stalls (call again while it
+        returns done=false), and read the results with
+        get_session_results("significance_test", session_id).
+
+        Parameters:
+            where (str): Which machine runs it. "auto" (default): a free research runner when
+                this Jesse has runners turned on, else here; "local": here; "any": queue it for any
+                runner; or a runner name from list_runners. Leave the default unless the user wants a
+                specific machine. A queued run returns status "queued" (with target, job_id, warning?)
+                and shows outcome "queued" in wait_for_sessions until a runner picks it up.
 
         Returns:
-            { "status": "started", "session_id": "<uuid>", "message": "..." }
+            { "status": "started" | "queued", "session_id": "<uuid>", "message": "..." }
             or { "status": "error", "message": "..." }
 
         Interpreting results:
@@ -253,7 +311,10 @@ def register_significance_test_tools(mcp):
             - p_value > 0.10         → HARD STOP. Indistinguishable from random;
               do not silently proceed to a full backtest
         """
-        return await run_blocking(gated_run_significance_test, session_id)
+        refused = invalid_where(where)
+        if refused:
+            return refused
+        return await run_blocking(gated_run_significance_test, session_id, where)
 
     @mcp.tool()
     async def cancel_significance_test(session_id: str) -> dict:

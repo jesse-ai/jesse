@@ -220,6 +220,7 @@ def get_backtest_session_for_load_more(session: BacktestSession) -> dict:
         'hyperparameters': hyperparameters,
         'has_chart_data': bool(session.chart_data),
         'has_charts_image': has_charts_image,
+        'has_report': bool(equity_curve),
         'created_at': session.created_at,
         'updated_at': session.updated_at,
         'execution_duration': session.execution_duration,

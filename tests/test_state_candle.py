@@ -1,4 +1,6 @@
+import arrow
 import numpy as np
+import pytest
 from types import SimpleNamespace
 
 from jesse.config import config, reset_config
@@ -330,9 +332,9 @@ def test_live_trade_updates_every_route_timeframe_of_its_symbol(monkeypatch):
         np.testing.assert_array_equal(candle_service.get_current_candle('Sandbox', 'BTC-USD', timeframe), expected)
 
 
-def _live_one_minute_trades(monkeypatch, now):
+def _live_one_minute_trades(monkeypatch, now, timeframes=('1m',)):
     set_up()
-    config['app']['considering_timeframes'] = ['1m']
+    config['app']['considering_timeframes'] = list(timeframes)
     config['env']['data']['generate_candles_from_1m'] = True
     store.reset()
     store.candles.init_storage()
@@ -360,3 +362,192 @@ def test_late_trade_updates_the_candle_it_belongs_to(monkeypatch):
     np.testing.assert_array_equal(arr[-2], np.array([start, 10, 12.5, 12.5, 9, 7]))
     # the new minute stays an untouched placeholder
     np.testing.assert_array_equal(arr[-1], np.array([start + 60_000, 11, 11, 11, 11, 0]))
+
+
+# On a whole minute of the clock, and of the 5m clock too.
+BOUNDARY = 1_700_000_100_000
+CLOSED_1M = np.array([BOUNDARY - 60_000, 10, 11, 12, 9, 5], dtype=np.float64)
+CLOSED_5M = np.array([BOUNDARY - 300_000, 8, 11, 12, 7, 50], dtype=np.float64)
+
+
+def _closed_candles_at_the_boundary(monkeypatch, now):
+    arr = _live_one_minute_trades(monkeypatch, now, timeframes=('1m', '5m'))
+    arr.append(CLOSED_1M.copy())
+    bigger = store.candles.get_storage('Sandbox', 'BTC-USD', '5m')
+    bigger.append(CLOSED_5M.copy())
+    return arr, bigger
+
+
+def test_trades_in_the_first_second_of_a_minute_start_the_new_candle(monkeypatch):
+    arr = _live_one_minute_trades(monkeypatch, now=BOUNDARY)
+    arr.append(CLOSED_1M.copy())
+
+    first = candle_service.add_candle_from_trade({'price': 13, 'volume': 1}, 'Sandbox', 'BTC-USD')
+    second = candle_service.add_candle_from_trade({'price': 8, 'volume': 2}, 'Sandbox', 'BTC-USD')
+
+    assert len(arr) == 2
+    np.testing.assert_array_equal(first, np.array([BOUNDARY, 11, 13, 13, 11, 1]))
+    np.testing.assert_array_equal(second, np.array([BOUNDARY, 11, 8, 13, 8, 3]))
+    np.testing.assert_array_equal(arr[-1], second)
+    np.testing.assert_array_equal(arr[-2], CLOSED_1M)
+
+
+@pytest.mark.parametrize('offset_ms, candle_timestamp', [
+    (-1, BOUNDARY - 60_000),
+    (0, BOUNDARY),
+    (300, BOUNDARY),
+    (999, BOUNDARY),
+    (1_000, BOUNDARY),
+])
+def test_the_clock_decides_the_candle_of_a_trade_to_the_millisecond(monkeypatch, offset_ms, candle_timestamp):
+    # jh.now() itself must run here, as whole seconds are what the first second comes from.
+    real_now = candle_service.jh.now
+    arr = _live_one_minute_trades(monkeypatch, now=None)
+    arr.append(CLOSED_1M.copy())
+    monkeypatch.setattr(candle_service.jh, 'now', real_now)
+    monkeypatch.setattr(candle_service.jh.arrow, 'utcnow', lambda: arrow.get((BOUNDARY + offset_ms) / 1000))
+
+    updated = candle_service.add_candle_from_trade({'price': 13, 'volume': 1}, 'Sandbox', 'BTC-USD')
+
+    assert updated[0] == candle_timestamp
+    assert arr[-1][0] == candle_timestamp
+
+
+def test_first_second_trade_with_its_own_time_goes_to_the_new_candle(monkeypatch):
+    arr = _live_one_minute_trades(monkeypatch, now=BOUNDARY)
+    arr.append(CLOSED_1M.copy())
+
+    updated = candle_service.add_candle_from_trade(
+        {'price': 13, 'volume': 1, 'timestamp': BOUNDARY + 300}, 'Sandbox', 'BTC-USD',
+    )
+
+    np.testing.assert_array_equal(updated, np.array([BOUNDARY, 11, 13, 13, 11, 1]))
+    np.testing.assert_array_equal(arr[-2], CLOSED_1M)
+
+
+def test_late_trade_received_in_the_first_second_stays_in_the_candle_it_belongs_to(monkeypatch):
+    arr = _live_one_minute_trades(monkeypatch, now=BOUNDARY)
+    arr.append(CLOSED_1M.copy())
+
+    result = candle_service.add_candle_from_trade(
+        {'price': 12.5, 'volume': 2, 'timestamp': BOUNDARY - 100}, 'Sandbox', 'BTC-USD',
+    )
+
+    assert result is None
+    np.testing.assert_array_equal(arr[-2], np.array([BOUNDARY - 60_000, 10, 12.5, 12.5, 9, 7]))
+    np.testing.assert_array_equal(arr[-1], np.array([BOUNDARY, 11, 11, 11, 11, 0]))
+
+
+def test_first_second_trade_starts_the_bigger_candle_that_opened_with_it(monkeypatch):
+    arr, bigger = _closed_candles_at_the_boundary(monkeypatch, now=BOUNDARY)
+
+    candle_service.add_candle_from_trade({'price': 13, 'volume': 1}, 'Sandbox', 'BTC-USD')
+
+    np.testing.assert_array_equal(arr[-1], np.array([BOUNDARY, 11, 13, 13, 11, 1]))
+    np.testing.assert_array_equal(bigger[-1], np.array([BOUNDARY, 11, 13, 13, 11, 1]))
+    np.testing.assert_array_equal(bigger[-2], CLOSED_5M)
+
+
+def test_on_time_run_does_not_see_the_candles_a_first_second_trade_started(monkeypatch):
+    _closed_candles_at_the_boundary(monkeypatch, now=BOUNDARY)
+    candle_service.add_candle_from_trade({'price': 13, 'volume': 1}, 'Sandbox', 'BTC-USD')
+
+    store.candles.execution_cutoff = BOUNDARY
+    try:
+        np.testing.assert_array_equal(candle_service.get_current_candle('Sandbox', 'BTC-USD', '1m'), CLOSED_1M)
+        np.testing.assert_array_equal(candle_service.get_current_candle('Sandbox', 'BTC-USD', '5m'), CLOSED_5M)
+        np.testing.assert_array_equal(candle_service.get_candles('Sandbox', 'BTC-USD', '1m')[-1], CLOSED_1M)
+        np.testing.assert_array_equal(candle_service.get_candles('Sandbox', 'BTC-USD', '5m')[-1], CLOSED_5M)
+    finally:
+        store.candles.execution_cutoff = None
+
+
+def test_first_second_trade_starts_only_the_timeframes_that_opened(monkeypatch):
+    set_up()
+    config['app']['considering_timeframes'] = ['1m', '15m', '1h']
+    config['env']['data']['generate_candles_from_1m'] = False
+    store.reset()
+    store.candles.init_storage()
+    store.candles.initiated_pairs['Sandbox-BTC-USD'] = True
+
+    start = 1_699_999_200_000
+    now = start + 900_000
+    closed = np.array([start, 10, 11, 12, 9, 5], dtype=np.float64)
+    for timeframe in ('15m', '1h'):
+        store.candles.get_storage('Sandbox', 'BTC-USD', timeframe).append(closed.copy())
+    exchange = SimpleNamespace(vars={'precisions': {'BTC-USD': {'price_precision': 2}}})
+    routes = [
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '15m'},
+        {'exchange': 'Sandbox', 'symbol': 'BTC-USD', 'timeframe': '1h'},
+    ]
+    monkeypatch.setattr(type(candle_service.router), 'all_formatted_routes', property(lambda self: routes))
+    monkeypatch.setattr(candle_service.jh, 'is_live', lambda: True)
+    monkeypatch.setattr(candle_service.jh, 'now', lambda: now)
+    monkeypatch.setattr(store.positions, 'get_position', lambda exchange, symbol: SimpleNamespace(current_price=0))
+    monkeypatch.setattr(store.exchanges, 'get_exchange', lambda name: exchange)
+    monkeypatch.setattr(candle_service.candle_repository, 'store_candle_into_db', lambda *args, **kwargs: None)
+
+    candle_service.add_candle_from_trade({'price': 13, 'volume': 2}, 'Sandbox', 'BTC-USD')
+
+    fifteen_minutes = store.candles.get_storage('Sandbox', 'BTC-USD', '15m')
+    np.testing.assert_array_equal(fifteen_minutes[-2], closed)
+    np.testing.assert_array_equal(fifteen_minutes[-1], np.array([now, 11, 13, 13, 11, 2]))
+    np.testing.assert_array_equal(
+        store.candles.get_storage('Sandbox', 'BTC-USD', '1h')[-1], np.array([start, 10, 13, 13, 9, 7]),
+    )
+
+
+class _ManualTimeloop:
+    """Stands in for Timeloop, so that a test decides when the registered job ticks."""
+
+    def job(self, interval):
+        def register(job):
+            self.tick = job
+            return job
+        return register
+
+    def start(self):
+        pass
+
+
+def test_candle_generator_keeps_the_candles_a_first_second_trade_started(monkeypatch):
+    arr, bigger = _closed_candles_at_the_boundary(monkeypatch, now=BOUNDARY)
+    candle_service.add_candle_from_trade({'price': 13, 'volume': 1}, 'Sandbox', 'BTC-USD')
+    started = np.array([BOUNDARY, 11, 13, 13, 11, 1])
+
+    timer = _ManualTimeloop()
+    monkeypatch.setattr(candle_service, 'Timeloop', lambda: timer)
+    monkeypatch.setattr(candle_service.jh, 'now', lambda: BOUNDARY + 1_000)
+    store.candles.are_all_initiated = True
+    candle_service.generate_new_candles_loop()
+    timer.tick()
+
+    np.testing.assert_array_equal(arr[-1], started)
+    np.testing.assert_array_equal(bigger[-1], started)
+
+
+def test_candle_generator_still_fills_a_minute_without_trades(monkeypatch):
+    arr, bigger = _closed_candles_at_the_boundary(monkeypatch, now=BOUNDARY + 1_000)
+
+    timer = _ManualTimeloop()
+    monkeypatch.setattr(candle_service, 'Timeloop', lambda: timer)
+    store.candles.are_all_initiated = True
+    candle_service.generate_new_candles_loop()
+    timer.tick()
+
+    np.testing.assert_array_equal(arr[-1], np.array([BOUNDARY, 11, 11, 11, 11, 0]))
+    np.testing.assert_array_equal(bigger[-1], np.array([BOUNDARY, 11, 11, 11, 11, 0]))
+
+
+def test_candle_from_a_stream_still_waits_out_its_opening_second(monkeypatch):
+    arr = _live_one_minute_trades(monkeypatch, now=BOUNDARY)
+    arr.append(CLOSED_1M.copy())
+    streamed = np.array([BOUNDARY, 11, 12, 12, 11, 1], dtype=np.float64)
+
+    candle_service.add_candle(streamed, 'Sandbox', 'BTC-USD', '1m')
+    assert len(arr) == 1
+    np.testing.assert_array_equal(arr[-1], CLOSED_1M)
+
+    monkeypatch.setattr(candle_service.jh, 'now', lambda: BOUNDARY + 1_000)
+    candle_service.add_candle(streamed, 'Sandbox', 'BTC-USD', '1m')
+    np.testing.assert_array_equal(arr[-1], streamed)

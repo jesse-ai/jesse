@@ -114,6 +114,7 @@ def store_live_session(
                 for key in ['debug_mode', 'export_chart', 'export_csv', 'export_json', 'fast_mode', 'benchmark']:
                     if key in state['form']:
                         state['form'][key] = jh.normalize_bool(state['form'].get(key))
+                _keep_started_config(state['form'], existing_session)
             d['state'] = json.dumps(state)
 
         LiveSession.update(**d).where(LiveSession.id == id).execute()
@@ -136,6 +137,22 @@ def store_live_session(
             d['state'] = json.dumps(state)
         
         LiveSession.insert(**d).execute()
+
+
+def _keep_started_config(form: dict, existing_session: LiveSession) -> None:
+    """
+    The live plugin saves a running session's form again without its run config (leverage,
+    fee, balance, ...). Keep the config the session was started with, so the session still
+    knows its settings when it is copied or restarted later.
+    """
+    if 'config' in form:
+        return
+    try:
+        previous_form = existing_session.state_json.get('form')
+    except (TypeError, ValueError):
+        return
+    if isinstance(previous_form, dict) and isinstance(previous_form.get('config'), dict):
+        form['config'] = previous_form['config']
 
 
 def restore_live_session(id: str, previous: Optional[LiveSession]) -> None:

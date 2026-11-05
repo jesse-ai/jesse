@@ -31,10 +31,11 @@ Use MCP Tools For:
 - Importing, inspecting, copying, exporting, and deleting candle data (the dashboard's candle pages)
 - Managing configuration settings
 - Saving the mandatory Markdown reports (`save_strategy_report`)
+- PDF reports of backtests, only when the user asks for one: `create_backtest_draft(export_pdf=true)`, run it, then `export_backtest_report`
 - Files inside the project's `strategies/` and `research_scripts/` folders (project file tools)
 - Running research scripts, only under the opt-in rule below
 - Reading stored session results, including live/paper sessions (`get_session_results`, `get_live_sessions`), and Jesse's recorded live/paper trades and orders by date window across sessions (`get_live_trades`, `get_live_orders`)
-- Managing live/paper sessions (drafts, start, stop, notes, delete), only under the rules below
+- Managing live/paper sessions (drafts, start, restart, stop, notes, delete), only under the rules below
 - Temporary analyses and charts of stored results (`run_analysis`), under the rules below
 
 Prohibited Actions:
@@ -69,9 +70,18 @@ Session Results and Temporary Analysis:
 - Analysis code reads only `inputs/` and writes charts/tables to `output/`; it must not read `.env` or credentials, place orders, contact exchanges, install packages, or start backtests/optimizations (use the run tools for new results). It is not sandboxed.
 - Poll `get_analysis_job(job_id)` until it finishes, show charts with `get_analysis_artifact(job_id, path)`, and explain findings yourself. Fetch artifacts soon: once 24 hours have passed since a job finished, the next `run_analysis` deletes its workspace. Details and snapshot layouts: `jesse://session_analysis`.
 
+Waiting for Runs:
+- After starting backtests, optimizations, Monte Carlo runs, or significance tests (including `resume_monte_carlo` / `rerun_optimization`), wait with `wait_for_sessions(session_ids)`, passing every session ID you started. Call it again with the same IDs while it returns `done: false`. Never write sleep-and-poll loops over `get_*_session` or `get_session_results`.
+- To keep a fixed number of runs going, pass them all with `until="any"`, start the next run when one settles, and wait again.
+- Outcome `finished`: read it with `get_session_results`. `ended`: report its `error`. `stalled`: check its logs, then cancel it and run it again. `not_started`: it is still a draft; start it. Waiting never cancels anything.
+- Give the user each session's `dashboard_url` as a link. Details: "Waiting for runs" in `jesse://backtest_management`.
+- Research runners: the run tools take `where`; the default `"auto"` is fine. Pass `where` (`"local"`, `"any"`, or a runner name) only when the user wants a specific machine, and check `list_runners` to see which runners are alive and free. A queued run shows outcome `queued` in `wait_for_sessions`; never start the same variant again because a queued job looks slow.
+
 Live and Paper Sessions:
 - Create, start, stop, or delete a live/paper session only when the user asks for that action. Every session is either PAPER (simulated, no funds) or LIVE (real orders with real funds through a saved exchange key); before starting one, tell the user which it is and on which exchange and key.
-- Start and stop exactly like the dashboard: `start_live_session` only starts drafts (copy a finished session with `copy_live_session` to run it again), and the session itself checks the license and plan. Never say a stop closed positions: a paper session, or a live session with persistency off, closes its positions and cancels its orders while ending; a live session with persistency on leaves them on the exchange. Confirm the outcome with `get_session_results("live", session_id)`.
+- Start and stop exactly like the dashboard: `start_live_session` only starts drafts, and the session itself checks the license and plan.
+- To run a session again after it stopped, crashed, or failed ("restart it", "bring it back up"), always use `restart_live_session(session_id)`: it reuses the session's exact mode, key, routes, leverage, and settings and starts the copy. Never rebuild it with `create_live_draft`, which takes saved defaults and can silently change the leverage. If `create_live_draft` returns `earlier_session`, stop and tell the user: that session already ran (or is running) these routes on the same key. If a restart returns `settings_not_copied`, confirm the listed values with the user before starting the draft it saved.
+- Report `config_warnings` and any money setting whose `config_source` is `hard_default` before starting a session; the user must confirm its leverage. Never say a stop closed positions: a paper session, or a live session with persistency off, closes its positions and cancels its orders while ending; a live session with persistency on leaves them on the exchange. Confirm the outcome with `get_session_results("live", session_id)`.
 - There is no order placement tool. Details: `jesse://live_trading`.
 
 Cancelled or Timed-Out Calls:
@@ -96,7 +106,7 @@ Key resources include:
 - jesse://indicator - Step-by-step guide for discovering and using indicators and Essential indicators and candle data access
 - jesse://position_risk - Position sizing utilities and formulas and Risk management patterns and exit strategies
 - jesse://utilities - Helper functions for calculations and analysis
-- jesse://backtest_management - Backtest creation, configuration, workflow and common strategy development pitfalls and solutions
+- jesse://backtest_management - Backtest creation, configuration, workflow, waiting for runs (`wait_for_sessions`) and common strategy development pitfalls and solutions
 - jesse://backtest_metrics - Backtest result metrics reference and interpretation
 - jesse://candle - Data import and candle data management (inventory, delete, copy, export, Custom Data CSV)
 - jesse://configuration - System configuration and exchange settings
@@ -106,7 +116,7 @@ Key resources include:
 - jesse://strategy_catalog - Browsing, comparing, and importing jesse.trade community strategies
 - jesse://research_scripts - When research scripts are allowed, project file tools, running scripts, and promoting trained models into a strategy
 - jesse://session_analysis - Reading stored session results (including live/paper), live/paper trades and orders by date window, temporary analyses, charts, and snapshot layouts
-- jesse://live_trading - Live vs paper sessions, their lifecycle (draft, start, stop, copy, delete), and what stopping does
+- jesse://live_trading - Live vs paper sessions, their lifecycle (draft, start, restart, stop, copy, delete), where their settings come from, and what stopping does
 
 **CRITICAL**: Always consult `jesse://backtest_management` first when encountering strategy creation or backtesting errors. This resource contains solutions to the most common problems encountered during development.
 
@@ -362,7 +372,7 @@ Never call `get_existing_candles()`, `get_candles()`, or any other candle inspec
 
 Correct order:
 1. Create the draft and call `run_backtest(session_id)` immediately.
-2. Poll `get_backtest_session(session_id)` until finished or stopped.
+2. Wait with `wait_for_sessions([session_id])` until it is settled.
 3. ONLY if it stops with a missing-candle error, import data starting
    ~2 months before the user's `start_date` and then retry.
 
@@ -391,6 +401,12 @@ All backtest creation parameters have sensible defaults. When a user asks to cre
 - Never ask for missing information - apply defaults
 - This enables natural conversational backtest creation
 
+Run Settings (fee, leverage, and other run config) for backtest, optimization, Monte Carlo, and significance-test drafts:
+- Set them as arguments on `create_*_draft`: `fee` (fraction per side, 0.0006 = 0.06%), `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, and `config_overrides` for any other run-config field of that mode. Omitted ones come from the saved defaults for that mode and exchange, else Jesse's built-in defaults.
+- Never replace a whole draft `state` just to change fee or leverage. Use the partial update: `update_*_draft(id, fee=..., leverage=...)` with no `state` (drafts only).
+- Check `run_config` and `config_warnings` in every create/update response. If a warning says a fee or leverage is only Jesse's built-in default, or that the saved defaults differ from the backtest defaults, pass the values explicitly: match the backtests you are following up on unless the user said otherwise.
+- A different fee or leverage for one run is a draft argument, never a reason to call `update_config`.
+
 Dynamic Data Handling: When backtesting encounters missing candle data, handle errors dynamically.
 
 Error Handling Workflow:
@@ -402,14 +418,14 @@ Error Handling Workflow:
 Basic Workflow:
 1. Create Draft: Set up backtest parameters and routes
 2. Get Config: Retrieve system configuration for execution
-3. Run Backtest: Call `run_backtest(session_id)` — it returns immediately with `{"status": "started"}`. Then poll `get_backtest_session(session_id)` every few seconds until status is `"finished"` or `"stopped"`.
+3. Run Backtest: Call `run_backtest(session_id)` — it returns immediately with `{"status": "started"}`. Then wait with `wait_for_sessions([session_id])` (again while `done` is false) and read results with `get_session_results("backtest", session_id)`.
 
 Backtest Resume Rule (MCP reconnect-safe):
 - `run_backtest()` returns immediately — the Jesse backtest process runs independently in the background.
-- Always store the session_id before calling `run_backtest()`. If the conversation is interrupted, resume by polling the same session.
+- Always store the session_id before calling `run_backtest()`. If the conversation is interrupted, resume by waiting on the same session.
 - On reconnect, do NOT immediately start a new run.
-- First call `get_backtest_session(session_id)` for the existing session and inspect current state/results.
-- If session is still executing, continue polling the same session until completion or failure.
+- First call `get_session_results("backtest", session_id)` for the existing session and inspect current state/results.
+- If session is still executing, continue with `wait_for_sessions([session_id])` until it is settled.
 - If completed, use that session's metrics/trades/equity outputs instead of rerunning.
 - If failed due to missing candles, import the missing data (with warmup buffer), then rerun from updated draft/session settings.
 - Avoid duplicate concurrent runs for the same exchange-symbol-strategy-timeframe and date range.
@@ -440,8 +456,8 @@ Workflow (when asked):
    - Use `n_simulations >= 2000` for stable p-values.
    - Populate `hypothesis` and `rationale` so the session is self-describing.
 3. Fire it: `run_significance_test(session_id)` — returns immediately.
-4. Poll `get_significance_test_session(session_id)` every few seconds until
-   `status` is `"finished"`, `"stopped"`, or `"terminated"`.
+4. Wait with `wait_for_sessions([session_id])` until it is settled, then read
+   it with `get_session_results("significance_test", session_id)`.
 5. Inspect `results.p_value`:
    - `p_value < 0.05`  → next-bar entry edge supported.
    - `0.05 <= p_value <= 0.10` → borderline. Surface the number, flag it as
@@ -463,8 +479,8 @@ Constraints (enforced server-side):
 
 Reuse / resumption:
 - `run_significance_test()` returns immediately; the simulation runs in the
-  background. Store the `session_id` so you can resume polling after any
-  interruption with the same `get_significance_test_session(session_id)` call.
+  background. Store the `session_id` so you can resume waiting after any
+  interruption with the same `wait_for_sessions([session_id])` call.
 - Reusing a `session_id` for a brand-new run requires the prior session to be
   in `draft` state; otherwise the server returns 409. Create a new draft for a
   new run instead of reusing finished IDs.
@@ -507,49 +523,29 @@ When to use MC:
 Same run-first / don't-pre-check-candles rule as backtests:
 1. Stage a draft with `create_monte_carlo_draft(...)`.
 2. Fire `run_monte_carlo(session_id)` (returns immediately).
-3. Keep checking `get_monte_carlo_session(session_id)` until `status` is
-   `"finished"`, `"stopped"`, or `"terminated"`. **See "Checking for
-   results" below — keep checking until terminal, no exceptions, and
-   never ask the user to drive the loop.**
+3. Wait with `wait_for_sessions([session_id])` until it is settled. **See
+   "Checking for results" below — keep waiting until settled, no
+   exceptions, and never ask the user to drive the loop.**
 4. ONLY on a missing-candle error, import candles starting ~2 months before
    `start_date` and then `resume_monte_carlo(session_id)`.
 
-Checking for results (applies to MC, RST, backtest, and any other
-fire-and-poll tool):
+Checking for results (applies to MC, RST, backtest, and optimization):
 
-- **Keep checking until the run reaches a terminal status — finished,
-  stopped, or terminated.** This is not optional and not subject to your
-  judgment about how long is "too long". A 30-minute or 3-hour candles
-  MC is normal; the agent is expected to keep checking the entire time.
+- **Wait with `wait_for_sessions` until every run is settled.** While it
+  returns `done: false`, call it again with the same IDs. This is not
+  optional and not subject to your judgment about how long is "too
+  long". A 30-minute or 3-hour candles MC is normal; keep waiting the
+  entire time.
 - **NEVER ask the user "should I keep checking?" or "let me know when
   you'd like me to check again."** That is a hard error. The user
   expects autonomous progress to completion; asking them to drive the
-  loop wastes their time and breaks trust. Just keep checking.
+  loop wastes their time and breaks trust. Just keep waiting.
 - **NEVER stop because progress appears stuck.** Specifically for
-  candles MC, `candles_session.completed_scenarios` often stays at 0
-  for a long time because the runner batches scenarios across CPU
-  cores and only reports when a batch completes. That is not a stuck
-  run — keep checking.
-- **Adapt the interval to expected remaining time** so you're not
-  hammering the server every second on a long run. Suggested cadence:
-
-  | Elapsed since fire | Check every |
-  |---|---|
-  | 0 – 1 min | 5 s |
-  | 1 – 5 min | 15 s |
-  | 5 – 15 min | 30 s |
-  | 15 – 60 min | 60 s |
-  | > 1 h | 2 – 3 min |
-
-  If the session exposes a progress signal (`completed_scenarios`,
-  `estimated_remaining_seconds`, etc.), use it: estimate remaining
-  time and set the next check to roughly
-  `min(remaining_eta / 5, max_interval)`.
-- The ONLY case where you may surface a "what should I do?" question
-  is after at least ~2 hours of elapsed time with no terminal status
-  AND no progress signal at all — at that point ask whether to cancel
-  or terminate. Even then, keep periodically checking in the
-  background; do not stop the loop while waiting for an answer.
+  candles MC, `completed_scenarios` often stays at 0 for a long time
+  because the runner batches scenarios across CPU cores. Stalls are
+  judged from the worker's lease and activity: only outcome `stalled` means stuck. Then
+  check its logs, cancel it, and run it again. A session started by an
+  older Jesse version has no heartbeat, so only its end is detected.
 
 User-facing language: when you tell the user what you're doing, say
 **"checking for results"** or **"checking again"** — not "polling".

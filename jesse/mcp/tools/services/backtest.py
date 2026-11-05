@@ -24,7 +24,9 @@ from jesse.services.web import (
 )
 from pydantic import ValidationError
 from .auth import hash_password
+from .draft_config import describe_run_config, draft_run_config, has_config_arguments, update_draft_run_config
 from .session_config import backtest_engine_config, load_session_run_config
+from .runners import DEFAULT_WHERE, body_error, invalid_where, normalized_where, queued_result, response_body
 
 
 def _build_default_backtest_title(routes_list: list) -> str:
@@ -89,6 +91,7 @@ def _build_default_backtest_description(
     export_chart: bool,
     fast_mode: bool,
     benchmark: bool,
+    export_pdf: bool = False,
     strategy_summary: Optional[str] = None,
     change_summary: Optional[str] = None,
     rationale: Optional[str] = None
@@ -101,6 +104,8 @@ def _build_default_backtest_description(
         options.append("CSV export")
     if export_json:
         options.append("JSON export")
+    if export_pdf:
+        options.append("PDF report")
     if export_chart:
         options.append("chart export")
     if fast_mode:
@@ -212,7 +217,14 @@ def create_backtest_draft_service(
     description: Optional[str] = None,
     strategy_summary: Optional[str] = None,
     change_summary: Optional[str] = None,
-    rationale: Optional[str] = None
+    rationale: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+    export_pdf: bool = False,
 ) -> dict:
     """
     Create a new backtest draft with specified configuration.
@@ -237,6 +249,10 @@ def create_backtest_draft_service(
         strategy_summary: Optional short summary of the strategy being tested.
         change_summary: Optional summary of what the MCP changed before this backtest.
         rationale: Optional reason why the MCP made the change or ran the test.
+        fee, leverage, leverage_mode, balance, warm_up_candles: Optional run settings; omitted
+            ones come from the saved settings for backtests on this exchange, else Jesse's defaults.
+        config_overrides: Optional JSON object with any other run-config field (logging).
+        export_pdf: Keep what the PDF report needs. Only when the user asks for one.
 
     Returns:
         Success confirmation with new session ID
@@ -281,7 +297,12 @@ def create_backtest_draft_service(
             # Fallback to defaults if no routes provided
             selected_route = {"symbol": "BTC-USDT", "timeframe": "4h", "strategy": "ExampleStrategy"}
 
-        run_config = load_session_run_config('backtest', exchange)
+        resolved = draft_run_config(
+            'backtest', exchange, config_overrides,
+            fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+            warm_up_candles=warm_up_candles,
+        )
+        run_config = resolved['config']
 
         # Create complete state structure
         state_dict = {
@@ -294,6 +315,7 @@ def create_backtest_draft_service(
                 'debug_mode': debug_mode,
                 'export_csv': export_csv,
                 'export_json': export_json,
+                'export_pdf': export_pdf,
                 'export_chart': export_chart,
                 'fast_mode': fast_mode,
                 'benchmark': benchmark,
@@ -327,6 +349,7 @@ def create_backtest_draft_service(
             debug_mode=debug_mode,
             export_csv=export_csv,
             export_json=export_json,
+            export_pdf=export_pdf,
             export_chart=export_chart,
             fast_mode=fast_mode,
             benchmark=benchmark,
@@ -370,6 +393,7 @@ def create_backtest_draft_service(
                     'strategy_code_keys': list(strategy_codes.keys()),
                     'strategy_codes_captured': len(strategy_codes)
                 },
+                **describe_run_config(resolved),
                 'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id}'
             }
@@ -387,6 +411,7 @@ def create_backtest_draft_service(
                 'status': 'success',
                 'backtest_id': backtest_id,
                 'draft_state': state_dict,
+                **describe_run_config(resolved),
                 'dashboard_url': mcp_config.dashboard_url('backtest', backtest_id),
                 'message': f'Backtest draft created with ID: {backtest_id} (state not persisted)',
                 'warning': 'Could not persist state to database'
@@ -412,22 +437,53 @@ def create_backtest_draft_service(
         }
 
 
-def update_backtest_draft_service(backtest_id: str, state: str) -> dict:
+def update_backtest_draft_service(
+    backtest_id: str,
+    state: Optional[str] = None,
+    fee: Optional[float] = None,
+    leverage: Optional[int] = None,
+    leverage_mode: Optional[str] = None,
+    balance: Optional[float] = None,
+    warm_up_candles: Optional[int] = None,
+    config_overrides: Optional[str] = None,
+) -> dict:
     """
-    Update an existing backtest draft configuration with complete state.
+    Update an existing backtest draft.
 
-    This replaces the entire state of an existing backtest session. For complex updates
+    With `state`, this replaces the entire state of the session. For complex updates
     (like adding routes), use get_backtest_session first to retrieve current state,
     perform merging logic, then call this function with the complete new state.
+    Without `state`, only the given run settings change (see draft_config).
 
     Args:
         backtest_id: ID of the backtest session to update (required)
         state: JSON string with complete state object containing 'form' and 'results'.
             Should match dashboard state format with complete data.
+        fee, leverage, leverage_mode, balance, warm_up_candles, config_overrides: Run settings
+            to change on the stored draft; not combined with `state`.
 
     Returns:
         Success confirmation with updated configuration
     """
+    config_arguments = dict(
+        fee=fee, leverage=leverage, leverage_mode=leverage_mode, balance=balance,
+        warm_up_candles=warm_up_candles,
+    )
+    if state is not None and has_config_arguments(config_overrides, **config_arguments):
+        return {
+            'status': 'error',
+            'message': 'Send either the complete state or run settings to change, not both.',
+        }
+    if state is None:
+        if not has_config_arguments(config_overrides, **config_arguments):
+            return {
+                'status': 'error',
+                'message': 'Nothing to update: pass state, or run settings such as fee or leverage.',
+            }
+        return update_draft_run_config(
+            'backtest', backtest_id, 'backtest_id', config_overrides, **config_arguments,
+        )
+
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
 
@@ -736,7 +792,7 @@ def get_backtest_sessions_service(
         }
 
 
-def run_backtest_service(session_id: str) -> dict:
+def run_backtest_service(session_id: str, where: str = DEFAULT_WHERE) -> dict:
     """
     Trigger a backtest and return immediately.
 
@@ -747,12 +803,18 @@ def run_backtest_service(session_id: str) -> dict:
 
     Args:
         session_id: ID of the backtest session to run
+        where: "auto", "local", "any", or a runner name (see services/runners.py)
 
     Returns:
-        {"status": "started", "backtest_id": session_id} on success, or an error dict.
+        {"status": "started", "backtest_id": session_id} on success, {"status": "queued", ...}
+        when Jesse queued it for a research runner, or an error dict.
     """
     api_url = mcp_config.JESSE_API_URL
     password = mcp_config.JESSE_PASSWORD
+
+    refused = invalid_where(where)
+    if refused:
+        return refused
 
     try:
         auth_token_hashed = hash_password(password)
@@ -829,6 +891,7 @@ def run_backtest_service(session_id: str) -> dict:
         # Starting the run and storing its finalized form must be one request so
         # the session history cannot describe a different configuration.
         payload['state'] = state
+        payload['where'] = normalized_where(where)
 
         # Fire the backtest and return immediately
         response = requests.post(
@@ -839,15 +902,20 @@ def run_backtest_service(session_id: str) -> dict:
         )
 
         if response.status_code == 202:
+            queued = queued_result('backtest', session_id, response_body(response))
+            if queued:
+                return {**queued, 'backtest_id': session_id, 'routes': payload['routes']}
             return {
                 'status': 'started',
                 'backtest_id': session_id,
                 'routes': payload['routes'],
                 'dashboard_url': mcp_config.dashboard_url('backtest', session_id),
-                'message': 'Backtest started. Poll get_backtest_session(session_id) to check progress and retrieve results when status is "finished".'
+                'message': 'Backtest started. Call wait_for_sessions([session_id]) to wait until it ends or stalls, then read it with get_session_results.'
             }
         elif response.status_code == 401:
             return {'status': 'error', 'message': 'Authentication failed'}
+        elif response.status_code in (400, 409) and body_error(response):
+            return {'status': 'error', 'message': f'Failed to start backtest: {body_error(response)}'}
         else:
             return {'status': 'error', 'message': f'Failed to start backtest: {response.text}'}
 
@@ -855,6 +923,56 @@ def run_backtest_service(session_id: str) -> dict:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to connect to Jesse API'}
     except Exception as e:
         return {'status': 'error', 'error': str(e), 'message': 'Failed to run backtest'}
+
+
+def export_backtest_report_service(session_id: str, path: Optional[str] = None, overwrite: bool = False) -> dict:
+    """
+    Write the PDF report of a finished backtest into the Jesse project (research_scripts/).
+
+    It is written on the Jesse host; nothing is sent to the assistant except the summary.
+    """
+    try:
+        response = requests.post(
+            f'{mcp_config.JESSE_API_URL}/backtest/sessions/{session_id}/report/export-to-project',
+            json={'path': path, 'overwrite': bool(overwrite)},
+            headers={'Authorization': hash_password(mcp_config.JESSE_PASSWORD)},
+            timeout=60,
+        )
+    except requests.exceptions.RequestException as e:
+        return {
+            'status': 'error',
+            'action': 'backtest_report_export_failed',
+            'session_id': session_id,
+            'error_type': 'network_error',
+            'message': f'Network error during report export: {str(e)}',
+        }
+
+    payload = response_body(response)
+    if response.status_code != 201:
+        return {
+            'status': 'error',
+            'action': 'backtest_report_export_failed',
+            'session_id': session_id,
+            'error_type': payload.get('error_type') or 'api_error',
+            'http_status': response.status_code,
+            'message': f"Failed to export the report: {payload.get('error') or response.text}",
+        }
+
+    dashboard_url = mcp_config.dashboard_url('backtest', session_id)
+    return {
+        'status': 'success',
+        'action': 'backtest_report_exported',
+        'session_id': session_id,
+        'location': "Jesse project on the Jesse host (not the assistant's machine)",
+        'path': payload.get('path'),
+        'overwritten': payload.get('overwritten'),
+        'size_bytes': payload.get('size_bytes'),
+        'dashboard_url': dashboard_url,
+        'message': (
+            f"Wrote the PDF report to {payload.get('path')} in the Jesse project. To download it to your "
+            "own computer, open the session on the dashboard and click PDF report."
+        ),
+    }
 
 
 def cancel_backtest_service(session_id: str) -> dict:

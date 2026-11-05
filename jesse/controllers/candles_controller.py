@@ -278,7 +278,11 @@ def clear_candles_database_cache():
     """
 
     from jesse.services.cache import cache
+    from jesse.services import runner_queue
     cache.flush()
+    # runners keep their own copy of the candles they load
+    if runner_queue.enabled():
+        runner_queue.notify(runner_queue.CHANNEL_CACHE)
 
     return JSONResponse({
         'status': 'success',
@@ -296,7 +300,8 @@ def get_candles(json_request: GetCandlesRequestJson) -> JSONResponse:
 
     from jesse.modes.data_provider import get_candles as gc
 
-    arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe)
+    # A live session's chart sends the session's id; other callers send an id of their own.
+    arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe, json_request.id)
 
     return JSONResponse({
         'id': json_request.id,

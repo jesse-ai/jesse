@@ -6,6 +6,7 @@ import json
 
 from jesse.services.auth import require_auth
 from jesse.services.multiprocessing import process_manager
+from jesse.services import runner_queue, session_liveness
 from jesse.services.web import (
     MonteCarloRequestJson,
     CancelMonteCarloRequestJson,
@@ -71,9 +72,7 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson):
         status='running',
         state=request_json.state,
     )
-
-    process_manager.add_task(
-        run_monte_carlo,
+    arguments = (
         session_id,
         request_json.config,
         request_json.exchange,
@@ -90,6 +89,18 @@ async def monte_carlo(request: Request, request_json: MonteCarloRequestJson):
         request_json.pipeline_params,
         request_json.state,
     )
+    # With `where` set, a research runner may run it instead (services/runner_queue.py).
+    try:
+        queued = runner_queue.queue_if_requested('monte_carlo', 'monte_carlo', arguments, request_json.routes,
+                                                 getattr(request_json, 'where', None))
+    except runner_queue.QueueError as e:
+        update_monte_carlo_session_status(session_id, 'draft')
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        return JSONResponse(queued, status_code=202)
+    session_liveness.claim('monte_carlo', session_id)
+
+    process_manager.add_task(run_monte_carlo, *arguments)
 
     return JSONResponse({
         'message': 'Started Monte Carlo simulation...',
@@ -145,8 +156,16 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson):
             'error': f'Session with ID {request_json.id} not found'
         }, status_code=404)
 
-    # Transform the session using the transformer
-    transformed_session = get_monte_carlo_session_for_load_more(session)
+    if session_liveness.has_live_worker(session):
+        return JSONResponse({
+            'error': f'Monte Carlo session {request_json.id} is already running.'
+        }, status_code=409)
+    if getattr(session, 'status', None) == 'queued':
+        return JSONResponse({
+            'error': f'Monte Carlo session {request_json.id} is already queued for a research runner. '
+                     'Cancel it first to start it again.'
+        }, status_code=409)
+
     stored_state = session.state_json if session.state else {}
     stored_form = stored_state.get('form', {}) if isinstance(stored_state, dict) else {}
     stored_config = stored_form.get('config') if isinstance(stored_form, dict) else None
@@ -160,8 +179,7 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson):
         else request_json.cpu_cores
     )
 
-    process_manager.add_task(
-        run_monte_carlo,
+    arguments = (
         request_json.id,
         resume_config,
         request_json.exchange,
@@ -178,6 +196,27 @@ async def resume_monte_carlo(request_json: MonteCarloRequestJson):
         request_json.pipeline_params,
         stored_state or request_json.state,
     )
+    try:
+        queued = runner_queue.queue_if_requested('monte_carlo', 'monte_carlo', arguments, request_json.routes,
+                                                 getattr(request_json, 'where', None))
+    except runner_queue.QueueError as e:
+        return JSONResponse({'error': e.message}, status_code=e.status_code)
+    if queued is not None:
+        session.status = 'queued'
+        return JSONResponse({'session': get_monte_carlo_session_for_load_more(session), **queued})
+
+    # Mark it running before its worker starts, so a worker that dies while loading candles
+    # cannot leave the session a draft.
+    session_liveness.claim('monte_carlo', request_json.id, mark_running=True)
+    session.status = 'running'
+    transformed_session = get_monte_carlo_session_for_load_more(session)
+
+    try:
+        process_manager.add_task(run_monte_carlo, *arguments)
+    except Exception as e:
+        error = f'{type(e).__name__}: {e}'
+        session_liveness.release_failed_start('monte_carlo', request_json.id, error)
+        return JSONResponse({'error': error}, status_code=500)
 
     return JSONResponse({
         'session': transformed_session

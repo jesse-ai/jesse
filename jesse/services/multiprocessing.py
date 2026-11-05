@@ -129,8 +129,15 @@ class ProcessManager:
     def get_pid(self, client_id):
         return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
 
-    def cancel_process(self, client_id):
+    def cancel_process(self, client_id, notify_runners: bool = True):
         sync_redis.srem(self._active_workers_key, client_id)
+        if notify_runners:
+            # A queued research job is dropped, and one running on a runner machine is stopped there.
+            try:
+                from jesse.services import runner_queue
+                runner_queue.cancel(client_id)
+            except Exception as e:
+                _terminal_debug(f'Could not cancel the runner job of {client_id}: {type(e).__name__}: {e}')
 
     def shutdown(self) -> None:
         """Allow cooperative session cleanup before bounded forced process removal."""
@@ -141,7 +148,7 @@ class ProcessManager:
             client_ids = list(self.client_id_to_pid_to_map)
             for prefixed in client_ids:
                 try:
-                    self.cancel_process(jh.string_after_character(prefixed, '|'))
+                    self.cancel_process(jh.string_after_character(prefixed, '|'), notify_runners=False)
                 except Exception:
                     # Private-service failure is also observed by managed workers;
                     # a broken coordinator must not prevent final process cleanup.
@@ -210,7 +217,11 @@ class ProcessManager:
                 break
 
     def _cleanup_finished_workers(self):
+        from jesse.services import session_liveness
+        last_renewal = 0.0
         while True:
+            exited = []
+            live_client_ids = []
             try:
                 with self._workers_lock:
                     self._retry_pending_worker_removals()
@@ -231,7 +242,6 @@ class ProcessManager:
                                 _terminal_debug(
                                     f'Worker {client_id} (PID {worker_pid}) exited with code {exit_code}'
                                 )
-
                                 w.close()
                                 self._workers.remove(w)
                                 self._pid_to_client_id_map.pop(prefixed_pid, None)
@@ -241,13 +251,48 @@ class ProcessManager:
                                     and self.client_id_to_pid_to_map.get(prefixed_client_id) == prefixed_pid
                                 ):
                                     self.client_id_to_pid_to_map.pop(prefixed_client_id, None)
+                                    # Only the session's latest worker decides its fate; a rerun
+                                    # may already have started a newer one under the same id.
+                                    exited.append((client_id, exit_code))
                                     if self._remove_active_worker(client_id):
                                         _terminal_debug(f"Cleaned up finished worker {client_id}")
                             except Exception as e:
                                 _terminal_debug(f"Error during worker cleanup: {type(e).__name__}: {e}")
+                    live_client_ids = [
+                        jh.string_after_character(client_id, '|')
+                        for client_id, pid in self.client_id_to_pid_to_map.items()
+                    ]
             except Exception as e:
                 _terminal_debug(f"Error in cleanup thread: {type(e).__name__}: {e}")
+            # Outside the lock: the database may be slow, and starting workers must not wait on it.
+            for client_id, exit_code in exited:
+                self._reconcile_exited_session(client_id, exit_code)
+            if live_client_ids and time.monotonic() - last_renewal >= session_liveness.HEARTBEAT_INTERVAL_SECONDS:
+                last_renewal = time.monotonic()
+                try:
+                    session_liveness.renew_leases(live_client_ids)
+                except Exception as e:
+                    _terminal_debug(f'Error renewing session leases: {type(e).__name__}: {e}')
             time.sleep(5)
+
+    @staticmethod
+    def _reconcile_exited_session(client_id: str, exit_code) -> None:
+        """Stop a research session that still says running after its worker exited."""
+        try:
+            from jesse.services.session_liveness import reconcile_exited_worker
+            stopped = reconcile_exited_worker(client_id, exit_code)
+        except Exception as e:
+            _terminal_debug(f'Error reconciling session {client_id} after its worker exited: {type(e).__name__}: {e}')
+            stopped = []
+        for kind in stopped:
+            _terminal_debug(f'Marked {kind} session {client_id} stopped: its worker exited with code {exit_code}')
+        try:
+            from jesse.services import runner
+            current = runner.current()
+            if current is not None:
+                current.on_worker_exit(client_id, exit_code)
+        except Exception as e:
+            _terminal_debug(f'Error completing the runner job of {client_id}: {type(e).__name__}: {e}')
 
     @property
     def active_workers(self) -> set:

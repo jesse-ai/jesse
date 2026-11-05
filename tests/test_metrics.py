@@ -237,6 +237,102 @@ def test_crypto_daily_return_metrics_use_365_day_annualization() -> None:
     assert metrics.max_drawdown(returns).iloc[0] == pytest.approx(-0.02)
 
 
+def _balance_returns(balances: list) -> pd.DataFrame:
+    """Daily returns the way a backtest gets them, with pct_change's NaN in the first row."""
+    days = pd.date_range('2024-01-01', periods=len(balances), freq='D', tz='UTC')
+    return pd.DataFrame(balances, index=days).pct_change(1)
+
+
+def _balance_serenity(balances: list) -> float:
+    timestamps = [1_704_067_200_000 + i * 86_400_000 for i in range(len(balances))]
+    return metrics.balance_metrics(balances, timestamps, 365)['serenity_index']
+
+
+def test_drawdowns_start_from_the_first_balance() -> None:
+    # regression: the NaN in the first row spread through the running peak and made every drawdown NaN
+    drawdowns = metrics.to_drawdown_series(_balance_returns([100.0, 90.0, 95.0, 100.0, 80.0]))
+
+    assert drawdowns[0].tolist() == pytest.approx([0, -0.1, -0.05, 0, -0.2])
+
+
+def test_ulcer_index_measures_the_drawdowns_of_a_balance() -> None:
+    # Drawdowns 0, 0, -10% and -1%: sqrt((0.1^2 + 0.01^2) / 3)
+    assert metrics.ulcer_index(_balance_returns([100.0, 110.0, 99.0, 108.9])).iloc[0] == pytest.approx(0.0580229840, rel=1e-6)
+
+
+def test_max_drawdown_counts_a_fall_from_the_first_balance() -> None:
+    # regression: the first balance wasn't a peak, so this reported -5.3% instead of -10%
+    returns = _balance_returns([100.0, 95.0, 90.0, 100.0])
+
+    assert metrics.max_drawdown(returns).iloc[0].iloc[0] == pytest.approx(-0.1)
+
+
+def test_calmar_ratio_counts_a_fall_from_the_first_balance() -> None:
+    days = 366
+    balances = [100.0, 50.0] + [50.0 + 50.0 * i / (days - 2) * 1.2 for i in range(1, days - 1)]
+    returns = _balance_returns(balances)
+
+    # A year's return of +10%, from 100 to 110, over a drawdown of -50%
+    assert metrics.calmar_ratio(returns).iloc[0] == pytest.approx(0.1 / 0.5, rel=1e-6)
+
+
+def test_serenity_index_of_a_balance_worked_out_by_hand() -> None:
+    # regression: this was infinite for every backtest, or NaN for the shortest ones.
+    # Returns +10%, -10%, +10% sum to 0.1 with a standard deviation of 0.11547005.
+    # Drawdowns 0, 0, -10% and -1% give an ulcer index of 0.05802298, and with so few values
+    # the expected shortfall is the worst one, -10%, for a pitfall of 0.1 / 0.11547005.
+    # Serenity = 0.1 / (0.05802298 * 0.8660254)
+    assert _balance_serenity([100.0, 110.0, 99.0, 108.9]) == pytest.approx(1.9900744, rel=1e-6)
+
+
+def test_serenity_index_stays_finite_over_a_long_backtest() -> None:
+    random = np.random.default_rng(7)
+    balances = (10_000 * np.cumprod(1 + random.normal(0.001, 0.02, 500))).tolist()
+
+    assert np.isfinite(_balance_serenity(balances))
+
+
+def test_serenity_index_rewards_the_same_profit_with_less_risk() -> None:
+    calm = [100.0, 104.0, 102.0, 106.0, 104.0, 108.0, 106.0, 110.0]
+    rough = [100.0, 130.0, 70.0, 125.0, 75.0, 120.0, 80.0, 110.0]
+
+    assert _balance_serenity(calm) > _balance_serenity(rough) > 0
+
+
+def test_serenity_index_is_negative_for_a_losing_balance() -> None:
+    assert _balance_serenity([100.0, 95.0, 97.0, 90.0, 92.0, 85.0]) < 0
+
+
+def test_serenity_index_of_a_balance_that_never_fell_is_infinite_like_sortino() -> None:
+    assert _balance_serenity([100.0, 110.0, 125.0]) == float('inf')
+
+
+def test_serenity_index_of_a_balance_that_never_moved_is_undefined() -> None:
+    assert np.isnan(_balance_serenity([100.0, 100.0, 100.0]))
+
+
+def test_serenity_index_of_a_perfectly_steady_rise_is_undefined() -> None:
+    # returns with no spread leave the pitfall, and so the index, at 0 / 0
+    assert np.isnan(_balance_serenity([100.0, 110.0, 121.0]))
+
+
+def test_autocorr_penalty_ignores_the_leading_nan_from_pct_change() -> None:
+    # metrics.trades() builds daily returns with pct_change(), whose first value is NaN.
+    returns = pd.Series([10_000, 10_200, 10_098, 10_401, 10_193, 10_295, 10_090]).pct_change(1)
+
+    penalty = metrics.autocorr_penalty(returns)
+
+    assert np.isfinite(penalty)
+    assert penalty >= 1
+    assert penalty == pytest.approx(metrics.autocorr_penalty(returns.dropna()))
+    assert metrics.sharpe_ratio(returns, periods=365, smart=True).iloc[0] == pytest.approx(
+        metrics.sharpe_ratio(returns, periods=365).iloc[0] / penalty
+    )
+    assert metrics.sortino_ratio(returns, periods=365, smart=True).iloc[0] == pytest.approx(
+        metrics.sortino_ratio(returns, periods=365).iloc[0] / penalty
+    )
+
+
 def test_winning_only_daily_returns_have_stable_undefined_ratios() -> None:
     returns = _daily_returns([0.01, 0.02, 0.03])
 
@@ -282,6 +378,60 @@ def test_max_underwater_period_counts_days_until_recovery() -> None:
     balances = [10_000, 11_000, 10_500, 10_400, 11_200, 10_800]
 
     assert metrics.calculate_max_underwater_period(balances) == 2
+
+
+def _sample_time(date: str) -> int:
+    """Daily balances are sampled one minute into the day after the one they measure."""
+    return jh.date_to_timestamp(date) + 60_000
+
+
+def test_monthly_returns_keep_the_last_day_of_each_month() -> None:
+    # regression: the heatmap compared each month's first and last samples, so the
+    # return of the last day of every month was lost.
+    balances = [100, 100, 100, 110, 110]
+    timestamps = [
+        jh.date_to_timestamp('2021-01-30'),
+        _sample_time('2021-01-31'),
+        _sample_time('2021-02-01'),
+        _sample_time('2021-02-02'),
+        _sample_time('2021-03-01'),
+    ]
+
+    assert metrics.monthly_returns(balances, timestamps) == {
+        (2021, 1): pytest.approx(0),
+        (2021, 2): pytest.approx(10),
+    }
+
+
+def test_monthly_returns_compound_to_the_total_return() -> None:
+    balances = [100, 120, 90, 99]
+    timestamps = [
+        jh.date_to_timestamp('2021-01-01'),
+        _sample_time('2021-02-01'),
+        _sample_time('2021-03-01'),
+        _sample_time('2021-04-01'),
+    ]
+
+    returns = metrics.monthly_returns(balances, timestamps)
+
+    assert returns == {
+        (2021, 1): pytest.approx(20),
+        (2021, 2): pytest.approx(-25),
+        (2021, 3): pytest.approx(10),
+    }
+    assert np.prod([1 + r / 100 for r in returns.values()]) == pytest.approx(0.99)
+
+
+def test_a_final_sample_at_midnight_does_not_open_a_new_month() -> None:
+    balances = [100, 105]
+    timestamps = [jh.date_to_timestamp('2021-01-01'), jh.date_to_timestamp('2021-02-01')]
+
+    assert metrics.monthly_returns(balances, timestamps) == {(2021, 1): pytest.approx(5)}
+
+
+def test_monthly_returns_need_matching_timestamps() -> None:
+    assert metrics.monthly_returns([100, 110], [jh.date_to_timestamp('2021-01-01')]) == {}
+    assert metrics.monthly_returns([100], [jh.date_to_timestamp('2021-01-01')]) == {}
 
 
 def test_winning_only_backtest_metrics_include_fees() -> None:
@@ -337,14 +487,26 @@ def test_mixed_multi_day_backtest_metrics_contract() -> None:
     assert stats['open_pl'] == 0
     assert stats['max_drawdown'] == pytest.approx(-0.10200014186112494)
     assert stats['max_underwater_period'] == 2
+    assert stats['positive_months'] == 1
+    assert stats['negative_months'] == 0
     assert stats['annual_return'] == pytest.approx(5.465903612204692)
     assert stats['sharpe_ratio'] == pytest.approx(2.45661087496446)
     assert stats['sortino_ratio'] == pytest.approx(4.591544590351203)
     assert stats['calmar_ratio'] == pytest.approx(53.58721578688214)
     assert stats['omega_ratio'] == pytest.approx(1.4299197170055138)
-    assert np.isnan(stats['serenity_index'])
+    assert np.isfinite(stats['serenity_index'])
     assert len(store.app.daily_balance_timestamps) == len(store.app.daily_balance)
     assert store.app.daily_balance_timestamps == sorted(store.app.daily_balance_timestamps)
+
+
+def test_backtest_metrics_include_the_smart_ratios() -> None:
+    stats = _run_metrics_backtest(_MixedMetricsStrategy, _mixed_trade_prices())['metrics']
+
+    # The optimize mode's "smart sharpe" / "smart sortino" objectives read these keys.
+    assert np.isfinite(stats['smart_sharpe'])
+    assert np.isfinite(stats['smart_sortino'])
+    assert 0 < stats['smart_sharpe'] <= stats['sharpe_ratio']
+    assert 0 < stats['smart_sortino'] <= stats['sortino_ratio']
 
 
 def test_stock_annualization_changes_ratios_without_changing_timestamp_based_growth() -> None:

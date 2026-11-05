@@ -19,7 +19,7 @@ from jesse.services.web import (
     UpdateLiveSessionStateRequestJson
 )
 import jesse.helpers as jh
-from jesse.repositories import live_session_repository
+from jesse.repositories import live_session_repository, open_tab_repository
 from jesse.services import transformers
 from jesse.modes.data_provider import download_live_log
 from jesse.enums import live_session_statuses, live_session_modes
@@ -50,10 +50,33 @@ def live(request_json: LiveRequestJson) -> JSONResponse:
                 },
                 status_code=409,
             )
-        _store_and_start(request_json, trading_mode, live_mode, existing_session)
+        try:
+            _store_and_start(request_json, trading_mode, live_mode, existing_session)
+        finally:
+            # The launch can raise after the process started, and that session needs its tab too.
+            if _has_active_marker(request_json.id):
+                _open_session_tab(request_json.id, request_json.replaces_session_id)
 
     mode = 'live' if request_json.paper_mode is False else 'paper'
     return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
+
+
+def _open_session_tab(session_id: str, replaces_session_id: Optional[str]) -> None:
+    """
+    Give a started session its dashboard tab, however it was started, so it survives a page reload.
+
+    A session that follows a stopped one takes over that tab, so repeated restarts do not pile up
+    ended tabs; a draft's tab, or that of a session still active, is left open beside it. The
+    session is already running at this point, so a failed tab update must not fail the start.
+    """
+    try:
+        source = live_session_repository.get_live_session_by_id(replaces_session_id) if replaces_session_id else None
+        if source and source.status != live_session_statuses.DRAFT and not _has_active_marker(replaces_session_id):
+            open_tab_repository.replace_open_tab('live', replaces_session_id, session_id)
+        else:
+            open_tab_repository.add_open_tab('live', session_id)
+    except Exception as e:
+        jh.terminal_debug(f'Could not open the dashboard tab of live session {session_id}: {type(e).__name__}: {e}')
 
 
 def _store_and_start(request_json: LiveRequestJson, trading_mode: str, live_mode, previous) -> None:

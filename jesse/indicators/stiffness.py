@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 from .sma import sma
 from .ema import ema
 from .stddev import stddev
@@ -22,7 +20,7 @@ def stiffness(candles: np.ndarray, ma_length: int = 100, stiff_length: int = 60,
     :param stiff_smooth: int - default: 3
     :param source_type: str - default: "close"
 
-    :return: Stiffness(stiffness, threshold)
+    :return: float
     """
     if len(candles.shape) == 1:
         source = candles

@@ -34,7 +34,7 @@ up on data they weren't tuned on?"
 |---|---|
 | **Training window** | `training_start_date` → `training_finish_date`. The in-sample period the optimizer tunes on. |
 | **Testing window** | `testing_start_date` → `testing_finish_date`. The out-of-sample period each candidate is re-evaluated on (not used for tuning). Conventionally `testing_start_date == training_finish_date` (contiguous), but any non-overlapping ranges are fine. |
-| **objective_function** | What to maximize. One of `sharpe` (default), `calmar`, `sortino`, `omega`, `serenity`, `smart sharpe`, `smart sortino`. |
+| **objective_function** | What to maximize. One of `sharpe` (built-in default), `calmar`, `sortino`, `omega`, `serenity`, `smart sharpe`, `smart sortino`. |
 | **trials** | Trials **per hyperparameter**. Total trials = `n_hyperparameters × trials`. With 2 hyperparameters and `trials=200`, the optimizer runs 400 trials. Lower it (e.g. 20–50) for a quick exploratory run. |
 | **best_candidates** | The ranked top parameter sets, each with training AND testing metrics. |
 
@@ -71,25 +71,63 @@ Stages a draft you can then run.
 - `training_start_date`, `training_finish_date` — `YYYY-MM-DD`
 - `testing_start_date`, `testing_finish_date` — `YYYY-MM-DD`
 - `optimal_total` — int, target number of best candidates to surface (default 50)
-- `objective_function` — str (default `"sharpe"`; see list above)
-- `trials` — int, per hyperparameter (default 200)
-- `best_candidates_count` — int (default 20)
-- `warm_up_candles` — int (default 210)
+- `objective_function` — str (see list above)
+- `trials` — int, per hyperparameter
+- `best_candidates_count` — int
+- `warm_up_candles` — int
 - `fast_mode` — bool (default True)
-- `cpu_cores` — int (default `cpu_count - 1`, capped at 4)
+- `cpu_cores` — int (default `cpu_count - 1`, capped at 4, the MCP's own default for
+  unattended runs, reported as `tool_default`)
 - `title`, `description`, `strategy_summary`, `hypothesis`, `rationale` — optional
   notes metadata; auto-generated if omitted
+- Run settings — `fee`, `leverage`, `leverage_mode`, `balance`, `config_overrides`
+  (see Run settings below)
 
-Returns: `{ "status": "success", "session_id": "<uuid>", ... }`
+Omitted `objective_function`, `trials`, `best_candidates_count` and `warm_up_candles`
+come from the saved optimization defaults for that exchange, else the built-in
+`sharpe` / 200 / 20 / 210.
 
-### update_optimization_draft(session_id, state)
-Replace the whole `state` on an existing draft (read-modify-write).
+Returns: `{ "status": "success", "session_id": "<uuid>", "draft_state": {...},
+"run_config": {...}, "config_source": {...}, "config_warnings": [...] (when any), ... }`
+
+### Run settings
+
+| Argument | Meaning |
+|---|---|
+| `fee` | Fraction per side (`0.0006` = 0.06%) |
+| `leverage` | Whole number >= 1; ignored with a warning on spot exchanges |
+| `leverage_mode` | `"cross"` or `"isolated"`, must be supported by the exchange |
+| `balance` | Starting balance |
+| `warm_up_candles` | Candles loaded before each start date |
+| `config_overrides` | JSON object for any other optimization run-config field: `objective_function`, `trials`, `cpu_cores`, `best_candidates_count`, `warm_up_candles`, `exchange` (`fee`, `balance`, `futures_leverage`, `futures_leverage_mode`), e.g. `{"exchange": {"fee": 0.0002, "futures_leverage": 20}}`. Named arguments (including `trials`, `objective_function`, `best_candidates_count`, `cpu_cores`) win over it |
+
+- Omitted settings come from the saved **optimization** defaults for that exchange, else
+  Jesse's built-in defaults (fee: the exchange's listed fee, else 0.0006; leverage 5,
+  cross; balance 10,000). These are kept separately from the backtest defaults, so they can differ.
+- Invalid values are refused with an error and nothing is created.
+- `run_config` is exactly what the draft will run with; `config_source` says per field where
+  it came from (`explicit` / `stored` / `tool_default` / `saved_default` / `exchange_default` /
+  `hard_default`).
+- `config_warnings` appears when a fee or leverage is only Jesse's built-in default, or when
+  the saved optimization fee/leverage differs from the same exchange's backtest defaults.
+  When it does, pass `fee` / `leverage` explicitly, matching the backtests you are following
+  up on unless the user said otherwise.
+
+### update_optimization_draft(session_id, state?, fee?, leverage?, leverage_mode?, balance?, warm_up_candles?, config_overrides?)
+Either replace the whole `state` on an existing draft (read-modify-write, for routes,
+dates and other form fields), or change only run settings: omit `state` and pass any
+of `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides`.
+The stored draft keeps everything else; the response shows the new `run_config` and
+`config_source` (`explicit` for what this call set, `stored` for the rest). Only drafts
+(status `draft`) can change. `state` plus run settings is an error, and so is neither.
+Never replace the whole state just to change fee or leverage.
 
 ### update_optimization_notes(session_id, title?, description?, strategy_codes?)
 Update notes — typically to record the chosen parameters and conclusion.
 
 ### get_optimization_session(session_id)
-Fetch full details — the primary polling tool.
+Fetch full details (the raw dashboard record). To wait for a run, use `wait_for_sessions`,
+not repeated calls to this.
 ```json
 {
   "data": { "session": {
@@ -121,14 +159,14 @@ Fetch the log file content. Useful when `status == "stopped"` to find the
 underlying error, or to watch trial-by-trial progress on a long run.
 
 ### run_optimization(session_id)
-Fire-and-poll. Returns `{ "status": "started", ... }` when the server accepts.
-Then keep checking `get_optimization_session` until a terminal status. See
-"Checking for results" below.
+Returns `{ "status": "started", ... }` when the server accepts. Then wait with
+`wait_for_sessions([session_id])`. See "Checking for results" below.
 
 ### rerun_optimization(session_id)
 Reset (clears prior trials/best_candidates) and restart an existing session. Use
 this to run a finished/stopped session again — e.g. after importing missing
-candles or editing the strategy. Cancel a running session first.
+candles or editing the strategy. Cancel a running session first. Wait for it with
+`wait_for_sessions` like a new run.
 
 ### cancel_optimization(session_id)
 Cooperative cancel — stops at the next trial checkpoint; completed trials are kept.
@@ -143,31 +181,25 @@ Delete old sessions. If `days_old` is omitted, deletes **all** sessions.
 ## Checking for results
 
 Optimization is the **slowest** of the modes — it runs `n_hyperparameters ×
-trials` backtests, each on both the training and testing windows. Keep checking
-until a terminal status (`finished`, `stopped`, `terminated`); never ask the user
-to drive the loop. Watch `completed_trials / total_trials` for progress and ETA.
+trials` backtests, each on both the training and testing windows. Wait with
+`wait_for_sessions([sid])` and call it again while it returns `done: false`; never
+ask the user to drive the loop and never sleep-and-poll `get_optimization_session`.
+Its `progress` shows `completed_trials / total_trials`; once `completed_trials > 0`,
+estimate ETA as `elapsed × (total_trials / completed_trials)`. The default stall
+limit is 30 minutes (progress is recorded per finished trial): raise `stall_minutes` when
+a single trial takes longer. Arguments, outcomes and stall handling: "Waiting for
+runs" in `jesse://backtest_management`.
 
-Adaptive check schedule (when `status == "running"`):
-
-| Elapsed since fire | Check every |
-|---|---|
-| 0 – 1 min | 5 s |
-| 1 – 5 min | 20 s |
-| 5 – 30 min | 60 s |
-| 30 – 120 min | 2 – 3 min |
-| > 2 h | 5 min |
-
-If `completed_trials > 0`, estimate ETA as
-`elapsed × (total_trials / completed_trials)` and set the next check to roughly
-`min(remaining_eta / 5, max_interval)`.
-
-Status semantics:
-- `running` / `paused` → keep checking
-- `finished` → read `best_candidates`; report the train-vs-test verdict
-- `stopped` → run failed; read `exception` (e.g. missing candles, or the strategy
-  has no hyperparameters) and `get_optimization_logs(sid)`, then report it
-- `terminated` → user-initiated stop; report the partial state, don't retry
-  without the user's say-so
+Outcome semantics:
+- `running` → call `wait_for_sessions` again
+- `finished` → read `best_trials` with `get_session_results("optimization", sid,
+  section="best_trials")`; report the train-vs-test verdict
+- `ended` → read `error` and `get_optimization_logs(sid)`. A stop with an error
+  (e.g. missing candles, or the strategy has no hyperparameters) is a failed run:
+  report it. `terminated` is a user-initiated stop; report the partial state,
+  don't retry without the user's say-so
+- `stalled` → check `get_optimization_logs(sid)`; if stuck, `cancel_optimization`
+  and `rerun_optimization`
 
 User-facing language: say **"checking for results"** in chat, not "polling".
 
@@ -181,28 +213,25 @@ draft = create_optimization_draft(
     training_start_date="2023-01-01", training_finish_date="2024-06-01",
     testing_start_date="2024-06-01",  testing_finish_date="2024-12-01",
     objective_function="sharpe", trials=100,
+    fee=0.0004, leverage=3,  # match the backtests this follows up on
     hypothesis="MyStrategy's EMA periods generalize out-of-sample.",
 )
 sid = draft["session_id"]
+# check draft["run_config"] and draft.get("config_warnings") before firing
 
 # 2. Fire it
 run_optimization(sid)
 
-# 3. Keep checking until terminal (optimization is slow — widen the interval)
-while True:
-    s = get_optimization_session(sid)
-    status = s["data"]["session"]["status"]
-    if status in ("finished", "stopped", "terminated"):
-        break
-    time.sleep(20)
+# 3. Wait until it ends or stalls (optimization is slow — repeat while done is False)
+w = wait_for_sessions([sid])
+outcome = w["sessions"][0]["outcome"]
 
 # 4. Pick the candidate that generalizes best (smallest train->test drop)
-session = s["data"]["session"]
-if status == "finished":
-    cands = session["best_candidates"]
+if outcome == "finished":
+    cands = get_session_results("optimization", sid, section="best_trials")
     # report rank #1 plus train-vs-test for the top few; flag overfit candidates
-elif status == "stopped":
-    # read session["exception"] / get_optimization_logs(sid); if missing candles,
+elif outcome == "ended":
+    # read w["sessions"][0]["error"] / get_optimization_logs(sid); if missing candles,
     # import_candles() for both windows (~2 months before each start) then rerun_optimization(sid)
     ...
 

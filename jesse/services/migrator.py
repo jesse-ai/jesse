@@ -27,9 +27,11 @@ def run():
     _ticker(migrator)
     _trade(migrator)
     _exchange_api_keys(migrator)
+    _backtest_session(migrator)
     _optimization_session(migrator)
     _monte_carlo_session(migrator)
     _significance_test_session(migrator)
+    _research_runners(migrator)
 
     # create initial tables
     from jesse.models import (
@@ -62,6 +64,7 @@ def run():
     from jesse.models.Orderbook import Orderbook
     from jesse.models.Ticker import Ticker
     from jesse.models.Trade import Trade
+    from jesse.models.RunnerJob import CodeBlob, Runner, RunnerFile, RunnerJob
     database.db.create_tables([
         AiModel,
         BacktestSession,
@@ -89,6 +92,10 @@ def run():
         LiveChartPoint,
         Ticker,
         Trade,
+        RunnerJob,
+        Runner,
+        CodeBlob,
+        RunnerFile,
     ], safe=True)
 
     from jesse.services.timescale import configure_if_requested, drop_identifier_primary_key
@@ -190,6 +197,31 @@ def _exchange_api_keys(migrator):
         _migrate(migrator, fields, exchange_api_keys_columns, 'exchange_api_keys')
 
 
+def _liveness_fields() -> list:
+    # Worker lease and progress (services/session_liveness.py), on every research session table.
+    return [
+        {'action': migration_actions.ADD, 'name': 'claimed_by', 'type': CharField(max_length=255, null=True)},
+        {'action': migration_actions.ADD, 'name': 'claim_id', 'type': CharField(max_length=36, null=True)},
+        {'action': migration_actions.ADD, 'name': 'heartbeat_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'progress_at', 'type': BigIntegerField(null=True)},
+        {'action': migration_actions.ADD, 'name': 'progress', 'type': FloatField(null=True)},
+    ]
+
+
+def _liveness_migrate(migrator, table: str) -> None:
+    """Add the liveness columns; `owner` (from unreleased builds) became `claimed_by`."""
+    columns = database.db.get_columns(table)
+    if any(column.name == 'owner' for column in columns) and not any(column.name == 'claimed_by' for column in columns):
+        migrate(migrator.rename_column(table, 'owner', 'claimed_by'))
+        print(f"'owner' column successfully changed to claimed_by in the '{table}' table.")
+    _migrate(migrator, _liveness_fields(), database.db.get_columns(table), table)
+
+
+def _backtest_session(migrator):
+    if 'backtestsession' in database.db.get_tables():
+        _liveness_migrate(migrator, 'backtestsession')
+
+
 def _optimization_session(migrator):
     fields = [
         {'action': migration_actions.ADD, 'name': 'title', 'type': CharField(max_length=255, null=True)},
@@ -200,6 +232,7 @@ def _optimization_session(migrator):
     if 'optimizationsession' in database.db.get_tables():
         optimization_session_columns = database.db.get_columns('optimizationsession')
         _migrate(migrator, fields, optimization_session_columns, 'optimizationsession')
+        _liveness_migrate(migrator, 'optimizationsession')
 
 
 def _monte_carlo_session(migrator):
@@ -210,14 +243,39 @@ def _monte_carlo_session(migrator):
     if 'montecarlosession' in database.db.get_tables():
         monte_carlo_session_columns = database.db.get_columns('montecarlosession')
         _migrate(migrator, fields, monte_carlo_session_columns, 'montecarlosession')
+        _liveness_migrate(migrator, 'montecarlosession')
+
+
+def _research_runners(migrator):
+    # Columns added to the research runner tables after they were first created.
+    tables = database.db.get_tables()
+    if 'runnerjob' in tables:
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'placement', 'type': TextField(null=True)},
+        ], database.db.get_columns('runnerjob'), 'runnerjob')
+    if 'runnerjob' in tables:
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'cores', 'type': IntegerField(default=1)},
+        ], database.db.get_columns('runnerjob'), 'runnerjob')
+    if 'runner' in tables:
+        # Runner capacity is counted in cores, not job slots (columns of unreleased builds renamed).
+        columns = [column.name for column in database.db.get_columns('runner')]
+        for old, new in (('slots', 'cores_budget'), ('busy', 'cores_used')):
+            if old in columns and new not in columns:
+                migrate(migrator.rename_column('runner', old, new))
+                print(f"'{old}' column successfully changed to {new} in the 'runner' table.")
+        _migrate(migrator, [
+            {'action': migration_actions.ADD, 'name': 'role', 'type': CharField(max_length=16, default='runner')},
+            {'action': migration_actions.ADD, 'name': 'cpu_percent', 'type': FloatField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'load_1m', 'type': FloatField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'memory_total_bytes', 'type': BigIntegerField(null=True)},
+            {'action': migration_actions.ADD, 'name': 'memory_used_bytes', 'type': BigIntegerField(null=True)},
+        ], database.db.get_columns('runner'), 'runner')
 
 
 def _significance_test_session(migrator):
-    fields = []
-
     if 'significancetestsession' in database.db.get_tables():
-        cols = database.db.get_columns('significancetestsession')
-        _migrate(migrator, fields, cols, 'significancetestsession')
+        _liveness_migrate(migrator, 'significancetestsession')
 
 
 def _migrate(migrator, fields, columns, table):

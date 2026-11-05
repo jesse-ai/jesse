@@ -151,6 +151,38 @@ class _ShortPriceGapExitStrategy(Strategy):
         return False
 
 
+class _SpotPriceGapEntryStrategy(Strategy):
+    """Rest a buy across an opening gap so it fills away from the cash it reserved."""
+
+    resting_price: float
+    fill_price: float
+
+    def should_long(self) -> bool:
+        return self.index == 0
+
+    def go_long(self) -> None:
+        self.buy = 2, self.resting_price
+
+    def on_open_position(self, order) -> None:
+        assert order.vars['submitted_price'] == self.resting_price
+        assert order.price == self.fill_price
+        if self.fill_price < 105:
+            self.take_profit = self.position.qty, 105
+
+    def should_cancel_entry(self) -> bool:
+        return False
+
+
+class _SpotLimitBuyPriceGapStrategy(_SpotPriceGapEntryStrategy):
+    resting_price = 95
+    fill_price = 90
+
+
+class _SpotStopBuyPriceGapStrategy(_SpotPriceGapEntryStrategy):
+    resting_price = 105
+    fill_price = 110
+
+
 def _price_gap_candles() -> np.ndarray:
     """Return three 5m blocks containing boundary and intra-block price gaps."""
     return np.array([
@@ -197,11 +229,12 @@ def _run_price_gap_backtest(
         strategy: type[Strategy],
         candles: np.ndarray,
         fast_mode: bool,
+        exchange_type: str = 'futures',
 ) -> dict:
     config = {
         'starting_balance': 10_000,
         'fee': 0.001,
-        'type': 'futures',
+        'type': exchange_type,
         'futures_leverage': 2,
         'futures_leverage_mode': 'cross',
         'exchange': EXCHANGE,
@@ -269,6 +302,32 @@ def test_price_gaps_execute_protective_orders_consistently(fast_mode: bool) -> N
         ('long', 100, 90, 2, 0.38, -20.38, START_TIMESTAMP + 300_000, START_TIMESTAMP + 360_000, 60),
         ('long', 100, 110, 2, 0.42, 19.58, START_TIMESTAMP + 600_000, START_TIMESTAMP + 780_000, 180),
     ]
+
+
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+@pytest.mark.parametrize(
+    'strategy, entry_price, exit_price, net_profit',
+    [
+        # buys 2 for 180 and sells the 1.998 left after the fee for 219.78 less its fee
+        (_SpotLimitBuyPriceGapStrategy, 90, 110, 39.56022),
+        # buys 2 for 220 and sells the 1.998 left after the fee at the end of the backtest
+        (_SpotStopBuyPriceGapStrategy, 110, 110, -0.43978),
+    ],
+    ids=['limit', 'stop'],
+)
+def test_spot_buy_filled_by_a_price_gap_pays_the_fill_price(
+        strategy: type[Strategy],
+        entry_price: float,
+        exit_price: float,
+        net_profit: float,
+        fast_mode: bool,
+) -> None:
+    result = _run_price_gap_backtest(strategy, _price_gap_candles(), fast_mode, 'spot')
+    metrics = result['metrics']
+
+    assert [(trade['entry_price'], trade['exit_price']) for trade in result['trades']] == [(entry_price, exit_price)]
+    assert round(metrics['net_profit'], 8) == net_profit
+    assert round(metrics['finishing_balance'] - 10_000, 8) == net_profit
 
 
 @pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])

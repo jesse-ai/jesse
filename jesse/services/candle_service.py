@@ -540,7 +540,8 @@ def add_candle(
         timeframe: str,
         with_execution: bool = True,
         with_generation: bool = True,
-        with_skip: bool = True
+        with_skip: bool = True,
+        accept_opening_candle: bool = False
 ) -> None:
     is_live = jh.is_live()
 
@@ -580,8 +581,9 @@ def add_candle(
             _update_position_current_price(exchange, symbol, candle[2])
 
         # ignore new candle at the time of execution because it messes
-        # the count of candles without actually having an impact
-        if candle_timestamp >= jh.now():
+        # the count of candles without actually having an impact. A stream sends the candle
+        # again a moment later; a trade comes once, so candles built from trades are accepted.
+        if candle_timestamp >= jh.now() and not accept_opening_candle:
             return
 
         _store_or_update_candle_into_db(exchange, symbol, timeframe, candle)
@@ -672,9 +674,11 @@ def add_candle_from_trade(trade, exchange: str, symbol: str) -> np.ndarray | Non
         # in some cases we might be missing the current forming candle like it is on FTX, hence
         # if that is the case, generate the current forming candle (it won't be super accurate)
         current_candle = get_current_candle(exchange, symbol, t)
-        if jh.next_candle_timestamp(current_candle, t) < jh.now():
+        # jh.now() is in whole seconds, so it equals the next candle's timestamp during all of
+        # that candle's opening second; a trade in that second already belongs to the new candle.
+        if jh.next_candle_timestamp(current_candle, t) <= jh.now():
             new_candle = _generate_empty_candle_from_previous_candle(current_candle, t)
-            add_candle(new_candle, exchange, symbol, t)
+            add_candle(new_candle, exchange, symbol, t, accept_opening_candle=True)
 
         current_candle = get_current_candle(exchange, symbol, t)
 
@@ -703,7 +707,7 @@ def add_candle_from_trade(trade, exchange: str, symbol: str) -> np.ndarray | Non
         # volume
         new_candle[5] += trade['volume']
 
-        add_candle(new_candle, exchange, symbol, t)
+        add_candle(new_candle, exchange, symbol, t, accept_opening_candle=True)
         return new_candle
 
     # to support both candle generation and ...
@@ -740,8 +744,10 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
             continue
         generated_candle = generate_candle_from_observed_minutes(timeframe, source_rows)
 
+        # The 1m candles it is made of are already stored, so it can't be dropped for being new.
         add_candle(
-            generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False
+            generated_candle, exchange, symbol, timeframe, with_execution, with_generation=False,
+            accept_opening_candle=True,
         )
 
 
@@ -757,6 +763,12 @@ def batch_add_candle(
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    cutoff = store.candles.execution_cutoff
+    if cutoff is not None:
+        array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
+        visible = array[:index + 1]
+        return visible[:np.searchsorted(visible[:, 0], cutoff)]
+
     # this runs on every single indicator call, so storage access is done with
     # plain dict lookups instead of going through forming_estimation +
     # get_storage (which rebuild the same key strings several times per call).
@@ -851,6 +863,10 @@ def _get_timestamp_bucket_candles(exchange: str, symbol: str, timeframe: str) ->
 
 
 def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    if store.candles.execution_cutoff is not None:
+        candles = get_candles(exchange, symbol, timeframe)
+        return candles[-1] if len(candles) else np.zeros((0, 6))
+
     # no need to worry for forming candles when timeframe == 1m
     if timeframe == '1m':
         arr: DynamicNumpyArray = store.candles.get_storage(exchange, symbol, '1m')

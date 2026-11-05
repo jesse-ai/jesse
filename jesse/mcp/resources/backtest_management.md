@@ -10,12 +10,13 @@ Parameters:
 - `data_routes` (optional): JSON string array of data route configurations
 - `start_date` (optional): Backtest start date (default: "2024-01-01")
 - `finish_date` (optional): Backtest end date (default: "2024-03-01")
-- Additional options: debug_mode, export_csv, export_json, export_chart, fast_mode, benchmark
+- Additional options: debug_mode, export_csv, export_json, export_pdf, export_chart, fast_mode, benchmark
 - `title` (optional): Note title for the MCP-created session. If omitted, MCP generates one with an `MCP Backtest:` prefix.
 - `description` (optional): Full note description. If omitted, MCP generates a short markdown summary.
 - `strategy_summary` (optional): One-sentence summary of the strategy being tested.
 - `change_summary` (optional): What MCP changed before this backtest, if it edited a strategy.
 - `rationale` (optional): Why MCP made the change or ran this test.
+- Run settings (optional): `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides`. See Run Settings below.
 
 Default Configuration:
 ```json
@@ -28,13 +29,34 @@ Default Configuration:
     "debug_mode": false,
     "export_csv": false,
     "export_json": false,
+    "export_pdf": false,
     "export_chart": true,
     "fast_mode": true,
     "benchmark": true
 }
 ```
 
-Returns: Session ID (UUID format) and configuration object
+Returns: Session ID (UUID format), the draft state, and `run_config` / `config_source` / `config_warnings` (see Run Settings)
+
+#### Run Settings
+
+The run settings shared by all four research draft tools (backtest, optimization, Monte Carlo, significance test). Set them as arguments on create; never edit the draft state to change them.
+
+| Argument | Meaning |
+|---|---|
+| `fee` | Exchange fee as a fraction per side (`0.0006` = 0.06%) |
+| `leverage` | Futures leverage, a whole number >= 1. Ignored (with a warning) on spot exchanges |
+| `leverage_mode` | `"cross"` or `"isolated"`; must be a mode the exchange supports |
+| `balance` | Starting balance (more than 0) |
+| `warm_up_candles` | Candles loaded before the start date to warm up indicators |
+| `config_overrides` | JSON object for any other run-config field of the mode. Backtest: `logging` (the log flags), `warm_up_candles` and `exchange` (`fee`, `balance`, `futures_leverage`, `futures_leverage_mode`), e.g. `{"exchange": {"fee": 0.0002, "futures_leverage": 20}}`. Named arguments win over it |
+
+- Omitted settings come from the saved backtest defaults for that exchange, else Jesse's built-in defaults (fee: the exchange's listed fee, else 0.0006; leverage 1, cross; balance 10,000; 210 warm-up candles).
+- Invalid values (fee outside 0..1, fractional leverage, unsupported leverage mode, unknown `config_overrides` fields) are refused with an error and nothing is created.
+- The response shows what the draft will run with:
+  - `run_config`: exactly the config the draft runs with
+  - `config_source`: per field, one of `explicit` (this call), `stored` (already in the draft), `tool_default` (the MCP tool's own default), `saved_default` (saved defaults for this mode and exchange), `exchange_default` (the exchange's listed fee), `hard_default` (Jesse's built-in value)
+  - `config_warnings` (only when there are any): a fee or leverage that is only Jesse's built-in default, or a leverage ignored on spot. When you see one, pass the value explicitly.
 
 MCP-created drafts automatically populate the session notes fields that the dashboard already uses:
 - `title`: Short, searchable title with an `MCP Backtest:` prefix
@@ -43,13 +65,21 @@ MCP-created drafts automatically populate the session notes fields that the dash
 
 ### update_backtest_draft()
 
-Updates an existing backtest draft configuration.
+Updates an existing backtest draft: either replaces its full state, or changes only its run settings.
 
 Parameters:
 - `backtest_id`: UUID of the backtest session to update (required)
-- `state`: JSON string with complete state object
+- `state` (optional): JSON string with complete state object
+- Run settings (optional): `fee`, `leverage`, `leverage_mode`, `balance`, `warm_up_candles`, `config_overrides` (same meaning as in create)
 
-State Parameter Format:
+Changing only run settings (fee, leverage, ...): omit `state` and pass just the settings, e.g.
+`update_backtest_draft(backtest_id, fee=0.0004, leverage=3)`. The stored draft keeps everything
+else, and the response shows the new `run_config` and `config_source` (`explicit` for what this
+call set, `stored` for the rest). Only drafts (status `"draft"`) can change; for a finished
+session, create a new draft. Passing `state` together with run settings is an error, and so is
+passing neither.
+
+State Parameter Format (full replace, for routes, dates and other form fields):
 The state parameter must contain only the inner state object:
 
 ```json
@@ -138,12 +168,11 @@ Returns: Array of session objects sorted by most recently updated
 
 Executes a backtest using stored session configuration.
 
-Automatically loads the current backtest configuration from the database
-and merges it with the session form data.
+Runs with the draft's own run config (the `run_config` shown on create/update); saved
+defaults only fill fields the draft lacks.
 
 Parameters:
 - `session_id`: UUID of the backtest session to run
-- `timeout_seconds` (optional): Maximum wait time (default: 24 hours)
 
 **Workflow**:
 ```python
@@ -152,14 +181,15 @@ result = run_backtest(session_id)
 ```
 
 Process:
-1. Loads current backtest configuration from database
-2. Parses configuration and merges with session form data
+1. Loads the session's form and its stored run config
+2. Fills any missing run-config fields from the saved defaults
 3. Validates against BacktestRequestJson model
 4. Starts backtest execution
 5. Monitors progress via WebSocket events
 
 Returns: Immediate acknowledgement containing the session ID, the executed trading routes,
-dashboard URL, and polling instructions; or error details.
+and dashboard URL; or error details. It does not wait: follow it with `wait_for_sessions`
+(see "Waiting for runs" below).
 
 ### cancel_backtest()
 
@@ -179,6 +209,19 @@ Parameters:
 
 Returns: Number of deleted sessions
 
+### export_backtest_report()
+
+Writes the PDF report of a finished backtest into the Jesse project. Use it only when the user asks for a PDF: leave `export_pdf` false otherwise.
+
+To give the user a PDF, create the draft with `export_pdf=true`, run it, wait for it, then call this tool. A backtest that ran without `export_pdf`, or made no trades, returns `error_type: "no_report"`, and only running it again with `export_pdf=true` gives it a report.
+
+Parameters:
+- `session_id`: UUID of the finished backtest
+- `path` (optional): Project-relative `.pdf` path under `research_scripts/` (default `research_scripts/backtest_reports/<name>.pdf`)
+- `overwrite` (optional, default `false`): Replace an existing file
+
+Returns: `path`, `size_bytes`, `overwritten` and `dashboard_url`. The file stays on the Jesse host. To get it onto the user's own computer, give them `dashboard_url`: the session's page has a PDF report button.
+
 ### save_strategy_report()
 
 Saves the mandatory Markdown report of an optimization/backtest task. Jesse writes it on the
@@ -193,6 +236,66 @@ Parameters:
 - `overwrite` (optional, default `false`): Replace an existing report. Without it, an existing file returns `error_type: "report_exists"`; use it only to update your own report from the same task.
 
 Returns: `path` (project-relative, e.g. `strategies/BTCSharpeIter/reports/BTCUSDT_sharpe_optimization_report.md`), `overwritten`, and `size_bytes`. The success response is the verification: give the user the `path` verbatim as a location inside the Jesse project.
+
+## Waiting for runs
+
+`run_backtest`, `run_optimization` / `rerun_optimization`, `run_monte_carlo` / `resume_monte_carlo`
+and `run_significance_test` return as soon as the run starts. Wait for them with one tool,
+`wait_for_sessions`, never with sleep-and-poll loops over `get_*_session` or `get_session_results`.
+It waits on the Jesse host, reports, and never starts, stops or cancels anything.
+
+`wait_for_sessions(session_ids, until="all", timeout_seconds=240, stall_minutes=None)`
+- `session_ids`: up to 50 IDs of any research type, mixed is fine. Pass every run you started.
+- `until`: `"all"` returns when every session is settled; `"any"` at the first one, so you can
+  start the next run and keep a fixed number running in parallel.
+- `timeout_seconds`: 0-540. If it passes first, `done` is `false`: call again with the same IDs.
+- `stall_minutes`: how long a live worker may go without progress before it counts as stalled.
+  Defaults: backtest 10, optimization 30 (progress is recorded per finished trial; raise it for very
+  slow trials), Monte Carlo and significance test 20.
+
+| `outcome` | Meaning | Next |
+|---|---|---|
+| `finished` | Completed | `get_session_results(type, id)` |
+| `ended` | Stopped, cancelled or terminated; `error` says why. A dead worker (killed, out of memory, lost DB connection, machine gone) lands here within ~90 seconds | Fix the cause, run again |
+| `stalled` | Worker alive, but no progress past the stall limit | Check its logs; if stuck, cancel it and run it again |
+| `not_started` | Still a draft | Start it with its run tool |
+| `not_found` | No session has that ID | Check the ID |
+| `running` | Not settled yet; shows `progress` and `progress_age_seconds` | Keep waiting |
+| `queued` | Not settled yet; waiting for a research runner (`queue` holds its target and wait time) | Keep waiting; if it waits long, check `list_runners` |
+
+A session started by an older Jesse version has no heartbeat: it can never show as stalled,
+only its end is detected. `claimed_by` names the machine running it; a run on another machine must
+be cancelled through that machine's Jesse. Give the user each session's `dashboard_url`.
+
+```python
+ids = [draft_a_id, draft_b_id]
+for sid in ids:
+    run_backtest(sid)
+w = wait_for_sessions(ids)            # repeat while w["done"] is False
+for s in w["sessions"]:
+    if s["outcome"] == "finished":
+        get_session_results("backtest", s["session_id"])
+```
+
+### Research runners
+
+A Jesse can have research runners: other machines sharing its database that pick up queued
+research jobs. Every run tool (`run_backtest`, `run_optimization` / `rerun_optimization`,
+`run_monte_carlo` / `resume_monte_carlo`, `run_significance_test`) takes `where`:
+
+- `"auto"` (default): a free runner when this Jesse has runners turned on and one is alive, else here.
+- `"local"`: always here.
+- `"any"`: queue it for whichever runner is free first.
+- a runner name from `list_runners`: queue it for that machine only.
+
+A queued run returns `status: "queued"` with `target`, `job_id`, `dashboard_url` and, when no
+matching runner is connected, a `warning`; it shows outcome `queued` in `wait_for_sessions` until
+a runner claims it, then `running` as usual. `list_runners()` shows each runner's `alive`,
+`cores_budget` / `cores_free`, `jesse_version` / `compatible`, and what it runs, plus `queued_jobs`.
+A backtest or significance test uses 1 core and an optimization or Monte Carlo run its `cpu_cores`;
+jobs start in queue order, and a big job waiting for cores is not overtaken on its runner. Results land in the
+same database, so `get_session_results` and `run_analysis` work exactly as for a local run.
+A slow queue is not a failed run: never start the same variant again because it is still queued.
 
 ## Usage Examples
 
@@ -214,6 +317,20 @@ draft = create_backtest_draft(
     data_routes='[{"exchange": "Binance Spot", "symbol": "ETH-USDT", "timeframe": "4h"}]',
     debug_mode=true
 )
+```
+
+### Fee and Leverage
+```python
+draft = create_backtest_draft(
+    routes='[{"exchange": "Binance Perpetual Futures", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]',
+    fee=0.0004,
+    leverage=3,
+    leverage_mode="isolated"
+)
+# Check draft["run_config"]["exchange"] and draft.get("config_warnings")
+
+# Later, change only the fee of the same draft
+update_backtest_draft(draft["backtest_id"], fee=0.0002)
 ```
 
 ### Multiple Strategies
@@ -256,8 +373,9 @@ update_backtest_draft("550e8400-e29b-41d4-a716-446655440000", merged_state)
 # Config is automatically loaded from database
 result = run_backtest("550e8400-e29b-41d4-a716-446655440000")
 
-# Check results
-session_details = get_backtest_session("550e8400-e29b-41d4-a716-446655440000")
+# Wait until it ends or stalls (repeat while done is False), then read results
+wait_for_sessions(["550e8400-e29b-41d4-a716-446655440000"])
+summary = get_session_results("backtest", "550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ## Supported Exchanges
@@ -358,7 +476,7 @@ draft2 = create_backtest_draft(
 
 - Missing Data: do NOT pre-import. Run the backtest first; if it fails with a missing-candle error, then import (starting ~2 months before `start_date`) and retry. Never call `get_existing_candles()` as a pre-flight gate.
 - Configuration Errors: Check JSON structure and parameter formats
-- Timeout Issues: Adjust timeout_seconds parameter (default: 86400 = 24 hours)
+- Long runs: `wait_for_sessions` returns `done: false` at its timeout; call it again (see Waiting for runs).
 - State Conflicts: Retrieve current state before updates
 
 ## Best Practices
@@ -402,7 +520,8 @@ run_backtest(draft1.backtest_id, config)
 draft2 = create_backtest_draft(routes='[{"exchange": "Binance Spot", "strategy": "MyStrategy", "symbol": "BTC-USDT", "timeframe": "4h"}]')
 run_backtest(draft2.backtest_id, config)
 
-# Compare results across sessions
+# Wait for both, then compare results across sessions
+wait_for_sessions([draft1.backtest_id, draft2.backtest_id])
 session1_response = get_backtest_session(draft1.backtest_id)
 session2_response = get_backtest_session(draft2.backtest_id)
 session1_results = session1_response.data.session

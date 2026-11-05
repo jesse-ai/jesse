@@ -12,6 +12,7 @@ import os
 import base64
 import errno
 from jesse.services.env import ENV_VALUES
+from jesse.services import session_liveness
 from jesse.services.coordination_runtime import create_client
 from jesse.services.coordination_client import (
     Client, AsyncClient, CoordinationConnectionError, CoordinationBusyError, CoordinationError, CoordinationCapacityError, CoordinationSizeError, LockError as NativeLockError,
@@ -42,6 +43,11 @@ if jh.is_jesse_project() and not jh.is_notebook():
 def sync_publish(event: str, msg, compression: bool = False):
     if jh.is_unit_testing():
         raise EnvironmentError('sync_publish() should be NOT called during testing. There must be something wrong')
+
+    # Anything a research worker publishes is a sign of life; progress events also carry how far it got.
+    session_liveness.beat(
+        msg.get('current') if event.endswith('progressbar') and isinstance(msg, dict) else None
+    )
 
     if compression:
         msg = jh.gzip_compress(msg)

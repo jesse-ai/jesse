@@ -13,6 +13,7 @@ from jesse.models import Order, Position
 from jesse.modes.utils import save_daily_portfolio_balance
 from jesse.candle_pipelines import BaseCandlesPipeline
 from jesse.routes import router
+from jesse.services import benchmark as benchmark_service
 from jesse.services import charts
 from jesse.services import report
 from jesse.services import candle_service
@@ -50,7 +51,8 @@ def run(
         json: bool = False,
         fast_mode: bool = False,
         benchmark: bool = False,
-        theme: str = 'light'
+        theme: str = 'light',
+        pdf: bool = False,
 ) -> None:
     from jesse.config import config
     config['app']['trading_mode'] = 'backtest'
@@ -63,7 +65,7 @@ def run(
 
     _execute_backtest(
         client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles, chart,
-        csv, json, fast_mode, benchmark, theme
+        csv, json, fast_mode, benchmark, theme, pdf
     )
 
 
@@ -82,7 +84,8 @@ def _execute_backtest(
         json: bool = False,
         fast_mode: bool = False,
         benchmark: bool = False,
-        theme: str = 'light'
+        theme: str = 'light',
+        pdf: bool = False,
 ):
     """
     Executes the backtest that has been initiated from within the dashboard. The purpose of extracting these
@@ -163,6 +166,8 @@ def _execute_backtest(
             run_silently=jh.should_execute_silently(),
             generate_csv=csv,
             generate_json=json,
+            # The benchmark's metrics come from these curves too, but only the report keeps them.
+            generate_equity_curve=pdf or benchmark,
             benchmark=benchmark,
             generate_hyperparameters=True,
             fast_mode=fast_mode,
@@ -189,7 +194,7 @@ def _execute_backtest(
             # retry the backtest simulation
             _execute_backtest(
                 client_id, debug_mode, user_config, exchange, routes, data_routes, start_date, finish_date, candles,
-                chart, csv, json, fast_mode, benchmark, theme
+                chart, csv, json, fast_mode, benchmark, theme, pdf
             )
             return
         else:
@@ -215,12 +220,15 @@ def _execute_backtest(
             'message': f"Successfully executed backtest simulation in: {result['execution_duration']} seconds",
             'type': 'success'
         })
+        benchmark_metrics = benchmark_service.calculate_metrics(result.get('equity_curve'))
+        if result['metrics'] and benchmark_metrics:
+            result['metrics']['benchmark'] = benchmark_metrics
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
         sync_publish('trades', result['trades'], compression=True)
 
-        # Generate six analytical chart images (equity_curve, drawdown, underwater,
-        # monthly_heatmap, monthly_distribution, trade_pnl).
+        # Generate analytical chart images (equity_curve, drawdown, underwater,
+        # monthly_heatmap, monthly_distribution, trade_pnl, entry_timing).
         # Must be called BEFORE store.reset() since it reads from the live store.
         publish_status('Generating performance charts…', current=100)
         _charts_folder = os.path.abspath('storage/backtest-charts')
@@ -266,6 +274,7 @@ def _execute_backtest(
         update_backtest_session_results(
             id=client_id,
             metrics=result.get('metrics'),
+            equity_curve=result.get('equity_curve') if pdf else None,
             trades=result.get('trades'),
             hyperparameters=result.get('hyperparameters'),
             chart_data=chart_data,

@@ -66,7 +66,7 @@ class TestProtectiveOrdersAcrossTradingModes(Strategy):
             assert exchange.assets['BTC'] == 0
             assert round(exchange.wallet_balance, 8) == 9_995.608196
             assert round(closed_trade.fee, 8) == 0.395804
-            assert round(closed_trade.pnl, 8) == -4.395804
+            assert round(closed_trade.pnl, 8) == round(exchange.wallet_balance - 10_000, 8)
         else:
             # Futures charges 0.1% in USDT on the 200 entry notional and the
             # 196 exit notional, in addition to the four-dollar trading loss.

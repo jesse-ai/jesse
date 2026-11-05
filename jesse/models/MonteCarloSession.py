@@ -1,4 +1,6 @@
 import peewee
+
+from jesse.services import session_liveness
 import json
 from itertools import chain
 import numpy as np
@@ -52,6 +54,15 @@ class MonteCarloSession(peewee.Model):
     strategy_codes = peewee.TextField(null=True)
     created_at = peewee.BigIntegerField()
     updated_at = peewee.BigIntegerField()
+
+    # Liveness (see services/session_liveness.py): the machine that runs the session (a label),
+    # its worker's lease, and its last progress while it runs.
+    claimed_by = peewee.CharField(max_length=255, null=True)
+    # The runner claim of a queued job (services/runner_queue.py); its worker's writes require it.
+    claim_id = peewee.CharField(max_length=36, null=True)
+    heartbeat_at = peewee.BigIntegerField(null=True)
+    progress_at = peewee.BigIntegerField(null=True)
+    progress = peewee.FloatField(null=True)
 
     class Meta:
         from jesse.services.db import database
@@ -347,7 +358,7 @@ def update_monte_carlo_session_status(id: str, status: str) -> None:
         'status': status,
         'updated_at': jh.now_to_timestamp(True)
     }
-    MonteCarloSession.update(**d).where(MonteCarloSession.id == id).execute()
+    MonteCarloSession.update(**d).where(session_liveness.fenced(MonteCarloSession, MonteCarloSession.id == id)).execute()
 
 
 def update_monte_carlo_session_state(id: str, state: dict, strategy_codes: dict = None) -> None:
@@ -468,7 +479,11 @@ def purge_monte_carlo_sessions(days_old: int = None) -> int:
 
 def get_running_monte_carlo_session_id():
     try:
-        session = MonteCarloSession.select().where(MonteCarloSession.status == 'running').order_by(MonteCarloSession.updated_at.desc()).first()
+        from jesse.services.session_liveness import claimed_here_clause
+
+        session = MonteCarloSession.select().where(
+            (MonteCarloSession.status == 'running') & claimed_here_clause(MonteCarloSession)
+        ).order_by(MonteCarloSession.updated_at.desc()).first()
         if session:
             session = _reconcile_monte_carlo_session_status(session)
             return str(session.id) if session.status == 'running' else None
@@ -478,14 +493,15 @@ def get_running_monte_carlo_session_id():
 
 
 def _reconcile_monte_carlo_session_status(session: MonteCarloSession):
-    if session.status != 'running' or jh.is_unit_testing():
-        return session
+    # A running session whose lease ran out has no live worker (see services/session_liveness.py).
+    from jesse.services import session_liveness
 
-    from jesse.services.redis import is_process_active
+    if session_liveness.worker_is_gone(session):
+        # A runner job goes back to the queue instead (services/runner_queue.py).
+        from jesse.services import runner_queue
 
-    if not is_process_active(str(session.id)):
-        update_monte_carlo_session_status(str(session.id), 'stopped')
-        session.status = 'stopped'
+        session.status = runner_queue.settle_lapsed(
+            'monte_carlo', session, lambda: update_monte_carlo_session_status(str(session.id), 'stopped'))
 
     return session
 

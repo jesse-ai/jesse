@@ -1,3 +1,5 @@
+from math import isclose
+
 import jesse.helpers as jh
 from jesse.enums import sides
 from jesse.exceptions import InsufficientBalance
@@ -66,8 +68,9 @@ class SpotExchange(Exchange):
                 order_qty = self.limit_orders_sum[order.symbol]
             else:
                 raise Exception(f"Unknown order type {order.type}")
-            # validate that the total selling amount is not bigger than the amount of the existing base asset
-            if order_qty > base_balance:
+            # validate that the total selling amount is not bigger than the amount of the existing base asset.
+            # exits split into parts can add up to a rounding error above it, which execution caps anyway.
+            if order_qty > base_balance and not isclose(order_qty, base_balance, rel_tol=1e-9, abs_tol=1e-9):
                 raise InsufficientBalance(
                     f"Not enough balance. Available balance at {self.name} for {base_asset} is {base_balance} but you're trying to sell {order_qty}"
                 )
@@ -86,6 +89,12 @@ class SpotExchange(Exchange):
 
         # buy order
         if order.side == sides.BUY:
+            # an opening gap can fill a resting order away from the price it reserved at submission
+            submitted_price = (order.vars or {}).get('submitted_price', order.price)
+            if submitted_price != order.price:
+                self.assets[self.settlement_currency] = sum_floats(
+                    self.assets[self.settlement_currency], abs(order.qty) * (submitted_price - order.price)
+                )
             # asset's balance is increased by the amount of the order's qty after fees are deducted
             self.assets[base_asset] = sum_floats(self.assets[base_asset], abs(order.qty) * (1 - self.fee_rate))
         # sell order
@@ -107,14 +116,6 @@ class SpotExchange(Exchange):
     def on_order_cancellation(self, order: Order) -> None:
         if jh.is_livetrading():
             return
-
-        if order.side == sides.SELL:
-            if order.type == order_types.STOP:
-                self.stop_orders_sum[order.symbol] = subtract_floats(self.stop_orders_sum[order.symbol], abs(order.qty))
-            elif order.type == order_types.LIMIT:
-                self.limit_orders_sum[order.symbol] = subtract_floats(self.limit_orders_sum[order.symbol], abs(order.qty))
-
-        base_asset = jh.base_asset(order.symbol)
 
         # buy order
         if order.side == sides.BUY:
