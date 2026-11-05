@@ -49,7 +49,7 @@ def _setup_progress_bar(progress_bar: bool, total_scenarios: int, description: s
     return tqdm(total=total_scenarios, desc=description)
 
 
-def _safe_log_message(message: str, pbar, is_error: bool = False) -> None:
+def _safe_log_message(message: str, pbar, is_error: bool = False, log_callback=None) -> None:
     formatted_message = message
     if is_error:
         formatted_message = f"{'='*80}\n🚨 ERROR: {message}\n{'='*80}"
@@ -61,7 +61,10 @@ def _safe_log_message(message: str, pbar, is_error: bool = False) -> None:
             from tqdm import tqdm
             tqdm.write(formatted_message)
     
-    if jh.app_mode() == 'monte-carlo':
+    if log_callback is not None:
+        # the caller knows which session it logs for; the global session id may belong to another run
+        log_callback(message, is_error)
+    elif jh.app_mode() == 'monte-carlo':
         logger.log_monte_carlo(message if not is_error else f"ERROR: {message}", session_id=jh.get_session_id())
 
 
@@ -69,7 +72,8 @@ def _process_scenario_results(
     scenario_refs: List[Any],
     pbar,
     progress_callback=None,
-    result_callback=None
+    result_callback=None,
+    log_callback=None
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     remaining_refs = scenario_refs.copy()
@@ -93,12 +97,12 @@ def _process_scenario_results(
                                 pass
                     if response.get('log'):
                         is_error = response.get('error', False)
-                        _safe_log_message(response['log'], pbar, is_error=is_error)
+                        _safe_log_message(response['log'], pbar, is_error=is_error, log_callback=log_callback)
                 else:
                     results.append(response)
             except Exception as e:
                 error_msg = f"Error processing scenario result: {str(e)}"
-                _safe_log_message(error_msg, pbar, is_error=True)
+                _safe_log_message(error_msg, pbar, is_error=True, log_callback=log_callback)
             
             if pbar:
                 pbar.update(1)
