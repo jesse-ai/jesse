@@ -429,6 +429,23 @@ def test_status_is_still_answered_when_the_final_record_cannot_be_saved(project,
     assert research_jobs._running_jobs() == []  # Finished jobs never count toward the limit.
 
 
+def test_a_finished_status_means_the_final_record_is_already_saved(project, api, monkeypatch):
+    real_write = research_jobs._write_record
+
+    def slow_final_write(record):
+        if record['status'] != 'running':
+            time.sleep(0.5)  # A slow replace, as on Windows when another handle holds the file.
+        real_write(record)
+
+    monkeypatch.setattr(research_jobs, '_write_record', slow_final_write)
+    job = _run(api, _script(project, 'research_scripts/ok.py', 'print(1)\n'))
+
+    finished = _wait(api, job['id'])
+
+    record = json.loads((project / 'storage' / 'research-jobs' / f'{job["id"]}.json').read_text())
+    assert finished['status'] == record['status'] == 'succeeded'
+
+
 def test_job_left_running_by_a_previous_jesse_process_is_reported_interrupted(project, api):
     job_id = 'b' * 32
     jobs_dir = project / 'storage' / 'research-jobs'
