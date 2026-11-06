@@ -2,6 +2,7 @@ from typing import List, Dict
 import os
 import sys
 import uuid
+import warnings
 import numpy as np
 from jesse.services import candle_service, exchange_service, order_service, position_service
 from jesse.services import charts
@@ -267,14 +268,18 @@ def _execute_isolated_backtest(
     if generate_charts and backtest_result.get('metrics') and backtest_result['metrics'].get('total', 0) > 0:
         _session_id = str(uuid.uuid4())
         _charts_folder = os.path.abspath('storage/backtest-charts')
-        charts._plot_backtest_charts(
-            session_id=_session_id,
-            charts_folder=_charts_folder,
-            theme='light',
-            benchmark=benchmark,
-        )
-        backtest_result['charts_session_id'] = _session_id
-        backtest_result['charts_folder'] = _charts_folder
+        # The images are optional extras: a chart failure must not discard a finished simulation.
+        try:
+            charts._plot_backtest_charts(
+                session_id=_session_id,
+                charts_folder=_charts_folder,
+                theme='light',
+                benchmark=benchmark,
+            )
+            backtest_result['charts_session_id'] = _session_id
+            backtest_result['charts_folder'] = _charts_folder
+        except Exception as e:
+            warnings.warn(f'Could not generate the backtest charts ({type(e).__name__}: {e}); the results are unaffected.', stacklevel=2)
 
     empty_metrics = {
         'total': 0,
