@@ -30,6 +30,9 @@ from jesse.models.MonteCarloSession import (
 )
 import traceback
 
+# Scenario failures logged with their full traceback; later ones get a single line.
+MAX_FULL_SCENARIO_TRACEBACKS = 3
+
 
 class MonteCarloRunner:
     def __init__(
@@ -352,6 +355,14 @@ class MonteCarloRunner:
             self._raise_if_cancelled()
             
             logger.log_monte_carlo(f"Candles simulation returned {len(results.get('scenarios', []))} scenarios", session_id=self.session_id)
+            failed = results.get('failed_scenarios', 0)
+            filtered = results.get('filtered_scenarios', 0)
+            if failed or filtered:
+                logger.log_monte_carlo(
+                    f"WARNING: {failed} of {self.num_scenarios} scenarios failed (errors above) and {filtered} "
+                    "finished without an equity curve. They are left out of the results and percentiles.",
+                    session_id=self.session_id,
+                )
 
             # Extract summary metrics for display
             summary_metrics = self._extract_candles_summary_metrics(results)
@@ -512,6 +523,19 @@ class MonteCarloRunner:
                     last_update_time = current_time
         
         logger.log_monte_carlo(f"About to call monte_carlo_candles with {len(self.candles)} candle datasets", session_id=self.session_id)
+
+        failures_logged = 0
+
+        def log_callback(message: str, is_error: bool) -> None:
+            nonlocal failures_logged
+            if is_error:
+                failures_logged += 1
+                # Full tracebacks for the first few failures, then one line each, so a run where
+                # most scenarios fail keeps a readable log.
+                if failures_logged > MAX_FULL_SCENARIO_TRACEBACKS:
+                    message = message.splitlines()[0]
+                message = f"ERROR: {message}"
+            logger.log_monte_carlo(message, session_id=self.session_id)
         
         results = monte_carlo_candles(
             config=config,
@@ -527,7 +551,8 @@ class MonteCarloRunner:
             candles_pipeline_kwargs=pipeline_kwargs,
             cpu_cores=self.cpu_cores,
             progress_callback=progress_callback,
-            result_callback=None
+            result_callback=None,
+            log_callback=log_callback,
         )
         
         # Publish completion

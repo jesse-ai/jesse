@@ -216,6 +216,7 @@ def test_candle_monte_carlo_returns_every_requested_seeded_scenario() -> None:
 
     assert first['original'] is not None
     assert first['num_scenarios'] == first['total_requested'] == 3
+    assert first['failed_scenarios'] == first['filtered_scenarios'] == 0
     assert first['confidence_analysis']['summary']['num_simulations'] == 3
     assert [scenario['scenario_index'] for scenario in first['scenarios']] == [1, 2, 3]
     assert progress_updates == [1, 2, 3]
