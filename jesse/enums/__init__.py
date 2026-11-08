@@ -70,6 +70,10 @@ class exchanges:
     MASSIVE_CURRENCIES = 'Massive Currencies'
     MASSIVE_INDICES = 'Massive Indices'
     MASSIVE_FUTURES = 'Massive Futures'
+    FMP_STOCKS = 'FMP Stocks'
+    FMP_CURRENCIES = 'FMP Currencies'
+    FMP_INDICES = 'FMP Indices'
+    FMP_COMMODITIES = 'FMP Commodities'
     COINBASE_SPOT = 'Coinbase Spot'
     BITFINEX_SPOT = 'Bitfinex Spot'
     BINANCE_SPOT = 'Binance Spot'
@@ -108,6 +112,7 @@ class exchanges:
 @dataclass
 class data_providers:
     MASSIVE = 'Massive'
+    FMP = 'FMP'
 
 
 @dataclass

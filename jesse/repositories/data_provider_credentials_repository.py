@@ -16,6 +16,12 @@ SUPPORTED_DATA_PROVIDERS: dict[str, dict[str, Any]] = {
             {'key': 'api_key', 'label': 'API Key', 'secret': True},
         ),
     },
+    data_providers.FMP: {
+        'name': 'Financial Modeling Prep',
+        'credential_fields': (
+            {'key': 'api_key', 'label': 'API Key', 'secret': True},
+        ),
+    },
 }
 
 

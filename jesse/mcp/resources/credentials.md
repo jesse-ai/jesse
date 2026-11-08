@@ -3,9 +3,10 @@
 Jesse stores two kinds of credentials locally, both managed from the Dashboard and from MCP:
 
 - **Exchange API keys** — used by Jesse Live to trade on an exchange.
-- **Data provider credentials** — used for historical imports; today this is the single
-  Massive API key shared by Massive Stocks, Massive Currencies, Massive Indices, and
-  Massive Futures.
+- **Data provider credentials** — used for historical imports; one API key per provider. The
+  Massive key is shared by Massive Stocks, Massive Currencies, Massive Indices, and Massive
+  Futures; the FMP (Financial Modeling Prep) key by FMP Stocks, FMP Currencies, FMP Indices,
+  and FMP Commodities.
 
 MCP can store, list, and delete them. It cannot read a stored secret back: every result is
 metadata only (ids, names, exchange or provider, timestamps, field requirements), with no key,
@@ -39,7 +40,7 @@ and its fields: `{key, label, location, required, format}`. `location: "argument
 | KuCoin … | API Key / API Secret | `api_passphrase` (required) |
 
 Always check the tool for the exact exchange names; historical-only sources such as
-"Massive Stocks" are not listed and take no exchange key.
+"Massive Stocks" or "FMP Stocks" are not listed and take no exchange key.
 
 ### get_exchange_api_keys()
 
@@ -74,27 +75,32 @@ newly stored key.
 **Returns:** `data_providers`: one entry per supported provider,
 `{provider_id, name, configured, created_at, updated_at, credential_fields: [{key, label, secret}]}`,
 plus `configured_providers`. This is how to discover supported providers and their fields;
-today `Massive` takes one field, `api_key`. Timestamps are Unix milliseconds.
+today there are two, `Massive` and `FMP` (name "Financial Modeling Prep"), and each takes one
+field, `api_key`. Timestamps are Unix milliseconds.
 
 ### store_data_provider_credentials(api_key, provider_id="Massive")
 
-Saves the provider key. Jesse keeps exactly one key per provider and refuses to overwrite it
-(error_type `already_configured`). Follow up with `validate_data_provider_credentials()`.
+Saves the provider key. Pass `provider_id="FMP"` for an FMP key; the default is Massive. Jesse
+keeps exactly one key per provider and refuses to overwrite it (error_type
+`already_configured`). Follow up with `validate_data_provider_credentials()` for the same
+`provider_id`.
 
 ### delete_data_provider_credentials(provider_id="Massive")
 
-Removes the key (`not_found` when none is stored). Candles already imported stay in the
-database; new Massive imports and `search_symbols()` on Massive sources fail with an
-authentication error until a key is stored.
+Removes that provider's key (`not_found` when none is stored); the other provider's key is
+untouched. Candles already imported stay in the database; new imports and `search_symbols()` on
+that provider's sources fail with an authentication error until a key is stored.
 
 ### validate_data_provider_credentials(provider_id="Massive")
 
 Performs a live check against the provider. Reports `status: "success"` or an error_type:
 `credentials_rejected`, `missing_entitlement`, `not_configured`, `rate_limited`,
-`provider_unavailable`, or `validation_failed`.
+`provider_unavailable`, or `validation_failed`. For FMP the check also confirms the plan
+includes one-minute intraday data; a plan without it reports `missing_entitlement`, and such a
+key cannot be used for imports.
 
-Imports need no credential id: `import_candles()` and `search_symbols()` on Massive sources use
-the stored Massive key automatically.
+Imports need no credential id: `import_candles()` and `search_symbols()` on Massive or FMP
+sources use that provider's stored key automatically.
 
 ## Errors
 
@@ -110,6 +116,12 @@ ask only for missing fields, `store_exchange_api_key(...)`, then report the stor
 
 **"Replace my Massive key"**: `delete_data_provider_credentials()`,
 `store_data_provider_credentials(api_key)`, `validate_data_provider_credentials()`, report the result.
+For an FMP key, pass `provider_id="FMP"` to each of the three calls.
 
-**"Massive imports fail with an authentication error"**: `get_data_provider_credentials()`; if
-Massive is not configured, ask the user for a key and store it; otherwise validate and report.
+**"Massive or FMP imports fail with an authentication or entitlement error"**:
+`get_data_provider_credentials()`; if that provider is not configured, ask the user for a key and
+store it with its `provider_id`; otherwise validate it and report the result.
+
+**"I don't have an FMP account"** or "where do I get an FMP key?": send the user to
+https://jesse.trade/fmp, Jesse's referral link to FMP; signing up through it gives 15% off. Use
+this link whenever you point a user to FMP's website.

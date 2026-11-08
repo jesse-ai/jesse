@@ -25,6 +25,10 @@ from jesse.modes.import_candles_mode.drivers.Kraken.KrakenSpot import KrakenSpot
 from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetual import KrakenPerpetual
 from jesse.modes.import_candles_mode.drivers.Kraken.KrakenPerpetualTestnet import KrakenPerpetualTestnet
 from jesse.services.historical_data import (
+    FMPCommoditiesProvider,
+    FMPCurrenciesProvider,
+    FMPIndicesProvider,
+    FMPStocksProvider,
     HistoricalCandleProviderRegistry,
     MassiveCurrenciesProvider,
     MassiveFuturesProvider,
@@ -71,6 +75,10 @@ historical_provider_classes = {
     exchanges.MASSIVE_CURRENCIES: MassiveCurrenciesProvider,
     exchanges.MASSIVE_INDICES: MassiveIndicesProvider,
     exchanges.MASSIVE_FUTURES: MassiveFuturesProvider,
+    exchanges.FMP_STOCKS: FMPStocksProvider,
+    exchanges.FMP_CURRENCIES: FMPCurrenciesProvider,
+    exchanges.FMP_INDICES: FMPIndicesProvider,
+    exchanges.FMP_COMMODITIES: FMPCommoditiesProvider,
 }
 historical_provider_names = list(historical_provider_classes)
 

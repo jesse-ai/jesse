@@ -112,7 +112,7 @@ Key resources include:
 - jesse://configuration - System configuration and exchange settings
 - jesse://significance_test - Rule Significance Testing workflow, tool reference, and result interpretation
 - jesse://monte_carlo - Monte Carlo simulation workflow, summary metrics interpretation, and tool reference
-- jesse://credentials - Storing, listing, and deleting exchange API keys and data provider (Massive) credentials; write-only, results are metadata
+- jesse://credentials - Storing, listing, and deleting exchange API keys and data provider (Massive, FMP) credentials; write-only, results are metadata
 - jesse://strategy_catalog - Browsing, comparing, and importing jesse.trade community strategies
 - jesse://research_scripts - When research scripts are allowed, project file tools, running scripts, and promoting trained models into a strategy
 - jesse://session_analysis - Reading stored session results (including live/paper), live/paper trades and orders by date window, temporary analyses, charts, and snapshot layouts
@@ -320,11 +320,13 @@ Reference: See `jesse://candle` resource for detailed import procedures, paramet
 
 === CREDENTIAL MANAGEMENT ===
 
-Exchange API keys (Jesse Live) and data provider keys (Massive) can be stored, listed, and
+Exchange API keys (Jesse Live) and data provider keys (Massive, FMP) can be stored, listed, and
 deleted with the `*_exchange_api_key*` and `*_data_provider_credentials` tools. They are
 write-only: results are metadata (ids, names, exchange or provider, timestamps) and no tool
 returns a stored secret. Discover exchanges and their fields with
 `get_exchange_api_key_requirements()`, and providers with `get_data_provider_credentials()`.
+Each provider has its own key: the data provider tools default to `provider_id="Massive"`, so
+pass `provider_id="FMP"` for Financial Modeling Prep.
 Only store a secret the user provided in this conversation, never repeat one back, refer to
 stored keys by name and id, and delete only what the user asked to remove.
 Tool reference and workflows: `jesse://credentials`.

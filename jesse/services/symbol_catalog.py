@@ -6,6 +6,7 @@ that can be found in one can be found in the other with the same ranking.
 """
 
 import json
+import zlib
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -22,8 +23,11 @@ SYMBOL_CATALOG_LOCK_WAIT_SECONDS = 60
 # Provider catalogs change rarely; five minutes keeps repeated selector loads off the provider quota.
 SYMBOL_CATALOG_CACHE_TTL_SECONDS = 300
 # Versioned once for every historical source because all symbol discovery follows the same contract.
-# Version 2 caches descriptive symbol details next to the plain symbol list.
-SYMBOL_CATALOG_CACHE_VERSION = 2
+# Version 2 caches descriptive symbol details next to the plain symbol list. Version 3 stores the
+# JSON compressed: a worldwide stock catalog with details is larger than the coordinator's 8 MiB
+# value limit as plain text and a fraction of it compressed.
+SYMBOL_CATALOG_CACHE_VERSION = 3
+SYMBOL_CATALOG_COMPRESSION_LEVEL = 6
 SYMBOL_SEARCH_DEFAULT_LIMIT = 50
 SYMBOL_SEARCH_MAX_LIMIT = 200
 
@@ -45,8 +49,17 @@ def _is_string_map(value: object) -> bool:
     return isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())
 
 
+def serialize_symbol_catalog(catalog: Mapping[str, Any]) -> bytes:
+    return zlib.compress(json.dumps(catalog).encode(), SYMBOL_CATALOG_COMPRESSION_LEVEL)
+
+
 def deserialize_symbol_catalog(value: str | bytes) -> dict[str, Any]:
     """Read a cached catalog and reject anything that does not match the versioned shape."""
+    if isinstance(value, bytes):
+        try:
+            value = zlib.decompress(value)
+        except zlib.error as exc:
+            raise ValueError('Cached exchange symbol catalog is invalid') from exc
     catalog = json.loads(value.decode() if isinstance(value, bytes) else value)
     symbols = catalog.get('data') if isinstance(catalog, dict) else None
     details = catalog.get('details') if isinstance(catalog, dict) else None
@@ -95,7 +108,7 @@ def load_symbol_catalog(exchange: str) -> dict[str, Any]:
             from jesse.modes.import_candles_mode.drivers import build_historical_provider_registry
             provider = build_historical_provider_registry((exchange,)).get(exchange)
             catalog = symbol_catalog_payload(provider.list_symbol_entries())
-            sync_redis.setex(cache_key, SYMBOL_CATALOG_CACHE_TTL_SECONDS, json.dumps(catalog))
+            sync_redis.setex(cache_key, SYMBOL_CATALOG_CACHE_TTL_SECONDS, serialize_symbol_catalog(catalog))
             return catalog
     except LockError as exc:
         raise SymbolCatalogLoadingError('The symbol catalog is still loading') from exc

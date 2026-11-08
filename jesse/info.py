@@ -619,6 +619,77 @@ exchange_info = {
         "simulation_model": "spot",
         "annualization": 252,
     },
+    # FMP sources are historical-only like Massive; execution fees remain a run setting.
+    exchanges_enums.FMP_STOCKS: {
+        "name": exchanges_enums.FMP_STOCKS,
+        "url": "https://jesse.trade/fmp",
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": [timeframes.MINUTE_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": False,
+        },
+        "required_live_plan": "premium",
+        "asset_class": "equity",
+        "instrument_type": "stock",
+        "simulation_model": "spot",
+        "annualization": 252,
+    },
+    exchanges_enums.FMP_CURRENCIES: {
+        "name": exchanges_enums.FMP_CURRENCIES,
+        "url": "https://jesse.trade/fmp",
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": [timeframes.MINUTE_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": False,
+        },
+        "required_live_plan": "premium",
+        "asset_class": "currency",
+        "instrument_type": "spot",
+        "simulation_model": "spot",
+        # Like Massive Currencies, the merged forex and crypto source defaults to the FX basis.
+        "annualization": 252,
+    },
+    exchanges_enums.FMP_INDICES: {
+        "name": exchanges_enums.FMP_INDICES,
+        "url": "https://jesse.trade/fmp",
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": [timeframes.MINUTE_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": False,
+        },
+        "required_live_plan": "premium",
+        "asset_class": "index",
+        "instrument_type": "index",
+        "simulation_model": "spot",
+        "annualization": 252,
+    },
+    exchanges_enums.FMP_COMMODITIES: {
+        "name": exchanges_enums.FMP_COMMODITIES,
+        "url": "https://jesse.trade/fmp",
+        # Continuous front-month futures prices; multipliers and margin are not modeled.
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": [timeframes.MINUTE_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": False,
+        },
+        "required_live_plan": "premium",
+        "asset_class": "commodity",
+        "instrument_type": "futures_contract",
+        "simulation_model": "spot",
+        "annualization": 252,
+    },
 }
 
 # Trading exchange entries are crypto unless a historical source declares its

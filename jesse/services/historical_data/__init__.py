@@ -15,6 +15,12 @@ from .contracts import (
     SymbolCatalogEntry,
 )
 from .registry import HistoricalCandleProviderRegistry
+from .fmp import (
+    FMPCommoditiesProvider,
+    FMPCurrenciesProvider,
+    FMPIndicesProvider,
+    FMPStocksProvider,
+)
 from .massive_stocks import (
     MassiveCurrenciesProvider,
     MassiveFuturesProvider,
@@ -25,6 +31,10 @@ from .massive_stocks import (
 __all__ = [
     'AdjustmentMode',
     'AssetClass',
+    'FMPCommoditiesProvider',
+    'FMPCurrenciesProvider',
+    'FMPIndicesProvider',
+    'FMPStocksProvider',
     'HistoricalCandle',
     'HistoricalCandleBatch',
     'HistoricalCandleDataset',
