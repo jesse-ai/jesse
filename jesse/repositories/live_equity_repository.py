@@ -18,6 +18,11 @@ def upsert_snapshot(session_id: str, timestamp: int, currency: str, equity: floa
     if jh.is_unit_testing():
         return
 
+    # psycopg2 adapts numpy scalars via repr(), which under numpy 2 renders as
+    # np.float64(...) / fails outright, producing invalid SQL (see #644).
+    # Cast to a native float so the parameter adapts cleanly.
+    equity = float(equity)
+
     _ensure_db_open()
 
     # Peewee doesn't have native UPSERT, so we use raw SQL
@@ -32,6 +37,9 @@ def upsert_snapshot(session_id: str, timestamp: int, currency: str, equity: floa
         database.db.execute_sql(query_ts, (session_id, timestamp, currency, equity))
         return
     except Exception:
+        # Roll back so the failed statement does not leave the shared
+        # connection in an aborted transaction (25P02) for every later write.
+        database.db.rollback()
         query_bucket = """
             INSERT INTO liveequitysnapshot (session_id, bucket_ms, currency, equity)
             VALUES (%s, %s, %s, %s)
