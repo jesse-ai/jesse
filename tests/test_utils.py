@@ -99,8 +99,11 @@ def test_risk_to_qty():
     # should not return more than maximum balance. Expect 100 instead of 125
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
-    # when fee is included
-    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.97
+    # when fee is included, the fee must be charged exactly once (see #614)
+    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.985
+
+    # issue #614: fee_rate was applied twice, returning 97.0225 instead of 98.5
+    assert utils.risk_to_qty(10000, 10, 100, 90, fee_rate=0.005) == 98.5
 
 
 def test_risk_to_size():
