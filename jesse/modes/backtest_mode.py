@@ -314,11 +314,7 @@ def _handle_sync_no_candles(e, start_date, exchange, client_id=None, finish_date
         # Compute the earliest date the run actually needs (warm-up candles included)
         # so the error tells the agent/user exactly what to import to fix it.
         warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
-        required_start = start_date
-        if warmup_num > 0:
-            required_start_ts = jh.date_to_timestamp(start_date) - (
-                warmup_num * jh.timeframe_to_one_minutes(jh.max_timeframe(config['app']['considering_timeframes'])) * 2 * 60_000)
-            required_start = jh.timestamp_to_date(required_start_ts)
+        required_start = suggested_warmup_import_start(start_date, exchange)
 
         message = (
             f"Missing candles for {symbol} on {exchange}. This run needs data from "
@@ -446,6 +442,36 @@ def _get_add_horizontal_line_to_extra_chart():
     return arr
 
 
+# The shortest common regular session (e.g. Saudi Tadawul, 10:00-15:00), and enough extra
+# calendar days to cover long market holidays such as Eid or the Lunar New Year.
+_SHORTEST_SESSION_MINUTES = 300
+_HOLIDAY_SLACK_DAYS = 14
+
+
+def suggested_warmup_import_start(start_date: str, exchange: str) -> str:
+    """
+    The date to import from so a backtest starting at `start_date` has its warm-up candles.
+
+    24/7 markets need the warm-up period itself (doubled for safety). Markets that close only
+    count the time they trade, so their warm-up spans nights, weekends and holidays.
+    """
+    from jesse.info import exchange_info
+
+    warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
+    if warmup_num <= 0:
+        return start_date
+    timeframe_minutes = jh.timeframe_to_one_minutes(jh.max_timeframe(config['app']['considering_timeframes']))
+    asset_class = exchange_info.get(exchange, {}).get('asset_class')
+    if not asset_class or asset_class == 'crypto':
+        lookback_ms = warmup_num * timeframe_minutes * 2 * 60_000
+    else:
+        candles_per_trading_day = max(1, _SHORTEST_SESSION_MINUTES // timeframe_minutes)
+        trading_days = -(-warmup_num // candles_per_trading_day)
+        calendar_days = -(-trading_days * 7 // 5) + _HOLIDAY_SLACK_DAYS
+        lookback_ms = calendar_days * 86_400_000
+    return jh.timestamp_to_date(jh.date_to_timestamp(start_date) - lookback_ms)
+
+
 def _handle_missing_candles(exchange: str, symbol: str, start_date: int, message: str = None):
     """Helper function to handle missing candles scenarios"""
     formatted_date = jh.timestamp_to_date(start_date)
@@ -537,11 +563,7 @@ def _handle_warmup_candles(warmup_candles: dict, start_date: str) -> None:
             )
     except ValueError as e:
         # This date is an import suggestion; sparse warmup counts completed observed buckets.
-        warmup_num = jh.get_config('env.data.warmup_candles_num', 210)
-        max_timeframe = jh.max_timeframe(config['app']['considering_timeframes'])
-        warmup_minutes = TIMEFRAME_TO_ONE_MINUTES[max_timeframe] * warmup_num
-        warmup_start_timestamp = jh.date_to_timestamp(start_date) - (warmup_minutes * 60_000)
-        warmup_start_date = jh.timestamp_to_date(warmup_start_timestamp)
+        warmup_start_date = suggested_warmup_import_start(start_date, exchange)
         sync_publish(
             "missing_candles",
             {
