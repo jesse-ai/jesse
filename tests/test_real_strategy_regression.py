@@ -228,26 +228,28 @@ SINGLE_ROUTE_EXPECTED = {
     'trades_hash': '048ce3b5dc049429',
 }
 
+# Updated for jesse-ai/jesse#614: risk_to_qty now counts both fees exactly, so positions
+# sized with a fee are smaller. Same trades and timings; only the sizes changed.
 MULTI_ROUTE_EXPECTED = {
     'total': 104,
     'total_winning_trades': 54,
     'total_losing_trades': 50,
     'win_rate': 0.519231,
-    'net_profit': 3530.084447,
-    'net_profit_percentage': 35.300844,
+    'net_profit': 3362.822888,
+    'net_profit_percentage': 33.628229,
     'starting_balance': 10000.0,
-    'finishing_balance': 13530.084447,
-    'fee': 1807.92414,
-    'max_drawdown': -11.716148,
-    'expectancy_percentage': 0.339431,
+    'finishing_balance': 13362.822888,
+    'fee': 1787.692441,
+    'max_drawdown': -11.769994,
+    'expectancy_percentage': 0.323348,
     'total_open_trades': 1,
     'open_pl': 0.0,
-    'gross_profit': 13892.771438,
-    'gross_loss': -10362.686991,
+    'gross_profit': 13589.137107,
+    'gross_loss': -10226.31422,
     'longs_count': 64,
     'shorts_count': 40,
     'trades_count': 104,
-    'trades_hash': '80e934a1e814f77a',
+    'trades_hash': 'b33b3fc645819ace',
 }
 
 

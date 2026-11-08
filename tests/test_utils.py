@@ -99,8 +99,27 @@ def test_risk_to_qty():
     # should not return more than maximum balance. Expect 100 instead of 125
     assert utils.risk_to_qty(10000, 5, 100, 96) == 100
 
-    # when fee is included
-    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.97
+    # when fee is included: $100 of risk over $20 of distance plus 0.1% fees on $100 and $80
+    assert utils.risk_to_qty(10000, 1, 100, 80, precision=3, fee_rate=0.001) == 4.955
+    # short, with the fee on entering at $80 and exiting at the $100 stop
+    assert utils.risk_to_qty(10000, 1, 80, 100, precision=3, fee_rate=0.001) == 4.955
+
+    # capped at the capital, leaving room for the opening fee
+    assert utils.risk_to_qty(10000, 5, 100, 96, fee_rate=0.001) == 99.7
+
+    with pytest.raises(ValueError):
+        utils.risk_to_qty(10000, 1, 100, 100)
+
+
+@pytest.mark.parametrize('entry, stop', [(100, 80), (100, 95), (100, 99), (80, 100), (2.5, 2.4)])
+def test_risk_to_qty_loses_exactly_the_risk_at_the_stop_including_fees(entry, stop):
+    # jesse-ai/jesse#614: the fee used to be deducted twice as a flat share of the size, which
+    # ignores the stop distance, so a stop-out lost more than the risk (19% more at a 1% stop).
+    capital, risk_percentage, fee_rate = 10000, 1, 0.001
+    qty = utils.risk_to_qty(capital, risk_percentage, entry, stop, precision=10, fee_rate=fee_rate)
+
+    loss_at_stop = qty * abs(entry - stop) + qty * entry * fee_rate + qty * stop * fee_rate
+    assert loss_at_stop == pytest.approx(capital * risk_percentage / 100)
 
 
 def test_risk_to_size():

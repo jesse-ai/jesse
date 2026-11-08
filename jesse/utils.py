@@ -151,6 +151,10 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     """
     a risk management tool to quickly get the qty based on risk percentage
 
+    With a fee_rate, the qty is sized so that hitting the stop-loss loses exactly
+    risk_per_capital percent of the capital, the opening and closing fees included.
+    The position is capped at the capital, leaving room for the opening fee.
+
     :param capital:
     :param risk_per_capital:
     :param entry_price:
@@ -160,12 +164,18 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     :return: float
     """
     risk_per_qty = abs(entry_price - stop_loss_price)
-    size = risk_to_size(capital, risk_per_capital, risk_per_qty, entry_price)
+    if risk_per_qty == 0:
+        raise ValueError('risk cannot be zero')
 
-    if fee_rate != 0:
-        size = size * (1 - fee_rate * 3)
+    risk_amount = capital * risk_per_capital / 100
+    # Each unit loses the distance to the stop plus a fee on entering and on exiting at the stop.
+    loss_per_qty = risk_per_qty + fee_rate * (entry_price + stop_loss_price)
+    qty = risk_amount / loss_per_qty
 
-    return size_to_qty(size, entry_price, precision=precision, fee_rate=fee_rate)
+    if qty * entry_price > capital:
+        return size_to_qty(capital, entry_price, precision=precision, fee_rate=fee_rate)
+
+    return jh.floor_with_precision(qty, precision)
 
 
 def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: float, entry_price: float) -> float:
