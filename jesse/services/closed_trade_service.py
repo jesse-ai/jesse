@@ -116,16 +116,22 @@ def close_trade(position: Position) -> None:
         return
 
     t.closed_at = position.closed_at
-    try:
-        position.strategy.trades_count += 1
-    except AttributeError:
-        if not jh.is_unit_testing():
-            raise
+    # A trade restored from an earlier live session stays that session's trade: it is
+    # saved under that session, but this session doesn't count it in its own trades,
+    # trade count, PnL or strategy metrics.
+    from_earlier_session = jh.is_livetrading() and bool(t.session_id) and str(t.session_id) != str(store.app.session_id)
+    if not from_earlier_session:
+        try:
+            position.strategy.trades_count += 1
+        except AttributeError:
+            if not jh.is_unit_testing():
+                raise
 
     if jh.is_livetrading():
         closed_trade_repository.store_or_update(t)
 
-    store.closed_trades.trades.append(t)
+    if not from_earlier_session:
+        store.closed_trades.trades.append(t)
     store.closed_trades.record_closure(t)
     closed_trade_repository.close_trade(t)
     currency = position.exchange.settlement_currency.upper()
