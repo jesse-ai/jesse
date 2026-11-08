@@ -1,9 +1,26 @@
 import re
 
+import numpy as np
 from playhouse.postgres_ext import PostgresqlExtDatabase
+from psycopg2.extensions import adapt, register_adapter
 
 import jesse.helpers as jh
 from jesse.services.env import ENV_VALUES
+
+
+def _register_numpy_adapters() -> None:
+    """
+    Send numpy numbers to PostgreSQL as plain numbers. psycopg2 writes a float with repr(),
+    which numpy 2 turns into `np.float64(1.5)`, and it can't send numpy integers or booleans.
+    """
+    for float_type in (np.float16, np.float32, np.float64, np.longdouble):
+        register_adapter(float_type, lambda value: adapt(float(value)))
+    for int_type in (np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64):
+        register_adapter(int_type, lambda value: adapt(int(value)))
+    register_adapter(np.bool_, lambda value: adapt(bool(value)))
+
+
+_register_numpy_adapters()
 
 
 def postgres_schema() -> str:

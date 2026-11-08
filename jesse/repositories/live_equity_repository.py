@@ -28,17 +28,32 @@ def upsert_snapshot(session_id: str, timestamp: int, currency: str, equity: floa
         ON CONFLICT (session_id, "timestamp")
         DO UPDATE SET equity = EXCLUDED.equity, currency = EXCLUDED.currency
     """
+    params = (session_id, int(timestamp), currency, float(equity))
     try:
-        database.db.execute_sql(query_ts, (session_id, timestamp, currency, equity))
+        database.db.execute_sql(query_ts, params)
         return
     except Exception:
+        # A failed statement aborts the shared connection's transaction; roll it back so
+        # the fallback below, and every later write, can run.
+        _rollback()
         query_bucket = """
             INSERT INTO liveequitysnapshot (session_id, bucket_ms, currency, equity)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (session_id, bucket_ms)
             DO UPDATE SET equity = EXCLUDED.equity, currency = EXCLUDED.currency
         """
-        database.db.execute_sql(query_bucket, (session_id, timestamp, currency, equity))
+        try:
+            database.db.execute_sql(query_bucket, params)
+        except Exception:
+            _rollback()
+            raise
+
+
+def _rollback() -> None:
+    try:
+        database.db.rollback()
+    except Exception:
+        pass
 
 
 def _choose_step_ms(from_ms: int, to_ms: int, timeframe: str, max_points: int = 1000) -> int:
@@ -124,6 +139,7 @@ def query_equity_curve(
             (step_ms, step_ms, step_ms, step_ms, session_id, from_ms, to_ms, step_ms, step_ms)
         )
     except Exception:
+        _rollback()
         # Backwards compatible with older schema using bucket_ms
         query_bucket = """
             SELECT DISTINCT ON ((( bucket_ms / %s) * %s))
