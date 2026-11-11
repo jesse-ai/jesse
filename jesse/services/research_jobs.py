@@ -387,14 +387,16 @@ def _supervise(job: _Job, deadline: float, pump: threading.Thread) -> None:
             record['exit_code'] = exit_code
             record['finished_at'] = now_iso()
             record['output_truncated'] = job.output_truncated
-            job.record = record
-        # Persist before signalling completion, so shutdown and cancel callers that wait on
-        # `done` return only once the final record is on disk.
+        # Persist before publishing the final status or signalling completion, so a caller that
+        # sees the job finish (a status read, or shutdown and cancel waiting on `done`) also finds
+        # the final record on disk. A late cancel cannot relabel it meanwhile: exit_code is set.
         try:
             job.scope.write_record(record)
             persisted = True
         except OSError:
             pass  # The job stays in memory, so status requests answer until Jesse restarts.
+        with job.lock:
+            job.record = record
         completed = True
     finally:
         with job.lock:

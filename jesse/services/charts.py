@@ -163,6 +163,25 @@ def _style_legend(ax, c: dict) -> None:
         text.set_color(c['text_color'])
 
 
+MAX_HISTOGRAM_BINS = 200
+
+
+def _histogram_bin_count(arr: np.ndarray, max_bins: int = MAX_HISTOGRAM_BINS) -> int:
+    """Freedman-Diaconis bin count, capped so a tiny IQR plus one outlier cannot
+    ask numpy for billions of bins (see jesse-ai/jesse#641)."""
+    if len(arr) < 10:
+        return 10
+    q75, q25 = np.percentile(arr, [75, 25])
+    iqr = q75 - q25
+    if not iqr > 0:
+        return 15
+    bw = 2 * iqr * len(arr) ** (-1 / 3)
+    n_bins = np.ceil((arr.max() - arr.min()) / bw)
+    if not np.isfinite(n_bins):
+        return max_bins
+    return int(min(max(5, n_bins), max_bins))
+
+
 def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'light', benchmark: bool = False) -> None:  # noqa: C901
     """
     Internal. Generate separate PNG chart images for a completed backtest.
@@ -419,18 +438,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     ax.set_facecolor(t['axes_facecolor'])
     if len(monthly_values) >= 2:
         arr = np.array(monthly_values)
-        if len(arr) >= 10:
-            q75, q25 = np.percentile(arr, [75, 25])
-            iqr = q75 - q25
-            if iqr > 0:
-                bw = 2 * iqr * len(arr) ** (-1 / 3)
-                n_bins = max(5, int(np.ceil((arr.max() - arr.min()) / bw)))
-            else:
-                n_bins = 15
-        else:
-            n_bins = 10
-
-        counts, bin_edges = np.histogram(arr, bins=n_bins)
+        counts, bin_edges = np.histogram(arr, bins=_histogram_bin_count(arr))
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         bar_width = bin_edges[1] - bin_edges[0]
         bar_colors = [t['positive_bar'] if c >= 0 else t['negative_bar'] for c in bin_centers]
@@ -471,18 +479,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
     ax.set_facecolor(t['axes_facecolor'])
     if len(trade_pnls) >= 2:
         arr = np.array(trade_pnls)
-        if len(arr) >= 10:
-            q75, q25 = np.percentile(arr, [75, 25])
-            iqr = q75 - q25
-            if iqr > 0:
-                bw = 2 * iqr * len(arr) ** (-1 / 3)
-                n_bins = max(5, int(np.ceil((arr.max() - arr.min()) / bw)))
-            else:
-                n_bins = 15
-        else:
-            n_bins = 10
-
-        counts, bin_edges = np.histogram(arr, bins=n_bins)
+        counts, bin_edges = np.histogram(arr, bins=_histogram_bin_count(arr))
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         bar_width = bin_edges[1] - bin_edges[0]
         bar_colors = [t['positive_bar'] if c >= 0 else t['negative_bar'] for c in bin_centers]

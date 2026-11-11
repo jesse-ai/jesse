@@ -29,6 +29,10 @@ from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksMargin import Al
 from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksCashPaper import AlpacaStocksCashPaper
 from jesse.modes.import_candles_mode.drivers.Alpaca.AlpacaStocksMarginPaper import AlpacaStocksMarginPaper
 from jesse.services.historical_data import (
+    FMPCommoditiesProvider,
+    FMPCurrenciesProvider,
+    FMPIndicesProvider,
+    FMPStocksProvider,
     HistoricalCandleProviderRegistry,
     MassiveCurrenciesProvider,
     MassiveFuturesProvider,
@@ -80,6 +84,10 @@ historical_provider_classes = {
     exchanges.MASSIVE_CURRENCIES: MassiveCurrenciesProvider,
     exchanges.MASSIVE_INDICES: MassiveIndicesProvider,
     exchanges.MASSIVE_FUTURES: MassiveFuturesProvider,
+    exchanges.FMP_STOCKS: FMPStocksProvider,
+    exchanges.FMP_CURRENCIES: FMPCurrenciesProvider,
+    exchanges.FMP_INDICES: FMPIndicesProvider,
+    exchanges.FMP_COMMODITIES: FMPCommoditiesProvider,
 }
 historical_provider_names = list(historical_provider_classes)
 

@@ -6,7 +6,7 @@ This reference covers candle import and management operations in Jesse.
 
 Historical candle data is required for backtesting strategies. Import data for every route's exchange and symbol before running backtests.
 
-Jesse imports and stores **one-minute candles only**, for every source (crypto exchanges, Massive, Custom Data). In backtests, optimization, Monte Carlo, significance tests and research, every other timeframe is generated from those minutes at run time, so a single import per exchange and symbol covers every timeframe a route or `get_candles()` asks for. Live and paper sessions are different: by default each timeframe's candles come from the exchange, and only when the live setting `generate_candles_from_1m` is enabled are bigger timeframes generated locally from one-minute candles. Timeframes are never imported, so when checking coverage only confirm that the symbol's data spans the backtest dates plus warm-up.
+Jesse imports and stores **one-minute candles only**, for every source (crypto exchanges, Massive, FMP, Custom Data). In backtests, optimization, Monte Carlo, significance tests and research, every other timeframe is generated from those minutes at run time, so a single import per exchange and symbol covers every timeframe a route or `get_candles()` asks for. Live and paper sessions are different: by default each timeframe's candles come from the exchange, and only when the live setting `generate_candles_from_1m` is enabled are bigger timeframes generated locally from one-minute candles. Timeframes are never imported, so when checking coverage only confirm that the symbol's data spans the backtest dates plus warm-up.
 
 ## Import Process
 
@@ -118,11 +118,22 @@ Source-specific behavior:
 - "Massive Stocks" (stocks and ETFs), "Massive Currencies" (forex and crypto pairs),
   "Massive Indices", and "Massive Futures" also match names, and entries carry `name`,
   `kind`, `venue`, and for futures `expiry`.
+- "FMP Stocks" (stocks and ETFs on most major exchanges worldwide), "FMP Currencies" (forex
+  pairs and dollar-quoted crypto), "FMP Indices", and "FMP Commodities" also match names, for
+  example `search_symbols(exchange="FMP Stocks", query="apple")`. Entries carry `name` and
+  `kind` (Stock, ETF, Forex, Crypto, Index, Future), and stock and ETF entries can carry
+  `venue`. The FMP Stocks catalogue lists every company FMP covers plus all US-listed ETFs;
+  ETFs listed outside the US are not in it yet.
 - Every source has its own catalogue. Microsoft the company is `MSFT-USD` on Massive Stocks;
   Massive Futures instead lists CME stock futures on Microsoft such as `SMSFTU6-USD`
-  ("Microsoft Corp Stock Futures", expires 2026-09-18). Choose the source that matches the
-  user's intent and pass the returned `symbol` to `import_candles()` verbatim.
-- Massive sources require a stored Massive API key; see `jesse://credentials`.
+  ("Microsoft Corp Stock Futures", expires 2026-09-18), while FMP Commodities lists one
+  continuous front-month series per market (`GC-USD` for gold) instead of one symbol per
+  expiry. The same instrument can exist on both providers (`AAPL-USD` on Massive Stocks and on
+  FMP Stocks); candles are stored per source, so backtest under the exchange the data was
+  imported from. Choose the source that matches the user's intent and pass the returned
+  `symbol` to `import_candles()` verbatim.
+- Massive sources require a stored Massive API key and FMP sources a stored FMP key; see
+  `jesse://credentials`.
 
 ### copy_candles()
 
@@ -152,7 +163,9 @@ Starts a background import from a historical source and returns once Jesse accep
 
 **Parameters:**
 - `exchange`: a historical source exactly as Jesse lists it: crypto exchanges (e.g., "Binance
-  Perpetual Futures", "Bybit USDT Perpetual") or the Massive sources (need a saved Massive key)
+  Perpetual Futures", "Bybit USDT Perpetual"), the Massive sources (need a saved Massive key),
+  or the FMP sources "FMP Stocks", "FMP Currencies", "FMP Indices", "FMP Commodities" (need a
+  saved FMP key)
 - `symbol`: Trading pair (e.g., "BTC-USDT")
 - `start_date`: YYYY-MM-DD, before today (UTC)
 - `import_id` (optional): defaults to a new UUID
@@ -176,7 +189,7 @@ time. Live sessions fetch each timeframe from the exchange unless `generate_cand
 
 ## Traditional Markets and Gapped Data
 
-Massive sources and Custom Data describe markets that close, so their one-minute series has real
+Massive and FMP sources and Custom Data describe markets that close, so their one-minute series has real
 gaps (nights, weekends, holidays; pre-market and after-hours bars are kept where the provider has
 them). Jesse never fabricates candles for a closure:
 
@@ -188,6 +201,33 @@ them). Jesse never fabricates candles for a closure:
 - Metrics for these sources annualize on 252 observations by default instead of 365.
 - To trade a stock-linked instrument on a 24/7 exchange with matching indicator history, use the
   trading-hours helpers described in `jesse://strategy`.
+
+### FMP sources
+
+- Symbols are `BASE-QUOTE` with the trading currency as the quote. FMP Stocks: `TICKER-CURRENCY`;
+  non-US tickers keep FMP's exchange suffix and FMP's share-class dash becomes a dot (`AAPL-USD`,
+  `SPY-USD`, `BRK.B-USD`, `VOD.L-GBX`, `2222.SR-SAR`, `VOLV.B.ST-SEK`). FMP Currencies: `EUR-USD`,
+  `BTC-USD`. FMP Indices: the index ticker without FMP's `^`, plus its currency (`GSPC-USD` for
+  the S&P 500, `N225-JPY`, `FTSE-GBP`, `VIX-USD`). FMP Commodities: `ROOT-CURRENCY` (`GC-USD`
+  gold, `CL-USD` crude, `ZC-USX` corn). Find symbols with `search_symbols()` instead of guessing.
+- Quotes are the trading currency and are never converted: London prices are in pence (`GBX`),
+  Johannesburg's in cents (`ZAC`), and grains, softs and livestock futures in US cents (`USX`).
+  Never relabel them GBP, ZAR or USD. On FMP Stocks an import with a different quote fails, and
+  the message names the right symbol.
+- Stock prices are split-adjusted, not dividend-adjusted; US stocks include pre-market and
+  after-hours minutes. FMP Commodities are continuous front-month series, not single contracts.
+- Times are UTC for every market, daylight saving included. Markets that trade around the
+  clock, such as crypto on FMP Currencies, have a one-hour gap once a year: FMP has no data for
+  the extra hour on the night US clocks go back. That gap is expected, not a failed import.
+- History depth varies by market, for example US stocks back to 2003, BTC to 2013, EUR/USD to
+  2009, London and Saudi stocks to late 2022, gold to late 2023. An earlier `start_date` imports
+  from the first available minute, and the import reports that date.
+- FMP plans include a monthly data allowance (bandwidth), and the full minute history of a 24/7
+  market is a large download. Import only the range the backtest needs (see Import Process
+  above), not the whole history, unless the user asks for it. A plan without one-minute intraday
+  data cannot import at all; `validate_data_provider_credentials(provider_id="FMP")` reports it
+  as `missing_entitlement`.
+- Like Massive, FMP sources are for backtesting and research only; they do not execute trades.
 
 ## Usage Examples
 

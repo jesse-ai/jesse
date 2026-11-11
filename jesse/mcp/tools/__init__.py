@@ -49,6 +49,7 @@ from jesse.mcp.tools.research_scripts import register_research_scripts_tools
 from jesse.mcp.tools.session_results import register_session_results_tools
 from jesse.mcp.tools.analysis import register_analysis_tools
 from jesse.mcp.tools.live import register_live_tools
+from jesse.mcp.tools.strict_arguments import accept_null_for_omitted_defaults
 
 def register_tools(mcp):
     """
@@ -107,3 +108,6 @@ def register_tools(mcp):
 
     # Live/paper session lifecycle (drafts, start, stop, notes, delete) with the live plugin
     register_live_tools(mcp)
+
+    # Must run last, so it covers every tool registered above
+    accept_null_for_omitted_defaults(mcp)

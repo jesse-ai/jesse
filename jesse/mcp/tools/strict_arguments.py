@@ -88,3 +88,36 @@ def keep_raw_argument_values(mcp: Any, *names: str) -> None:
         metadata = tool.fn_metadata
         tool.fn_metadata = _RawArgumentValues(
             **{field: getattr(metadata, field) for field in FuncMetadata.model_fields})
+
+
+def accept_null_for_omitted_defaults(mcp: Any) -> None:
+    """
+    Treat an explicit null as an omitted argument for every parameter whose default is None.
+
+    Such a parameter is advertised as `{"type": "string", "default": null}`, and some clients
+    fill every optional field with its schema default. Pydantic rejects that null when the
+    annotation is a bare `str` or `int`, so a call with the advertised default failed. Dropping
+    the key before validation gives exactly the omitted behavior, without retyping the
+    parameters as Optional: FastMCP JSON-decodes string arguments whose annotation is not exactly
+    `str`, which would turn JSON-object strings such as `strategy_codes` into dicts.
+    """
+    manager = getattr(mcp, '_tool_manager', None)
+    if manager is None:
+        return
+    for tool in manager.list_tools():
+        metadata = tool.fn_metadata
+        omittable = frozenset(
+            field.alias or name
+            for name, field in metadata.arg_model.model_fields.items()
+            if not field.is_required() and field.default is None
+        )
+        if not omittable:
+            continue
+
+        class NullMeansOmitted(type(metadata)):
+            def pre_parse_json(self, data: Dict[str, Any], _omittable=omittable) -> Dict[str, Any]:
+                kept = {key: value for key, value in data.items() if not (value is None and key in _omittable)}
+                return super().pre_parse_json(kept)
+
+        tool.fn_metadata = NullMeansOmitted(
+            **{field: getattr(metadata, field) for field in type(metadata).model_fields})

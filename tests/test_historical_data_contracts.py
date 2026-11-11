@@ -1,4 +1,5 @@
 import json
+import zlib
 from dataclasses import FrozenInstanceError, asdict
 
 import pytest
@@ -335,7 +336,7 @@ def _fake_symbol_catalog_backend(monkeypatch, entries):
             return self.store.get(key)
 
         def setex(self, key, ttl, value):
-            self.store[key] = value.encode()
+            self.store[key] = value if isinstance(value, bytes) else value.encode()
 
         def lock(self, *args, **kwargs):
             return FakeLock()
@@ -372,11 +373,35 @@ def test_supported_symbols_endpoint_returns_and_caches_symbol_details(monkeypatc
     assert json.loads(first.body) == expected
     assert json.loads(second.body) == expected
     assert provider_calls == ['Massive Stocks']
-    assert list(fake_redis.store) == ['historical-symbols:v2:Massive Stocks']
+    assert list(fake_redis.store) == ['historical-symbols:v3:Massive Stocks']
+    # Cached compressed so catalogs past the coordinator's 8 MiB value limit still fit.
+    assert zlib.decompress(fake_redis.store['historical-symbols:v3:Massive Stocks'])
 
-    fake_redis.store['historical-symbols:v2:Massive Stocks'] = b'["SPY-USD"]'
+    fake_redis.store['historical-symbols:v3:Massive Stocks'] = zlib.compress(b'["SPY-USD"]')
     corrupted = exchange_controller.get_exchange_supported_symbols('Massive Stocks')
     assert corrupted.status_code == 500
+    fake_redis.store['historical-symbols:v3:Massive Stocks'] = b'not compressed'
+    assert exchange_controller.get_exchange_supported_symbols('Massive Stocks').status_code == 500
+
+
+def test_cached_symbol_catalogs_are_compressed_below_the_coordinator_value_limit():
+    from jesse.services.coordination_client import MAX_PAYLOAD
+    from jesse.services.symbol_catalog import deserialize_symbol_catalog, serialize_symbol_catalog
+
+    # A fabricated catalog the size of a worldwide stock list: larger than the limit as plain JSON.
+    catalog = {
+        'data': [f'TICKER{index}.XX-USD' for index in range(80_000)],
+        'details': {
+            f'TICKER{index}.XX-USD': {'name': f'Fabricated Company Number {index}', 'kind': 'Stock', 'venue': 'Some Exchange'}
+            for index in range(80_000)
+        },
+    }
+    assert len(json.dumps(catalog).encode()) > MAX_PAYLOAD
+
+    cached = serialize_symbol_catalog(catalog)
+
+    assert len(cached) < MAX_PAYLOAD
+    assert deserialize_symbol_catalog(cached) == catalog
 
 
 def test_symbol_search_ranks_ticker_prefixes_before_provider_names(monkeypatch):

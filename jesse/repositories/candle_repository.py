@@ -148,17 +148,69 @@ def get_existing_candles() -> List[dict]:
     """
     Returns a list of all existing candles grouped by exchange and symbol
     """
-    # One grouped scan avoids two additional database round trips for every stored dataset.
-    summaries = (
-        Candle.select(
-            Candle.exchange,
-            Candle.symbol,
-            peewee.fn.MIN(Candle.timestamp),
-            peewee.fn.MAX(Candle.timestamp),
+    # Peewee can't express this, so it is raw SQL. A DISTINCT or GROUP BY over the candle table reads
+    # every row, which takes minutes on databases with hundreds of millions of candles. This recursive
+    # CTE emulates an index skip scan (PostgreSQL has none before v18): each step jumps to the next
+    # (exchange, symbol, timeframe) group with one probe of the compound unique index, and each
+    # group's first and last timestamps cost two more probes. When no next group exists the probes
+    # return a NULL row, which stops the recursion and is filtered out below.
+    #
+    # Databases created before the timeframe column existed can hold rows whose timeframe is NULL.
+    # NULLS LAST keeps the walk on the index order (PostgreSQL's default) and makes SQLite agree, so
+    # a NULL group is only ever reached as the first group of a pair. Their rows never match
+    # `timeframe = g.timeframe`, so every pair also gets a `timeframe IS NULL` probe, which btree
+    # indexes answer directly. The SQL runs on PostgreSQL and on SQLite (used by the unit tests).
+    query = """
+        WITH RECURSIVE timeframe_groups (exchange, symbol, timeframe) AS (
+            SELECT exchange, symbol, timeframe FROM (
+                SELECT exchange, symbol, timeframe
+                FROM candle
+                ORDER BY exchange, symbol, timeframe NULLS LAST
+                LIMIT 1
+            ) AS first_group
+            UNION ALL
+            SELECT
+                (SELECT c.exchange FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe NULLS LAST LIMIT 1),
+                (SELECT c.symbol FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe NULLS LAST LIMIT 1),
+                (SELECT c.timeframe FROM candle c
+                 WHERE (c.exchange, c.symbol, c.timeframe) > (g.exchange, g.symbol, g.timeframe)
+                 ORDER BY c.exchange, c.symbol, c.timeframe NULLS LAST LIMIT 1)
+            FROM timeframe_groups g
+            WHERE g.exchange IS NOT NULL
+        ),
+        pairs AS (
+            SELECT DISTINCT exchange, symbol FROM timeframe_groups WHERE exchange IS NOT NULL
         )
-        .group_by(Candle.exchange, Candle.symbol)
-        .tuples()
-    )
+        SELECT exchange, symbol, MIN(first_timestamp), MAX(last_timestamp)
+        FROM (
+            SELECT
+                g.exchange,
+                g.symbol,
+                (SELECT MIN(c."timestamp") FROM candle c
+                 WHERE c.exchange = g.exchange AND c.symbol = g.symbol AND c.timeframe = g.timeframe) AS first_timestamp,
+                (SELECT MAX(c."timestamp") FROM candle c
+                 WHERE c.exchange = g.exchange AND c.symbol = g.symbol AND c.timeframe = g.timeframe) AS last_timestamp
+            FROM timeframe_groups g
+            WHERE g.exchange IS NOT NULL
+            UNION ALL
+            SELECT
+                p.exchange,
+                p.symbol,
+                (SELECT MIN(c."timestamp") FROM candle c
+                 WHERE c.exchange = p.exchange AND c.symbol = p.symbol AND c.timeframe IS NULL),
+                (SELECT MAX(c."timestamp") FROM candle c
+                 WHERE c.exchange = p.exchange AND c.symbol = p.symbol AND c.timeframe IS NULL)
+            FROM pairs p
+        ) AS group_ranges
+        GROUP BY exchange, symbol
+        ORDER BY exchange, symbol
+    """
+    # go through the model's database handle so unit tests can rebind it
+    cursor = Candle._meta.database.execute_sql(query)
     return [
         {
             'exchange': exchange,
@@ -166,7 +218,7 @@ def get_existing_candles() -> List[dict]:
             'start_date': arrow.get(first_timestamp / 1000).format('YYYY-MM-DD'),
             'end_date': arrow.get(last_timestamp / 1000).format('YYYY-MM-DD'),
         }
-        for exchange, symbol, first_timestamp, last_timestamp in summaries
+        for exchange, symbol, first_timestamp, last_timestamp in cursor.fetchall()
     ]
 
 

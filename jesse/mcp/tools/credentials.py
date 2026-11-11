@@ -96,8 +96,8 @@ def register_credentials_tools(mcp):
         `exchange`, `name`, `api_key`, and `api_secret` are required.
 
         - `exchange`: a name from get_exchange_api_key_requirements(), e.g.
-          "Binance Perpetual Futures". Data sources such as "Massive Stocks" take no exchange
-          keys; use store_data_provider_credentials() for those.
+          "Binance Perpetual Futures". Data sources such as "Massive Stocks" or "FMP Stocks" take
+          no exchange keys; use store_data_provider_credentials() for those.
         - `name`: a unique label the user will recognize, e.g. "Main Binance account".
         - `api_key` / `api_secret`: the exchange's labels differ (Hyperliquid: wallet address and
           private key; Lighter: L1 wallet address and API private key).
@@ -133,9 +133,11 @@ def register_credentials_tools(mcp):
         """List the supported historical data providers and which have an API key stored.
 
         Returns `data_providers`: [{provider_id, name, configured, created_at, updated_at,
-        credential_fields: [{key, label, secret}]}] and `configured_providers`. Today the only
-        provider is "Massive", whose single key unlocks Massive Stocks, Currencies, Indices,
-        and Futures imports. The key itself is never returned.
+        credential_fields: [{key, label, secret}]}] and `configured_providers`. There are two
+        providers, each with one `api_key`: "Massive", whose key unlocks Massive Stocks,
+        Currencies, Indices, and Futures imports, and "FMP" (name "Financial Modeling Prep"),
+        whose key unlocks FMP Stocks, Currencies, Indices, and Commodities. The key itself is
+        never returned.
         """
         return await run_blocking(get_data_provider_credentials_service)
 
@@ -143,16 +145,17 @@ def register_credentials_tools(mcp):
     async def store_data_provider_credentials(api_key: _Text = None, provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
         """Save a data provider API key (`api_key`, required; default provider: "Massive") for historical imports.
 
-        Jesse keeps one key per provider and refuses to overwrite it (error_type
-        "already_configured"): to replace it, call delete_data_provider_credentials() first.
-        Only pass a key the user provided in this conversation, and never repeat it back. Then
-        call validate_data_provider_credentials() to confirm the provider accepts it.
+        Pass provider_id="FMP" for a Financial Modeling Prep key. Jesse keeps one key per
+        provider and refuses to overwrite it (error_type "already_configured"): to replace it,
+        call delete_data_provider_credentials() first. Only pass a key the user provided in this
+        conversation, and never repeat it back. Then call validate_data_provider_credentials()
+        with the same provider_id to confirm the provider accepts it.
         """
         return await run_blocking(_store_data_provider_credentials, api_key=api_key, provider_id=provider_id)
 
     @mcp.tool()
     async def delete_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
-        """Remove a data provider's stored API key (default provider: "Massive").
+        """Remove a data provider's stored API key (default provider: "Massive"; "FMP" for FMP).
 
         Candles already imported from that provider stay in the database; new imports and
         symbol searches for its sources fail until a key is stored again.
@@ -161,11 +164,13 @@ def register_credentials_tools(mcp):
 
     @mcp.tool()
     async def validate_data_provider_credentials(provider_id: _Text = DEFAULT_DATA_PROVIDER) -> dict:
-        """Test the stored data provider key against the provider (default provider: "Massive").
+        """Test the stored data provider key against the provider (default provider: "Massive"; "FMP" for FMP).
 
-        Use this after store_data_provider_credentials() or when Massive imports fail with an
-        authentication or entitlement error. Reports success or an error_type
+        Use this after store_data_provider_credentials() or when Massive or FMP imports fail with
+        an authentication or entitlement error. Reports success or an error_type
         (credentials_rejected, missing_entitlement, not_configured, rate_limited,
-        provider_unavailable, validation_failed) without returning the key.
+        provider_unavailable, validation_failed) without returning the key. For FMP it also
+        confirms the plan includes one-minute intraday data; a plan without it is
+        missing_entitlement and cannot be used for imports.
         """
         return await run_blocking(validate_data_provider_credentials_service, provider_id=provider_id)

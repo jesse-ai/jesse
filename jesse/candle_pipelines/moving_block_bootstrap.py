@@ -6,7 +6,13 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
     def __init__(self, batch_size: int, seed: int = None, **_ignored) -> None:
         """
         Generate synthetic candles by moving-block bootstrap on multivariate
-        tuples of (delta_close, delta_high, delta_low).
+        tuples of (close log-return, relative high range, relative low range).
+
+        Resampling is done in relative (multiplicative) terms so a block keeps
+        each bar's percentage move no matter which price level it is replayed
+        at. Absolute-dollar deltas let a block from a high-price regime replayed
+        at a low price drag the cumulative sum through zero, pinning the whole
+        path at the positivity floor (jesse-ai/jesse#630).
 
         Parameters
         ----------
@@ -54,32 +60,38 @@ class MovingBlockBootstrapCandlesPipeline(BaseCandlesPipeline):
         # copy everything first (timestamps, volumes, etc)
         out[:] = original_1m_candles[:]
         n = len(out)
-        # strictly positive floor to avoid invalid negative prices
+        # strictly positive floor to avoid invalid prices from degenerate input;
+        # valid paths now stay positive by construction (see the rebuild below)
         eps = 1e-12
 
-        # compute the 3 deltas for each bar
-        delta_close = np.diff(original_1m_candles[:, 2], prepend=self.last_price)
-        delta_high  = original_1m_candles[:, 3] - original_1m_candles[:, 2]
-        delta_low   = original_1m_candles[:, 2] - original_1m_candles[:, 4]
+        closes = original_1m_candles[:, 2]
+        # Guard the log bases: prices are strictly positive in valid data, but a
+        # non-positive close would otherwise turn the returns into -inf/nan.
+        safe_closes = np.maximum(closes, eps)
+        base_price = self.last_price if self.last_price > 0 else safe_closes[0]
+
+        # compute the 3 relative deltas for each bar
+        delta_close = np.diff(np.log(safe_closes), prepend=np.log(base_price))
+        rel_high = (original_1m_candles[:, 3] - safe_closes) / safe_closes
+        rel_low = (safe_closes - original_1m_candles[:, 4]) / safe_closes
 
         # stack into shape (T, 3), skipping the first delta_close entry (prepend)
-        deltas = np.column_stack([delta_close[1:], delta_high[1:], delta_low[1:]])
+        deltas = np.column_stack([delta_close[1:], rel_high[1:], rel_low[1:]])
 
         # bootstrap blocks of the 3-tuples
         boot_deltas = self._bootstrap_blocks(deltas, n)
 
-        # rebuild close prices (ensure strictly positive)
-        boot_close = np.cumsum(boot_deltas[:, 0]) + self.last_price
-        boot_close = np.maximum(boot_close, eps)
+        # rebuild close prices by multiplication, so positivity holds by construction
+        boot_close = base_price * np.exp(np.cumsum(boot_deltas[:, 0]))
         out[:, 2] = boot_close
 
         # rebuild opens
         out[1:, 1] = boot_close[:-1]
-        out[0, 1] = max(self.last_price, eps)
+        out[0, 1] = base_price
 
-        # rebuild high and low from the bootstrapped ranges
-        out[:, 3] = boot_close + boot_deltas[:, 1]
-        out[:, 4] = boot_close - boot_deltas[:, 2]
+        # rebuild high and low from the bootstrapped relative ranges
+        out[:, 3] = boot_close * (1 + boot_deltas[:, 1])
+        out[:, 4] = boot_close * (1 - boot_deltas[:, 2])
 
         # enforce the true high/low bounds and positivity
         out[:, 1] = np.maximum(out[:, 1], eps)

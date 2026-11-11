@@ -5,7 +5,7 @@ from starlette.responses import JSONResponse
 from jesse.enums import data_providers
 from jesse.repositories import data_provider_credentials_repository
 from jesse.services.auth import require_auth
-from jesse.services.historical_data.credential_validation import validate_massive_api_key
+from jesse.services.historical_data.credential_validation import validate_fmp_api_key, validate_massive_api_key
 from jesse.services.historical_data.errors import (
     ProviderAuthenticationError,
     ProviderEntitlementError,
@@ -65,8 +65,27 @@ class ValidateDataProviderCredentialsRequest(BaseModel):
     provider_id: str
 
 
+# Short names used in validation messages; the stored provider name can be longer.
+_PROVIDER_LABELS = {
+    data_providers.MASSIVE: 'Massive',
+    data_providers.FMP: 'FMP',
+}
+
+
 def _unsupported_provider_response() -> JSONResponse:
     return JSONResponse({'message': 'Unsupported data provider'}, status_code=400)
+
+
+def _is_supported_provider(provider_id: str) -> bool:
+    return provider_id in data_provider_credentials_repository.SUPPORTED_DATA_PROVIDERS
+
+
+def _validate_api_key(provider_id: str, api_key: str) -> None:
+    # Looked up at call time so each validator stays a module attribute tests can replace.
+    if provider_id == data_providers.FMP:
+        validate_fmp_api_key(api_key)
+    else:
+        validate_massive_api_key(api_key)
 
 
 @router.get('/credentials', response_model=DataProviderCredentialsListResponse)
@@ -82,7 +101,7 @@ def list_data_provider_credentials() -> DataProviderCredentialsListResponse | JS
 def store_data_provider_credentials(
     request: StoreDataProviderCredentialsRequest,
 ) -> DataProviderCredentialMutationResponse | JSONResponse:
-    if request.provider_id != data_providers.MASSIVE:
+    if not _is_supported_provider(request.provider_id):
         return _unsupported_provider_response()
     api_key = request.api_key.get_secret_value().strip()
     if not api_key:
@@ -112,7 +131,7 @@ def store_data_provider_credentials(
 def delete_data_provider_credentials(
     request: DeleteDataProviderCredentialsRequest,
 ) -> DataProviderCredentialMutationResponse | JSONResponse:
-    if request.provider_id != data_providers.MASSIVE:
+    if not _is_supported_provider(request.provider_id):
         return _unsupported_provider_response()
     try:
         status = data_provider_credentials_repository.delete_data_provider_credentials(request.provider_id)
@@ -129,7 +148,7 @@ def delete_data_provider_credentials(
 def validate_data_provider_credentials(
     request: ValidateDataProviderCredentialsRequest,
 ) -> DataProviderCredentialValidationResponse | JSONResponse:
-    if request.provider_id != data_providers.MASSIVE:
+    if not _is_supported_provider(request.provider_id):
         return _unsupported_provider_response()
     try:
         credentials = data_provider_credentials_repository.get_data_provider_credentials(request.provider_id)
@@ -141,20 +160,26 @@ def validate_data_provider_credentials(
     if not api_key:
         return JSONResponse({'message': 'The stored data provider credentials are invalid'}, status_code=500)
 
+    label = _PROVIDER_LABELS.get(request.provider_id, request.provider_id)
     try:
-        validate_massive_api_key(api_key)
+        _validate_api_key(request.provider_id, api_key)
     except ProviderAuthenticationError:
-        return JSONResponse({'message': 'Massive rejected the API key'}, status_code=401)
+        return JSONResponse({'message': f'{label} rejected the API key'}, status_code=401)
     except ProviderEntitlementError:
-        return JSONResponse({'message': 'The API key cannot access Massive reference data'}, status_code=403)
+        message = (
+            'The FMP plan does not include one-minute historical data'
+            if request.provider_id == data_providers.FMP
+            else 'The API key cannot access Massive reference data'
+        )
+        return JSONResponse({'message': message}, status_code=403)
     except ProviderRateLimitError:
-        return JSONResponse({'message': 'Massive rate limit reached. Try again shortly.'}, status_code=429)
+        return JSONResponse({'message': f'{label} rate limit reached. Try again shortly.'}, status_code=429)
     except ProviderUnavailableError:
-        return JSONResponse({'message': 'Massive is currently unavailable'}, status_code=503)
+        return JSONResponse({'message': f'{label} is currently unavailable'}, status_code=503)
     except ProviderRequestError:
-        return JSONResponse({'message': 'Massive could not validate the API key'}, status_code=502)
+        return JSONResponse({'message': f'{label} could not validate the API key'}, status_code=502)
 
     return DataProviderCredentialValidationResponse(
         status='success',
-        message='Massive API key is working.',
+        message=f'{label} API key is working.',
     )

@@ -568,6 +568,21 @@ def get_candles_service(
             candles = data.get('data', [])
             total = len(candles)
             returned = candles[-limit:]
+            message = (
+                f"Returned the newest {len(returned)} of {total} {timeframe} candles for {symbol} on {exchange} "
+                "in the live chart window. For historical coverage use get_existing_candles; for the full "
+                "stored series use export_candles."
+            )
+            if total == 0:
+                # An empty window usually means the stored data ends before now, or that `timeframe`
+                # rows were never stored: imports only store 1m rows, so bigger timeframes need the
+                # live generate_candles_from_1m setting.
+                message = (
+                    f"No {timeframe} candles for {symbol} on {exchange} in the live chart window, which ends now "
+                    "and spans the live warm_up_candles setting. This does not mean nothing is stored: the stored "
+                    "data may end earlier, or, with the live generate_candles_from_1m setting off, only 1m candles "
+                    "exist. Check the stored dates with get_existing_candles and read history with export_candles."
+                )
             return {
                 "status": "success",
                 "action": "candles_retrieved",
@@ -579,11 +594,7 @@ def get_candles_service(
                 "total_in_window": total,
                 "truncated": total > len(returned),
                 "candles": returned,
-                "message": (
-                    f"Returned the newest {len(returned)} of {total} {timeframe} candles for {symbol} on {exchange} "
-                    "in the live chart window. For historical coverage use get_existing_candles; for the full "
-                    "stored series use export_candles."
-                ),
+                "message": message,
             }
         else:
             return {

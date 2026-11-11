@@ -151,11 +151,14 @@ def register_candles_tools(mcp):
 
         `exchange` is a historical candle source exactly as Jesse lists it: the crypto
         exchanges (e.g. "Binance Perpetual Futures", "Binance Spot", "Bybit USDT Perpetual",
-        "Coinbase Spot", "Kraken Pro Futures") and the Massive sources ("Massive Stocks",
-        "Massive Currencies", "Massive Indices", "Massive Futures"; these need a saved Massive key,
-        see jesse://credentials). `symbol` is BASE-QUOTE; when the user names an instrument, find
-        the exact symbol with search_symbols first. `start_date` is YYYY-MM-DD and must be before
-        today (UTC). An unsupported source, date, or symbol is rejected at once with Jesse's error.
+        "Coinbase Spot", "Kraken Pro Futures"), the Massive sources ("Massive Stocks",
+        "Massive Currencies", "Massive Indices", "Massive Futures"; these need a saved Massive key),
+        and the FMP sources ("FMP Stocks", "FMP Currencies", "FMP Indices", "FMP Commodities";
+        these need a saved FMP key), see jesse://credentials. `symbol` is BASE-QUOTE; when the user
+        names an instrument, find the exact symbol with search_symbols first. `start_date` is
+        YYYY-MM-DD and must be before today (UTC). An unsupported source, date, or symbol is
+        rejected at once with Jesse's error. FMP plans include a monthly data allowance, so import
+        only the range the user needs (see jesse://candle).
 
         Only one-minute candles are imported and stored; every other timeframe is generated from them in
         backtests and the research modes, so there is no timeframe parameter. Candles already
@@ -314,7 +317,7 @@ def register_candles_tools(mcp):
         """Find importable symbols on one candle source by ticker prefix or instrument name.
 
         Use this before import_candles() when the user names an instrument rather than an
-        exact Jesse symbol, or when a Massive import fails with a symbol-not-found error.
+        exact Jesse symbol, or when a Massive or FMP import fails with a symbol-not-found error.
         Ticker prefixes rank first, then symbols whose provider name contains the query.
 
         - Crypto exchanges (e.g. "Binance Perpetual Futures") match tickers only, such as "BTC".
@@ -324,6 +327,12 @@ def register_candles_tools(mcp):
           and for futures `expiry`. Every source has its own catalogue: Microsoft the company
           lives on Massive Stocks as MSFT-USD, while Massive Futures lists CME stock futures
           on Microsoft such as SMSFTU6-USD. Pick the source that matches the user's intent.
+        - FMP sources ("FMP Stocks", "FMP Currencies", "FMP Indices", "FMP Commodities") also
+          match names such as "apple" or "gold"; matches carry `name` and `kind` (Stock, ETF,
+          Forex, Crypto, Index, Future), and stocks and ETFs can carry `venue`. Quotes are the
+          trading currency: VOD.L-GBX (London, pence), 2222.SR-SAR, GSPC-USD (S&P 500), GC-USD
+          (gold, continuous front month), ZC-USX (corn, US cents). FMP Stocks lists every company
+          FMP covers plus US-listed ETFs; ETFs listed outside the US are not in it yet.
 
         Pass the returned `symbol` value verbatim to import_candles().
         """
