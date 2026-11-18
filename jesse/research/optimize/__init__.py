@@ -70,6 +70,35 @@ def _generate_trial_params(strategy_hp: list) -> dict:
     return hp
 
 
+def _trial_distributions(strategy_hp: list) -> Dict[str, optuna.distributions.BaseDistribution]:
+    """Optuna distributions for the strategy's hyperparameters, built the same way as
+    Optimizer._create_optuna_trial, so a sampler draws from the ranges _generate_trial_params uses."""
+    distributions = {}
+    for param in strategy_hp:
+        param_name = str(param['name'])
+        param_type = param['type']
+        if isinstance(param_type, type):
+            param_type = param_type.__name__
+        else:
+            param_type = param_type.strip("'").strip('"')
+
+        step = param.get('step')
+        if param_type == 'int':
+            distributions[param_name] = optuna.distributions.IntDistribution(
+                low=param['min'], high=param['max'], step=step if step is not None else 1
+            )
+        elif param_type == 'float':
+            distributions[param_name] = optuna.distributions.FloatDistribution(
+                low=param['min'], high=param['max'], step=step
+            )
+        elif param_type == 'categorical':
+            distributions[param_name] = optuna.distributions.CategoricalDistribution(param['options'])
+        else:
+            raise ValueError(f"Unsupported hyperparameter type: {param_type}")
+
+    return distributions
+
+
 def optimize(
     config: dict,
     routes: List[Dict[str, str]],
@@ -85,6 +114,7 @@ def optimize(
     objective_function: str = 'sharpe',
     best_candidates_count: int = 20,
     progress_bar: bool = True,
+    sampler: Optional[optuna.samplers.BaseSampler] = None,
 ) -> OptimizeReturn:
     """
     A pure research function for running hyperparameter optimization without any
@@ -125,6 +155,13 @@ def optimize(
     :param objective_function: One of 'sharpe', 'calmar', 'sortino', 'omega'.
     :param best_candidates_count: How many top candidates to keep in the result.
     :param progress_bar: Show a tqdm progress bar.
+    :param sampler: Optional Optuna sampler that picks each trial's hyperparameters,
+        e.g. ``optuna.samplers.TPESampler(seed=1)``, ``optuna.samplers.NSGAIISampler()``
+        or a third-party ``BaseSampler`` such as
+        ``strategy_genome.optuna.GeneticStrategySampler``. Every finished trial's
+        fitness is reported back to it, so model-based and evolutionary samplers
+        learn from earlier trials. Defaults to ``None``: uniform random sampling,
+        the same as the dashboard optimization mode.
     :return: An :class:`OptimizeReturn` typed dict.
     """
     # ------------------------------------------------------------------ guards
@@ -155,6 +192,7 @@ def optimize(
             objective_function=objective_function,
             best_candidates_count=best_candidates_count,
             progress_bar=progress_bar,
+            sampler=sampler,
         )
     finally:
         _reset_research_runtime_state()
@@ -175,6 +213,7 @@ def _execute_optimize(
     objective_function: str,
     best_candidates_count: int,
     progress_bar: bool,
+    sampler: Optional[optuna.samplers.BaseSampler] = None,
 ) -> OptimizeReturn:
 
     # ---------------------------------------------------------- Jesse bootstrap
@@ -221,9 +260,11 @@ def _execute_optimize(
 
     # ----------------------------------------------- create in-memory study
     optuna.logging.set_verbosity(optuna.logging.WARNING)
-    # The study is created for completeness/future use; random sampling is done
-    # directly via _generate_trial_params, matching the existing Optimizer.
-    _study = optuna.create_study(direction='maximize', storage=None)  # noqa: F841
+    # Without a sampler, random sampling is done directly via _generate_trial_params,
+    # matching the existing Optimizer. With one, each trial is asked from the study
+    # and its fitness told back once Ray returns it, so the sampler sees every result.
+    study = optuna.create_study(direction='maximize', storage=None, sampler=sampler)
+    distributions = _trial_distributions(strategy_hp) if sampler is not None else None
 
     # ------------------------------------------------------------ init Ray
     ray_started_here = False
@@ -240,6 +281,8 @@ def _execute_optimize(
         # never more than the total number of remaining trials.
         max_workers = min(cpu_cores * 2, n_trials)
         active_refs: dict = {}
+        # Optuna trials asked from the sampler, keyed by trial number, until their result is told.
+        asked_trials: dict = {}
 
         bar = tqdm(total=n_trials, disable=not progress_bar, desc='Optimizing', unit='trial')
 
@@ -260,7 +303,11 @@ def _execute_optimize(
 
         while completed_trials < n_trials:
             while len(active_refs) < max_workers and trial_counter < n_trials:
-                hp = _generate_trial_params(strategy_hp)
+                if sampler is None:
+                    hp = _generate_trial_params(strategy_hp)
+                else:
+                    asked_trials[trial_counter] = study.ask(distributions)
+                    hp = asked_trials[trial_counter].params
 
                 ref = ray_evaluate_trial.options(num_cpus=1).remote(
                     shared_user_config,
@@ -296,6 +343,8 @@ def _execute_optimize(
 
                     score = result['score']
                     params = result['params']
+                    if t_num in asked_trials:
+                        study.tell(asked_trials.pop(t_num), score)
                     t_training_metrics = result['training_metrics']
                     t_testing_metrics = result['testing_metrics']
 
