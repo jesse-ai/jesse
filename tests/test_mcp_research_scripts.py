@@ -446,6 +446,41 @@ def test_a_finished_status_means_the_final_record_is_already_saved(project, api,
     assert finished['status'] == record['status'] == 'succeeded'
 
 
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnhandledThreadExceptionWarning')
+def test_a_job_whose_supervision_fails_is_saved_as_failed(project, api, monkeypatch):
+    def fail(job):
+        raise RuntimeError('supervision failed')
+
+    monkeypatch.setattr(research_jobs, '_cleanup_group', fail)
+    job = _run(api, _script(project, 'research_scripts/ok.py', 'print(1)\n'))
+
+    finished = _wait(api, job['id'])
+
+    record = json.loads((project / 'storage' / 'research-jobs' / f'{job["id"]}.json').read_text())
+    assert finished['status'] == record['status'] == 'failed'
+    assert 'lost track' in record['message']
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnhandledThreadExceptionWarning')
+def test_a_final_save_that_fails_with_another_error_still_saves_the_job_as_failed(project, api, monkeypatch):
+    real_write = research_jobs._write_record
+    failed_once = []
+
+    def fail_first_final_write(record):
+        if record['status'] != 'running' and not failed_once:
+            failed_once.append(True)
+            raise ValueError('not an OSError')
+        real_write(record)
+
+    monkeypatch.setattr(research_jobs, '_write_record', fail_first_final_write)
+    job = _run(api, _script(project, 'research_scripts/ok.py', 'print(1)\n'))
+
+    finished = _wait(api, job['id'])
+
+    record = json.loads((project / 'storage' / 'research-jobs' / f'{job["id"]}.json').read_text())
+    assert finished['status'] == record['status'] == 'failed'
+
+
 def test_job_left_running_by_a_previous_jesse_process_is_reported_interrupted(project, api):
     job_id = 'b' * 32
     jobs_dir = project / 'storage' / 'research-jobs'
