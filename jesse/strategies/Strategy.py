@@ -1839,12 +1839,13 @@ class Strategy(ABC):
 
             total_position_values = entry_orders_value + positions_value
 
-        # in futures mode, it's simpler:
+        # in futures mode, it's simpler. A position's qty already includes the
+        # leverage, so its PNL is what closing it would add to the balance:
         elif self.is_futures_trading:
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
-        return (total_position_values * self.leverage) + self.balance
+        return total_position_values + self.balance
 
     @property
     def trades(self) -> List[ClosedTrade]:
