@@ -53,11 +53,20 @@ def add_order_record_only(order: Order) -> None:
         return
 
     order._recorded_fill_qty = current_fill
+    price = order.price
+    average = (order.vars or {}).get('filled_avg_price')
+    if average is not None:
+        # Alpaca reports cumulative quantity and average price. Subtract the value already
+        # recorded so each partial fill contributes its own execution value to the trade.
+        filled_value = current_fill * average
+        previous_value = getattr(order, '_recorded_fill_value', 0.0)
+        price = (filled_value - previous_value) / incremental
+        order._recorded_fill_value = filled_value
 
     if order.side == sides.BUY:
-        t.buy_orders.append(np.array([incremental, order.price]))
+        t.buy_orders.append(np.array([incremental, price]))
     elif order.side == sides.SELL:
-        t.sell_orders.append(np.array([incremental, order.price]))
+        t.sell_orders.append(np.array([incremental, price]))
     else:
         raise Exception(f"Invalid order side: {order.side}")
 

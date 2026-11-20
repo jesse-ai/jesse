@@ -2,10 +2,11 @@ from typing import Optional, List, Tuple
 import uuid
 import numpy as np
 import jesse.helpers as jh
-from peewee import Cast
+from peewee import Cast, fn
 from jesse.models import Candle
+from jesse.models.LiveSession import LiveSession
 from jesse.models.Order import Order
-from jesse.enums import order_statuses
+from jesse.enums import live_session_modes, order_statuses, order_submitted_via
 from jesse.config import config
 from jesse.store import store
 from jesse.services.db import database
@@ -116,7 +117,8 @@ def update(order: Order) -> None:
             d['submitted_via'] = order.submitted_via
         if order.qty != 0:
             d['qty'] = order.qty
-        if order.fee:
+        # A confirmed zero commission is distinct from an unavailable fee.
+        if order.fee is not None:
             d['fee'] = order.fee
         try:
             Order.update(**d).where(Order.id == db_order.id).execute()
@@ -129,6 +131,39 @@ def update(order: Order) -> None:
                 pass
             jh.dump(f"Error updating order in database: {e}")
             raise
+
+
+def set_order_type(order_id: str, order_type: str) -> None:
+    """Persist the broker order type when a driver converts a rejected order before retrying."""
+    if jh.is_unit_testing():
+        return
+    if not database.is_open():
+        database.open_connection()
+    Order.update(type=order_type).where(Order.id == order_id).execute()
+
+
+def replace_id(previous_id: str, new_id: str) -> None:
+    """
+    Keep the saved row of an order that was resubmitted under a new id. An order's id is its
+    client id at the exchange, which cannot be reused, so a queued order gets a new one each time
+    it is sent. Without this the row would stay behind under the old id, never updated again.
+    """
+    if jh.is_unit_testing():
+        return
+
+    if not database.is_open():
+        database.open_connection()
+
+    try:
+        Order.update(id=new_id).where(Order.id == previous_id).execute()
+    except Exception as e:
+        if database.db.in_transaction():
+            raise
+        try:
+            database.db.rollback()
+        except Exception:
+            pass
+        jh.dump(f"Error moving order {previous_id} to its new id in database: {e}")
 
 
 def store_or_update(order: Order) -> None:
@@ -365,6 +400,53 @@ def get_session_orders(session_id: str, exchange: str, symbol: str) -> List[Orde
     ))
 
 
+def cancel_previous_queued_exits(exchange: str, symbols: list[str], account_id: str, before: int) -> int:
+    """Retire local protection abandoned by a fresh live start on verified flat routes."""
+    if jh.is_unit_testing() or not symbols:
+        return 0
+    if not database.is_open():
+        database.open_connection()
+
+    # Orders have no saved-key column. Match their source session's account so two accounts
+    # trading the same symbol cannot cancel one another's local exits. Older rows without a
+    # TP/SL tag are identifiable when reduce_only was saved; unidentifiable rows stay untouched.
+    source_account = fn.json_extract_path_text(
+        Cast(fn.NULLIF(LiveSession.state, ''), 'json'), 'form', 'exchange_api_key_id',
+    )
+    sessions = LiveSession.select(LiveSession.id).where(
+        LiveSession.exchange == exchange, source_account == account_id,
+    )
+    now = jh.now_to_timestamp()
+    return Order.update(status=order_statuses.CANCELED, canceled_at=now, updated_at=now).where(
+        Order.exchange == exchange, Order.symbol.in_(symbols), Order.session_mode == live_session_modes.LIVETRADE,
+        Order.session_id.in_(sessions), Order.created_at < before, Order.status == order_statuses.QUEUED,
+        (Order.reduce_only == True) | Order.submitted_via.in_([
+            order_submitted_via.STOP_LOSS, order_submitted_via.TAKE_PROFIT,
+        ]),
+    ).execute()
+
+
+def get_queued_exit_orders(exchange: str, symbol: str, since: int) -> List[Order]:
+    """
+    The stop-loss and take-profit orders created since ``since`` that are still waiting in
+    Jesse's own queue. Only orders the strategy tagged are returned: a row without the tag was
+    never confirmed as an exit of the current trade.
+    """
+    if jh.is_unit_testing():
+        return []
+
+    if not database.is_open():
+        database.open_connection()
+
+    return list(Order.select().where(
+        Order.exchange == exchange,
+        Order.symbol == symbol,
+        Order.status == order_statuses.QUEUED,
+        Order.submitted_via.in_([order_submitted_via.STOP_LOSS, order_submitted_via.TAKE_PROFIT]),
+        Order.created_at >= since,
+    ).order_by(Order.created_at))
+
+
 def get_last_exchange_order(exchange: str, symbol: str) -> Optional[Order]:
     if jh.is_unit_testing():
         return None
@@ -402,8 +484,14 @@ def get_simulated_orders(exchange: str, symbol: str, qty: float = None) -> List[
 
 
 def executed_for_trades_query(trade_ids):
-    """Unexecuted order selection shared by single-trade and bounded batch hydration."""
-    return Order.select().where(Order.trade_id.in_(trade_ids), Order.status == order_statuses.EXECUTED)
+    """Select executions, including a broker-priced partial fill whose remainder was canceled."""
+    # Some drivers save a quoted price or a provisional quantity on cancellation. Alpaca's
+    # filled_avg_price records an actual execution, separately from the canceled remainder.
+    canceled_with_fill = (
+        (Order.status == order_statuses.CANCELED) & (Order.filled_qty != 0)
+        & Order.vars['filled_avg_price'].is_null(False)
+    )
+    return Order.select().where(Order.trade_id.in_(trade_ids), (Order.status == order_statuses.EXECUTED) | canceled_with_fill)
 
 
 def history_query(

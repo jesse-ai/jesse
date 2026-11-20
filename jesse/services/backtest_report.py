@@ -812,7 +812,12 @@ def _setting_rows(report: _Report) -> list:
     config = report.exchange_config
     leverage = config.get('futures_leverage')
     leverage_mode = config.get('futures_leverage_mode')
-    is_futures = config.get('type') == 'futures'
+    exchange_type = config.get('type')
+    if exchange_type == 'margin':
+        leverage_label, leverage_value = 'Leverage Cap', f'{leverage}x' if leverage else 'None'
+    else:
+        leverage_label = 'Leverage'
+        leverage_value = f'{leverage}x {leverage_mode or ""}'.strip() if exchange_type == 'futures' and leverage else 'None'
     timeframes = list(dict.fromkeys(str(r.get('timeframe')) for r in report.routes if r.get('timeframe')))
     fee = config.get('fee')
     single_route = len(report.routes) == 1
@@ -825,7 +830,7 @@ def _setting_rows(report: _Report) -> list:
         ('Timeframes', ', '.join(timeframes) or 'N/A'),
         ('Starting balance', _number(report.metrics.get('starting_balance'))),
         ('Fee', _percent(fee * 100) if _is_defined(fee) else 'N/A'),
-        ('Leverage', f'{leverage}x {leverage_mode or ""}'.strip() if is_futures and leverage else 'None'),
+        (leverage_label, leverage_value),
         ('Annualization', _whole(report.metrics.get('annualization'))),
         ('Generated', f"{datetime.now(timezone.utc).strftime('%Y-%m-%d')} by Jesse {__version__}"),
     ]

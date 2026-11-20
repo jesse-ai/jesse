@@ -767,7 +767,10 @@ def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
     if cutoff is not None:
         array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
         visible = array[:index + 1]
-        return visible[:np.searchsorted(visible[:, 0], cutoff)]
+        visible = visible[:np.searchsorted(visible[:, 0], cutoff)]
+        if store.candles.uses_timestamp_buckets and timeframe != '1m':
+            return _hide_minutes_after_cutoff(visible, exchange, symbol, timeframe, cutoff)
+        return visible
 
     # this runs on every single indicator call, so storage access is done with
     # plain dict lookups instead of going through forming_estimation +
@@ -821,6 +824,38 @@ def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
     # in live mode, just return the complete candles
     else:
         return long_array[:long_count]
+
+
+def _hide_minutes_after_cutoff(
+        visible: np.ndarray, exchange: str, symbol: str, timeframe: str, cutoff: int,
+) -> np.ndarray:
+    """
+    On sparse venues a strategy can run while its newest candle is still forming (the bar that
+    released the finished one opened a new clock bucket). The stored forming candle keeps
+    absorbing minutes as they arrive, so a late run rebuilds it from the minutes that opened
+    before the cutoff, which is what a backtest shows at that event.
+    """
+    if not len(visible):
+        return visible
+
+    timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
+    bucket_start = int(visible[-1, 0])
+    # a candle that closed by the cutoff holds no later minute
+    if bucket_start + timeframe_ms <= cutoff:
+        return visible
+
+    short_array, short_index = store.candles.get_storage(exchange, symbol, '1m').snapshot()
+    minutes = short_array[:short_index + 1, 0]
+    start = int(np.searchsorted(minutes, bucket_start, side='left'))
+    end = int(np.searchsorted(minutes, cutoff, side='left'))
+    bucket_end = int(np.searchsorted(minutes, bucket_start + timeframe_ms, side='left'))
+    # no minute of this bucket opened at or after the cutoff: the stored candle is already right
+    if end == bucket_end:
+        return visible
+    if end == start:
+        return visible[:-1]
+    forming_candle = generate_candle_from_observed_minutes(timeframe, short_array[start:end])
+    return np.concatenate((visible[:-1], forming_candle[None, :]))
 
 
 def _get_timestamp_bucket_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:

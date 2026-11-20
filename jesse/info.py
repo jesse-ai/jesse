@@ -563,6 +563,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
         "asset_class": "equity",
         "instrument_type": "stock",
         "simulation_model": "spot",
@@ -594,6 +596,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
         "asset_class": "equity",
         "instrument_type": "stock",
         "simulation_model": "margin",
@@ -625,6 +629,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
         "asset_class": "equity",
         "instrument_type": "stock",
         "simulation_model": "spot",
@@ -656,6 +662,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
         "asset_class": "equity",
         "instrument_type": "stock",
         "simulation_model": "margin",
