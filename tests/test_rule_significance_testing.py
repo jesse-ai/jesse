@@ -209,9 +209,10 @@ def test_signal_only_backtest_uses_sparse_clock_events_and_atomic_data_routes():
         candles,
     )
 
-    np.testing.assert_array_equal(timestamps, np.array([start + 900_000], dtype=np.int64))
-    np.testing.assert_array_equal(close_prices, np.array([25], dtype=np.float64))
-    np.testing.assert_array_equal(signals, np.array([0], dtype=np.int8))
+    # the 00:00 bucket closed during the gap, so the route also runs when rows resume at 00:12
+    np.testing.assert_array_equal(timestamps, np.array([start + 780_000, start + 900_000], dtype=np.int64))
+    np.testing.assert_array_equal(close_prices, np.array([23, 25], dtype=np.float64))
+    np.testing.assert_array_equal(signals, np.array([0, 0], dtype=np.int8))
     _assert_research_runtime_is_clean()
 
 
