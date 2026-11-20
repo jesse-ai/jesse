@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 import pytest
 
@@ -183,6 +185,94 @@ class _SpotStopBuyPriceGapStrategy(_SpotPriceGapEntryStrategy):
     fill_price = 110
 
 
+class _FuturesPriceGapEntryStrategy(Strategy):
+    """Rest a futures entry across an opening gap, exit across a later gap and end flat."""
+
+    side: str
+    resting_price: float
+    fill_price: float
+    exit_level: float
+    exit_price: float
+    wallet_balance: float
+
+    def should_long(self) -> bool:
+        return self.side == 'long' and self.index == 0
+
+    def should_short(self) -> bool:
+        return self.side == 'short' and self.index == 0
+
+    def go_long(self) -> None:
+        self.buy = 2, self.resting_price
+
+    def go_short(self) -> None:
+        self.sell = 2, self.resting_price
+
+    def on_open_position(self, order) -> None:
+        assert order.vars['submitted_price'] == self.resting_price
+        assert order.price == self.fill_price
+        # the later gap jumps over the exit level, so it fills the exit too
+        exit_in_profit = (self.exit_price > self.fill_price) == (self.side == 'long')
+        if exit_in_profit:
+            self.take_profit = self.position.qty, self.exit_level
+        else:
+            self.stop_loss = self.position.qty, self.exit_level
+
+    def should_cancel_entry(self) -> bool:
+        return False
+
+    def before_terminate(self) -> None:
+        assert self.position.is_close
+        assert store.app.total_open_trades == 0
+
+        # flat with nothing resting, so no margin may stay reserved
+        exchange = store.exchanges.get_exchange(self.exchange)
+        base_asset = jh.base_asset(self.symbol)
+        assert len(exchange.buy_orders[base_asset]) == 0
+        assert len(exchange.sell_orders[base_asset]) == 0
+        assert round(exchange.wallet_balance, 8) == self.wallet_balance
+        assert round(exchange.available_margin, 8) == self.wallet_balance
+
+
+class _FuturesLimitBuyPriceGapStrategy(_FuturesPriceGapEntryStrategy):
+    # 2 long from 90 to 110: +40 less 0.4 fees
+    side = 'long'
+    resting_price = 95
+    fill_price = 90
+    exit_level = 105
+    exit_price = 110
+    wallet_balance = 10_039.6
+
+
+class _FuturesStopSellPriceGapStrategy(_FuturesPriceGapEntryStrategy):
+    # 2 short from 90 to 110: -40 less 0.4 fees
+    side = 'short'
+    resting_price = 95
+    fill_price = 90
+    exit_level = 105
+    exit_price = 110
+    wallet_balance = 9_959.6
+
+
+class _FuturesStopBuyPriceGapStrategy(_FuturesPriceGapEntryStrategy):
+    # 2 long from 110 to 90: -40 less 0.4 fees
+    side = 'long'
+    resting_price = 105
+    fill_price = 110
+    exit_level = 95
+    exit_price = 90
+    wallet_balance = 9_959.6
+
+
+class _FuturesLimitSellPriceGapStrategy(_FuturesPriceGapEntryStrategy):
+    # 2 short from 110 to 90: +40 less 0.4 fees
+    side = 'short'
+    resting_price = 105
+    fill_price = 110
+    exit_level = 95
+    exit_price = 90
+    wallet_balance = 10_039.6
+
+
 def _price_gap_candles() -> np.ndarray:
     """Return three 5m blocks containing boundary and intra-block price gaps."""
     return np.array([
@@ -328,6 +418,30 @@ def test_spot_buy_filled_by_a_price_gap_pays_the_fill_price(
     assert [(trade['entry_price'], trade['exit_price']) for trade in result['trades']] == [(entry_price, exit_price)]
     assert round(metrics['net_profit'], 8) == net_profit
     assert round(metrics['finishing_balance'] - 10_000, 8) == net_profit
+
+
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+@pytest.mark.parametrize(
+    'strategy, candles',
+    [
+        (_FuturesLimitBuyPriceGapStrategy, _price_gap_candles),
+        (_FuturesStopSellPriceGapStrategy, _price_gap_candles),
+        (_FuturesStopBuyPriceGapStrategy, _short_price_gap_candles),
+        (_FuturesLimitSellPriceGapStrategy, _short_price_gap_candles),
+    ],
+    ids=['limit-buy', 'stop-sell', 'stop-buy', 'limit-sell'],
+)
+def test_futures_entry_filled_by_a_price_gap_releases_its_margin(
+        strategy: type[Strategy],
+        candles: Callable[[], np.ndarray],
+        fast_mode: bool,
+) -> None:
+    result = _run_price_gap_backtest(strategy, candles(), fast_mode)
+
+    assert [(trade['entry_price'], trade['exit_price']) for trade in result['trades']] == [
+        (strategy.fill_price, strategy.exit_price)
+    ]
+    assert round(result['metrics']['finishing_balance'], 8) == strategy.wallet_balance
 
 
 @pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
