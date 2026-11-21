@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import lfilter
 
 import jesse.indicators as ta
 from jesse.factories import candles_from_close_prices
@@ -65,6 +66,49 @@ def test_adxr():
     assert round(single, 0) == 29
     assert len(seq) == len(candles)
     assert seq[-1] == single
+
+
+@pytest.mark.parametrize('period', [1, 2, 5, 14, 28])
+def test_adxr_uses_sma_of_dx_and_period_bar_lag(period):
+    # Jesse seeds directional movement at zero. The shared true-range factor
+    # cancels in DX's directional-index ratio.
+    # lfilter supplies the DM recurrence independently of the native indicator.
+    candles = np.array(test_candles_19, dtype=np.float64)
+    up = np.diff(candles[:, 3], prepend=candles[0, 3])
+    down = -np.diff(candles[:, 4], prepend=candles[0, 4])
+    denominator = [1.0, -(1.0 - 1.0 / period)]
+    plus = lfilter([1.0], denominator, np.where((up > down) & (up > 0), up, 0.0))
+    minus = lfilter([1.0], denominator, np.where((down > up) & (down > 0), down, 0.0))
+    dx = np.divide(100.0 * np.abs(plus - minus), plus + minus,
+                   out=np.zeros(len(candles)), where=(plus + minus) != 0)
+    mean_dx = np.convolve(dx, np.full(period, 1.0 / period), mode='valid')
+    expected = np.full(len(candles), np.nan)
+    expected[2 * period - 1:] = (mean_dx[period:] + mean_dx[:-period]) / 2.0
+
+    actual = ta.adxr(candles, period=period, sequential=True)
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12, equal_nan=True)
+    assert ta.adxr(candles, period=period) == actual[-1]
+
+
+def test_adxr_sma_variant_on_short_changing_trend():
+    closes = np.array([10, 12, 11, 14, 13, 15], dtype=np.float64)
+    candles = np.column_stack((np.arange(len(closes)) * 60_000, closes, closes,
+                               closes + 1, closes - 1, np.full(len(closes), 100.0)))
+    # At period 2, DX is [0, 100, 0, 75, 50/3, 450/7]. Average adjacent
+    # DX values, then average the resulting series with its value two bars ago.
+    expected = [np.nan, np.nan, np.nan, 43.75, 575.0 / 12.0, 3275.0 / 84.0]
+    actual = ta.adxr(candles, period=2, sequential=True)
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12, equal_nan=True)
+
+
+@pytest.mark.parametrize('length', [1, 26, 27, 28])
+def test_adxr_sma_variant_warmup(length):
+    candles = np.array(test_candles_19[:length], dtype=np.float64)
+    actual = ta.adxr(candles, period=14, sequential=True)
+    assert len(actual) == length
+    assert np.isnan(actual[:27]).all()
+    if length == 28:
+        assert np.isfinite(actual[27])
 
 
 def test_alligator():
