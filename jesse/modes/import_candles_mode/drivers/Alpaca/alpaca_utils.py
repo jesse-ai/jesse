@@ -125,6 +125,28 @@ def resolve_credentials() -> tuple[str, str]:
     )
 
 
+def reference_endpoint(headers: dict, preferred: str) -> str:
+    """
+    The trading host to read market-wide reference data from (the asset list, the clock and the
+    calendar). That data is the same on Alpaca's paper and live hosts, but each host only accepts
+    its own kind of key. Outside a live session Jesse works with whichever Alpaca key is saved,
+    so a paper key must be able to list the symbols of a live exchange, and the other way round.
+    """
+    other = LIVE_TRADING_ENDPOINT if preferred == PAPER_TRADING_ENDPOINT else PAPER_TRADING_ENDPOINT
+    for endpoint in (preferred, other):
+        try:
+            # The account is the small request both hosts refuse for the other kind of key. The
+            # clock and the calendar answer either kind, so they cannot tell the hosts apart.
+            response = requests.get(endpoint + '/v2/account', headers=headers, timeout=20)
+        except requests.RequestException:
+            # a network problem says nothing about the key; the caller's own request reports it
+            return preferred
+        if response.status_code not in (401, 403):
+            return endpoint
+    # neither host accepts the key: the caller's request on the preferred host says so
+    return preferred
+
+
 def detect_feed(session: requests.Session, headers: dict) -> str:
     """
     Decide between SIP and IEX once per process. Requesting SIP bars from the last few minutes is

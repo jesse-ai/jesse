@@ -15,6 +15,7 @@ from .alpaca_utils import (
     is_tradable_equity,
     jesse_symbol,
     alpaca_symbol,
+    reference_endpoint,
     resolve_credentials,
     rfc3339_to_ms,
     ms_to_rfc3339,
@@ -145,6 +146,8 @@ class AlpacaStocksMain(CandleExchange):
         # The catalog is ~6 MB, so it is fetched once per process. Only listed, tradable US
         # equities are exposed; OTC names are left out on purpose.
         if self._symbols is None:
-            assets = self._get(self.trading_endpoint + '/v2/assets', {'status': 'active', 'asset_class': 'us_equity'})
+            # the key at hand can be of the other kind (paper or live) than this exchange
+            endpoint = reference_endpoint(self.headers, self.trading_endpoint)
+            assets = self._get(endpoint + '/v2/assets', {'status': 'active', 'asset_class': 'us_equity'})
             self._symbols = sorted(jesse_symbol(a['symbol']) for a in assets if is_tradable_equity(a))
         return list(self._symbols)
