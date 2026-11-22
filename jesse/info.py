@@ -287,6 +287,8 @@ exchange_info = {
             "live_trading": False,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.APEX_OMNI_PERPETUAL: {
         "name": exchanges_enums.APEX_OMNI_PERPETUAL,
@@ -300,6 +302,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.GATE_USDT_PERPETUAL: {
         "name": exchanges_enums.GATE_USDT_PERPETUAL,
@@ -452,6 +456,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET: {
         "name": exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET,
@@ -465,6 +471,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     # Lighter (ZK-rollup orderbook perp DEX, USDC-settled).
     # backtesting is False: Lighter only serves a ~130-day rolling candle window, too
@@ -484,6 +492,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.LIGHTER_PERPETUAL_TESTNET: {
         "name": exchanges_enums.LIGHTER_PERPETUAL_TESTNET,
@@ -498,6 +508,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     # KRAKEN_SPOT
     exchanges_enums.KRAKEN_SPOT: {
@@ -563,6 +575,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
         # shown as a notice in the dashboard while the driver is new
         "public_beta": True,
         "asset_class": "equity",
@@ -596,6 +610,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
         # shown as a notice in the dashboard while the driver is new
         "public_beta": True,
         "asset_class": "equity",
@@ -629,6 +645,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
         # shown as a notice in the dashboard while the driver is new
         "public_beta": True,
         "asset_class": "equity",
@@ -662,6 +680,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
         # shown as a notice in the dashboard while the driver is new
         "public_beta": True,
         "asset_class": "equity",

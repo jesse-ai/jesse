@@ -294,6 +294,21 @@ def format_price(price: float) -> str:
         return f'{decimal_price:.{places}f}'
 
 
+def live_candle_generation(exchange: str, requested: bool) -> bool:
+    """
+    Whether a live session on ``exchange`` builds its bigger timeframes from one-minute candles.
+    Most exchanges let the user choose. Some only work one way: Alpaca streams nothing but
+    one-minute bars, and exchanges such as Hyperliquid have no one-minute history to build from.
+    """
+    from jesse.info import exchange_info
+    mode = exchange_info.get(exchange, {}).get('local_candle_generation')
+    if mode == 'required':
+        return True
+    if mode == 'unsupported':
+        return False
+    return bool(requested)
+
+
 def generate_unique_id() -> str:
     return str(uuid.uuid4())
 
