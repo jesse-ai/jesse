@@ -101,9 +101,9 @@ class API:
         there. Crypto exchanges fill market orders at once, so their drivers answer no. A stock
         broker can hold one through an auction or a trading halt.
         """
-        if exchange not in self.drivers:
-            return False
-        return self.drivers[exchange].holds_unfilled_market_order(order)
+        # A live plugin older than this core has no such check: its venues answer no.
+        check = getattr(self.drivers.get(exchange), 'holds_unfilled_market_order', None)
+        return bool(check and check(order))
 
 
 api = API()
