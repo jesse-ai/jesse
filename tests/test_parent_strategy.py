@@ -92,6 +92,20 @@ def test_filters():
     assert len(store.closed_trades.trades) == 0
 
 
+def test_closed_candles_on_a_four_hour_anchor():
+    set_up()
+    routes = [{'symbol': 'BTC-USDT', 'timeframe': '30m', 'strategy': 'TestClosedAnchorCandles'}]
+    data_routes = [{'symbol': 'BTC-USDT', 'timeframe': '4h'}]
+    rows = candles_from_close_prices(range(1, 601))
+    # Pin UTC minute boundaries; the candle factory's historical start is off by one minute.
+    rows[:, 0] = 1_704_153_600_000 + np.arange(len(rows)) * 60_000
+    candles = {jh.key(exchanges.SANDBOX, 'BTC-USDT'): {
+        'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'candles': rows,
+    }}
+    backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, data_routes,
+                      '2024-01-02', '2024-01-03', candles)
+
+
 def test_forming_candles():
     reset_config()
     routes = [

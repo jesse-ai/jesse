@@ -1570,7 +1570,9 @@ class Strategy(ABC):
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
-        Get candles by passing exchange, symbol, and timeframe
+        Get candles by passing exchange, symbol, and timeframe.
+        The result may include a forming candle; use get_closed_candles()
+        when the strategy requires completed bars only.
 
         :param exchange: str
         :param symbol: str
@@ -1579,6 +1581,19 @@ class Strategy(ABC):
         :return: np.ndarray
         """
         return candle_service.get_candles(exchange, symbol, timeframe)
+
+    def get_closed_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+        """Return completed candles on a configured trading or data route.
+
+        For example, a 30m strategy can use
+        ``self.get_closed_candles(self.exchange, self.symbol, '4h')`` to exclude
+        the forming anchor bar. A candle is included once its open time plus
+        its timeframe reaches the decision time, including an exact close.
+        Delayed live runs use their execution boundary rather than wall time.
+        This read does not generate candles or modify candle storage. The
+        returned array is a view; copy it before editing.
+        """
+        return candle_service.get_closed_candles(exchange, symbol, timeframe)
 
     @property
     def metrics(self) -> dict:

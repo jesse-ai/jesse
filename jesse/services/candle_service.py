@@ -745,6 +745,24 @@ def batch_add_candle(
         add_candle(c, exchange, symbol, timeframe, with_execution=False, with_generation=with_generation, with_skip=False)
 
 
+def get_closed_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
+    """Return stored candles whose full timeframe has elapsed, without generating bars.
+
+    Use the calling strategy's execution boundary during a delayed live run;
+    otherwise use the current simulation/live clock. A bar closing exactly at
+    that boundary is included. Missing routes raise RouteNotFound as usual.
+    The result is a view of stored data; copy it before editing.
+    """
+    boundary = store.candles.execution_cutoff
+    if boundary is None:
+        boundary = jh.now()
+    array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
+    visible = array[:index + 1]
+    duration = jh.timeframe_to_one_minutes(timeframe) * 60_000
+    end = np.searchsorted(visible[:, 0], boundary - duration, side='right')
+    return visible[:end]
+
+
 def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
     cutoff = store.candles.execution_cutoff
     if cutoff is not None:
