@@ -4,7 +4,7 @@ import numpy as np
 import peewee
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
-from jesse.info import live_trading_exchanges, backtesting_exchanges
+from jesse.info import exchange_info, live_trading_exchanges, backtesting_exchanges
 from jesse.repositories import candle_repository
 from jesse.services import candle_service
 from typing import List, Dict
@@ -37,6 +37,39 @@ def _get_live_candle_settings(session_id: str | None) -> tuple[int, bool]:
     return settings['warm_up_candles'], settings['generate_candles_from_1m']
 
 
+# A chart of many candles on a big timeframe would need hundreds of thousands of one-minute
+# rows. This many cover about half a year of US stock trading, extended hours included.
+_SPARSE_CHART_MAX_MINUTES = 100_000
+
+
+def _sparse_chart_candles(exchange: str, symbol: str, timeframe: str, count: int, finish_date: int) -> np.ndarray:
+    """
+    The last ``count`` candles of a market that only has candles while it trades (a stock
+    exchange). The newest one-minute candles are taken by count, since the hours before now can
+    be a night or a weekend, and bigger timeframes are built per clock interval from the minutes
+    that exist, the way the session itself builds them.
+    """
+    one_min_count = jh.timeframe_to_one_minutes(timeframe)
+    # one extra candle's worth, because the oldest interval is usually cut off and dropped below
+    limit = min((count + 1) * one_min_count, _SPARSE_CHART_MAX_MINUTES)
+    minutes = np.array(
+        candle_repository.fetch_latest_candles_from_db(exchange, symbol, '1m', finish_date, limit), dtype=float
+    )
+    if minutes.size == 0:
+        return np.zeros((0, 6))
+    if timeframe == '1m':
+        return minutes[-count:]
+
+    # every interval that has a minute, the one still forming included
+    candles = candle_service.generate_completed_candles_from_observed_minutes(
+        timeframe, minutes, int(minutes[-1][0]) + one_min_count * 60_000 * 2,
+    )
+    if len(minutes) == limit and len(candles) > 1:
+        # the row limit cut the oldest interval short
+        candles = candles[1:]
+    return candles[-count:]
+
+
 def get_candles(exchange: str, symbol: str, timeframe: str, session_id: str | None = None):
     from jesse.services.db import database
     database.open_connection()
@@ -45,9 +78,19 @@ def get_candles(exchange: str, symbol: str, timeframe: str, session_id: str | No
         symbol = symbol.upper()
 
     warmup_candles_num, generate_candles_from_1m = _get_live_candle_settings(session_id)
+    generate_candles_from_1m = jh.live_candle_generation(exchange, generate_candles_from_1m)
 
     one_min_count = jh.timeframe_to_one_minutes(timeframe)
     finish_date = jh.now(force_fresh=True)
+
+    if exchange_info.get(exchange, {}).get('capabilities', {}).get('sparse_candles'):
+        candles = _sparse_chart_candles(exchange, symbol, timeframe, int(warmup_candles_num), finish_date)
+        database.close_connection()
+        return [
+            {'time': int(c[0] / 1000), 'open': c[1], 'close': c[2], 'high': c[3], 'low': c[4], 'volume': c[5]}
+            for c in candles
+        ]
+
     start_date = jh.get_candle_start_timestamp_based_on_timeframe(timeframe, warmup_candles_num)
 
     # fetch 1m candles from database
