@@ -1,6 +1,7 @@
 from copy import deepcopy
 import importlib
 
+import optuna
 import pytest
 import ray
 
@@ -241,3 +242,90 @@ def test_optimization_cleans_parent_state_after_failure(monkeypatch: pytest.Monk
         )
 
     _assert_research_runtime_is_clean()
+
+
+class _RecordingSampler(optuna.samplers.RandomSampler):
+    """Random sampler that records the value Jesse reports back for every trial."""
+
+    def __init__(self) -> None:
+        super().__init__(seed=7)
+        self.told = []
+
+    def after_trial(self, study, trial, state, values) -> None:
+        self.told.append((trial.params, state, values))
+        super().after_trial(study, trial, state, values)
+
+
+def test_optimization_asks_the_sampler_and_tells_it_each_fitness(monkeypatch: pytest.MonkeyPatch) -> None:
+    optimize_module = importlib.import_module('jesse.research.optimize')
+    optimize_mode = importlib.import_module('jesse.modes.optimize_mode.Optimize')
+    results = {}
+
+    class InlineTrial:
+        """Stands in for the Ray remote: scores a trial by its entry_interval so each told value is checkable."""
+
+        def options(self, **_kwargs):
+            return self
+
+        def remote(self, *args):
+            hp, trial_number = args[4], args[11]
+            results[trial_number] = {
+                'trial_number': trial_number,
+                'score': float(hp['entry_interval']),
+                'params': hp,
+                'training_metrics': {},
+                'testing_metrics': {},
+            }
+            return trial_number
+
+    monkeypatch.setattr(optimize_mode, 'ray_evaluate_trial', InlineTrial())
+    monkeypatch.setattr(optimize_module.ray, 'is_initialized', lambda: True)
+    monkeypatch.setattr(optimize_module.ray, 'put', lambda value: value)
+    monkeypatch.setattr(optimize_module.ray, 'wait', lambda refs, **_kwargs: (refs[:1], refs[1:]))
+    monkeypatch.setattr(optimize_module.ray, 'get', lambda ref: results[ref])
+
+    sampler = _RecordingSampler()
+    config_input, routes, data_routes, training_candles, testing_candles = _optimization_inputs()
+    result = research.optimize(
+        config=config_input,
+        routes=routes,
+        data_routes=data_routes,
+        training_candles=training_candles,
+        training_warmup_candles={},
+        testing_candles=testing_candles,
+        testing_warmup_candles={},
+        cpu_cores=2,
+        trials=6,
+        progress_bar=False,
+        sampler=sampler,
+    )
+
+    assert result['completed_trials'] == 6
+    assert sorted(results) == list(range(6))
+    assert {r['params']['entry_interval'] for r in results.values()} <= {4, 5}
+    assert len(sampler.told) == 6
+    for params, state, values in sampler.told:
+        assert state == optuna.trial.TrialState.COMPLETE
+        assert values == [float(params['entry_interval'])]
+    assert result['best_trials'][0]['fitness'] == max(r['score'] for r in results.values())
+    _assert_research_runtime_is_clean()
+
+
+def test_trial_distributions_match_the_random_sampling_ranges() -> None:
+    optimize_module = importlib.import_module('jesse.research.optimize')
+
+    distributions = optimize_module._trial_distributions([
+        {'name': 'period', 'type': int, 'min': 10, 'max': 50, 'step': 5},
+        {'name': 'length', 'type': 'int', 'min': 2, 'max': 9},
+        {'name': 'ratio', 'type': float, 'min': 0.5, 'max': 2.0},
+        {'name': 'stop', 'type': 'float', 'min': 0.1, 'max': 0.5, 'step': 0.1},
+        {'name': 'source', 'type': 'categorical', 'options': ['close', 'hl2']},
+    ])
+
+    assert distributions == {
+        'period': optuna.distributions.IntDistribution(10, 50, step=5),
+        'length': optuna.distributions.IntDistribution(2, 9),
+        'ratio': optuna.distributions.FloatDistribution(0.5, 2.0),
+        'stop': optuna.distributions.FloatDistribution(0.1, 0.5, step=0.1),
+        'source': optuna.distributions.CategoricalDistribution(['close', 'hl2']),
+    }
