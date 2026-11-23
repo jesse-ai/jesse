@@ -1,0 +1,1 @@
+import{B as e,m as t,qt as n,x as r}from"./NIs1taD_.js";import{t as i}from"./BDNMzG2s.js";var a=[`textContent`],o=Object.assign(i(r({__name:`ProgressStatusText`,props:{text:{}},setup(r){return(i,o)=>(e(),t(`span`,{class:`progress-status-text`,textContent:n(r.text)},null,8,a))}}),[[`__scopeId`,`data-v-5348c83d`]]),{__name:`ProgressStatusText`});export{o as t};

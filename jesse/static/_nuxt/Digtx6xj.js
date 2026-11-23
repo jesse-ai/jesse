@@ -1,0 +1,1 @@
+import{n as e}from"./D5RGh-ti.js";import{it as t,nt as n}from"./Ciq_eOhJ.js";var r=n((n,r)=>{if(e().plan===`free`||e().plan===`guest`)return t(`/`)});export{r as default};
