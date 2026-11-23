@@ -1,9 +1,10 @@
 """
 Static bearer-token authentication for the Jesse MCP endpoint.
 
-MCP clients authenticate with the same token the dashboard uses: the SHA-256 hex digest
-of the project's PASSWORD. There is no OAuth flow; clients send the token themselves on
-every request. Both the public /mcp route on the dashboard origin and the loopback MCP
+MCP clients authenticate with a static token: the SHA-256 hex digest of the project's
+PASSWORD. It never expires, since assistants are configured with it once. The dashboard
+logs in with its own expiring session tokens (see jesse.services.auth). There is no OAuth
+flow; clients send the token themselves on every request. Both the public /mcp route on the dashboard origin and the loopback MCP
 worker check it independently, so neither entrypoint relies on the other for security.
 """
 
@@ -67,7 +68,7 @@ def unauthorized_response() -> JSONResponse:
     a server that only accepts a static token.
     """
     return JSONResponse(
-        {'message': 'Missing or invalid MCP token. Send the dashboard token as "Authorization: Bearer <token>".'},
+        {'message': 'Missing or invalid MCP token. Send the MCP token as "Authorization: Bearer <token>".'},
         status_code=401,
         headers={'WWW-Authenticate': f'Bearer realm="{MCP_AUTH_REALM}"'},
     )

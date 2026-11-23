@@ -183,7 +183,7 @@ def cancel_backtest(request_json: CancelRequestJson):
                         status_code=202)
 
 
-@router.get("/logs/{session_id}", dependencies=[Depends(require_auth_token)])
+@router.get("/logs/{session_id}", dependencies=[Depends(require_auth_any)])
 def get_logs(session_id: UUID):
     """
     Get logs as text for a specific session. Similar to download but returns text content instead of file.

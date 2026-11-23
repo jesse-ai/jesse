@@ -62,7 +62,7 @@ from jesse.controllers.config_controller import router as config_router
 from jesse.controllers.notification_controller import router as notification_router
 from jesse.controllers.system_controller import router as system_router
 from jesse.controllers.file_controller import router as file_router
-from jesse.controllers.lsp_controller import router as lsp_router
+from jesse.controllers.lsp_controller import router as lsp_router, proxy_router as lsp_proxy_router
 from jesse.controllers.closed_trade_controller import router as closed_trade_router
 from jesse.controllers.order_controller import router as order_router
 from jesse.controllers.tabs_controller import router as tabs_router
@@ -93,6 +93,7 @@ fastapi_app.include_router(notification_router)
 fastapi_app.include_router(system_router)
 fastapi_app.include_router(file_router)
 fastapi_app.include_router(lsp_router)
+fastapi_app.include_router(lsp_proxy_router)
 fastapi_app.include_router(closed_trade_router)
 fastapi_app.include_router(order_router)
 fastapi_app.include_router(tabs_router)
