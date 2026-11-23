@@ -1,42 +1,46 @@
-arrow~=1.2.1
-blinker~=1.4
-click~=8.0.3
+arrow~=1.4.0
+blinker~=1.9
+click~=8.5.1
 # Newer NumPy and SciPy releases drop older Pythons; pip picks the newest pair each Python supports.
 numpy>=2.2.6,<2.6
-pandas~=2.2.3
-peewee~=3.14.8
-psycopg2-binary~=2.9.9
-pydash~=6.0.0
+pandas~=2.3.3
+peewee~=3.19.0
+psycopg2-binary~=2.9.13
+pydash~=8.1.0
 fnc~=0.5.3
-pytest~=6.2.5
-requests~=2.32.0
+pytest~=9.2.0
+requests~=2.34.2
 scipy>=1.15.3,<1.19
-statsmodels~=0.14.4
-tabulate~=0.8.9
+statsmodels~=0.15.0
+tabulate~=0.10.0
 timeloop~=1.0.2
-websocket-client~=1.8.0
-wsaccel~=0.6.6
-simplejson~=3.16.0
-fastapi~=0.128.0
-uvicorn~=0.40.0
+websocket-client~=1.9.2
+wsaccel~=0.6.7
+simplejson~=4.3.0
+# FastAPI 0.163 and later need Python 3.11; pip picks the newest release each Python supports.
+fastapi>=0.162.5,<0.166
+# Starlette 1.7 is the newest release on Python 3.10, and the first without known vulnerabilities.
+starlette>=1.7.0
+uvicorn~=0.54.0
 websockets>=10.0.0
-python-dotenv~=1.2.1
-aiofiles~=0.7.0
-PyJWT~=2.11.0
-cryptography~=42.0.5
-ecdsa>=0.16.0
-optuna~=4.2.0
+python-dotenv~=1.2.4
+aiofiles~=25.1.0
+PyJWT~=2.15.1
+cryptography~=50.0.2
+optuna~=5.1.0
 ray; sys_platform != "win32"
 # Ray 2.48 fixes the Windows logging startup regression (ray-project/ray#53852).
 ray>=2.48.0; sys_platform == "win32"
-eth-account~=0.13.5
-msgpack~=1.1.0
-starkbank-ecdsa~=1.1.0
+eth-account~=0.14.0
+msgpack~=1.2.4
+starkbank-ecdsa~=2.3.1
 jesse-rust==1.3.1
-mcp==1.30.0
+# The 1.x line still gets security fixes. MCP 2 changes the server API and needs Python 3.11.
+mcp>=1.30.0,<2
 httpx~=0.28.1
 anyio~=4.5
-joblib~=1.5.3
+joblib~=1.6.0
 scikit-learn~=1.7.2; python_version < "3.11"
-scikit-learn~=1.8.0; python_version >= "3.11"
-matplotlib~=3.10.3
+scikit-learn~=1.9.1; python_version >= "3.11"
+# Matplotlib 3.11 needs Python 3.11; pip picks the newest release each Python supports.
+matplotlib>=3.10.9,<3.12
