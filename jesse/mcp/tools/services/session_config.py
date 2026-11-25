@@ -75,6 +75,10 @@ def _exchange_config(exchange_name: str, value: object, default_leverage: int) -
             requested_mode if requested_mode in supported_modes else supported_modes[0]
         )
         config['futures_leverage'] = supplied.get('futures_leverage', default_leverage)
+    elif exchange_type == 'margin':
+        # broker margin account: the same key is the leverage cap; the mode is always cross
+        config['futures_leverage'] = supplied.get('futures_leverage', default_leverage)
+        config['futures_leverage_mode'] = 'cross'
 
     return config
 
@@ -630,7 +634,7 @@ def _normalize_notifications(value: object, fallback: dict) -> dict:
 
 
 def _normalize_simulation_model(value: object, fallback: str) -> str:
-    if value in ('spot', 'perpetual_futures'):
+    if value in ('spot', 'perpetual_futures', 'margin'):
         return str(value)
     if value == 'futures':
         return 'perpetual_futures'
@@ -638,7 +642,9 @@ def _normalize_simulation_model(value: object, fallback: str) -> str:
 
 
 def _legacy_type(simulation_model: str) -> str:
-    return 'futures' if simulation_model == 'perpetual_futures' else 'spot'
+    if simulation_model == 'perpetual_futures':
+        return 'futures'
+    return 'margin' if simulation_model == 'margin' else 'spot'
 
 
 def _normalize_annualization(value: object, fallback: int) -> int:
@@ -667,8 +673,9 @@ def _normalize_live_exchange(value: object, fallback: dict, forced_name: Optiona
         'balance': _finite_number(source.get('balance'), fallback['balance']),
         'fee': _finite_number(source.get('fee'), fallback['fee']),
     }
-    if exchange_type == 'futures':
-        normalized['futures_leverage_mode'] = _string_value(
+    if exchange_type in ('futures', 'margin'):
+        # a margin account has one shared margin pool: always cross, and the leverage is a cap
+        normalized['futures_leverage_mode'] = 'cross' if exchange_type == 'margin' else _string_value(
             source.get('futures_leverage_mode'), fallback.get('futures_leverage_mode') or 'cross',
         )
         normalized['futures_leverage'] = _finite_number(
@@ -868,7 +875,7 @@ def live_config_sources(
     "hard_default" (Jesse's built-in value). A real session trades with the venue's balance and
     fee, so only its leverage is reported; spot sessions have no leverage.
     """
-    fields = ('futures_leverage', 'futures_leverage_mode') if config['exchange'].get('type') == 'futures' else ()
+    fields = ('futures_leverage', 'futures_leverage_mode') if config['exchange'].get('type') in ('futures', 'margin') else ()
     if paper_mode:
         fields = ('balance', 'fee') + fields
     sources = {}

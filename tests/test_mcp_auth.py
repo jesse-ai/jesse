@@ -22,19 +22,24 @@ from jesse.mcp.auth import (
     is_authorized,
     token_from_authorization,
 )
-from jesse.services.auth import password_to_token
+from jesse.services.auth import is_valid_token, password_to_token, static_token
 from jesse.services.env import ENV_VALUES
 
 PASSWORD = 'unit-test-password'
 TOKEN = dashboard_token(PASSWORD)
 
 
-def test_dashboard_token_matches_dashboard_login_token(monkeypatch):
+def test_the_mcp_token_is_the_static_token_the_api_accepts_in_a_header(monkeypatch):
+    # AI assistants keep this token, so it never expires. The dashboard logs in with its own
+    # expiring session token instead.
     monkeypatch.setitem(ENV_VALUES, 'PASSWORD', PASSWORD)
 
     body = json.loads(password_to_token(PASSWORD).body)
 
-    assert body['auth_token'] == TOKEN
+    assert static_token() == TOKEN
+    assert body['auth_token'] != TOKEN
+    assert is_valid_token(TOKEN) and is_valid_token(f'Bearer {TOKEN}')
+    assert is_valid_token(body['auth_token'])
 
 
 @pytest.mark.parametrize(

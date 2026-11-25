@@ -178,7 +178,10 @@ def resubmit_order(order: Order) -> None:
     if not order.is_queued:
         raise Exception(f'Cannot resubmit an order that is not queued. Current status: {order.status}')
     
+    previous_id = order.id
     order.id = jh.generate_unique_id()
+    # the saved row follows the order, so later updates and a restart find it under the new id
+    order_repository.replace_id(previous_id, order.id)
     order.status = order_statuses.ACTIVE
     order.canceled_at = None
     if jh.is_debuggable('order_submission'):

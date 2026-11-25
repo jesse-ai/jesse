@@ -95,5 +95,15 @@ class API:
             return False
         return self.drivers[exchange].cancel_order(symbol, order_id)
 
+    def holds_unfilled_market_order(self, exchange: str, order: Order) -> bool:
+        """
+        Whether the venue confirms that a market order which has not filled yet is still working
+        there. Crypto exchanges fill market orders at once, so their drivers answer no. A stock
+        broker can hold one through an auction or a trading halt.
+        """
+        # A live plugin older than this core has no such check: its venues answer no.
+        check = getattr(self.drivers.get(exchange), 'holds_unfilled_market_order', None)
+        return bool(check and check(order))
+
 
 api = API()

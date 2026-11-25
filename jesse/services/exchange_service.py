@@ -1,6 +1,6 @@
 from jesse.config import config
 from jesse.exceptions import InvalidConfig
-from jesse.models import SpotExchange, FuturesExchange, Exchange
+from jesse.models import SpotExchange, FuturesExchange, MarginExchange, Exchange
 from jesse.modes.utils import get_simulation_model
 from jesse.services.simulation_assumptions import SimulationModel
 from jesse.store import store
@@ -19,6 +19,13 @@ def initialize_exchanges_state() -> None:
                 name, starting_assets, fee,
                 futures_leverage_mode=config['env']['exchanges'][name]['futures_leverage_mode'],
                 futures_leverage=config['env']['exchanges'][name]['futures_leverage'],
+            )
+        elif simulation_model is SimulationModel.MARGIN:
+            # The cap shares the futures_leverage config key on purpose (no schema fan-out across
+            # config persistence, dashboard, MCP and the research API); the UI labels it a cap.
+            store.exchanges.storage[name] = MarginExchange(
+                name, starting_assets, fee,
+                leverage_cap=config['env']['exchanges'][name]['futures_leverage'],
             )
         else:
             raise InvalidConfig(

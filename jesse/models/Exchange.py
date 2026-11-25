@@ -52,6 +52,19 @@ class Exchange(ABC):
             self.available_assets[self.settlement_currency] = starting_balance
 
     @property
+    def is_spot(self) -> bool:
+        return self.type == 'spot'
+
+    @property
+    def uses_margin_accounting(self) -> bool:
+        """
+        True for account models where positions are signed, margin is reserved on submission and
+        realized PnL is credited on close: perpetual futures and broker margin accounts. Spot is
+        the only model that settles by moving the base asset itself.
+        """
+        return self.type in ('futures', 'margin')
+
+    @property
     @abstractmethod
     def wallet_balance(self) -> float:
         pass

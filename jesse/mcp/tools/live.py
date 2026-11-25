@@ -90,8 +90,10 @@ def register_live_tools(mcp):
         warm_up_candles, order_backup_check_seconds (REST backup check of open orders, default 10, 0 turns it off),
         candle_backup_refresh_seconds (REST backup refresh of recent candles; null means 5 plus 1
         per symbol, 0 turns it off), notifications, exchange {balance, fee, futures_leverage,
-        futures_leverage_mode, simulation_model} (balance, fee, and market type are simulation
-        values for paper sessions; real sessions use the venue's). The result shows the resolved
+        futures_leverage_mode, simulation_model: spot, perpetual_futures or margin} (balance, fee,
+        and market type are simulation values for paper sessions; real sessions use the venue's;
+        a margin exchange takes futures_leverage as its leverage cap and is always cross). The
+        result shows the resolved
         config, `config_source` (where leverage, and a paper session's balance and fee, came from:
         explicit, saved_default, exchange_default or hard_default), and a dashboard link.
         `config_warnings` flags a leverage or fee that is only Jesse's built-in default, and

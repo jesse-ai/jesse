@@ -40,6 +40,24 @@ LIGHTER_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUT
 # We expose the resolutions both markets share that Jesse supports as trading timeframes.
 KUCOIN_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.MINUTE_30,
                      timeframes.HOUR_1, timeframes.HOUR_2, timeframes.HOUR_4, timeframes.HOUR_8, timeframes.HOUR_12, timeframes.DAY_1]
+# Alpaca serves any [1-59]Min, [1-23]Hour and 1Day bar natively, so every Jesse timeframe is available.
+ALPACA_TIMEFRAMES = [
+    timeframes.MINUTE_1,
+    timeframes.MINUTE_3,
+    timeframes.MINUTE_5,
+    timeframes.MINUTE_15,
+    timeframes.MINUTE_30,
+    timeframes.MINUTE_45,
+    timeframes.HOUR_1,
+    timeframes.HOUR_2,
+    timeframes.HOUR_3,
+    timeframes.HOUR_4,
+    timeframes.HOUR_6,
+    timeframes.HOUR_8,
+    timeframes.HOUR_12,
+    timeframes.DAY_1,
+]
+
 # Kraken (both Spot WS-v2 OHLC and Futures charts) supports these resolutions in minutes:
 # 1, 5, 15, 30, 60, 240, 1440. We map them to Jesse timeframes.
 KRAKEN_TIMEFRAMES = [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
@@ -269,6 +287,8 @@ exchange_info = {
             "live_trading": False,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.APEX_OMNI_PERPETUAL: {
         "name": exchanges_enums.APEX_OMNI_PERPETUAL,
@@ -282,6 +302,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.GATE_USDT_PERPETUAL: {
         "name": exchanges_enums.GATE_USDT_PERPETUAL,
@@ -434,6 +456,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET: {
         "name": exchanges_enums.HYPERLIQUID_PERPETUAL_TESTNET,
@@ -447,6 +471,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     # Lighter (ZK-rollup orderbook perp DEX, USDC-settled).
     # backtesting is False: Lighter only serves a ~130-day rolling candle window, too
@@ -466,6 +492,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "premium",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     exchanges_enums.LIGHTER_PERPETUAL_TESTNET: {
         "name": exchanges_enums.LIGHTER_PERPETUAL_TESTNET,
@@ -480,6 +508,8 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+        # no one-minute history to build bigger timeframes from, so each one comes from the exchange
+        "local_candle_generation": "unsupported",
     },
     # KRAKEN_SPOT
     exchanges_enums.KRAKEN_SPOT: {
@@ -527,6 +557,149 @@ exchange_info = {
             "live_trading": True,
         },
         "required_live_plan": "free",
+    },
+    # Alpaca: US equities through a broker account. The Cash variants are long-only (Jesse spot
+    # model); the Margin variants use the broker margin-account model (long + short, leverage cap).
+    # The Paper variants trade Alpaca's paper account with separate paper API keys.
+    exchanges_enums.ALPACA_STOCKS_CASH: {
+        "name": exchanges_enums.ALPACA_STOCKS_CASH,
+        "url": "https://alpaca.markets",
+        # commission-free; regulatory sell-side fees are ignored
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": ALPACA_TIMEFRAMES,
+        "modes": {
+            # historical bars are only fetched for live warm-up; not offered as a backtest source
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
+        "asset_class": "equity",
+        "instrument_type": "stock",
+        "simulation_model": "spot",
+        "annualization": 252,
+        "capabilities": {
+            "settable_leverage": False,
+            "supported_margin_modes": [],
+            # the broker computes buying power; Jesse's leverage setting is only a cap
+            "broker_managed_margin": False,
+            "multiple_accounts": False,
+            "shorting": False,
+            "demo_trading": False,
+            "supported_order_types": ["MARKET", "LIMIT", "STOP"],
+            # stocks trade 6.5 hours a day: no candles while closed, and none are fabricated
+            "sparse_candles": True,
+        },
+    },
+    exchanges_enums.ALPACA_STOCKS_MARGIN: {
+        "name": exchanges_enums.ALPACA_STOCKS_MARGIN,
+        "url": "https://alpaca.markets",
+        # commission-free; regulatory sell-side fees are ignored
+        "fee": 0.0,
+        "type": "margin",
+        "supported_leverage_modes": [],
+        "supported_timeframes": ALPACA_TIMEFRAMES,
+        "modes": {
+            # historical bars are only fetched for live warm-up; not offered as a backtest source
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
+        "asset_class": "equity",
+        "instrument_type": "stock",
+        "simulation_model": "margin",
+        "annualization": 252,
+        "capabilities": {
+            "settable_leverage": False,
+            "supported_margin_modes": [],
+            # the broker computes buying power; Jesse's leverage setting is only a cap
+            "broker_managed_margin": True,
+            "multiple_accounts": False,
+            "shorting": True,
+            "demo_trading": False,
+            "supported_order_types": ["MARKET", "LIMIT", "STOP"],
+            # stocks trade 6.5 hours a day: no candles while closed, and none are fabricated
+            "sparse_candles": True,
+        },
+    },
+    exchanges_enums.ALPACA_STOCKS_CASH_PAPER: {
+        "name": exchanges_enums.ALPACA_STOCKS_CASH_PAPER,
+        "url": "https://alpaca.markets",
+        # commission-free; regulatory sell-side fees are ignored
+        "fee": 0.0,
+        "type": "spot",
+        "supported_leverage_modes": [],
+        "supported_timeframes": ALPACA_TIMEFRAMES,
+        "modes": {
+            # historical bars are only fetched for live warm-up; not offered as a backtest source
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
+        "asset_class": "equity",
+        "instrument_type": "stock",
+        "simulation_model": "spot",
+        "annualization": 252,
+        "capabilities": {
+            "settable_leverage": False,
+            "supported_margin_modes": [],
+            # the broker computes buying power; Jesse's leverage setting is only a cap
+            "broker_managed_margin": False,
+            "multiple_accounts": False,
+            "shorting": False,
+            "demo_trading": True,
+            "supported_order_types": ["MARKET", "LIMIT", "STOP"],
+            # stocks trade 6.5 hours a day: no candles while closed, and none are fabricated
+            "sparse_candles": True,
+        },
+    },
+    exchanges_enums.ALPACA_STOCKS_MARGIN_PAPER: {
+        "name": exchanges_enums.ALPACA_STOCKS_MARGIN_PAPER,
+        "url": "https://alpaca.markets",
+        # commission-free; regulatory sell-side fees are ignored
+        "fee": 0.0,
+        "type": "margin",
+        "supported_leverage_modes": [],
+        "supported_timeframes": ALPACA_TIMEFRAMES,
+        "modes": {
+            # historical bars are only fetched for live warm-up; not offered as a backtest source
+            "backtesting": False,
+            "live_trading": True,
+        },
+        "required_live_plan": "free",
+        # only one-minute bars are streamed live, so every bigger timeframe is built from them
+        "local_candle_generation": "required",
+        # shown as a notice in the dashboard while the driver is new
+        "public_beta": True,
+        "asset_class": "equity",
+        "instrument_type": "stock",
+        "simulation_model": "margin",
+        "annualization": 252,
+        "capabilities": {
+            "settable_leverage": False,
+            "supported_margin_modes": [],
+            # the broker computes buying power; Jesse's leverage setting is only a cap
+            "broker_managed_margin": True,
+            "multiple_accounts": False,
+            "shorting": True,
+            "demo_trading": True,
+            "supported_order_types": ["MARKET", "LIMIT", "STOP"],
+            # stocks trade 6.5 hours a day: no candles while closed, and none are fabricated
+            "sparse_candles": True,
+        },
     },
     exchanges_enums.CUSTOM_DATA: {
         "name": exchanges_enums.CUSTOM_DATA,
@@ -697,7 +870,10 @@ exchange_info = {
 for _exchange in exchange_info.values():
     _exchange.setdefault('asset_class', 'crypto')
     _exchange.setdefault('instrument_type', 'perpetual' if _exchange['type'] == 'futures' else 'spot')
-    _exchange.setdefault('simulation_model', 'perpetual_futures' if _exchange['type'] == 'futures' else 'spot')
+    _exchange.setdefault('simulation_model', {
+        'futures': 'perpetual_futures',
+        'margin': 'margin',
+    }.get(_exchange['type'], 'spot'))
     _exchange.setdefault('annualization', 365)
 
 # list of supported exchanges for backtesting

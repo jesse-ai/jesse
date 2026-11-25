@@ -979,7 +979,7 @@ def test_the_endpoint_downloads_the_report(client, monkeypatch):
     session = _stored(_session())
     _serve(monkeypatch, session)
 
-    response = client.get(f'/backtest/sessions/{session.id}/report', params={'token': AUTHORIZATION})
+    response = client.get(f'/backtest/sessions/{session.id}/report', params={'token': auth.issue_link_token()})
 
     assert response.status_code == 200
     assert response.headers['content-type'] == 'application/pdf'
@@ -1000,7 +1000,7 @@ def test_a_title_in_another_script_downloads_too(client, monkeypatch):
     session = _stored(_session(title='استراتژی 趋势'))
     _serve(monkeypatch, session)
 
-    assert client.get(f'/backtest/sessions/{session.id}/report', params={'token': AUTHORIZATION}).status_code == 200
+    assert client.get(f'/backtest/sessions/{session.id}/report', params={'token': auth.issue_link_token()}).status_code == 200
 
 
 def test_the_endpoint_needs_authentication(client, monkeypatch):
@@ -1014,14 +1014,14 @@ def test_the_endpoint_needs_authentication(client, monkeypatch):
 def test_an_unknown_session_is_not_found(client, monkeypatch):
     _serve(monkeypatch, None)
 
-    response = client.get(f'/backtest/sessions/{uuid4()}/report', params={'token': AUTHORIZATION})
+    response = client.get(f'/backtest/sessions/{uuid4()}/report', params={'token': auth.issue_link_token()})
 
     assert response.status_code == 404
     assert 'not found' in response.json()['error']
 
 
 def test_a_malformed_id_is_rejected(client):
-    assert client.get('/backtest/sessions/not-a-uuid/report', params={'token': AUTHORIZATION}).status_code == 422
+    assert client.get('/backtest/sessions/not-a-uuid/report', params={'token': auth.issue_link_token()}).status_code == 422
 
 
 def test_a_session_without_a_report_explains_itself(client, monkeypatch):
@@ -1029,7 +1029,7 @@ def test_a_session_without_a_report_explains_itself(client, monkeypatch):
     session.equity_curve = None
     _serve(monkeypatch, session)
 
-    response = client.get(f'/backtest/sessions/{session.id}/report', params={'token': AUTHORIZATION})
+    response = client.get(f'/backtest/sessions/{session.id}/report', params={'token': auth.issue_link_token()})
 
     assert response.status_code == 404
     assert 'Export PDF' in response.json()['error']
@@ -1040,7 +1040,7 @@ def test_a_session_without_trades_has_no_report(client, monkeypatch):
     session.metrics = json.dumps({'total': 0})
     _serve(monkeypatch, session)
 
-    assert client.get(f'/backtest/sessions/{session.id}/report', params={'token': AUTHORIZATION}).status_code == 404
+    assert client.get(f'/backtest/sessions/{session.id}/report', params={'token': auth.issue_link_token()}).status_code == 404
 
 
 def _export(client, session, **body):

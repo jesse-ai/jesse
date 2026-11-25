@@ -9,14 +9,28 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 fastapi_app = FastAPI()
 
-origins = [
-    "*",
-]
 
+def _cors_origins() -> List[str]:
+    """The configured dashboard address, when the dashboard is opened from another origin."""
+    from jesse.services.env import ENV_VALUES
+    from jesse.services.dashboard_url import InvalidDashboardUrlError, normalize_dashboard_url
+    value = (ENV_VALUES.get('DASHBOARD_URL') or '').strip()
+    if not value:
+        return []
+    try:
+        return [normalize_dashboard_url(value)]
+    except InvalidDashboardUrlError:
+        return []
+
+
+# The dashboard Jesse serves is on the API's own origin and needs no CORS. Other origins are
+# allowed only on this machine (the dashboard's development server) and at DASHBOARD_URL, so a
+# web page someone visits can't call the API from the browser, including the login route.
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=_cors_origins(),
+    allow_origin_regex=r'^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$',
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

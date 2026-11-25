@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime
-from decimal import Decimal, ROUND_FLOOR, localcontext
+from decimal import Decimal, ROUND_DOWN, ROUND_FLOOR, localcontext
 import math
 import os
 import gzip
@@ -285,43 +285,28 @@ def format_price(price: float) -> str:
     if price == 0:
         return "0.00"
 
-    # to handle scientific notation
-    price_str = f'{price:.20f}'
+    # Truncate the quoted decimal digits. Expanding a binary float first can turn an exact
+    # cent such as 713.92 into 713.91999… and understate a broker fill in logs and alerts.
+    decimal_price = Decimal(str(price))
+    places = 2 if abs(price) >= 1 else 4 - decimal_price.adjusted()
+    with localcontext() as context:
+        context.rounding = ROUND_DOWN
+        return f'{decimal_price:.{places}f}'
 
-    if abs(price) >= 1:
-        if '.' not in price_str:
-            return f"{price:.2f}"
 
-        integer_part, decimal_part = price_str.split('.')
-        return f"{integer_part}.{decimal_part[:2]}"
-
-    # For numbers between -1 and 1
-
-    # find sign
-    sign = ''
-    if price < 0:
-        sign = '-'
-
-    price_str = f'{abs(price):.20f}'
-
-    decimal_part = price_str.split('.')[1]
-
-    first_non_zero_index = -1
-    for i, digit in enumerate(decimal_part):
-        if digit != '0':
-            first_non_zero_index = i
-            break
-
-    # This case should ideally not be hit if price is not 0, but as a safeguard:
-    if first_non_zero_index == -1:
-        return "0.00"
-
-    # Use 5 significant digits for all values below 1
-    end_index = first_non_zero_index + 5
-
-    formatted_decimal = decimal_part[:end_index]
-
-    return f"{sign}0.{formatted_decimal}"
+def live_candle_generation(exchange: str, requested: bool) -> bool:
+    """
+    Whether a live session on ``exchange`` builds its bigger timeframes from one-minute candles.
+    Most exchanges let the user choose. Some only work one way: Alpaca streams nothing but
+    one-minute bars, and exchanges such as Hyperliquid have no one-minute history to build from.
+    """
+    from jesse.info import exchange_info
+    mode = exchange_info.get(exchange, {}).get('local_candle_generation')
+    if mode == 'required':
+        return True
+    if mode == 'unsupported':
+        return False
+    return bool(requested)
 
 
 def generate_unique_id() -> str:

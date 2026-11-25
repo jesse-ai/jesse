@@ -175,7 +175,8 @@ def _exchange_fields(exchange: str) -> list[dict]:
     additional field keys are the ones jesse-live reads through get_additional_fields():
     Apex in LiveExchange, KuCoin in the KuCoin drivers, Lighter in LighterPerpetualMain (which
     also honors an optional account_index the Dashboard form does not show). Both indexes go
-    through int() in that driver, hence the integer format.
+    through int() in that driver, hence the integer format. Hyperliquid's optional
+    sub_account_address makes the driver trade that sub-account with the master's API wallet.
     """
     is_apex = exchange.startswith('Apex')
     is_kucoin = 'kucoin' in exchange.lower()
@@ -193,6 +194,8 @@ def _exchange_fields(exchange: str) -> list[dict]:
     if is_lighter:
         fields.append(_field('api_key_index', 'API Key Index', 'additional_fields', value_format='integer'))
         fields.append(_field('account_index', 'Account Index', 'additional_fields', required=False, value_format='integer'))
+    if is_hyperliquid:
+        fields.append(_field('sub_account_address', 'Sub-account Address', 'additional_fields', required=False))
     if is_apex or is_kucoin:
         fields.append(_field('api_passphrase', 'API Passphrase', 'additional_fields'))
     if is_apex:

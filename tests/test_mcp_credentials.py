@@ -182,7 +182,8 @@ def test_requirements_list_every_live_exchange_with_the_dashboard_form_fields():
 
     hyperliquid = _fields(result, 'Hyperliquid Perpetual')
     assert (hyperliquid['api_key']['label'], hyperliquid['api_secret']['label']) == ('Wallet Address', 'Private Key')
-    assert list(hyperliquid) == ['api_key', 'api_secret']
+    assert list(hyperliquid) == ['api_key', 'api_secret', 'sub_account_address']
+    assert hyperliquid['sub_account_address']['required'] is False
 
 
 def test_requirements_for_one_exchange_and_unsupported_names():
