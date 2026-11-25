@@ -736,7 +736,8 @@ def _generate_bigger_timeframes(candle: np.ndarray, exchange: str, symbol: str, 
         # Select only observations in this candle's UTC bucket, including forming rows.
         timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
         bucket_start = int(candle[0]) - int(candle[0]) % timeframe_ms
-        short_candles = get_candles(exchange, symbol, '1m')
+        short_array, short_index = store.candles.get_storage(exchange, symbol, '1m').snapshot()
+        short_candles = short_array[:short_index + 1]
         start_index = int(np.searchsorted(short_candles[:, 0], bucket_start, side='left'))
         end_index = int(np.searchsorted(short_candles[:, 0], bucket_start + timeframe_ms, side='left'))
         source_rows = short_candles[start_index:end_index]
@@ -763,67 +764,21 @@ def batch_add_candle(
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
-    cutoff = store.candles.execution_cutoff
-    if cutoff is not None:
-        array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
-        visible = array[:index + 1]
-        visible = visible[:np.searchsorted(visible[:, 0], cutoff)]
-        if store.candles.uses_timestamp_buckets and timeframe != '1m':
-            return _hide_minutes_after_cutoff(visible, exchange, symbol, timeframe, cutoff)
-        return visible
+    """Return stored candles whose full timeframe has elapsed, without generating bars.
 
-    # this runs on every single indicator call, so storage access is done with
-    # plain dict lookups instead of going through forming_estimation +
-    # get_storage (which rebuild the same key strings several times per call).
-    storage = store.candles.storage
-
-    # no need to worry for forming candles when timeframe == 1m
-    if timeframe == '1m':
-        arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
-        if arr is None:
-            raise RouteNotFound(symbol, '1m')
-        array, index = arr.snapshot()
-        if index == -1:
-            return np.zeros((0, 6))
-        return array[:index + 1]
-
-    if store.candles.uses_timestamp_buckets:
-        return _get_timestamp_bucket_candles(exchange, symbol, timeframe)
-
-    # other timeframes
-    required_1m_to_complete_count = jh.timeframe_to_one_minutes(timeframe)
-    short_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-1m')
-    if short_arr is None:
-        raise RouteNotFound(symbol, '1m')
-    short_array, short_index = short_arr.snapshot()
-    short_count = short_index + 1
-    dif = short_count % required_1m_to_complete_count
-
-    long_arr: DynamicNumpyArray = storage.get(f'{exchange}-{symbol}-{timeframe}')
-    if long_arr is None:
-        raise RouteNotFound(symbol, timeframe)
-    long_array, long_index = long_arr.snapshot()
-    long_count = long_index + 1
-
-    if dif == 0 and long_count == 0:
-        return np.zeros((0, 6))
-
-    # complete candle
-    if dif == 0:
-        return long_array[:long_count]
-    # generate forming candle only if NOT in live mode
-    elif not jh.is_live():
-        forming_candle = generate_candle_from_one_minutes(
-            timeframe,
-            short_array[short_count - dif:short_count],
-            True
-        )
-        add_candle(forming_candle, exchange, symbol, timeframe, with_execution=False, with_generation=False, with_skip=False)
-        long_array, long_index = long_arr.snapshot()
-        return long_array[:long_index + 1]
-    # in live mode, just return the complete candles
-    else:
-        return long_array[:long_count]
+    Use the calling strategy's execution boundary during a delayed live run;
+    otherwise use the current simulation/live clock. A bar closing exactly at
+    that boundary is included. Missing routes raise RouteNotFound as usual.
+    The result is a view of stored data; copy it before editing.
+    """
+    boundary = store.candles.execution_cutoff
+    if boundary is None:
+        boundary = jh.now()
+    array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
+    visible = array[:index + 1]
+    duration = jh.timeframe_to_one_minutes(timeframe) * 60_000
+    end = np.searchsorted(visible[:, 0], boundary - duration, side='right')
+    return visible[:end]
 
 
 def _hide_minutes_after_cutoff(
@@ -898,8 +853,15 @@ def _get_timestamp_bucket_candles(exchange: str, symbol: str, timeframe: str) ->
 
 
 def get_current_candle(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
-    if store.candles.execution_cutoff is not None:
-        candles = get_candles(exchange, symbol, timeframe)
+    cutoff = store.candles.execution_cutoff
+    if cutoff is not None:
+        # Current reads may include a forming higher-timeframe bar, but never
+        # a bar that opened at or after this strategy's execution boundary.
+        array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
+        visible = array[:index + 1]
+        candles = visible[:np.searchsorted(visible[:, 0], cutoff)]
+        if store.candles.uses_timestamp_buckets and timeframe != '1m':
+            candles = _hide_minutes_after_cutoff(candles, exchange, symbol, timeframe, cutoff)
         return candles[-1] if len(candles) else np.zeros((0, 6))
 
     # no need to worry for forming candles when timeframe == 1m

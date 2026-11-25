@@ -5,9 +5,10 @@ These run full `jesse.research.backtest()` sessions with *real* strategies (adap
 from the maintainer's bot project) over long, fully deterministic synthetic candle
 windows, and assert the complete result fingerprint (key metrics rounded to 6
 decimals + a sha256 over every closed trade's prices/qty/fees/timestamps) against
-values captured from `master` @ EXPECTED_FROM_SHA — i.e. from the code *before* the
-perf-backtests optimizations. Any future divergence from these numbers means the
-backtest engine's behavior changed, not just its speed.
+values captured with completed-only higher-timeframe reads for #656. Any future
+unexplained divergence means the engine's behavior changed, not just its speed.
+The previous forming-bar fingerprints intentionally differ: excluding unclosed
+anchors changes signals and therefore trade counts as well as prices and fees.
 
 A third test (test_fast_mode_equivalence) asserts that the step (fast_mode=False)
 and fast (fast_mode=True) simulators produce identical trades on gapless data —
@@ -28,9 +29,11 @@ import os
 import numpy as np
 import pytest
 
-# Expected fingerprints below were captured from master @ this commit
-# (pre-optimization reference for the perf-backtests branch):
-EXPECTED_FROM_SHA = '0987c304d7f276cfc09c942e53d4c39c9395b8ee'
+# Captured at this revision using an independent boolean-mask candle reader
+# (open + timeframe <= decision boundary), rather than the searchsorted reader.
+# Scenarios, seeds, candle generation and strategy code are unchanged. The old
+# forming-bar baseline originated at 0987c304d7f276cfc09c942e53d4c39c9395b8ee.
+CLOSED_CANDLE_REFERENCE_SHA = '74fe8f098d01554b6b44773f964c9e1d7b00cba1'
 
 START_TS = 1609459200000  # 2021-01-01T00:00:00 UTC
 EXCHANGE = 'Test Exchange'
@@ -202,54 +205,52 @@ def run_scenario(scenario: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Expected fingerprints, captured from master @ EXPECTED_FROM_SHA by running
-# run_scenario() above with jesse imported from a master checkout (the strategy
-# files and candle generation were byte-identical). See docs-perf/REPORT.md.
+# Completed-only fingerprints for #656, captured at CLOSED_CANDLE_REFERENCE_SHA.
+# The old forming-bar totals were 69 / 104 trades; closed anchors yield 64 / 100.
+# Keep exact metrics and the full closed-trade hash as the regression contract.
 # ---------------------------------------------------------------------------
 SINGLE_ROUTE_EXPECTED = {
-    'total': 69,
-    'total_winning_trades': 36,
-    'total_losing_trades': 33,
-    'win_rate': 0.521739,
-    'net_profit': -1171.234136,
-    'net_profit_percentage': -11.712341,
+    'total': 64,
+    'total_winning_trades': 34,
+    'total_losing_trades': 30,
+    'win_rate': 0.53125,
+    'net_profit': -728.8146,
+    'net_profit_percentage': -7.288146,
     'starting_balance': 10000.0,
-    'finishing_balance': 8828.765864,
-    'fee': 2344.801137,
-    'max_drawdown': -31.454717,
-    'expectancy_percentage': -0.169744,
+    'finishing_balance': 9271.1854,
+    'fee': 2272.177643,
+    'max_drawdown': -28.717608,
+    'expectancy_percentage': -0.113877,
     'total_open_trades': 0,
     'open_pl': 0.0,
-    'gross_profit': 11184.834972,
-    'gross_loss': -12356.069108,
-    'longs_count': 32,
-    'shorts_count': 37,
-    'trades_count': 69,
-    'trades_hash': '048ce3b5dc049429',
+    'gross_profit': 10991.044733,
+    'gross_loss': -11719.859333,
+    'longs_count': 31,
+    'shorts_count': 33,
+    'trades_count': 64,
+    'trades_hash': '3979ccf729a8d1b1',
 }
 
-# Updated for jesse-ai/jesse#614: risk_to_qty now counts both fees exactly, so positions
-# sized with a fee are smaller. Same trades and timings; only the sizes changed.
 MULTI_ROUTE_EXPECTED = {
-    'total': 104,
-    'total_winning_trades': 54,
-    'total_losing_trades': 50,
-    'win_rate': 0.519231,
-    'net_profit': 3362.822888,
-    'net_profit_percentage': 33.628229,
+    'total': 100,
+    'total_winning_trades': 51,
+    'total_losing_trades': 49,
+    'win_rate': 0.51,
+    'net_profit': 3512.59439,
+    'net_profit_percentage': 35.125944,
     'starting_balance': 10000.0,
-    'finishing_balance': 13362.822888,
-    'fee': 1787.692441,
-    'max_drawdown': -11.769994,
-    'expectancy_percentage': 0.323348,
+    'finishing_balance': 13512.59439,
+    'fee': 1683.753958,
+    'max_drawdown': -12.254831,
+    'expectancy_percentage': 0.351259,
     'total_open_trades': 1,
     'open_pl': 0.0,
-    'gross_profit': 13589.137107,
-    'gross_loss': -10226.31422,
-    'longs_count': 64,
-    'shorts_count': 40,
-    'trades_count': 104,
-    'trades_hash': 'b33b3fc645819ace',
+    'gross_profit': 13190.648726,
+    'gross_loss': -9678.054337,
+    'longs_count': 61,
+    'shorts_count': 39,
+    'trades_count': 100,
+    'trades_hash': 'd369048855434720',
 }
 
 
@@ -258,7 +259,7 @@ def test_real_strategy_single_route():
     """
     ~1 year of 1m candles, BTC-USDT @ 1h, multi-timeframe Alligator/ADX/CMO/SRSI
     strategy (RealStrategyRegression1) with a 4h data route, step simulator.
-    Expected values captured from master @ EXPECTED_FROM_SHA (pre-optimization).
+    Expected values use the completed-only candle contract described above.
     """
     assert run_scenario(SINGLE_ROUTE_SCENARIO) == SINGLE_ROUTE_EXPECTED
 
@@ -268,8 +269,7 @@ def test_real_strategy_multi_route():
     """
     ~6 months of 1m candles x 3 routes (Donchian-ATR trend @ 1h, ADX/Williams%R
     @ 15m, Alligator multi-timeframe @ 1h) with two extra 4h data routes, fast
-    simulator. Expected values captured from master @ EXPECTED_FROM_SHA
-    (pre-optimization).
+    simulator. Expected values use the completed-only candle contract described above.
     """
     assert run_scenario(MULTI_ROUTE_SCENARIO) == MULTI_ROUTE_EXPECTED
 

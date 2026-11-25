@@ -760,7 +760,8 @@ def _prepare_timestamp_replay_warmup(candles: dict, common_start: int) -> None:
                 with_generation=False,
             )
 
-        visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
+        # Aggregation consumes observed source rows, not the strategy's completed-only view.
+        visible_source = store.candles.get_storage(exchange, symbol, timeframes.MINUTE_1)[:]
         if len(visible_source) == 0:
             continue
         for timeframe in config['app']['considering_timeframes']:
@@ -891,7 +892,7 @@ def _apply_timestamp_replay_event(
 def _publish_timestamp_bucket(exchange: str, symbol: str, timeframe: str, bucket_start: int) -> None:
     """Store the completed candle of one clock bucket, built from its visible source rows."""
     timeframe_ms = TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000
-    visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
+    visible_source = store.candles.get_storage(exchange, symbol, timeframes.MINUTE_1)[:]
     source_start = int(np.searchsorted(visible_source[:, 0], bucket_start, side='left'))
     source_stop = int(np.searchsorted(visible_source[:, 0], bucket_start + timeframe_ms, side='left'))
     generated = candle_service.generate_candle_from_observed_minutes(
@@ -2256,7 +2257,8 @@ def _update_all_routes_a_partial_candle(
             continue
         tf_minutes = TIMEFRAME_TO_ONE_MINUTES[timeframe]
         number_of_needed_candles = int(storable_temp_candle[0] % (tf_minutes * 60_000) // 60000) + 1
-        candles_1m = candle_service.get_candles(exchange, symbol, '1m')[-number_of_needed_candles:]
+        # Intrabar order simulation must include the just-stored partial minute.
+        candles_1m = store.candles.get_storage(exchange, symbol, '1m')[:][-number_of_needed_candles:]
         generated_candle = candle_service.generate_candle_from_one_minutes(
             timeframe,
             candles_1m,

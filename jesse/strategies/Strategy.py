@@ -1595,7 +1595,7 @@ class Strategy(ABC):
     @property
     def candles(self) -> np.ndarray:
         """
-        Returns candles for current trading route
+        Returns completed candles for the current trading route
 
         :return: np.ndarray
         """
@@ -1603,7 +1603,10 @@ class Strategy(ABC):
 
     def get_candles(self, exchange: str, symbol: str, timeframe: str) -> np.ndarray:
         """
-        Get candles by passing exchange, symbol, and timeframe
+        Get candles by passing exchange, symbol, and timeframe.
+        Only candles whose full timeframe has elapsed at the strategy execution
+        boundary (or current clock) are returned, in both live and backtest modes.
+        This read does not generate or modify candles; copy the view before editing.
 
         :param exchange: str
         :param symbol: str

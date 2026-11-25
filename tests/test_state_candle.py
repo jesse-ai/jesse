@@ -54,10 +54,11 @@ def test_can_add_new_candle():
     np.testing.assert_equal(candle_service.get_candles('Sandbox', 'BTC-USD', '1m'), np.array([c1, c2]))
 
 
-def test_get_candles_including_forming():
+def test_get_candles_excludes_forming_but_current_candle_keeps_it(monkeypatch):
     set_up()
 
     candles_to_add = range_candles(14)
+    monkeypatch.setattr('jesse.helpers.now', lambda: candles_to_add[-1, 0] + 60_000)
     candle_service.batch_add_candle(candles_to_add, 'Sandbox', 'BTC-USD', '1m')
     candle_service.add_candle(
         candle_service.generate_candle_from_one_minutes(
@@ -72,17 +73,15 @@ def test_get_candles_including_forming():
         'Sandbox', 'BTC-USD', '5m'
     )
 
-    assert len(candle_service.get_candles('Sandbox', 'BTC-USD', '5m')) == 3
+    assert len(candle_service.get_candles('Sandbox', 'BTC-USD', '5m')) == 2
     assert len(candle_service.get_candles('Sandbox', 'BTC-USD', '1m')) == 14
 
     candles = candle_service.get_candles('Sandbox', 'BTC-USD', '5m')
     assert candles[0][0] == candles_to_add[0][0]
-    assert candles[-1][2] == candles_to_add[13][2]
-    assert candles[-1][0] == candles_to_add[10][0]
+    assert candles[-1][2] == candles_to_add[9][2]
+    assert candles[-1][0] == candles_to_add[5][0]
 
-    # add third one while still a forming candle. Now since
-    # we already have forming, get_candles() must not
-    # append another forming candle to the end.
+    # Storing the forming bar must not expose it through completed reads.
     candle_service.add_candle(
         candle_service.generate_candle_from_one_minutes(
             '5m', candles_to_add[10:14], True
@@ -90,9 +89,13 @@ def test_get_candles_including_forming():
         'Sandbox', 'BTC-USD', '5m'
     )
 
-    assert len(candle_service.get_candles('Sandbox', 'BTC-USD', '5m')) == 3
-    assert candles[-1][2] == candles_to_add[13][2]
-    assert candles[-1][0] == candles_to_add[10][0]
+    assert len(candle_service.get_candles('Sandbox', 'BTC-USD', '5m')) == 2
+    assert candles[-1][2] == candles_to_add[9][2]
+    assert candles[-1][0] == candles_to_add[5][0]
+
+    forming = candle_service.get_current_candle('Sandbox', 'BTC-USD', '5m')
+    assert forming[0] == candles_to_add[10, 0]
+    assert forming[2] == candles_to_add[13, 2]
 
 
 def test_get_forming_candle():

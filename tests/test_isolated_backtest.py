@@ -435,12 +435,19 @@ def _aggregate(rows: np.ndarray, bucket_start: int) -> list:
     return [bucket_start, rows[0, 1], rows[-1, 2], rows[:, 3].max(), rows[:, 4].min(), rows[:, 5].sum()]
 
 
-def _record_decisions(timeframe: str, candles: np.ndarray, fast_mode: bool, warmup: np.ndarray = None) -> list:
+def _record_decisions(
+        timeframe: str, candles: np.ndarray, fast_mode: bool, warmup: np.ndarray = None,
+        current_candles: list | None = None,
+) -> list:
     decisions = []
 
     class TestStrategy(Strategy):
         def before(self):
-            decisions.append((int(self.time), np.copy(self.candles)))
+            closed = self.candles
+            assert np.all(closed[:, 0] + jh.timeframe_to_one_minutes(timeframe) * _MINUTE <= self.time)
+            decisions.append((int(self.time), np.copy(closed)))
+            if current_candles is not None:
+                current_candles.append(np.copy(self.current_candle))
 
         def should_long(self):
             return False
@@ -471,7 +478,8 @@ def test_a_candle_that_closes_while_the_market_is_closed_runs_the_strategy_when_
         fast_mode: bool, timeframe: str,
 ):
     rows = _weekday_sessions(3)
-    decisions = _record_decisions(timeframe, rows, fast_mode)
+    current_candles = []
+    decisions = _record_decisions(timeframe, rows, fast_mode, current_candles=current_candles)
 
     session_opens = [_MONDAY + day * _DAY + 870 * _MINUTE for day in range(3)]
     resumes = [session_opens[1] + _MINUTE, session_opens[2] + _MINUTE]
@@ -487,16 +495,16 @@ def test_a_candle_that_closes_while_the_market_is_closed_runs_the_strategy_when_
         ]
 
     timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * _MINUTE
-    for time, candles in decisions:
+    for (time, candles), current in zip(decisions, current_candles):
         if time not in resumes:
             continue
-        # the candle that closed overnight, complete, then the new one forming from the first row
+        # Completed reads end with the overnight bar; current reads expose the resumed bucket.
         resume_row = rows[rows[:, 0] == time - _MINUTE][0]
-        closed_start = int(candles[-2][0])
+        closed_start = int(candles[-1][0])
         closed_rows = rows[(rows[:, 0] >= closed_start) & (rows[:, 0] < closed_start + timeframe_ms)]
         assert closed_start + timeframe_ms <= time - _MINUTE
-        assert candles[-2].tolist() == _aggregate(closed_rows, closed_start)
-        assert candles[-1].tolist() == _aggregate(resume_row[None, :], int(resume_row[0]) - int(resume_row[0]) % timeframe_ms)
+        assert candles[-1].tolist() == _aggregate(closed_rows, closed_start)
+        assert current.tolist() == _aggregate(resume_row[None, :], int(resume_row[0]) - int(resume_row[0]) % timeframe_ms)
 
 
 @pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
@@ -524,12 +532,14 @@ def test_a_candle_whose_last_minute_is_missing_runs_the_strategy_on_the_next_row
     rows[:, 0] = _MONDAY + np.arange(len(rows)) * _MINUTE
     # 03:59 is missing, so nothing observes the 00:00 candle's close until the 04:00 row
     rows = np.delete(rows, 239, axis=0)
-    decisions = _record_decisions('4h', rows, fast_mode)
+    current_candles = []
+    decisions = _record_decisions('4h', rows, fast_mode, current_candles=current_candles)
 
     assert [time for time, _ in decisions] == [_MONDAY + 4 * _HOUR + _MINUTE, _MONDAY + 8 * _HOUR]
     candles = decisions[0][1]
-    assert candles[-2].tolist() == _aggregate(rows[:239], _MONDAY)
-    assert candles[-1].tolist() == _aggregate(rows[239:240], _MONDAY + 4 * _HOUR)
+    assert len(candles) == 1
+    assert candles[-1].tolist() == _aggregate(rows[:239], _MONDAY)
+    assert current_candles[0].tolist() == _aggregate(rows[239:240], _MONDAY + 4 * _HOUR)
 
 
 def test_the_replay_releases_a_candle_whose_close_the_warmup_did_not_observe():

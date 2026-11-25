@@ -1,5 +1,6 @@
 from jesse.enums import order_types
 from jesse.store import store
+from jesse.services import candle_service
 from jesse.strategies import Strategy
 
 
@@ -29,11 +30,14 @@ class TestGeneratedDataRouteExecutionETH(Strategy):
     def before_terminate(self) -> None:
         fifteen_minute_candles = self.get_candles(self.exchange, self.symbol, '15m')
 
-        # The 99 underlying candles produce ceil(99 / 15) aggregates. Checking
-        # OHLC values also proves that ETH's data stayed isolated from BTC.
-        assert len(fifteen_minute_candles) == 7
+        # The 99 source minutes close six full 15m bars; the final nine stay forming.
+        # OHLC values also prove that ETH's data stayed isolated from BTC.
+        assert len(fifteen_minute_candles) == 6
         assert fifteen_minute_candles[0][1:5].tolist() == [0.5, 15, 15, 0.5]
-        assert fifteen_minute_candles[-1][2] == 99
+        assert fifteen_minute_candles[-1][2] == 90
+
+        current = candle_service.get_current_candle(self.exchange, self.symbol, '15m')
+        assert current[2] == 99
 
         assert len(store.closed_trades.trades) == 2
         assert store.app.total_open_trades == 0

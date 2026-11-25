@@ -1,4 +1,5 @@
 from jesse.store import store
+from jesse.services import candle_service
 from jesse.strategies import Strategy
 
 
@@ -27,12 +28,14 @@ class TestCommonWarmupStart(Strategy):
         assert btc_five_minute[-1, 5] == 4
         assert eth_five_minute[-1, 5] == 5
 
-        # BTC has four then eight observable minutes in its 00:30 bucket, so
-        # get_candles() must refresh the forming candle without filling either gap.
-        btc_fifteen_minute = self.get_candles(self.exchange, 'BTC-USDT', '15m')
-        assert btc_fifteen_minute[-1, 0] == START + 30 * 60_000
-        assert btc_fifteen_minute[-1, 2] == 134 + self.index * 5
-        assert btc_fifteen_minute[-1, 5] == 4 + self.index * 4
+        # The 00:30 anchor is still forming. Completed reads must stay on 00:15,
+        # while current reads refresh observed minutes without filling gaps.
+        closed = self.get_candles(self.exchange, 'BTC-USDT', '15m')
+        assert closed[-1, 0] == START + 15 * 60_000
+        btc_fifteen_minute = candle_service.get_current_candle(self.exchange, 'BTC-USDT', '15m')
+        assert btc_fifteen_minute[0] == START + 30 * 60_000
+        assert btc_fifteen_minute[2] == 134 + self.index * 5
+        assert btc_fifteen_minute[5] == 4 + self.index * 4
 
     def should_long(self) -> bool:
         return False
