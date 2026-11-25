@@ -92,8 +92,11 @@ def test_filters():
     assert len(store.closed_trades.trades) == 0
 
 
-def test_closed_candles_on_a_four_hour_anchor():
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+@pytest.mark.parametrize('timestamp_replay', [False, True], ids=['legacy', 'timestamp'])
+def test_closed_candles_on_a_four_hour_anchor(monkeypatch, fast_mode, timestamp_replay):
     set_up()
+    monkeypatch.setattr(backtest_mode, '_supports_observed_timestamp_replay_scope', lambda: timestamp_replay)
     routes = [{'symbol': 'BTC-USDT', 'timeframe': '30m', 'strategy': 'TestClosedAnchorCandles'}]
     data_routes = [{'symbol': 'BTC-USDT', 'timeframe': '4h'}]
     rows = candles_from_close_prices(range(1, 601))
@@ -103,7 +106,7 @@ def test_closed_candles_on_a_four_hour_anchor():
         'exchange': exchanges.SANDBOX, 'symbol': 'BTC-USDT', 'candles': rows,
     }}
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, data_routes,
-                      '2024-01-02', '2024-01-03', candles)
+                      '2024-01-02', '2024-01-03', candles, fast_mode=fast_mode)
 
 
 def test_forming_candles():
@@ -125,14 +128,15 @@ def test_forming_candles():
 
     backtest_mode.run('000', False, {}, exchanges.SANDBOX, routes, data_routes, '2019-04-01', '2019-04-02', candles)
 
-    # Every nonempty clock bucket is represented, including the final forming bucket.
     timestamps = test_candles_0[:, 0].astype(np.int64)
-    assert len(candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_5)) == len(
-        np.unique(timestamps // 300_000)
-    )
-    assert len(candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframes.MINUTE_15)) == len(
-        np.unique(timestamps // 900_000)
-    )
+    for timeframe, duration in (('5m', 300_000), ('15m', 900_000)):
+        buckets = np.unique(timestamps // duration) * duration
+        completed = buckets[buckets + duration <= store.app.time]
+        np.testing.assert_array_equal(
+            candle_service.get_candles(exchanges.SANDBOX, 'BTC-USDT', timeframe)[:, 0], completed,
+        )
+        current = candle_service.get_current_candle(exchanges.SANDBOX, 'BTC-USDT', timeframe)
+        assert current[0] == buckets[-1]
 
 
 @pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])

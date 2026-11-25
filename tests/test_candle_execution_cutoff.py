@@ -33,6 +33,7 @@ def stored(monkeypatch):
     router.initiate([{'exchange': EXCHANGE, 'symbol': SYMBOL, 'timeframe': '1m', 'strategy': 'TestVanillaStrategy'}])
     store.reset()
     monkeypatch.setattr(jh, 'is_live', lambda: True)
+    monkeypatch.setattr(jh, 'now', lambda: BOUNDARY + MINUTE)
     for timeframe, open_times in (
         ('1m', (BOUNDARY - 2 * MINUTE, BOUNDARY - MINUTE, BOUNDARY)),
         ('5m', (BOUNDARY - 5 * MINUTE, BOUNDARY)),
@@ -58,12 +59,13 @@ def test_a_bigger_candle_still_forming_at_the_boundary_stays_visible(stored):
     store.candles.execution_cutoff = BOUNDARY + MINUTE
 
     assert candle_service.get_current_candle(EXCHANGE, SYMBOL, '5m')[0] == BOUNDARY
+    assert candle_service.get_candles(EXCHANGE, SYMBOL, '5m')[:, 0].tolist() == [BOUNDARY - 5 * MINUTE]
     assert candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0] == BOUNDARY
 
 
-def test_without_a_cutoff_reads_include_the_latest_candle(stored):
+def test_without_a_cutoff_only_current_reads_include_the_forming_candle(stored):
     assert candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0] == BOUNDARY
-    assert candle_service.get_candles(EXCHANGE, SYMBOL, '5m')[-1][0] == BOUNDARY
+    assert candle_service.get_candles(EXCHANGE, SYMBOL, '5m')[-1][0] == BOUNDARY - 5 * MINUTE
 
 
 def test_a_cutoff_before_every_candle_reads_nothing(stored):
@@ -78,7 +80,7 @@ def test_only_the_thread_running_strategies_has_a_cutoff(stored):
 
     assert _in_another_thread(lambda: store.candles.execution_cutoff) is None
     assert _in_another_thread(lambda: candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0]) == BOUNDARY
-    assert _in_another_thread(lambda: candle_service.get_candles(EXCHANGE, SYMBOL, '5m')[-1][0]) == BOUNDARY
+    assert _in_another_thread(lambda: candle_service.get_current_candle(EXCHANGE, SYMBOL, '5m')[0]) == BOUNDARY
     assert candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')[0] == BOUNDARY - MINUTE
 
 
@@ -92,6 +94,7 @@ def test_a_trade_during_a_late_run_goes_into_the_forming_candle(stored, monkeypa
     _in_another_thread(lambda: candle_service.add_candle_from_trade({'price': 105, 'volume': 3}, EXCHANGE, SYMBOL))
 
     store.candles.execution_cutoff = None
-    closed, forming = candle_service.get_candles(EXCHANGE, SYMBOL, '1m')[-2:]
+    closed = candle_service.get_candles(EXCHANGE, SYMBOL, '1m')[-1]
+    forming = candle_service.get_current_candle(EXCHANGE, SYMBOL, '1m')
     assert closed.tolist() == _candle(BOUNDARY - MINUTE).tolist()
     assert forming.tolist() == [BOUNDARY, 100, 105, 105, 99, 13]
