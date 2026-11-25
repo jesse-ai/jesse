@@ -1,5 +1,6 @@
 from jesse.enums import order_types
 from jesse.store import store
+from jesse.services import candle_service
 from jesse.strategies import Strategy
 
 
@@ -29,12 +30,15 @@ class TestGeneratedDataRouteExecutionBTC(Strategy):
     def before_terminate(self) -> None:
         five_minute_candles = self.get_candles(self.exchange, self.symbol, '5m')
 
-        # The 99 underlying candles produce ceil(99 / 5) aggregates. Checking
-        # OHLC values proves that the data route contains generated market data,
+        # The 99 source minutes close 19 full 5m bars; the final 4 minutes stay forming.
+        # OHLC values prove that the data route contains generated market data,
         # not merely the correct route metadata.
-        assert len(five_minute_candles) == 20
+        assert len(five_minute_candles) == 19
         assert five_minute_candles[0][1:5].tolist() == [100.5, 105, 105, 100.5]
-        assert five_minute_candles[-1][2] == 199
+        assert five_minute_candles[-1][2] == 195
+
+        current = candle_service.get_current_candle(self.exchange, self.symbol, '5m')
+        assert current[2] == 199
 
         assert len(store.closed_trades.trades) == 2
         assert store.app.total_open_trades == 0

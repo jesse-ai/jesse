@@ -100,3 +100,27 @@ def test_zero_execution_boundary_does_not_fall_back_to_wall_time(stored, monkeyp
     monkeypatch.setattr(jh, 'now', lambda: BOUNDARY + 24 * 60 * 60_000)
     store.candles.execution_cutoff = 0
     assert candle_service.get_candles(EXCHANGE, SYMBOL, '4h').shape == (0, 6)
+
+
+def test_sparse_current_read_excludes_minutes_after_a_delayed_boundary(stored, monkeypatch):
+    store.candles.uses_timestamp_buckets = True
+    store.candles.execution_cutoff = BOUNDARY + 30 * 60_000
+    monkeypatch.setattr(jh, 'now', lambda: BOUNDARY + 50 * 60_000)
+    minutes = DynamicNumpyArray((10, 6))
+    for row in (
+        [BOUNDARY, 10, 10, 11, 9, 1],
+        [BOUNDARY + 20 * 60_000, 10, 20, 21, 9, 2],
+        [BOUNDARY + 40 * 60_000, 20, 99, 100, 19, 3],
+    ):
+        minutes.append(np.array(row, dtype=float))
+    store.candles.storage[f'{EXCHANGE}-{SYMBOL}-1m'] = minutes
+    before = store.candles.get_storage(EXCHANGE, SYMBOL, '4h')[:].copy()
+
+    # Sparse live storage may already include a minute that arrived after the
+    # decision cutoff. Current reads must rebuild the forming bar causally.
+    np.testing.assert_array_equal(
+        candle_service.get_current_candle(EXCHANGE, SYMBOL, '4h'),
+        np.array([BOUNDARY, 10, 20, 21, 9, 3]),
+    )
+    np.testing.assert_array_equal(candle_service.get_candles(EXCHANGE, SYMBOL, '4h'), before[:1])
+    np.testing.assert_array_equal(store.candles.get_storage(EXCHANGE, SYMBOL, '4h')[:], before)
