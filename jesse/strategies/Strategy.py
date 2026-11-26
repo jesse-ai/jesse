@@ -1877,12 +1877,12 @@ class Strategy(ABC):
 
             total_position_values = entry_orders_value + positions_value
 
-        # in futures and margin mode, it's simpler:
+        # Position PNL already includes the full leveraged quantity.
         elif self.position.exchange.uses_margin_accounting:
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
-        return (total_position_values * self.leverage) + self.balance
+        return total_position_values + self.balance
 
     @property
     def trades(self) -> List[ClosedTrade]:

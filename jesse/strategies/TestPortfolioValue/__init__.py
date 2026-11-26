@@ -10,7 +10,7 @@ class TestPortfolioValue(Strategy):
 
         if self.index == 10:
             assert round(self.portfolio_value) == round(
-                ((self.all_positions['ETH-USDT'].pnl + self.all_positions['BTC-USDT'].pnl) * self.leverage) + self.balance
+                self.all_positions['ETH-USDT'].pnl + self.all_positions['BTC-USDT'].pnl + self.balance
             )
 
     def should_long(self) -> bool:

@@ -900,6 +900,10 @@ def test_portfolio_value():
     # assertions done in the TestPortfolioValue
 
 
+def test_futures_portfolio_value_counts_unrealized_pnl_once_with_leverage():
+    single_route_backtest('TestFuturesPortfolioValueWithLeverage', is_futures_trading=True, leverage=2)
+
+
 def test_portfolio_value_includes_position_value_and_open_orders_value():
     # in futures mode
     single_route_backtest(
