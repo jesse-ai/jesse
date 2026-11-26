@@ -1,3 +1,4 @@
+import arrow
 import pytest
 import numpy as np
 import jesse.helpers as jh
@@ -405,6 +406,145 @@ def test_backtest_replays_observed_internal_gaps(fast_mode: bool):
     research.backtest(config, routes, data_routes, candles, fast_mode=fast_mode)
 
     assert observed_times == expected_times
+
+
+_MINUTE = 60_000
+_HOUR = 3_600_000
+_DAY = 86_400_000
+_MONDAY = jh.arrow_to_timestamp(arrow.get('2021-01-04T00:00:00+00:00'))
+_SESSION_CONFIG = {
+    'starting_balance': 10_000,
+    'fee': 0,
+    'type': 'futures',
+    'futures_leverage': 2,
+    'futures_leverage_mode': 'cross',
+    'exchange': 'Fake Exchange',
+    'warm_up_candles': 0,
+}
+
+
+def _weekday_sessions(days: int) -> np.ndarray:
+    """Observed 1m rows of `days` consecutive sessions from a Monday, 14:30 to 20:59 UTC."""
+    rows = candles_from_close_prices([100 + i / 100 + (i % 7) / 10 for i in range(days * 390)])
+    session_minutes = np.arange(870, 1260) * _MINUTE
+    rows[:, 0] = np.concatenate([_MONDAY + day * _DAY + session_minutes for day in range(days)])
+    return rows
+
+
+def _aggregate(rows: np.ndarray, bucket_start: int) -> list:
+    return [bucket_start, rows[0, 1], rows[-1, 2], rows[:, 3].max(), rows[:, 4].min(), rows[:, 5].sum()]
+
+
+def _record_decisions(timeframe: str, candles: np.ndarray, fast_mode: bool, warmup: np.ndarray = None) -> list:
+    decisions = []
+
+    class TestStrategy(Strategy):
+        def before(self):
+            decisions.append((int(self.time), np.copy(self.candles)))
+
+        def should_long(self):
+            return False
+
+        def go_long(self):
+            pass
+
+        def should_cancel_entry(self):
+            return False
+
+    def as_candles(rows):
+        return {jh.key('Fake Exchange', 'FAKE-USD'): {'exchange': 'Fake Exchange', 'symbol': 'FAKE-USD', 'candles': rows}}
+
+    research.backtest(
+        _SESSION_CONFIG,
+        [{'exchange': 'Fake Exchange', 'strategy': TestStrategy, 'symbol': 'FAKE-USD', 'timeframe': timeframe}],
+        [],
+        as_candles(candles),
+        warmup_candles=as_candles(warmup) if warmup is not None else None,
+        fast_mode=fast_mode,
+    )
+    return decisions
+
+
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+@pytest.mark.parametrize('timeframe', ['1D', '4h'])
+def test_a_candle_that_closes_while_the_market_is_closed_runs_the_strategy_when_trading_resumes(
+        fast_mode: bool, timeframe: str,
+):
+    rows = _weekday_sessions(3)
+    decisions = _record_decisions(timeframe, rows, fast_mode)
+
+    session_opens = [_MONDAY + day * _DAY + 870 * _MINUTE for day in range(3)]
+    resumes = [session_opens[1] + _MINUTE, session_opens[2] + _MINUTE]
+    if timeframe == '1D':
+        # each day's candle closes at midnight, while the market is closed
+        assert [time for time, _ in decisions] == resumes
+    else:
+        # the 20:00 candle closes at midnight too; the 12:00 and 16:00 ones close in the session
+        assert [time for time, _ in decisions] == [
+            _MONDAY + 16 * _HOUR, _MONDAY + 20 * _HOUR,
+            resumes[0], _MONDAY + _DAY + 16 * _HOUR, _MONDAY + _DAY + 20 * _HOUR,
+            resumes[1], _MONDAY + 2 * _DAY + 16 * _HOUR, _MONDAY + 2 * _DAY + 20 * _HOUR,
+        ]
+
+    timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * _MINUTE
+    for time, candles in decisions:
+        if time not in resumes:
+            continue
+        # the candle that closed overnight, complete, then the new one forming from the first row
+        resume_row = rows[rows[:, 0] == time - _MINUTE][0]
+        closed_start = int(candles[-2][0])
+        closed_rows = rows[(rows[:, 0] >= closed_start) & (rows[:, 0] < closed_start + timeframe_ms)]
+        assert closed_start + timeframe_ms <= time - _MINUTE
+        assert candles[-2].tolist() == _aggregate(closed_rows, closed_start)
+        assert candles[-1].tolist() == _aggregate(resume_row[None, :], int(resume_row[0]) - int(resume_row[0]) % timeframe_ms)
+
+
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+@pytest.mark.parametrize('timeframe', ['1D', '4h'])
+def test_a_backtest_starting_after_a_closure_runs_the_candle_that_closed_during_it(
+        fast_mode: bool, timeframe: str,
+):
+    rows = _weekday_sessions(3)
+    start = _MONDAY + _DAY
+    continuous = _record_decisions(timeframe, rows, fast_mode)
+    started_later = _record_decisions(timeframe, rows[rows[:, 0] >= start], fast_mode, warmup=rows[rows[:, 0] < start])
+
+    # Monday's last candle closed overnight: the run from Tuesday makes the decision on it
+    # that the continuous run makes, at the same time and on the same candles
+    expected = [(time, candles) for time, candles in continuous if time > start]
+    assert started_later[0][0] == start + 870 * _MINUTE + _MINUTE
+    assert [time for time, _ in started_later] == [time for time, _ in expected]
+    for (_, candles), (_, continuous_candles) in zip(started_later, expected):
+        np.testing.assert_array_equal(candles, continuous_candles)
+
+
+@pytest.mark.parametrize('fast_mode', [False, True], ids=['step', 'fast'])
+def test_a_candle_whose_last_minute_is_missing_runs_the_strategy_on_the_next_row(fast_mode: bool):
+    rows = candles_from_close_prices([100 + i / 100 for i in range(9 * 60)])
+    rows[:, 0] = _MONDAY + np.arange(len(rows)) * _MINUTE
+    # 03:59 is missing, so nothing observes the 00:00 candle's close until the 04:00 row
+    rows = np.delete(rows, 239, axis=0)
+    decisions = _record_decisions('4h', rows, fast_mode)
+
+    assert [time for time, _ in decisions] == [_MONDAY + 4 * _HOUR + _MINUTE, _MONDAY + 8 * _HOUR]
+    candles = decisions[0][1]
+    assert candles[-2].tolist() == _aggregate(rows[:239], _MONDAY)
+    assert candles[-1].tolist() == _aggregate(rows[239:240], _MONDAY + 4 * _HOUR)
+
+
+def test_the_replay_releases_a_candle_whose_close_the_warmup_did_not_observe():
+    from jesse.modes.backtest_mode import _timestamp_bucket_generation_schedule
+
+    rows = _weekday_sessions(1)[:3]
+    friday = _MONDAY - 3 * _DAY
+    one_day = [('1D', 1440)]
+    # the warmup ended with Friday's session: Monday's first row releases Friday's candle
+    assert _timestamp_bucket_generation_schedule(rows, one_day, friday + 1259 * _MINUTE) == {0: [('1D', friday)]}
+    # a warmup whose last row is its day's last minute released that day itself
+    assert _timestamp_bucket_generation_schedule(rows, one_day, friday + 1439 * _MINUTE) == {}
+    # a candle the rows continue is theirs to release (these end before Monday closes)
+    assert _timestamp_bucket_generation_schedule(rows, one_day, _MONDAY + 869 * _MINUTE) == {}
+    assert _timestamp_bucket_generation_schedule(rows, one_day) == {}
 
 
 def test_passed_candles_are_not_affected_by_running_isolated_backtests():

@@ -7,6 +7,9 @@ from jesse.exceptions import InvalidConfig
 class SimulationModel(str, Enum):
     SPOT = 'spot'
     PERPETUAL_FUTURES = 'perpetual_futures'
+    # Broker margin account (equities, CFDs, FX): signed positions, one cash account,
+    # broker-managed leverage cap, no liquidation price or funding.
+    MARGIN = 'margin'
 
 
 class Annualization(IntEnum):
@@ -17,6 +20,7 @@ class Annualization(IntEnum):
 _LEGACY_TYPE_TO_MODEL = {
     'spot': SimulationModel.SPOT,
     'futures': SimulationModel.PERPETUAL_FUTURES,
+    'margin': SimulationModel.MARGIN,
 }
 _MODEL_TO_LEGACY_TYPE = {model: legacy for legacy, model in _LEGACY_TYPE_TO_MODEL.items()}
 

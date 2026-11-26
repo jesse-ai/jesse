@@ -521,7 +521,7 @@ def test_config_overrides_are_validated_and_stay_in_the_draft(jesse):
                 {'logging': {'order_submision': False}}, {'logging': {'order_submission': 'no'}},
                 {'notifications': {'events': {'erors': False}}}, {'notifications': {'enabled': 1}},
                 {'notifications': {'position_report_timeframe': '7m'}}, {'notifications': {'chat_id': 'x'}},
-                {'exchange': {'simulation_model': 'perp'}}, {'exchange': {'type': 'margin'}},
+                {'exchange': {'simulation_model': 'perp'}}, {'exchange': {'type': 'perp'}},
                 {'exchange': {'annualization': 300}}, {'exchange': {'annualization': True}},
                 {'order_backup_check_seconds': -1}, {'order_backup_check_seconds': None},
                 {'order_backup_check_seconds': '30'}, {'candle_backup_refresh_seconds': -1},

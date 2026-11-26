@@ -290,6 +290,27 @@ def fetch_candles_from_db(exchange: str, symbol: str, timeframe: str, start_date
     return res
 
 
+def fetch_latest_candles_from_db(exchange: str, symbol: str, timeframe: str, finish_date: int, limit: int) -> tuple:
+    """
+    The newest ``limit`` candles up to ``finish_date``, oldest first. A market that closes at
+    night and on weekends has no candles in a fixed time window right before now, so its candles
+    are picked by count instead.
+    """
+    rows = tuple(
+        Candle.select(
+            Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
+            Candle.volume
+        ).where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == timeframe,
+            Candle.timestamp <= finish_date
+        ).order_by(Candle.timestamp.desc()).limit(limit).tuples()
+    )
+
+    return rows[::-1]
+
+
 def get_candle_timestamp_bounds(exchange: str, symbol: str, timeframe: str) -> tuple[int | None, int | None]:
     """Return the first and latest stored timestamps for one canonical candle series."""
     timeframe_condition = Candle.timeframe == timeframe

@@ -375,10 +375,9 @@ def hydrate_executed_orders(trade: ClosedTrade) -> None:
     fees), and both exchange and simulated orders (the startup position adjustments) feed the
     qty/price arrays. Shared by restart reconciliation and in-memory trade restoration.
     """
+    from jesse.repositories import order_repository
     exchange_orders = list(
-        Order.select()
-        .where(Order.trade_id == trade.id)
-        .where(Order.status == order_statuses.EXECUTED)
+        order_repository.executed_for_trades_query([trade.id])
         .where(Order.order_exist_in_exchange == True)
         .order_by(Order.executed_at)
     )

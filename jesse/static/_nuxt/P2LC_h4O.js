@@ -1,0 +1,1 @@
+import{S as e}from"./NIs1taD_.js";function t(){let t=e()?.vnode?.scopeId;return t?{[t]:``}:{}}export{t};

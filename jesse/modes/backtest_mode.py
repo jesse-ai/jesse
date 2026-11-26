@@ -657,24 +657,47 @@ def _timestamp_replay_common_start(candles: dict) -> int:
 def _timestamp_bucket_generation_schedule(
         candles: np.ndarray,
         generating_timeframes: list[tuple[str, int]],
+        stored_until: int | None = None,
 ) -> dict[int, list[tuple[str, int]]]:
-    """Map each completed nonempty clock bucket to its first observed availability event."""
+    """Map the index of each row that releases completed nonempty clock buckets (the first row
+    at or after their closing boundary) to ``(timeframe, bucket start)`` of those buckets.
+
+    ``stored_until`` is the timestamp of the last source row already in storage ahead of
+    ``candles`` (injected warmup). When a market closure swallowed the end of that row's bucket
+    (the daily candle of the session before the start, say), ``candles`` release it too.
+    """
     schedule: dict[int, list[tuple[str, int]]] = {}
+    if not len(candles):
+        return schedule
     event_times = candles[:, 0].astype(np.int64) + 60_000
     timestamps = candles[:, 0].astype(np.int64)
     for timeframe, timeframe_minutes in generating_timeframes:
         timeframe_ms = timeframe_minutes * 60_000
+        if stored_until is not None:
+            pending_start = stored_until - stored_until % timeframe_ms
+            if stored_until + 60_000 < pending_start + timeframe_ms <= timestamps[0]:
+                schedule.setdefault(0, []).append((timeframe, pending_start))
         bucket_starts = (timestamps // timeframe_ms) * timeframe_ms
         boundaries = np.flatnonzero(np.diff(bucket_starts)) + 1
         starts = np.concatenate(([0], boundaries))
         for start in starts:
-            bucket_end = int(bucket_starts[start]) + timeframe_ms
-            release_index = int(np.searchsorted(event_times, bucket_end, side='left'))
+            bucket_start = int(bucket_starts[start])
+            release_index = int(np.searchsorted(event_times, bucket_start + timeframe_ms, side='left'))
             if release_index < len(candles):
-                schedule.setdefault(release_index, []).append(
-                    (timeframe, int(start))
-                )
+                schedule.setdefault(release_index, []).append((timeframe, bucket_start))
     return schedule
+
+
+def _stored_source_end(candle_data: dict) -> int | None:
+    """The timestamp of the last source row already in storage ahead of ``candle_data``'s rows
+    (warmup injected before the replay), or None."""
+    storage = store.candles.storage.get(
+        jh.key(candle_data['exchange'], candle_data['symbol'], timeframes.MINUTE_1)
+    )
+    if storage is None or not len(storage):
+        return None
+    last = int(storage[-1][0])
+    return last if last < candle_data['candles'][0, 0] else None
 
 
 def _build_timestamp_replay_plan(
@@ -697,7 +720,9 @@ def _build_timestamp_replay_plan(
             })
             event['sources'].append((key, index))
 
-        schedule = _timestamp_bucket_generation_schedule(candle_array, generating_timeframes)
+        schedule = _timestamp_bucket_generation_schedule(
+            candle_array, generating_timeframes, _stored_source_end(candles[key])
+        )
         for release_index, updates in schedule.items():
             if release_index < first_trading_index:
                 continue
@@ -708,8 +733,8 @@ def _build_timestamp_replay_plan(
                 'aggregates': [],
             })
             event['aggregates'].extend(
-                (key, timeframe, start)
-                for timeframe, start in updates
+                (key, timeframe, bucket_start)
+                for timeframe, bucket_start in updates
             )
 
     ordered_events = [events[event_time] for event_time in sorted(events)]
@@ -819,8 +844,32 @@ def _apply_timestamp_replay_event(
         source_pairs.add((exchange, symbol))
 
     aggregates_by_key: dict[str, list[tuple[str, int]]] = {}
-    for key, timeframe, start in event['aggregates']:
-        aggregates_by_key.setdefault(key, []).append((timeframe, start))
+    for key, timeframe, bucket_start in event['aggregates']:
+        aggregates_by_key.setdefault(key, []).append((timeframe, bucket_start))
+
+    def publish_aggregate(exchange: str, symbol: str, timeframe: str, bucket_start: int) -> None:
+        _publish_timestamp_bucket(exchange, symbol, timeframe, bucket_start)
+        # A bucket that closed during a market closure, or whose last minute had no trade, runs
+        # its route here, on the first row after it: once, however many of its buckets this
+        # event publishes.
+        updated_routes.add((exchange, symbol, timeframe))
+
+    def is_delayed(timeframe: str, bucket_start: int) -> bool:
+        """Whether the bucket closed before this event's source row, e.g. during a market closure."""
+        return bucket_start + TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000 < event['time']
+
+    # A delayed bucket does not contain this event's rows: it was already complete before they
+    # traded (typically it closed during a market closure). Publish all of them, for every
+    # instrument, before any price effect: a fill callback may read any instrument's candles,
+    # and that read would otherwise store the new forming bucket ahead of the completed one,
+    # which add_candle then drops.
+    on_time_aggregates: dict[str, list[tuple[str, int]]] = {}
+    for key, exchange, symbol, _, _ in source_updates:
+        for timeframe, bucket_start in aggregates_by_key.pop(key, []):
+            if process_orders and is_delayed(timeframe, bucket_start):
+                publish_aggregate(exchange, symbol, timeframe, bucket_start)
+            else:
+                on_time_aggregates.setdefault(key, []).append((timeframe, bucket_start))
 
     # Every source row is visible before price effects begin. Within each
     # instrument, preserve the dense simulator's price-before-aggregate order.
@@ -833,34 +882,30 @@ def _apply_timestamp_replay_event(
                 previous_close=previous_close,
             )
 
-        for timeframe, start in aggregates_by_key.pop(key, []):
-            timeframe_ms = TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000
-            bucket_start = int(candles[key]['candles'][start, 0])
-            bucket_start -= bucket_start % timeframe_ms
-            visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
-            source_start = int(np.searchsorted(visible_source[:, 0], bucket_start, side='left'))
-            source_stop = int(np.searchsorted(
-                visible_source[:, 0],
-                bucket_start + timeframe_ms,
-                side='left',
-            ))
-            generated = candle_service.generate_candle_from_observed_minutes(
-                timeframe,
-                visible_source[source_start:source_stop],
-            )
-            candle_service.add_candle(
-                generated,
-                exchange,
-                symbol,
-                timeframe,
-                with_execution=False,
-                with_generation=False,
-            )
-            available_at = int(generated[0]) + timeframe_ms
-            if available_at == event['time']:
-                updated_routes.add((exchange, symbol, timeframe))
+        for timeframe, bucket_start in on_time_aggregates.get(key, []):
+            publish_aggregate(exchange, symbol, timeframe, bucket_start)
 
     return updated_routes, source_pairs
+
+
+def _publish_timestamp_bucket(exchange: str, symbol: str, timeframe: str, bucket_start: int) -> None:
+    """Store the completed candle of one clock bucket, built from its visible source rows."""
+    timeframe_ms = TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000
+    visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
+    source_start = int(np.searchsorted(visible_source[:, 0], bucket_start, side='left'))
+    source_stop = int(np.searchsorted(visible_source[:, 0], bucket_start + timeframe_ms, side='left'))
+    generated = candle_service.generate_candle_from_observed_minutes(
+        timeframe,
+        visible_source[source_start:source_stop],
+    )
+    candle_service.add_candle(
+        generated,
+        exchange,
+        symbol,
+        timeframe,
+        with_execution=False,
+        with_generation=False,
+    )
 
 
 def _timestamp_event_updates_trading_route(
@@ -913,32 +958,13 @@ def _apply_timestamp_replay_batch(
         source_pairs.add((exchange, symbol))
 
     for event in events:
-        for key, timeframe, start in event['aggregates']:
+        for key, timeframe, bucket_start in event['aggregates']:
             candle_data = candles[key]
             exchange, symbol = candle_data['exchange'], candle_data['symbol']
-            timeframe_ms = TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000
-            bucket_start = int(candle_data['candles'][start, 0])
-            bucket_start -= bucket_start % timeframe_ms
-            visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
-            source_start = int(np.searchsorted(visible_source[:, 0], bucket_start, side='left'))
-            source_stop = int(np.searchsorted(
-                visible_source[:, 0],
-                bucket_start + timeframe_ms,
-                side='left',
-            ))
-            generated = candle_service.generate_candle_from_observed_minutes(
-                timeframe,
-                visible_source[source_start:source_stop],
-            )
-            candle_service.add_candle(
-                generated,
-                exchange,
-                symbol,
-                timeframe,
-                with_execution=False,
-                with_generation=False,
-            )
-            if event is endpoint and int(generated[0]) + timeframe_ms == endpoint['time']:
+            _publish_timestamp_bucket(exchange, symbol, timeframe, bucket_start)
+            # Earlier events of the span publish no trading-route bucket (the caller ends the
+            # span at the first one that does), so only the endpoint can make a route run.
+            if event is endpoint:
                 updated_routes.add((exchange, symbol, timeframe))
 
     store.app.time = float(endpoint['time'])
@@ -1235,32 +1261,11 @@ def _step_simulator(
             # Timestamp replay publishes every completed clock bucket at the
             # first real source-candle event on or after that bucket's boundary.
             if store.candles.uses_timestamp_buckets:
-                for timeframe, start in timestamp_generation_schedule.get(i, []):
-                    timeframe_ms = TIMEFRAME_TO_ONE_MINUTES[timeframe] * 60_000
-                    bucket_start = int(candles_arr[start, 0])
-                    bucket_start -= bucket_start % timeframe_ms
-                    visible_source = candle_service.get_candles(exchange, symbol, timeframes.MINUTE_1)
-                    source_start = int(np.searchsorted(visible_source[:, 0], bucket_start, side='left'))
-                    source_stop = int(np.searchsorted(
-                        visible_source[:, 0], bucket_start + timeframe_ms, side='left'
-                    ))
-                    generated_candle = candle_service.generate_candle_from_observed_minutes(
-                        timeframe,
-                        visible_source[source_start:source_stop],
-                    )
-                    add_candle(
-                        generated_candle,
-                        exchange,
-                        symbol,
-                        timeframe,
-                        with_execution=False,
-                        with_generation=False,
-                    )
-                    # A bucket crossed during a closure becomes visible when the
-                    # market resumes, but it cannot create a delayed strategy
-                    # callback pretending that its absent boundary had traded.
-                    if int(generated_candle[0]) + timeframe_ms == int(store_app.time):
-                        updated_timeframes.add(timeframe)
+                for timeframe, bucket_start in timestamp_generation_schedule.get(i, []):
+                    _publish_timestamp_bucket(exchange, symbol, timeframe, bucket_start)
+                    # A bucket that closed during a market closure is published, and
+                    # runs its route, when trading resumes.
+                    updated_timeframes.add(timeframe)
             else:
                 for timeframe, count in generating_timeframes:
                     if i_next % count != 0:

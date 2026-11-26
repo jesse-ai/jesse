@@ -361,10 +361,10 @@ def _parse_config(value: Any) -> Optional[dict]:
         if mode is not None and mode not in LEVERAGE_MODES:
             raise _Failure('invalid_request', 'config.exchange.futures_leverage_mode must be "cross" or "isolated".')
         # "futures" is the older name the dashboard also accepts for perpetual_futures.
-        if 'simulation_model' in exchange and exchange['simulation_model'] not in ('spot', 'perpetual_futures', 'futures'):
-            raise _Failure('invalid_request', 'config.exchange.simulation_model must be "spot" or "perpetual_futures".')
-        if 'type' in exchange and exchange['type'] not in ('spot', 'futures'):
-            raise _Failure('invalid_request', 'config.exchange.type must be "spot" or "futures".')
+        if 'simulation_model' in exchange and exchange['simulation_model'] not in ('spot', 'perpetual_futures', 'futures', 'margin'):
+            raise _Failure('invalid_request', 'config.exchange.simulation_model must be "spot", "perpetual_futures" or "margin".')
+        if 'type' in exchange and exchange['type'] not in ('spot', 'futures', 'margin'):
+            raise _Failure('invalid_request', 'config.exchange.type must be "spot", "futures" or "margin".')
         annualization = exchange.get('annualization')
         if 'annualization' in exchange and (isinstance(annualization, bool) or annualization not in (252, 365)):
             raise _Failure('invalid_request', 'config.exchange.annualization must be 365 or 252.')

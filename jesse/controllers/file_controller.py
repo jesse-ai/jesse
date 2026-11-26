@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, Form, File, Depends
 
+from jesse.services import auth as authenticator
 from jesse.services.auth import require_auth, require_auth_token, unauthorized_response
 from jesse.modes import data_provider
 from jesse.services.web import ImportApiKeyRequestJson, LoginRequestJson
@@ -27,7 +28,7 @@ def download_api_keys(
     """
 
     # Verify password for this sensitive operation
-    if request_json.password != ENV_VALUES['PASSWORD']:
+    if not authenticator.is_correct_password(request_json.password):
         return unauthorized_response()
 
     jh.validate_cwd()
@@ -73,7 +74,7 @@ def download_notification_api_keys(
     Download notification API keys - requires password verification
     """
 
-    if request_json.password != ENV_VALUES['PASSWORD']:
+    if not authenticator.is_correct_password(request_json.password):
         return unauthorized_response()
 
     jh.validate_cwd()

@@ -22,6 +22,27 @@ LSP_DEFAULT_PORT = 9001
 # Global variable to store/track the lsp process
 LSP_PROCESS = None
 
+# The code editor server listens on this machine only and accepts only connections that carry
+# this token. The dashboard reaches it through Jesse's own /lsp route, which checks the user's
+# login first, so its port never needs to be reachable from outside.
+LSP_HOST = '127.0.0.1'
+LSP_TOKEN_ENV_KEY = 'JESSE_LSP_TOKEN'
+
+
+def lsp_token() -> str:
+    """The token of the code editor server this Jesse started, shared with its child processes."""
+    import secrets
+    token = os.environ.get(LSP_TOKEN_ENV_KEY)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        os.environ[LSP_TOKEN_ENV_KEY] = token
+    return token
+
+
+def lsp_port() -> int:
+    from jesse.services.env import ENV_VALUES
+    return int(ENV_VALUES['LSP_PORT']) if 'LSP_PORT' in ENV_VALUES else LSP_DEFAULT_PORT
+
 
 LSP_RELEASE_URL = "https://api.github.com/repos/jesse-ai/python-language-server/releases/latest"
 
@@ -318,7 +339,7 @@ def run_lsp_server():
     jesse_framework_parent = os.path.dirname(JESSE_DIR)  # /home/king/jesse/jesse-ai/jesse    
     
     print("Starting Python Language Server...")
-    print(f"LSP WS started at ws://localhost:{port}/lsp\n")
+    print(f"LSP WS started at ws://{LSP_HOST}:{port}/lsp\n")
     
     # Start the lsp process and return the handle
     try:
@@ -329,7 +350,10 @@ def run_lsp_server():
                     start_script,
                     '--port', str(port),
                     '--bot-root', jesse_bot_root,
-                    '--jesse-root', jesse_framework_parent
+                    '--jesse-root', jesse_framework_parent,
+                    # older code editor servers ignore these two and listen everywhere without a token
+                    '--host', LSP_HOST,
+                    '--token', lsp_token(),
                 ],
                 stdout=devnull,  # redirect stdout to devnull to suppress LSP output
                 stderr=devnull,  # redirect stderr to devnull to suppress LSP errors

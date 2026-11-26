@@ -1025,7 +1025,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+                            self._tag_exit_order(submitted_order, order_submitted_via.STOP_LOSS)
 
                         # if self.take_profit has been modified
 
@@ -1068,7 +1068,7 @@ class Strategy(ABC):
 
                         submitted_order: Order = self.broker.reduce_position_at(o[0], order_price, self.price)
                         if submitted_order:
-                            submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
+                            self._tag_exit_order(submitted_order, order_submitted_via.TAKE_PROFIT)
     
         except TypeError:
             raise exceptions.InvalidStrategy(
@@ -1147,6 +1147,9 @@ class Strategy(ABC):
                         logger.info(f'Waiting {waiting_seconds} second for pending market exit orders to be handled...')
                     waiting_counter += 1
                     if waiting_counter > 22:
+                        # a venue that confirms it is holding the orders is responding
+                        if self._venue_holds_pending_market_exits():
+                            break
                         raise exceptions.ExchangeNotResponding(
                             'The exchange did not respond as expected for order execution'
                         )
@@ -1179,8 +1182,38 @@ class Strategy(ABC):
             elif should_short:
                 self._execute_short()
 
+    @staticmethod
+    def _tag_exit_order(order: Order, submitted_via: str) -> None:
+        """Mark an exit order as the strategy's stop-loss or take-profit."""
+        order.submitted_via = submitted_via
+        # Saved at once in live sessions: an exit that only waits in Jesse's queue is not on the
+        # exchange, so after a restart this row is all that tells what it was.
+        if jh.is_livetrading():
+            order_repository.update(order)
+
+    def _pending_market_exit_orders(self) -> List[Order]:
+        # A venue with trading hours (e.g. a stock broker) accepts a market order while it is
+        # closed and fills it at the next open, and can hold one through an auction or a trading
+        # halt; its driver marks such orders so execution does not wait for a fill that cannot
+        # happen yet.
+        return [
+            o for o in self.exit_orders
+            if o.is_active and o.type == order_types.MARKET and not (o.vars or {}).get('held_by_venue')
+        ]
+
     def _have_any_pending_market_exit_orders(self) -> bool:
-        return any(o.is_active and o.type == order_types.MARKET for o in self.exit_orders)
+        return bool(self._pending_market_exit_orders())
+
+    def _venue_holds_pending_market_exits(self) -> bool:
+        """
+        Asked once the wait for a market exit ran out. The driver checks each order at the venue:
+        it applies a fill the order stream missed and marks an order the venue is still working,
+        so the session carries on and the exit fills when the venue trades the symbol again.
+        """
+        return all(
+            self.broker.api.holds_unfilled_market_order(self.exchange, o)
+            for o in self._pending_market_exit_orders()
+        )
 
     @staticmethod
     def _simulate_market_order_execution() -> None:
@@ -1220,7 +1253,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = order_submitted_via.STOP_LOSS
+                    self._tag_exit_order(submitted_order, order_submitted_via.STOP_LOSS)
 
         if self.take_profit is not None:
             for o in self._take_profit:
@@ -1237,7 +1270,7 @@ class Strategy(ABC):
                     submitted_order: Order = self.broker.reduce_position_at(o[0], o[1], self.price)
 
                 if submitted_order:
-                    submitted_order.submitted_via = order_submitted_via.TAKE_PROFIT
+                    self._tag_exit_order(submitted_order, order_submitted_via.TAKE_PROFIT)
 
         self.on_open_position(order)
         self._detect_and_handle_entry_and_exit_modifications()
@@ -1779,9 +1812,10 @@ class Strategy(ABC):
 
     @property
     def leverage(self) -> int:
-        if type(self.position.exchange) is SpotExchange:
+        if isinstance(self.position.exchange, SpotExchange):
             return 1
-        elif type(self.position.exchange) is FuturesExchange:
+        # covers MarginExchange too, where the value is the user's leverage cap
+        elif isinstance(self.position.exchange, FuturesExchange):
             return self.position.exchange.futures_leverage
         else:
             raise ValueError(f'exchange type not supported: "{self.position.exchange}"')
@@ -1822,6 +1856,10 @@ class Strategy(ABC):
 
     @property
     def portfolio_value(self) -> float:
+        # Broker equity already includes unrealized PnL. Simulation still uses the inherited
+        # futures wallet bookkeeping, so this shortcut applies only to broker live sessions.
+        if jh.is_livetrading() and self.is_margin_trading:
+            return self.balance
         total_position_values = 0
 
         # in spot mode, self.balance does not include open order's value, so:
@@ -1839,9 +1877,8 @@ class Strategy(ABC):
 
             total_position_values = entry_orders_value + positions_value
 
-        # in futures mode, it's simpler. A position's qty already includes the
-        # leverage, so its PNL is what closing it would add to the balance:
-        elif self.is_futures_trading:
+        # Position PNL already includes the full leveraged quantity.
+        elif self.position.exchange.uses_margin_accounting:
             for key, p in self.all_positions.items():
                 total_position_values += p.pnl
 
@@ -1893,6 +1930,14 @@ class Strategy(ABC):
     @property
     def is_futures_trading(self) -> bool:
         return self.exchange_type == 'futures'
+
+    @property
+    def is_margin_trading(self) -> bool:
+        """
+        True on broker margin accounts (e.g. Alpaca Stocks Margin): long and short with a leverage
+        cap, one shared cash account, no liquidation price and no funding.
+        """
+        return self.exchange_type == 'margin'
 
     @property
     def daily_balances(self) -> list:

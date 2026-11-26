@@ -3,6 +3,7 @@ from typing import Optional
 
 import jesse.helpers as jh
 from jesse.enums import order_statuses
+from jesse.info import exchange_info
 from jesse.repositories import (
     candle_repository,
     closed_trade_repository,
@@ -38,17 +39,39 @@ def _validate_route(session, exchange: str, symbol: str, timeframe: str) -> None
         raise ValueError('The requested route does not belong to this live session.')
 
 
+def _has_sparse_candles(exchange: str) -> bool:
+    """Whether the exchange only has candles while its market trades (a stock exchange)."""
+    return bool(exchange_info.get(exchange, {}).get('capabilities', {}).get('sparse_candles'))
+
+
+def _context_lower_bound(session, exchange: str, symbol: str, timeframe: str) -> int:
+    """
+    Where the chart's context before the session begins: CONTEXT_CANDLES candles earlier. On a
+    market that closes, those candles can be days before the start (a session started on a
+    weekend), so they are found by count instead of by a span of time.
+    """
+    session_start = int(session.created_at)
+    if _has_sparse_candles(exchange):
+        context = candle_repository.fetch_latest_candles_from_db(
+            exchange, symbol, timeframe, session_start - 1, CONTEXT_CANDLES,
+        )
+        return int(context[0][0]) if context else session_start
+    return session_start - (CONTEXT_CANDLES * jh.timeframe_to_one_minutes(timeframe) * 60_000)
+
+
 def _candle_window(
     session,
     timeframe: str,
     anchor_time: Optional[int],
     candle_count: int,
+    lower_bound: Optional[int] = None,
 ) -> tuple[int, int, int, int, int]:
     count = max(MIN_CANDLE_COUNT, min(int(candle_count), MAX_CANDLE_COUNT))
     timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
     session_start = int(session.created_at)
     session_end = int(session.finished_at or jh.now(force_fresh=True))
-    lower_bound = session_start - (CONTEXT_CANDLES * timeframe_ms)
+    if lower_bound is None:
+        lower_bound = session_start - (CONTEXT_CANDLES * timeframe_ms)
     span = max(0, count - 1) * timeframe_ms
 
     if anchor_time is None:
@@ -74,9 +97,11 @@ def _full_candle_window(
     orders: list,
     trades: list,
     chart_bounds: Optional[tuple[int, int]],
+    lower_bound: Optional[int] = None,
 ) -> tuple[int, int, int, int, int]:
     timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
-    lower_bound = int(session.created_at) - (CONTEXT_CANDLES * timeframe_ms)
+    if lower_bound is None:
+        lower_bound = int(session.created_at) - (CONTEXT_CANDLES * timeframe_ms)
     activity_times = [
         int(session.finished_at or jh.now(force_fresh=True)),
         *[
@@ -202,6 +227,9 @@ def get_live_session_chart_data(
         if trade.exchange == exchange and trade.symbol == symbol and trade.closed_at is not None
     ]
 
+    is_sparse = _has_sparse_candles(exchange)
+    context_start = _context_lower_bound(session, exchange, symbol, timeframe)
+
     if full_history:
         chart_bounds = live_chart_repository.get_chart_time_bounds(
             str(session.id),
@@ -215,19 +243,31 @@ def get_live_session_chart_data(
             session_orders,
             session_trades,
             chart_bounds,
+            context_start,
         )
     else:
         start, finish, count, lower_bound, session_end = _candle_window(
-            session, timeframe, anchor_time, candle_count
+            session, timeframe, anchor_time, candle_count, context_start
         )
 
-    raw_candles = candle_repository.fetch_candles_from_db(
-        exchange,
-        symbol,
-        timeframe,
-        start,
-        finish,
-    )
+    if is_sparse and not full_history:
+        # The window above spans `count` intervals of clock time, which on a closed market can
+        # hold no candle at all. Take the newest `count` candles up to its end instead.
+        raw_candles = tuple(
+            candle for candle in candle_repository.fetch_latest_candles_from_db(
+                exchange, symbol, timeframe, finish, count,
+            )
+            if candle[0] >= lower_bound
+        )
+        start = int(raw_candles[0][0]) if raw_candles else lower_bound
+    else:
+        raw_candles = candle_repository.fetch_candles_from_db(
+            exchange,
+            symbol,
+            timeframe,
+            start,
+            finish,
+        )
     candles = [
         {
             'time': int(candle[0] / 1000),

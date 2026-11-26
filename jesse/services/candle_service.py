@@ -489,6 +489,12 @@ def generate_new_candles_loop() -> None:
         if jh.now() % 60_000 != 1000:
             return
 
+        # Sparse venues (stock markets) have no candles while the market is closed. An absent
+        # minute is not an event there, so nothing is fabricated; such live sessions use the same
+        # clock-bucket model as observed-only backtests (see uses_timestamp_buckets).
+        if store.candles.uses_timestamp_buckets:
+            return
+
         for c in router.all_formatted_routes:
             exchange, symbol, timeframe = c['exchange'], c['symbol'], c['timeframe']
             current_candle = get_current_candle(exchange, symbol, timeframe)
@@ -560,7 +566,18 @@ def add_candle(
             return
 
         # if it's not an old candle, update the related position's current_price
-        if jh.next_candle_timestamp(candle, timeframe) > jh.now():
+        latest_array, latest_index = arr.snapshot()
+        # Stock streams deliver completed bars after their minute ends. Their newest observed
+        # close is still the current price; an older REST backfill must never move it backwards.
+        newest_sparse_minute = (
+            store.candles.uses_timestamp_buckets and timeframe == '1m'
+            and candle_timestamp < jh.now()
+            and (latest_index == -1 or candle_timestamp >= latest_array[latest_index, 0])
+        )
+        if newest_sparse_minute or (
+                not store.candles.uses_timestamp_buckets
+                and jh.next_candle_timestamp(candle, timeframe) > jh.now()
+        ):
             _update_position_current_price(exchange, symbol, candle[2])
 
         # ignore new candle at the time of execution because it messes
@@ -750,7 +767,10 @@ def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
     if cutoff is not None:
         array, index = store.candles.get_storage(exchange, symbol, timeframe).snapshot()
         visible = array[:index + 1]
-        return visible[:np.searchsorted(visible[:, 0], cutoff)]
+        visible = visible[:np.searchsorted(visible[:, 0], cutoff)]
+        if store.candles.uses_timestamp_buckets and timeframe != '1m':
+            return _hide_minutes_after_cutoff(visible, exchange, symbol, timeframe, cutoff)
+        return visible
 
     # this runs on every single indicator call, so storage access is done with
     # plain dict lookups instead of going through forming_estimation +
@@ -804,6 +824,38 @@ def get_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:
     # in live mode, just return the complete candles
     else:
         return long_array[:long_count]
+
+
+def _hide_minutes_after_cutoff(
+        visible: np.ndarray, exchange: str, symbol: str, timeframe: str, cutoff: int,
+) -> np.ndarray:
+    """
+    On sparse venues a strategy can run while its newest candle is still forming (the bar that
+    released the finished one opened a new clock bucket). The stored forming candle keeps
+    absorbing minutes as they arrive, so a late run rebuilds it from the minutes that opened
+    before the cutoff, which is what a backtest shows at that event.
+    """
+    if not len(visible):
+        return visible
+
+    timeframe_ms = jh.timeframe_to_one_minutes(timeframe) * 60_000
+    bucket_start = int(visible[-1, 0])
+    # a candle that closed by the cutoff holds no later minute
+    if bucket_start + timeframe_ms <= cutoff:
+        return visible
+
+    short_array, short_index = store.candles.get_storage(exchange, symbol, '1m').snapshot()
+    minutes = short_array[:short_index + 1, 0]
+    start = int(np.searchsorted(minutes, bucket_start, side='left'))
+    end = int(np.searchsorted(minutes, cutoff, side='left'))
+    bucket_end = int(np.searchsorted(minutes, bucket_start + timeframe_ms, side='left'))
+    # no minute of this bucket opened at or after the cutoff: the stored candle is already right
+    if end == bucket_end:
+        return visible
+    if end == start:
+        return visible[:-1]
+    forming_candle = generate_candle_from_observed_minutes(timeframe, short_array[start:end])
+    return np.concatenate((visible[:-1], forming_candle[None, :]))
 
 
 def _get_timestamp_bucket_candles(exchange: str, symbol: str, timeframe: str) -> np.ndarray:

@@ -2,7 +2,7 @@
 Authenticated same-origin route for the Jesse MCP server.
 
 MCP clients connect to ``<dashboard origin>/mcp``. This route authenticates every request
-with the dashboard token before any upstream connection is opened, then relays it to the
+with the MCP token before any upstream connection is opened, then relays it to the
 loopback-only MCP worker (jesse.mcp.server) and streams the response back unchanged:
 status codes (including the worker's own 401/404/405 responses), protocol and session
 headers, and Server-Sent Events are forwarded without buffering.

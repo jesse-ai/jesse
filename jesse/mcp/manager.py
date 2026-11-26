@@ -343,7 +343,7 @@ def run_mcp_server(jesse_host: str, jesse_port: int, dashboard_url: str) -> None
     )
     print(click.style("└" + border + "┘", fg="cyan", bold=True))
     print(
-        "  MCP clients must send your dashboard token as \"Authorization: Bearer <token>\"."
+        "  MCP clients must send your MCP token as \"Authorization: Bearer <token>\"."
         " Setup: https://docs.jesse.trade/docs/mcp/setup"
     )
     print()

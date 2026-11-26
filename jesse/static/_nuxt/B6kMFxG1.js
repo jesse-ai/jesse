@@ -1,1 +1,0 @@
-import{xt as e}from"./1OJtSa29.js";import{t}from"./BDNMzG2s.js";var n={};function r(t,n){return e(t.$slots,`default`)}var i=t(n,[[`render`,r]]);export{i as default};
