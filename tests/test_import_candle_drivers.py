@@ -514,3 +514,30 @@ def test_hyperliquid_starting_time_refines_day_to_minute_within_retention(monkey
 
     monkeypatch.setattr(requests, 'post', post_old)
     assert driver.get_starting_time('BTC-USD') == day
+
+
+def test_gate_starting_time_is_the_listing_week_in_milliseconds(monkeypatch):
+    # regression: the spot lookup sent the futures `contract` parameter, which Gate rejects with
+    # MISSING_REQUIRED_PARAM, and both markets returned seconds, so an early start was never clipped.
+    spot_listing, futures_listing = 1_514_764_800, 1_574_035_200  # Gate reports seconds
+    captured = {}
+
+    def request(url, params=None):
+        captured.update(params or {})
+        if url.endswith('/usdt/candlesticks'):
+            return FakeResponse([{'t': futures_listing, 'o': '8474', 'c': '6870', 'h': '8495', 'l': '6718.5', 'v': 8204333}])
+        if 'currency_pair' not in params:
+            return FakeResponse({'label': 'MISSING_REQUIRED_PARAM'}, status_code=400, reason='Bad Request')
+        return FakeResponse([[str(spot_listing), '83012553.4', '16091.03', '22276.33', '12786.5', '13588', '5444.7', 'true']])
+
+    monkeypatch.setattr(requests, 'get', request)
+
+    assert drivers['Gate Spot']().get_starting_time('BTC-USDT') == spot_listing * 1000
+    assert captured['currency_pair'] == 'BTC_USDT' and captured['interval'] == '1w'
+
+    futures = drivers['Gate USDT Perpetual']()
+    assert futures.get_starting_time('BTC-USDT') == futures_listing * 1000
+    request_range = HistoricalCandleRange(1_500_000_000_000, 1_800_000_000_000)
+    assert futures.find_earliest_available_timestamp(
+        HistoricalCandleRequest('BTC-USDT', '1m', request_range)
+    ) == futures_listing * 1000

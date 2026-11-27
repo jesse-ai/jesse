@@ -43,7 +43,7 @@ class GateUSDTMain(CandleExchange):
         data = response.json()
         # Reverse the data list
 
-        return int(data[0]['t'])
+        return int(data[0]['t']) * 1000
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         symbol = jh.dashy_to_underline(symbol)

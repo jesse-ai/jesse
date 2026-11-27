@@ -16,7 +16,7 @@ class GateSpotMain(CandleExchange):
     def get_starting_time(self, symbol: str) -> int:
         symbol = jh.dashy_to_underline(symbol)
         payload = {
-            'contract': symbol,
+            'currency_pair': symbol,
             'interval': '1w',
             'limit': 1000,
             'from': 1514811660
@@ -31,7 +31,7 @@ class GateSpotMain(CandleExchange):
         data = response.json()
         # Reverse the data list
 
-        return int(data[0]['t'])
+        return int(data[0][0]) * 1000
 
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
         symbol = jh.dashy_to_underline(symbol)
