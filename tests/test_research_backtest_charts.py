@@ -21,8 +21,7 @@ class _BuyEveryCandle(Strategy):
         return True
 
 
-def _run():
-    n = 120
+def _run(n=120, timeframe='1m'):
     start = jh.date_to_timestamp('2024-01-01')
     close = 100 + np.sin(np.arange(n) / 5)
     c = np.zeros((n, 6))
@@ -34,7 +33,7 @@ def _run():
     c[:, 5] = 1
     config = {'starting_balance': 10_000, 'fee': 0, 'type': 'spot', 'futures_leverage': 1,
               'futures_leverage_mode': 'cross', 'exchange': 'Binance Spot', 'warm_up_candles': 0}
-    routes = [{'exchange': 'Binance Spot', 'strategy': _BuyEveryCandle, 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
+    routes = [{'exchange': 'Binance Spot', 'strategy': _BuyEveryCandle, 'symbol': 'BTC-USDT', 'timeframe': timeframe}]
     candles = {jh.key('Binance Spot', 'BTC-USDT'): {'exchange': 'Binance Spot', 'symbol': 'BTC-USDT', 'candles': c}}
     return backtest(config, routes, [], candles, generate_charts=True)
 
@@ -50,3 +49,14 @@ def test_a_chart_failure_still_returns_the_finished_backtest(monkeypatch):
 
     assert result['metrics']['total'] > 0
     assert 'charts_session_id' not in result
+
+
+def test_a_backtest_over_several_months_draws_every_chart(tmp_path, monkeypatch):
+    # Months of data reach the monthly heatmap, whose colour map lookup broke on Matplotlib 3.11.
+    monkeypatch.chdir(tmp_path)
+
+    result = _run(n=1440 * 75, timeframe='4h')
+
+    session_id = result['charts_session_id']
+    for name in ('equity_curve', 'drawdown', 'monthly_heatmap', 'monthly_distribution', 'trade_pnl', 'entry_timing'):
+        assert (tmp_path / 'storage' / 'backtest-charts' / f'{session_id}_{name}.png').exists()

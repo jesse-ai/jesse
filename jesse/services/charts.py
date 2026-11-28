@@ -396,8 +396,7 @@ def _plot_backtest_charts(session_id: str, charts_folder: str, theme: str = 'lig
         abs_max = max(10, float(np.nanmax(np.abs(monthly_grid[~np.isnan(monthly_grid)]))) if not np.all(np.isnan(monthly_grid)) else 10)
         norm = TwoSlopeNorm(vmin=-abs_max, vcenter=0, vmax=abs_max)
         nan_color = t['axes_facecolor']
-        cmap_copy = plt.cm.get_cmap('RdYlGn').copy()
-        cmap_copy.set_bad(color=nan_color)
+        cmap_copy = matplotlib.colormaps['RdYlGn'].with_extremes(bad=nan_color)
 
         ax.imshow(masked, cmap=cmap_copy, norm=norm, aspect='auto')
 
